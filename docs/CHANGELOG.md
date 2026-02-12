@@ -5,65 +5,174 @@
 
 ---
 
-## v0.2.0 (예정) - 비서실장 오케스트레이터 통합 + 비용 추적 고도화
+## v0.2.0 (2026-02-12) - 비서실장 오케스트레이터 통합 + 비용 추적 고도화
 
-> 상태: **구현 대기 (CEO 승인 필요)**
+> 상태: **구현 완료**
 
-### 무엇이 바뀌나요?
+### 한 줄 요약
 
-한 줄 요약: **불필요한 본부장 레이어를 제거하고, 비서실장이 CEO의 모든 명령을 직접 관리하도록 변경합니다.**
+**불필요한 본부장 레이어를 제거하고, 비서실장이 CEO의 모든 명령을 직접 관리하도록 변경했습니다.**
 
-### 변경 사항
+---
 
-#### 조직 구조 개편
+### 왜 바꿨나? (문제점)
 
-| 구분 | v0.1.0 (기존) | v0.2.0 (변경 후) |
-|------|---------------|------------------|
-| 명령 라우팅 | 숨겨진 Orchestrator가 LLM으로 분류 | **비서실장**이 직접 분류 및 배분 |
-| LEET MASTER 본부장 | 존재 (중간 전달 역할) | **삭제** - 처장들이 비서실장 직속 |
-| 금융분석 본부장 | 존재 (중간 전달 역할) | **삭제** - CIO가 비서실장 직속 |
-| 비서실장 역할 | fallback 용도 | **총괄 오케스트레이터** |
-
-**Before (4단계):**
-```
-CEO → Orchestrator(LLM 분류) → 본부장(LLM 분류) → 처장(LLM 분류) → Specialist
-```
-
-**After (3단계):**
-```
-CEO → 비서실장(LLM 분류) → 처장(LLM 분류) → Specialist
-```
-
-#### 비용 추적 고도화
-
-| 구분 | v0.1.0 (기존) | v0.2.0 (변경 후) |
-|------|---------------|------------------|
-| 비용 기록 | 모델별만 추적 | 모델별 + **에이전트별** + **프로바이더별** 추적 |
-| CostRecord | model, provider, tokens, cost | + **agent_id** 필드 추가 |
-| API 응답 | `/api/cost`에 `by_model`만 | + `by_agent` + `by_provider` 추가 |
-
-#### UI 변경
-
-| 구분 | v0.1.0 (기존) | v0.2.0 (변경 후) |
-|------|---------------|------------------|
-| 사이드바 조직도 | 본부 → 처 → Specialist 3단계 | 비서실장 → 처 → Specialist 2단계 |
-| 에이전트 대기 색상 | 회색 (gray-600) | **앰버** (amber-500) |
-| 에이전트 작업중 색상 | 노랑 깜빡 (yellow pulse) | **초록 깜빡** (green pulse) |
-| 에이전트 비활성 색상 | 회색 (gray-600) | 회색 유지 (gray-600) |
-
-#### 수정된 파일 (9개)
+v0.1.0에서 CEO가 "삼성전자 주가 분석해줘"라고 명령하면 이런 일이 벌어졌습니다:
 
 ```
-config/agents.yaml           - 본부장 삭제, 비서실장 확장
-src/core/orchestrator.py      - 분류 LLM 호출 제거
-src/core/registry.py          - list_division_heads() 수정
-src/core/agent.py             - think()에 agent_id 전달
-src/llm/router.py             - complete()에 agent_id 파라미터 추가
-src/llm/cost_tracker.py       - CostRecord + 분석 메서드 추가
-web/templates/index.html      - 사이드바/색상/이름 전면 수정
-web/app.py                    - /api/cost 응답 확장
-src/cli/app.py                - CLI 조직도 업데이트
+CEO: "삼성전자 주가 분석해줘"
+  │
+  ▼
+① Orchestrator가 LLM을 호출해서 "이건 금융 관련이니 finance_head에게 보내자" 판단  ← LLM 호출 1회
+  │
+  ▼
+② finance_head(금융분석 본부장)가 LLM을 호출해서 "이건 cio_manager에게 보내자" 판단  ← LLM 호출 1회 (낭비!)
+  │
+  ▼
+③ cio_manager(투자분석처장)가 실제로 부하 전문가들에게 배분  ← LLM 호출 1회
+  │
+  ▼
+④ 전문가들이 분석 실행
 ```
+
+**문제가 뭐냐면:**
+- **②번이 완전히 쓸데없음.** 본부장은 "아 이거 내 밑에 CIO한테 보내야겠다" 이것만 하고 끝. 분류 역할만 하는데 그게 LLM 호출 1회 비용이 드는 것
+- 본부장이 2명(LEET MASTER 본부장, 금융분석 본부장)이었는데, 둘 다 같은 문제
+- 반면 **비서실장**은 "일반 질문"의 fallback으로만 쓰여서 거의 놀고 있었음
+
+---
+
+### 뭘 바꿨나? (변경 내역)
+
+#### 1. 조직 구조 개편 — 본부장 2명 삭제, 비서실장 승격
+
+**v0.1.0 (AS-IS) — 4단계 명령 흐름:**
+```
+CEO
+ └→ Orchestrator (숨겨진 LLM 분류기)
+      ├→ LEET MASTER 본부장 ─── 중계만 하는 허브
+      │    ├→ CTO 기술개발처장 → 전문가 4명
+      │    ├→ CSO 사업기획처장 → 전문가 3명
+      │    ├→ CLO 법무·IP처장 → 전문가 2명
+      │    └→ CMO 마케팅·고객처장 → 전문가 3명
+      │
+      ├→ 금융분석 본부장 ─── 중계만 하는 허브
+      │    └→ CIO 투자분석처장 → 전문가 4명
+      │
+      └→ 비서실장 (fallback용) → Worker 3명
+```
+
+**v0.2.0 (TO-BE) — 3단계 명령 흐름:**
+```
+CEO
+ └→ 비서실장 (Chief of Staff) ← 총괄 오케스트레이터로 승격!
+      ├→ CTO 기술개발처장 → 전문가 4명
+      ├→ CSO 사업기획처장 → 전문가 3명
+      ├→ CLO 법무·IP처장 → 전문가 2명
+      ├→ CMO 마케팅·고객처장 → 전문가 3명
+      ├→ CIO 투자분석처장 → 전문가 4명
+      └→ Worker 3명 (보고요약, 일정추적, 정보중계)
+```
+
+**핵심 변화:**
+| 항목 | v0.1.0 | v0.2.0 |
+|------|--------|--------|
+| 에이전트 수 | 27명 (본부장 2명 포함) | **25명** (본부장 삭제) |
+| CEO 명령 → 결과 단계 | 4단계 | **3단계** |
+| 명령당 불필요 LLM 호출 | 1~2회 (본부장 분류) | **0회** |
+| 비서실장 역할 | fallback (거의 안 쓰임) | **모든 명령의 총괄 관리** |
+| 명령 분류 담당 | 숨겨진 Orchestrator 클래스 | **비서실장이 직접 분류** |
+
+#### 2. 비용 추적 고도화 — 에이전트별 비용 추적
+
+v0.1.0에서는 "어떤 **모델**을 얼마나 썼는지"만 알 수 있었습니다.
+v0.2.0에서는 "어떤 **에이전트**가 얼마나 썼는지", "어떤 **프로바이더**(OpenAI/Anthropic)에 얼마나 썼는지"도 알 수 있습니다.
+
+**v0.1.0의 비용 데이터:**
+```json
+{
+  "total_cost": 0.0342,
+  "by_model": {
+    "gpt-4o": {"calls": 5, "cost_usd": 0.03},
+    "gpt-4o-mini": {"calls": 10, "cost_usd": 0.004}
+  }
+}
+```
+
+**v0.2.0의 비용 데이터:**
+```json
+{
+  "total_cost": 0.0342,
+  "by_model": { ... },
+  "by_agent": {
+    "chief_of_staff": {"calls": 3, "cost_usd": 0.012},
+    "cto_manager": {"calls": 2, "cost_usd": 0.008},
+    "frontend_specialist": {"calls": 1, "cost_usd": 0.002}
+  },
+  "by_provider": {
+    "openai": {"calls": 12, "cost_usd": 0.030},
+    "anthropic": {"calls": 3, "cost_usd": 0.004}
+  }
+}
+```
+
+**구현 방법:**
+LLM을 호출할 때마다 "누가 호출했는지(agent_id)"를 함께 기록하도록 전체 호출 체인을 수정:
+```
+에이전트.think() → ModelRouter.complete(agent_id=...) → CostTracker.record(agent_id=...)
+```
+
+#### 3. UI 변경 — 사이드바 플랫 구조 + 색상 변경
+
+**사이드바 조직도:**
+| v0.1.0 | v0.2.0 |
+|--------|--------|
+| 3단계 중첩 (본부 → 처 → 전문가) | **2단계 플랫** (처 → 전문가) |
+| LEET MASTER 본부 접기/펼치기 존재 | 삭제 (각 처가 독립) |
+| 금융분석 본부 접기/펼치기 존재 | 삭제 (CIO가 직접 표시) |
+
+**에이전트 상태 표시 색상:**
+| 상태 | v0.1.0 | v0.2.0 | 이유 |
+|------|--------|--------|------|
+| 대기중 (standby) | 🔘 회색 | 🟠 **앰버** | "준비됨"을 더 명확히 표현 |
+| 작업중 (working) | 🟡 노랑 깜빡 | 🟢 **초록 깜빡** | "활발히 동작"을 직관적으로 |
+| 완료 (done) | 🟢 초록 | 🟢 초록 (유지) | - |
+| 유휴 (idle) | 🔘 회색 | 🟠 **앰버** | 대기중과 동일 |
+| 비활성 (inactive) | 🔘 회색 | 🔘 회색 (유지) | - |
+
+**JavaScript에서 삭제된 것들:**
+- `agentNames`에서 `leet_master_head`, `finance_head` 제거
+- `agentDivision`에서 `leet_master_head`, `finance_head` 제거
+- `expanded` 객체에서 `leet` 섹션 제거
+- `getSectionAgentIds()`에서 `leet` 분기 제거
+- `handleWsMessage`에서 leet 자동 펼치기 로직 제거
+
+---
+
+### 수정된 파일 상세 (9개 파일, +168줄 / -241줄)
+
+| 파일 | 변경 요약 | 상세 |
+|------|-----------|------|
+| `config/agents.yaml` | 본부장 삭제, 비서실장 확장 | `leet_master_head`, `finance_head` 정의 삭제. `chief_of_staff`에 5개 처장을 subordinate로 추가. 처장들의 `superior_id`를 `chief_of_staff`로 변경 |
+| `src/core/orchestrator.py` | LLM 분류 호출 제거 | `_classify_command()`(LLM으로 명령 분류) 삭제. 모든 명령을 `chief_of_staff`에게 직행. `_parse_json()` 삭제 |
+| `src/core/registry.py` | 조직도 조회 수정 | `list_division_heads()`: 비서실장 직속 manager만 반환하도록 조건 변경 |
+| `src/core/agent.py` | agent_id 전파 | `think()`, `_summarize()`에서 `agent_id=self.agent_id`를 router에 전달 |
+| `src/llm/router.py` | agent_id 파라미터 추가 | `complete()`에 `agent_id` 파라미터 추가, `cost_tracker.record()`에 전달 |
+| `src/llm/cost_tracker.py` | 비용 분석 메서드 추가 | `CostRecord`에 `agent_id` 필드 추가. `summary_by_agent()`, `summary_by_provider()` 메서드 추가 |
+| `web/templates/index.html` | 사이드바 + JS 전면 수정 | HTML: 본부 wrapper 제거, 플랫 구조. JS: 본부장 참조 제거, 색상 변경, leet 관련 로직 삭제 |
+| `web/app.py` | API 응답 확장 + 버전 업 | `/api/cost`에 `by_agent`, `by_provider` 추가. FastAPI 버전 `0.2.0` |
+| `src/cli/app.py` | CLI 조직도 + 버전 업 | `_show_org_chart()` 본부장 레이어 제거. 배너 `v0.2.0` |
+
+---
+
+### 예상 효과
+
+| 항목 | 수치 |
+|------|------|
+| 명령당 LLM 호출 절감 | **1~2회** (본부장 분류 + 종합 제거) |
+| 명령당 비용 절감 | 약 **$0.002~0.005** (gpt-4o 1회 기준) |
+| 명령 처리 시간 단축 | 본부장 처리 대기 시간 제거 |
+| 비용 추적 세분화 | 모델별 → 모델별 + **에이전트별** + **프로바이더별** |
 
 ---
 
