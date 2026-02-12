@@ -47,6 +47,9 @@ STATIC_DIR = BASE_DIR / "static"
 # Load environment
 load_dotenv(PROJECT_DIR / ".env")
 
+# Output directory for saved results
+OUTPUT_DIR = PROJECT_DIR / "output"
+
 # FastAPI app
 app = FastAPI(title="CORTHEX HQ", version="0.3.0")
 if STATIC_DIR.exists():
@@ -57,9 +60,6 @@ templates = Jinja2Templates(directory=str(TEMPLATE_DIR))
 
 # WebSocket manager
 ws_manager = ConnectionManager()
-
-# Output directory for saved results
-OUTPUT_DIR = PROJECT_DIR / "output"
 
 # Global state (initialized on startup)
 orchestrator: Orchestrator | None = None
