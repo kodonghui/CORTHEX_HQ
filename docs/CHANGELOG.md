@@ -1,13 +1,61 @@
 # CORTHEX HQ 변경 이력 (Changelog)
 
-> 이 문서는 CORTHEX HQ의 버전별 변경 사항을 기록합니다.
-> 노션에 붙여넣어 팀 기록으로 활용하세요.
+> 이 문서는 CORTHEX HQ의 버전별 변경 사항을 상세히 기록합니다.
+> 각 버전마다 **왜 바꿨는지**, **뭘 바꿨는지**, **어떤 파일이 수정됐는지**를 포함합니다.
+
+---
+
+## v0.6.1 (2026-02-12) - 버그 수정
+
+> 상태: **구현 완료**
+
+### 한 줄 요약
+
+**`OUTPUT_DIR` 정의 순서 오류로 서버 시작이 안 되던 버그 수정 + 프로젝트 문서 전면 개편**
+
+---
+
+### 뭘 바꿨나?
+
+#### 1. OUTPUT_DIR NameError 수정
+
+`web/app.py`에서 `OUTPUT_DIR`이 54번째 줄에서 사용되는데, 정의는 62번째 줄에 있어서 서버 시작 시 `NameError`가 발생하던 문제를 수정했습니다.
+
+```python
+# 기존 (에러 발생):
+app.mount("/output", StaticFiles(directory=str(OUTPUT_DIR)), name="output")  # 54줄
+# ... 중간 코드 ...
+OUTPUT_DIR = PROJECT_DIR / "output"  # 62줄 ← 여기서 정의되지만 이미 위에서 사용됨
+
+# 수정 후:
+OUTPUT_DIR = PROJECT_DIR / "output"  # 정의를 먼저!
+# ...
+app.mount("/output", StaticFiles(directory=str(OUTPUT_DIR)), name="output")
+```
+
+#### 2. 프로젝트 문서 전면 개편
+
+| 파일 | 변경 |
+|------|------|
+| `README.md` | 전면 재작성 — 조직도, 빠른 시작, 사용법, 프로젝트 구조, API 엔드포인트, 기술 스택 상세 문서화 |
+| `CONTEXT.md` | **신규** — 프로젝트 배경, 아키텍처, 핵심 개념, 모듈 설명 등 전체 컨텍스트 문서 |
+| `docs/CHANGELOG.md` | 전체 버전 이력에 git 커밋 해시 매핑 추가 + v0.6.1 추가 |
+
+### 수정된 파일
+
+| 파일 | 작업 | 내용 |
+|------|------|------|
+| `web/app.py` | 수정 | OUTPUT_DIR 정의를 사용 코드 위로 이동 |
+| `README.md` | 재작성 | 프로젝트 전체 문서 상세화 |
+| `CONTEXT.md` | **신규** | 프로젝트 컨텍스트 문서 |
+| `docs/CHANGELOG.md` | 수정 | v0.6.1 추가 + 전체 커밋 이력 보강 |
 
 ---
 
 ## v0.6.0 (2026-02-12) - 자율 에이전트 시스템
 
 > 상태: **구현 완료**
+> 커밋: `6ab062f`
 
 ### 한 줄 요약
 
@@ -38,9 +86,9 @@
 **깊이 선택** (입력창 옆 드롭다운):
 | 옵션 | 단계 수 | 비용 (Haiku 기준) | 용도 |
 |------|---------|-------------------|------|
-| 빠른 | 1단계 | ~₩5 | 간단한 질문 |
-| 보통 | 3단계 | ~₩15 | 일반 업무 |
-| 심화 | 5단계 | ~₩30 | 전략/보고서 |
+| 빠른 | 1단계 | ~5원 | 간단한 질문 |
+| 보통 | 3단계 | ~15원 | 일반 업무 |
+| 심화 | 5단계 | ~30원 | 전략/보고서 |
 
 **전체 흐름 예시:**
 ```
@@ -133,6 +181,7 @@ output/
 ## v0.5.0 (2026-02-12) - 지식파일 폴더 아코디언 + Claude 전환 + 모델 선택기
 
 > 상태: **구현 완료**
+> 커밋: `9457ecf`
 
 ### 한 줄 요약
 
@@ -197,6 +246,7 @@ output/
 ## v0.4.0 (2026-02-12) - 가상 사무실 + Soul 편집기 + 지식관리 시스템
 
 > 상태: **구현 완료**
+> 커밋: `1fde7e7`
 
 ### 한 줄 요약
 
@@ -211,6 +261,16 @@ output/
 에이전트 25명을 **부서별 색상 카드**로 표시하는 사무실 뷰:
 - 각 카드: 이모지 + 한글 이름 + 상태 표시
 - 클릭 시 우측 상세 패널 열림 (역할, 모델, 능력치, 부하직원, 상관)
+
+부서별 색상:
+| 부서 | 색상 |
+|------|------|
+| 기술개발 | 파랑 |
+| 사업기획 | 초록 |
+| 법무·IP | 보라 |
+| 마케팅 | 주황 |
+| 투자분석 | 빨강 |
+| 비서실 | 회색 |
 
 #### 2. Soul(영혼) 편집기
 
@@ -245,6 +305,7 @@ output/
 ## v0.3.0 (2026-02-12) - 본부 라벨 분리 (LEET Master / 투자분석)
 
 > 상태: **구현 완료**
+> 커밋: `38d4105`
 
 ### 한 줄 요약
 
@@ -300,6 +361,7 @@ v0.2.0 (플랫):                    v0.3.0 (본부 그룹핑):
 ## v0.2.0 (2026-02-12) - 비서실장 오케스트레이터 통합 + 비용 추적 고도화
 
 > 상태: **구현 완료**
+> 커밋: `6512b6e`
 
 ### 한 줄 요약
 
@@ -331,8 +393,6 @@ CEO: "삼성전자 주가 분석해줘"
 - **②번이 완전히 쓸데없음.** 본부장은 "아 이거 내 밑에 CIO한테 보내야겠다" 이것만 하고 끝. 분류 역할만 하는데 그게 LLM 호출 1회 비용이 드는 것
 - 본부장이 2명(LEET MASTER 본부장, 금융분석 본부장)이었는데, 둘 다 같은 문제
 - 반면 **비서실장**은 "일반 질문"의 fallback으로만 쓰여서 거의 놀고 있었음
-
----
 
 ### 뭘 바꿨나? (변경 내역)
 
@@ -395,7 +455,7 @@ v0.2.0에서는 "어떤 **에이전트**가 얼마나 썼는지", "어떤 **프�
 ```json
 {
   "total_cost": 0.0342,
-  "by_model": { ... },
+  "by_model": { "..." : "..." },
   "by_agent": {
     "chief_of_staff": {"calls": 3, "cost_usd": 0.012},
     "cto_manager": {"calls": 2, "cost_usd": 0.008},
@@ -414,48 +474,19 @@ LLM을 호출할 때마다 "누가 호출했는지(agent_id)"를 함께 기록�
 에이전트.think() → ModelRouter.complete(agent_id=...) → CostTracker.record(agent_id=...)
 ```
 
-#### 3. UI 변경 — 사이드바 플랫 구조 + 색상 변경
+### 수정된 파일 (9개 파일, +168줄 / -241줄)
 
-**사이드바 조직도:**
-| v0.1.0 | v0.2.0 |
-|--------|--------|
-| 3단계 중첩 (본부 → 처 → 전문가) | **2단계 플랫** (처 → 전문가) |
-| LEET MASTER 본부 접기/펼치기 존재 | 삭제 (각 처가 독립) |
-| 금융분석 본부 접기/펼치기 존재 | 삭제 (CIO가 직접 표시) |
-
-**에이전트 상태 표시 색상:**
-| 상태 | v0.1.0 | v0.2.0 | 이유 |
-|------|--------|--------|------|
-| 대기중 (standby) | 🔘 회색 | 🟠 **앰버** | "준비됨"을 더 명확히 표현 |
-| 작업중 (working) | 🟡 노랑 깜빡 | 🟢 **초록 깜빡** | "활발히 동작"을 직관적으로 |
-| 완료 (done) | 🟢 초록 | 🟢 초록 (유지) | - |
-| 유휴 (idle) | 🔘 회색 | 🟠 **앰버** | 대기중과 동일 |
-| 비활성 (inactive) | 🔘 회색 | 🔘 회색 (유지) | - |
-
-**JavaScript에서 삭제된 것들:**
-- `agentNames`에서 `leet_master_head`, `finance_head` 제거
-- `agentDivision`에서 `leet_master_head`, `finance_head` 제거
-- `expanded` 객체에서 `leet` 섹션 제거
-- `getSectionAgentIds()`에서 `leet` 분기 제거
-- `handleWsMessage`에서 leet 자동 펼치기 로직 제거
-
----
-
-### 수정된 파일 상세 (9개 파일, +168줄 / -241줄)
-
-| 파일 | 변경 요약 | 상세 |
-|------|-----------|------|
-| `config/agents.yaml` | 본부장 삭제, 비서실장 확장 | `leet_master_head`, `finance_head` 정의 삭제. `chief_of_staff`에 5개 처장을 subordinate로 추가. 처장들의 `superior_id`를 `chief_of_staff`로 변경 |
-| `src/core/orchestrator.py` | LLM 분류 호출 제거 | `_classify_command()`(LLM으로 명령 분류) 삭제. 모든 명령을 `chief_of_staff`에게 직행. `_parse_json()` 삭제 |
-| `src/core/registry.py` | 조직도 조회 수정 | `list_division_heads()`: 비서실장 직속 manager만 반환하도록 조건 변경 |
-| `src/core/agent.py` | agent_id 전파 | `think()`, `_summarize()`에서 `agent_id=self.agent_id`를 router에 전달 |
-| `src/llm/router.py` | agent_id 파라미터 추가 | `complete()`에 `agent_id` 파라미터 추가, `cost_tracker.record()`에 전달 |
-| `src/llm/cost_tracker.py` | 비용 분석 메서드 추가 | `CostRecord`에 `agent_id` 필드 추가. `summary_by_agent()`, `summary_by_provider()` 메서드 추가 |
-| `web/templates/index.html` | 사이드바 + JS 전면 수정 | HTML: 본부 wrapper 제거, 플랫 구조. JS: 본부장 참조 제거, 색상 변경, leet 관련 로직 삭제 |
-| `web/app.py` | API 응답 확장 + 버전 업 | `/api/cost`에 `by_agent`, `by_provider` 추가. FastAPI 버전 `0.2.0` |
-| `src/cli/app.py` | CLI 조직도 + 버전 업 | `_show_org_chart()` 본부장 레이어 제거. 배너 `v0.2.0` |
-
----
+| 파일 | 변경 요약 |
+|------|-----------|
+| `config/agents.yaml` | `leet_master_head`, `finance_head` 삭제. `chief_of_staff`에 5개 처장을 subordinate로 추가 |
+| `src/core/orchestrator.py` | `_classify_command()` LLM 분류 호출 삭제. 모든 명령을 `chief_of_staff`에게 직행 |
+| `src/core/registry.py` | `list_division_heads()` 조건 변경 |
+| `src/core/agent.py` | `think()`, `_summarize()`에서 `agent_id` 전달 |
+| `src/llm/router.py` | `complete()`에 `agent_id` 파라미터 추가 |
+| `src/llm/cost_tracker.py` | `CostRecord`에 `agent_id` 필드 추가. `summary_by_agent()`, `summary_by_provider()` 추가 |
+| `web/templates/index.html` | 본부 wrapper 제거, 플랫 구조. 상태 색상 변경 |
+| `web/app.py` | `/api/cost`에 `by_agent`, `by_provider` 추가 |
+| `src/cli/app.py` | 조직도 본부장 레이어 제거 |
 
 ### 예상 효과
 
@@ -470,11 +501,12 @@ LLM을 호출할 때마다 "누가 호출했는지(agent_id)"를 함께 기록�
 
 ## v0.1.0 (2026-02-12) - 최초 릴리즈
 
-> 상태: **배포 완료 (현재 버전)**
+> 상태: **배포 완료**
+> 커밋: `4ece0c0`, `a03c1b7`
 
-### 무엇이 만들어졌나요?
+### 한 줄 요약
 
-한 줄 요약: **CORTHEX HQ 멀티 에이전트 시스템의 첫 번째 버전. 25명의 AI 에이전트가 CEO 명령을 자동 처리합니다.**
+**CORTHEX HQ 멀티 에이전트 시스템의 첫 번째 버전. 25명의 AI 에이전트가 CEO 명령을 자동 처리합니다.**
 
 ### 핵심 기능
 
@@ -507,20 +539,16 @@ LLM을 호출할 때마다 "누가 호출했는지(agent_id)"를 함께 기록�
 
 #### 5. Rich Terminal CLI
 - 터미널에서도 CEO 명령 입력 가능
-- 조직도 트리 표시
-- 비용 요약 테이블
-- 마크다운 결과 렌더링
+- 조직도 트리 표시 + 비용 요약 테이블 + 마크다운 결과 렌더링
 
 #### 6. 멀티 LLM 지원
-- OpenAI (gpt-4o, gpt-4o-mini) 지원
-- Anthropic (claude-sonnet-4-5-20250929) 지원
+- OpenAI (gpt-4o, gpt-4o-mini) + Anthropic (claude-sonnet) 지원
 - 모델명 prefix로 자동 프로바이더 라우팅
 - 에이전트별 독립적인 모델 설정 가능
 
 #### 7. 지식 관리 시스템
 - `knowledge/` 디렉토리의 .md 파일을 에이전트 system_prompt에 자동 주입
 - 부서(division)별 지식 매칭
-- 서버 시작 시 1회 로딩
 
 #### 8. 도구(Tool) 시스템
 - 변리사, 세무사, 디자이너, 번역가, 웹검색 5개 Tool
@@ -530,7 +558,6 @@ LLM을 호출할 때마다 "누가 호출했는지(agent_id)"를 함께 기록�
 #### 9. 비용 추적
 - 모든 LLM 호출의 토큰 사용량 및 비용 자동 기록
 - 모델별 비용 요약 (`summary_by_model()`)
-- CLI `비용` 명령어 및 `/api/cost` 엔드포인트
 
 ### 기술 스택
 
@@ -541,55 +568,29 @@ LLM을 호출할 때마다 "누가 호출했는지(agent_id)"를 함께 기록�
 | 실시간 통신 | WebSocket |
 | 프론트엔드 | Tailwind CSS + Alpine.js |
 | CLI | Rich |
-| 설정 관리 | YAML + Pydantic |
+| 설정 관리 | YAML + Pydantic v2 |
 | LLM 통신 | httpx (async) |
 
-### 프로젝트 구조
+---
 
-```
-CORTHEX_HQ/
-├── config/
-│   ├── agents.yaml          # 에이전트 설정 (25명)
-│   └── tools.yaml           # 도구 설정 (5개)
-├── knowledge/               # 부서별 지식 파일
-├── src/
-│   ├── core/
-│   │   ├── orchestrator.py  # CEO 명령 라우터
-│   │   ├── agent.py         # 에이전트 기본 클래스 (Manager/Specialist/Worker)
-│   │   ├── registry.py      # 에이전트 팩토리 + 레지스트리
-│   │   ├── context.py       # 공유 컨텍스트 (대화 기록, 상태 콜백)
-│   │   ├── message.py       # 메시지 타입 (TaskRequest, TaskResult, StatusUpdate)
-│   │   ├── knowledge.py     # 지식 관리자
-│   │   └── errors.py        # 커스텀 예외
-│   ├── llm/
-│   │   ├── base.py          # LLMProvider 추상 클래스 + LLMResponse
-│   │   ├── router.py        # 모델 라우터 (OpenAI/Anthropic 자동 분기)
-│   │   ├── openai_provider.py
-│   │   ├── anthropic_provider.py
-│   │   └── cost_tracker.py  # 비용 추적
-│   ├── tools/               # 도구 구현체 (5개)
-│   ├── divisions/           # 부서별 커스텀 로직 (선택적)
-│   └── cli/
-│       └── app.py           # Rich CLI 인터페이스
-├── web/
-│   ├── app.py               # FastAPI 웹 서버
-│   ├── ws_manager.py        # WebSocket 매니저
-│   └── templates/
-│       └── index.html       # CEO 관제실 SPA
-├── main.py                  # CLI 진입점
-├── main_web.py              # 웹 서버 진입점
-└── .env                     # API 키 설정
-```
+## 전체 Git 커밋 이력
 
-### Git 커밋 이력
-
-| 커밋 | 설명 |
-|------|------|
-| `436e915` | Initial commit |
-| `a03c1b7` | feat: CORTHEX HQ 멀티 에이전트 시스템 전체 구현 |
-| `4ece0c0` | feat: CEO 관제실 웹 UI + 지식 관리 시스템 + 원클릭 설치 |
-| `ccd31a5` | ci: claude 브랜치 → main 자동 머지 워크플로우 추가 |
-| `cb09825` | docs: README.md 상세 사용 설명서로 전면 개편 |
+| 커밋 해시 | 버전 | 설명 |
+|-----------|------|------|
+| `810d2a9` | v0.6.1 | fix: OUTPUT_DIR 정의 순서 수정 — NameError 해결 |
+| `072d25c` | v0.6.0 | docs: v0.4.0~v0.6.0 전체 변경이력 문서 업데이트 |
+| `6ab062f` | v0.6.0 | feat: 자율 에이전트 시스템 — 멀티스텝 딥워크 + 백그라운드 작업 + 작업내역 |
+| `9457ecf` | v0.5.0 | feat: 지식파일 폴더 아코디언 + 모델 전체 Claude 전환 + 웹 모델 선택기 |
+| `1aec4d7` | v0.4.0 | fix: 서버 초기화 오류 수정 + run.bat 추가 |
+| `1fde7e7` | v0.4.0 | feat: v0.4.0 가상 사무실 + Soul 편집기 + 지식관리 시스템 |
+| `db27749` | - | fix: add missing web/static directory |
+| `38d4105` | v0.3.0 | feat: v0.3.0 본부 라벨 분리 — LEET Master 본부 / 투자분석 본부 |
+| `0e7fa45` | v0.2.0 | docs: v0.2.0 변경 이력 상세 업데이트 |
+| `6512b6e` | v0.2.0 | feat: v0.2.0 본부장 레이어 제거 및 비서실장 오케스트레이터 승격 |
+| `18bcd84` | v0.2.0 | docs: v0.2.0 구현 계획서 + 버전별 변경 이력 문서 추가 |
+| `4ece0c0` | v0.1.0 | feat: CEO 관제실 웹 UI + 지식 관리 시스템 + 원클릭 설치 |
+| `a03c1b7` | v0.1.0 | feat: CORTHEX HQ 멀티 에이전트 시스템 전체 구현 |
+| `436e915` | - | Initial commit |
 
 ---
 
