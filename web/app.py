@@ -44,7 +44,8 @@ load_dotenv(PROJECT_DIR / ".env")
 
 # FastAPI app
 app = FastAPI(title="CORTHEX HQ", version="0.3.0")
-app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+if STATIC_DIR.exists():
+    app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 templates = Jinja2Templates(directory=str(TEMPLATE_DIR))
 
 # WebSocket manager
