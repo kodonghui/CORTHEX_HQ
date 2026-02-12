@@ -6,7 +6,9 @@ Flow:
 2. Orchestrator sends it to the Chief of Staff (비서실장)
 3. Chief of Staff decomposes and delegates to managers
 4. Collects TaskResult
-5. Returns result to CLI
+5. Saves report to reports/ directory
+6. Auto-pushes to GitHub
+7. Returns result to CLI
 """
 from __future__ import annotations
 
@@ -14,6 +16,8 @@ import logging
 from typing import TYPE_CHECKING
 
 from src.core.message import TaskRequest, TaskResult
+from src.core.report_saver import save_report
+from src.core.git_sync import auto_push
 
 if TYPE_CHECKING:
     from src.core.registry import AgentRegistry
@@ -54,4 +58,13 @@ class Orchestrator:
                 summary=f"오류: {e}",
             )
 
+        # 보고서 저장 → GitHub 자동 업로드
+        await self._save_and_upload(user_input, result)
+
         return result
+
+    async def _save_and_upload(self, command: str, result: TaskResult) -> None:
+        """보고서를 파일로 저장하고 GitHub에 자동 푸시."""
+        filepath = save_report(command, result)
+        if filepath:
+            await auto_push(filepath, command)
