@@ -20,7 +20,9 @@ from rich.table import Table
 from rich.tree import Tree
 
 from src.core.context import SharedContext
+from src.core.healthcheck import run_healthcheck, HealthStatus
 from src.core.orchestrator import Orchestrator
+from src.core.performance import build_performance_report
 from src.core.registry import AgentRegistry
 from src.llm.anthropic_provider import AnthropicProvider
 from src.llm.openai_provider import OpenAIProvider
@@ -47,12 +49,14 @@ class CorthexCLI:
         self.config_dir = Path(__file__).resolve().parent.parent.parent / "config"
         self.orchestrator: Orchestrator | None = None
         self.model_router: ModelRouter | None = None
+        self.registry: AgentRegistry | None = None
+        self.context: SharedContext | None = None
 
     async def run(self) -> None:
         """Main CLI loop."""
         self._show_banner()
 
-        self.orchestrator, self.model_router = await self._bootstrap()
+        self.orchestrator, self.model_router, self.registry, self.context = await self._bootstrap()
         self._show_org_chart()
         self.console.print()
         self.console.print("[bold green]CORTHEX HQ 시스템 준비 완료.[/bold green]")
@@ -77,6 +81,12 @@ class CorthexCLI:
                 if user_input.strip().lower() in ("org", "조직도"):
                     self._show_org_chart()
                     continue
+                if user_input.strip().lower() in ("health", "헬스체크"):
+                    await self._show_healthcheck()
+                    continue
+                if user_input.strip().lower() in ("performance", "성과"):
+                    self._show_performance()
+                    continue
 
                 # Process command
                 with self.console.status(
@@ -92,7 +102,7 @@ class CorthexCLI:
             except Exception as e:
                 self.console.print(f"[red]오류: {e}[/red]")
 
-    async def _bootstrap(self) -> tuple[Orchestrator, ModelRouter]:
+    async def _bootstrap(self) -> tuple[Orchestrator, ModelRouter, AgentRegistry, SharedContext]:
         """Initialize all components from config files."""
         self.console.print("[dim]설정 파일 로딩 중...[/dim]")
 
@@ -139,7 +149,7 @@ class CorthexCLI:
         orchestrator = Orchestrator(registry, model_router)
         self.console.print("  [green]>[/green] 오케스트레이터 초기화 완료")
 
-        return orchestrator, model_router
+        return orchestrator, model_router, registry, context
 
     def _show_banner(self) -> None:
         panel = Panel(
@@ -246,14 +256,112 @@ class CorthexCLI:
         )
         self.console.print(table)
 
+    async def _show_healthcheck(self) -> None:
+        if not self.registry or not self.model_router:
+            self.console.print("[dim]시스템이 아직 초기화되지 않았습니다.[/dim]")
+            return
+
+        with self.console.status("[bold green]헬스체크 실행 중..."):
+            report = await run_healthcheck(self.registry, self.model_router)
+
+        # Status color mapping
+        status_style = {
+            HealthStatus.OK: "[green]OK[/green]",
+            HealthStatus.WARN: "[yellow]WARN[/yellow]",
+            HealthStatus.ERROR: "[red]ERROR[/red]",
+        }
+
+        table = Table(title="시스템 헬스체크")
+        table.add_column("항목", style="cyan")
+        table.add_column("상태", justify="center")
+        table.add_column("내용")
+        table.add_column("지연(ms)", justify="right")
+
+        for check in report.checks:
+            latency_str = f"{check.latency_ms:.0f}" if check.latency_ms is not None else "-"
+            table.add_row(
+                check.name,
+                status_style[check.status],
+                check.message,
+                latency_str,
+            )
+
+        table.add_section()
+        table.add_row(
+            "[bold]종합[/bold]",
+            status_style[report.overall],
+            f"에이전트 {report.agent_count}개 | 프로바이더 {report.provider_count}개",
+            "",
+        )
+        self.console.print(table)
+
+    def _show_performance(self) -> None:
+        if not self.model_router or not self.context:
+            self.console.print("[dim]시스템이 아직 초기화되지 않았습니다.[/dim]")
+            return
+
+        report = build_performance_report(
+            self.model_router.cost_tracker,
+            self.context,
+        )
+
+        if report.total_llm_calls == 0 and report.total_tasks == 0:
+            self.console.print("[dim]아직 작업 이력이 없습니다. 명령을 실행한 후 다시 확인하세요.[/dim]")
+            return
+
+        # Summary line
+        self.console.print(
+            f"\n[bold]총 LLM 호출:[/bold] {report.total_llm_calls}회 | "
+            f"[bold]총 비용:[/bold] ${report.total_cost_usd:.4f} | "
+            f"[bold]총 태스크:[/bold] {report.total_tasks}건\n"
+        )
+
+        table = Table(title="에이전트 성과 대시보드")
+        table.add_column("에이전트", style="cyan")
+        table.add_column("역할", style="dim")
+        table.add_column("모델", style="dim")
+        table.add_column("LLM 호출", justify="right")
+        table.add_column("토큰 (입/출)", justify="right")
+        table.add_column("비용 (USD)", justify="right", style="green")
+        table.add_column("태스크", justify="right")
+        table.add_column("성공률", justify="right")
+        table.add_column("평균 응답(초)", justify="right")
+
+        for a in report.agents:
+            # Skip agents with no activity
+            if a.llm_calls == 0 and a.tasks_received == 0:
+                continue
+
+            success_style = (
+                "[green]" if a.success_rate >= 80
+                else "[yellow]" if a.success_rate >= 50
+                else "[red]"
+            )
+
+            table.add_row(
+                a.name_ko,
+                a.role,
+                a.model_name,
+                str(a.llm_calls),
+                f"{a.input_tokens:,}/{a.output_tokens:,}",
+                f"${a.cost_usd:.4f}",
+                f"{a.tasks_completed}/{a.tasks_received}",
+                f"{success_style}{a.success_rate:.0f}%[/]",
+                f"{a.avg_execution_seconds:.1f}",
+            )
+
+        self.console.print(table)
+
     def _show_help(self) -> None:
         help_text = (
             "[bold]사용 가능한 명령어:[/bold]\n\n"
-            "[cyan]자연어 명령[/cyan]  - 어떤 업무든 한국어로 입력하세요\n"
-            "[cyan]조직도 / org[/cyan] - 현재 조직 구조 표시\n"
-            "[cyan]비용 / cost[/cyan]  - 누적 API 비용 확인\n"
-            "[cyan]도움말 / help[/cyan] - 이 도움말 표시\n"
-            "[cyan]종료 / exit[/cyan]  - 프로그램 종료\n\n"
+            "[cyan]자연어 명령[/cyan]      - 어떤 업무든 한국어로 입력하세요\n"
+            "[cyan]조직도 / org[/cyan]     - 현재 조직 구조 표시\n"
+            "[cyan]비용 / cost[/cyan]      - 누적 API 비용 확인\n"
+            "[cyan]헬스체크 / health[/cyan] - 시스템 상태 진단\n"
+            "[cyan]성과 / performance[/cyan] - 에이전트 성과 대시보드\n"
+            "[cyan]도움말 / help[/cyan]    - 이 도움말 표시\n"
+            "[cyan]종료 / exit[/cyan]      - 프로그램 종료\n\n"
             "[bold]예시 명령:[/bold]\n"
             '  "LEET MASTER 서비스의 기술 스택을 제안해줘"\n'
             '  "삼성전자 주가를 분석해줘"\n'

@@ -21,8 +21,10 @@ from fastapi.templating import Jinja2Templates
 from starlette.requests import Request
 
 from src.core.context import SharedContext
+from src.core.healthcheck import run_healthcheck
 from src.core.message import Message, MessageType
 from src.core.orchestrator import Orchestrator
+from src.core.performance import build_performance_report
 from src.core.registry import AgentRegistry
 from src.llm.anthropic_provider import AnthropicProvider
 from src.llm.openai_provider import OpenAIProvider
@@ -171,6 +173,24 @@ async def get_cost() -> dict:
         "by_agent": tracker.summary_by_agent(),
         "by_provider": tracker.summary_by_provider(),
     }
+
+
+@app.get("/api/health")
+async def get_health() -> dict:
+    """Run system health check and return results."""
+    if not registry or not model_router:
+        return {"overall": "error", "checks": [], "message": "시스템 미초기화"}
+    report = await run_healthcheck(registry, model_router)
+    return report.to_dict()
+
+
+@app.get("/api/performance")
+async def get_performance() -> dict:
+    """Return agent performance statistics."""
+    if not model_router or not context:
+        return {"total_llm_calls": 0, "total_cost_usd": 0, "total_tasks": 0, "agents": []}
+    report = build_performance_report(model_router.cost_tracker, context)
+    return report.to_dict()
 
 
 @app.get("/api/tools")
