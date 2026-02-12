@@ -150,8 +150,13 @@ async def startup() -> None:
                         allowed_chat_id=tg_chat_id,
                         command_callback=_execute_command_for_api,
                     )
-                    asyncio.create_task(telegram_bot.start())
-                    logger.info("텔레그램 봇 활성화됨")
+                    async def _start_telegram():
+                        try:
+                            await telegram_bot.start()
+                        except Exception as exc:
+                            logger.error("텔레그램 봇 시작 실패: %s", exc, exc_info=True)
+                    asyncio.create_task(_start_telegram())
+                    logger.info("텔레그램 봇 활성화됨 (chat_id=%s)", tg_chat_id)
             except Exception as e:
                 logger.warning("텔레그램 봇 초기화 실패: %s", e)
 

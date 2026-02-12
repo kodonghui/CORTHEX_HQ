@@ -54,6 +54,7 @@ class CorthexTelegramBot:
 
     async def start(self) -> None:
         """봇 시작 (polling 방식)."""
+        logger.info("텔레그램 봇 초기화 중... (allowed_chat_id=%s)", self.allowed_chat_id)
         self._app = Application.builder().token(self.token).build()
         self._app.add_handler(CommandHandler("start", self._cmd_start))
         self._app.add_handler(CommandHandler("status", self._cmd_status))
@@ -61,9 +62,11 @@ class CorthexTelegramBot:
         self._app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, self._handle_message))
 
         await self._app.initialize()
+        logger.info("텔레그램 봇 initialized")
         await self._app.start()
-        await self._app.updater.start_polling()
-        logger.info("텔레그램 봇 시작됨 (polling)")
+        logger.info("텔레그램 봇 started")
+        await self._app.updater.start_polling(drop_pending_updates=True)
+        logger.info("텔레그램 봇 polling 시작됨 — /start 로 테스트하세요")
 
     async def stop(self) -> None:
         """봇 정지."""
@@ -75,15 +78,22 @@ class CorthexTelegramBot:
     def _check_auth(self, update: Update) -> bool:
         """CEO 인증 확인."""
         chat_id = str(update.effective_chat.id)
+        logger.info("텔레그램 메시지 수신: chat_id=%s, 허용=%s", chat_id, self.allowed_chat_id)
         if chat_id != self.allowed_chat_id:
-            logger.warning("미인증 접근 시도: chat_id=%s", chat_id)
+            logger.warning("미인증 접근 시도: chat_id=%s (허용=%s)", chat_id, self.allowed_chat_id)
             return False
         return True
 
     async def _cmd_start(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """'/start' 명령 처리."""
+        chat_id = str(update.effective_chat.id)
         if not self._check_auth(update):
-            await update.message.reply_text("인증되지 않은 접근입니다.")
+            # 인증 실패 시에도 chat_id를 알려줌 (설정 도우미)
+            await update.message.reply_text(
+                f"인증되지 않은 접근입니다.\n\n"
+                f"이 채팅 ID: {chat_id}\n"
+                f".env에 TELEGRAM_CHAT_ID={chat_id} 를 설정하세요."
+            )
             return
         await update.message.reply_text(
             "CORTHEX HQ 연결됨.\n\n"
