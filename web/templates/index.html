@@ -36,6 +36,8 @@
     @keyframes pulse-dot { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
     .pulse-dot { animation: pulse-dot 1.5s ease-in-out infinite; }
     .progress-bar { transition: width 0.5s ease-in-out; }
+    @keyframes float { 0%,100%{ transform: translateY(0); } 50%{ transform: translateY(-3px); } }
+    .agent-working { animation: float 2s ease-in-out infinite; }
     .markdown-body h1 { font-size: 1.25rem; font-weight: 700; margin: 1rem 0 0.5rem; }
     .markdown-body h2 { font-size: 1.1rem; font-weight: 600; margin: 0.8rem 0 0.4rem; }
     .markdown-body h3 { font-size: 1rem; font-weight: 600; margin: 0.6rem 0 0.3rem; }
@@ -48,23 +50,43 @@
     .markdown-body table { border-collapse: collapse; width: 100%; margin: 0.5rem 0; }
     .markdown-body th, .markdown-body td { border: 1px solid #475569; padding: 0.4rem 0.8rem; text-align: left; }
     .markdown-body th { background: #1e293b; }
+    .desk-card { transition: all 0.2s; }
+    .desk-card:hover { transform: translateY(-2px); box-shadow: 0 4px 20px rgba(59,130,246,0.15); }
   </style>
 </head>
 
 <body class="bg-hq-bg text-gray-200 h-screen flex flex-col overflow-hidden"
       x-data="corthexApp()" x-init="init()">
 
-  <!-- ═══ Top Bar ═══ -->
+  <!-- Top Bar -->
   <header class="h-14 bg-hq-panel border-b border-hq-border flex items-center justify-between px-4 shrink-0">
-    <div class="flex items-center gap-3">
+    <div class="flex items-center gap-4">
       <div class="text-xl font-bold tracking-wide">
         <span class="text-hq-accent">CORTHEX</span> <span class="text-gray-400">HQ</span>
       </div>
-      <span class="text-xs text-gray-500 border border-hq-border rounded px-2 py-0.5">v0.3.0</span>
+      <span class="text-xs text-gray-500 border border-hq-border rounded px-2 py-0.5">v0.4.0</span>
+
+      <!-- Tab Navigation -->
+      <nav class="flex items-center gap-1 ml-4">
+        <button @click="currentTab = 'command'"
+                :class="currentTab === 'command' ? 'bg-hq-accent/20 text-hq-accent border-hq-accent' : 'text-gray-400 border-transparent hover:text-gray-300'"
+                class="text-sm px-3 py-1.5 rounded-lg border transition font-medium">
+          관제실
+        </button>
+        <button @click="currentTab = 'office'; loadOfficeData()"
+                :class="currentTab === 'office' ? 'bg-hq-accent/20 text-hq-accent border-hq-accent' : 'text-gray-400 border-transparent hover:text-gray-300'"
+                class="text-sm px-3 py-1.5 rounded-lg border transition font-medium">
+          사무실
+        </button>
+        <button @click="currentTab = 'knowledge'; loadKnowledge()"
+                :class="currentTab === 'knowledge' ? 'bg-hq-accent/20 text-hq-accent border-hq-accent' : 'text-gray-400 border-transparent hover:text-gray-300'"
+                class="text-sm px-3 py-1.5 rounded-lg border transition font-medium">
+          지식관리
+        </button>
+      </nav>
     </div>
 
     <div class="flex items-center gap-6">
-      <!-- System Status -->
       <div class="flex items-center gap-2 text-sm">
         <template x-if="systemStatus === 'idle'">
           <span class="flex items-center gap-1.5">
@@ -85,20 +107,14 @@
           </span>
         </template>
       </div>
-
-      <!-- Cost -->
       <div class="text-sm text-gray-400">
         <span class="text-gray-500">비용</span>
         <span class="text-hq-green font-mono ml-1" x-text="'$' + totalCost.toFixed(4)"></span>
       </div>
-
-      <!-- Tokens -->
       <div class="text-sm text-gray-400">
         <span class="text-gray-500">토큰</span>
         <span class="font-mono ml-1" x-text="totalTokens.toLocaleString()"></span>
       </div>
-
-      <!-- API Status -->
       <div class="flex items-center gap-1.5 text-xs" :class="wsConnected ? 'text-hq-green' : 'text-hq-red'">
         <span class="w-1.5 h-1.5 rounded-full" :class="wsConnected ? 'bg-hq-green' : 'bg-hq-red'"></span>
         <span x-text="wsConnected ? '연결됨' : '연결 끊김'"></span>
@@ -106,13 +122,13 @@
     </div>
   </header>
 
-  <!-- ═══ Main Layout ═══ -->
-  <div class="flex flex-1 overflow-hidden">
+  <!-- ═══════════════════════════════════════════ -->
+  <!--  TAB 1: 관제실 (Command Center)            -->
+  <!-- ═══════════════════════════════════════════ -->
+  <div x-show="currentTab === 'command'" class="flex flex-1 overflow-hidden">
 
-    <!-- ═══ Left Panel: Org Tree + Activity Log ═══ -->
+    <!-- Left Panel: Org Tree + Activity Log -->
     <aside class="w-72 bg-hq-panel border-r border-hq-border flex flex-col shrink-0">
-
-      <!-- Org Tree -->
       <div class="flex-1 overflow-y-auto scrollbar-thin p-3">
         <div class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 px-1">조직도</div>
 
@@ -134,8 +150,9 @@
                   x-text="getSectionStatusText('secretary')"></span>
           </button>
           <div x-show="expanded.secretary" x-collapse class="ml-6 space-y-0.5">
-            <template x-for="id in ['report_worker', 'schedule_worker', 'relay_worker']" :key="id">
-              <div class="flex items-center gap-2 px-2 py-0.5 rounded text-xs text-gray-400">
+            <template x-for="id in ['chief_of_staff','report_worker','schedule_worker','relay_worker']" :key="id">
+              <div class="flex items-center gap-2 px-2 py-0.5 rounded text-xs text-gray-400 hover:bg-white/5 cursor-pointer"
+                   @click="currentTab='office'; selectAgent(id)">
                 <span class="w-1.5 h-1.5 rounded-full" :class="getAgentDotClass(id)"></span>
                 <span x-text="getAgentName(id)"></span>
               </div>
@@ -155,19 +172,18 @@
           </button>
           <div x-show="expanded.leet_master" x-collapse>
 
-            <!-- 기술개발처 (CTO) -->
+            <!-- CTO -->
             <div class="ml-4 mb-1">
               <button @click="toggleSection('tech')"
                       class="flex items-center gap-2 px-2 py-1 rounded hover:bg-white/5 w-full text-left text-sm">
                 <span class="text-xs text-gray-500" x-text="expanded.tech ? '▼' : '▶'"></span>
                 <span class="w-1.5 h-1.5 rounded-full" :class="getAgentDotClass('cto_manager')"></span>
                 <span class="text-cyan-400">기술개발처 (CTO)</span>
-                <span class="ml-auto text-xs" :class="getSectionStatusColor('tech')"
-                      x-text="getSectionStatusText('tech')"></span>
               </button>
               <div x-show="expanded.tech" x-collapse class="ml-6 space-y-0.5">
-                <template x-for="id in ['frontend_specialist','backend_specialist','infra_specialist','ai_model_specialist']" :key="id">
-                  <div class="flex items-center gap-2 px-2 py-0.5 text-xs text-gray-400">
+                <template x-for="id in ['cto_manager','frontend_specialist','backend_specialist','infra_specialist','ai_model_specialist']" :key="id">
+                  <div class="flex items-center gap-2 px-2 py-0.5 text-xs text-gray-400 hover:bg-white/5 cursor-pointer rounded"
+                       @click="currentTab='office'; selectAgent(id)">
                     <span class="w-1.5 h-1.5 rounded-full" :class="getAgentDotClass(id)"></span>
                     <span x-text="getAgentName(id)"></span>
                   </div>
@@ -175,19 +191,18 @@
               </div>
             </div>
 
-            <!-- 사업기획처 (CSO) -->
+            <!-- CSO -->
             <div class="ml-4 mb-1">
               <button @click="toggleSection('strategy')"
                       class="flex items-center gap-2 px-2 py-1 rounded hover:bg-white/5 w-full text-left text-sm">
                 <span class="text-xs text-gray-500" x-text="expanded.strategy ? '▼' : '▶'"></span>
                 <span class="w-1.5 h-1.5 rounded-full" :class="getAgentDotClass('cso_manager')"></span>
                 <span class="text-cyan-400">사업기획처 (CSO)</span>
-                <span class="ml-auto text-xs" :class="getSectionStatusColor('strategy')"
-                      x-text="getSectionStatusText('strategy')"></span>
               </button>
               <div x-show="expanded.strategy" x-collapse class="ml-6 space-y-0.5">
-                <template x-for="id in ['market_research_specialist','business_plan_specialist','financial_model_specialist']" :key="id">
-                  <div class="flex items-center gap-2 px-2 py-0.5 text-xs text-gray-400">
+                <template x-for="id in ['cso_manager','market_research_specialist','business_plan_specialist','financial_model_specialist']" :key="id">
+                  <div class="flex items-center gap-2 px-2 py-0.5 text-xs text-gray-400 hover:bg-white/5 cursor-pointer rounded"
+                       @click="currentTab='office'; selectAgent(id)">
                     <span class="w-1.5 h-1.5 rounded-full" :class="getAgentDotClass(id)"></span>
                     <span x-text="getAgentName(id)"></span>
                   </div>
@@ -195,19 +210,18 @@
               </div>
             </div>
 
-            <!-- 법무·IP처 (CLO) -->
+            <!-- CLO -->
             <div class="ml-4 mb-1">
               <button @click="toggleSection('legal')"
                       class="flex items-center gap-2 px-2 py-1 rounded hover:bg-white/5 w-full text-left text-sm">
                 <span class="text-xs text-gray-500" x-text="expanded.legal ? '▼' : '▶'"></span>
                 <span class="w-1.5 h-1.5 rounded-full" :class="getAgentDotClass('clo_manager')"></span>
                 <span class="text-cyan-400">법무·IP처 (CLO)</span>
-                <span class="ml-auto text-xs" :class="getSectionStatusColor('legal')"
-                      x-text="getSectionStatusText('legal')"></span>
               </button>
               <div x-show="expanded.legal" x-collapse class="ml-6 space-y-0.5">
-                <template x-for="id in ['copyright_specialist','patent_specialist']" :key="id">
-                  <div class="flex items-center gap-2 px-2 py-0.5 text-xs text-gray-400">
+                <template x-for="id in ['clo_manager','copyright_specialist','patent_specialist']" :key="id">
+                  <div class="flex items-center gap-2 px-2 py-0.5 text-xs text-gray-400 hover:bg-white/5 cursor-pointer rounded"
+                       @click="currentTab='office'; selectAgent(id)">
                     <span class="w-1.5 h-1.5 rounded-full" :class="getAgentDotClass(id)"></span>
                     <span x-text="getAgentName(id)"></span>
                   </div>
@@ -215,27 +229,25 @@
               </div>
             </div>
 
-            <!-- 마케팅·고객처 (CMO) -->
+            <!-- CMO -->
             <div class="ml-4 mb-1">
               <button @click="toggleSection('marketing')"
                       class="flex items-center gap-2 px-2 py-1 rounded hover:bg-white/5 w-full text-left text-sm">
                 <span class="text-xs text-gray-500" x-text="expanded.marketing ? '▼' : '▶'"></span>
                 <span class="w-1.5 h-1.5 rounded-full" :class="getAgentDotClass('cmo_manager')"></span>
                 <span class="text-cyan-400">마케팅·고객처 (CMO)</span>
-                <span class="ml-auto text-xs" :class="getSectionStatusColor('marketing')"
-                      x-text="getSectionStatusText('marketing')"></span>
               </button>
               <div x-show="expanded.marketing" x-collapse class="ml-6 space-y-0.5">
-                <template x-for="id in ['survey_specialist','content_specialist','community_specialist']" :key="id">
-                  <div class="flex items-center gap-2 px-2 py-0.5 text-xs text-gray-400">
+                <template x-for="id in ['cmo_manager','survey_specialist','content_specialist','community_specialist']" :key="id">
+                  <div class="flex items-center gap-2 px-2 py-0.5 text-xs text-gray-400 hover:bg-white/5 cursor-pointer rounded"
+                       @click="currentTab='office'; selectAgent(id)">
                     <span class="w-1.5 h-1.5 rounded-full" :class="getAgentDotClass(id)"></span>
                     <span x-text="getAgentName(id)"></span>
                   </div>
                 </template>
               </div>
             </div>
-
-          </div> <!-- end leet_master collapse -->
+          </div>
         </div>
 
         <!-- 투자분석 본부 -->
@@ -245,38 +257,26 @@
             <span class="text-xs text-gray-500" x-text="expanded.investment ? '▼' : '▶'"></span>
             <span class="text-purple-400">📊</span>
             <span class="text-purple-400 font-medium">투자분석 본부</span>
-            <span class="ml-auto text-xs" :class="getSectionStatusColor('investment')"
-                  x-text="getSectionStatusText('investment')"></span>
           </button>
           <div x-show="expanded.investment" x-collapse>
-
-            <!-- 투자분석처 (CIO) -->
             <div class="ml-4 mb-1">
               <button @click="toggleSection('finance')"
                       class="flex items-center gap-2 px-2 py-1 rounded hover:bg-white/5 w-full text-left text-sm">
                 <span class="text-xs text-gray-500" x-text="expanded.finance ? '▼' : '▶'"></span>
                 <span class="w-1.5 h-1.5 rounded-full" :class="getAgentDotClass('cio_manager')"></span>
                 <span class="text-purple-400">투자분석처 (CIO)</span>
-                <span class="ml-auto text-xs" :class="getSectionStatusColor('finance')"
-                      x-text="getSectionStatusText('finance')"></span>
               </button>
               <div x-show="expanded.finance" x-collapse class="ml-6 space-y-0.5">
-                <template x-for="id in ['market_condition_specialist','stock_analysis_specialist','technical_analysis_specialist','risk_management_specialist']" :key="id">
-                  <div class="flex items-center gap-2 px-2 py-0.5 text-xs text-gray-400">
+                <template x-for="id in ['cio_manager','market_condition_specialist','stock_analysis_specialist','technical_analysis_specialist','risk_management_specialist']" :key="id">
+                  <div class="flex items-center gap-2 px-2 py-0.5 text-xs text-gray-400 hover:bg-white/5 cursor-pointer rounded"
+                       @click="currentTab='office'; selectAgent(id)">
                     <span class="w-1.5 h-1.5 rounded-full" :class="getAgentDotClass(id)"></span>
                     <span x-text="getAgentName(id)"></span>
-                    <template x-if="id !== 'risk_management_specialist'">
-                      <span class="text-gray-600 text-[10px]">[병렬]</span>
-                    </template>
-                    <template x-if="id === 'risk_management_specialist'">
-                      <span class="text-gray-600 text-[10px]">[순차]</span>
-                    </template>
                   </div>
                 </template>
               </div>
             </div>
-
-          </div> <!-- end investment collapse -->
+          </div>
         </div>
 
         <!-- Tool Pool -->
@@ -316,14 +316,11 @@
       </div>
     </aside>
 
-    <!-- ═══ Right Panel: Chat ═══ -->
+    <!-- Right Panel: Chat -->
     <main class="flex-1 flex flex-col overflow-hidden">
+      <div class="flex-1 overflow-y-auto scrollbar-thin p-6 space-y-4" x-ref="chatArea">
 
-      <!-- Chat Messages -->
-      <div class="flex-1 overflow-y-auto scrollbar-thin p-6 space-y-4" id="chatArea"
-           x-ref="chatArea">
-
-        <!-- Welcome message -->
+        <!-- Welcome -->
         <template x-if="messages.length === 0">
           <div class="flex flex-col items-center justify-center h-full text-center">
             <div class="text-5xl mb-4">🏢</div>
@@ -356,8 +353,6 @@
         <!-- Messages -->
         <template x-for="(msg, i) in messages" :key="i">
           <div class="fade-in">
-
-            <!-- User message -->
             <template x-if="msg.type === 'user'">
               <div class="flex justify-end mb-4">
                 <div class="bg-hq-accent/20 border border-hq-accent/30 rounded-2xl rounded-tr-sm px-4 py-3 max-w-2xl">
@@ -366,8 +361,6 @@
                 </div>
               </div>
             </template>
-
-            <!-- Processing indicator -->
             <template x-if="msg.type === 'processing'">
               <div class="mb-4">
                 <div class="bg-hq-panel border border-hq-border rounded-2xl rounded-tl-sm px-4 py-3 max-w-3xl">
@@ -375,7 +368,6 @@
                     <span class="w-2 h-2 rounded-full bg-hq-yellow pulse-dot"></span>
                     에이전트 조직이 처리 중입니다...
                   </div>
-                  <!-- Live progress bars -->
                   <div class="space-y-2">
                     <template x-for="(status, agentId) in activeAgents" :key="agentId">
                       <div x-show="status.status === 'working'" class="fade-in">
@@ -393,8 +385,6 @@
                 </div>
               </div>
             </template>
-
-            <!-- Agent result -->
             <template x-if="msg.type === 'result'">
               <div class="mb-4">
                 <div class="bg-hq-panel border border-hq-border rounded-2xl rounded-tl-sm px-5 py-4 max-w-4xl">
@@ -413,8 +403,6 @@
                 </div>
               </div>
             </template>
-
-            <!-- Error -->
             <template x-if="msg.type === 'error'">
               <div class="mb-4">
                 <div class="bg-red-900/20 border border-hq-red/30 rounded-2xl rounded-tl-sm px-4 py-3 max-w-2xl">
@@ -423,7 +411,6 @@
                 </div>
               </div>
             </template>
-
           </div>
         </template>
       </div>
@@ -431,16 +418,12 @@
       <!-- Input Bar -->
       <div class="border-t border-hq-border bg-hq-panel p-4 shrink-0">
         <form @submit.prevent="sendMessage()" class="flex items-center gap-3 max-w-4xl mx-auto">
-          <input type="text"
-                 x-model="inputText"
-                 :disabled="systemStatus === 'working'"
+          <input type="text" x-model="inputText" :disabled="systemStatus === 'working'"
                  placeholder="명령을 입력하세요..."
                  class="flex-1 bg-hq-bg border border-hq-border rounded-xl px-4 py-3 text-sm text-gray-200
                         placeholder-gray-500 focus:outline-none focus:border-hq-accent focus:ring-1
-                        focus:ring-hq-accent/50 disabled:opacity-50 transition"
-                 autofocus>
-          <button type="submit"
-                  :disabled="!inputText.trim() || systemStatus === 'working'"
+                        focus:ring-hq-accent/50 disabled:opacity-50 transition" autofocus>
+          <button type="submit" :disabled="!inputText.trim() || systemStatus === 'working'"
                   class="bg-hq-accent hover:bg-blue-600 disabled:bg-gray-700 disabled:text-gray-500
                          text-white rounded-xl px-6 py-3 text-sm font-medium transition shrink-0">
             <span x-show="systemStatus !== 'working'">보내기</span>
@@ -457,10 +440,377 @@
     </main>
   </div>
 
+  <!-- ═══════════════════════════════════════════ -->
+  <!--  TAB 2: 사무실 (Virtual Office)             -->
+  <!-- ═══════════════════════════════════════════ -->
+  <div x-show="currentTab === 'office'" class="flex flex-1 overflow-hidden">
+
+    <!-- Office Floor Plan -->
+    <div class="flex-1 overflow-y-auto scrollbar-thin p-6" :class="selectedAgent ? '' : ''">
+
+      <!-- CEO Room -->
+      <div class="mb-6">
+        <div class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">CEO Office</div>
+        <div class="bg-gradient-to-r from-yellow-900/20 to-amber-900/20 border border-yellow-700/30 rounded-xl p-4">
+          <div class="flex items-center gap-3">
+            <div class="w-12 h-12 bg-yellow-600/30 rounded-xl flex items-center justify-center text-2xl">👤</div>
+            <div>
+              <div class="font-bold text-yellow-300">동희 님</div>
+              <div class="text-xs text-yellow-600">CEO / Founder</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Secretary Office -->
+      <div class="mb-6">
+        <div class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">📋 비서실</div>
+        <div class="grid grid-cols-4 gap-3">
+          <template x-for="id in ['chief_of_staff','report_worker','schedule_worker','relay_worker']" :key="id">
+            <div @click="selectAgent(id)"
+                 class="desk-card bg-hq-panel border rounded-xl p-3 cursor-pointer"
+                 :class="selectedAgent === id ? 'border-hq-accent ring-1 ring-hq-accent/50' : 'border-hq-border hover:border-gray-500'">
+              <div class="flex items-center gap-2 mb-2">
+                <div class="w-9 h-9 rounded-lg flex items-center justify-center text-lg"
+                     :class="getAgentAvatarBg(id)"
+                     x-text="getAgentEmoji(id)">
+                </div>
+                <div class="w-2 h-2 rounded-full" :class="getAgentDotClass(id)"></div>
+              </div>
+              <div class="text-xs font-medium text-gray-300 truncate" x-text="getAgentName(id)"></div>
+              <div class="text-[10px] text-gray-500 truncate" x-text="agentMeta[id]?.role || ''"></div>
+            </div>
+          </template>
+        </div>
+      </div>
+
+      <!-- LEET Master Division -->
+      <div class="mb-6">
+        <div class="text-xs font-semibold text-cyan-500 uppercase tracking-wider mb-3">🏗️ LEET Master 본부</div>
+        <div class="grid grid-cols-2 gap-4">
+
+          <!-- CTO Room -->
+          <div class="bg-cyan-900/10 border border-cyan-800/30 rounded-xl p-4">
+            <div class="text-xs font-semibold text-cyan-400 mb-3">기술개발처 (CTO)</div>
+            <div class="grid grid-cols-2 gap-2">
+              <template x-for="id in ['cto_manager','frontend_specialist','backend_specialist','infra_specialist','ai_model_specialist']" :key="id">
+                <div @click="selectAgent(id)"
+                     class="desk-card bg-hq-panel/80 border rounded-lg p-2.5 cursor-pointer"
+                     :class="selectedAgent === id ? 'border-hq-accent ring-1 ring-hq-accent/50' : 'border-hq-border/50 hover:border-gray-500'">
+                  <div class="flex items-center gap-2 mb-1">
+                    <div class="w-7 h-7 rounded-md flex items-center justify-center text-sm"
+                         :class="getAgentAvatarBg(id)"
+                         x-text="getAgentEmoji(id)"></div>
+                    <div class="w-1.5 h-1.5 rounded-full" :class="getAgentDotClass(id)"></div>
+                  </div>
+                  <div class="text-[11px] font-medium text-gray-300 truncate" x-text="getAgentName(id)"></div>
+                </div>
+              </template>
+            </div>
+          </div>
+
+          <!-- CSO Room -->
+          <div class="bg-cyan-900/10 border border-cyan-800/30 rounded-xl p-4">
+            <div class="text-xs font-semibold text-cyan-400 mb-3">사업기획처 (CSO)</div>
+            <div class="grid grid-cols-2 gap-2">
+              <template x-for="id in ['cso_manager','market_research_specialist','business_plan_specialist','financial_model_specialist']" :key="id">
+                <div @click="selectAgent(id)"
+                     class="desk-card bg-hq-panel/80 border rounded-lg p-2.5 cursor-pointer"
+                     :class="selectedAgent === id ? 'border-hq-accent ring-1 ring-hq-accent/50' : 'border-hq-border/50 hover:border-gray-500'">
+                  <div class="flex items-center gap-2 mb-1">
+                    <div class="w-7 h-7 rounded-md flex items-center justify-center text-sm"
+                         :class="getAgentAvatarBg(id)"
+                         x-text="getAgentEmoji(id)"></div>
+                    <div class="w-1.5 h-1.5 rounded-full" :class="getAgentDotClass(id)"></div>
+                  </div>
+                  <div class="text-[11px] font-medium text-gray-300 truncate" x-text="getAgentName(id)"></div>
+                </div>
+              </template>
+            </div>
+          </div>
+
+          <!-- CLO Room -->
+          <div class="bg-cyan-900/10 border border-cyan-800/30 rounded-xl p-4">
+            <div class="text-xs font-semibold text-cyan-400 mb-3">법무·IP처 (CLO)</div>
+            <div class="grid grid-cols-2 gap-2">
+              <template x-for="id in ['clo_manager','copyright_specialist','patent_specialist']" :key="id">
+                <div @click="selectAgent(id)"
+                     class="desk-card bg-hq-panel/80 border rounded-lg p-2.5 cursor-pointer"
+                     :class="selectedAgent === id ? 'border-hq-accent ring-1 ring-hq-accent/50' : 'border-hq-border/50 hover:border-gray-500'">
+                  <div class="flex items-center gap-2 mb-1">
+                    <div class="w-7 h-7 rounded-md flex items-center justify-center text-sm"
+                         :class="getAgentAvatarBg(id)"
+                         x-text="getAgentEmoji(id)"></div>
+                    <div class="w-1.5 h-1.5 rounded-full" :class="getAgentDotClass(id)"></div>
+                  </div>
+                  <div class="text-[11px] font-medium text-gray-300 truncate" x-text="getAgentName(id)"></div>
+                </div>
+              </template>
+            </div>
+          </div>
+
+          <!-- CMO Room -->
+          <div class="bg-cyan-900/10 border border-cyan-800/30 rounded-xl p-4">
+            <div class="text-xs font-semibold text-cyan-400 mb-3">마케팅·고객처 (CMO)</div>
+            <div class="grid grid-cols-2 gap-2">
+              <template x-for="id in ['cmo_manager','survey_specialist','content_specialist','community_specialist']" :key="id">
+                <div @click="selectAgent(id)"
+                     class="desk-card bg-hq-panel/80 border rounded-lg p-2.5 cursor-pointer"
+                     :class="selectedAgent === id ? 'border-hq-accent ring-1 ring-hq-accent/50' : 'border-hq-border/50 hover:border-gray-500'">
+                  <div class="flex items-center gap-2 mb-1">
+                    <div class="w-7 h-7 rounded-md flex items-center justify-center text-sm"
+                         :class="getAgentAvatarBg(id)"
+                         x-text="getAgentEmoji(id)"></div>
+                    <div class="w-1.5 h-1.5 rounded-full" :class="getAgentDotClass(id)"></div>
+                  </div>
+                  <div class="text-[11px] font-medium text-gray-300 truncate" x-text="getAgentName(id)"></div>
+                </div>
+              </template>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Finance Division -->
+      <div class="mb-6">
+        <div class="text-xs font-semibold text-purple-400 uppercase tracking-wider mb-3">📊 투자분석 본부</div>
+        <div class="bg-purple-900/10 border border-purple-800/30 rounded-xl p-4">
+          <div class="text-xs font-semibold text-purple-400 mb-3">투자분석처 (CIO)</div>
+          <div class="grid grid-cols-5 gap-2">
+            <template x-for="id in ['cio_manager','market_condition_specialist','stock_analysis_specialist','technical_analysis_specialist','risk_management_specialist']" :key="id">
+              <div @click="selectAgent(id)"
+                   class="desk-card bg-hq-panel/80 border rounded-lg p-2.5 cursor-pointer"
+                   :class="selectedAgent === id ? 'border-hq-accent ring-1 ring-hq-accent/50' : 'border-hq-border/50 hover:border-gray-500'">
+                <div class="flex items-center gap-2 mb-1">
+                  <div class="w-7 h-7 rounded-md flex items-center justify-center text-sm"
+                       :class="getAgentAvatarBg(id)"
+                       x-text="getAgentEmoji(id)"></div>
+                  <div class="w-1.5 h-1.5 rounded-full" :class="getAgentDotClass(id)"></div>
+                </div>
+                <div class="text-[11px] font-medium text-gray-300 truncate" x-text="getAgentName(id)"></div>
+              </div>
+            </template>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Agent Detail Side Panel -->
+    <aside x-show="selectedAgent" x-transition
+           class="w-96 bg-hq-panel border-l border-hq-border flex flex-col shrink-0 overflow-hidden">
+      <template x-if="agentDetail">
+        <div class="flex flex-col h-full">
+          <!-- Header -->
+          <div class="p-4 border-b border-hq-border shrink-0">
+            <div class="flex items-center justify-between mb-3">
+              <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl flex items-center justify-center text-xl"
+                     :class="getAgentAvatarBg(agentDetail.agent_id)"
+                     x-text="getAgentEmoji(agentDetail.agent_id)"></div>
+                <div>
+                  <div class="font-bold text-white" x-text="agentDetail.name_ko"></div>
+                  <div class="text-xs text-gray-500" x-text="agentDetail.name"></div>
+                </div>
+              </div>
+              <button @click="selectedAgent = null; agentDetail = null"
+                      class="text-gray-500 hover:text-gray-300 text-lg">✕</button>
+            </div>
+
+            <!-- Tags -->
+            <div class="flex flex-wrap gap-1.5">
+              <span class="text-[10px] px-2 py-0.5 rounded-full border"
+                    :class="{
+                      'border-blue-600 text-blue-400 bg-blue-900/20': agentDetail.role === 'manager',
+                      'border-green-600 text-green-400 bg-green-900/20': agentDetail.role === 'specialist',
+                      'border-yellow-600 text-yellow-400 bg-yellow-900/20': agentDetail.role === 'worker',
+                    }"
+                    x-text="agentDetail.role"></span>
+              <span class="text-[10px] px-2 py-0.5 rounded-full border border-hq-border text-gray-400"
+                    x-text="agentDetail.model_name"></span>
+              <span class="text-[10px] px-2 py-0.5 rounded-full border border-hq-border text-gray-400"
+                    x-text="agentDetail.division"></span>
+            </div>
+          </div>
+
+          <!-- Info -->
+          <div class="p-4 border-b border-hq-border shrink-0 space-y-2">
+            <div class="text-xs text-gray-500">능력치</div>
+            <div class="flex flex-wrap gap-1">
+              <template x-for="cap in (agentDetail.capabilities || [])" :key="cap">
+                <span class="text-[10px] px-2 py-0.5 bg-hq-bg rounded-md text-gray-400" x-text="cap"></span>
+              </template>
+            </div>
+            <template x-if="agentDetail.subordinate_ids && agentDetail.subordinate_ids.length > 0">
+              <div>
+                <div class="text-xs text-gray-500 mt-2">부하 직원</div>
+                <div class="flex flex-wrap gap-1 mt-1">
+                  <template x-for="sid in agentDetail.subordinate_ids" :key="sid">
+                    <span class="text-[10px] px-2 py-0.5 bg-blue-900/20 border border-blue-800/30 rounded-md text-blue-400 cursor-pointer hover:bg-blue-900/40"
+                          @click="selectAgent(sid)" x-text="getAgentName(sid)"></span>
+                  </template>
+                </div>
+              </div>
+            </template>
+            <template x-if="agentDetail.superior_id">
+              <div>
+                <div class="text-xs text-gray-500 mt-2">상관</div>
+                <span class="text-[10px] px-2 py-0.5 bg-amber-900/20 border border-amber-800/30 rounded-md text-amber-400 cursor-pointer hover:bg-amber-900/40"
+                      @click="selectAgent(agentDetail.superior_id)"
+                      x-text="getAgentName(agentDetail.superior_id)"></span>
+              </div>
+            </template>
+          </div>
+
+          <!-- Soul Editor -->
+          <div class="flex-1 flex flex-col overflow-hidden p-4">
+            <div class="flex items-center justify-between mb-2">
+              <div class="text-xs font-semibold text-gray-400">Soul (시스템 프롬프트)</div>
+              <div class="flex items-center gap-2">
+                <span x-show="soulSaving" class="text-[10px] text-hq-yellow">저장중...</span>
+                <span x-show="soulSaved" class="text-[10px] text-hq-green fade-in">저장 완료!</span>
+              </div>
+            </div>
+            <textarea x-model="soulText"
+                      @input="soulChanged = true; soulSaved = false"
+                      class="flex-1 bg-hq-bg border border-hq-border rounded-lg p-3 text-xs text-gray-300
+                             font-mono leading-relaxed resize-none scrollbar-thin
+                             focus:outline-none focus:border-hq-accent focus:ring-1 focus:ring-hq-accent/50"
+                      placeholder="에이전트의 성격과 역할을 정의하세요..."></textarea>
+            <button @click="saveSoul()"
+                    :disabled="!soulChanged || soulSaving"
+                    class="mt-3 bg-hq-accent hover:bg-blue-600 disabled:bg-gray-700 disabled:text-gray-500
+                           text-white text-xs rounded-lg px-4 py-2 font-medium transition">
+              Soul 저장 (즉시 반영)
+            </button>
+          </div>
+        </div>
+      </template>
+    </aside>
+  </div>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!--  TAB 3: 지식관리 (Knowledge Management)     -->
+  <!-- ═══════════════════════════════════════════ -->
+  <div x-show="currentTab === 'knowledge'" class="flex flex-1 overflow-hidden">
+
+    <!-- File List -->
+    <aside class="w-72 bg-hq-panel border-r border-hq-border flex flex-col shrink-0">
+      <div class="p-3 border-b border-hq-border">
+        <div class="flex items-center justify-between mb-2">
+          <div class="text-xs font-semibold text-gray-500 uppercase tracking-wider">지식 파일</div>
+          <button @click="showNewFileForm = !showNewFileForm"
+                  class="text-xs text-hq-accent hover:text-blue-400 font-medium">+ 새 파일</button>
+        </div>
+
+        <!-- New File Form -->
+        <div x-show="showNewFileForm" class="space-y-2 mt-2 fade-in">
+          <select x-model="newFileFolder"
+                  class="w-full bg-hq-bg border border-hq-border rounded-lg px-2 py-1.5 text-xs text-gray-300">
+            <option value="global">global (전체 공유)</option>
+            <option value="leet_master">leet_master (LEET Master 본부)</option>
+            <option value="finance">finance (투자분석 본부)</option>
+          </select>
+          <input x-model="newFileName" placeholder="파일명 (예: CONTEXT)"
+                 class="w-full bg-hq-bg border border-hq-border rounded-lg px-2 py-1.5 text-xs text-gray-300 placeholder-gray-600">
+          <button @click="createNewFile()"
+                  :disabled="!newFileName.trim()"
+                  class="w-full bg-hq-accent hover:bg-blue-600 disabled:bg-gray-700 text-white text-xs rounded-lg py-1.5 font-medium transition">
+            생성
+          </button>
+        </div>
+      </div>
+
+      <!-- File Tree -->
+      <div class="flex-1 overflow-y-auto scrollbar-thin p-3 space-y-1">
+        <template x-for="file in knowledgeFiles" :key="file.path">
+          <div @click="selectKnowledgeFile(file)"
+               class="flex items-center gap-2 px-2 py-1.5 rounded-lg cursor-pointer text-xs"
+               :class="selectedFile?.path === file.path
+                 ? 'bg-hq-accent/20 text-hq-accent border border-hq-accent/30'
+                 : 'text-gray-400 hover:bg-white/5'">
+            <span class="text-gray-600">📄</span>
+            <div class="flex-1 min-w-0">
+              <div class="truncate font-medium" x-text="file.filename"></div>
+              <div class="text-[10px] text-gray-600" x-text="file.folder + '/'"></div>
+            </div>
+            <div class="text-[10px] text-gray-600 shrink-0"
+                 x-text="(file.size / 1024).toFixed(1) + 'KB'"></div>
+          </div>
+        </template>
+        <template x-if="knowledgeFiles.length === 0">
+          <div class="text-xs text-gray-600 italic p-2">파일이 없습니다</div>
+        </template>
+      </div>
+
+      <!-- Folder Info -->
+      <div class="p-3 border-t border-hq-border text-[10px] text-gray-600 space-y-1">
+        <div><span class="text-gray-500">global/</span> → 모든 에이전트</div>
+        <div><span class="text-cyan-600">leet_master/</span> → LEET Master 본부</div>
+        <div><span class="text-purple-600">finance/</span> → 투자분석 본부</div>
+      </div>
+    </aside>
+
+    <!-- Knowledge Editor -->
+    <main class="flex-1 flex flex-col overflow-hidden">
+      <template x-if="selectedFile">
+        <div class="flex flex-col h-full">
+          <!-- File Header -->
+          <div class="p-4 border-b border-hq-border flex items-center justify-between shrink-0">
+            <div class="flex items-center gap-3">
+              <span class="text-lg">📄</span>
+              <div>
+                <div class="font-medium text-white text-sm" x-text="selectedFile.filename"></div>
+                <div class="text-xs text-gray-500" x-text="'knowledge/' + selectedFile.path"></div>
+              </div>
+            </div>
+            <div class="flex items-center gap-3">
+              <span x-show="fileSaving" class="text-xs text-hq-yellow">저장중...</span>
+              <span x-show="fileSaved" class="text-xs text-hq-green fade-in">저장됨!</span>
+              <button @click="saveKnowledgeFile()"
+                      :disabled="!fileChanged || fileSaving"
+                      class="bg-hq-accent hover:bg-blue-600 disabled:bg-gray-700 disabled:text-gray-500
+                             text-white text-xs rounded-lg px-4 py-2 font-medium transition">
+                저장
+              </button>
+              <button @click="deleteKnowledgeFile()"
+                      class="bg-red-900/30 hover:bg-red-900/50 text-red-400 text-xs rounded-lg px-3 py-2 font-medium transition border border-red-800/30">
+                삭제
+              </button>
+            </div>
+          </div>
+          <!-- Editor -->
+          <textarea x-model="fileContent"
+                    @input="fileChanged = true; fileSaved = false"
+                    class="flex-1 bg-hq-bg p-6 text-sm text-gray-300 font-mono leading-relaxed
+                           resize-none scrollbar-thin focus:outline-none"
+                    placeholder="마크다운 내용을 입력하세요..."></textarea>
+        </div>
+      </template>
+      <template x-if="!selectedFile">
+        <div class="flex-1 flex items-center justify-center">
+          <div class="text-center">
+            <div class="text-4xl mb-3">📚</div>
+            <div class="text-gray-500 text-sm">왼쪽에서 파일을 선택하거나<br>새 파일을 만드세요</div>
+            <div class="mt-4 text-xs text-gray-600 max-w-sm">
+              여기에 CONTEXT.md, README.md, STATUS.md, TODO.md 같은<br>
+              프로젝트 문서를 업로드하면 에이전트들이 공유 지식으로 사용합니다.
+            </div>
+          </div>
+        </div>
+      </template>
+    </main>
+  </div>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!--  Script                                     -->
+  <!-- ═══════════════════════════════════════════ -->
   <script>
     function corthexApp() {
       return {
-        // State
+        // Tab state
+        currentTab: 'command',
+
+        // Command Center state
         inputText: '',
         messages: [],
         systemStatus: 'idle',
@@ -471,20 +821,33 @@
         activeAgents: {},
         ws: null,
 
-        // Org tree expand state
+        // Org tree
         expanded: {
-          secretary: false,
-          leet_master: true,
-          tech: false,
-          strategy: false,
-          legal: false,
-          marketing: false,
-          investment: true,
-          finance: false,
-          tools: false,
+          secretary: false, leet_master: true, tech: false, strategy: false,
+          legal: false, marketing: false, investment: true, finance: false, tools: false,
         },
 
-        // Agent name mapping
+        // Office state
+        selectedAgent: null,
+        agentDetail: null,
+        soulText: '',
+        soulChanged: false,
+        soulSaving: false,
+        soulSaved: false,
+        agentMeta: {},
+
+        // Knowledge state
+        knowledgeFiles: [],
+        selectedFile: null,
+        fileContent: '',
+        fileChanged: false,
+        fileSaving: false,
+        fileSaved: false,
+        showNewFileForm: false,
+        newFileFolder: 'global',
+        newFileName: '',
+
+        // Agent info
         agentNames: {
           'chief_of_staff': '비서실장',
           'report_worker': '보고 요약 Worker',
@@ -513,46 +876,46 @@
           'risk_management_specialist': '리스크관리',
         },
 
-        // Division mapping for auto-expand
+        agentEmojis: {
+          'chief_of_staff': '🎖️', 'report_worker': '📝', 'schedule_worker': '📅', 'relay_worker': '📡',
+          'cto_manager': '🧑‍💻', 'frontend_specialist': '🎨', 'backend_specialist': '⚙️',
+          'infra_specialist': '🗄️', 'ai_model_specialist': '🤖',
+          'cso_manager': '📈', 'market_research_specialist': '🔍',
+          'business_plan_specialist': '📋', 'financial_model_specialist': '💰',
+          'clo_manager': '⚖️', 'copyright_specialist': '©️', 'patent_specialist': '📜',
+          'cmo_manager': '📣', 'survey_specialist': '📊', 'content_specialist': '✍️', 'community_specialist': '👥',
+          'cio_manager': '💹', 'market_condition_specialist': '🌍',
+          'stock_analysis_specialist': '📉', 'technical_analysis_specialist': '📐',
+          'risk_management_specialist': '🛡️',
+        },
+
         agentDivision: {
           'chief_of_staff': 'secretary', 'report_worker': 'secretary',
           'schedule_worker': 'secretary', 'relay_worker': 'secretary',
-          'cto_manager': 'tech',
-          'frontend_specialist': 'tech', 'backend_specialist': 'tech',
+          'cto_manager': 'tech', 'frontend_specialist': 'tech', 'backend_specialist': 'tech',
           'infra_specialist': 'tech', 'ai_model_specialist': 'tech',
           'cso_manager': 'strategy', 'market_research_specialist': 'strategy',
           'business_plan_specialist': 'strategy', 'financial_model_specialist': 'strategy',
-          'clo_manager': 'legal', 'copyright_specialist': 'legal',
-          'patent_specialist': 'legal', 'cmo_manager': 'marketing',
-          'survey_specialist': 'marketing', 'content_specialist': 'marketing',
-          'community_specialist': 'marketing',
+          'clo_manager': 'legal', 'copyright_specialist': 'legal', 'patent_specialist': 'legal',
+          'cmo_manager': 'marketing', 'survey_specialist': 'marketing',
+          'content_specialist': 'marketing', 'community_specialist': 'marketing',
           'cio_manager': 'finance', 'market_condition_specialist': 'finance',
           'stock_analysis_specialist': 'finance', 'technical_analysis_specialist': 'finance',
           'risk_management_specialist': 'finance',
         },
 
+        // ─── Init ───
         init() {
           this.connectWebSocket();
         },
 
+        // ─── WebSocket ───
         connectWebSocket() {
           const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
           this.ws = new WebSocket(`${protocol}//${location.host}/ws`);
-
-          this.ws.onopen = () => {
-            this.wsConnected = true;
-          };
-
-          this.ws.onclose = () => {
-            this.wsConnected = false;
-            // Reconnect after 3 seconds
-            setTimeout(() => this.connectWebSocket(), 3000);
-          };
-
-          this.ws.onmessage = (event) => {
-            const msg = JSON.parse(event.data);
-            this.handleWsMessage(msg);
-          };
+          this.ws.onopen = () => { this.wsConnected = true; };
+          this.ws.onclose = () => { this.wsConnected = false; setTimeout(() => this.connectWebSocket(), 3000); };
+          this.ws.onmessage = (event) => { this.handleWsMessage(JSON.parse(event.data)); };
         },
 
         handleWsMessage(msg) {
@@ -561,58 +924,36 @@
               this.systemStatus = 'working';
               this.messages.push({ type: 'processing', id: Date.now() });
               break;
-
             case 'agent_status':
               const d = msg.data;
-              this.activeAgents[d.agent_id] = {
-                status: d.status,
-                progress: d.progress || 0,
-              };
-
-              // Auto-expand the relevant section
+              this.activeAgents[d.agent_id] = { status: d.status, progress: d.progress || 0 };
               if (d.status === 'working') {
                 const div = this.agentDivision[d.agent_id];
                 if (div) {
                   this.expanded[div] = true;
-                  if (['tech','strategy','legal','marketing'].includes(div)) {
-                    this.expanded.leet_master = true;
-                  }
-                  if (div === 'finance') {
-                    this.expanded.investment = true;
-                  }
+                  if (['tech','strategy','legal','marketing'].includes(div)) this.expanded.leet_master = true;
+                  if (div === 'finance') this.expanded.investment = true;
                 }
-              }
-
-              // Simulate progress increase
-              if (d.status === 'working' && d.progress < 0.9) {
-                this.simulateProgress(d.agent_id);
+                if (d.progress < 0.9) this.simulateProgress(d.agent_id);
               }
               break;
-
             case 'activity_log':
               this.activityLogs.push(msg.data);
               break;
-
             case 'cost_update':
               this.totalCost = msg.data.total_cost;
               this.totalTokens = msg.data.total_tokens;
               break;
-
             case 'result':
-              // Remove processing indicator
               this.messages = this.messages.filter(m => m.type !== 'processing');
               this.messages.push({
-                type: 'result',
-                content: msg.data.content,
-                sender_id: msg.data.sender_id,
-                time_seconds: msg.data.time_seconds,
-                cost: msg.data.cost,
+                type: 'result', content: msg.data.content, sender_id: msg.data.sender_id,
+                time_seconds: msg.data.time_seconds, cost: msg.data.cost,
               });
               this.systemStatus = 'idle';
               this.totalCost = msg.data.cost || this.totalCost;
               this.$nextTick(() => this.scrollToBottom());
               break;
-
             case 'error':
               this.messages = this.messages.filter(m => m.type !== 'processing');
               this.messages.push({ type: 'error', text: msg.data.message });
@@ -625,100 +966,192 @@
         simulateProgress(agentId) {
           const interval = setInterval(() => {
             if (!this.activeAgents[agentId] || this.activeAgents[agentId].status !== 'working') {
-              clearInterval(interval);
-              return;
+              clearInterval(interval); return;
             }
-            const current = this.activeAgents[agentId].progress;
-            if (current < 0.9) {
-              this.activeAgents[agentId].progress = Math.min(0.9, current + 0.05 + Math.random() * 0.1);
-            } else {
-              clearInterval(interval);
-            }
+            const cur = this.activeAgents[agentId].progress;
+            if (cur < 0.9) {
+              this.activeAgents[agentId].progress = Math.min(0.9, cur + 0.05 + Math.random() * 0.1);
+            } else { clearInterval(interval); }
           }, 800);
         },
 
+        // ─── Chat ───
         sendMessage() {
           const text = this.inputText.trim();
           if (!text || this.systemStatus === 'working') return;
-
           this.messages.push({ type: 'user', text });
           this.inputText = '';
           this.activeAgents = {};
-
-          if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+          if (this.ws?.readyState === WebSocket.OPEN) {
             this.ws.send(JSON.stringify({ type: 'command', text }));
           }
-
           this.$nextTick(() => this.scrollToBottom());
         },
 
-        sendPreset(text) {
-          this.inputText = text;
-          this.sendMessage();
+        sendPreset(text) { this.inputText = text; this.sendMessage(); },
+
+        // ─── Office ───
+        async loadOfficeData() {
+          if (Object.keys(this.agentMeta).length > 0) return;
+          try {
+            const res = await fetch('/api/agents');
+            const agents = await res.json();
+            agents.forEach(a => { this.agentMeta[a.agent_id] = a; });
+          } catch (e) { console.error('Failed to load agents:', e); }
         },
 
-        toggleSection(section) {
-          this.expanded[section] = !this.expanded[section];
+        async selectAgent(id) {
+          this.selectedAgent = id;
+          this.soulChanged = false;
+          this.soulSaved = false;
+          try {
+            const res = await fetch(`/api/agents/${id}`);
+            this.agentDetail = await res.json();
+            this.soulText = this.agentDetail.system_prompt || '';
+          } catch (e) { console.error('Failed to load agent:', e); }
         },
 
-        getAgentName(id) {
-          return this.agentNames[id] || id;
+        async saveSoul() {
+          if (!this.selectedAgent || !this.soulChanged) return;
+          this.soulSaving = true;
+          try {
+            await fetch(`/api/agents/${this.selectedAgent}/soul`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ system_prompt: this.soulText }),
+            });
+            this.soulChanged = false;
+            this.soulSaved = true;
+            this.soulSaving = false;
+            setTimeout(() => { this.soulSaved = false; }, 2000);
+          } catch (e) {
+            this.soulSaving = false;
+            alert('저장 실패: ' + e.message);
+          }
+        },
+
+        // ─── Knowledge ───
+        async loadKnowledge() {
+          try {
+            const res = await fetch('/api/knowledge');
+            this.knowledgeFiles = await res.json();
+          } catch (e) { console.error('Failed to load knowledge:', e); }
+        },
+
+        async selectKnowledgeFile(file) {
+          this.selectedFile = file;
+          this.fileChanged = false;
+          this.fileSaved = false;
+          try {
+            const res = await fetch(`/api/knowledge/${file.folder}/${file.filename}`);
+            const data = await res.json();
+            this.fileContent = data.content || '';
+          } catch (e) { console.error('Failed to load file:', e); }
+        },
+
+        async saveKnowledgeFile() {
+          if (!this.selectedFile || !this.fileChanged) return;
+          this.fileSaving = true;
+          try {
+            await fetch('/api/knowledge', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                folder: this.selectedFile.folder,
+                filename: this.selectedFile.filename,
+                content: this.fileContent,
+              }),
+            });
+            this.fileChanged = false;
+            this.fileSaved = true;
+            this.fileSaving = false;
+            setTimeout(() => { this.fileSaved = false; }, 2000);
+          } catch (e) {
+            this.fileSaving = false;
+            alert('저장 실패: ' + e.message);
+          }
+        },
+
+        async deleteKnowledgeFile() {
+          if (!this.selectedFile) return;
+          if (!confirm(`"${this.selectedFile.filename}" 파일을 삭제하시겠습니까?`)) return;
+          try {
+            await fetch(`/api/knowledge/${this.selectedFile.folder}/${this.selectedFile.filename}`, {
+              method: 'DELETE',
+            });
+            this.selectedFile = null;
+            this.fileContent = '';
+            await this.loadKnowledge();
+          } catch (e) { alert('삭제 실패: ' + e.message); }
+        },
+
+        async createNewFile() {
+          if (!this.newFileName.trim()) return;
+          try {
+            await fetch('/api/knowledge', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                folder: this.newFileFolder,
+                filename: this.newFileName.trim(),
+                content: `# ${this.newFileName.trim()}\n\n내용을 입력하세요.\n`,
+              }),
+            });
+            this.showNewFileForm = false;
+            this.newFileName = '';
+            await this.loadKnowledge();
+          } catch (e) { alert('생성 실패: ' + e.message); }
+        },
+
+        // ─── Helpers ───
+        toggleSection(s) { this.expanded[s] = !this.expanded[s]; },
+        getAgentName(id) { return this.agentNames[id] || id; },
+        getAgentEmoji(id) { return this.agentEmojis[id] || '🤖'; },
+
+        getAgentAvatarBg(id) {
+          const div = this.agentDivision[id];
+          if (!div) return 'bg-gray-700';
+          const m = { secretary: 'bg-yellow-900/40', tech: 'bg-cyan-900/40', strategy: 'bg-emerald-900/40',
+                      legal: 'bg-orange-900/40', marketing: 'bg-pink-900/40', finance: 'bg-purple-900/40' };
+          return m[div] || 'bg-gray-700';
         },
 
         getAgentDotClass(id) {
-          const status = this.activeAgents[id];
-          if (!status) return 'bg-amber-500';
-          switch (status.status) {
-            case 'working': return 'bg-hq-green pulse-dot';
-            case 'done': return 'bg-hq-green';
-            case 'idle': return 'bg-amber-500';
-            default: return 'bg-gray-600';
-          }
+          const s = this.activeAgents[id];
+          if (!s) return 'bg-amber-500';
+          if (s.status === 'working') return 'bg-hq-green pulse-dot';
+          if (s.status === 'done') return 'bg-hq-green';
+          return 'bg-amber-500';
         },
 
         getSectionStatusColor(section) {
           const ids = this.getSectionAgentIds(section);
-          const hasWorking = ids.some(id => this.activeAgents[id]?.status === 'working');
-          if (hasWorking) return 'text-hq-yellow';
-          const hasDone = ids.some(id => this.activeAgents[id]?.status === 'done');
-          if (hasDone) return 'text-hq-green';
+          if (ids.some(id => this.activeAgents[id]?.status === 'working')) return 'text-hq-yellow';
+          if (ids.some(id => this.activeAgents[id]?.status === 'done')) return 'text-hq-green';
           return 'text-gray-600';
         },
 
         getSectionStatusText(section) {
           const ids = this.getSectionAgentIds(section);
-          const working = ids.filter(id => this.activeAgents[id]?.status === 'working').length;
-          if (working > 0) return `${working}명 작업중`;
-          const done = ids.filter(id => this.activeAgents[id]?.status === 'done').length;
-          if (done > 0) return `${done}명 완료`;
+          const w = ids.filter(id => this.activeAgents[id]?.status === 'working').length;
+          if (w > 0) return `${w}명 작업중`;
+          const d = ids.filter(id => this.activeAgents[id]?.status === 'done').length;
+          if (d > 0) return `${d}명 완료`;
           return '';
         },
 
         getSectionAgentIds(section) {
           if (section === 'leet_master') {
-            return Object.entries(this.agentDivision)
-              .filter(([_, div]) => ['tech','strategy','legal','marketing'].includes(div))
-              .map(([id]) => id);
+            return Object.entries(this.agentDivision).filter(([_,d]) => ['tech','strategy','legal','marketing'].includes(d)).map(([id]) => id);
           }
           if (section === 'investment') {
-            return Object.entries(this.agentDivision)
-              .filter(([_, div]) => div === 'finance')
-              .map(([id]) => id);
+            return Object.entries(this.agentDivision).filter(([_,d]) => d === 'finance').map(([id]) => id);
           }
-          return Object.entries(this.agentDivision)
-            .filter(([_, div]) => div === section)
-            .map(([id]) => id);
+          return Object.entries(this.agentDivision).filter(([_,d]) => d === section).map(([id]) => id);
         },
 
-        renderMarkdown(text) {
-          try { return marked.parse(text || ''); }
-          catch { return text; }
-        },
-
-        scrollToBottom() {
-          const el = this.$refs.chatArea;
-          if (el) el.scrollTop = el.scrollHeight;
-        },
+        renderMarkdown(text) { try { return marked.parse(text || ''); } catch { return text; } },
+        scrollToBottom() { const el = this.$refs.chatArea; if (el) el.scrollTop = el.scrollHeight; },
       };
     }
   </script>
