@@ -140,7 +140,7 @@ class BatchCollector:
                 logger.debug("Anthropic Batch %s 상태: %s", batch.id, batch.processing_status)
 
             # 결과 수집
-            async for result in self._anthropic.messages.batches.results(batch.id):
+            async for result in await self._anthropic.messages.batches.results(batch.id):
                 future = self._pending.pop(result.custom_id, None)
                 if not future or future.done():
                     continue

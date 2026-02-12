@@ -91,6 +91,11 @@
                 class="ml-1 bg-hq-yellow text-black text-[10px] rounded-full px-1.5 py-0.5 font-bold"
                 x-text="runningTaskCount"></span>
         </button>
+        <button @click="currentTab = 'archive'; loadFullArchive()"
+                :class="currentTab === 'archive' ? 'bg-hq-accent/20 text-hq-accent border-hq-accent' : 'text-gray-400 border-transparent hover:text-gray-300'"
+                class="text-sm px-3 py-1.5 rounded-lg border transition font-medium">
+          아카이브
+        </button>
       </nav>
     </div>
 
@@ -329,7 +334,7 @@
             <span>AgentTool Pool</span>
           </button>
           <div x-show="expanded.tools" x-collapse class="ml-6 space-y-0.5">
-            <template x-for="t in ['변리사','세무사','디자이너','번역가','웹검색']" :key="t">
+            <template x-for="t in ['변리사','세무사','디자이너','번역가','웹검색','SNS 발행기']" :key="t">
               <div class="flex items-center gap-2 px-2 py-0.5 text-xs text-gray-500">
                 <span class="w-1.5 h-1.5 rounded-full bg-gray-600"></span>
                 <span x-text="t + ' Tool'"></span>
@@ -339,11 +344,28 @@
         </div>
       </div>
 
+      <!-- SNS 연동 상태 -->
+      <div class="border-t border-hq-border px-3 py-2 shrink-0">
+        <div class="text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-1.5">SNS 연동</div>
+        <div class="space-y-1">
+          <div class="flex items-center justify-between text-[10px]">
+            <span class="text-gray-400">Instagram</span>
+            <span :class="snsStatus.instagram?.enabled ? 'text-hq-green' : 'text-gray-600'"
+                  x-text="snsStatus.instagram?.enabled ? (snsStatus.instagram?.configured ? '연결됨' : '키 미설정') : '미연동'"></span>
+          </div>
+          <div class="flex items-center justify-between text-[10px]">
+            <span class="text-gray-400">YouTube</span>
+            <span :class="snsStatus.youtube?.enabled ? 'text-hq-green' : 'text-gray-600'"
+                  x-text="snsStatus.youtube?.enabled ? (snsStatus.youtube?.configured ? '연결됨' : '키 미설정') : '미연동'"></span>
+          </div>
+        </div>
+      </div>
+
       <!-- Activity Log -->
       <div class="h-48 border-t border-hq-border shrink-0">
         <div class="text-xs font-semibold text-gray-500 uppercase tracking-wider px-3 pt-2 pb-1">활동 로그</div>
         <div class="overflow-y-auto scrollbar-thin h-36 px-3 space-y-1">
-          <template x-for="(log, i) in activityLogs.slice(-20).reverse()" :key="i">
+          <template x-for="(log, i) in activityLogs.slice(-30).reverse()" :key="i">
             <div class="text-[11px] text-gray-500 fade-in">
               <span class="text-gray-600 font-mono" x-text="log.time"></span>
               <span class="text-gray-400" x-text="log.agent_id"></span>
@@ -723,11 +745,11 @@
                         class="text-[10px] px-2 py-0.5 rounded-full border border-hq-border text-gray-400
                                bg-hq-bg appearance-none cursor-pointer hover:border-hq-accent
                                focus:outline-none focus:border-hq-accent pr-5"
-                        :disabled="reasoningSaving">
+                        :disabled="reasoningSaving || getReasoningLevels().length === 0">
                   <option value="">추론: 기본</option>
-                  <option value="low">추론: 낮음</option>
-                  <option value="medium">추론: 중간</option>
-                  <option value="high">추론: 높음</option>
+                  <template x-for="level in getReasoningLevels()" :key="level">
+                    <option :value="level" x-text="'추론: ' + ({low:'낮음', medium:'중간', high:'높음'}[level] || level)"></option>
+                  </template>
                 </select>
                 <span x-show="reasoningSaving" class="text-[9px] text-hq-yellow">...</span>
                 <span x-show="reasoningSaved" class="text-[9px] text-hq-green fade-in">&#10003;</span>
@@ -1048,6 +1070,94 @@
   </div>
 
   <!-- ═══════════════════════════════════════════ -->
+  <!--  Archive Tab                                -->
+  <!-- ═══════════════════════════════════════════ -->
+  <div x-show="currentTab === 'archive'" class="flex flex-1 overflow-hidden">
+    <!-- Sidebar: 부서 필터 -->
+    <aside class="w-56 border-r border-hq-border flex flex-col overflow-y-auto scrollbar-thin">
+      <div class="p-3 border-b border-hq-border">
+        <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider">부서 필터</h3>
+      </div>
+      <div class="p-2 space-y-1">
+        <button @click="archiveFilter = ''"
+                :class="archiveFilter === '' ? 'bg-hq-accent/20 text-hq-accent' : 'text-gray-400 hover:text-gray-300'"
+                class="w-full text-left text-xs px-2 py-1.5 rounded transition">
+          전체 부서
+          <span class="text-[10px] opacity-60" x-text="'(' + fullArchiveList.length + ')'"></span>
+        </button>
+        <template x-for="div in archiveDivisions" :key="div.key">
+          <button @click="archiveFilter = div.key"
+                  :class="archiveFilter === div.key ? 'bg-hq-accent/20 text-hq-accent' : 'text-gray-400 hover:text-gray-300'"
+                  class="w-full text-left text-xs px-2 py-1.5 rounded transition">
+            <span x-text="div.label"></span>
+            <span class="text-[10px] opacity-60" x-text="'(' + div.count + ')'"></span>
+          </button>
+        </template>
+      </div>
+    </aside>
+
+    <!-- Main: 보고서 목록 + 상세 -->
+    <main class="flex-1 flex flex-col overflow-hidden">
+      <!-- 헤더 -->
+      <div class="p-3 border-b border-hq-border flex items-center justify-between">
+        <h3 class="text-sm font-bold text-gray-300">
+          부서별 아카이브
+          <span class="text-[10px] text-gray-500 ml-2" x-text="filteredArchive.length + '건'"></span>
+        </h3>
+        <button @click="loadFullArchive()" class="text-[10px] text-gray-500 hover:text-hq-accent transition">새로고침</button>
+      </div>
+
+      <!-- 보고서 목록 (좌) + 상세 내용 (우) -->
+      <div class="flex flex-1 overflow-hidden">
+        <!-- 보고서 목록 -->
+        <div class="w-80 border-r border-hq-border overflow-y-auto scrollbar-thin">
+          <template x-if="archiveTabLoading">
+            <div class="p-4 text-center text-gray-500 text-sm">불러오는 중...</div>
+          </template>
+          <template x-if="!archiveTabLoading && filteredArchive.length === 0">
+            <div class="p-4 text-center text-gray-500 text-sm">보고서 없음</div>
+          </template>
+          <template x-for="(item, idx) in filteredArchive" :key="item.division + '/' + item.filename">
+            <div @click="viewArchiveItem(item)"
+                 :class="archiveViewItem?.filename === item.filename ? 'bg-hq-accent/10 border-l-2 border-hq-accent' : 'border-l-2 border-transparent hover:bg-white/5'"
+                 class="p-3 cursor-pointer transition">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="text-[10px] px-1.5 py-0.5 rounded-full border border-hq-border text-gray-400"
+                      x-text="divisionLabel(item.division)"></span>
+                <span class="text-[10px] text-gray-500" x-text="formatArchiveDate(item.filename)"></span>
+              </div>
+              <div class="text-xs text-gray-300 truncate" x-text="extractAgentFromFilename(item.filename)"></div>
+            </div>
+          </template>
+        </div>
+
+        <!-- 상세 내용 -->
+        <div class="flex-1 overflow-y-auto scrollbar-thin p-4">
+          <template x-if="!archiveViewItem">
+            <div class="flex items-center justify-center h-full">
+              <div class="text-center">
+                <div class="text-4xl mb-3">📁</div>
+                <div class="text-gray-500 text-sm">왼쪽에서 보고서를 선택하세요</div>
+              </div>
+            </div>
+          </template>
+          <template x-if="archiveViewItem">
+            <div>
+              <div class="flex items-center gap-2 mb-3">
+                <span class="text-xs px-2 py-0.5 rounded-full bg-hq-accent/20 text-hq-accent"
+                      x-text="divisionLabel(archiveViewItem.division)"></span>
+                <span class="text-xs text-gray-500" x-text="archiveViewItem.filename"></span>
+              </div>
+              <div class="prose prose-invert prose-sm max-w-none text-gray-300 text-xs leading-relaxed whitespace-pre-wrap"
+                   x-html="renderMarkdown(archiveViewContent)"></div>
+            </div>
+          </template>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- ═══════════════════════════════════════════ -->
   <!--  Script                                     -->
   <!-- ═══════════════════════════════════════════ -->
   <script>
@@ -1106,12 +1216,22 @@
         runningTaskCount: 0,
         taskDepth: '3',
         batchMode: 'realtime',
-        // Archive (중간 보고서)
+        // Archive (중간 보고서) - 작업내역 내 인라인
         archiveReports: [],
         archiveExpanded: false,
         archiveLoading: false,
         _archiveViewContent: '',
         _archiveViewFile: '',
+
+        // Archive Tab (전체 아카이브 탭)
+        fullArchiveList: [],
+        archiveFilter: '',
+        archiveTabLoading: false,
+        archiveViewItem: null,
+        archiveViewContent: '',
+
+        // SNS 상태
+        snsStatus: {},
 
         // Agent info
         agentNames: {
@@ -1181,6 +1301,14 @@
         // ─── Init ───
         init() {
           this.connectWebSocket();
+          this.loadSNSStatus();
+        },
+
+        async loadSNSStatus() {
+          try {
+            const res = await fetch('/api/sns/status');
+            this.snsStatus = await res.json();
+          } catch (e) { console.warn('SNS 상태 로드 실패:', e); }
         },
 
         // ─── WebSocket ───
@@ -1287,7 +1415,7 @@
         sendMessage() {
           const text = this.inputText.trim();
           if (!text || this.systemStatus === 'working') return;
-          this.messages.push({ type: 'user', text });
+          this.messages = [...this.messages, { type: 'user', text }];
           this.inputText = '';
           this.activeAgents = {};
           if (this.ws?.readyState === WebSocket.OPEN) {
@@ -1363,6 +1491,12 @@
             if (this.agentMeta[this.selectedAgent]) {
               this.agentMeta[this.selectedAgent].model_name = this.agentDetail.model_name;
             }
+            // 새 모델이 현재 추론 수준을 미지원하면 리셋
+            const levels = this.getReasoningLevels();
+            if (this.agentDetail.reasoning_effort && !levels.includes(this.agentDetail.reasoning_effort)) {
+              this.agentDetail.reasoning_effort = '';
+              this.saveReasoning();
+            }
             this.modelSaving = false;
             this.modelSaved = true;
             setTimeout(() => { this.modelSaved = false; }, 2000);
@@ -1370,6 +1504,11 @@
             this.modelSaving = false;
             alert('모델 변경 실패: ' + e.message);
           }
+        },
+
+        getReasoningLevels() {
+          const model = this.availableModels.find(m => m.name === this.agentDetail?.model_name);
+          return model?.reasoning_levels || [];
         },
 
         async saveReasoning() {
@@ -1447,6 +1586,78 @@
           if (!iso) return '';
           const d = new Date(iso);
           return d.toLocaleString('ko-KR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+        },
+
+        // ─── Archive Tab (전체 아카이브) ───
+        get archiveDivisions() {
+          const labels = {
+            'secretary': '비서실',
+            'leet_master.tech': '기술개발처',
+            'leet_master.strategy': '사업기획처',
+            'leet_master.legal': '법무·IP처',
+            'leet_master.marketing': '마케팅처',
+            'finance.investment': '투자분석처',
+            'publishing': '출판기록처',
+          };
+          const counts = {};
+          for (const item of this.fullArchiveList) {
+            counts[item.division] = (counts[item.division] || 0) + 1;
+          }
+          return Object.entries(counts)
+            .map(([key, count]) => ({ key, label: labels[key] || key, count }))
+            .sort((a, b) => a.label.localeCompare(b.label, 'ko'));
+        },
+
+        get filteredArchive() {
+          if (!this.archiveFilter) return this.fullArchiveList;
+          return this.fullArchiveList.filter(f => f.division === this.archiveFilter);
+        },
+
+        divisionLabel(div) {
+          const labels = {
+            'secretary': '비서실',
+            'leet_master.tech': '기술개발처',
+            'leet_master.strategy': '사업기획처',
+            'leet_master.legal': '법무·IP처',
+            'leet_master.marketing': '마케팅처',
+            'finance.investment': '투자분석처',
+            'publishing': '출판기록처',
+          };
+          return labels[div] || div;
+        },
+
+        formatArchiveDate(filename) {
+          // 20250212_143052_agent.md → 2025-02-12 14:30
+          const m = filename.match(/^(\d{4})(\d{2})(\d{2})_(\d{2})(\d{2})/);
+          if (!m) return filename;
+          return `${m[1]}-${m[2]}-${m[3]} ${m[4]}:${m[5]}`;
+        },
+
+        extractAgentFromFilename(filename) {
+          // 20250212_143052_cto_manager.md → cto_manager
+          const m = filename.match(/^\d{8}_\d{6}_(.+)\.md$/);
+          if (!m) return filename;
+          const agentId = m[1];
+          return this.agentNames[agentId] || agentId;
+        },
+
+        async loadFullArchive() {
+          this.archiveTabLoading = true;
+          try {
+            const res = await fetch('/api/archive');
+            this.fullArchiveList = await res.json();
+          } catch (e) { console.error('Failed to load archive:', e); }
+          this.archiveTabLoading = false;
+        },
+
+        async viewArchiveItem(item) {
+          this.archiveViewItem = item;
+          this.archiveViewContent = '';
+          try {
+            const res = await fetch(`/api/archive/${item.division}/${item.filename}`);
+            const data = await res.json();
+            this.archiveViewContent = data.content || '';
+          } catch (e) { console.error('Failed to load archive item:', e); }
         },
 
         // ─── Knowledge ───

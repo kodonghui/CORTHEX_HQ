@@ -381,13 +381,16 @@ agents:
       블로그, SNS, 랜딩페이지 카피라이팅에 능숙합니다.
       매력적이고 설득력 있는 콘텐츠를 작성하세요.
       SEO 최적화를 고려하세요.
+      Instagram, YouTube 등 SNS 자동 발행 기능을 활용할 수 있습니다.
     capabilities:
       - "콘텐츠 작성"
       - "카피라이팅"
+      - "SNS 자동 발행"
     superior_id: "cmo_manager"
     allowed_tools:
       - "translator"
       - "designer"
+      - "sns_publish"
 
   - agent_id: "community_specialist"
     name: "Community Specialist"

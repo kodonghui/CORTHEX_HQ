@@ -1,0 +1,22 @@
+# ===========================================
+# CORTHEX HQ - SNS 자동 발행 설정
+# ===========================================
+# Instagram Graph API + YouTube Data API v3 연동 설정
+
+instagram:
+  enabled: false
+  # Meta 개발자 콘솔에서 발급 (Business/Creator 계정 필수)
+  access_token_env: "INSTAGRAM_ACCESS_TOKEN"
+  # Instagram Business Account ID
+  ig_user_id_env: "INSTAGRAM_USER_ID"
+  # 일일 최대 게시 수 (API 제한: 25/24h)
+  daily_limit: 20
+
+youtube:
+  enabled: false
+  # Google Cloud Console OAuth2 자격증명
+  client_id_env: "YOUTUBE_CLIENT_ID"
+  client_secret_env: "YOUTUBE_CLIENT_SECRET"
+  refresh_token_env: "YOUTUBE_REFRESH_TOKEN"
+  # 일일 쿼터 모니터링 (기본 10,000 유닛, 업로드 1건 = ~1,600 유닛)
+  daily_upload_limit: 5

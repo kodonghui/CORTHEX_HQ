@@ -415,6 +415,7 @@ async def get_models() -> list[dict]:
                 "tier": model.get("tier", ""),
                 "cost_input": model.get("cost_per_1m_input", 0),
                 "cost_output": model.get("cost_per_1m_output", 0),
+                "reasoning_levels": model.get("reasoning_levels", []),
             })
     return result
 
@@ -687,6 +688,60 @@ async def list_archive_by_correlation(correlation_id: str) -> list[dict]:
                     "content": content,
                 })
     return results
+
+
+# ─── SNS 발행 API ───
+
+from src.integrations.sns_publisher import SNSPublisher
+
+_sns = SNSPublisher()
+
+
+@app.get("/api/sns/status")
+async def sns_status() -> dict:
+    """SNS 플랫폼 연동 상태 확인."""
+    return _sns.get_status()
+
+
+class InstagramPhotoRequest(BaseModel):
+    image_url: str
+    caption: str = ""
+
+
+class InstagramReelRequest(BaseModel):
+    video_url: str
+    caption: str = ""
+
+
+class YouTubeUploadRequest(BaseModel):
+    file_path: str
+    title: str
+    description: str = ""
+    tags: list[str] = []
+    privacy: str = "private"
+
+
+@app.post("/api/sns/instagram/photo")
+async def publish_ig_photo(body: InstagramPhotoRequest) -> dict:
+    """Instagram 사진 게시."""
+    r = await _sns.publish_instagram_photo(body.image_url, body.caption)
+    return {"success": r.success, "post_id": r.post_id, "url": r.url, "error": r.error}
+
+
+@app.post("/api/sns/instagram/reel")
+async def publish_ig_reel(body: InstagramReelRequest) -> dict:
+    """Instagram 릴스 발행."""
+    r = await _sns.publish_instagram_reel(body.video_url, body.caption)
+    return {"success": r.success, "post_id": r.post_id, "url": r.url, "error": r.error}
+
+
+@app.post("/api/sns/youtube/upload")
+async def publish_yt_video(body: YouTubeUploadRequest) -> dict:
+    """YouTube 동영상 업로드."""
+    r = await _sns.publish_youtube_video(
+        body.file_path, body.title, body.description, body.tags, body.privacy,
+    )
+    return {"success": r.success, "post_id": r.post_id, "url": r.url, "error": r.error}
 
 
 # ─── REST Command API (외부 연동용) ───
