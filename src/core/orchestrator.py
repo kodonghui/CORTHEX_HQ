@@ -4,11 +4,10 @@ CEO Orchestrator: routes all CEO commands through the Chief of Staff.
 Flow:
 1. CEO types a command in CLI
 2. Orchestrator sends it to the Chief of Staff (비서실장)
-3. Chief of Staff decomposes and delegates to managers
-4. Collects TaskResult
-5. Saves report to reports/ directory
-6. Auto-pushes to GitHub
-7. Returns result to CLI
+3. 비서실장 → 처장(Manager) → Specialist/Worker → 처장 → 비서실장
+4. 비서실장이 최종 TaskResult를 CEO에게 반환
+5. reports/ 디렉토리에 보고서 저장
+6. GitHub 자동 푸시
 """
 from __future__ import annotations
 
