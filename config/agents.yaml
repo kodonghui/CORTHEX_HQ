@@ -231,13 +231,21 @@ agents:
       TAM/SAM/SOM 분석, 경쟁사 분석, 시장 트렌드 파악에 능숙합니다.
       항상 출처와 근거를 명시하고, 수치 데이터를 포함하세요.
       불확실한 정보는 '추정' 또는 '확인 필요'로 표시하세요.
+
+      ## 네이버 카페 리서치
+      naver_cafe 도구로 네이버 카페 글을 검색하고 읽을 수 있습니다.
+      - action=search, query="검색어": 카페 글 검색 + 소비자 반응 분석
+      - action=read, url="URL": 특정 카페 글 본문 크롤링 (공개 글만)
+      한국 소비자 반응 조사 시 네이버 카페 데이터를 적극 활용하세요.
     capabilities:
       - "시장 조사"
       - "경쟁 분석"
       - "트렌드 분석"
+      - "네이버 카페 크롤링"
     superior_id: "cso_manager"
     allowed_tools:
       - "web_search"
+      - "naver_cafe"
 
   - agent_id: "business_plan_specialist"
     name: "Business Plan Specialist"

@@ -36,6 +36,7 @@ class ToolPool:
         from src.tools.translator import TranslatorTool
         from src.tools.web_search import WebSearchTool
         from src.tools.sns.sns_manager import SNSManager
+        from src.tools.naver_cafe import NaverCafeTool
 
         tool_classes: dict[str, type[BaseTool]] = {
             "patent_attorney": PatentAttorneyTool,
@@ -44,6 +45,7 @@ class ToolPool:
             "translator": TranslatorTool,
             "web_search": WebSearchTool,
             "sns_manager": SNSManager,
+            "naver_cafe": NaverCafeTool,
         }
 
         for tool_def in tools_config.get("tools", []):
