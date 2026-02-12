@@ -69,51 +69,65 @@ async def startup() -> None:
 
     logger.info("CORTHEX HQ 시스템 초기화 중...")
 
-    # Load configs
-    agents_cfg_raw = yaml.safe_load(
-        (CONFIG_DIR / "agents.yaml").read_text(encoding="utf-8")
-    )
-    tools_cfg = yaml.safe_load(
-        (CONFIG_DIR / "tools.yaml").read_text(encoding="utf-8")
-    )
+    try:
+        # Load configs
+        agents_cfg_raw = yaml.safe_load(
+            (CONFIG_DIR / "agents.yaml").read_text(encoding="utf-8")
+        )
+        tools_cfg = yaml.safe_load(
+            (CONFIG_DIR / "tools.yaml").read_text(encoding="utf-8")
+        )
 
-    # Build LLM providers
-    openai_key = os.getenv("OPENAI_API_KEY", "")
-    anthropic_key = os.getenv("ANTHROPIC_API_KEY", "")
+        # Build LLM providers
+        openai_key = os.getenv("OPENAI_API_KEY", "")
+        anthropic_key = os.getenv("ANTHROPIC_API_KEY", "")
 
-    openai_prov = OpenAIProvider(api_key=openai_key) if openai_key else None
-    anthropic_prov = AnthropicProvider(api_key=anthropic_key) if anthropic_key else None
+        openai_prov = OpenAIProvider(api_key=openai_key) if openai_key else None
+        anthropic_prov = AnthropicProvider(api_key=anthropic_key) if anthropic_key else None
 
-    model_router = ModelRouter(
-        openai_provider=openai_prov,
-        anthropic_provider=anthropic_prov,
-    )
+        model_router = ModelRouter(
+            openai_provider=openai_prov,
+            anthropic_provider=anthropic_prov,
+        )
 
-    # Build tool pool
-    tool_pool = ToolPool(model_router)
-    tool_pool.build_from_config(tools_cfg)
+        # Build tool pool
+        tool_pool = ToolPool(model_router)
+        tool_pool.build_from_config(tools_cfg)
 
-    # Build agent registry (with knowledge injection)
-    context = SharedContext()
-    registry = AgentRegistry()
-    knowledge_dir = PROJECT_DIR / "knowledge"
-    knowledge_mgr = KnowledgeManager(knowledge_dir)
-    registry.build_from_config(
-        agents_cfg_raw, model_router, tool_pool, context,
-        knowledge_dir=knowledge_dir,
-    )
-    context.set_registry(registry)
+        # Build agent registry (with knowledge injection)
+        context = SharedContext()
+        registry = AgentRegistry()
+        knowledge_dir = PROJECT_DIR / "knowledge"
+        knowledge_mgr = KnowledgeManager(knowledge_dir)
+        knowledge_mgr.load_all()
+        registry.build_from_config(
+            agents_cfg_raw, model_router, tool_pool, context,
+            knowledge_dir=knowledge_dir,
+        )
+        context.set_registry(registry)
 
-    # Status callback: push real-time updates via WebSocket
-    def on_message(msg: Message) -> None:
-        asyncio.create_task(_handle_message_event(msg))
+        # Status callback: push real-time updates via WebSocket
+        def on_message(msg: Message) -> None:
+            asyncio.create_task(_handle_message_event(msg))
 
-    context.set_status_callback(on_message)
+        context.set_status_callback(on_message)
 
-    # Build orchestrator
-    orchestrator = Orchestrator(registry, model_router)
+        # Build orchestrator
+        orchestrator = Orchestrator(registry, model_router)
 
-    logger.info("CORTHEX HQ 시스템 준비 완료 (에이전트 %d명)", registry.agent_count)
+        logger.info("CORTHEX HQ 시스템 준비 완료 (에이전트 %d명)", registry.agent_count)
+
+    except Exception as e:
+        logger.error("시스템 초기화 실패: %s", e, exc_info=True)
+        # Knowledge manager at minimum — so file management works without LLM
+        if knowledge_mgr is None:
+            try:
+                knowledge_dir = PROJECT_DIR / "knowledge"
+                knowledge_mgr = KnowledgeManager(knowledge_dir)
+                knowledge_mgr.load_all()
+                logger.info("지식 관리자만 초기화됨 (LLM 없이 파일 관리 가능)")
+            except Exception:
+                pass
 
 
 async def _handle_message_event(msg: Message) -> None:
@@ -141,6 +155,19 @@ async def _handle_message_event(msg: Message) -> None:
 async def index(request: Request) -> HTMLResponse:
     """Main CEO dashboard page."""
     return templates.TemplateResponse("index.html", {"request": request})
+
+
+@app.get("/api/health")
+async def health_check() -> dict:
+    """서버 상태 진단 엔드포인트."""
+    return {
+        "status": "ok",
+        "orchestrator": orchestrator is not None,
+        "model_router": model_router is not None,
+        "registry": registry is not None,
+        "knowledge_mgr": knowledge_mgr is not None,
+        "agent_count": registry.agent_count if registry else 0,
+    }
 
 
 @app.get("/api/agents")

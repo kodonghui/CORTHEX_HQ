@@ -115,9 +115,11 @@
         <span class="text-gray-500">토큰</span>
         <span class="font-mono ml-1" x-text="totalTokens.toLocaleString()"></span>
       </div>
-      <div class="flex items-center gap-1.5 text-xs" :class="wsConnected ? 'text-hq-green' : 'text-hq-red'">
+      <div class="flex items-center gap-1.5 text-xs cursor-pointer" :class="wsConnected ? 'text-hq-green' : 'text-hq-red'"
+           @click="if(!wsConnected) { connectWebSocket(); }"
+           :title="wsConnected ? '서버 연결 정상' : '클릭하여 재연결 시도'">
         <span class="w-1.5 h-1.5 rounded-full" :class="wsConnected ? 'bg-hq-green' : 'bg-hq-red'"></span>
-        <span x-text="wsConnected ? '연결됨' : '연결 끊김'"></span>
+        <span x-text="wsConnected ? '연결됨' : '연결 끊김 (클릭: 재연결)'"></span>
       </div>
     </div>
   </header>
@@ -911,11 +913,22 @@
 
         // ─── WebSocket ───
         connectWebSocket() {
-          const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-          this.ws = new WebSocket(`${protocol}//${location.host}/ws`);
-          this.ws.onopen = () => { this.wsConnected = true; };
-          this.ws.onclose = () => { this.wsConnected = false; setTimeout(() => this.connectWebSocket(), 3000); };
-          this.ws.onmessage = (event) => { this.handleWsMessage(JSON.parse(event.data)); };
+          try {
+            const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+            this.ws = new WebSocket(`${protocol}//${location.host}/ws`);
+            this.ws.onopen = () => { this.wsConnected = true; console.log('WebSocket 연결됨'); };
+            this.ws.onclose = () => {
+              this.wsConnected = false;
+              console.log('WebSocket 연결 끊김, 3초 후 재시도...');
+              setTimeout(() => this.connectWebSocket(), 3000);
+            };
+            this.ws.onerror = (e) => { console.error('WebSocket 에러:', e); };
+            this.ws.onmessage = (event) => { this.handleWsMessage(JSON.parse(event.data)); };
+          } catch (e) {
+            console.error('WebSocket 연결 실패:', e);
+            this.wsConnected = false;
+            setTimeout(() => this.connectWebSocket(), 3000);
+          }
         },
 
         handleWsMessage(msg) {
@@ -1053,7 +1066,7 @@
           if (!this.selectedFile || !this.fileChanged) return;
           this.fileSaving = true;
           try {
-            await fetch('/api/knowledge', {
+            const res = await fetch('/api/knowledge', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
@@ -1062,6 +1075,12 @@
                 content: this.fileContent,
               }),
             });
+            const data = await res.json();
+            if (data.error) {
+              this.fileSaving = false;
+              alert('저장 실패: ' + data.error);
+              return;
+            }
             this.fileChanged = false;
             this.fileSaved = true;
             this.fileSaving = false;
@@ -1088,7 +1107,7 @@
         async createNewFile() {
           if (!this.newFileName.trim()) return;
           try {
-            await fetch('/api/knowledge', {
+            const res = await fetch('/api/knowledge', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
@@ -1097,10 +1116,15 @@
                 content: `# ${this.newFileName.trim()}\n\n내용을 입력하세요.\n`,
               }),
             });
+            const data = await res.json();
+            if (data.error) {
+              alert('생성 실패: ' + data.error + '\n\nrun.bat으로 서버가 실행 중인지 확인하세요.');
+              return;
+            }
             this.showNewFileForm = false;
             this.newFileName = '';
             await this.loadKnowledge();
-          } catch (e) { alert('생성 실패: ' + e.message); }
+          } catch (e) { alert('생성 실패: ' + e.message + '\n\n서버가 실행 중인지 확인하세요.'); }
         },
 
         // ─── Helpers ───
