@@ -14,6 +14,7 @@ class CostRecord:
     input_tokens: int
     output_tokens: int
     cost_usd: float
+    agent_id: str = ""
 
 
 class CostTracker:
@@ -22,13 +23,14 @@ class CostTracker:
     def __init__(self) -> None:
         self._records: list[CostRecord] = []
 
-    def record(self, response: LLMResponse) -> None:
+    def record(self, response: LLMResponse, agent_id: str = "") -> None:
         self._records.append(CostRecord(
             model=response.model,
             provider=response.provider,
             input_tokens=response.input_tokens,
             output_tokens=response.output_tokens,
             cost_usd=response.cost_usd,
+            agent_id=agent_id,
         ))
 
     @property
@@ -50,6 +52,32 @@ class CostTracker:
         )
         for r in self._records:
             s = summary[r.model]
+            s["calls"] += 1
+            s["input_tokens"] += r.input_tokens
+            s["output_tokens"] += r.output_tokens
+            s["cost_usd"] += r.cost_usd
+        return dict(summary)
+
+    def summary_by_agent(self) -> dict[str, dict]:
+        """Group costs by agent for the CEO dashboard."""
+        summary: dict[str, dict] = defaultdict(
+            lambda: {"calls": 0, "input_tokens": 0, "output_tokens": 0, "cost_usd": 0.0}
+        )
+        for r in self._records:
+            s = summary[r.agent_id or "unknown"]
+            s["calls"] += 1
+            s["input_tokens"] += r.input_tokens
+            s["output_tokens"] += r.output_tokens
+            s["cost_usd"] += r.cost_usd
+        return dict(summary)
+
+    def summary_by_provider(self) -> dict[str, dict]:
+        """Group costs by provider (openai / anthropic)."""
+        summary: dict[str, dict] = defaultdict(
+            lambda: {"calls": 0, "input_tokens": 0, "output_tokens": 0, "cost_usd": 0.0}
+        )
+        for r in self._records:
+            s = summary[r.provider]
             s["calls"] += 1
             s["input_tokens"] += r.input_tokens
             s["output_tokens"] += r.output_tokens

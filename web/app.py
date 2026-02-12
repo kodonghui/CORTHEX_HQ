@@ -43,7 +43,7 @@ STATIC_DIR = BASE_DIR / "static"
 load_dotenv(PROJECT_DIR / ".env")
 
 # FastAPI app
-app = FastAPI(title="CORTHEX HQ", version="0.1.0")
+app = FastAPI(title="CORTHEX HQ", version="0.3.0")
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 templates = Jinja2Templates(directory=str(TEMPLATE_DIR))
 
@@ -168,6 +168,8 @@ async def get_cost() -> dict:
         "total_tokens": tracker.total_tokens,
         "total_calls": tracker.total_calls,
         "by_model": tracker.summary_by_model(),
+        "by_agent": tracker.summary_by_agent(),
+        "by_provider": tracker.summary_by_provider(),
     }
 
 

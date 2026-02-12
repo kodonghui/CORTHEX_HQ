@@ -56,6 +56,7 @@ class ModelRouter:
         messages: list[dict[str, str]],
         temperature: float = 0.3,
         max_tokens: int = 4096,
+        agent_id: str = "",
     ) -> LLMResponse:
         """Route a completion request to the appropriate provider."""
         provider = self._resolve_provider(model_name)
@@ -65,7 +66,7 @@ class ModelRouter:
             temperature=temperature,
             max_tokens=max_tokens,
         )
-        self.cost_tracker.record(response)
+        self.cost_tracker.record(response, agent_id=agent_id)
         return response
 
     async def close(self) -> None:
