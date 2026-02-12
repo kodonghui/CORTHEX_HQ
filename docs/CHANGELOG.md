@@ -5,6 +5,241 @@
 
 ---
 
+## v0.4.0 (2026-02-12) - SNS 통합 퍼블리싱 시스템
+
+> 상태: **구현 완료**
+
+### 한 줄 요약
+
+**Tistory·YouTube·Instagram·LinkedIn 4개 플랫폼에 콘텐츠를 자동으로 올릴 수 있는 SNS 퍼블리싱 시스템을 도입합니다. CEO 승인 후에만 발행되는 안전한 퍼블리싱 플로우입니다.**
+
+---
+
+### 왜 만들었나?
+
+마케팅·고객처(CMO) 산하에 콘텐츠 Specialist와 커뮤니티 Specialist가 있지만,
+실제로 SNS에 글을 올리려면 사람이 직접 각 플랫폼에 로그인해서 복붙해야 했습니다.
+
+**기존 문제:**
+- 콘텐츠 Specialist가 글을 "작성"만 할 수 있고, 실제 "발행"은 불가
+- 각 플랫폼마다 별도 로그인 → 수동 작업 반복
+- 발행 전 CEO 검수/승인 프로세스 없음
+
+**목표:**
+- 콘텐츠 작성 → CEO 승인 → 자동 발행의 **원스톱 파이프라인**
+- 4개 플랫폼 통합 관리
+- 잘못된 콘텐츠가 무단 발행되는 것을 CEO 승인으로 방지
+
+---
+
+### 뭘 만들었나?
+
+#### 1. 전체 아키텍처
+
+```
+콘텐츠 Specialist ──(작성)──→ sns_manager(submit) ──→ 승인 큐
+                                                         │
+                         CEO ← 비서실장 보고 ←───────────┘
+                          │
+                     승인(approve) / 거절(reject)
+                          │
+                    CMO ──(publish)──→ sns_manager ──→ 실제 SNS 발행
+                                          │
+                              ┌────────────┼────────────┐─────────────┐
+                           Tistory     YouTube     Instagram     LinkedIn
+```
+
+#### 2. CEO 승인 플로우 (핵심!)
+
+| 단계 | 누가 | 뭘 하나 | 도구 호출 |
+|------|------|---------|-----------|
+| ① 작성 | 콘텐츠 Specialist | 블로그 글/SNS 포스트 작성 후 발행 요청 | `sns_manager(action=submit)` |
+| ② 검토 | LLM (자동) | 콘텐츠를 CEO 보고용으로 자동 요약 | 내부 LLM 호출 |
+| ③ 보고 | CMO → 비서실장 | CEO에게 "이런 콘텐츠를 올려도 될까요?" 보고 | 기존 에이전트 체인 |
+| ④ 승인 | **CEO (사람)** | 대시보드 또는 API로 승인/거절 | `POST /api/sns/approve/{id}` |
+| ⑤ 발행 | CMO | 승인된 건만 실제 퍼블리싱 실행 | `sns_manager(action=publish)` |
+
+**권한 제어:**
+- `submit` → 콘텐츠 Specialist, 커뮤니티 Specialist, CMO 모두 가능
+- `approve/reject` → CEO만 가능 (웹 대시보드 / API)
+- `publish` → **CMO 이상만** 실행 가능 (코드 레벨 강제)
+
+#### 3. 지원 플랫폼 상세
+
+| 플랫폼 | API | 기능 | 인증 방식 |
+|--------|-----|------|-----------|
+| **Tistory** | Tistory Open API | 글 작성/수정/삭제, 카테고리 관리, 태그 | Tistory OAuth (카카오 개발자) |
+| **YouTube** | YouTube Data API v3 | 영상 업로드(Resumable), 메타데이터 수정, 공개 설정 | Google OAuth 2.0 |
+| **Instagram** | Instagram Graph API v21.0 | 이미지 게시, 릴스(동영상), 캐러셀(여러 장), 해시태그 | Meta OAuth (비즈니스 계정) |
+| **LinkedIn** | LinkedIn Marketing API v2 | 텍스트 포스트, 이미지 포스트, 링크 공유 | LinkedIn OAuth 2.0 |
+
+#### 4. OAuth 토큰 관리자
+
+> **쉽게 말하면:** 각 SNS의 "로그인 열쇠"를 안전하게 보관하고, 만료되면 자동으로 새 열쇠로 바꿔주는 시스템
+
+| 기능 | 설명 |
+|------|------|
+| 토큰 저장 | `data/sns_tokens.json`에 JSON으로 저장 |
+| 자동 갱신 | `refresh_token`으로 만료 1분 전 자동 갱신 |
+| 인증 URL 생성 | 플랫폼별 OAuth 인증 URL 자동 생성 |
+| 코드 교환 | 인증 완료 후 code → access_token 자동 교환 |
+| 상태 조회 | 4개 플랫폼의 연결/만료 상태 한눈에 확인 |
+
+**인증 흐름:**
+```
+① CEO가 대시보드에서 "Tistory 연결" 클릭
+② GET /api/sns/auth/tistory → 인증 URL 반환
+③ 브라우저에서 Tistory 로그인 + 권한 허용
+④ Tistory가 /oauth/callback/tistory?code=xxx 로 리다이렉트
+⑤ 서버가 code → access_token 교환 후 저장
+⑥ "연결 완료!" 페이지 표시 → 이후 자동으로 글 올리기 가능
+```
+
+#### 5. Webhook 수신기
+
+> **쉽게 말하면:** SNS에서 뭔가 일어나면 (댓글, 좋아요 등) 우리한테 자동으로 알려주는 전화기
+
+| 플랫폼 | 수신 방식 | 이벤트 |
+|--------|-----------|--------|
+| YouTube | PubSubHubbub (Atom XML) | 새 영상, 댓글 알림 |
+| Instagram | Graph API Webhook (JSON + HMAC 서명 검증) | 댓글, 멘션 |
+| LinkedIn | Webhook (JSON) | 댓글, 반응 |
+| Tistory | 커스텀 폴링 → Webhook 포맷 변환 | 방명록, 댓글 |
+
+**보안:**
+- Instagram Webhook은 `HMAC-SHA256` 서명 검증
+- Webhook 구독 검증 (`hub.challenge`) 자동 처리
+
+#### 6. 웹 API 엔드포인트 (CEO 대시보드용)
+
+| Method | Path | 설명 |
+|--------|------|------|
+| `GET` | `/api/sns/status` | 4개 플랫폼 연결 상태 조회 |
+| `GET` | `/api/sns/queue` | 발행 승인 큐 (대기/승인/발행/거절 분류) |
+| `POST` | `/api/sns/approve/{id}` | CEO가 발행 요청 승인 |
+| `POST` | `/api/sns/reject/{id}` | CEO가 발행 요청 거절 (사유 포함) |
+| `GET` | `/api/sns/auth/{platform}` | OAuth 인증 URL 생성 |
+| `GET` | `/oauth/callback/{platform}` | OAuth 콜백 (자동 토큰 교환) |
+| `POST` | `/webhook/{platform}` | Webhook 이벤트 수신 |
+| `GET` | `/webhook/{platform}` | Webhook 구독 검증 |
+| `GET` | `/api/sns/events` | 최근 Webhook 이벤트 로그 |
+
+---
+
+### 수정된 파일 상세
+
+#### 신규 파일 (9개)
+
+| 파일 | 설명 | 줄 수 |
+|------|------|-------|
+| `src/tools/sns/__init__.py` | SNS 모듈 패키지 | 1 |
+| `src/tools/sns/oauth_manager.py` | OAuth 토큰 관리자 (저장/갱신/교환/상태) | ~230 |
+| `src/tools/sns/base_publisher.py` | 퍼블리셔 공통 인터페이스 (`PostContent`, `PublishResult`) | ~70 |
+| `src/tools/sns/tistory_publisher.py` | Tistory API 연동 (글 작성/삭제/카테고리) | ~95 |
+| `src/tools/sns/youtube_publisher.py` | YouTube Data API v3 (Resumable Upload) | ~170 |
+| `src/tools/sns/instagram_publisher.py` | Instagram Graph API (이미지/릴스/캐러셀) | ~190 |
+| `src/tools/sns/linkedin_publisher.py` | LinkedIn Marketing API (텍스트/이미지/링크) | ~200 |
+| `src/tools/sns/sns_manager.py` | SNS 통합 도구 (승인 큐 + ToolPool 등록) | ~250 |
+| `src/tools/sns/webhook_receiver.py` | Webhook 수신 및 이벤트 디스패치 | ~130 |
+
+#### 수정 파일 (5개)
+
+| 파일 | 변경 내용 |
+|------|----------|
+| `config/tools.yaml` | `sns_manager` 도구 정의 추가 |
+| `config/agents.yaml` | CMO: 모델 gpt-4o 승격 + 퍼블리싱 권한 부여. 콘텐츠 Specialist: submit 권한 + 프롬프트에 SNS 플로우 안내. 커뮤니티 Specialist: 모니터링 역할 + sns_manager 도구 허용 |
+| `src/tools/pool.py` | `SNSManager`를 ToolPool에 등록 (import + tool_classes 딕셔너리) |
+| `web/app.py` | OAuth 콜백, 승인/거절 API, Webhook 수신 등 9개 엔드포인트 추가. `OAuthManager`, `WebhookReceiver` 초기화 |
+| `.env.example` | Tistory/Google/Instagram/LinkedIn API 키 설정 템플릿 추가 |
+
+---
+
+### 조직 구조 변화
+
+```
+v0.3.0:                                    v0.4.0:
+├── CMO 마케팅·고객처장                     ├── CMO 마케팅·고객처장 ← gpt-4o 승격!
+│   ├── 설문/리서치                        │   ├── 설문/리서치
+│   ├── 콘텐츠 (글만 작성)                 │   ├── 콘텐츠 ← submit 권한 추가
+│   └── 커뮤니티 (전략만 수립)              │   └── 커뮤니티 ← 모니터링 권한 추가
+│                                          │
+│   (SNS 도구 없음)                        │   🆕 sns_manager 도구
+│                                          │      ├── Tistory 퍼블리셔
+│                                          │      ├── YouTube 퍼블리셔
+│                                          │      ├── Instagram 퍼블리셔
+│                                          │      ├── LinkedIn 퍼블리셔
+│                                          │      ├── OAuth 토큰 관리자
+│                                          │      └── Webhook 수신기
+```
+
+---
+
+### 사용 방법 (퀵 스타트)
+
+#### 1단계: API 키 설정
+
+```bash
+# .env 파일에 추가
+TISTORY_CLIENT_ID=your-id
+TISTORY_CLIENT_SECRET=your-secret
+TISTORY_BLOG_NAME=your-blog
+# ... (나머지 플랫폼도 동일)
+```
+
+#### 2단계: SNS 계정 연결 (OAuth)
+
+```
+브라우저에서 → http://localhost:8000/api/sns/auth/tistory
+→ Tistory 로그인 → 권한 허용 → 자동 연결 완료!
+(각 플랫폼별 1회만 수행)
+```
+
+#### 3단계: 콘텐츠 발행 프로세스
+
+```
+CEO: "LEET Master 소개 블로그 글 써서 Tistory에 올려줘"
+  │
+  ▼
+비서실장 → CMO에게 배분 → 콘텐츠 Specialist가 글 작성
+  │
+  ▼
+콘텐츠 Specialist → sns_manager(action=submit, platform=tistory, title=..., body=...)
+  │
+  ▼
+CEO에게 보고: "이런 글을 올려도 될까요?" + 자동 요약
+  │
+  ▼
+CEO가 승인: POST /api/sns/approve/abc123
+  │
+  ▼
+CMO → sns_manager(action=publish, request_id=abc123)
+  │
+  ▼
+✅ Tistory에 글 발행 완료!
+```
+
+---
+
+### 향후 확장 가능
+
+| 기능 | 설명 | 난이도 |
+|------|------|--------|
+| 예약 발행 | 특정 시간에 자동 발행 (cron 기반) | 중 |
+| 멀티 플랫폼 동시 발행 | 한 콘텐츠를 4개 플랫폼에 동시 게시 | 낮 |
+| 성과 분석 | 각 플랫폼의 조회수/좋아요/댓글 수집 | 중 |
+| 대시보드 SNS 패널 | 웹 UI에 SNS 승인 큐 + 상태 패널 추가 | 중 |
+| Twitter/X 추가 | Twitter API v2 연동 | 낮 |
+
+---
+
+### Git 커밋
+
+| 커밋 | 설명 |
+|------|------|
+| `8308549` | feat: SNS 통합 퍼블리싱 시스템 구현 (Tistory/YouTube/Instagram/LinkedIn) |
+
+---
+
 ## v0.3.0 (2026-02-12) - 본부 라벨 분리 (LEET Master / 투자분석)
 
 > 상태: **구현 완료**
