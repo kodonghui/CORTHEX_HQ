@@ -1,0 +1,697 @@
+<!DOCTYPE html>
+<html lang="ko" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CORTHEX HQ - CEO 관제실</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            'hq-bg': '#0f172a',
+            'hq-panel': '#1e293b',
+            'hq-border': '#334155',
+            'hq-accent': '#3b82f6',
+            'hq-green': '#22c55e',
+            'hq-yellow': '#eab308',
+            'hq-red': '#ef4444',
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    body { font-family: 'Inter', sans-serif; }
+    .scrollbar-thin::-webkit-scrollbar { width: 6px; }
+    .scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
+    .scrollbar-thin::-webkit-scrollbar-thumb { background: #475569; border-radius: 3px; }
+    .fade-in { animation: fadeIn 0.3s ease-in; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes pulse-dot { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+    .pulse-dot { animation: pulse-dot 1.5s ease-in-out infinite; }
+    .progress-bar { transition: width 0.5s ease-in-out; }
+    .markdown-body h1 { font-size: 1.25rem; font-weight: 700; margin: 1rem 0 0.5rem; }
+    .markdown-body h2 { font-size: 1.1rem; font-weight: 600; margin: 0.8rem 0 0.4rem; }
+    .markdown-body h3 { font-size: 1rem; font-weight: 600; margin: 0.6rem 0 0.3rem; }
+    .markdown-body p { margin: 0.4rem 0; }
+    .markdown-body ul, .markdown-body ol { margin: 0.3rem 0; padding-left: 1.5rem; }
+    .markdown-body li { margin: 0.2rem 0; }
+    .markdown-body code { background: #334155; padding: 0.15rem 0.4rem; border-radius: 0.25rem; font-size: 0.85rem; }
+    .markdown-body pre { background: #0f172a; padding: 1rem; border-radius: 0.5rem; overflow-x: auto; margin: 0.5rem 0; }
+    .markdown-body pre code { background: transparent; padding: 0; }
+    .markdown-body table { border-collapse: collapse; width: 100%; margin: 0.5rem 0; }
+    .markdown-body th, .markdown-body td { border: 1px solid #475569; padding: 0.4rem 0.8rem; text-align: left; }
+    .markdown-body th { background: #1e293b; }
+  </style>
+</head>
+
+<body class="bg-hq-bg text-gray-200 h-screen flex flex-col overflow-hidden"
+      x-data="corthexApp()" x-init="init()">
+
+  <!-- ═══ Top Bar ═══ -->
+  <header class="h-14 bg-hq-panel border-b border-hq-border flex items-center justify-between px-4 shrink-0">
+    <div class="flex items-center gap-3">
+      <div class="text-xl font-bold tracking-wide">
+        <span class="text-hq-accent">CORTHEX</span> <span class="text-gray-400">HQ</span>
+      </div>
+      <span class="text-xs text-gray-500 border border-hq-border rounded px-2 py-0.5">v0.1.0</span>
+    </div>
+
+    <div class="flex items-center gap-6">
+      <!-- System Status -->
+      <div class="flex items-center gap-2 text-sm">
+        <template x-if="systemStatus === 'idle'">
+          <span class="flex items-center gap-1.5">
+            <span class="w-2 h-2 rounded-full bg-hq-green"></span>
+            <span class="text-gray-400">대기중</span>
+          </span>
+        </template>
+        <template x-if="systemStatus === 'working'">
+          <span class="flex items-center gap-1.5">
+            <span class="w-2 h-2 rounded-full bg-hq-yellow pulse-dot"></span>
+            <span class="text-hq-yellow">처리중</span>
+          </span>
+        </template>
+        <template x-if="systemStatus === 'error'">
+          <span class="flex items-center gap-1.5">
+            <span class="w-2 h-2 rounded-full bg-hq-red"></span>
+            <span class="text-hq-red">오류</span>
+          </span>
+        </template>
+      </div>
+
+      <!-- Cost -->
+      <div class="text-sm text-gray-400">
+        <span class="text-gray-500">비용</span>
+        <span class="text-hq-green font-mono ml-1" x-text="'$' + totalCost.toFixed(4)"></span>
+      </div>
+
+      <!-- Tokens -->
+      <div class="text-sm text-gray-400">
+        <span class="text-gray-500">토큰</span>
+        <span class="font-mono ml-1" x-text="totalTokens.toLocaleString()"></span>
+      </div>
+
+      <!-- API Status -->
+      <div class="flex items-center gap-1.5 text-xs" :class="wsConnected ? 'text-hq-green' : 'text-hq-red'">
+        <span class="w-1.5 h-1.5 rounded-full" :class="wsConnected ? 'bg-hq-green' : 'bg-hq-red'"></span>
+        <span x-text="wsConnected ? '연결됨' : '연결 끊김'"></span>
+      </div>
+    </div>
+  </header>
+
+  <!-- ═══ Main Layout ═══ -->
+  <div class="flex flex-1 overflow-hidden">
+
+    <!-- ═══ Left Panel: Org Tree + Activity Log ═══ -->
+    <aside class="w-72 bg-hq-panel border-r border-hq-border flex flex-col shrink-0">
+
+      <!-- Org Tree -->
+      <div class="flex-1 overflow-y-auto scrollbar-thin p-3">
+        <div class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 px-1">조직도</div>
+
+        <!-- CEO -->
+        <div class="mb-1">
+          <div class="flex items-center gap-2 px-2 py-1.5 rounded text-sm font-semibold text-white">
+            <span class="text-lg">👤</span> CEO (동희 님)
+          </div>
+        </div>
+
+        <!-- 비서실 -->
+        <div class="ml-2 mb-1">
+          <button @click="toggleSection('secretary')"
+                  class="flex items-center gap-2 px-2 py-1 rounded hover:bg-white/5 w-full text-left text-sm">
+            <span class="text-xs text-gray-500" x-text="expanded.secretary ? '▼' : '▶'"></span>
+            <span class="text-yellow-400">📋</span>
+            <span>비서실</span>
+            <span class="ml-auto text-xs" :class="getSectionStatusColor('secretary')"
+                  x-text="getSectionStatusText('secretary')"></span>
+          </button>
+          <div x-show="expanded.secretary" x-collapse class="ml-6 space-y-0.5">
+            <template x-for="id in ['report_worker', 'schedule_worker', 'relay_worker']" :key="id">
+              <div class="flex items-center gap-2 px-2 py-0.5 rounded text-xs text-gray-400">
+                <span class="w-1.5 h-1.5 rounded-full" :class="getAgentDotClass(id)"></span>
+                <span x-text="getAgentName(id)"></span>
+              </div>
+            </template>
+          </div>
+        </div>
+
+        <!-- LEET MASTER -->
+        <div class="ml-2 mb-1">
+          <button @click="toggleSection('leet')"
+                  class="flex items-center gap-2 px-2 py-1 rounded hover:bg-white/5 w-full text-left text-sm">
+            <span class="text-xs text-gray-500" x-text="expanded.leet ? '▼' : '▶'"></span>
+            <span class="text-cyan-400">🏢</span>
+            <span>LEET MASTER 본부</span>
+            <span class="ml-auto text-xs" :class="getSectionStatusColor('leet')"
+                  x-text="getSectionStatusText('leet')"></span>
+          </button>
+          <div x-show="expanded.leet" x-collapse class="ml-4 space-y-0.5">
+
+            <!-- CTO -->
+            <div>
+              <button @click="toggleSection('tech')"
+                      class="flex items-center gap-2 px-2 py-0.5 rounded hover:bg-white/5 w-full text-left text-xs">
+                <span class="text-gray-500" x-text="expanded.tech ? '▼' : '▶'"></span>
+                <span class="w-1.5 h-1.5 rounded-full" :class="getAgentDotClass('cto_manager')"></span>
+                <span class="text-green-400">기술개발처 (CTO)</span>
+              </button>
+              <div x-show="expanded.tech" x-collapse class="ml-6 space-y-0.5">
+                <template x-for="id in ['frontend_specialist','backend_specialist','infra_specialist','ai_model_specialist']" :key="id">
+                  <div class="flex items-center gap-2 px-2 py-0.5 text-xs text-gray-400">
+                    <span class="w-1.5 h-1.5 rounded-full" :class="getAgentDotClass(id)"></span>
+                    <span x-text="getAgentName(id)"></span>
+                  </div>
+                </template>
+              </div>
+            </div>
+
+            <!-- CSO -->
+            <div>
+              <button @click="toggleSection('strategy')"
+                      class="flex items-center gap-2 px-2 py-0.5 rounded hover:bg-white/5 w-full text-left text-xs">
+                <span class="text-gray-500" x-text="expanded.strategy ? '▼' : '▶'"></span>
+                <span class="w-1.5 h-1.5 rounded-full" :class="getAgentDotClass('cso_manager')"></span>
+                <span class="text-green-400">사업기획처 (CSO)</span>
+              </button>
+              <div x-show="expanded.strategy" x-collapse class="ml-6 space-y-0.5">
+                <template x-for="id in ['market_research_specialist','business_plan_specialist','financial_model_specialist']" :key="id">
+                  <div class="flex items-center gap-2 px-2 py-0.5 text-xs text-gray-400">
+                    <span class="w-1.5 h-1.5 rounded-full" :class="getAgentDotClass(id)"></span>
+                    <span x-text="getAgentName(id)"></span>
+                  </div>
+                </template>
+              </div>
+            </div>
+
+            <!-- CLO -->
+            <div>
+              <button @click="toggleSection('legal')"
+                      class="flex items-center gap-2 px-2 py-0.5 rounded hover:bg-white/5 w-full text-left text-xs">
+                <span class="text-gray-500" x-text="expanded.legal ? '▼' : '▶'"></span>
+                <span class="w-1.5 h-1.5 rounded-full" :class="getAgentDotClass('clo_manager')"></span>
+                <span class="text-green-400">법무·IP처 (CLO)</span>
+              </button>
+              <div x-show="expanded.legal" x-collapse class="ml-6 space-y-0.5">
+                <template x-for="id in ['copyright_specialist','patent_specialist']" :key="id">
+                  <div class="flex items-center gap-2 px-2 py-0.5 text-xs text-gray-400">
+                    <span class="w-1.5 h-1.5 rounded-full" :class="getAgentDotClass(id)"></span>
+                    <span x-text="getAgentName(id)"></span>
+                  </div>
+                </template>
+              </div>
+            </div>
+
+            <!-- CMO -->
+            <div>
+              <button @click="toggleSection('marketing')"
+                      class="flex items-center gap-2 px-2 py-0.5 rounded hover:bg-white/5 w-full text-left text-xs">
+                <span class="text-gray-500" x-text="expanded.marketing ? '▼' : '▶'"></span>
+                <span class="w-1.5 h-1.5 rounded-full" :class="getAgentDotClass('cmo_manager')"></span>
+                <span class="text-green-400">마케팅·고객처 (CMO)</span>
+              </button>
+              <div x-show="expanded.marketing" x-collapse class="ml-6 space-y-0.5">
+                <template x-for="id in ['survey_specialist','content_specialist','community_specialist']" :key="id">
+                  <div class="flex items-center gap-2 px-2 py-0.5 text-xs text-gray-400">
+                    <span class="w-1.5 h-1.5 rounded-full" :class="getAgentDotClass(id)"></span>
+                    <span x-text="getAgentName(id)"></span>
+                  </div>
+                </template>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 금융분석 -->
+        <div class="ml-2 mb-1">
+          <button @click="toggleSection('finance')"
+                  class="flex items-center gap-2 px-2 py-1 rounded hover:bg-white/5 w-full text-left text-sm">
+            <span class="text-xs text-gray-500" x-text="expanded.finance ? '▼' : '▶'"></span>
+            <span class="text-purple-400">📊</span>
+            <span>금융분석 본부</span>
+            <span class="ml-auto text-xs" :class="getSectionStatusColor('finance')"
+                  x-text="getSectionStatusText('finance')"></span>
+          </button>
+          <div x-show="expanded.finance" x-collapse class="ml-6 space-y-0.5">
+            <div class="flex items-center gap-2 px-2 py-0.5 text-xs">
+              <span class="w-1.5 h-1.5 rounded-full" :class="getAgentDotClass('cio_manager')"></span>
+              <span class="text-green-400">투자분석처 (CIO)</span>
+            </div>
+            <template x-for="id in ['market_condition_specialist','stock_analysis_specialist','technical_analysis_specialist','risk_management_specialist']" :key="id">
+              <div class="flex items-center gap-2 px-2 py-0.5 ml-4 text-xs text-gray-400">
+                <span class="w-1.5 h-1.5 rounded-full" :class="getAgentDotClass(id)"></span>
+                <span x-text="getAgentName(id)"></span>
+                <template x-if="id !== 'risk_management_specialist'">
+                  <span class="text-gray-600 text-[10px]">[병렬]</span>
+                </template>
+                <template x-if="id === 'risk_management_specialist'">
+                  <span class="text-gray-600 text-[10px]">[순차]</span>
+                </template>
+              </div>
+            </template>
+          </div>
+        </div>
+
+        <!-- Tool Pool -->
+        <div class="ml-2 mb-1">
+          <button @click="toggleSection('tools')"
+                  class="flex items-center gap-2 px-2 py-1 rounded hover:bg-white/5 w-full text-left text-sm">
+            <span class="text-xs text-gray-500" x-text="expanded.tools ? '▼' : '▶'"></span>
+            <span class="text-red-400">🔧</span>
+            <span>AgentTool Pool</span>
+          </button>
+          <div x-show="expanded.tools" x-collapse class="ml-6 space-y-0.5">
+            <template x-for="t in ['변리사','세무사','디자이너','번역가','웹검색']" :key="t">
+              <div class="flex items-center gap-2 px-2 py-0.5 text-xs text-gray-500">
+                <span class="w-1.5 h-1.5 rounded-full bg-gray-600"></span>
+                <span x-text="t + ' Tool'"></span>
+              </div>
+            </template>
+          </div>
+        </div>
+      </div>
+
+      <!-- Activity Log -->
+      <div class="h-48 border-t border-hq-border shrink-0">
+        <div class="text-xs font-semibold text-gray-500 uppercase tracking-wider px-3 pt-2 pb-1">활동 로그</div>
+        <div class="overflow-y-auto scrollbar-thin h-36 px-3 space-y-1">
+          <template x-for="(log, i) in activityLogs.slice(-20).reverse()" :key="i">
+            <div class="text-[11px] text-gray-500 fade-in">
+              <span class="text-gray-600 font-mono" x-text="log.time"></span>
+              <span class="text-gray-400" x-text="log.agent_id"></span>
+              <span x-text="log.action"></span>
+            </div>
+          </template>
+          <template x-if="activityLogs.length === 0">
+            <div class="text-[11px] text-gray-600 italic">아직 활동이 없습니다</div>
+          </template>
+        </div>
+      </div>
+    </aside>
+
+    <!-- ═══ Right Panel: Chat ═══ -->
+    <main class="flex-1 flex flex-col overflow-hidden">
+
+      <!-- Chat Messages -->
+      <div class="flex-1 overflow-y-auto scrollbar-thin p-6 space-y-4" id="chatArea"
+           x-ref="chatArea">
+
+        <!-- Welcome message -->
+        <template x-if="messages.length === 0">
+          <div class="flex flex-col items-center justify-center h-full text-center">
+            <div class="text-5xl mb-4">🏢</div>
+            <h2 class="text-2xl font-bold text-white mb-2">CORTHEX HQ</h2>
+            <p class="text-gray-400 mb-6 max-w-md">
+              25명의 AI 에이전트가 대기하고 있습니다.<br>
+              한국어로 명령을 입력하세요.
+            </p>
+            <div class="flex flex-wrap gap-2 justify-center max-w-lg">
+              <button @click="sendPreset('LEET MASTER 서비스의 기술 스택을 제안해줘')"
+                      class="text-sm bg-hq-panel border border-hq-border rounded-lg px-4 py-2 hover:bg-white/5 text-gray-300 transition">
+                🖥️ 기술 스택 제안
+              </button>
+              <button @click="sendPreset('삼성전자 주가를 분석해줘')"
+                      class="text-sm bg-hq-panel border border-hq-border rounded-lg px-4 py-2 hover:bg-white/5 text-gray-300 transition">
+                📊 주가 분석
+              </button>
+              <button @click="sendPreset('서비스 이용약관 초안을 만들어줘')"
+                      class="text-sm bg-hq-panel border border-hq-border rounded-lg px-4 py-2 hover:bg-white/5 text-gray-300 transition">
+                📋 이용약관 작성
+              </button>
+              <button @click="sendPreset('마케팅 콘텐츠 전략을 수립해줘')"
+                      class="text-sm bg-hq-panel border border-hq-border rounded-lg px-4 py-2 hover:bg-white/5 text-gray-300 transition">
+                📣 마케팅 전략
+              </button>
+            </div>
+          </div>
+        </template>
+
+        <!-- Messages -->
+        <template x-for="(msg, i) in messages" :key="i">
+          <div class="fade-in">
+
+            <!-- User message -->
+            <template x-if="msg.type === 'user'">
+              <div class="flex justify-end mb-4">
+                <div class="bg-hq-accent/20 border border-hq-accent/30 rounded-2xl rounded-tr-sm px-4 py-3 max-w-2xl">
+                  <div class="text-xs text-hq-accent mb-1 font-semibold">CEO</div>
+                  <div class="text-gray-200" x-text="msg.text"></div>
+                </div>
+              </div>
+            </template>
+
+            <!-- Processing indicator -->
+            <template x-if="msg.type === 'processing'">
+              <div class="mb-4">
+                <div class="bg-hq-panel border border-hq-border rounded-2xl rounded-tl-sm px-4 py-3 max-w-3xl">
+                  <div class="text-xs text-hq-yellow mb-2 font-semibold flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-full bg-hq-yellow pulse-dot"></span>
+                    에이전트 조직이 처리 중입니다...
+                  </div>
+                  <!-- Live progress bars -->
+                  <div class="space-y-2">
+                    <template x-for="(status, agentId) in activeAgents" :key="agentId">
+                      <div x-show="status.status === 'working'" class="fade-in">
+                        <div class="flex items-center justify-between text-xs text-gray-400 mb-1">
+                          <span x-text="getAgentName(agentId)"></span>
+                          <span x-text="Math.round(status.progress * 100) + '%'"></span>
+                        </div>
+                        <div class="h-1.5 bg-gray-700 rounded-full overflow-hidden">
+                          <div class="h-full bg-hq-accent rounded-full progress-bar"
+                               :style="'width:' + (status.progress * 100) + '%'"></div>
+                        </div>
+                      </div>
+                    </template>
+                  </div>
+                </div>
+              </div>
+            </template>
+
+            <!-- Agent result -->
+            <template x-if="msg.type === 'result'">
+              <div class="mb-4">
+                <div class="bg-hq-panel border border-hq-border rounded-2xl rounded-tl-sm px-5 py-4 max-w-4xl">
+                  <div class="flex items-center justify-between mb-3">
+                    <div class="text-xs text-hq-green font-semibold flex items-center gap-2">
+                      <span class="w-2 h-2 rounded-full bg-hq-green"></span>
+                      <span x-text="getAgentName(msg.sender_id) || '결과'"></span>
+                    </div>
+                    <div class="flex items-center gap-3 text-[11px] text-gray-500">
+                      <span x-text="msg.time_seconds + '초'"></span>
+                      <span x-text="'$' + (msg.cost || 0).toFixed(4)"></span>
+                    </div>
+                  </div>
+                  <div class="text-gray-300 text-sm leading-relaxed markdown-body"
+                       x-html="renderMarkdown(msg.content)"></div>
+                </div>
+              </div>
+            </template>
+
+            <!-- Error -->
+            <template x-if="msg.type === 'error'">
+              <div class="mb-4">
+                <div class="bg-red-900/20 border border-hq-red/30 rounded-2xl rounded-tl-sm px-4 py-3 max-w-2xl">
+                  <div class="text-xs text-hq-red mb-1 font-semibold">오류</div>
+                  <div class="text-gray-300 text-sm" x-text="msg.text"></div>
+                </div>
+              </div>
+            </template>
+
+          </div>
+        </template>
+      </div>
+
+      <!-- Input Bar -->
+      <div class="border-t border-hq-border bg-hq-panel p-4 shrink-0">
+        <form @submit.prevent="sendMessage()" class="flex items-center gap-3 max-w-4xl mx-auto">
+          <input type="text"
+                 x-model="inputText"
+                 :disabled="systemStatus === 'working'"
+                 placeholder="명령을 입력하세요..."
+                 class="flex-1 bg-hq-bg border border-hq-border rounded-xl px-4 py-3 text-sm text-gray-200
+                        placeholder-gray-500 focus:outline-none focus:border-hq-accent focus:ring-1
+                        focus:ring-hq-accent/50 disabled:opacity-50 transition"
+                 autofocus>
+          <button type="submit"
+                  :disabled="!inputText.trim() || systemStatus === 'working'"
+                  class="bg-hq-accent hover:bg-blue-600 disabled:bg-gray-700 disabled:text-gray-500
+                         text-white rounded-xl px-6 py-3 text-sm font-medium transition shrink-0">
+            <span x-show="systemStatus !== 'working'">보내기</span>
+            <span x-show="systemStatus === 'working'" class="flex items-center gap-2">
+              <svg class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+              </svg>
+              처리중
+            </span>
+          </button>
+        </form>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    function corthexApp() {
+      return {
+        // State
+        inputText: '',
+        messages: [],
+        systemStatus: 'idle',
+        wsConnected: false,
+        totalCost: 0,
+        totalTokens: 0,
+        activityLogs: [],
+        activeAgents: {},
+        ws: null,
+
+        // Org tree expand state
+        expanded: {
+          secretary: false,
+          leet: false,
+          tech: false,
+          strategy: false,
+          legal: false,
+          marketing: false,
+          finance: false,
+          tools: false,
+        },
+
+        // Agent name mapping
+        agentNames: {
+          'chief_of_staff': '비서실장',
+          'report_worker': '보고 요약 Worker',
+          'schedule_worker': '일정/미결 추적 Worker',
+          'relay_worker': '정보 중계 Worker',
+          'leet_master_head': 'LEET MASTER 본부장',
+          'cto_manager': 'CTO 기술개발처장',
+          'frontend_specialist': '프론트엔드',
+          'backend_specialist': '백엔드/API',
+          'infra_specialist': 'DB/인프라',
+          'ai_model_specialist': 'AI 모델',
+          'cso_manager': 'CSO 사업기획처장',
+          'market_research_specialist': '시장조사',
+          'business_plan_specialist': '사업계획서',
+          'financial_model_specialist': '재무모델링',
+          'clo_manager': 'CLO 법무·IP처장',
+          'copyright_specialist': '저작권',
+          'patent_specialist': '특허/약관',
+          'cmo_manager': 'CMO 마케팅·고객처장',
+          'survey_specialist': '설문/리서치',
+          'content_specialist': '콘텐츠',
+          'community_specialist': '커뮤니티',
+          'finance_head': '금융분석 본부장',
+          'cio_manager': 'CIO 투자분석처장',
+          'market_condition_specialist': '시황분석',
+          'stock_analysis_specialist': '종목분석',
+          'technical_analysis_specialist': '기술적분석',
+          'risk_management_specialist': '리스크관리',
+        },
+
+        // Division mapping for auto-expand
+        agentDivision: {
+          'chief_of_staff': 'secretary', 'report_worker': 'secretary',
+          'schedule_worker': 'secretary', 'relay_worker': 'secretary',
+          'leet_master_head': 'leet', 'cto_manager': 'tech',
+          'frontend_specialist': 'tech', 'backend_specialist': 'tech',
+          'infra_specialist': 'tech', 'ai_model_specialist': 'tech',
+          'cso_manager': 'strategy', 'market_research_specialist': 'strategy',
+          'business_plan_specialist': 'strategy', 'financial_model_specialist': 'strategy',
+          'clo_manager': 'legal', 'copyright_specialist': 'legal',
+          'patent_specialist': 'legal', 'cmo_manager': 'marketing',
+          'survey_specialist': 'marketing', 'content_specialist': 'marketing',
+          'community_specialist': 'marketing', 'finance_head': 'finance',
+          'cio_manager': 'finance', 'market_condition_specialist': 'finance',
+          'stock_analysis_specialist': 'finance', 'technical_analysis_specialist': 'finance',
+          'risk_management_specialist': 'finance',
+        },
+
+        init() {
+          this.connectWebSocket();
+        },
+
+        connectWebSocket() {
+          const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+          this.ws = new WebSocket(`${protocol}//${location.host}/ws`);
+
+          this.ws.onopen = () => {
+            this.wsConnected = true;
+          };
+
+          this.ws.onclose = () => {
+            this.wsConnected = false;
+            // Reconnect after 3 seconds
+            setTimeout(() => this.connectWebSocket(), 3000);
+          };
+
+          this.ws.onmessage = (event) => {
+            const msg = JSON.parse(event.data);
+            this.handleWsMessage(msg);
+          };
+        },
+
+        handleWsMessage(msg) {
+          switch (msg.event) {
+            case 'processing_start':
+              this.systemStatus = 'working';
+              this.messages.push({ type: 'processing', id: Date.now() });
+              break;
+
+            case 'agent_status':
+              const d = msg.data;
+              this.activeAgents[d.agent_id] = {
+                status: d.status,
+                progress: d.progress || 0,
+              };
+
+              // Auto-expand the relevant section
+              if (d.status === 'working') {
+                const div = this.agentDivision[d.agent_id];
+                if (div) {
+                  this.expanded[div] = true;
+                  // Also expand parent sections
+                  if (['tech','strategy','legal','marketing'].includes(div)) {
+                    this.expanded.leet = true;
+                  }
+                }
+              }
+
+              // Simulate progress increase
+              if (d.status === 'working' && d.progress < 0.9) {
+                this.simulateProgress(d.agent_id);
+              }
+              break;
+
+            case 'activity_log':
+              this.activityLogs.push(msg.data);
+              break;
+
+            case 'cost_update':
+              this.totalCost = msg.data.total_cost;
+              this.totalTokens = msg.data.total_tokens;
+              break;
+
+            case 'result':
+              // Remove processing indicator
+              this.messages = this.messages.filter(m => m.type !== 'processing');
+              this.messages.push({
+                type: 'result',
+                content: msg.data.content,
+                sender_id: msg.data.sender_id,
+                time_seconds: msg.data.time_seconds,
+                cost: msg.data.cost,
+              });
+              this.systemStatus = 'idle';
+              this.totalCost = msg.data.cost || this.totalCost;
+              this.$nextTick(() => this.scrollToBottom());
+              break;
+
+            case 'error':
+              this.messages = this.messages.filter(m => m.type !== 'processing');
+              this.messages.push({ type: 'error', text: msg.data.message });
+              this.systemStatus = 'error';
+              setTimeout(() => { this.systemStatus = 'idle'; }, 3000);
+              break;
+          }
+        },
+
+        simulateProgress(agentId) {
+          const interval = setInterval(() => {
+            if (!this.activeAgents[agentId] || this.activeAgents[agentId].status !== 'working') {
+              clearInterval(interval);
+              return;
+            }
+            const current = this.activeAgents[agentId].progress;
+            if (current < 0.9) {
+              this.activeAgents[agentId].progress = Math.min(0.9, current + 0.05 + Math.random() * 0.1);
+            } else {
+              clearInterval(interval);
+            }
+          }, 800);
+        },
+
+        sendMessage() {
+          const text = this.inputText.trim();
+          if (!text || this.systemStatus === 'working') return;
+
+          this.messages.push({ type: 'user', text });
+          this.inputText = '';
+          this.activeAgents = {};
+
+          if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+            this.ws.send(JSON.stringify({ type: 'command', text }));
+          }
+
+          this.$nextTick(() => this.scrollToBottom());
+        },
+
+        sendPreset(text) {
+          this.inputText = text;
+          this.sendMessage();
+        },
+
+        toggleSection(section) {
+          this.expanded[section] = !this.expanded[section];
+        },
+
+        getAgentName(id) {
+          return this.agentNames[id] || id;
+        },
+
+        getAgentDotClass(id) {
+          const status = this.activeAgents[id];
+          if (!status) return 'bg-gray-600';
+          switch (status.status) {
+            case 'working': return 'bg-hq-yellow pulse-dot';
+            case 'done': return 'bg-hq-green';
+            default: return 'bg-gray-600';
+          }
+        },
+
+        getSectionStatusColor(section) {
+          const ids = this.getSectionAgentIds(section);
+          const hasWorking = ids.some(id => this.activeAgents[id]?.status === 'working');
+          if (hasWorking) return 'text-hq-yellow';
+          const hasDone = ids.some(id => this.activeAgents[id]?.status === 'done');
+          if (hasDone) return 'text-hq-green';
+          return 'text-gray-600';
+        },
+
+        getSectionStatusText(section) {
+          const ids = this.getSectionAgentIds(section);
+          const working = ids.filter(id => this.activeAgents[id]?.status === 'working').length;
+          if (working > 0) return `${working}명 작업중`;
+          const done = ids.filter(id => this.activeAgents[id]?.status === 'done').length;
+          if (done > 0) return `${done}명 완료`;
+          return '';
+        },
+
+        getSectionAgentIds(section) {
+          return Object.entries(this.agentDivision)
+            .filter(([_, div]) => {
+              if (section === 'leet') return ['leet','tech','strategy','legal','marketing'].includes(div);
+              return div === section;
+            })
+            .map(([id]) => id);
+        },
+
+        renderMarkdown(text) {
+          try { return marked.parse(text || ''); }
+          catch { return text; }
+        },
+
+        scrollToBottom() {
+          const el = this.$refs.chatArea;
+          if (el) el.scrollTop = el.scrollHeight;
+        },
+      };
+    }
+  </script>
+</body>
+</html>
