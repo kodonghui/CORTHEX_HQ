@@ -83,6 +83,14 @@
                 class="text-sm px-3 py-1.5 rounded-lg border transition font-medium">
           지식관리
         </button>
+        <button @click="currentTab = 'tasks'; loadTasks()"
+                :class="currentTab === 'tasks' ? 'bg-hq-accent/20 text-hq-accent border-hq-accent' : 'text-gray-400 border-transparent hover:text-gray-300'"
+                class="text-sm px-3 py-1.5 rounded-lg border transition font-medium">
+          작업내역
+          <span x-show="runningTaskCount > 0"
+                class="ml-1 bg-hq-yellow text-black text-[10px] rounded-full px-1.5 py-0.5 font-bold"
+                x-text="runningTaskCount"></span>
+        </button>
       </nav>
     </div>
 
@@ -420,6 +428,13 @@
       <!-- Input Bar -->
       <div class="border-t border-hq-border bg-hq-panel p-4 shrink-0">
         <form @submit.prevent="sendMessage()" class="flex items-center gap-3 max-w-4xl mx-auto">
+          <select x-model="taskDepth"
+                  class="bg-hq-bg border border-hq-border rounded-xl px-2 py-3 text-xs text-gray-400
+                         focus:outline-none focus:border-hq-accent shrink-0">
+            <option value="1">빠른</option>
+            <option value="3">보통</option>
+            <option value="5">심화</option>
+          </select>
           <input type="text" x-model="inputText" :disabled="systemStatus === 'working'"
                  placeholder="명령을 입력하세요..."
                  class="flex-1 bg-hq-bg border border-hq-border rounded-xl px-4 py-3 text-sm text-gray-200
@@ -824,6 +839,96 @@
   </div>
 
   <!-- ═══════════════════════════════════════════ -->
+  <!--  TAB 4: 작업내역 (Task History)              -->
+  <!-- ═══════════════════════════════════════════ -->
+  <div x-show="currentTab === 'tasks'" class="flex flex-1 overflow-hidden">
+
+    <!-- Task List Sidebar -->
+    <aside class="w-80 bg-hq-panel border-r border-hq-border flex flex-col shrink-0">
+      <div class="p-3 border-b border-hq-border flex items-center justify-between">
+        <div class="text-xs font-semibold text-gray-500 uppercase tracking-wider">작업 내역</div>
+        <button @click="loadTasks()" class="text-xs text-hq-accent hover:text-blue-400">새로고침</button>
+      </div>
+      <div class="flex-1 overflow-y-auto scrollbar-thin p-3 space-y-2">
+        <template x-for="task in taskList" :key="task.task_id">
+          <div @click="selectTask(task.task_id)"
+               class="p-3 rounded-xl border cursor-pointer transition"
+               :class="selectedTask?.task_id === task.task_id
+                 ? 'border-hq-accent bg-hq-accent/10'
+                 : 'border-hq-border hover:border-gray-500'">
+            <div class="flex items-center gap-2 mb-1">
+              <span class="w-2 h-2 rounded-full shrink-0"
+                    :class="{
+                      'bg-hq-yellow pulse-dot': task.status === 'running',
+                      'bg-hq-green': task.status === 'completed' && task.success,
+                      'bg-red-500': task.status === 'failed' || (task.status === 'completed' && !task.success),
+                      'bg-gray-500': task.status === 'queued',
+                    }"></span>
+              <span class="text-xs font-mono text-gray-500" x-text="'#' + task.task_id"></span>
+              <span class="text-[10px] text-gray-600 ml-auto" x-text="formatTime(task.created_at)"></span>
+            </div>
+            <div class="text-sm text-gray-300 truncate" x-text="task.command"></div>
+            <div class="flex items-center gap-3 mt-1.5 text-[10px] text-gray-500">
+              <span x-show="task.time_seconds" x-text="task.time_seconds + '초'"></span>
+              <span x-show="task.cost" x-text="'$' + task.cost.toFixed(4)"></span>
+              <span class="px-1.5 py-0.5 rounded text-[9px]"
+                    :class="{
+                      'bg-yellow-900/30 text-yellow-400': task.status === 'running',
+                      'bg-green-900/30 text-green-400': task.status === 'completed',
+                      'bg-red-900/30 text-red-400': task.status === 'failed',
+                    }"
+                    x-text="task.status === 'running' ? '진행중' : task.status === 'completed' ? '완료' : '실패'"></span>
+            </div>
+          </div>
+        </template>
+        <template x-if="taskList.length === 0">
+          <div class="text-xs text-gray-600 italic p-2 text-center">아직 작업이 없습니다.<br>관제실에서 명령을 입력하세요.</div>
+        </template>
+      </div>
+    </aside>
+
+    <!-- Task Detail -->
+    <main class="flex-1 flex flex-col overflow-hidden">
+      <template x-if="selectedTask">
+        <div class="flex flex-col h-full">
+          <div class="p-4 border-b border-hq-border flex items-center justify-between shrink-0">
+            <div class="min-w-0">
+              <div class="font-medium text-white truncate" x-text="selectedTask.command"></div>
+              <div class="text-xs text-gray-500 mt-1 flex items-center gap-2">
+                <span x-text="'#' + selectedTask.task_id"></span>
+                <span>|</span>
+                <span x-text="selectedTask.time_seconds + '초'"></span>
+                <span>|</span>
+                <span x-text="'$' + (selectedTask.cost || 0).toFixed(4)"></span>
+                <span x-show="selectedTask.tokens_used">|</span>
+                <span x-show="selectedTask.tokens_used" x-text="(selectedTask.tokens_used || 0).toLocaleString() + ' 토큰'"></span>
+              </div>
+            </div>
+            <a x-show="selectedTask.output_file"
+               :href="'/' + selectedTask.output_file"
+               download
+               class="text-xs bg-hq-accent/20 border border-hq-accent/30 text-hq-accent px-3 py-1.5 rounded-lg hover:bg-hq-accent/30 shrink-0">
+              다운로드
+            </a>
+          </div>
+          <div class="flex-1 overflow-y-auto scrollbar-thin p-6">
+            <div class="markdown-body text-gray-300 text-sm leading-relaxed max-w-4xl"
+                 x-html="renderMarkdown(selectedTask.result_data || '처리 중...')"></div>
+          </div>
+        </div>
+      </template>
+      <template x-if="!selectedTask">
+        <div class="flex-1 flex items-center justify-center">
+          <div class="text-center">
+            <div class="text-4xl mb-3">📋</div>
+            <div class="text-gray-500 text-sm">왼쪽에서 작업을 선택하세요</div>
+          </div>
+        </div>
+      </template>
+    </main>
+  </div>
+
+  <!-- ═══════════════════════════════════════════ -->
   <!--  Script                                     -->
   <!-- ═══════════════════════════════════════════ -->
   <script>
@@ -872,6 +977,12 @@
         showNewFileForm: false,
         newFileFolder: 'shared',
         newFileName: '',
+
+        // Task history state
+        taskList: [],
+        selectedTask: null,
+        runningTaskCount: 0,
+        taskDepth: '3',
 
         // Agent info
         agentNames: {
@@ -957,6 +1068,22 @@
 
         handleWsMessage(msg) {
           switch (msg.event) {
+            case 'task_accepted':
+              this.systemStatus = 'working';
+              this.messages.push({ type: 'processing', id: Date.now(), task_id: msg.data.task_id });
+              this.runningTaskCount++;
+              break;
+            case 'task_completed':
+              this.messages = this.messages.filter(m => m.type !== 'processing');
+              this.messages.push({
+                type: 'result', content: msg.data.content, sender_id: 'chief_of_staff',
+                time_seconds: msg.data.time_seconds, cost: msg.data.cost, task_id: msg.data.task_id,
+              });
+              this.systemStatus = 'idle';
+              this.runningTaskCount = Math.max(0, this.runningTaskCount - 1);
+              if (this.currentTab === 'tasks') this.loadTasks();
+              this.$nextTick(() => this.scrollToBottom());
+              break;
             case 'processing_start':
               this.systemStatus = 'working';
               this.messages.push({ type: 'processing', id: Date.now() });
@@ -1020,7 +1147,7 @@
           this.inputText = '';
           this.activeAgents = {};
           if (this.ws?.readyState === WebSocket.OPEN) {
-            this.ws.send(JSON.stringify({ type: 'command', text }));
+            this.ws.send(JSON.stringify({ type: 'command', text, depth: parseInt(this.taskDepth) || 3 }));
           }
           this.$nextTick(() => this.scrollToBottom());
         },
@@ -1099,6 +1226,28 @@
             this.modelSaving = false;
             alert('모델 변경 실패: ' + e.message);
           }
+        },
+
+        // ─── Tasks ───
+        async loadTasks() {
+          try {
+            const res = await fetch('/api/tasks');
+            this.taskList = await res.json();
+            this.runningTaskCount = this.taskList.filter(t => t.status === 'running').length;
+          } catch (e) { console.error('Failed to load tasks:', e); }
+        },
+
+        async selectTask(taskId) {
+          try {
+            const res = await fetch(`/api/tasks/${taskId}`);
+            this.selectedTask = await res.json();
+          } catch (e) { console.error('Failed to load task:', e); }
+        },
+
+        formatTime(iso) {
+          if (!iso) return '';
+          const d = new Date(iso);
+          return d.toLocaleString('ko-KR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
         },
 
         // ─── Knowledge ───

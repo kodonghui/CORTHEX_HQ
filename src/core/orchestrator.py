@@ -29,13 +29,15 @@ class Orchestrator:
         self.registry = registry
         self.model_router = model_router
 
-    async def process_command(self, user_input: str) -> TaskResult:
+    async def process_command(
+        self, user_input: str, context: dict | None = None,
+    ) -> TaskResult:
         """Main entry: all commands go through chief_of_staff."""
         request = TaskRequest(
             sender_id="ceo",
             receiver_id="chief_of_staff",
             task_description=user_input,
-            context={},
+            context=context or {},
         )
 
         logger.info("CEO 명령 → 비서실장: %s", user_input[:80])

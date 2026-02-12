@@ -9,6 +9,8 @@ import asyncio
 import json
 import logging
 import os
+import time
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -24,6 +26,7 @@ from starlette.requests import Request
 from src.core.context import SharedContext
 from src.core.knowledge import KnowledgeManager
 from src.core.message import Message, MessageType
+from src.core.task_store import TaskStore, StoredTask, TaskStatus
 from src.core.orchestrator import Orchestrator
 from src.core.registry import AgentRegistry
 from src.llm.anthropic_provider import AnthropicProvider
@@ -48,10 +51,15 @@ load_dotenv(PROJECT_DIR / ".env")
 app = FastAPI(title="CORTHEX HQ", version="0.3.0")
 if STATIC_DIR.exists():
     app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+OUTPUT_DIR.mkdir(exist_ok=True)
+app.mount("/output", StaticFiles(directory=str(OUTPUT_DIR)), name="output")
 templates = Jinja2Templates(directory=str(TEMPLATE_DIR))
 
 # WebSocket manager
 ws_manager = ConnectionManager()
+
+# Output directory for saved results
+OUTPUT_DIR = PROJECT_DIR / "output"
 
 # Global state (initialized on startup)
 orchestrator: Orchestrator | None = None
@@ -60,6 +68,7 @@ registry: AgentRegistry | None = None
 context: SharedContext | None = None
 knowledge_mgr: KnowledgeManager | None = None
 agents_cfg_raw: dict | None = None  # raw YAML config for soul editing
+task_store: TaskStore = TaskStore()
 
 
 @app.on_event("startup")
@@ -136,6 +145,13 @@ async def _handle_message_event(msg: Message) -> None:
         await ws_manager.send_agent_status(msg.receiver_id, "working", 0.1)
         await ws_manager.send_activity_log(
             msg.sender_id, f"→ {msg.receiver_id} 에게 작업 배정"
+        )
+    elif msg.type == MessageType.STATUS_UPDATE:
+        await ws_manager.send_agent_status(
+            msg.sender_id, "working", msg.progress_pct, detail=msg.detail
+        )
+        await ws_manager.send_activity_log(
+            msg.sender_id, f"단계 진행: {msg.current_step} - {msg.detail}"
         )
     elif msg.type == MessageType.TASK_RESULT:
         await ws_manager.send_agent_status(msg.sender_id, "done", 1.0)
@@ -382,6 +398,71 @@ async def update_agent_model(agent_id: str, body: ModelUpdateRequest) -> dict:
     return {"success": True, "agent_id": agent_id, "model_name": body.model_name}
 
 
+# ─── Task Management ───
+
+
+def _save_result_file(task: StoredTask) -> str | None:
+    """Save task result as a markdown file. Returns relative path."""
+    if not task.result_data or not task.success:
+        return None
+    try:
+        OUTPUT_DIR.mkdir(exist_ok=True)
+        timestamp = task.created_at.strftime("%Y%m%d_%H%M%S")
+        safe_name = "".join(
+            c if c.isalnum() or c in "._- " else "_"
+            for c in task.command[:30]
+        ).strip()
+        filename = f"{timestamp}_{safe_name}.md"
+        filepath = OUTPUT_DIR / filename
+        content = (
+            f"# {task.command}\n\n"
+            f"> **작업 ID**: {task.task_id}  \n"
+            f"> **생성**: {task.created_at.strftime('%Y-%m-%d %H:%M:%S')} UTC  \n"
+            f"> **소요 시간**: {task.execution_time_seconds}초  \n"
+            f"> **비용**: ${task.cost_usd:.4f}  \n"
+            f"> **토큰**: {task.tokens_used:,}\n\n---\n\n"
+            f"{task.result_data}\n"
+        )
+        filepath.write_text(content, encoding="utf-8")
+        return f"output/{filename}"
+    except Exception:
+        return None
+
+
+def _task_to_dict(t: StoredTask, include_result: bool = False) -> dict:
+    d = {
+        "task_id": t.task_id,
+        "command": t.command,
+        "status": t.status.value,
+        "created_at": t.created_at.isoformat(),
+        "completed_at": t.completed_at.isoformat() if t.completed_at else None,
+        "success": t.success,
+        "summary": t.result_summary,
+        "time_seconds": t.execution_time_seconds,
+        "cost": t.cost_usd,
+        "output_file": t.output_file,
+    }
+    if include_result:
+        d["result_data"] = t.result_data
+        d["tokens_used"] = t.tokens_used
+    return d
+
+
+@app.get("/api/tasks")
+async def list_tasks() -> list[dict]:
+    """List all tasks with status."""
+    return [_task_to_dict(t) for t in task_store.list_all()]
+
+
+@app.get("/api/tasks/{task_id}")
+async def get_task(task_id: str) -> dict:
+    """Get full task details including result content."""
+    t = task_store.get(task_id)
+    if not t:
+        return {"error": "task not found"}
+    return _task_to_dict(t, include_result=True)
+
+
 # ─── Knowledge Management ───
 
 
@@ -439,14 +520,18 @@ async def websocket_endpoint(ws: WebSocket) -> None:
 
             if msg.get("type") == "command":
                 user_input = msg.get("text", "").strip()
+                depth = msg.get("depth", 3)
                 if not user_input or not orchestrator:
                     continue
 
-                # Notify: processing started
-                await ws.send_text(json.dumps({
-                    "event": "processing_start",
-                    "data": {"command": user_input},
-                }, ensure_ascii=False))
+                # Create a stored task
+                stored = task_store.create(user_input)
+
+                # Notify all clients: task accepted
+                await ws_manager.broadcast("task_accepted", {
+                    "task_id": stored.task_id,
+                    "command": user_input,
+                })
 
                 # Reset all agent statuses
                 if registry:
@@ -455,33 +540,65 @@ async def websocket_endpoint(ws: WebSocket) -> None:
                             agent.config.agent_id, "idle"
                         )
 
-                # Process the command
-                try:
-                    result = await orchestrator.process_command(user_input)
-
-                    await ws.send_text(json.dumps({
-                        "event": "result",
-                        "data": {
-                            "success": result.success,
-                            "content": str(result.result_data or result.summary),
-                            "sender_id": result.sender_id,
-                            "time_seconds": result.execution_time_seconds,
-                            "cost": model_router.cost_tracker.total_cost if model_router else 0,
-                        },
-                    }, ensure_ascii=False))
-
-                except Exception as e:
-                    await ws.send_text(json.dumps({
-                        "event": "error",
-                        "data": {"message": str(e)},
-                    }, ensure_ascii=False))
-
-                # Reset all statuses to idle
-                if registry:
-                    for agent in registry.list_all():
-                        await ws_manager.send_agent_status(
-                            agent.config.agent_id, "idle"
-                        )
+                # Launch background task
+                asyncio.create_task(
+                    _run_background_task(stored, user_input, depth)
+                )
 
     except WebSocketDisconnect:
         ws_manager.disconnect(ws)
+
+
+async def _run_background_task(
+    stored: StoredTask, user_input: str, depth: int
+) -> None:
+    """Execute orchestrator command in the background."""
+    stored.status = TaskStatus.RUNNING
+    stored.started_at = datetime.now(timezone.utc)
+    start_cost = model_router.cost_tracker.total_cost if model_router else 0
+    start_tokens = model_router.cost_tracker.total_tokens if model_router else 0
+    start_time = time.monotonic()
+
+    try:
+        result = await orchestrator.process_command(
+            user_input, context={"max_steps": depth}
+        )
+        stored.success = result.success
+        stored.result_data = str(result.result_data or result.summary)
+        stored.result_summary = result.summary
+        stored.status = TaskStatus.COMPLETED
+    except Exception as e:
+        stored.success = False
+        stored.result_data = str(e)
+        stored.result_summary = f"오류: {e}"
+        stored.status = TaskStatus.FAILED
+    finally:
+        stored.completed_at = datetime.now(timezone.utc)
+        stored.execution_time_seconds = round(time.monotonic() - start_time, 2)
+        stored.cost_usd = round(
+            (model_router.cost_tracker.total_cost - start_cost) if model_router else 0, 6
+        )
+        stored.tokens_used = (
+            (model_router.cost_tracker.total_tokens - start_tokens) if model_router else 0
+        )
+
+        # Save result to file
+        stored.output_file = _save_result_file(stored)
+
+        # Broadcast completion to ALL connected clients
+        await ws_manager.broadcast("task_completed", {
+            "task_id": stored.task_id,
+            "success": stored.success,
+            "content": stored.result_data,
+            "summary": stored.result_summary,
+            "time_seconds": stored.execution_time_seconds,
+            "cost": stored.cost_usd,
+            "output_file": stored.output_file,
+        })
+
+        # Reset all agent statuses
+        if registry:
+            for agent in registry.list_all():
+                await ws_manager.send_agent_status(
+                    agent.config.agent_id, "idle"
+                )
