@@ -30,6 +30,7 @@ from src.core.task_store import TaskStore, StoredTask, TaskStatus
 from src.core.orchestrator import Orchestrator
 from src.core.registry import AgentRegistry
 from src.llm.anthropic_provider import AnthropicProvider
+from src.llm.batch_collector import BatchCollector
 from src.llm.openai_provider import OpenAIProvider
 from src.llm.router import ModelRouter
 from src.tools.pool import ToolPool
@@ -69,6 +70,7 @@ context: SharedContext | None = None
 knowledge_mgr: KnowledgeManager | None = None
 agents_cfg_raw: dict | None = None  # raw YAML config for soul editing
 task_store: TaskStore = TaskStore()
+telegram_bot: Any = None  # CorthexTelegramBot (optional)
 
 
 @app.on_event("startup")
@@ -99,6 +101,15 @@ async def startup() -> None:
             anthropic_provider=anthropic_prov,
         )
 
+        # BatchCollector 초기화 (Batch API 50% 할인)
+        openai_raw = openai_prov._client if openai_prov else None
+        anthropic_raw = anthropic_prov._client if anthropic_prov else None
+        if openai_raw or anthropic_raw:
+            model_router.batch_collector = BatchCollector(
+                openai_client=openai_raw,
+                anthropic_client=anthropic_raw,
+            )
+
         # Build tool pool
         tool_pool = ToolPool(model_router)
         tool_pool.build_from_config(tools_cfg)
@@ -125,6 +136,24 @@ async def startup() -> None:
         orchestrator = Orchestrator(registry, model_router)
 
         logger.info("CORTHEX HQ 시스템 준비 완료 (에이전트 %d명)", registry.agent_count)
+
+        # Telegram Bot (선택사항)
+        tg_token = os.getenv("TELEGRAM_BOT_TOKEN", "")
+        tg_chat_id = os.getenv("TELEGRAM_CHAT_ID", "")
+        if tg_token and tg_chat_id:
+            try:
+                from src.integrations.telegram_bot import CorthexTelegramBot, HAS_TELEGRAM
+                if HAS_TELEGRAM:
+                    global telegram_bot
+                    telegram_bot = CorthexTelegramBot(
+                        token=tg_token,
+                        allowed_chat_id=tg_chat_id,
+                        command_callback=_execute_command_for_api,
+                    )
+                    asyncio.create_task(telegram_bot.start())
+                    logger.info("텔레그램 봇 활성화됨")
+            except Exception as e:
+                logger.warning("텔레그램 봇 초기화 실패: %s", e)
 
     except Exception as e:
         logger.error("시스템 초기화 실패: %s", e, exc_info=True)
@@ -162,6 +191,48 @@ async def _handle_message_event(msg: Message) -> None:
                 model_router.cost_tracker.total_cost,
                 model_router.cost_tracker.total_tokens,
             )
+        # 중간 보고서 아카이브 저장
+        _archive_agent_report(msg)
+
+
+# ─── Archive ───
+
+ARCHIVE_DIR = PROJECT_DIR / "archive"
+
+
+def _archive_agent_report(msg: Message) -> None:
+    """모든 에이전트의 보고서를 부서별 아카이브에 저장."""
+    if not registry:
+        return
+    try:
+        agent = registry.get_agent(msg.sender_id)
+    except Exception:
+        return
+
+    division = agent.config.division or "general"
+    timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+
+    archive_dir = ARCHIVE_DIR / division
+    archive_dir.mkdir(parents=True, exist_ok=True)
+
+    filename = f"{timestamp}_{msg.sender_id}.md"
+
+    # 보고서 본문 추출
+    result_text = str(msg.result_data) if msg.result_data else "(결과 없음)"
+    task_desc = getattr(msg, "task_description", "") or "(지시 내용 없음)"
+
+    content = (
+        f"# {agent.config.name_ko} 보고서\n\n"
+        f"> **작성자**: {agent.config.name_ko} ({msg.sender_id})  \n"
+        f"> **소속**: {division}  \n"
+        f"> **보고 대상**: {msg.receiver_id}  \n"
+        f"> **지시 내용**: {task_desc}  \n"
+        f"> **작성 시각**: {timestamp}  \n"
+        f"> **소요 시간**: {msg.execution_time_seconds}초  \n"
+        f"> **상관 작업 ID**: {msg.correlation_id}  \n\n"
+        f"---\n\n{result_text}\n"
+    )
+    (archive_dir / filename).write_text(content, encoding="utf-8")
 
 
 # ─── Routes ───
@@ -267,6 +338,7 @@ async def get_agent_detail(agent_id: str) -> dict:
         "system_prompt": original_prompt,
         "allowed_tools": cfg.allowed_tools,
         "temperature": cfg.temperature,
+        "reasoning_effort": cfg.reasoning_effort,
     }
 
 
@@ -398,6 +470,52 @@ async def update_agent_model(agent_id: str, body: ModelUpdateRequest) -> dict:
     return {"success": True, "agent_id": agent_id, "model_name": body.model_name}
 
 
+class ReasoningUpdateRequest(BaseModel):
+    reasoning_effort: str  # "", "low", "medium", "high"
+
+
+@app.put("/api/agents/{agent_id}/reasoning")
+async def update_reasoning_effort(agent_id: str, body: ReasoningUpdateRequest) -> dict:
+    """Update an agent's reasoning_effort and persist to agents.yaml."""
+    global agents_cfg_raw
+    if not registry or not agents_cfg_raw:
+        return {"error": "not initialized"}
+
+    valid = {"", "low", "medium", "high"}
+    if body.reasoning_effort not in valid:
+        return {"error": f"Invalid reasoning_effort: {body.reasoning_effort}"}
+
+    # Update in-memory YAML config
+    found = False
+    for a in agents_cfg_raw.get("agents", []):
+        if a.get("agent_id") == agent_id:
+            a["reasoning_effort"] = body.reasoning_effort
+            found = True
+            break
+    if not found:
+        return {"error": "agent not found"}
+
+    # Persist to YAML file
+    yaml_path = CONFIG_DIR / "agents.yaml"
+    with open(yaml_path, "w", encoding="utf-8") as f:
+        f.write("# =============================================================\n")
+        f.write("# CORTHEX HQ - Agent Configuration (에이전트 설정)\n")
+        f.write("# =============================================================\n\n")
+        yaml.dump(
+            agents_cfg_raw, f,
+            allow_unicode=True, default_flow_style=False, sort_keys=False,
+        )
+
+    # Hot-reload
+    try:
+        agent = registry.get_agent(agent_id)
+        agent.config = agent.config.model_copy(update={"reasoning_effort": body.reasoning_effort})
+    except Exception as e:
+        logger.warning("추론 수준 핫리로드 실패: %s", e)
+
+    return {"success": True, "agent_id": agent_id, "reasoning_effort": body.reasoning_effort}
+
+
 # ─── Task Management ───
 
 
@@ -509,6 +627,131 @@ async def delete_knowledge(folder: str, filename: str) -> dict:
     return {"success": ok}
 
 
+# ─── Archive API ───
+
+
+@app.get("/api/archive")
+async def list_archive() -> list[dict]:
+    """부서별 아카이브 파일 목록 반환."""
+    if not ARCHIVE_DIR.exists():
+        return []
+    result = []
+    for division_dir in sorted(ARCHIVE_DIR.iterdir()):
+        if not division_dir.is_dir() or division_dir.name.startswith("."):
+            continue
+        for f in sorted(division_dir.iterdir(), reverse=True):
+            if f.suffix == ".md":
+                result.append({
+                    "division": division_dir.name,
+                    "filename": f.name,
+                    "size": f.stat().st_size,
+                    "modified": datetime.fromtimestamp(
+                        f.stat().st_mtime, tz=timezone.utc
+                    ).isoformat(),
+                })
+    return result
+
+
+@app.get("/api/archive/{division}/{filename}")
+async def read_archive(division: str, filename: str) -> dict:
+    """개별 아카이브 보고서 조회."""
+    filepath = ARCHIVE_DIR / division / filename
+    if not filepath.exists() or not filepath.is_file():
+        return {"error": "file not found"}
+    content = filepath.read_text(encoding="utf-8")
+    return {"division": division, "filename": filename, "content": content}
+
+
+@app.get("/api/archive/by-correlation/{correlation_id}")
+async def list_archive_by_correlation(correlation_id: str) -> list[dict]:
+    """특정 작업의 모든 중간 보고서 조회 (correlation_id 기준)."""
+    if not ARCHIVE_DIR.exists():
+        return []
+    results = []
+    for division_dir in ARCHIVE_DIR.iterdir():
+        if not division_dir.is_dir():
+            continue
+        for f in sorted(division_dir.iterdir()):
+            if not f.suffix == ".md":
+                continue
+            content = f.read_text(encoding="utf-8")
+            if correlation_id in content:
+                results.append({
+                    "division": division_dir.name,
+                    "filename": f.name,
+                    "content": content,
+                })
+    return results
+
+
+# ─── REST Command API (외부 연동용) ───
+
+
+class CommandRequest(BaseModel):
+    text: str
+    depth: int = 3
+    batch: bool = False
+
+
+@app.post("/api/command")
+async def submit_command(body: CommandRequest) -> dict:
+    """외부에서 명령 제출 (Telegram, OpenClaw, 기타 클라이언트)."""
+    if not orchestrator:
+        return {"error": "시스템 미초기화"}
+    stored = task_store.create(body.text)
+    asyncio.create_task(
+        _run_background_task(stored, body.text, body.depth, body.batch)
+    )
+    return {"task_id": stored.task_id, "status": "accepted"}
+
+
+async def _execute_command_for_api(
+    text: str, depth: int = 3, use_batch: bool = False
+) -> dict:
+    """Telegram/REST 등 외부 클라이언트를 위한 동기적 명령 실행."""
+    if not orchestrator:
+        return {"error": "시스템 미초기화"}
+    stored = task_store.create(text)
+    stored.status = TaskStatus.RUNNING
+    stored.started_at = datetime.now(timezone.utc)
+    start_cost = model_router.cost_tracker.total_cost if model_router else 0
+    start_tokens = model_router.cost_tracker.total_tokens if model_router else 0
+    start_time = time.monotonic()
+
+    try:
+        result = await orchestrator.process_command(
+            text, context={"max_steps": depth, "use_batch": use_batch}
+        )
+        stored.success = result.success
+        stored.result_data = str(result.result_data or result.summary)
+        stored.result_summary = result.summary
+        stored.status = TaskStatus.COMPLETED
+    except Exception as e:
+        stored.success = False
+        stored.result_data = str(e)
+        stored.result_summary = f"오류: {e}"
+        stored.status = TaskStatus.FAILED
+    finally:
+        stored.completed_at = datetime.now(timezone.utc)
+        stored.execution_time_seconds = round(time.monotonic() - start_time, 2)
+        stored.cost_usd = round(
+            (model_router.cost_tracker.total_cost - start_cost) if model_router else 0, 6
+        )
+        stored.tokens_used = (
+            (model_router.cost_tracker.total_tokens - start_tokens) if model_router else 0
+        )
+        stored.output_file = _save_result_file(stored)
+
+    return {
+        "task_id": stored.task_id,
+        "success": stored.success,
+        "result_data": stored.result_data,
+        "summary": stored.result_summary,
+        "time_seconds": stored.execution_time_seconds,
+        "cost": stored.cost_usd,
+    }
+
+
 @app.websocket("/ws")
 async def websocket_endpoint(ws: WebSocket) -> None:
     """WebSocket for real-time updates and CEO commands."""
@@ -521,6 +764,7 @@ async def websocket_endpoint(ws: WebSocket) -> None:
             if msg.get("type") == "command":
                 user_input = msg.get("text", "").strip()
                 depth = msg.get("depth", 3)
+                use_batch = msg.get("batch", False)
                 if not user_input or not orchestrator:
                     continue
 
@@ -531,6 +775,7 @@ async def websocket_endpoint(ws: WebSocket) -> None:
                 await ws_manager.broadcast("task_accepted", {
                     "task_id": stored.task_id,
                     "command": user_input,
+                    "batch": use_batch,
                 })
 
                 # Reset all agent statuses
@@ -542,7 +787,7 @@ async def websocket_endpoint(ws: WebSocket) -> None:
 
                 # Launch background task
                 asyncio.create_task(
-                    _run_background_task(stored, user_input, depth)
+                    _run_background_task(stored, user_input, depth, use_batch)
                 )
 
     except WebSocketDisconnect:
@@ -550,7 +795,7 @@ async def websocket_endpoint(ws: WebSocket) -> None:
 
 
 async def _run_background_task(
-    stored: StoredTask, user_input: str, depth: int
+    stored: StoredTask, user_input: str, depth: int, use_batch: bool = False
 ) -> None:
     """Execute orchestrator command in the background."""
     stored.status = TaskStatus.RUNNING
@@ -561,7 +806,7 @@ async def _run_background_task(
 
     try:
         result = await orchestrator.process_command(
-            user_input, context={"max_steps": depth}
+            user_input, context={"max_steps": depth, "use_batch": use_batch}
         )
         stored.success = result.success
         stored.result_data = str(result.result_data or result.summary)
@@ -602,3 +847,67 @@ async def _run_background_task(
                 await ws_manager.send_agent_status(
                     agent.config.agent_id, "idle"
                 )
+
+        # GitHub 자동 동기화 (비동기, UI 안 멈춤)
+        asyncio.create_task(_auto_sync_to_github())
+
+
+async def _auto_sync_to_github() -> None:
+    """archive/와 output/ 폴더를 GitHub에 자동 동기화."""
+    try:
+        # git pull --rebase (충돌 방지)
+        proc = await asyncio.create_subprocess_exec(
+            "git", "pull", "--rebase", "--autostash",
+            cwd=str(PROJECT_DIR),
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        await proc.wait()
+
+        # git add archive/ output/
+        proc = await asyncio.create_subprocess_exec(
+            "git", "add", "archive/", "output/",
+            cwd=str(PROJECT_DIR),
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        await proc.wait()
+
+        # 변경사항 확인
+        proc = await asyncio.create_subprocess_exec(
+            "git", "diff", "--cached", "--quiet",
+            cwd=str(PROJECT_DIR),
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        ret = await proc.wait()
+        if ret == 0:
+            # 변경사항 없음
+            return
+
+        # git commit
+        timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M")
+        proc = await asyncio.create_subprocess_exec(
+            "git", "commit", "-m", f"auto: 보고서 동기화 ({timestamp})",
+            cwd=str(PROJECT_DIR),
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        await proc.wait()
+
+        # git push
+        proc = await asyncio.create_subprocess_exec(
+            "git", "push",
+            cwd=str(PROJECT_DIR),
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        ret = await proc.wait()
+        if ret == 0:
+            logger.info("GitHub 자동 동기화 완료")
+        else:
+            stderr = (await proc.stderr.read()).decode() if proc.stderr else ""
+            logger.warning("GitHub push 실패: %s", stderr)
+
+    except Exception as e:
+        logger.warning("GitHub 자동 동기화 오류: %s", e)

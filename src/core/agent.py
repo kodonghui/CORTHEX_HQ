@@ -47,6 +47,7 @@ class AgentConfig(BaseModel):
     superior_id: Optional[str] = None
     max_retries: int = 2
     temperature: float = 0.3
+    reasoning_effort: str = ""  # "", "low", "medium", "high"
 
 
 class BaseAgent(ABC):
@@ -83,6 +84,9 @@ class BaseAgent(ABC):
         self.context.log_message(request)
         logger.info("[%s] 작업 수신: %s", self.agent_id, request.task_description[:80])
 
+        # context에서 batch 모드 플래그 설정
+        self._use_batch = request.context.get("use_batch", False)
+
         try:
             result_data = await self.execute(request)
             elapsed = time.monotonic() - start
@@ -96,6 +100,7 @@ class BaseAgent(ABC):
                 success=True,
                 result_data=result_data,
                 summary=summary,
+                task_description=request.task_description,
                 execution_time_seconds=round(elapsed, 2),
             )
         except Exception as e:
@@ -109,6 +114,7 @@ class BaseAgent(ABC):
                 success=False,
                 result_data={"error": str(e)},
                 summary=f"오류: {e}",
+                task_description=request.task_description,
                 execution_time_seconds=round(elapsed, 2),
             )
 
@@ -123,11 +129,15 @@ class BaseAgent(ABC):
 
     async def think(self, messages: list[dict[str, str]]) -> str:
         """Call the LLM through the model router."""
+        # context에서 batch 모드 확인
+        use_batch = getattr(self, '_use_batch', False)
         response = await self.model_router.complete(
             model_name=self.config.model_name,
             messages=messages,
             temperature=self.config.temperature,
             agent_id=self.agent_id,
+            reasoning_effort=self.config.reasoning_effort or None,
+            use_batch=use_batch,
         )
         return response.content
 
@@ -244,6 +254,10 @@ class ManagerAgent(BaseAgent):
         """Combine subordinate results into a unified response."""
         if not results:
             return "부하 에이전트로부터 결과를 받지 못했습니다."
+
+        # 결과가 1개면 재합성 없이 그대로 반환 (중복 방지 + 토큰 절약)
+        if len(results) == 1:
+            return results[0].result_data
 
         result_text = "\n\n".join(
             f"### [{r.sender_id}]\n{r.result_data}" for r in results

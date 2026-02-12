@@ -466,6 +466,13 @@
             <option value="3">보통</option>
             <option value="5">심화</option>
           </select>
+          <select x-model="batchMode"
+                  class="bg-hq-bg border border-hq-border rounded-xl px-2 py-3 text-xs text-gray-400
+                         focus:outline-none focus:border-hq-accent shrink-0"
+                  :class="batchMode === 'batch' ? 'border-green-500/50 text-green-400' : ''">
+            <option value="realtime">실시간</option>
+            <option value="batch">절약 (-50%)</option>
+          </select>
           <input type="text" x-model="inputText" :disabled="systemStatus === 'working'"
                  placeholder="명령을 입력하세요..."
                  class="flex-1 bg-hq-bg border border-hq-border rounded-xl px-4 py-3 text-sm text-gray-200
@@ -709,6 +716,21 @@
                 </select>
                 <span x-show="modelSaving" class="text-[9px] text-hq-yellow">...</span>
                 <span x-show="modelSaved" class="text-[9px] text-hq-green fade-in">&#10003;</span>
+              </div>
+              <div class="relative inline-flex items-center gap-1">
+                <select x-model="agentDetail.reasoning_effort"
+                        @change="saveReasoning()"
+                        class="text-[10px] px-2 py-0.5 rounded-full border border-hq-border text-gray-400
+                               bg-hq-bg appearance-none cursor-pointer hover:border-hq-accent
+                               focus:outline-none focus:border-hq-accent pr-5"
+                        :disabled="reasoningSaving">
+                  <option value="">추론: 기본</option>
+                  <option value="low">추론: 낮음</option>
+                  <option value="medium">추론: 중간</option>
+                  <option value="high">추론: 높음</option>
+                </select>
+                <span x-show="reasoningSaving" class="text-[9px] text-hq-yellow">...</span>
+                <span x-show="reasoningSaved" class="text-[9px] text-hq-green fade-in">&#10003;</span>
               </div>
               <span class="text-[10px] px-2 py-0.5 rounded-full border border-hq-border text-gray-400"
                     x-text="agentDetail.division"></span>
@@ -969,6 +991,48 @@
           <div class="flex-1 overflow-y-auto scrollbar-thin p-6">
             <div class="markdown-body text-gray-300 text-sm leading-relaxed max-w-4xl"
                  x-html="renderMarkdown(selectedTask.result_data || '처리 중...')"></div>
+
+            <!-- 중간 보고서 아카이브 -->
+            <div class="mt-6 border-t border-hq-border pt-4 max-w-4xl">
+              <button @click="archiveExpanded = !archiveExpanded; if(archiveExpanded && archiveReports.length === 0) loadArchiveReports()"
+                      class="flex items-center gap-2 text-sm text-gray-400 hover:text-gray-200 transition">
+                <span x-text="archiveExpanded ? '▼' : '▶'"></span>
+                <span>중간 보고서 (에이전트별 원본)</span>
+                <span x-show="archiveReports.length > 0" class="text-xs bg-hq-accent/20 text-hq-accent px-2 py-0.5 rounded-full"
+                      x-text="archiveReports.length + '건'"></span>
+              </button>
+              <div x-show="archiveExpanded" x-cloak class="mt-3 space-y-2">
+                <div x-show="archiveLoading" class="text-xs text-gray-500">불러오는 중...</div>
+                <div x-show="!archiveLoading && archiveReports.length === 0" class="text-xs text-gray-500">
+                  이 작업의 중간 보고서가 없습니다.
+                </div>
+                <template x-for="report in archiveReports" :key="report.filename">
+                  <div class="bg-hq-panel border border-hq-border rounded-lg p-3">
+                    <div class="flex items-center justify-between cursor-pointer"
+                         @click="report._expanded = !report._expanded; if(report._expanded && !report._content) viewArchiveReport(report.division, report.filename).then(() => { report._content = _archiveViewContent; })">
+                      <div class="flex items-center gap-2">
+                        <span class="text-xs px-2 py-0.5 rounded-full"
+                              :class="{'bg-blue-500/20 text-blue-400': report.division === 'tech',
+                                        'bg-green-500/20 text-green-400': report.division === 'finance',
+                                        'bg-purple-500/20 text-purple-400': report.division === 'strategy',
+                                        'bg-yellow-500/20 text-yellow-400': report.division === 'secretary',
+                                        'bg-red-500/20 text-red-400': report.division === 'legal',
+                                        'bg-pink-500/20 text-pink-400': report.division === 'marketing',
+                                        'bg-orange-500/20 text-orange-400': report.division === 'publishing',
+                                        'bg-gray-500/20 text-gray-400': !['tech','finance','strategy','secretary','legal','marketing','publishing'].includes(report.division)}"
+                              x-text="report.division"></span>
+                        <span class="text-sm text-gray-300" x-text="report.filename.replace(/^\d{8}_\d{6}_/, '').replace('.md', '')"></span>
+                      </div>
+                      <span class="text-xs text-gray-500" x-text="report._expanded ? '▼' : '▶'"></span>
+                    </div>
+                    <div x-show="report._expanded" x-cloak class="mt-3 border-t border-hq-border pt-3">
+                      <div class="markdown-body text-gray-400 text-xs leading-relaxed"
+                           x-html="renderMarkdown(report._content || '불러오는 중...')"></div>
+                    </div>
+                  </div>
+                </template>
+              </div>
+            </div>
           </div>
         </div>
       </template>
@@ -1021,6 +1085,8 @@
         availableModels: [],
         modelSaving: false,
         modelSaved: false,
+        reasoningSaving: false,
+        reasoningSaved: false,
 
         // Knowledge state
         knowledgeFiles: [],
@@ -1039,6 +1105,13 @@
         selectedTask: null,
         runningTaskCount: 0,
         taskDepth: '3',
+        batchMode: 'realtime',
+        // Archive (중간 보고서)
+        archiveReports: [],
+        archiveExpanded: false,
+        archiveLoading: false,
+        _archiveViewContent: '',
+        _archiveViewFile: '',
 
         // Agent info
         agentNames: {
@@ -1112,6 +1185,13 @@
 
         // ─── WebSocket ───
         connectWebSocket() {
+          // 이전 연결 정리 (좀비 연결 방지)
+          if (this.ws) {
+            this.ws.onclose = null;
+            this.ws.onmessage = null;
+            this.ws.onerror = null;
+            try { this.ws.close(); } catch (_) {}
+          }
           try {
             const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
             this.ws = new WebSocket(`${protocol}//${location.host}/ws`);
@@ -1211,7 +1291,7 @@
           this.inputText = '';
           this.activeAgents = {};
           if (this.ws?.readyState === WebSocket.OPEN) {
-            this.ws.send(JSON.stringify({ type: 'command', text, depth: parseInt(this.taskDepth) || 3 }));
+            this.ws.send(JSON.stringify({ type: 'command', text, depth: parseInt(this.taskDepth) || 3, batch: this.batchMode === 'batch' }));
           }
           this.$nextTick(() => this.scrollToBottom());
         },
@@ -1292,6 +1372,31 @@
           }
         },
 
+        async saveReasoning() {
+          if (!this.selectedAgent || !this.agentDetail) return;
+          this.reasoningSaving = true;
+          this.reasoningSaved = false;
+          try {
+            const res = await fetch(`/api/agents/${this.selectedAgent}/reasoning`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ reasoning_effort: this.agentDetail.reasoning_effort || '' }),
+            });
+            const data = await res.json();
+            if (data.error) {
+              alert('추론 수준 변경 실패: ' + data.error);
+              this.reasoningSaving = false;
+              return;
+            }
+            this.reasoningSaving = false;
+            this.reasoningSaved = true;
+            setTimeout(() => { this.reasoningSaved = false; }, 2000);
+          } catch (e) {
+            this.reasoningSaving = false;
+            alert('추론 수준 변경 실패: ' + e.message);
+          }
+        },
+
         // ─── Tasks ───
         async loadTasks() {
           try {
@@ -1305,7 +1410,37 @@
           try {
             const res = await fetch(`/api/tasks/${taskId}`);
             this.selectedTask = await res.json();
+            this.archiveReports = [];
+            this.archiveExpanded = false;
           } catch (e) { console.error('Failed to load task:', e); }
+        },
+
+        async loadArchiveReports() {
+          if (!this.selectedTask) return;
+          this.archiveLoading = true;
+          try {
+            const res = await fetch('/api/archive');
+            const allFiles = await res.json();
+            // 시간 기반 필터: 작업 생성 시간 ± 10분 이내의 보고서
+            const taskTime = new Date(this.selectedTask.created_at).getTime();
+            const window = 10 * 60 * 1000; // 10분
+            this.archiveReports = allFiles.filter(f => {
+              const fTime = new Date(f.modified).getTime();
+              return Math.abs(fTime - taskTime) < window;
+            });
+          } catch (e) { console.error('Failed to load archive:', e); }
+          this.archiveLoading = false;
+        },
+
+        async viewArchiveReport(division, filename) {
+          try {
+            const res = await fetch(`/api/archive/${division}/${filename}`);
+            const data = await res.json();
+            if (data.content) {
+              this._archiveViewContent = data.content;
+              this._archiveViewFile = filename;
+            }
+          } catch (e) { console.error('Failed to load archive report:', e); }
         },
 
         formatTime(iso) {
