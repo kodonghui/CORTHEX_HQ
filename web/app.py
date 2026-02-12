@@ -301,6 +301,87 @@ async def update_agent_soul(agent_id: str, body: SoulUpdateRequest) -> dict:
     return {"success": True, "agent_id": agent_id}
 
 
+# ─── Model Management ───
+
+
+@app.get("/api/models")
+async def get_models() -> list[dict]:
+    """Return available models from models.yaml."""
+    try:
+        models_cfg = yaml.safe_load(
+            (CONFIG_DIR / "models.yaml").read_text(encoding="utf-8")
+        )
+    except Exception:
+        return []
+    result = []
+    for provider_name, provider_cfg in models_cfg.get("providers", {}).items():
+        for model in provider_cfg.get("models", []):
+            result.append({
+                "name": model["name"],
+                "provider": provider_name,
+                "tier": model.get("tier", ""),
+                "cost_input": model.get("cost_per_1m_input", 0),
+                "cost_output": model.get("cost_per_1m_output", 0),
+            })
+    return result
+
+
+class ModelUpdateRequest(BaseModel):
+    model_name: str
+
+
+@app.put("/api/agents/{agent_id}/model")
+async def update_agent_model(agent_id: str, body: ModelUpdateRequest) -> dict:
+    """Update an agent's model_name and persist to agents.yaml."""
+    global agents_cfg_raw
+    if not registry or not agents_cfg_raw:
+        return {"error": "not initialized"}
+
+    # Validate model_name exists in models.yaml
+    try:
+        models_cfg = yaml.safe_load(
+            (CONFIG_DIR / "models.yaml").read_text(encoding="utf-8")
+        )
+        valid_names = []
+        for prov_cfg in models_cfg.get("providers", {}).values():
+            for m in prov_cfg.get("models", []):
+                valid_names.append(m["name"])
+        if body.model_name not in valid_names:
+            return {"error": f"Unknown model: {body.model_name}"}
+    except Exception:
+        pass
+
+    # Update in-memory YAML config
+    found = False
+    for a in agents_cfg_raw.get("agents", []):
+        if a.get("agent_id") == agent_id:
+            a["model_name"] = body.model_name
+            found = True
+            break
+    if not found:
+        return {"error": "agent not found"}
+
+    # Persist to YAML file
+    yaml_path = CONFIG_DIR / "agents.yaml"
+    with open(yaml_path, "w", encoding="utf-8") as f:
+        f.write("# =============================================================\n")
+        f.write("# CORTHEX HQ - Agent Configuration (에이전트 설정)\n")
+        f.write("# =============================================================\n\n")
+        yaml.dump(
+            agents_cfg_raw, f,
+            allow_unicode=True, default_flow_style=False, sort_keys=False,
+        )
+
+    # Hot-reload: update the running agent's model_name
+    try:
+        agent = registry.get_agent(agent_id)
+        agent.config = agent.config.model_copy(update={"model_name": body.model_name})
+    except Exception as e:
+        logger.warning("모델 핫리로드 실패: %s", e)
+
+    return {"success": True, "agent_id": agent_id, "model_name": body.model_name}
+
+
 # ─── Knowledge Management ───
 
 

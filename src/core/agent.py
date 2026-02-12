@@ -145,7 +145,7 @@ class BaseAgent(ABC):
         if len(text) < 200:
             return text
         response = await self.model_router.complete(
-            model_name="gpt-4o-mini",
+            model_name="claude-haiku-4-5-20251001",
             messages=[
                 {"role": "system", "content": "주어진 내용을 한국어 1-2문장으로 요약하세요."},
                 {"role": "user", "content": text[:3000]},

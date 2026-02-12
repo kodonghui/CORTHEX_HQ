@@ -627,8 +627,20 @@
                       'border-yellow-600 text-yellow-400 bg-yellow-900/20': agentDetail.role === 'worker',
                     }"
                     x-text="agentDetail.role"></span>
-              <span class="text-[10px] px-2 py-0.5 rounded-full border border-hq-border text-gray-400"
-                    x-text="agentDetail.model_name"></span>
+              <div class="relative inline-flex items-center gap-1">
+                <select x-model="agentDetail.model_name"
+                        @change="saveModel()"
+                        class="text-[10px] px-2 py-0.5 rounded-full border border-hq-border text-gray-400
+                               bg-hq-bg appearance-none cursor-pointer hover:border-hq-accent
+                               focus:outline-none focus:border-hq-accent pr-5"
+                        :disabled="modelSaving">
+                  <template x-for="m in availableModels" :key="m.name">
+                    <option :value="m.name" x-text="m.name" :selected="m.name === agentDetail.model_name"></option>
+                  </template>
+                </select>
+                <span x-show="modelSaving" class="text-[9px] text-hq-yellow">...</span>
+                <span x-show="modelSaved" class="text-[9px] text-hq-green fade-in">&#10003;</span>
+              </div>
               <span class="text-[10px] px-2 py-0.5 rounded-full border border-hq-border text-gray-400"
                     x-text="agentDetail.division"></span>
             </div>
@@ -722,33 +734,41 @@
         </div>
       </div>
 
-      <!-- File Tree -->
-      <div class="flex-1 overflow-y-auto scrollbar-thin p-3 space-y-1">
-        <template x-for="file in knowledgeFiles" :key="file.path">
-          <div @click="selectKnowledgeFile(file)"
-               class="flex items-center gap-2 px-2 py-1.5 rounded-lg cursor-pointer text-xs"
-               :class="selectedFile?.path === file.path
-                 ? 'bg-hq-accent/20 text-hq-accent border border-hq-accent/30'
-                 : 'text-gray-400 hover:bg-white/5'">
-            <span class="text-gray-600">📄</span>
-            <div class="flex-1 min-w-0">
-              <div class="truncate font-medium" x-text="file.filename"></div>
-              <div class="text-[10px] text-gray-600" x-text="file.folder + '/'"></div>
+      <!-- File Tree (folder accordion) -->
+      <div class="flex-1 overflow-y-auto scrollbar-thin p-3 space-y-2">
+        <template x-for="group in getKnowledgeFolders()" :key="group.folder">
+          <div>
+            <button @click="toggleKnowledgeFolder(group.folder)"
+                    class="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-white/5 w-full text-left text-xs font-semibold"
+                    :class="getKnowledgeFolderStyle(group.folder).color">
+              <span class="text-[10px] text-gray-500"
+                    x-text="knowledgeExpanded[group.folder] ? '▼' : '▶'"></span>
+              <span>📁</span>
+              <span x-text="getKnowledgeFolderStyle(group.folder).label"></span>
+              <span class="ml-auto text-[10px] text-gray-600"
+                    x-text="group.files.length + '개'"></span>
+            </button>
+            <div x-show="knowledgeExpanded[group.folder]" x-collapse class="ml-4 space-y-0.5 mt-1">
+              <template x-for="file in group.files" :key="file.path">
+                <div @click="selectKnowledgeFile(file)"
+                     class="flex items-center gap-2 px-2 py-1.5 rounded-lg cursor-pointer text-xs"
+                     :class="selectedFile?.path === file.path
+                       ? 'bg-hq-accent/20 text-hq-accent border border-hq-accent/30'
+                       : 'text-gray-400 hover:bg-white/5'">
+                  <span class="text-gray-600">📄</span>
+                  <div class="flex-1 min-w-0">
+                    <div class="truncate font-medium" x-text="file.filename"></div>
+                  </div>
+                  <div class="text-[10px] text-gray-600 shrink-0"
+                       x-text="(file.size / 1024).toFixed(1) + 'KB'"></div>
+                </div>
+              </template>
             </div>
-            <div class="text-[10px] text-gray-600 shrink-0"
-                 x-text="(file.size / 1024).toFixed(1) + 'KB'"></div>
           </div>
         </template>
         <template x-if="knowledgeFiles.length === 0">
           <div class="text-xs text-gray-600 italic p-2">파일이 없습니다</div>
         </template>
-      </div>
-
-      <!-- Folder Info -->
-      <div class="p-3 border-t border-hq-border text-[10px] text-gray-600 space-y-1">
-        <div><span class="text-gray-500">shared/</span> → 모든 에이전트</div>
-        <div><span class="text-cyan-600">leet_master/</span> → LEET Master 본부</div>
-        <div><span class="text-purple-600">finance/</span> → 투자분석 본부</div>
       </div>
     </aside>
 
@@ -837,9 +857,13 @@
         soulSaving: false,
         soulSaved: false,
         agentMeta: {},
+        availableModels: [],
+        modelSaving: false,
+        modelSaved: false,
 
         // Knowledge state
         knowledgeFiles: [],
+        knowledgeExpanded: { shared: true, leet_master: true, finance: true },
         selectedFile: null,
         fileContent: '',
         fileChanged: false,
@@ -1007,16 +1031,22 @@
         async loadOfficeData() {
           if (Object.keys(this.agentMeta).length > 0) return;
           try {
-            const res = await fetch('/api/agents');
-            const agents = await res.json();
+            const [agentsRes, modelsRes] = await Promise.all([
+              fetch('/api/agents'),
+              fetch('/api/models'),
+            ]);
+            const agents = await agentsRes.json();
             agents.forEach(a => { this.agentMeta[a.agent_id] = a; });
-          } catch (e) { console.error('Failed to load agents:', e); }
+            this.availableModels = await modelsRes.json();
+          } catch (e) { console.error('Failed to load office data:', e); }
         },
 
         async selectAgent(id) {
           this.selectedAgent = id;
           this.soulChanged = false;
           this.soulSaved = false;
+          this.modelSaving = false;
+          this.modelSaved = false;
           try {
             const res = await fetch(`/api/agents/${id}`);
             this.agentDetail = await res.json();
@@ -1040,6 +1070,34 @@
           } catch (e) {
             this.soulSaving = false;
             alert('저장 실패: ' + e.message);
+          }
+        },
+
+        async saveModel() {
+          if (!this.selectedAgent || !this.agentDetail) return;
+          this.modelSaving = true;
+          this.modelSaved = false;
+          try {
+            const res = await fetch(`/api/agents/${this.selectedAgent}/model`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ model_name: this.agentDetail.model_name }),
+            });
+            const data = await res.json();
+            if (data.error) {
+              alert('모델 변경 실패: ' + data.error);
+              this.modelSaving = false;
+              return;
+            }
+            if (this.agentMeta[this.selectedAgent]) {
+              this.agentMeta[this.selectedAgent].model_name = this.agentDetail.model_name;
+            }
+            this.modelSaving = false;
+            this.modelSaved = true;
+            setTimeout(() => { this.modelSaved = false; }, 2000);
+          } catch (e) {
+            this.modelSaving = false;
+            alert('모델 변경 실패: ' + e.message);
           }
         },
 
@@ -1129,6 +1187,34 @@
 
         // ─── Helpers ───
         toggleSection(s) { this.expanded[s] = !this.expanded[s]; },
+        toggleKnowledgeFolder(folder) { this.knowledgeExpanded[folder] = !this.knowledgeExpanded[folder]; },
+
+        getKnowledgeFolders() {
+          const grouped = {};
+          for (const file of this.knowledgeFiles) {
+            if (!grouped[file.folder]) grouped[file.folder] = [];
+            grouped[file.folder].push(file);
+          }
+          const order = ['shared', 'leet_master', 'finance'];
+          const result = [];
+          for (const key of order) {
+            if (grouped[key]) { result.push({ folder: key, files: grouped[key] }); delete grouped[key]; }
+          }
+          for (const [key, files] of Object.entries(grouped)) {
+            result.push({ folder: key, files });
+          }
+          return result;
+        },
+
+        getKnowledgeFolderStyle(folder) {
+          const styles = {
+            shared:      { label: 'shared (전체 공유)', color: 'text-gray-400' },
+            leet_master: { label: 'leet_master (LEET Master)', color: 'text-cyan-400' },
+            finance:     { label: 'finance (투자분석)', color: 'text-purple-400' },
+          };
+          return styles[folder] || { label: folder, color: 'text-gray-400' };
+        },
+
         getAgentName(id) { return this.agentNames[id] || id; },
         getAgentEmoji(id) { return this.agentEmojis[id] || '🤖'; },
 
