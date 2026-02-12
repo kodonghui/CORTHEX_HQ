@@ -242,3 +242,6 @@ async def websocket_endpoint(ws: WebSocket) -> None:
 
     except WebSocketDisconnect:
         ws_manager.disconnect(ws)
+    except Exception as e:
+        logger.error("WebSocket 오류: %s", e)
+        ws_manager.disconnect(ws)
