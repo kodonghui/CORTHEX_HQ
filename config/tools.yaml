@@ -1,0 +1,35 @@
+# ===========================================
+# CORTHEX HQ - Tool Pool Configuration (도구 설정)
+# ===========================================
+# 에이전트가 필요 시 호출하는 전문 도구 목록
+
+tools:
+  - tool_id: "patent_attorney"
+    name: "Patent Attorney"
+    name_ko: "변리사"
+    description: "특허 출원, 선행기술 조사, 특허 침해 분석"
+    model_name: "gpt-4o-mini"
+
+  - tool_id: "tax_accountant"
+    name: "Tax Accountant"
+    name_ko: "세무사"
+    description: "세무 관련 조언, 절세 전략, 세금 계산"
+    model_name: "gpt-4o-mini"
+
+  - tool_id: "designer"
+    name: "Designer"
+    name_ko: "디자이너"
+    description: "UI/UX 디자인 조언, 디자인 시스템, 와이어프레임"
+    model_name: "gpt-4o-mini"
+
+  - tool_id: "translator"
+    name: "Translator"
+    name_ko: "번역가"
+    description: "한영/영한 번역, 기술 문서 번역"
+    model_name: "gpt-4o-mini"
+
+  - tool_id: "web_search"
+    name: "Web Search"
+    name_ko: "웹검색"
+    description: "실시간 웹 검색 및 정보 수집"
+    model_name: "gpt-4o-mini"
