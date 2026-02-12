@@ -1,0 +1,41 @@
+# ===========================================
+# CORTHEX HQ - Model Registry (모델 설정)
+# ===========================================
+# 사용 가능한 AI 모델과 비용을 관리합니다.
+
+providers:
+  openai:
+    api_key_env: "OPENAI_API_KEY"
+    models:
+      - name: "gpt-4o"
+        cost_per_1m_input: 2.50
+        cost_per_1m_output: 10.00
+        max_tokens: 16384
+        tier: "manager"
+
+      - name: "gpt-4o-mini"
+        cost_per_1m_input: 0.15
+        cost_per_1m_output: 0.60
+        max_tokens: 16384
+        tier: "worker"
+
+      - name: "gpt-4.1-nano"
+        cost_per_1m_input: 0.10
+        cost_per_1m_output: 0.40
+        max_tokens: 16384
+        tier: "utility"
+
+  anthropic:
+    api_key_env: "ANTHROPIC_API_KEY"
+    models:
+      - name: "claude-sonnet-4-5-20250929"
+        cost_per_1m_input: 3.00
+        cost_per_1m_output: 15.00
+        max_tokens: 8192
+        tier: "manager"
+
+      - name: "claude-haiku-4-5-20251001"
+        cost_per_1m_input: 0.80
+        cost_per_1m_output: 4.00
+        max_tokens: 8192
+        tier: "specialist"
