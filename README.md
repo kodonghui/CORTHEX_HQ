@@ -11,7 +11,7 @@
 
 | 특징 | 설명 |
 |------|------|
-| **25명 AI 에이전트** | 실제 회사 조직도처럼 비서실장 → 처장(Manager) → 전문가(Specialist) → 워커(Worker) 계층 |
+| **29명 AI 에이전트** | 실제 회사 조직도처럼 비서실장 → 처장(Manager) → 전문가(Specialist) → 워커(Worker) 계층 |
 | **자동 업무 배분** | "삼성전자 주가 분석해줘" → 비서실장이 CIO에게 배분 → 4명 전문가가 병렬 분석 → 종합 보고 |
 | **멀티스텝 딥워크** | 전문가가 1회 답변이 아니라 계획→조사→초안→정리→보고까지 자율적으로 수행 |
 | **실시간 웹 대시보드** | 에이전트 상태, 작업 진행률, 비용을 브라우저에서 실시간 모니터링 |
@@ -53,13 +53,20 @@ CEO (사용자)
     │      ├─ 콘텐츠 Specialist
     │      └─ 커뮤니티 Specialist
     │
-    └─── [투자분석 본부] ─────────────────────
+    ├─── [투자분석 본부] ─────────────────────
+    │  │
+    │  └─ CIO 투자분석처장 (Manager)
+    │      ├─ 시황분석 Specialist  ──┐
+    │      ├─ 종목분석 Specialist  ──┼── 병렬 실행
+    │      ├─ 기술적분석 Specialist ─┘
+    │      └─ 리스크관리 Specialist ← 순차 실행
+    │
+    └─── [출판·기록 본부] ─────────────────────
        │
-       └─ CIO 투자분석처장 (Manager)
-           ├─ 시황분석 Specialist  ──┐
-           ├─ 종목분석 Specialist  ──┼── 병렬 실행
-           ├─ 기술적분석 Specialist ─┘
-           └─ 리스크관리 Specialist ← 순차 실행
+       └─ CPO 출판·기록처장 (Manager)
+           ├─ 회사연대기 Specialist
+           ├─ 콘텐츠편집 Specialist
+           └─ 아카이브 Specialist
 
 [AgentTool Pool] 변리사 / 세무사 / 디자이너 / 번역가 / 웹검색
 ```
@@ -197,7 +204,7 @@ CORTHEX_HQ/
 ├── .env.example            # API 키 템플릿
 │
 ├── config/                 # YAML 설정 (비개발자도 수정 가능)
-│   ├── agents.yaml         # 25개 에이전트 정의 (역할, 모델, 프롬프트, 계층)
+│   ├── agents.yaml         # 29개 에이전트 정의 (역할, 모델, 프롬프트, 계층)
 │   ├── models.yaml         # AI 모델 목록 및 가격
 │   └── tools.yaml          # 도구(변리사/세무사 등) 설정
 │
@@ -222,7 +229,8 @@ CORTHEX_HQ/
 │   ├── divisions/          # 부서별 에이전트 모듈
 │   │   ├── secretary/      # 비서실 (비서실장 + 워커 3명)
 │   │   ├── leet_master/    # LEET Master 본부 (CTO/CSO/CLO/CMO + 전문가 12명)
-│   │   └── finance/        # 투자분석 본부 (CIO + 전문가 4명)
+│   │   ├── finance/        # 투자분석 본부 (CIO + 전문가 4명)
+│   │   └── publishing/     # 출판·기록 본부 (CPO + 전문가 3명)
 │   │
 │   ├── tools/              # 도구 풀 (변리사, 세무사, 디자이너, 번역가, 웹검색)
 │   └── cli/                # Rich 터미널 CLI
@@ -237,7 +245,8 @@ CORTHEX_HQ/
 ├── knowledge/              # 에이전트 지식 파일 (.md)
 │   ├── shared/             # 전체 에이전트 공유 지식
 │   ├── leet_master/        # LEET Master 본부 전용
-│   └── finance/            # 투자분석 본부 전용
+│   ├── finance/            # 투자분석 본부 전용
+│   └── publishing/         # 출판·기록 본부 전용
 │
 ├── output/                 # 작업 결과 자동 저장 (마크다운)
 └── docs/                   # 프로젝트 문서

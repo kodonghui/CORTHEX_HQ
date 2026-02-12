@@ -289,6 +289,37 @@
           </div>
         </div>
 
+        <!-- 출판·기록 본부 -->
+        <div class="ml-2 mb-1">
+          <button @click="toggleSection('publishing_hq')"
+                  class="flex items-center gap-2 px-2 py-1 rounded hover:bg-white/5 w-full text-left text-sm">
+            <span class="text-xs text-gray-500" x-text="expanded.publishing_hq ? '▼' : '▶'"></span>
+            <span class="text-amber-400">📚</span>
+            <span class="text-amber-400 font-medium">출판·기록 본부</span>
+            <span class="ml-auto text-xs" :class="getSectionStatusColor('publishing_hq')"
+                  x-text="getSectionStatusText('publishing_hq')"></span>
+          </button>
+          <div x-show="expanded.publishing_hq" x-collapse>
+            <div class="ml-4 mb-1">
+              <button @click="toggleSection('publishing')"
+                      class="flex items-center gap-2 px-2 py-1 rounded hover:bg-white/5 w-full text-left text-sm">
+                <span class="text-xs text-gray-500" x-text="expanded.publishing ? '▼' : '▶'"></span>
+                <span class="w-1.5 h-1.5 rounded-full" :class="getAgentDotClass('cpo_manager')"></span>
+                <span class="text-amber-400">출판·기록처 (CPO)</span>
+              </button>
+              <div x-show="expanded.publishing" x-collapse class="ml-6 space-y-0.5">
+                <template x-for="id in ['cpo_manager','chronicle_specialist','editor_specialist','archive_specialist']" :key="id">
+                  <div class="flex items-center gap-2 px-2 py-0.5 text-xs text-gray-400 hover:bg-white/5 cursor-pointer rounded"
+                       @click="currentTab='office'; selectAgent(id)">
+                    <span class="w-1.5 h-1.5 rounded-full" :class="getAgentDotClass(id)"></span>
+                    <span x-text="getAgentName(id)"></span>
+                  </div>
+                </template>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <!-- Tool Pool -->
         <div class="ml-2 mb-1">
           <button @click="toggleSection('tools')"
@@ -610,6 +641,29 @@
           </div>
         </div>
       </div>
+
+      <!-- Publishing Division -->
+      <div class="mb-6">
+        <div class="text-xs font-semibold text-amber-400 uppercase tracking-wider mb-3">📚 출판·기록 본부</div>
+        <div class="bg-amber-900/10 border border-amber-800/30 rounded-xl p-4">
+          <div class="text-xs font-semibold text-amber-400 mb-3">출판·기록처 (CPO)</div>
+          <div class="grid grid-cols-4 gap-2">
+            <template x-for="id in ['cpo_manager','chronicle_specialist','editor_specialist','archive_specialist']" :key="id">
+              <div @click="selectAgent(id)"
+                   class="desk-card bg-hq-panel/80 border rounded-lg p-2.5 cursor-pointer"
+                   :class="selectedAgent === id ? 'border-hq-accent ring-1 ring-hq-accent/50' : 'border-hq-border/50 hover:border-gray-500'">
+                <div class="flex items-center gap-2 mb-1">
+                  <div class="w-7 h-7 rounded-md flex items-center justify-center text-sm"
+                       :class="getAgentAvatarBg(id)"
+                       x-text="getAgentEmoji(id)"></div>
+                  <div class="w-1.5 h-1.5 rounded-full" :class="getAgentDotClass(id)"></div>
+                </div>
+                <div class="text-[11px] font-medium text-gray-300 truncate" x-text="getAgentName(id)"></div>
+              </div>
+            </template>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Agent Detail Side Panel -->
@@ -738,6 +792,7 @@
             <option value="shared">shared (전체 공유)</option>
             <option value="leet_master">leet_master (LEET Master 본부)</option>
             <option value="finance">finance (투자분석 본부)</option>
+            <option value="publishing">publishing (출판·기록 본부)</option>
           </select>
           <input x-model="newFileName" placeholder="파일명 (예: CONTEXT)"
                  class="w-full bg-hq-bg border border-hq-border rounded-lg px-2 py-1.5 text-xs text-gray-300 placeholder-gray-600">
@@ -951,7 +1006,8 @@
         // Org tree
         expanded: {
           secretary: false, leet_master: true, tech: false, strategy: false,
-          legal: false, marketing: false, investment: true, finance: false, tools: false,
+          legal: false, marketing: false, investment: true, finance: false,
+          publishing_hq: true, publishing: false, tools: false,
         },
 
         // Office state
@@ -1011,6 +1067,10 @@
           'stock_analysis_specialist': '종목분석',
           'technical_analysis_specialist': '기술적분석',
           'risk_management_specialist': '리스크관리',
+          'cpo_manager': 'CPO 출판·기록처장',
+          'chronicle_specialist': '회사연대기',
+          'editor_specialist': '콘텐츠편집',
+          'archive_specialist': '아카이브',
         },
 
         agentEmojis: {
@@ -1024,6 +1084,8 @@
           'cio_manager': '💹', 'market_condition_specialist': '🌍',
           'stock_analysis_specialist': '📉', 'technical_analysis_specialist': '📐',
           'risk_management_specialist': '🛡️',
+          'cpo_manager': '📚', 'chronicle_specialist': '🏛️',
+          'editor_specialist': '✒️', 'archive_specialist': '🗂️',
         },
 
         agentDivision: {
@@ -1039,6 +1101,8 @@
           'cio_manager': 'finance', 'market_condition_specialist': 'finance',
           'stock_analysis_specialist': 'finance', 'technical_analysis_specialist': 'finance',
           'risk_management_specialist': 'finance',
+          'cpo_manager': 'publishing', 'chronicle_specialist': 'publishing',
+          'editor_specialist': 'publishing', 'archive_specialist': 'publishing',
         },
 
         // ─── Init ───
@@ -1360,6 +1424,7 @@
             shared:      { label: 'shared (전체 공유)', color: 'text-gray-400' },
             leet_master: { label: 'leet_master (LEET Master)', color: 'text-cyan-400' },
             finance:     { label: 'finance (투자분석)', color: 'text-purple-400' },
+            publishing:  { label: 'publishing (출판·기록)', color: 'text-amber-400' },
           };
           return styles[folder] || { label: folder, color: 'text-gray-400' };
         },
@@ -1371,7 +1436,8 @@
           const div = this.agentDivision[id];
           if (!div) return 'bg-gray-700';
           const m = { secretary: 'bg-yellow-900/40', tech: 'bg-cyan-900/40', strategy: 'bg-emerald-900/40',
-                      legal: 'bg-orange-900/40', marketing: 'bg-pink-900/40', finance: 'bg-purple-900/40' };
+                      legal: 'bg-orange-900/40', marketing: 'bg-pink-900/40', finance: 'bg-purple-900/40',
+                      publishing: 'bg-amber-900/40' };
           return m[div] || 'bg-gray-700';
         },
 
@@ -1405,6 +1471,9 @@
           }
           if (section === 'investment') {
             return Object.entries(this.agentDivision).filter(([_,d]) => d === 'finance').map(([id]) => id);
+          }
+          if (section === 'publishing_hq') {
+            return Object.entries(this.agentDivision).filter(([_,d]) => d === 'publishing').map(([id]) => id);
           }
           return Object.entries(this.agentDivision).filter(([_,d]) => d === section).map(([id]) => id);
         },
