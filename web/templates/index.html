@@ -706,7 +706,7 @@
         <div x-show="showNewFileForm" class="space-y-2 mt-2 fade-in">
           <select x-model="newFileFolder"
                   class="w-full bg-hq-bg border border-hq-border rounded-lg px-2 py-1.5 text-xs text-gray-300">
-            <option value="global">global (전체 공유)</option>
+            <option value="shared">shared (전체 공유)</option>
             <option value="leet_master">leet_master (LEET Master 본부)</option>
             <option value="finance">finance (투자분석 본부)</option>
           </select>
@@ -744,7 +744,7 @@
 
       <!-- Folder Info -->
       <div class="p-3 border-t border-hq-border text-[10px] text-gray-600 space-y-1">
-        <div><span class="text-gray-500">global/</span> → 모든 에이전트</div>
+        <div><span class="text-gray-500">shared/</span> → 모든 에이전트</div>
         <div><span class="text-cyan-600">leet_master/</span> → LEET Master 본부</div>
         <div><span class="text-purple-600">finance/</span> → 투자분석 본부</div>
       </div>
@@ -844,7 +844,7 @@
         fileSaving: false,
         fileSaved: false,
         showNewFileForm: false,
-        newFileFolder: 'global',
+        newFileFolder: 'shared',
         newFileName: '',
 
         // Agent info

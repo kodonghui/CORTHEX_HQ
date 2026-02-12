@@ -6,7 +6,7 @@ knowledge/ 폴더의 마크다운 파일을 읽어
 
 구조:
   knowledge/
-  ├── global/          ← 전 에이전트 공유 지식
+  ├── shared/          ← 전 에이전트 공유 지식
   │   └── company_rules.md
   ├── leet_master/     ← LEET MASTER 본부 공유 지식
   │   └── product_info.md
@@ -52,9 +52,9 @@ class KnowledgeManager:
         """Get combined knowledge for a specific agent's division."""
         parts: list[str] = []
 
-        # 1. Global knowledge (모든 에이전트 공통)
-        if "global" in self._cache:
-            parts.append(self._cache["global"])
+        # 1. Shared knowledge (모든 에이전트 공통)
+        if "shared" in self._cache:
+            parts.append(self._cache["shared"])
 
         # 2. Division-specific knowledge
         #    division can be "leet_master.tech", "finance.investment", etc.
