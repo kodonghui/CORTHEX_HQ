@@ -34,10 +34,10 @@ tools:
     description: "실시간 웹 검색 및 정보 수집"
     model_name: "gpt-4o-mini"
 
-  - tool_id: "naver_cafe"
-    name: "Naver Cafe Search"
-    name_ko: "네이버 카페 검색"
-    description: "네이버 카페 글 검색 및 본문 크롤링, 소비자 반응 분석"
+  - tool_id: "daum_cafe"
+    name: "Daum Cafe Search"
+    name_ko: "다음 카페 검색"
+    description: "다음 카페 글 검색 및 본문 크롤링, 소비자 반응 분석 (카카오 API)"
     model_name: "gpt-4o-mini"
 
   # ─── SNS 연동 도구 ───

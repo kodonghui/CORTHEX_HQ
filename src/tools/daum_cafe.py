@@ -1,44 +1,39 @@
 """
-네이버 카페 검색/읽기 Tool.
+다음 카페 검색/읽기 Tool.
 
-네이버 Open API를 사용하여 카페 글을 검색하고,
+카카오 검색 API를 사용하여 다음 카페 글을 검색하고,
 검색 결과를 LLM이 분석·요약합니다.
 
 사용 방법:
-  - action="search": 키워드로 카페 글 검색
+  - action="search": 키워드로 다음 카페 글 검색
   - action="read": 특정 카페 글 URL의 본문 크롤링 (공개 글만)
 
 필요 환경변수:
-  - NAVER_CLIENT_ID: 네이버 개발자 센터 Client ID
-  - NAVER_CLIENT_SECRET: 네이버 개발자 센터 Client Secret
+  - KAKAO_REST_API_KEY: 카카오 개발자 센터 REST API 키
 """
 from __future__ import annotations
 
-import json
 import logging
 import os
 import re
 from typing import Any
-from urllib.parse import quote
 
 import httpx
 
 from src.tools.base import BaseTool
 
-logger = logging.getLogger("corthex.tools.naver_cafe")
+logger = logging.getLogger("corthex.tools.daum_cafe")
 
-NAVER_SEARCH_API = "https://openapi.naver.com/v1/search"
+KAKAO_SEARCH_API = "https://dapi.kakao.com/v2/search/cafe"
 
 
-class NaverCafeTool(BaseTool):
-    """네이버 카페 검색 및 글 읽기 도구."""
+class DaumCafeTool(BaseTool):
+    """다음 카페 검색 및 글 읽기 도구."""
 
     @property
     def _headers(self) -> dict[str, str]:
-        return {
-            "X-Naver-Client-Id": os.getenv("NAVER_CLIENT_ID", ""),
-            "X-Naver-Client-Secret": os.getenv("NAVER_CLIENT_SECRET", ""),
-        }
+        key = os.getenv("KAKAO_REST_API_KEY", "")
+        return {"Authorization": f"KakaoAK {key}"}
 
     async def execute(self, **kwargs: Any) -> str:
         action = kwargs.get("action", "search")
@@ -57,55 +52,71 @@ class NaverCafeTool(BaseTool):
         if not query:
             return "검색어(query)를 입력해주세요."
 
-        if not os.getenv("NAVER_CLIENT_ID"):
-            return await self._fallback_search(query)
+        if not os.getenv("KAKAO_REST_API_KEY"):
+            return (
+                "KAKAO_REST_API_KEY가 설정되지 않았습니다.\n"
+                "카카오 개발자 센터(https://developers.kakao.com)에서 "
+                "앱을 등록하고 REST API 키를 .env에 추가하세요.\n"
+                "예: KAKAO_REST_API_KEY=your-kakao-rest-api-key"
+            )
 
-        display = min(int(kwargs.get("display", 10)), 100)
-        sort = kwargs.get("sort", "sim")  # sim(정확도) / date(최신)
+        size = min(int(kwargs.get("size", 10)), 50)
+        sort = kwargs.get("sort", "accuracy")  # accuracy(정확도) / recency(최신)
+        page = int(kwargs.get("page", 1))
 
         async with httpx.AsyncClient() as client:
             resp = await client.get(
-                f"{NAVER_SEARCH_API}/cafearticle.json",
+                KAKAO_SEARCH_API,
                 headers=self._headers,
                 params={
                     "query": query,
-                    "display": str(display),
+                    "size": str(size),
                     "sort": sort,
+                    "page": str(page),
                 },
             )
 
+            if resp.status_code == 401:
+                return (
+                    "카카오 API 인증 실패 (401). "
+                    "KAKAO_REST_API_KEY가 올바른지 확인하세요."
+                )
+
             if resp.status_code != 200:
                 error_msg = resp.text
-                logger.error("[NaverCafe] 검색 실패 (%d): %s", resp.status_code, error_msg)
-                return f"네이버 API 오류 ({resp.status_code}): {error_msg}"
+                logger.error("[DaumCafe] 검색 실패 (%d): %s", resp.status_code, error_msg)
+                return f"카카오 API 오류 ({resp.status_code}): {error_msg}"
 
             data = resp.json()
 
-        items = data.get("items", [])
-        total = data.get("total", 0)
+        meta = data.get("meta", {})
+        documents = data.get("documents", [])
+        total = meta.get("total_count", 0)
 
-        if not items:
+        if not documents:
             return f"'{query}' 검색 결과가 없습니다."
 
         # 검색 결과를 정리
         results = []
-        for i, item in enumerate(items, 1):
-            title = self._strip_html(item.get("title", ""))
-            desc = self._strip_html(item.get("description", ""))
-            cafe_name = item.get("cafename", "")
-            cafe_url = item.get("cafeurl", "")
-            link = item.get("link", "")
+        for i, doc in enumerate(documents, 1):
+            title = self._strip_html(doc.get("title", ""))
+            contents = self._strip_html(doc.get("contents", ""))
+            cafe_name = doc.get("cafename", "")
+            url = doc.get("url", "")
+            datetime_str = doc.get("datetime", "")[:10]  # YYYY-MM-DD
 
             results.append(
                 f"[{i}] {title}\n"
-                f"    카페: {cafe_name} ({cafe_url})\n"
-                f"    요약: {desc}\n"
-                f"    링크: {link}"
+                f"    카페: {cafe_name}\n"
+                f"    요약: {contents}\n"
+                f"    날짜: {datetime_str}\n"
+                f"    링크: {url}"
             )
 
+        sort_label = "정확도순" if sort == "accuracy" else "최신순"
         search_text = (
-            f"검색어: '{query}' | 총 {total:,}건 중 {len(items)}건 표시\n"
-            f"정렬: {'정확도순' if sort == 'sim' else '최신순'}\n\n"
+            f"검색어: '{query}' | 총 {total:,}건 중 {len(documents)}건 표시\n"
+            f"정렬: {sort_label}\n\n"
             + "\n\n".join(results)
         )
 
@@ -113,7 +124,7 @@ class NaverCafeTool(BaseTool):
         analysis = await self._llm_call(
             system_prompt=(
                 "당신은 시장조사 리서치 어시스턴트입니다.\n"
-                "네이버 카페 검색 결과를 분석하여 다음을 정리하세요:\n"
+                "다음 카페 검색 결과를 분석하여 다음을 정리하세요:\n"
                 "1. 핵심 트렌드/의견 요약 (3~5줄)\n"
                 "2. 주요 키워드/토픽 분류\n"
                 "3. 소비자 반응/분위기 분석 (긍정/부정/중립)\n"
@@ -123,7 +134,7 @@ class NaverCafeTool(BaseTool):
             user_prompt=search_text,
         )
 
-        return f"## 네이버 카페 검색 결과\n\n{search_text}\n\n---\n\n## 분석\n\n{analysis}"
+        return f"## 다음 카페 검색 결과\n\n{search_text}\n\n---\n\n## 분석\n\n{analysis}"
 
     # ── 카페 글 본문 읽기 (공개 글) ──
 
@@ -149,7 +160,10 @@ class NaverCafeTool(BaseTool):
                 return f"URL 접근 실패: {e}"
 
         if resp.status_code != 200:
-            return f"페이지 접근 실패 (HTTP {resp.status_code}). 비공개 글이거나 로그인이 필요할 수 있습니다."
+            return (
+                f"페이지 접근 실패 (HTTP {resp.status_code}). "
+                "비공개 글이거나 로그인이 필요할 수 있습니다."
+            )
 
         html = resp.text
 
@@ -171,7 +185,7 @@ class NaverCafeTool(BaseTool):
         analysis = await self._llm_call(
             system_prompt=(
                 "당신은 시장조사 리서치 어시스턴트입니다.\n"
-                "네이버 카페 글을 읽고 다음을 정리하세요:\n"
+                "다음 카페 글을 읽고 다음을 정리하세요:\n"
                 "1. 글의 핵심 내용 요약 (3~5줄)\n"
                 "2. 주요 키워드\n"
                 "3. 시장조사에 유용한 포인트\n"
@@ -181,21 +195,6 @@ class NaverCafeTool(BaseTool):
         )
 
         return f"## 카페 글 읽기\n\nURL: {url}\n\n### 본문\n{body_text}\n\n---\n\n### 분석\n{analysis}"
-
-    # ── API 키 없을 때 LLM 기반 폴백 ──
-
-    async def _fallback_search(self, query: str) -> str:
-        return await self._llm_call(
-            system_prompt=(
-                "당신은 네이버 카페 리서치 어시스턴트입니다.\n"
-                "네이버 API 키가 설정되지 않았습니다.\n"
-                "주어진 주제에 대해 네이버 카페에서 볼 수 있는 일반적인\n"
-                "소비자 의견, 트렌드, 반응을 지식 기반으로 추정하세요.\n"
-                "반드시 '추정 데이터'임을 명시하세요.\n"
-                "API 키 설정 안내: NAVER_CLIENT_ID, NAVER_CLIENT_SECRET을 .env에 추가하세요."
-            ),
-            user_prompt=f"네이버 카페에서 '{query}' 관련 소비자 반응 조사",
-        )
 
     # ── 유틸 ──
 
@@ -211,12 +210,13 @@ class NaverCafeTool(BaseTool):
         html = re.sub(r"<script[^>]*>.*?</script>", "", html, flags=re.DOTALL)
         html = re.sub(r"<style[^>]*>.*?</style>", "", html, flags=re.DOTALL)
 
-        # 네이버 카페 본문 영역 추출 시도
+        # 다음 카페 본문 영역 추출 시도
         patterns = [
-            r'class="se-main-container"[^>]*>(.*?)</div>',
-            r'class="ContentRenderer"[^>]*>(.*?)</div>',
-            r'id="postViewArea"[^>]*>(.*?)</div>',
             r'class="article_viewer"[^>]*>(.*?)</div>',
+            r'class="txt_sub"[^>]*>(.*?)</div>',
+            r'id="postContent"[^>]*>(.*?)</div>',
+            r'class="view_content"[^>]*>(.*?)</div>',
+            r'class="article_view"[^>]*>(.*?)</div>',
         ]
         for pattern in patterns:
             match = re.search(pattern, html, re.DOTALL)
