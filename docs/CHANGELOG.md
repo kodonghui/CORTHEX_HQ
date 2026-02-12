@@ -5,6 +5,362 @@
 
 ---
 
+## v1.2.0 (2026-02-12) - 아카이브 탭 + SNS 자동 발행 + 버그 수정 5건
+
+> 상태: **구현 완료**
+> 커밋: `b7db37a`
+
+### 한 줄 요약
+
+**부서별 아카이브 전용 탭 신설 + Instagram/YouTube 자동 발행 연동 + GPT-4.x 레거시 삭제 + 모델별 추론 수준 동적 UI + 채팅/Batch 버그 수정**
+
+---
+
+### 왜 바꿨나?
+
+v1.1.0에서 아카이브(중간 보고서)는 작업 상세 화면 하단에 접혀 있어서 찾기 힘들었고, 부서별로 모아보거나 과거 보고서를 검색하기 어려웠습니다. 독립 탭으로 분리해서 부서 필터링 + 날짜 정렬 + 전문 보기가 가능하게 만들었습니다.
+
+또한 마케팅 콘텐츠를 만들어도 수동으로 SNS에 올려야 했고, GPT-4.x 모델이 드롭다운에 남아 있어 혼란을 줬으며, 배치 API에서 `async for` 에러가 발생하고, 채팅창에 보낸 메시지가 표시되지 않는 버그가 있었습니다.
+
+### 뭘 바꿨나?
+
+#### 1. 아카이브 전용 탭 (5번째 탭)
+
+기존에 작업 상세 화면 하단에 숨어 있던 중간 보고서를 **독립된 5번째 탭**으로 분리했습니다.
+
+| 기능 | 설명 |
+|------|------|
+| 부서 필터 | 좌측 사이드바에서 7개 부서(기술/전략/법무/마케팅/투자/비서실/출판) 선택 |
+| 보고서 목록 | 날짜순 정렬, 부서 라벨 + 에이전트 이름 + 날짜 표시 |
+| 전문 보기 | 우측 패널에서 마크다운 렌더링된 전체 내용 열람 |
+| 건수 표시 | 각 부서별 보고서 건수를 괄호로 표시 |
+
+```
+[관제실] [사무실] [지식관리] [작업내역] [아카이브]  ← 신규
+                                          │
+                                ┌─────────┴─────────┐
+                                │ 부서 필터  │ 보고서 목록 │ 상세 내용 │
+                                │  전체 (42) │ [전략] 02-12│ (마크다운) │
+                                │  기술 (12) │ [마케팅]... │            │
+                                │  전략 (8)  │            │            │
+                                └───────────┴───────────┘
+```
+
+#### 2. SNS 자동 발행 (Instagram + YouTube)
+
+마케팅처 콘텐츠 Specialist가 만든 콘텐츠를 **API 호출 한 번으로 SNS에 자동 게시**할 수 있게 되었습니다.
+
+**Instagram Graph API v21.0:**
+- 사진 게시 (`/api/sns/instagram/photo`) — URL 기반 이미지 업로드
+- 릴스 게시 (`/api/sns/instagram/reel`) — URL 기반 동영상 업로드
+- 3단계 프로세스: 컨테이너 생성 → 상태 확인 (5초 폴링) → 발행
+- 일일 게시 상한: 20건 (API 제한 25건 중 안전 마진)
+
+**YouTube Data API v3:**
+- 동영상 업로드 (`/api/sns/youtube/upload`) — Resumable upload 방식
+- OAuth2 refresh token으로 자동 토큰 갱신
+- 제목, 설명, 태그, 공개 범위(private/unlisted/public) 설정 가능
+- 일일 업로드 상한: 5건 (쿼터 10,000 유닛, 업로드 1건 ≈ 1,600 유닛)
+
+**관제실 사이드바에 연동 상태 표시:**
+```
+SNS 연동
+  Instagram    미연동 / 키 미설정 / 연결됨
+  YouTube      미연동 / 키 미설정 / 연결됨
+```
+
+**설정 방법** (`config/sns.yaml`):
+```yaml
+instagram:
+  enabled: true                          # 활성화
+  access_token_env: "INSTAGRAM_ACCESS_TOKEN"  # Meta 개발자 콘솔에서 발급
+  ig_user_id_env: "INSTAGRAM_USER_ID"         # Business Account ID
+
+youtube:
+  enabled: true
+  client_id_env: "YOUTUBE_CLIENT_ID"          # Google Cloud Console
+  client_secret_env: "YOUTUBE_CLIENT_SECRET"
+  refresh_token_env: "YOUTUBE_REFRESH_TOKEN"
+```
+
+#### 3. GPT-4.x 레거시 모델 삭제
+
+GPT-5 시리즈가 추가되면서 더 이상 필요 없는 GPT-4.x 모델을 완전히 제거했습니다.
+
+| 삭제된 모델 | 삭제 위치 |
+|-------------|-----------|
+| gpt-4o | `models.yaml`, `openai_provider.py` |
+| gpt-4o-mini | `models.yaml`, `openai_provider.py` |
+| gpt-4.1-nano | `models.yaml`, `openai_provider.py` |
+| gpt-4.1 / gpt-4.1-mini / o3-mini | `openai_provider.py` |
+
+사무실 탭 모델 드롭다운에 GPT-5 + Claude만 표시됩니다.
+
+#### 4. 모델별 추론 수준 동적 반영
+
+각 모델이 지원하는 추론 수준이 다른데, 기존에는 모든 모델에 동일한 4개 옵션을 보여줬습니다.
+
+**변경 후:** 모델에 따라 드롭다운 옵션이 자동으로 변경됩니다.
+
+```yaml
+# models.yaml
+gpt-5-mini:       reasoning_levels: ["low", "medium", "high"]
+gpt-5:            reasoning_levels: ["low", "medium", "high"]
+gpt-5-2:          reasoning_levels: ["low", "medium", "high"]
+gpt-5-2-pro:      reasoning_levels: ["low", "medium", "high"]
+claude-opus-4-6:  reasoning_levels: ["low", "medium", "high"]
+claude-sonnet:    reasoning_levels: ["low", "medium", "high"]
+claude-haiku:     reasoning_levels: []  ← 추론 비활성화 (비용 효율)
+```
+
+- Haiku 선택 시 추론 드롭다운이 **비활성화** (회색 처리)
+- 모델 변경 시 현재 추론 설정이 새 모델에서 미지원이면 자동 리셋
+- `/api/models` 응답에 `reasoning_levels` 필드 포함
+
+#### 5. 채팅창 메시지 표시 버그 수정
+
+관제실에서 메시지를 보내면 **내가 보낸 메시지가 채팅창에 표시되지 않는** 버그를 수정했습니다.
+
+```javascript
+// 수정 전: Alpine.js가 push()를 감지 못하는 경우 발생
+this.messages.push({ type: 'user', text });
+
+// 수정 후: 새 배열 참조 할당으로 확실한 반응성 트리거
+this.messages = [...this.messages, { type: 'user', text }];
+```
+
+#### 6. Batch API `async for` 에러 수정
+
+Anthropic Batch API 결과 수집 시 `async for` 에러가 발생하던 문제를 수정했습니다.
+
+```
+에러: 'async for' requires an object with __aiter__ method, got coroutine
+원인: self._anthropic.messages.batches.results()가 코루틴을 반환
+수정: async for result in await self._anthropic.messages.batches.results(batch.id)
+```
+
+#### 7. 텔레그램 봇 /start 무응답 수정
+
+`/start` 명령 시 아무 응답이 없던 문제를 수정했습니다.
+- 에러 로깅 강화 (`logger.exception` 추가)
+- `chat_id` 자동 안내 메시지 추가 (사용자가 자신의 chat_id를 쉽게 확인 가능)
+
+### 새 API 엔드포인트
+
+| 메서드 | 경로 | 설명 |
+|--------|------|------|
+| GET | `/api/archive` | 부서별 아카이브 보고서 목록 |
+| GET | `/api/archive/{division}/{filename}` | 보고서 본문 조회 |
+| GET | `/api/sns/status` | Instagram/YouTube 연동 상태 |
+| POST | `/api/sns/instagram/photo` | Instagram 사진 게시 |
+| POST | `/api/sns/instagram/reel` | Instagram 릴스 게시 |
+| POST | `/api/sns/youtube/upload` | YouTube 동영상 업로드 |
+
+### 수정된 파일 (10개 파일, +651줄 / -47줄)
+
+| 파일 | 작업 | 내용 |
+|------|------|------|
+| `config/models.yaml` | 수정 | GPT-4.x 삭제 + 각 모델에 `reasoning_levels` 추가 |
+| `config/sns.yaml` | **신규** | Instagram/YouTube 연동 설정 |
+| `config/tools.yaml` | 수정 | `sns_publish` 도구 등록 |
+| `config/agents.yaml` | 수정 | content_specialist에 SNS 도구/능력 추가 |
+| `src/integrations/sns_publisher.py` | **신규** | Instagram + YouTube API 통합 클래스 (311줄) |
+| `src/integrations/telegram_bot.py` | 수정 | /start 에러 로깅 + chat_id 안내 |
+| `src/llm/batch_collector.py` | 수정 | `await` 추가 (async for 에러 수정) |
+| `src/llm/openai_provider.py` | 수정 | GPT-4.x 가격표 삭제 |
+| `web/app.py` | 수정 | 아카이브 API + SNS API 엔드포인트 추가 |
+| `web/templates/index.html` | 수정 | 아카이브 탭 + SNS 상태 + 동적 추론 드롭다운 + 채팅 버그 수정 |
+
+---
+
+## v1.1.0 (2026-02-12) - Batch API + 텔레그램 봇 + 모델 대폭 확장 + 추론 제어
+
+> 상태: **구현 완료**
+> 커밋: `f1138d9`
+
+### 한 줄 요약
+
+**비서실장 중복 보고 버그 수정 + GPT-5/Claude 4.6 모델 추가 + Batch API 50% 할인 모드 + 텔레그램 봇(모바일 접근) + 에이전트별 추론 깊이 제어 + 중간보고서 아카이브 + GitHub 자동 동기화**
+
+---
+
+### 왜 바꿨나?
+
+1. **비서실장이 같은 보고서를 2번 보내는 버그** — WebSocket 좀비 연결 + 단일 결과 불필요 종합
+2. **LLM 비용이 너무 높음** — Batch API로 50% 절감 가능한데 활용 안 하고 있었음
+3. **모바일에서 접근 불가** — 외출 중에 명령을 내릴 수 없었음
+4. **중간 보고서가 휘발성** — 전문가들의 개별 보고서가 최종 결과에 합쳐지면 원본이 사라짐
+5. **모델 선택지 부족** — GPT-5 시리즈 출시됐는데 아직 GPT-4만 사용 중이었음
+
+### 뭘 바꿨나?
+
+#### 1. 비서실장 중복 보고 버그 수정
+
+**원인 1 — WebSocket 좀비 연결:**
+브라우저가 재연결할 때 이전 WebSocket이 닫히지 않고 남아서, 같은 결과를 2개 연결 모두 받아 중복 표시되었습니다.
+
+```javascript
+// 수정: 새 연결 전에 기존 연결 완전히 정리
+if (this.ws) {
+  this.ws.onclose = null;
+  this.ws.onmessage = null;
+  this.ws.close();
+}
+```
+
+**원인 2 — 단일 결과 바이패스:**
+부서가 1곳만 응답한 경우에도 비서실장이 "종합 보고서"를 생성해서, 원본 + 종합 = 2건이 표시되었습니다. 1건이면 종합 없이 바로 전달하도록 수정했습니다.
+
+#### 2. GPT-5 시리즈 + Claude Opus 4.6 추가
+
+| 모델 | 티어 | 입력 비용 (/1M) | 출력 비용 (/1M) | 용도 |
+|------|------|----------------|----------------|------|
+| `gpt-5-mini` | worker | $0.25 | $2.00 | 간단한 작업, 대량 처리 |
+| `gpt-5` | manager | $1.25 | $10.00 | 중간 복잡도 작업 |
+| `gpt-5-2` | manager | $1.75 | $14.00 | 고급 분석/작성 |
+| `gpt-5-2-pro` | executive | $21.00 | $168.00 | 최고 수준 추론 |
+| `claude-opus-4-6` | executive | $5.00 | $25.00 | 비서실장, 고난도 분석 |
+
+사무실 탭에서 에이전트 모델을 이 중 자유롭게 변경할 수 있습니다.
+
+#### 3. 에이전트별 추론 깊이 제어 (Reasoning Effort)
+
+사무실 탭 에이전트 상세 패널에 **추론 깊이** 드롭다운 추가:
+
+| 설정 | 의미 | 비용 영향 |
+|------|------|-----------|
+| 기본 | 모델 기본값 사용 | 기본 |
+| 낮음 (low) | 빠르고 간결한 응답 | 비용 절감 |
+| 중간 (medium) | 균형 잡힌 추론 | 보통 |
+| 높음 (high) | 깊은 사고, 장문 추론 | 비용 증가 |
+
+OpenAI: `reasoning_effort` 파라미터 전달
+Anthropic: `budget_tokens` + extended thinking 활성화
+
+#### 4. Batch API 50% 할인 모드
+
+**원리:** OpenAI/Anthropic 모두 Batch API 사용 시 토큰 비용 50% 할인 제공. 대신 결과가 즉시가 아닌 수분~수시간 후 도착.
+
+**구현:** `BatchCollector` 클래스 (276줄)
+- 0.5초 디바운스로 동시 요청을 모아서 일괄 제출
+- 프로바이더 자동 분류 (모델명 prefix로 OpenAI/Anthropic 구분)
+- OpenAI: JSONL 파일 업로드 → Batch 생성 → 폴링 → 결과 수집
+- Anthropic: `messages.batches.create()` → 폴링 → `results()` 순회
+- 결과를 `asyncio.Future`로 대기 → 완료 시 원래 호출자에게 전달
+
+**UI:** 입력창 옆에 `실시간` / `절약 (-50%)` 선택기 추가
+
+```
+┌──────────────────────────────────┬───────────┬──────┐
+│ 명령을 입력하세요...             │ [실시간 ▾]│ 전송 │
+└──────────────────────────────────┴───────────┴──────┘
+                                    ↑ "절약 (-50%)" 선택 가능
+```
+
+#### 5. 텔레그램 봇 (모바일 접근)
+
+**목적:** 외출 중에도 스마트폰 텔레그램으로 CEO 명령을 내릴 수 있게.
+
+```
+[텔레그램 앱]                        [CORTHEX HQ 서버]
+사용자 → "삼성전자 분석해줘" ──────→ Telegram Bot API (polling)
+                                     → 기존 CORTHEX 파이프라인
+사용자 ← 분석 결과 마크다운 ←──────── command_callback()
+```
+
+- **Long polling** 방식 (웹훅/공개 URL 불필요)
+- **CEO 전용 인증:** `TELEGRAM_ALLOWED_CHAT_ID`로 허용된 사용자만 사용 가능
+- **배치 모드 지원:** `/batch 삼성전자 분석` → 50% 할인 모드로 처리
+- **깊이 설정:** 텔레그램에서도 작업 깊이 지정 가능
+- `python-telegram-bot` 선택적 의존성 (미설치 시 자동 비활성화)
+
+#### 6. 중간 보고서 부서별 아카이브
+
+작업 완료 시 각 전문가의 중간 보고서를 **부서별 폴더**에 자동 저장합니다.
+
+```
+archive/
+├── tech/           ← 기술개발처
+│   └── 20260212_143500_frontend_specialist.md
+├── strategy/       ← 사업기획처
+├── finance/        ← 투자분석처
+├── marketing/      ← 마케팅처
+├── legal/          ← 법무처
+├── secretary/      ← 비서실
+└── publishing/     ← 출판·기록처
+```
+
+작업 상세 화면 하단에 "중간 보고서 (에이전트별 원본)" 섹션 추가 — 부서별 색상 코딩, 클릭 시 펼침.
+
+#### 7. GitHub 자동 동기화
+
+작업 완료 시 `archive/`, `output/` 디렉토리의 결과물을 자동으로 `git commit + push`:
+- 결과물이 로컬에만 남지 않고 원격 저장소에도 백업
+- 커밋 메시지에 task_id 포함
+
+### 새 API 엔드포인트
+
+| 메서드 | 경로 | 설명 |
+|--------|------|------|
+| GET | `/api/archive` | 부서별 중간 보고서 목록 |
+| GET | `/api/archive/{division}/{filename}` | 보고서 본문 조회 |
+| PUT | `/api/agents/{id}/reasoning` | 에이전트 추론 깊이 변경 |
+| POST | `/api/command` | REST API 명령 (텔레그램 등 외부 연동용) |
+
+### 수정된 파일 (14개 파일, +1,355줄 / -31줄)
+
+| 파일 | 작업 | 내용 |
+|------|------|------|
+| `config/models.yaml` | 수정 | GPT-5 시리즈 4종 + Claude Opus 4.6 추가 |
+| `src/core/agent.py` | 수정 | 단일 결과 바이패스 + reasoning_effort 전달 |
+| `src/core/message.py` | 수정 | Message에 reasoning_effort 필드 추가 |
+| `src/integrations/__init__.py` | **신규** | integrations 패키지 초기화 |
+| `src/integrations/telegram_bot.py` | **신규** | 텔레그램 봇 (142줄) |
+| `src/llm/base.py` | 수정 | LLMProvider에 reasoning_effort 파라미터 추가 |
+| `src/llm/batch_collector.py` | **신규** | Batch API 수집기 (276줄) |
+| `src/llm/anthropic_provider.py` | 수정 | extended thinking + Batch API 지원 |
+| `src/llm/openai_provider.py` | 수정 | reasoning_effort + Batch API 지원 |
+| `src/llm/router.py` | 수정 | 배치 모드 분기 + reasoning_effort 전달 |
+| `web/app.py` | 수정 | 아카이브 API + 추론 API + REST 명령 API + GitHub 동기화 |
+| `web/templates/index.html` | 수정 | 아카이브 뷰 + 배치 모드 + 추론 드롭다운 + WS 좀비 수정 |
+
+---
+
+## v0.7.0 (2026-02-12) - 출판·기록 본부 신설
+
+> 상태: **구현 완료**
+> 커밋: `26cb678`
+
+### 한 줄 요약
+
+**CPO(출판·기록처장) + 전문가 3명(연대기/편집/아카이브)을 신설하여 총 29명 에이전트 체제로 확대**
+
+---
+
+### 왜 바꿨나?
+
+CORTHEX HQ가 생산하는 보고서, 분석 결과, 전략 문서 등이 체계적으로 기록·편집·보관되지 않았습니다. 출판·기록 전문 부서를 신설하여 조직의 지식을 체계적으로 관리합니다.
+
+### 뭘 바꿨나?
+
+| 에이전트 | 역할 |
+|----------|------|
+| CPO (출판·기록처장) | 출판·기록 총괄, 편집 방향 결정 |
+| Chronicle Specialist | 연대기/이력 기록 |
+| Editor Specialist | 문서 편집/교정 |
+| Archive Specialist | 문서 보관/분류/검색 |
+
+에이전트 총원: 25명 → **29명**
+
+### 수정된 파일
+
+| 파일 | 내용 |
+|------|------|
+| `config/agents.yaml` | CPO + 전문가 3명 추가 |
+| `web/templates/index.html` | 사이드바에 출판·기록 본부 섹션 추가 |
+
+---
+
 ## v0.6.1 (2026-02-12) - 버그 수정
 
 > 상태: **구현 완료**
@@ -577,6 +933,10 @@ LLM을 호출할 때마다 "누가 호출했는지(agent_id)"를 함께 기록�
 
 | 커밋 해시 | 버전 | 설명 |
 |-----------|------|------|
+| `b7db37a` | v1.2.0 | feat: 아카이브 탭 + SNS 자동 발행 + 버그 수정 5건 |
+| `5642b7a` | v1.1.1 | fix: 텔레그램 봇 /start 무응답 — 에러 로깅 + chat_id 안내 |
+| `f1138d9` | v1.1.0 | feat: Batch API + 텔레그램 봇 + 모델 확장 + 추론 제어 + 아카이브 |
+| `26cb678` | v0.7.0 | feat: 출판·기록 본부 신설 (CPO + 전문가 3명, 총 29명) |
 | `810d2a9` | v0.6.1 | fix: OUTPUT_DIR 정의 순서 수정 — NameError 해결 |
 | `072d25c` | v0.6.0 | docs: v0.4.0~v0.6.0 전체 변경이력 문서 업데이트 |
 | `6ab062f` | v0.6.0 | feat: 자율 에이전트 시스템 — 멀티스텝 딥워크 + 백그라운드 작업 + 작업내역 |
