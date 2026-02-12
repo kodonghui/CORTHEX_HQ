@@ -144,7 +144,7 @@ class CorthexCLI:
     def _show_banner(self) -> None:
         panel = Panel(
             f"[bold white]{_BANNER}[/bold white]\n"
-            "[dim]AI Agent Corporation Headquarters v0.1.0[/dim]",
+            "[dim]AI Agent Corporation Headquarters v0.2.0[/dim]",
             title="[bold yellow]CORTHEX HQ[/bold yellow]",
             border_style="bright_blue",
         )
@@ -153,43 +153,41 @@ class CorthexCLI:
     def _show_org_chart(self) -> None:
         tree = Tree("[bold white]CEO (동희 님)[/bold white]")
 
-        # 비서실
-        sec = tree.add("[yellow]비서실 (Chief of Staff)[/yellow]")
+        # 비서실장 (총괄 오케스트레이터)
+        sec = tree.add("[yellow]비서실장 (Chief of Staff)[/yellow] ← 총괄 오케스트레이터")
         sec.add("보고 요약 Worker")
         sec.add("일정/미결 추적 Worker")
         sec.add("사업부 간 정보 중계 Worker")
 
-        # LEET MASTER
-        leet = tree.add("[cyan]LEET MASTER 본부[/cyan]")
-
-        tech = leet.add("[green]기술개발처 (CTO)[/green]")
-        for s in ["프론트엔드 Specialist", "백엔드/API Specialist",
-                   "DB/인프라 Specialist", "AI 모델 Specialist"]:
+        # 기술개발처 (CTO) - 비서실장 직속
+        tech = tree.add("[cyan]기술개발처 (CTO)[/cyan]")
+        for s in ["프론트엔드", "백엔드/API", "DB/인프라", "AI 모델"]:
             tech.add(s)
 
-        strategy = leet.add("[green]사업기획처 (CSO)[/green]")
-        for s in ["시장조사 Specialist", "사업계획서 Specialist", "재무모델링 Specialist"]:
+        # 사업기획처 (CSO)
+        strategy = tree.add("[cyan]사업기획처 (CSO)[/cyan]")
+        for s in ["시장조사", "사업계획서", "재무모델링"]:
             strategy.add(s)
 
-        legal = leet.add("[green]법무·IP처 (CLO)[/green]")
-        for s in ["저작권 Specialist", "특허/약관 Specialist"]:
+        # 법무·IP처 (CLO)
+        legal = tree.add("[cyan]법무·IP처 (CLO)[/cyan]")
+        for s in ["저작권", "특허/약관"]:
             legal.add(s)
 
-        marketing = leet.add("[green]마케팅·고객처 (CMO)[/green]")
-        for s in ["설문/리서치 Specialist", "콘텐츠 Specialist", "커뮤니티 Specialist"]:
+        # 마케팅·고객처 (CMO)
+        marketing = tree.add("[cyan]마케팅·고객처 (CMO)[/cyan]")
+        for s in ["설문/리서치", "콘텐츠", "커뮤니티"]:
             marketing.add(s)
 
-        # 금융분석
-        finance = tree.add("[magenta]금융분석 본부[/magenta]")
-        invest = finance.add("[green]투자분석처 (CIO)[/green]")
-        for s in ["시황분석 Specialist [병렬]", "종목분석 Specialist [병렬]",
-                   "기술적분석 Specialist [병렬]", "리스크관리 Specialist [순차]"]:
+        # 투자분석처 (CIO)
+        invest = tree.add("[magenta]투자분석처 (CIO)[/magenta]")
+        for s in ["시황분석 [병렬]", "종목분석 [병렬]", "기술적분석 [병렬]", "리스크관리 [순차]"]:
             invest.add(s)
 
         # Tool Pool
         tools = tree.add("[red]AgentTool Pool[/red]")
-        for t in ["변리사 Tool", "세무사 Tool", "디자이너 Tool", "번역가 Tool", "웹검색 Tool"]:
-            tools.add(t)
+        for t in ["변리사", "세무사", "디자이너", "번역가", "웹검색"]:
+            tools.add(t + " Tool")
 
         self.console.print(Panel(tree, title="[bold]조직도[/bold]", border_style="bright_blue"))
 

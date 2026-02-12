@@ -127,6 +127,7 @@ class BaseAgent(ABC):
             model_name=self.config.model_name,
             messages=messages,
             temperature=self.config.temperature,
+            agent_id=self.agent_id,
         )
         return response.content
 
@@ -150,6 +151,7 @@ class BaseAgent(ABC):
                 {"role": "user", "content": text[:3000]},
             ],
             temperature=0.0,
+            agent_id=self.agent_id,
         )
         return response.content
 

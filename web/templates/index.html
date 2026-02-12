@@ -60,7 +60,7 @@
       <div class="text-xl font-bold tracking-wide">
         <span class="text-hq-accent">CORTHEX</span> <span class="text-gray-400">HQ</span>
       </div>
-      <span class="text-xs text-gray-500 border border-hq-border rounded px-2 py-0.5">v0.1.0</span>
+      <span class="text-xs text-gray-500 border border-hq-border rounded px-2 py-0.5">v0.2.0</span>
     </div>
 
     <div class="flex items-center gap-6">
@@ -143,109 +143,99 @@
           </div>
         </div>
 
-        <!-- LEET MASTER -->
+        <!-- 기술개발처 (CTO) - 비서실장 직속 -->
         <div class="ml-2 mb-1">
-          <button @click="toggleSection('leet')"
+          <button @click="toggleSection('tech')"
                   class="flex items-center gap-2 px-2 py-1 rounded hover:bg-white/5 w-full text-left text-sm">
-            <span class="text-xs text-gray-500" x-text="expanded.leet ? '▼' : '▶'"></span>
-            <span class="text-cyan-400">🏢</span>
-            <span>LEET MASTER 본부</span>
-            <span class="ml-auto text-xs" :class="getSectionStatusColor('leet')"
-                  x-text="getSectionStatusText('leet')"></span>
+            <span class="text-xs text-gray-500" x-text="expanded.tech ? '▼' : '▶'"></span>
+            <span class="w-1.5 h-1.5 rounded-full" :class="getAgentDotClass('cto_manager')"></span>
+            <span class="text-cyan-400">기술개발처 (CTO)</span>
+            <span class="ml-auto text-xs" :class="getSectionStatusColor('tech')"
+                  x-text="getSectionStatusText('tech')"></span>
           </button>
-          <div x-show="expanded.leet" x-collapse class="ml-4 space-y-0.5">
-
-            <!-- CTO -->
-            <div>
-              <button @click="toggleSection('tech')"
-                      class="flex items-center gap-2 px-2 py-0.5 rounded hover:bg-white/5 w-full text-left text-xs">
-                <span class="text-gray-500" x-text="expanded.tech ? '▼' : '▶'"></span>
-                <span class="w-1.5 h-1.5 rounded-full" :class="getAgentDotClass('cto_manager')"></span>
-                <span class="text-green-400">기술개발처 (CTO)</span>
-              </button>
-              <div x-show="expanded.tech" x-collapse class="ml-6 space-y-0.5">
-                <template x-for="id in ['frontend_specialist','backend_specialist','infra_specialist','ai_model_specialist']" :key="id">
-                  <div class="flex items-center gap-2 px-2 py-0.5 text-xs text-gray-400">
-                    <span class="w-1.5 h-1.5 rounded-full" :class="getAgentDotClass(id)"></span>
-                    <span x-text="getAgentName(id)"></span>
-                  </div>
-                </template>
+          <div x-show="expanded.tech" x-collapse class="ml-6 space-y-0.5">
+            <template x-for="id in ['frontend_specialist','backend_specialist','infra_specialist','ai_model_specialist']" :key="id">
+              <div class="flex items-center gap-2 px-2 py-0.5 text-xs text-gray-400">
+                <span class="w-1.5 h-1.5 rounded-full" :class="getAgentDotClass(id)"></span>
+                <span x-text="getAgentName(id)"></span>
               </div>
-            </div>
-
-            <!-- CSO -->
-            <div>
-              <button @click="toggleSection('strategy')"
-                      class="flex items-center gap-2 px-2 py-0.5 rounded hover:bg-white/5 w-full text-left text-xs">
-                <span class="text-gray-500" x-text="expanded.strategy ? '▼' : '▶'"></span>
-                <span class="w-1.5 h-1.5 rounded-full" :class="getAgentDotClass('cso_manager')"></span>
-                <span class="text-green-400">사업기획처 (CSO)</span>
-              </button>
-              <div x-show="expanded.strategy" x-collapse class="ml-6 space-y-0.5">
-                <template x-for="id in ['market_research_specialist','business_plan_specialist','financial_model_specialist']" :key="id">
-                  <div class="flex items-center gap-2 px-2 py-0.5 text-xs text-gray-400">
-                    <span class="w-1.5 h-1.5 rounded-full" :class="getAgentDotClass(id)"></span>
-                    <span x-text="getAgentName(id)"></span>
-                  </div>
-                </template>
-              </div>
-            </div>
-
-            <!-- CLO -->
-            <div>
-              <button @click="toggleSection('legal')"
-                      class="flex items-center gap-2 px-2 py-0.5 rounded hover:bg-white/5 w-full text-left text-xs">
-                <span class="text-gray-500" x-text="expanded.legal ? '▼' : '▶'"></span>
-                <span class="w-1.5 h-1.5 rounded-full" :class="getAgentDotClass('clo_manager')"></span>
-                <span class="text-green-400">법무·IP처 (CLO)</span>
-              </button>
-              <div x-show="expanded.legal" x-collapse class="ml-6 space-y-0.5">
-                <template x-for="id in ['copyright_specialist','patent_specialist']" :key="id">
-                  <div class="flex items-center gap-2 px-2 py-0.5 text-xs text-gray-400">
-                    <span class="w-1.5 h-1.5 rounded-full" :class="getAgentDotClass(id)"></span>
-                    <span x-text="getAgentName(id)"></span>
-                  </div>
-                </template>
-              </div>
-            </div>
-
-            <!-- CMO -->
-            <div>
-              <button @click="toggleSection('marketing')"
-                      class="flex items-center gap-2 px-2 py-0.5 rounded hover:bg-white/5 w-full text-left text-xs">
-                <span class="text-gray-500" x-text="expanded.marketing ? '▼' : '▶'"></span>
-                <span class="w-1.5 h-1.5 rounded-full" :class="getAgentDotClass('cmo_manager')"></span>
-                <span class="text-green-400">마케팅·고객처 (CMO)</span>
-              </button>
-              <div x-show="expanded.marketing" x-collapse class="ml-6 space-y-0.5">
-                <template x-for="id in ['survey_specialist','content_specialist','community_specialist']" :key="id">
-                  <div class="flex items-center gap-2 px-2 py-0.5 text-xs text-gray-400">
-                    <span class="w-1.5 h-1.5 rounded-full" :class="getAgentDotClass(id)"></span>
-                    <span x-text="getAgentName(id)"></span>
-                  </div>
-                </template>
-              </div>
-            </div>
+            </template>
           </div>
         </div>
 
-        <!-- 금융분석 -->
+        <!-- 사업기획처 (CSO) - 비서실장 직속 -->
+        <div class="ml-2 mb-1">
+          <button @click="toggleSection('strategy')"
+                  class="flex items-center gap-2 px-2 py-1 rounded hover:bg-white/5 w-full text-left text-sm">
+            <span class="text-xs text-gray-500" x-text="expanded.strategy ? '▼' : '▶'"></span>
+            <span class="w-1.5 h-1.5 rounded-full" :class="getAgentDotClass('cso_manager')"></span>
+            <span class="text-cyan-400">사업기획처 (CSO)</span>
+            <span class="ml-auto text-xs" :class="getSectionStatusColor('strategy')"
+                  x-text="getSectionStatusText('strategy')"></span>
+          </button>
+          <div x-show="expanded.strategy" x-collapse class="ml-6 space-y-0.5">
+            <template x-for="id in ['market_research_specialist','business_plan_specialist','financial_model_specialist']" :key="id">
+              <div class="flex items-center gap-2 px-2 py-0.5 text-xs text-gray-400">
+                <span class="w-1.5 h-1.5 rounded-full" :class="getAgentDotClass(id)"></span>
+                <span x-text="getAgentName(id)"></span>
+              </div>
+            </template>
+          </div>
+        </div>
+
+        <!-- 법무·IP처 (CLO) - 비서실장 직속 -->
+        <div class="ml-2 mb-1">
+          <button @click="toggleSection('legal')"
+                  class="flex items-center gap-2 px-2 py-1 rounded hover:bg-white/5 w-full text-left text-sm">
+            <span class="text-xs text-gray-500" x-text="expanded.legal ? '▼' : '▶'"></span>
+            <span class="w-1.5 h-1.5 rounded-full" :class="getAgentDotClass('clo_manager')"></span>
+            <span class="text-cyan-400">법무·IP처 (CLO)</span>
+            <span class="ml-auto text-xs" :class="getSectionStatusColor('legal')"
+                  x-text="getSectionStatusText('legal')"></span>
+          </button>
+          <div x-show="expanded.legal" x-collapse class="ml-6 space-y-0.5">
+            <template x-for="id in ['copyright_specialist','patent_specialist']" :key="id">
+              <div class="flex items-center gap-2 px-2 py-0.5 text-xs text-gray-400">
+                <span class="w-1.5 h-1.5 rounded-full" :class="getAgentDotClass(id)"></span>
+                <span x-text="getAgentName(id)"></span>
+              </div>
+            </template>
+          </div>
+        </div>
+
+        <!-- 마케팅·고객처 (CMO) - 비서실장 직속 -->
+        <div class="ml-2 mb-1">
+          <button @click="toggleSection('marketing')"
+                  class="flex items-center gap-2 px-2 py-1 rounded hover:bg-white/5 w-full text-left text-sm">
+            <span class="text-xs text-gray-500" x-text="expanded.marketing ? '▼' : '▶'"></span>
+            <span class="w-1.5 h-1.5 rounded-full" :class="getAgentDotClass('cmo_manager')"></span>
+            <span class="text-cyan-400">마케팅·고객처 (CMO)</span>
+            <span class="ml-auto text-xs" :class="getSectionStatusColor('marketing')"
+                  x-text="getSectionStatusText('marketing')"></span>
+          </button>
+          <div x-show="expanded.marketing" x-collapse class="ml-6 space-y-0.5">
+            <template x-for="id in ['survey_specialist','content_specialist','community_specialist']" :key="id">
+              <div class="flex items-center gap-2 px-2 py-0.5 text-xs text-gray-400">
+                <span class="w-1.5 h-1.5 rounded-full" :class="getAgentDotClass(id)"></span>
+                <span x-text="getAgentName(id)"></span>
+              </div>
+            </template>
+          </div>
+        </div>
+
+        <!-- 투자분석처 (CIO) - 비서실장 직속 -->
         <div class="ml-2 mb-1">
           <button @click="toggleSection('finance')"
                   class="flex items-center gap-2 px-2 py-1 rounded hover:bg-white/5 w-full text-left text-sm">
             <span class="text-xs text-gray-500" x-text="expanded.finance ? '▼' : '▶'"></span>
-            <span class="text-purple-400">📊</span>
-            <span>금융분석 본부</span>
+            <span class="w-1.5 h-1.5 rounded-full" :class="getAgentDotClass('cio_manager')"></span>
+            <span class="text-purple-400">투자분석처 (CIO)</span>
             <span class="ml-auto text-xs" :class="getSectionStatusColor('finance')"
                   x-text="getSectionStatusText('finance')"></span>
           </button>
           <div x-show="expanded.finance" x-collapse class="ml-6 space-y-0.5">
-            <div class="flex items-center gap-2 px-2 py-0.5 text-xs">
-              <span class="w-1.5 h-1.5 rounded-full" :class="getAgentDotClass('cio_manager')"></span>
-              <span class="text-green-400">투자분석처 (CIO)</span>
-            </div>
             <template x-for="id in ['market_condition_specialist','stock_analysis_specialist','technical_analysis_specialist','risk_management_specialist']" :key="id">
-              <div class="flex items-center gap-2 px-2 py-0.5 ml-4 text-xs text-gray-400">
+              <div class="flex items-center gap-2 px-2 py-0.5 text-xs text-gray-400">
                 <span class="w-1.5 h-1.5 rounded-full" :class="getAgentDotClass(id)"></span>
                 <span x-text="getAgentName(id)"></span>
                 <template x-if="id !== 'risk_management_specialist'">
@@ -454,7 +444,6 @@
         // Org tree expand state
         expanded: {
           secretary: false,
-          leet: false,
           tech: false,
           strategy: false,
           legal: false,
@@ -469,7 +458,6 @@
           'report_worker': '보고 요약 Worker',
           'schedule_worker': '일정/미결 추적 Worker',
           'relay_worker': '정보 중계 Worker',
-          'leet_master_head': 'LEET MASTER 본부장',
           'cto_manager': 'CTO 기술개발처장',
           'frontend_specialist': '프론트엔드',
           'backend_specialist': '백엔드/API',
@@ -486,7 +474,6 @@
           'survey_specialist': '설문/리서치',
           'content_specialist': '콘텐츠',
           'community_specialist': '커뮤니티',
-          'finance_head': '금융분석 본부장',
           'cio_manager': 'CIO 투자분석처장',
           'market_condition_specialist': '시황분석',
           'stock_analysis_specialist': '종목분석',
@@ -498,7 +485,7 @@
         agentDivision: {
           'chief_of_staff': 'secretary', 'report_worker': 'secretary',
           'schedule_worker': 'secretary', 'relay_worker': 'secretary',
-          'leet_master_head': 'leet', 'cto_manager': 'tech',
+          'cto_manager': 'tech',
           'frontend_specialist': 'tech', 'backend_specialist': 'tech',
           'infra_specialist': 'tech', 'ai_model_specialist': 'tech',
           'cso_manager': 'strategy', 'market_research_specialist': 'strategy',
@@ -506,7 +493,7 @@
           'clo_manager': 'legal', 'copyright_specialist': 'legal',
           'patent_specialist': 'legal', 'cmo_manager': 'marketing',
           'survey_specialist': 'marketing', 'content_specialist': 'marketing',
-          'community_specialist': 'marketing', 'finance_head': 'finance',
+          'community_specialist': 'marketing',
           'cio_manager': 'finance', 'market_condition_specialist': 'finance',
           'stock_analysis_specialist': 'finance', 'technical_analysis_specialist': 'finance',
           'risk_management_specialist': 'finance',
@@ -555,10 +542,6 @@
                 const div = this.agentDivision[d.agent_id];
                 if (div) {
                   this.expanded[div] = true;
-                  // Also expand parent sections
-                  if (['tech','strategy','legal','marketing'].includes(div)) {
-                    this.expanded.leet = true;
-                  }
                 }
               }
 
@@ -646,10 +629,11 @@
 
         getAgentDotClass(id) {
           const status = this.activeAgents[id];
-          if (!status) return 'bg-gray-600';
+          if (!status) return 'bg-amber-500';
           switch (status.status) {
-            case 'working': return 'bg-hq-yellow pulse-dot';
+            case 'working': return 'bg-hq-green pulse-dot';
             case 'done': return 'bg-hq-green';
+            case 'idle': return 'bg-amber-500';
             default: return 'bg-gray-600';
           }
         },
@@ -674,10 +658,7 @@
 
         getSectionAgentIds(section) {
           return Object.entries(this.agentDivision)
-            .filter(([_, div]) => {
-              if (section === 'leet') return ['leet','tech','strategy','legal','marketing'].includes(div);
-              return div === section;
-            })
+            .filter(([_, div]) => div === section)
             .map(([id]) => id);
         },
 

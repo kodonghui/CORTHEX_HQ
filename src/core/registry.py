@@ -86,10 +86,10 @@ class AgentRegistry:
         return list(self._agents.values())
 
     def list_division_heads(self) -> list[dict]:
-        """Return summary of division heads for routing."""
+        """Return summary of managers directly under chief_of_staff."""
         heads = []
         for agent in self._agents.values():
-            if agent.config.role == "division_head" or agent.config.superior_id is None:
+            if agent.config.superior_id == "chief_of_staff" and agent.config.role == "manager":
                 heads.append({
                     "agent_id": agent.agent_id,
                     "name_ko": agent.config.name_ko,
