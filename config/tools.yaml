@@ -33,3 +33,11 @@ tools:
     name_ko: "웹검색"
     description: "실시간 웹 검색 및 정보 수집"
     model_name: "gpt-4o-mini"
+
+  # ─── SNS 연동 도구 ───
+
+  - tool_id: "sns_manager"
+    name: "SNS Manager"
+    name_ko: "SNS 매니저"
+    description: "Tistory/YouTube/Instagram/LinkedIn 통합 퍼블리싱 (CEO 승인 큐 포함)"
+    model_name: "gpt-4o-mini"

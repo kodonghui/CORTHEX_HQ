@@ -35,6 +35,7 @@ class ToolPool:
         from src.tools.designer import DesignerTool
         from src.tools.translator import TranslatorTool
         from src.tools.web_search import WebSearchTool
+        from src.tools.sns.sns_manager import SNSManager
 
         tool_classes: dict[str, type[BaseTool]] = {
             "patent_attorney": PatentAttorneyTool,
@@ -42,6 +43,7 @@ class ToolPool:
             "designer": DesignerTool,
             "translator": TranslatorTool,
             "web_search": WebSearchTool,
+            "sns_manager": SNSManager,
         }
 
         for tool_def in tools_config.get("tools", []):
