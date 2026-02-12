@@ -15,8 +15,7 @@ import logging
 from typing import TYPE_CHECKING
 
 from src.core.message import TaskRequest, TaskResult
-from src.core.report_saver import save_report
-from src.core.git_sync import auto_push
+from src.core.git_sync import auto_push_reports
 
 if TYPE_CHECKING:
     from src.core.registry import AgentRegistry
@@ -57,13 +56,7 @@ class Orchestrator:
                 summary=f"오류: {e}",
             )
 
-        # 보고서 저장 → GitHub 자동 업로드
-        await self._save_and_upload(user_input, result)
+        # 모든 에이전트 산출물이 저장된 후 한 번에 GitHub 푸시
+        await auto_push_reports(user_input)
 
         return result
-
-    async def _save_and_upload(self, command: str, result: TaskResult) -> None:
-        """보고서를 파일로 저장하고 GitHub에 자동 푸시."""
-        filepath = save_report(command, result)
-        if filepath:
-            await auto_push(filepath, command)

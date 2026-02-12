@@ -1,7 +1,8 @@
 """
 Git 자동 동기화 모듈.
 
-보고서가 저장되면 자동으로 git add → commit → push를 수행합니다.
+모든 에이전트의 보고서가 저장된 후,
+reports/ 디렉토리 전체를 한 번에 git add → commit → push합니다.
 """
 from __future__ import annotations
 
@@ -28,8 +29,8 @@ async def _run_git(*args: str) -> tuple[int, str]:
     return proc.returncode, output
 
 
-async def auto_push(filepath: Path, command: str) -> bool:
-    """파일을 git add → commit → push. 성공 시 True 반환."""
+async def auto_push_reports(command: str) -> bool:
+    """reports/ 전체를 git add → commit → push. 성공 시 True 반환."""
     if not _is_git_repo():
         logger.warning("git 저장소가 아닙니다. 자동 업로드를 건너뜁니다.")
         return False
@@ -39,14 +40,13 @@ async def auto_push(filepath: Path, command: str) -> bool:
         return False
 
     try:
-        # git add
-        rel_path = filepath.relative_to(REPO_ROOT)
-        rc, out = await _run_git("add", str(rel_path))
+        # reports/ 전체를 staging
+        rc, out = await _run_git("add", "reports/")
         if rc != 0:
             logger.error("git add 실패: %s", out)
             return False
 
-        # git commit
+        # commit
         msg = f"report: {command[:60]}"
         rc, out = await _run_git("commit", "-m", msg)
         if rc != 0:
@@ -56,10 +56,10 @@ async def auto_push(filepath: Path, command: str) -> bool:
             logger.error("git commit 실패: %s", out)
             return False
 
-        # git push (with retry)
+        # push (with retry)
         pushed = await _push_with_retry()
         if pushed:
-            logger.info("GitHub 자동 업로드 완료: %s", rel_path)
+            logger.info("GitHub 자동 업로드 완료: reports/")
         return pushed
 
     except Exception as e:
@@ -69,7 +69,6 @@ async def auto_push(filepath: Path, command: str) -> bool:
 
 async def _push_with_retry(max_retries: int = 4) -> bool:
     """push 실패 시 exponential backoff으로 재시도."""
-    # 현재 브랜치 이름 가져오기
     rc, branch = await _run_git("rev-parse", "--abbrev-ref", "HEAD")
     if rc != 0:
         branch = "main"
