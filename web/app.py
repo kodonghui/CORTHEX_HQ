@@ -43,7 +43,7 @@ STATIC_DIR = BASE_DIR / "static"
 load_dotenv(PROJECT_DIR / ".env")
 
 # FastAPI app
-app = FastAPI(title="CORTHEX HQ", version="0.2.0")
+app = FastAPI(title="CORTHEX HQ", version="0.3.0")
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 templates = Jinja2Templates(directory=str(TEMPLATE_DIR))
 

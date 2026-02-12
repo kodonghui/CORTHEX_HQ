@@ -144,7 +144,7 @@ class CorthexCLI:
     def _show_banner(self) -> None:
         panel = Panel(
             f"[bold white]{_BANNER}[/bold white]\n"
-            "[dim]AI Agent Corporation Headquarters v0.2.0[/dim]",
+            "[dim]AI Agent Corporation Headquarters v0.3.0[/dim]",
             title="[bold yellow]CORTHEX HQ[/bold yellow]",
             border_style="bright_blue",
         )
@@ -159,28 +159,28 @@ class CorthexCLI:
         sec.add("일정/미결 추적 Worker")
         sec.add("사업부 간 정보 중계 Worker")
 
-        # 기술개발처 (CTO) - 비서실장 직속
-        tech = tree.add("[cyan]기술개발처 (CTO)[/cyan]")
+        # LEET Master 본부
+        leet = tree.add("[cyan]LEET Master 본부[/cyan] (제품 개발)")
+
+        tech = leet.add("[green]기술개발처 (CTO)[/green]")
         for s in ["프론트엔드", "백엔드/API", "DB/인프라", "AI 모델"]:
             tech.add(s)
 
-        # 사업기획처 (CSO)
-        strategy = tree.add("[cyan]사업기획처 (CSO)[/cyan]")
+        strategy = leet.add("[green]사업기획처 (CSO)[/green]")
         for s in ["시장조사", "사업계획서", "재무모델링"]:
             strategy.add(s)
 
-        # 법무·IP처 (CLO)
-        legal = tree.add("[cyan]법무·IP처 (CLO)[/cyan]")
+        legal = leet.add("[green]법무·IP처 (CLO)[/green]")
         for s in ["저작권", "특허/약관"]:
             legal.add(s)
 
-        # 마케팅·고객처 (CMO)
-        marketing = tree.add("[cyan]마케팅·고객처 (CMO)[/cyan]")
+        marketing = leet.add("[green]마케팅·고객처 (CMO)[/green]")
         for s in ["설문/리서치", "콘텐츠", "커뮤니티"]:
             marketing.add(s)
 
-        # 투자분석처 (CIO)
-        invest = tree.add("[magenta]투자분석처 (CIO)[/magenta]")
+        # 투자분석 본부
+        invest_hq = tree.add("[magenta]투자분석 본부[/magenta] (주식/금융 투자)")
+        invest = invest_hq.add("[green]투자분석처 (CIO)[/green]")
         for s in ["시황분석 [병렬]", "종목분석 [병렬]", "기술적분석 [병렬]", "리스크관리 [순차]"]:
             invest.add(s)
 

@@ -60,7 +60,7 @@
       <div class="text-xl font-bold tracking-wide">
         <span class="text-hq-accent">CORTHEX</span> <span class="text-gray-400">HQ</span>
       </div>
-      <span class="text-xs text-gray-500 border border-hq-border rounded px-2 py-0.5">v0.2.0</span>
+      <span class="text-xs text-gray-500 border border-hq-border rounded px-2 py-0.5">v0.3.0</span>
     </div>
 
     <div class="flex items-center gap-6">
@@ -143,110 +143,140 @@
           </div>
         </div>
 
-        <!-- 기술개발처 (CTO) - 비서실장 직속 -->
+        <!-- LEET Master 본부 -->
         <div class="ml-2 mb-1">
-          <button @click="toggleSection('tech')"
+          <button @click="toggleSection('leet_master')"
                   class="flex items-center gap-2 px-2 py-1 rounded hover:bg-white/5 w-full text-left text-sm">
-            <span class="text-xs text-gray-500" x-text="expanded.tech ? '▼' : '▶'"></span>
-            <span class="w-1.5 h-1.5 rounded-full" :class="getAgentDotClass('cto_manager')"></span>
-            <span class="text-cyan-400">기술개발처 (CTO)</span>
-            <span class="ml-auto text-xs" :class="getSectionStatusColor('tech')"
-                  x-text="getSectionStatusText('tech')"></span>
+            <span class="text-xs text-gray-500" x-text="expanded.leet_master ? '▼' : '▶'"></span>
+            <span class="text-cyan-400">🏗️</span>
+            <span class="text-cyan-400 font-medium">LEET Master 본부</span>
+            <span class="ml-auto text-xs" :class="getSectionStatusColor('leet_master')"
+                  x-text="getSectionStatusText('leet_master')"></span>
           </button>
-          <div x-show="expanded.tech" x-collapse class="ml-6 space-y-0.5">
-            <template x-for="id in ['frontend_specialist','backend_specialist','infra_specialist','ai_model_specialist']" :key="id">
-              <div class="flex items-center gap-2 px-2 py-0.5 text-xs text-gray-400">
-                <span class="w-1.5 h-1.5 rounded-full" :class="getAgentDotClass(id)"></span>
-                <span x-text="getAgentName(id)"></span>
-              </div>
-            </template>
-          </div>
-        </div>
+          <div x-show="expanded.leet_master" x-collapse>
 
-        <!-- 사업기획처 (CSO) - 비서실장 직속 -->
-        <div class="ml-2 mb-1">
-          <button @click="toggleSection('strategy')"
-                  class="flex items-center gap-2 px-2 py-1 rounded hover:bg-white/5 w-full text-left text-sm">
-            <span class="text-xs text-gray-500" x-text="expanded.strategy ? '▼' : '▶'"></span>
-            <span class="w-1.5 h-1.5 rounded-full" :class="getAgentDotClass('cso_manager')"></span>
-            <span class="text-cyan-400">사업기획처 (CSO)</span>
-            <span class="ml-auto text-xs" :class="getSectionStatusColor('strategy')"
-                  x-text="getSectionStatusText('strategy')"></span>
-          </button>
-          <div x-show="expanded.strategy" x-collapse class="ml-6 space-y-0.5">
-            <template x-for="id in ['market_research_specialist','business_plan_specialist','financial_model_specialist']" :key="id">
-              <div class="flex items-center gap-2 px-2 py-0.5 text-xs text-gray-400">
-                <span class="w-1.5 h-1.5 rounded-full" :class="getAgentDotClass(id)"></span>
-                <span x-text="getAgentName(id)"></span>
-              </div>
-            </template>
-          </div>
-        </div>
-
-        <!-- 법무·IP처 (CLO) - 비서실장 직속 -->
-        <div class="ml-2 mb-1">
-          <button @click="toggleSection('legal')"
-                  class="flex items-center gap-2 px-2 py-1 rounded hover:bg-white/5 w-full text-left text-sm">
-            <span class="text-xs text-gray-500" x-text="expanded.legal ? '▼' : '▶'"></span>
-            <span class="w-1.5 h-1.5 rounded-full" :class="getAgentDotClass('clo_manager')"></span>
-            <span class="text-cyan-400">법무·IP처 (CLO)</span>
-            <span class="ml-auto text-xs" :class="getSectionStatusColor('legal')"
-                  x-text="getSectionStatusText('legal')"></span>
-          </button>
-          <div x-show="expanded.legal" x-collapse class="ml-6 space-y-0.5">
-            <template x-for="id in ['copyright_specialist','patent_specialist']" :key="id">
-              <div class="flex items-center gap-2 px-2 py-0.5 text-xs text-gray-400">
-                <span class="w-1.5 h-1.5 rounded-full" :class="getAgentDotClass(id)"></span>
-                <span x-text="getAgentName(id)"></span>
-              </div>
-            </template>
-          </div>
-        </div>
-
-        <!-- 마케팅·고객처 (CMO) - 비서실장 직속 -->
-        <div class="ml-2 mb-1">
-          <button @click="toggleSection('marketing')"
-                  class="flex items-center gap-2 px-2 py-1 rounded hover:bg-white/5 w-full text-left text-sm">
-            <span class="text-xs text-gray-500" x-text="expanded.marketing ? '▼' : '▶'"></span>
-            <span class="w-1.5 h-1.5 rounded-full" :class="getAgentDotClass('cmo_manager')"></span>
-            <span class="text-cyan-400">마케팅·고객처 (CMO)</span>
-            <span class="ml-auto text-xs" :class="getSectionStatusColor('marketing')"
-                  x-text="getSectionStatusText('marketing')"></span>
-          </button>
-          <div x-show="expanded.marketing" x-collapse class="ml-6 space-y-0.5">
-            <template x-for="id in ['survey_specialist','content_specialist','community_specialist']" :key="id">
-              <div class="flex items-center gap-2 px-2 py-0.5 text-xs text-gray-400">
-                <span class="w-1.5 h-1.5 rounded-full" :class="getAgentDotClass(id)"></span>
-                <span x-text="getAgentName(id)"></span>
-              </div>
-            </template>
-          </div>
-        </div>
-
-        <!-- 투자분석처 (CIO) - 비서실장 직속 -->
-        <div class="ml-2 mb-1">
-          <button @click="toggleSection('finance')"
-                  class="flex items-center gap-2 px-2 py-1 rounded hover:bg-white/5 w-full text-left text-sm">
-            <span class="text-xs text-gray-500" x-text="expanded.finance ? '▼' : '▶'"></span>
-            <span class="w-1.5 h-1.5 rounded-full" :class="getAgentDotClass('cio_manager')"></span>
-            <span class="text-purple-400">투자분석처 (CIO)</span>
-            <span class="ml-auto text-xs" :class="getSectionStatusColor('finance')"
-                  x-text="getSectionStatusText('finance')"></span>
-          </button>
-          <div x-show="expanded.finance" x-collapse class="ml-6 space-y-0.5">
-            <template x-for="id in ['market_condition_specialist','stock_analysis_specialist','technical_analysis_specialist','risk_management_specialist']" :key="id">
-              <div class="flex items-center gap-2 px-2 py-0.5 text-xs text-gray-400">
-                <span class="w-1.5 h-1.5 rounded-full" :class="getAgentDotClass(id)"></span>
-                <span x-text="getAgentName(id)"></span>
-                <template x-if="id !== 'risk_management_specialist'">
-                  <span class="text-gray-600 text-[10px]">[병렬]</span>
-                </template>
-                <template x-if="id === 'risk_management_specialist'">
-                  <span class="text-gray-600 text-[10px]">[순차]</span>
+            <!-- 기술개발처 (CTO) -->
+            <div class="ml-4 mb-1">
+              <button @click="toggleSection('tech')"
+                      class="flex items-center gap-2 px-2 py-1 rounded hover:bg-white/5 w-full text-left text-sm">
+                <span class="text-xs text-gray-500" x-text="expanded.tech ? '▼' : '▶'"></span>
+                <span class="w-1.5 h-1.5 rounded-full" :class="getAgentDotClass('cto_manager')"></span>
+                <span class="text-cyan-400">기술개발처 (CTO)</span>
+                <span class="ml-auto text-xs" :class="getSectionStatusColor('tech')"
+                      x-text="getSectionStatusText('tech')"></span>
+              </button>
+              <div x-show="expanded.tech" x-collapse class="ml-6 space-y-0.5">
+                <template x-for="id in ['frontend_specialist','backend_specialist','infra_specialist','ai_model_specialist']" :key="id">
+                  <div class="flex items-center gap-2 px-2 py-0.5 text-xs text-gray-400">
+                    <span class="w-1.5 h-1.5 rounded-full" :class="getAgentDotClass(id)"></span>
+                    <span x-text="getAgentName(id)"></span>
+                  </div>
                 </template>
               </div>
-            </template>
-          </div>
+            </div>
+
+            <!-- 사업기획처 (CSO) -->
+            <div class="ml-4 mb-1">
+              <button @click="toggleSection('strategy')"
+                      class="flex items-center gap-2 px-2 py-1 rounded hover:bg-white/5 w-full text-left text-sm">
+                <span class="text-xs text-gray-500" x-text="expanded.strategy ? '▼' : '▶'"></span>
+                <span class="w-1.5 h-1.5 rounded-full" :class="getAgentDotClass('cso_manager')"></span>
+                <span class="text-cyan-400">사업기획처 (CSO)</span>
+                <span class="ml-auto text-xs" :class="getSectionStatusColor('strategy')"
+                      x-text="getSectionStatusText('strategy')"></span>
+              </button>
+              <div x-show="expanded.strategy" x-collapse class="ml-6 space-y-0.5">
+                <template x-for="id in ['market_research_specialist','business_plan_specialist','financial_model_specialist']" :key="id">
+                  <div class="flex items-center gap-2 px-2 py-0.5 text-xs text-gray-400">
+                    <span class="w-1.5 h-1.5 rounded-full" :class="getAgentDotClass(id)"></span>
+                    <span x-text="getAgentName(id)"></span>
+                  </div>
+                </template>
+              </div>
+            </div>
+
+            <!-- 법무·IP처 (CLO) -->
+            <div class="ml-4 mb-1">
+              <button @click="toggleSection('legal')"
+                      class="flex items-center gap-2 px-2 py-1 rounded hover:bg-white/5 w-full text-left text-sm">
+                <span class="text-xs text-gray-500" x-text="expanded.legal ? '▼' : '▶'"></span>
+                <span class="w-1.5 h-1.5 rounded-full" :class="getAgentDotClass('clo_manager')"></span>
+                <span class="text-cyan-400">법무·IP처 (CLO)</span>
+                <span class="ml-auto text-xs" :class="getSectionStatusColor('legal')"
+                      x-text="getSectionStatusText('legal')"></span>
+              </button>
+              <div x-show="expanded.legal" x-collapse class="ml-6 space-y-0.5">
+                <template x-for="id in ['copyright_specialist','patent_specialist']" :key="id">
+                  <div class="flex items-center gap-2 px-2 py-0.5 text-xs text-gray-400">
+                    <span class="w-1.5 h-1.5 rounded-full" :class="getAgentDotClass(id)"></span>
+                    <span x-text="getAgentName(id)"></span>
+                  </div>
+                </template>
+              </div>
+            </div>
+
+            <!-- 마케팅·고객처 (CMO) -->
+            <div class="ml-4 mb-1">
+              <button @click="toggleSection('marketing')"
+                      class="flex items-center gap-2 px-2 py-1 rounded hover:bg-white/5 w-full text-left text-sm">
+                <span class="text-xs text-gray-500" x-text="expanded.marketing ? '▼' : '▶'"></span>
+                <span class="w-1.5 h-1.5 rounded-full" :class="getAgentDotClass('cmo_manager')"></span>
+                <span class="text-cyan-400">마케팅·고객처 (CMO)</span>
+                <span class="ml-auto text-xs" :class="getSectionStatusColor('marketing')"
+                      x-text="getSectionStatusText('marketing')"></span>
+              </button>
+              <div x-show="expanded.marketing" x-collapse class="ml-6 space-y-0.5">
+                <template x-for="id in ['survey_specialist','content_specialist','community_specialist']" :key="id">
+                  <div class="flex items-center gap-2 px-2 py-0.5 text-xs text-gray-400">
+                    <span class="w-1.5 h-1.5 rounded-full" :class="getAgentDotClass(id)"></span>
+                    <span x-text="getAgentName(id)"></span>
+                  </div>
+                </template>
+              </div>
+            </div>
+
+          </div> <!-- end leet_master collapse -->
+        </div>
+
+        <!-- 투자분석 본부 -->
+        <div class="ml-2 mb-1">
+          <button @click="toggleSection('investment')"
+                  class="flex items-center gap-2 px-2 py-1 rounded hover:bg-white/5 w-full text-left text-sm">
+            <span class="text-xs text-gray-500" x-text="expanded.investment ? '▼' : '▶'"></span>
+            <span class="text-purple-400">📊</span>
+            <span class="text-purple-400 font-medium">투자분석 본부</span>
+            <span class="ml-auto text-xs" :class="getSectionStatusColor('investment')"
+                  x-text="getSectionStatusText('investment')"></span>
+          </button>
+          <div x-show="expanded.investment" x-collapse>
+
+            <!-- 투자분석처 (CIO) -->
+            <div class="ml-4 mb-1">
+              <button @click="toggleSection('finance')"
+                      class="flex items-center gap-2 px-2 py-1 rounded hover:bg-white/5 w-full text-left text-sm">
+                <span class="text-xs text-gray-500" x-text="expanded.finance ? '▼' : '▶'"></span>
+                <span class="w-1.5 h-1.5 rounded-full" :class="getAgentDotClass('cio_manager')"></span>
+                <span class="text-purple-400">투자분석처 (CIO)</span>
+                <span class="ml-auto text-xs" :class="getSectionStatusColor('finance')"
+                      x-text="getSectionStatusText('finance')"></span>
+              </button>
+              <div x-show="expanded.finance" x-collapse class="ml-6 space-y-0.5">
+                <template x-for="id in ['market_condition_specialist','stock_analysis_specialist','technical_analysis_specialist','risk_management_specialist']" :key="id">
+                  <div class="flex items-center gap-2 px-2 py-0.5 text-xs text-gray-400">
+                    <span class="w-1.5 h-1.5 rounded-full" :class="getAgentDotClass(id)"></span>
+                    <span x-text="getAgentName(id)"></span>
+                    <template x-if="id !== 'risk_management_specialist'">
+                      <span class="text-gray-600 text-[10px]">[병렬]</span>
+                    </template>
+                    <template x-if="id === 'risk_management_specialist'">
+                      <span class="text-gray-600 text-[10px]">[순차]</span>
+                    </template>
+                  </div>
+                </template>
+              </div>
+            </div>
+
+          </div> <!-- end investment collapse -->
         </div>
 
         <!-- Tool Pool -->
@@ -444,10 +474,12 @@
         // Org tree expand state
         expanded: {
           secretary: false,
+          leet_master: true,
           tech: false,
           strategy: false,
           legal: false,
           marketing: false,
+          investment: true,
           finance: false,
           tools: false,
         },
@@ -542,6 +574,12 @@
                 const div = this.agentDivision[d.agent_id];
                 if (div) {
                   this.expanded[div] = true;
+                  if (['tech','strategy','legal','marketing'].includes(div)) {
+                    this.expanded.leet_master = true;
+                  }
+                  if (div === 'finance') {
+                    this.expanded.investment = true;
+                  }
                 }
               }
 
@@ -657,6 +695,16 @@
         },
 
         getSectionAgentIds(section) {
+          if (section === 'leet_master') {
+            return Object.entries(this.agentDivision)
+              .filter(([_, div]) => ['tech','strategy','legal','marketing'].includes(div))
+              .map(([id]) => id);
+          }
+          if (section === 'investment') {
+            return Object.entries(this.agentDivision)
+              .filter(([_, div]) => div === 'finance')
+              .map(([id]) => id);
+          }
           return Object.entries(this.agentDivision)
             .filter(([_, div]) => div === section)
             .map(([id]) => id);
