@@ -37,6 +37,8 @@ class StoredTask:
     tokens_used: int = 0
     execution_time_seconds: float = 0.0
     output_file: Optional[str] = None
+    bookmarked: bool = False
+    correlation_id: Optional[str] = None
 
 
 class TaskStore:
@@ -63,3 +65,46 @@ class TaskStore:
 
     def list_running(self) -> list[StoredTask]:
         return [t for t in self._tasks.values() if t.status == TaskStatus.RUNNING]
+
+    def search(
+        self,
+        keyword: str = "",
+        status: str = "",
+        date_from: str = "",
+        date_to: str = "",
+        bookmarked_only: bool = False,
+        limit: int = 50,
+    ) -> list[StoredTask]:
+        """Search tasks with filters."""
+        results = list(self._tasks.values())
+        if keyword:
+            kw = keyword.lower()
+            results = [
+                t for t in results
+                if kw in t.command.lower() or kw in (t.result_summary or "").lower()
+            ]
+        if status and status != "all":
+            results = [t for t in results if t.status.value == status]
+        if date_from:
+            try:
+                df = datetime.fromisoformat(date_from).replace(tzinfo=timezone.utc)
+                results = [t for t in results if t.created_at >= df]
+            except ValueError:
+                pass
+        if date_to:
+            try:
+                dt = datetime.fromisoformat(date_to).replace(tzinfo=timezone.utc)
+                results = [t for t in results if t.created_at <= dt]
+            except ValueError:
+                pass
+        if bookmarked_only:
+            results = [t for t in results if t.bookmarked]
+        return sorted(results, key=lambda t: t.created_at, reverse=True)[:limit]
+
+    def toggle_bookmark(self, task_id: str) -> bool:
+        """Toggle bookmark and return new state."""
+        task = self._tasks.get(task_id)
+        if task:
+            task.bookmarked = not task.bookmarked
+            return task.bookmarked
+        return False

@@ -45,6 +45,8 @@ from src.llm.router import ModelRouter
 from src.tools.pool import ToolPool
 from src.tools.sns.oauth_manager import OAuthManager
 from src.tools.sns.webhook_receiver import WebhookReceiver
+from src.core.memory import MemoryManager
+from src.core.scheduler import Scheduler
 from web.ws_manager import ConnectionManager
 
 logger = logging.getLogger("corthex.web")
@@ -94,12 +96,14 @@ webhook_receiver: WebhookReceiver | None = None
 tool_pool_ref: ToolPool | None = None
 feedback_manager: FeedbackManager | None = None
 quality_rules_manager: QualityRulesManager | None = None
+memory_manager: MemoryManager | None = None
+scheduler: Scheduler | None = None
 
 
 @app.on_event("startup")
 async def startup() -> None:
     """Initialize the agent system on server start."""
-    global orchestrator, model_router, registry, context, knowledge_mgr, agents_cfg_raw, budget_manager, preset_manager, oauth_manager, webhook_receiver, tool_pool_ref, feedback_manager, quality_rules_manager
+    global orchestrator, model_router, registry, context, knowledge_mgr, agents_cfg_raw, budget_manager, preset_manager, oauth_manager, webhook_receiver, tool_pool_ref, feedback_manager, quality_rules_manager, memory_manager, scheduler
 
     logger.info("CORTHEX HQ 시스템 초기화 중...")
 
@@ -175,6 +179,15 @@ async def startup() -> None:
         webhook_receiver = WebhookReceiver()
         tool_pool_ref = tool_pool
 
+        # 에이전트 메모리 매니저 초기화 + 주입
+        memory_manager = MemoryManager(PROJECT_DIR / "data" / "memory")
+        for agent in registry.list_all():
+            agent.set_memory_manager(memory_manager)
+
+        # 작업 스케줄러 초기화 + 시작
+        scheduler = Scheduler(CONFIG_DIR / "schedules.yaml")
+        scheduler.start(orchestrator, ws_manager, task_store, model_router)
+
         logger.info("CORTHEX HQ 시스템 준비 완료 (에이전트 %d명)", registry.agent_count)
 
         # 텔레그램 봇 초기화 (src.telegram 패키지 — 양방향 브릿지)
@@ -222,6 +235,8 @@ async def shutdown() -> None:
             logger.info("텔레그램 봇 종료 완료")
         except Exception as e:
             logger.warning("텔레그램 봇 종료 중 오류 (무시): %s", e)
+    if scheduler:
+        scheduler.stop()
     if model_router:
         await model_router.close()
     logger.info("CORTHEX HQ 시스템 종료")
@@ -377,6 +392,37 @@ async def get_performance() -> dict:
         return {"total_llm_calls": 0, "total_cost_usd": 0, "total_tasks": 0, "agents": []}
     report = build_performance_report(model_router.cost_tracker, context)
     return report.to_dict()
+
+
+@app.get("/api/dashboard")
+async def get_dashboard() -> dict:
+    """홈 대시보드 집계 통계 엔드포인트."""
+    today = datetime.now(timezone.utc).date()
+    all_tasks = task_store.list_all(limit=999)
+    today_tasks = [t for t in all_tasks if t.created_at.date() == today]
+    completed_today = [t for t in today_tasks if t.status == TaskStatus.COMPLETED]
+    failed_today = [t for t in today_tasks if t.status == TaskStatus.FAILED]
+    running_tasks = [t for t in all_tasks if t.status == TaskStatus.RUNNING]
+    recent = sorted(
+        [t for t in all_tasks if t.status == TaskStatus.COMPLETED],
+        key=lambda t: t.completed_at or t.created_at,
+        reverse=True,
+    )[:5]
+    total_cost = model_router.cost_tracker.total_cost if model_router else 0
+    total_tokens = model_router.cost_tracker.total_tokens if model_router else 0
+    agent_count = registry.agent_count if registry else 0
+    return {
+        "today_task_count": len(today_tasks),
+        "today_completed": len(completed_today),
+        "today_failed": len(failed_today),
+        "running_count": len(running_tasks),
+        "total_tasks": len(all_tasks),
+        "total_cost": round(total_cost, 6),
+        "total_tokens": total_tokens,
+        "agent_count": agent_count,
+        "recent_completed": [_task_to_dict(t) for t in recent],
+        "system_health": "ok" if orchestrator else "not_initialized",
+    }
 
 
 @app.get("/api/budget")
@@ -824,13 +870,37 @@ def _task_to_dict(t: StoredTask, include_result: bool = False) -> dict:
     if include_result:
         d["result_data"] = t.result_data
         d["tokens_used"] = t.tokens_used
+        d["correlation_id"] = getattr(t, "correlation_id", None)
+    d["bookmarked"] = getattr(t, "bookmarked", False)
+    d["correlation_id"] = getattr(t, "correlation_id", None)
     return d
 
 
 @app.get("/api/tasks")
-async def list_tasks() -> list[dict]:
-    """List all tasks with status."""
-    return [_task_to_dict(t) for t in task_store.list_all()]
+async def list_tasks(
+    keyword: str = "",
+    status: str = "",
+    date_from: str = "",
+    date_to: str = "",
+    bookmarked: bool = False,
+) -> list[dict]:
+    """List tasks with optional search/filter."""
+    if keyword or status or date_from or date_to or bookmarked:
+        tasks = task_store.search(
+            keyword=keyword, status=status,
+            date_from=date_from, date_to=date_to,
+            bookmarked_only=bookmarked,
+        )
+    else:
+        tasks = task_store.list_all()
+    return [_task_to_dict(t) for t in tasks]
+
+
+@app.post("/api/tasks/{task_id}/bookmark")
+async def toggle_task_bookmark(task_id: str) -> dict:
+    """Toggle bookmark on a task."""
+    new_state = task_store.toggle_bookmark(task_id)
+    return {"task_id": task_id, "bookmarked": new_state}
 
 
 @app.get("/api/tasks/{task_id}")
@@ -945,6 +1015,95 @@ async def list_archive_by_correlation(correlation_id: str) -> list[dict]:
     return results
 
 
+# ─── Memory API (에이전트 장기 기억) ───
+
+
+@app.get("/api/memory/{agent_id}")
+async def get_memory(agent_id: str) -> list[dict]:
+    """에이전트의 기억 목록을 반환합니다."""
+    if not memory_manager:
+        return []
+    return memory_manager.get_all(agent_id)
+
+
+@app.post("/api/memory/{agent_id}")
+async def add_memory(agent_id: str, body: dict) -> dict:
+    """에이전트에 새 기억을 추가합니다."""
+    if not memory_manager:
+        return {"error": "시스템 미초기화"}
+    key = body.get("key", "").strip()
+    value = body.get("value", "").strip()
+    if not key or not value:
+        return {"error": "key와 value가 필요합니다"}
+    entry = memory_manager.add(agent_id, key, value, source="manual")
+    return {"success": True, **entry.to_dict()}
+
+
+@app.delete("/api/memory/{agent_id}/{memory_id}")
+async def delete_memory(agent_id: str, memory_id: str) -> dict:
+    """에이전트의 기억을 삭제합니다."""
+    if not memory_manager:
+        return {"error": "시스템 미초기화"}
+    ok = memory_manager.delete(agent_id, memory_id)
+    return {"success": ok}
+
+
+# ─── Schedule API (작업 예약) ───
+
+
+@app.get("/api/schedules")
+async def get_schedules() -> list[dict]:
+    """예약 작업 목록을 반환합니다."""
+    if not scheduler:
+        return []
+    return scheduler.list_all()
+
+
+@app.post("/api/schedules")
+async def add_schedule(body: dict) -> dict:
+    """새 예약을 추가합니다."""
+    if not scheduler:
+        return {"error": "시스템 미초기화"}
+    name = body.get("name", "").strip()
+    command = body.get("command", "").strip()
+    cron_preset = body.get("cron_preset", "").strip()
+    if not name or not command or not cron_preset:
+        return {"error": "name, command, cron_preset이 필요합니다"}
+    entry = scheduler.add(name, command, cron_preset)
+    return {"success": True, **entry}
+
+
+@app.put("/api/schedules/{schedule_id}")
+async def update_schedule(schedule_id: str, body: dict) -> dict:
+    """예약을 수정합니다."""
+    if not scheduler:
+        return {"error": "시스템 미초기화"}
+    result = scheduler.update(schedule_id, body)
+    if result:
+        return {"success": True, **result}
+    return {"error": "예약을 찾을 수 없습니다"}
+
+
+@app.post("/api/schedules/{schedule_id}/toggle")
+async def toggle_schedule(schedule_id: str) -> dict:
+    """예약 활성화/비활성화를 토글합니다."""
+    if not scheduler:
+        return {"error": "시스템 미초기화"}
+    result = scheduler.toggle(schedule_id)
+    if result:
+        return {"success": True, **result}
+    return {"error": "예약을 찾을 수 없습니다"}
+
+
+@app.delete("/api/schedules/{schedule_id}")
+async def delete_schedule(schedule_id: str) -> dict:
+    """예약을 삭제합니다."""
+    if not scheduler:
+        return {"error": "시스템 미초기화"}
+    ok = scheduler.delete(schedule_id)
+    return {"success": ok}
+
+
 # ─── SNS 발행 API ───
 
 from src.integrations.sns_publisher import SNSPublisher
@@ -1040,6 +1199,7 @@ async def _execute_command_for_api(
         stored.success = result.success
         stored.result_data = str(result.result_data or result.summary)
         stored.result_summary = result.summary
+        stored.correlation_id = result.correlation_id
         stored.status = TaskStatus.COMPLETED
     except Exception as e:
         stored.success = False
@@ -1137,6 +1297,7 @@ async def _run_background_task(
         stored.success = result.success
         stored.result_data = str(result.result_data or result.summary)
         stored.result_summary = result.summary
+        stored.correlation_id = result.correlation_id
         stored.status = TaskStatus.COMPLETED
     except Exception as e:
         stored.success = False

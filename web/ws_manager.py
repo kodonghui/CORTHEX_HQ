@@ -63,3 +63,15 @@ class ConnectionManager:
             "total_cost": total_cost,
             "total_tokens": total_tokens,
         })
+
+    async def send_error_alert(
+        self, error_type: str, message: str, severity: str = "error"
+    ) -> None:
+        """Send error alert to all connected clients."""
+        from datetime import datetime
+        await self.broadcast("error_alert", {
+            "error_type": error_type,
+            "message": message,
+            "severity": severity,
+            "timestamp": datetime.now().isoformat(),
+        })
