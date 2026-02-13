@@ -45,8 +45,10 @@ from src.llm.router import ModelRouter
 from src.tools.pool import ToolPool
 from src.tools.sns.oauth_manager import OAuthManager
 from src.tools.sns.webhook_receiver import WebhookReceiver
+from src.core.auth import AuthManager
 from src.core.memory import MemoryManager
 from src.core.scheduler import Scheduler
+from src.core.workflow import WorkflowEngine
 from web.ws_manager import ConnectionManager
 
 logger = logging.getLogger("corthex.web")
@@ -98,12 +100,14 @@ feedback_manager: FeedbackManager | None = None
 quality_rules_manager: QualityRulesManager | None = None
 memory_manager: MemoryManager | None = None
 scheduler: Scheduler | None = None
+workflow_engine: WorkflowEngine | None = None
+auth_manager: AuthManager | None = None
 
 
 @app.on_event("startup")
 async def startup() -> None:
     """Initialize the agent system on server start."""
-    global orchestrator, model_router, registry, context, knowledge_mgr, agents_cfg_raw, budget_manager, preset_manager, oauth_manager, webhook_receiver, tool_pool_ref, feedback_manager, quality_rules_manager, memory_manager, scheduler
+    global orchestrator, model_router, registry, context, knowledge_mgr, agents_cfg_raw, budget_manager, preset_manager, oauth_manager, webhook_receiver, tool_pool_ref, feedback_manager, quality_rules_manager, memory_manager, scheduler, workflow_engine, auth_manager
 
     logger.info("CORTHEX HQ 시스템 초기화 중...")
 
@@ -187,6 +191,12 @@ async def startup() -> None:
         # 작업 스케줄러 초기화 + 시작
         scheduler = Scheduler(CONFIG_DIR / "schedules.yaml")
         scheduler.start(orchestrator, ws_manager, task_store, model_router)
+
+        # 워크플로우 엔진 초기화
+        workflow_engine = WorkflowEngine(CONFIG_DIR / "workflows.yaml")
+
+        # 인증 매니저 초기화 (부트스트랩 모드: 사용자 없으면 인증 없이 통과)
+        auth_manager = AuthManager(PROJECT_DIR / "data" / "users.json")
 
         logger.info("CORTHEX HQ 시스템 준비 완료 (에이전트 %d명)", registry.agent_count)
 
@@ -1102,6 +1112,100 @@ async def delete_schedule(schedule_id: str) -> dict:
         return {"error": "시스템 미초기화"}
     ok = scheduler.delete(schedule_id)
     return {"success": ok}
+
+
+# ─── Workflow API (워크플로우) ───
+
+
+@app.get("/api/workflows")
+async def get_workflows() -> list[dict]:
+    """워크플로우 목록을 반환합니다."""
+    if not workflow_engine:
+        return []
+    return workflow_engine.list_all()
+
+
+@app.post("/api/workflows")
+async def create_workflow(body: dict) -> dict:
+    """새 워크플로우를 생성합니다."""
+    if not workflow_engine:
+        return {"error": "시스템 미초기화"}
+    name = body.get("name", "").strip()
+    description = body.get("description", "").strip()
+    steps = body.get("steps", [])
+    if not name or not steps:
+        return {"error": "name과 steps가 필요합니다"}
+    result = workflow_engine.create(name, description, steps)
+    return {"success": True, **result}
+
+
+@app.put("/api/workflows/{workflow_id}")
+async def update_workflow(workflow_id: str, body: dict) -> dict:
+    """워크플로우를 수정합니다."""
+    if not workflow_engine:
+        return {"error": "시스템 미초기화"}
+    result = workflow_engine.update(workflow_id, body)
+    if result:
+        return {"success": True, **result}
+    return {"error": "워크플로우를 찾을 수 없습니다"}
+
+
+@app.delete("/api/workflows/{workflow_id}")
+async def delete_workflow(workflow_id: str) -> dict:
+    """워크플로우를 삭제합니다."""
+    if not workflow_engine:
+        return {"error": "시스템 미초기화"}
+    ok = workflow_engine.delete(workflow_id)
+    return {"success": ok}
+
+
+@app.post("/api/workflows/{workflow_id}/run")
+async def run_workflow(workflow_id: str) -> dict:
+    """워크플로우를 실행합니다."""
+    if not workflow_engine or not orchestrator or not model_router:
+        return {"error": "시스템 미초기화"}
+    result = await workflow_engine.run(
+        workflow_id, orchestrator, ws_manager, task_store, model_router,
+    )
+    return result
+
+
+# ─── Auth API (인증) ───
+
+
+@app.get("/api/auth/status")
+async def auth_status() -> dict:
+    """인증 상태 확인 (부트스트랩 모드 여부 등)."""
+    if not auth_manager:
+        return {"bootstrap_mode": True, "user_count": 0}
+    return auth_manager.get_status()
+
+
+@app.post("/api/auth/register")
+async def auth_register(body: dict) -> dict:
+    """새 사용자 등록."""
+    if not auth_manager:
+        return {"error": "시스템 미초기화"}
+    username = body.get("username", "").strip()
+    password = body.get("password", "").strip()
+    if not username or not password:
+        return {"error": "username과 password가 필요합니다"}
+    role = body.get("role", "viewer")
+    division = body.get("division", "")
+    display_name = body.get("display_name", "")
+    return auth_manager.register(username, password, role, division, display_name)
+
+
+@app.post("/api/auth/login")
+async def auth_login(body: dict) -> dict:
+    """로그인."""
+    if not auth_manager:
+        return {"error": "시스템 미초기화"}
+    username = body.get("username", "").strip()
+    password = body.get("password", "").strip()
+    if not username or not password:
+        return {"error": "username과 password가 필요합니다"}
+    return auth_manager.login(username, password)
 
 
 # ─── SNS 발행 API ───
