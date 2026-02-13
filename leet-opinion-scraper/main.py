@@ -103,6 +103,14 @@ def main():
         "--output-dir", default="./output",
         help="Directory to save results (default: ./output)",
     )
+    parser.add_argument(
+        "--keywords",
+        help=(
+            "Custom search keywords (comma-separated). "
+            "Overrides default SEARCH_KEYWORDS from config.py. "
+            "Example: --keywords '해설 오류,해설 다르다,답이 틀린'"
+        ),
+    )
     args = parser.parse_args()
 
     # ── Setup logging ──
@@ -119,11 +127,17 @@ def main():
             print(f"Available: {list(PLATFORM_MAP.keys())}")
             sys.exit(1)
 
+    # ── Select keywords ──
+    if args.keywords:
+        keywords = [k.strip() for k in args.keywords.split(",") if k.strip()]
+    else:
+        keywords = SEARCH_KEYWORDS
+
     # ── Print banner ──
     logger.info("=" * 60)
     logger.info("LEET Multi-Platform Negative Opinion Scraper Started")
     logger.info(f"Platforms: {', '.join(platforms)}")
-    logger.info(f"Keywords: {len(SEARCH_KEYWORDS)}")
+    logger.info(f"Keywords: {len(keywords)}" + (" (custom)" if args.keywords else ""))
     logger.info(f"Max pages per keyword: {args.max_pages}")
     logger.info(f"Headless: {args.headless}")
     logger.info(f"Keywords only: {args.keywords_only}")
@@ -147,7 +161,7 @@ def main():
             scraper.output_dir = args.output_dir
 
             scraper.run(
-                keywords=SEARCH_KEYWORDS,
+                keywords=keywords,
                 max_pages=args.max_pages,
                 keywords_only=args.keywords_only,
             )

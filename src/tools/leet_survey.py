@@ -5,7 +5,10 @@ leet-opinion-scraper를 에이전트가 호출하여 6개 커뮤니티에서
 LEET 해설 관련 부정적 의견을 자동 수집·분석합니다.
 
 사용 방법 (에이전트가 호출):
-  - action="survey": 지정 플랫폼에서 부정의견 수집 + LLM 분석
+  - action="survey": 커뮤니티에서 의견 수집 + LLM 분석
+    - keywords: 에이전트가 직접 검색 키워드를 지정 (쉼표 구분 문자열 또는 리스트)
+    - topic: 키워드 대신 주제만 주면 LLM이 자동으로 키워드를 생성
+    - (둘 다 없으면 config.py의 기본 키워드 사용)
   - action="status": 마지막 수집 결과 요약 조회
   - action="results": 기존 수집 결과 파일 기반 재분석
 
@@ -56,6 +59,46 @@ class LeetSurveyTool(BaseTool):
 
     # ── 서베이 실행 ──
 
+    async def _resolve_keywords(self, kwargs: dict[str, Any]) -> str | None:
+        """에이전트가 준 keywords/topic으로부터 검색 키워드 문자열을 결정.
+
+        - keywords가 있으면 그대로 사용
+        - topic만 있으면 LLM이 키워드를 자동 생성
+        - 둘 다 없으면 None (= config.py 기본값 사용)
+        """
+        # 1) 에이전트가 직접 키워드를 지정한 경우
+        keywords = kwargs.get("keywords")
+        if keywords:
+            if isinstance(keywords, list):
+                return ",".join(keywords)
+            return str(keywords)
+
+        # 2) 주제(topic)만 준 경우 → LLM이 키워드 생성
+        topic = kwargs.get("topic")
+        if topic:
+            generated = await self._llm_call(
+                system_prompt=(
+                    "당신은 한국 온라인 커뮤니티 검색 전문가입니다.\n"
+                    "주어진 조사 주제에 대해 한국 커뮤니티(다음카페, 네이버, 오르비, 디시인사이드 등)에서\n"
+                    "실제로 사람들이 쓸 법한 검색 키워드를 생성하세요.\n\n"
+                    "규칙:\n"
+                    "- 15~25개 키워드를 생성\n"
+                    "- 줄바꿈 없이 쉼표로 구분\n"
+                    "- 구어체, 줄임말, 커뮤니티 은어도 포함\n"
+                    "- 긍정/부정/질문형 다양하게\n"
+                    "- LEET/리트/로스쿨 관련이면 해당 용어 포함\n"
+                    "- 키워드만 출력하고 다른 설명은 하지 마세요"
+                ),
+                user_prompt=f"조사 주제: {topic}",
+            )
+            # LLM 응답을 정리
+            cleaned = generated.strip().strip('"').strip("'")
+            logger.info("[LeetSurvey] LLM 생성 키워드: %s", cleaned[:200])
+            return cleaned
+
+        # 3) 둘 다 없으면 기본값
+        return None
+
     async def _run_survey(self, kwargs: dict[str, Any]) -> str:
         """leet-opinion-scraper를 subprocess로 실행하여 수집."""
         platforms = kwargs.get("platforms", "all")
@@ -70,6 +113,9 @@ class LeetSurveyTool(BaseTool):
                 f"경로: {main_py}"
             )
 
+        # 키워드 결정 (에이전트 지정 > LLM 생성 > config 기본값)
+        custom_keywords = await self._resolve_keywords(kwargs)
+
         # 명령어 구성
         cmd = [
             sys.executable, main_py,
@@ -78,11 +124,15 @@ class LeetSurveyTool(BaseTool):
             "--headless",
             "--output-dir", OUTPUT_DIR,
         ]
+        if custom_keywords:
+            cmd.extend(["--keywords", custom_keywords])
         if keywords_only:
             cmd.append("--keywords-only")
 
         platform_label = platforms if platforms != "all" else "6개 전체 플랫폼"
-        logger.info("[LeetSurvey] 수집 시작: %s (max_pages=%d)", platform_label, max_pages)
+        keyword_label = f"커스텀 {len(custom_keywords.split(','))}개" if custom_keywords else "기본 키워드"
+        logger.info("[LeetSurvey] 수집 시작: %s, 키워드: %s (max_pages=%d)",
+                     platform_label, keyword_label, max_pages)
 
         try:
             result = subprocess.run(
