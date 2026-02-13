@@ -1433,10 +1433,149 @@
 
       <!-- ═══ Dashboard View ═══ -->
       <div x-show="viewMode === 'dashboard'" x-transition.opacity.duration.200ms class="flex-1 overflow-y-auto scrollbar-thin p-6 bg-grid">
-        <div x-show="dashboard.loading" class="flex items-center justify-center h-full">
-          <div class="text-hq-muted flex items-center gap-2">
-            <svg class="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
-            대시보드 로딩 중...
+        <div class="max-w-5xl mx-auto fade-in-up">
+
+          <!-- Header -->
+          <div class="flex items-center justify-between mb-6">
+            <div>
+              <h1 class="text-xl font-bold text-white mb-1">대시보드</h1>
+              <p class="text-sm text-hq-muted">실시간 운영 현황</p>
+            </div>
+            <button @click="loadDashboard()" class="bg-hq-surface border border-hq-border rounded-lg px-3 py-1.5 text-xs text-hq-muted hover:text-hq-text transition flex items-center gap-1.5">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+              새로고침
+            </button>
+          </div>
+
+          <!-- Loading -->
+          <template x-if="!dashboard.loaded">
+            <div class="flex items-center justify-center py-20">
+              <div class="text-hq-muted flex items-center gap-2">
+                <svg class="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+                대시보드 로딩 중...
+              </div>
+            </div>
+          </template>
+
+          <!-- Content -->
+          <template x-if="dashboard.loaded">
+            <div class="space-y-6">
+
+              <!-- Summary Cards -->
+              <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                <div class="glass border border-hq-border rounded-xl p-4">
+                  <div class="text-xs text-hq-muted mb-1">오늘 작업</div>
+                  <div class="text-2xl font-bold text-white" x-text="dashboard.todayTasks"></div>
+                </div>
+                <div class="glass border border-hq-border rounded-xl p-4">
+                  <div class="text-xs text-hq-muted mb-1">완료</div>
+                  <div class="text-2xl font-bold text-hq-green" x-text="dashboard.todayCompleted"></div>
+                </div>
+                <div class="glass border border-hq-border rounded-xl p-4">
+                  <div class="text-xs text-hq-muted mb-1">실패</div>
+                  <div class="text-2xl font-bold text-hq-red" x-text="dashboard.todayFailed"></div>
+                </div>
+                <div class="glass border border-hq-border rounded-xl p-4">
+                  <div class="text-xs text-hq-muted mb-1">진행중</div>
+                  <div class="text-2xl font-bold text-hq-yellow" x-text="dashboard.runningCount"></div>
+                </div>
+              </div>
+
+              <!-- Cost & Agent Info -->
+              <div class="grid grid-cols-2 lg:grid-cols-3 gap-4">
+                <div class="glass border border-hq-border rounded-xl p-4">
+                  <div class="text-xs text-hq-muted mb-1">총 비용</div>
+                  <div class="text-lg font-bold text-hq-accent">$<span x-text="(dashboard.totalCost || 0).toFixed(2)"></span></div>
+                  <div class="text-[10px] text-hq-muted mt-1" x-text="(dashboard.totalTokens || 0).toLocaleString() + ' 토큰'"></div>
+                </div>
+                <div class="glass border border-hq-border rounded-xl p-4">
+                  <div class="text-xs text-hq-muted mb-1">에이전트</div>
+                  <div class="text-lg font-bold text-hq-cyan" x-text="(dashboard.agentCount || 0) + '명'"></div>
+                </div>
+                <div class="glass border border-hq-border rounded-xl p-4">
+                  <div class="text-xs text-hq-muted mb-1">시스템 상태</div>
+                  <div class="flex items-center gap-2">
+                    <span class="w-2.5 h-2.5 rounded-full" :class="dashboard.systemHealth === 'ok' ? 'bg-hq-green' : 'bg-hq-red'"></span>
+                    <span class="text-lg font-bold" :class="dashboard.systemHealth === 'ok' ? 'text-hq-green' : 'text-hq-red'" x-text="dashboard.systemHealth === 'ok' ? '정상' : '이상'"></span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Budget Section -->
+              <div class="glass border border-hq-border rounded-xl p-5" x-show="budget && (budget.daily_limit || budget.monthly_limit)">
+                <h3 class="text-sm font-bold text-white mb-4 flex items-center gap-2">
+                  <span class="text-hq-yellow">$</span> 예산 현황
+                </h3>
+                <div class="space-y-4">
+                  <!-- Daily Budget -->
+                  <div x-show="budget.daily_limit">
+                    <div class="flex justify-between text-xs mb-1.5">
+                      <span class="text-hq-muted">일일 예산</span>
+                      <span class="text-hq-text font-mono">$<span x-text="(budget.daily_used || 0).toFixed(2)"></span> / $<span x-text="(budget.daily_limit || 0).toFixed(2)"></span></span>
+                    </div>
+                    <div class="w-full bg-hq-bg rounded-full h-2.5">
+                      <div class="h-2.5 rounded-full transition-all duration-500"
+                           :class="(budget.daily_used / budget.daily_limit * 100) > 80 ? 'bg-hq-red' : 'bg-hq-green'"
+                           :style="'width: ' + Math.min(100, (budget.daily_used || 0) / (budget.daily_limit || 1) * 100) + '%'"></div>
+                    </div>
+                  </div>
+                  <!-- Monthly Budget -->
+                  <div x-show="budget.monthly_limit">
+                    <div class="flex justify-between text-xs mb-1.5">
+                      <span class="text-hq-muted">월간 예산</span>
+                      <span class="text-hq-text font-mono">$<span x-text="(budget.monthly_used || 0).toFixed(2)"></span> / $<span x-text="(budget.monthly_limit || 0).toFixed(2)"></span></span>
+                    </div>
+                    <div class="w-full bg-hq-bg rounded-full h-2.5">
+                      <div class="h-2.5 rounded-full transition-all duration-500"
+                           :class="(budget.monthly_used / budget.monthly_limit * 100) > 80 ? 'bg-hq-red' : 'bg-hq-accent'"
+                           :style="'width: ' + Math.min(100, (budget.monthly_used || 0) / (budget.monthly_limit || 1) * 100) + '%'"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Quality Section -->
+              <div class="glass border border-hq-border rounded-xl p-5" x-show="quality && quality.total_reviews">
+                <h3 class="text-sm font-bold text-white mb-4 flex items-center gap-2">
+                  <span class="text-hq-green">&#10003;</span> 품질 검수
+                </h3>
+                <div class="grid grid-cols-3 gap-4">
+                  <div class="text-center">
+                    <div class="text-2xl font-bold" :class="(quality.pass_rate || 0) >= 80 ? 'text-hq-green' : 'text-hq-yellow'" x-text="(quality.pass_rate || 0).toFixed(0) + '%'"></div>
+                    <div class="text-[10px] text-hq-muted">합격률</div>
+                  </div>
+                  <div class="text-center">
+                    <div class="text-2xl font-bold text-hq-text" x-text="quality.total_reviews || 0"></div>
+                    <div class="text-[10px] text-hq-muted">총 검수</div>
+                  </div>
+                  <div class="text-center">
+                    <div class="text-2xl font-bold text-hq-red" x-text="quality.failed || 0"></div>
+                    <div class="text-[10px] text-hq-muted">불합격</div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Recent Completed -->
+              <div class="glass border border-hq-border rounded-xl p-5" x-show="dashboard.recentCompleted && dashboard.recentCompleted.length > 0">
+                <h3 class="text-sm font-bold text-white mb-4">최근 완료 작업</h3>
+                <div class="space-y-2">
+                  <template x-for="task in dashboard.recentCompleted.slice(0, 8)" :key="task.task_id">
+                    <div class="flex items-center gap-3 p-2.5 bg-hq-bg/50 rounded-lg">
+                      <span class="w-2 h-2 rounded-full bg-hq-green shrink-0"></span>
+                      <div class="flex-1 min-w-0">
+                        <div class="text-sm text-hq-text truncate" x-text="task.command || task.task_id"></div>
+                      </div>
+                      <span class="text-[10px] text-hq-muted font-mono shrink-0" x-text="task.time_seconds ? task.time_seconds.toFixed(1) + '초' : ''"></span>
+                    </div>
+                  </template>
+                </div>
+              </div>
+
+            </div>
+          </template>
+
+        </div>
+      </div>
 
       <!-- ═══ Tab: 작업내역 (History) ═══ -->
       <div x-show="viewMode === 'chat' && activeTab === 'history'" x-cloak class="flex-1 flex flex-col overflow-hidden">
