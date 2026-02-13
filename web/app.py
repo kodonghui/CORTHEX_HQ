@@ -83,7 +83,7 @@ context: SharedContext | None = None
 knowledge_mgr: KnowledgeManager | None = None
 agents_cfg_raw: dict | None = None  # raw YAML config for soul editing
 task_store: TaskStore = TaskStore()
-telegram_bot: Any = None  # CorthexTelegramBot (optional)
+telegram_app: Any = None  # telegram.ext.Application (src.telegram)
 budget_manager: BudgetManager | None = None
 preset_manager: PresetManager | None = None
 oauth_manager: OAuthManager | None = None
@@ -167,28 +167,26 @@ async def startup() -> None:
 
         logger.info("CORTHEX HQ 시스템 준비 완료 (에이전트 %d명)", registry.agent_count)
 
-        # Telegram Bot (선택사항)
-        tg_token = os.getenv("TELEGRAM_BOT_TOKEN", "")
-        tg_chat_id = os.getenv("TELEGRAM_CHAT_ID", "")
-        if tg_token and tg_chat_id:
+        # 텔레그램 봇 초기화 (src.telegram 패키지 — 양방향 브릿지)
+        if os.getenv("TELEGRAM_ENABLED", "0") == "1":
             try:
-                from src.integrations.telegram_bot import CorthexTelegramBot, HAS_TELEGRAM
-                if HAS_TELEGRAM:
-                    global telegram_bot
-                    telegram_bot = CorthexTelegramBot(
-                        token=tg_token,
-                        allowed_chat_id=tg_chat_id,
-                        command_callback=_execute_command_for_api,
-                    )
-                    async def _start_telegram():
-                        try:
-                            await telegram_bot.start()
-                        except Exception as exc:
-                            logger.error("텔레그램 봇 시작 실패: %s", exc, exc_info=True)
-                    asyncio.create_task(_start_telegram())
-                    logger.info("텔레그램 봇 활성화됨 (chat_id=%s)", tg_chat_id)
+                from src.telegram.bot import create_bot
+                global telegram_app
+                telegram_app = await create_bot(
+                    orchestrator=orchestrator,
+                    ws_manager=ws_manager,
+                    model_router=model_router,
+                    registry=registry,
+                )
+                await telegram_app.initialize()
+                await telegram_app.start()
+                asyncio.create_task(telegram_app.updater.start_polling(drop_pending_updates=True))
+                logger.info("텔레그램 봇 시작 완료 (src.telegram)")
             except Exception as e:
-                logger.warning("텔레그램 봇 초기화 실패: %s", e)
+                logger.error("텔레그램 봇 시작 실패 (웹 서버는 계속 동작): %s", e)
+                telegram_app = None
+        else:
+            logger.info("텔레그램 봇 비활성화 (TELEGRAM_ENABLED=0)")
 
     except Exception as e:
         logger.error("시스템 초기화 실패: %s", e, exc_info=True)
@@ -206,6 +204,14 @@ async def startup() -> None:
 @app.on_event("shutdown")
 async def shutdown() -> None:
     """Clean up resources on server shutdown."""
+    if telegram_app:
+        try:
+            await telegram_app.updater.stop()
+            await telegram_app.stop()
+            await telegram_app.shutdown()
+            logger.info("텔레그램 봇 종료 완료")
+        except Exception as e:
+            logger.warning("텔레그램 봇 종료 중 오류 (무시): %s", e)
     if model_router:
         await model_router.close()
     logger.info("CORTHEX HQ 시스템 종료")
@@ -236,6 +242,15 @@ async def _handle_message_event(msg: Message) -> None:
             )
         # 중간 보고서 아카이브 저장
         _archive_agent_report(msg)
+
+    # 텔레그램 브릿지에도 이벤트 전달
+    try:
+        from src.telegram.bot import get_bridge
+        bridge = get_bridge()
+        if bridge:
+            await bridge.on_agent_event(msg)
+    except ImportError:
+        pass
 
 
 # ─── Archive ───
