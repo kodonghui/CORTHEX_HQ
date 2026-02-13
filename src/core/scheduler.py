@@ -8,12 +8,15 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time
 import uuid
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from typing import Any, Optional, TYPE_CHECKING
 
 import yaml
+
+from src.core.task_store import TaskStatus
 
 if TYPE_CHECKING:
     from src.core.orchestrator import Orchestrator
@@ -294,12 +297,11 @@ class Scheduler:
 
             # 작업 생성
             stored = task_store.create(f"[예약] {schedule.command}")
-            stored.status = __import__("src.core.task_store", fromlist=["TaskStatus"]).TaskStatus.RUNNING
+            stored.status = TaskStatus.RUNNING
             stored.started_at = datetime.now(timezone.utc)
 
             start_cost = model_router.cost_tracker.total_cost
             start_tokens = model_router.cost_tracker.total_tokens
-            import time
             start_time = time.monotonic()
 
             try:
@@ -308,12 +310,12 @@ class Scheduler:
                 stored.result_data = str(result.result_data or result.summary)
                 stored.result_summary = result.summary
                 stored.correlation_id = result.correlation_id
-                stored.status = __import__("src.core.task_store", fromlist=["TaskStatus"]).TaskStatus.COMPLETED
+                stored.status = TaskStatus.COMPLETED
             except Exception as e:
                 stored.success = False
                 stored.result_data = str(e)
                 stored.result_summary = f"예약 실행 오류: {e}"
-                stored.status = __import__("src.core.task_store", fromlist=["TaskStatus"]).TaskStatus.FAILED
+                stored.status = TaskStatus.FAILED
                 # 에러 알림
                 await ws_manager.send_error_alert(
                     "schedule_error",

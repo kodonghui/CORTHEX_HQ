@@ -5,11 +5,15 @@ from __future__ import annotations
 
 import json
 import logging
+from datetime import datetime, timezone, timedelta
 from typing import Any
 
 from fastapi import WebSocket
 
 logger = logging.getLogger("corthex.ws")
+
+# 한국 시간대 (KST, UTC+9)
+_KST = timezone(timedelta(hours=9))
 
 
 class ConnectionManager:
@@ -51,11 +55,10 @@ class ConnectionManager:
         })
 
     async def send_activity_log(self, agent_id: str, action: str) -> None:
-        from datetime import datetime
         await self.broadcast("activity_log", {
             "agent_id": agent_id,
             "action": action,
-            "time": datetime.now().strftime("%H:%M:%S"),
+            "time": datetime.now(_KST).strftime("%H:%M:%S"),
         })
 
     async def send_cost_update(self, total_cost: float, total_tokens: int) -> None:
@@ -68,10 +71,9 @@ class ConnectionManager:
         self, error_type: str, message: str, severity: str = "error"
     ) -> None:
         """Send error alert to all connected clients."""
-        from datetime import datetime
         await self.broadcast("error_alert", {
             "error_type": error_type,
             "message": message,
             "severity": severity,
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": datetime.now(_KST).isoformat(),
         })
