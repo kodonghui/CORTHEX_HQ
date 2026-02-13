@@ -783,8 +783,8 @@ async def update_agent_model(agent_id: str, body: ModelUpdateRequest) -> dict:
                 valid_names.append(m["name"])
         if body.model_name not in valid_names:
             return {"error": f"Unknown model: {body.model_name}"}
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning("모델 검증 중 models.yaml 읽기 실패 (무시하고 계속): %s", e)
 
     # Update in-memory YAML config
     found = False

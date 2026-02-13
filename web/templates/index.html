@@ -3434,8 +3434,14 @@
               this.availableModels.length ? Promise.resolve(this.availableModels) :
                 fetch('/api/available-models').then(r => r.json()),
             ]);
+            // 서버 에러 체크 (서버 초기화 실패 등)
+            if (agentRes.error) {
+              this.showToast('에이전트 로드 실패: ' + agentRes.error, 'error');
+              this.showAgentConfig = false;
+              return;
+            }
             this.agentConfigData = agentRes;
-            if (!this.availableModels.length) this.availableModels = modelsRes;
+            if (!this.availableModels.length && Array.isArray(modelsRes)) this.availableModels = modelsRes;
             this.agentSoulText = agentRes.system_prompt || '';
             this.agentModelSelection = agentRes.model_name || '';
             this.agentReasoningSelection = agentRes.reasoning_effort || '';
@@ -3443,7 +3449,8 @@
             const currentModel = this.availableModels.find(m => m.name === this.agentModelSelection);
             this.agentReasoningOptions = currentModel?.reasoning_levels || [];
           } catch (e) {
-            this.showToast('에이전트 정보를 불러올 수 없습니다.', 'error');
+            this.showToast('에이전트 정보를 불러올 수 없습니다: ' + (e.message || '서버 연결 실패'), 'error');
+            this.showAgentConfig = false;
           } finally {
             this.agentConfigLoading = false;
           }
@@ -3465,9 +3472,9 @@
               this.agentConfigSaveStatus = 'saved';
               this.showToast('소울이 저장되었습니다.', 'success');
             }
-          } catch {
+          } catch (e) {
             this.agentConfigSaveStatus = 'error';
-            this.showToast('소울 저장에 실패했습니다.', 'error');
+            this.showToast('소울 저장 실패: ' + (e.message || '서버 연결 오류'), 'error');
           }
           setTimeout(() => { this.agentConfigSaveStatus = ''; }, 2500);
         },
@@ -3495,9 +3502,9 @@
               this.agentConfigSaveStatus = 'saved';
               this.showToast('모델이 변경되었습니다.', 'success');
             }
-          } catch {
+          } catch (e) {
             this.agentConfigSaveStatus = 'error';
-            this.showToast('모델 변경에 실패했습니다.', 'error');
+            this.showToast('모델 변경 실패: ' + (e.message || '서버 연결 오류'), 'error');
           }
           setTimeout(() => { this.agentConfigSaveStatus = ''; }, 2500);
         },
@@ -3518,9 +3525,9 @@
               this.agentConfigSaveStatus = 'saved';
               this.showToast('추론 정도가 변경되었습니다.', 'success');
             }
-          } catch {
+          } catch (e) {
             this.agentConfigSaveStatus = 'error';
-            this.showToast('추론 정도 변경에 실패했습니다.', 'error');
+            this.showToast('추론 정도 변경 실패: ' + (e.message || '서버 연결 오류'), 'error');
           }
           setTimeout(() => { this.agentConfigSaveStatus = ''; }, 2500);
         },
