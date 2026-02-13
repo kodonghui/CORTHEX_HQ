@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>CORTHEX HQ - CEO 관제실</title>
+  <title>CORTHEX HQ - CEO Command Center</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
@@ -13,503 +13,808 @@
       theme: {
         extend: {
           colors: {
-            'hq-bg': '#0f172a',
-            'hq-panel': '#1e293b',
-            'hq-border': '#334155',
+            'hq-bg': '#0a0e1a',
+            'hq-surface': '#111827',
+            'hq-panel': '#1a2235',
+            'hq-border': '#1e2d4a',
+            'hq-border-light': '#2a3a5c',
             'hq-accent': '#3b82f6',
-            'hq-green': '#22c55e',
-            'hq-yellow': '#eab308',
+            'hq-cyan': '#06b6d4',
+            'hq-purple': '#8b5cf6',
+            'hq-green': '#10b981',
+            'hq-yellow': '#f59e0b',
             'hq-red': '#ef4444',
+            'hq-text': '#e2e8f0',
+            'hq-muted': '#64748b',
           }
         }
       }
     }
   </script>
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+    * { box-sizing: border-box; }
     body { font-family: 'Inter', sans-serif; }
-    .scrollbar-thin::-webkit-scrollbar { width: 6px; }
+    .font-mono { font-family: 'JetBrains Mono', monospace; }
+
+    /* Scrollbar */
+    .scrollbar-thin::-webkit-scrollbar { width: 5px; }
     .scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
-    .scrollbar-thin::-webkit-scrollbar-thumb { background: #475569; border-radius: 3px; }
-    .fade-in { animation: fadeIn 0.3s ease-in; }
-    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
-    @keyframes pulse-dot { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
-    .pulse-dot { animation: pulse-dot 1.5s ease-in-out infinite; }
-    .progress-bar { transition: width 0.5s ease-in-out; }
-    @keyframes float { 0%,100%{ transform: translateY(0); } 50%{ transform: translateY(-3px); } }
-    .agent-working { animation: float 2s ease-in-out infinite; }
-    .markdown-body h1 { font-size: 1.25rem; font-weight: 700; margin: 1rem 0 0.5rem; }
-    .markdown-body h2 { font-size: 1.1rem; font-weight: 600; margin: 0.8rem 0 0.4rem; }
-    .markdown-body h3 { font-size: 1rem; font-weight: 600; margin: 0.6rem 0 0.3rem; }
-    .markdown-body p { margin: 0.4rem 0; }
+    .scrollbar-thin::-webkit-scrollbar-thumb { background: #2a3a5c; border-radius: 10px; }
+    .scrollbar-thin::-webkit-scrollbar-thumb:hover { background: #3b4f7a; }
+
+    /* Animations */
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(12px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    @keyframes slideInLeft {
+      from { opacity: 0; transform: translateX(-16px); }
+      to { opacity: 1; transform: translateX(0); }
+    }
+    @keyframes pulseDot {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.85); }
+    }
+    @keyframes gradientShift {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+    @keyframes typing {
+      from { width: 0; }
+      to { width: 100%; }
+    }
+    @keyframes blink {
+      50% { border-color: transparent; }
+    }
+    @keyframes ripple {
+      0% { transform: scale(1); opacity: 0.4; }
+      100% { transform: scale(2.5); opacity: 0; }
+    }
+    @keyframes gridPulse {
+      0%, 100% { opacity: 0.03; }
+      50% { opacity: 0.06; }
+    }
+    .fade-in-up { animation: fadeInUp 0.4s ease-out; }
+    .fade-in { animation: fadeIn 0.3s ease-out; }
+    .slide-in-left { animation: slideInLeft 0.3s ease-out; }
+    .pulse-dot { animation: pulseDot 1.5s ease-in-out infinite; }
+    .progress-bar { transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1); }
+
+    /* Gradient text */
+    .gradient-text {
+      background: linear-gradient(135deg, #06b6d4, #3b82f6, #8b5cf6);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    /* Gradient border */
+    .gradient-border {
+      position: relative;
+      background: #1a2235;
+      border: 1px solid transparent;
+      background-clip: padding-box;
+    }
+    .gradient-border::before {
+      content: '';
+      position: absolute;
+      inset: -1px;
+      border-radius: inherit;
+      background: linear-gradient(135deg, #06b6d430, #3b82f630, #8b5cf630);
+      z-index: -1;
+    }
+
+    /* Glow effects */
+    .glow-cyan { box-shadow: 0 0 20px rgba(6, 182, 212, 0.15), 0 0 40px rgba(6, 182, 212, 0.05); }
+    .glow-blue { box-shadow: 0 0 20px rgba(59, 130, 246, 0.15), 0 0 40px rgba(59, 130, 246, 0.05); }
+    .glow-purple { box-shadow: 0 0 20px rgba(139, 92, 246, 0.15), 0 0 40px rgba(139, 92, 246, 0.05); }
+    .glow-accent { box-shadow: 0 0 24px rgba(59, 130, 246, 0.2); }
+
+    /* Glass effect */
+    .glass {
+      background: rgba(26, 34, 53, 0.7);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+    }
+
+    /* Background grid pattern */
+    .bg-grid {
+      background-image:
+        linear-gradient(rgba(59, 130, 246, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(59, 130, 246, 0.03) 1px, transparent 1px);
+      background-size: 40px 40px;
+      animation: gridPulse 8s ease-in-out infinite;
+    }
+
+    /* Hover transitions */
+    .hover-lift {
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .hover-lift:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+    }
+
+    /* Card hover glow */
+    .hover-glow {
+      transition: box-shadow 0.3s ease, border-color 0.3s ease;
+    }
+    .hover-glow:hover {
+      box-shadow: 0 0 24px rgba(59, 130, 246, 0.12);
+      border-color: #2a3a5c;
+    }
+
+    /* Agent avatar */
+    .agent-avatar {
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 700;
+      flex-shrink: 0;
+      transition: transform 0.15s ease;
+    }
+    .agent-avatar:hover { transform: scale(1.1); }
+
+    /* Status badge */
+    .status-badge {
+      font-size: 10px;
+      padding: 1px 6px;
+      border-radius: 4px;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+    }
+
+    /* Markdown body */
+    .markdown-body { line-height: 1.7; }
+    .markdown-body h1 { font-size: 1.25rem; font-weight: 700; margin: 1rem 0 0.5rem; color: #e2e8f0; }
+    .markdown-body h2 { font-size: 1.1rem; font-weight: 600; margin: 0.8rem 0 0.4rem; color: #cbd5e1; }
+    .markdown-body h3 { font-size: 1rem; font-weight: 600; margin: 0.6rem 0 0.3rem; color: #94a3b8; }
+    .markdown-body p { margin: 0.4rem 0; color: #cbd5e1; }
     .markdown-body ul, .markdown-body ol { margin: 0.3rem 0; padding-left: 1.5rem; }
-    .markdown-body li { margin: 0.2rem 0; }
-    .markdown-body code { background: #334155; padding: 0.15rem 0.4rem; border-radius: 0.25rem; font-size: 0.85rem; }
-    .markdown-body pre { background: #0f172a; padding: 1rem; border-radius: 0.5rem; overflow-x: auto; margin: 0.5rem 0; }
-    .markdown-body pre code { background: transparent; padding: 0; }
+    .markdown-body li { margin: 0.2rem 0; color: #cbd5e1; }
+    .markdown-body code { background: #0f172a; padding: 0.15rem 0.5rem; border-radius: 6px; font-size: 0.85rem; font-family: 'JetBrains Mono', monospace; color: #7dd3fc; border: 1px solid #1e2d4a; }
+    .markdown-body pre { background: #0a0e1a; padding: 1rem; border-radius: 10px; overflow-x: auto; margin: 0.5rem 0; border: 1px solid #1e2d4a; }
+    .markdown-body pre code { background: transparent; padding: 0; border: none; color: #e2e8f0; }
     .markdown-body table { border-collapse: collapse; width: 100%; margin: 0.5rem 0; }
-    .markdown-body th, .markdown-body td { border: 1px solid #475569; padding: 0.4rem 0.8rem; text-align: left; }
-    .markdown-body th { background: #1e293b; }
-    .desk-card { transition: all 0.2s; }
-    .desk-card:hover { transform: translateY(-2px); box-shadow: 0 4px 20px rgba(59,130,246,0.15); }
+    .markdown-body th, .markdown-body td { border: 1px solid #1e2d4a; padding: 0.5rem 0.8rem; text-align: left; }
+    .markdown-body th { background: #111827; color: #94a3b8; font-weight: 600; }
+    .markdown-body blockquote { border-left: 3px solid #3b82f6; padding-left: 1rem; margin: 0.5rem 0; color: #94a3b8; }
+    .markdown-body a { color: #60a5fa; text-decoration: underline; text-underline-offset: 2px; }
+    .markdown-body hr { border-color: #1e2d4a; margin: 1rem 0; }
+
+    /* Typing effect for welcome */
+    .typing-text {
+      overflow: hidden;
+      white-space: nowrap;
+      border-right: 2px solid #3b82f6;
+      animation: typing 2s steps(30) 0.5s forwards, blink 0.8s step-end infinite;
+      width: 0;
+    }
+
+    /* Input focus ring */
+    .input-glow:focus {
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15), 0 0 20px rgba(59, 130, 246, 0.1);
+    }
+
+    /* Activity log item */
+    .log-item {
+      transition: background 0.15s ease;
+      border-radius: 6px;
+      padding: 4px 8px;
+    }
+    .log-item:hover {
+      background: rgba(59, 130, 246, 0.05);
+    }
   </style>
 </head>
 
-<body class="bg-hq-bg text-gray-200 h-screen flex flex-col overflow-hidden"
+<body class="bg-hq-bg text-hq-text h-screen flex flex-col overflow-hidden"
       x-data="corthexApp()" x-init="init()">
 
-  <!-- Top Bar -->
-  <header class="h-14 bg-hq-panel border-b border-hq-border flex items-center justify-between px-4 shrink-0">
+  <!-- ═══ Top Bar ═══ -->
+  <header class="h-14 glass border-b border-hq-border flex items-center justify-between px-5 shrink-0 z-20">
     <div class="flex items-center gap-4">
-      <div class="text-xl font-bold tracking-wide">
-        <span class="text-hq-accent">CORTHEX</span> <span class="text-gray-400">HQ</span>
+      <!-- Logo -->
+      <div class="flex items-center gap-2.5">
+        <svg width="28" height="28" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="logoGrad" x1="0" y1="0" x2="32" y2="32">
+              <stop offset="0%" stop-color="#06b6d4"/>
+              <stop offset="50%" stop-color="#3b82f6"/>
+              <stop offset="100%" stop-color="#8b5cf6"/>
+            </linearGradient>
+          </defs>
+          <path d="M16 2L28 9V23L16 30L4 23V9L16 2Z" stroke="url(#logoGrad)" stroke-width="1.5" fill="none"/>
+          <path d="M16 6L24 10.5V21.5L16 26L8 21.5V10.5L16 6Z" stroke="url(#logoGrad)" stroke-width="1" fill="none" opacity="0.5"/>
+          <circle cx="16" cy="16" r="4" fill="url(#logoGrad)" opacity="0.8"/>
+          <circle cx="16" cy="16" r="2" fill="#0a0e1a"/>
+          <line x1="16" y1="12" x2="16" y2="6" stroke="url(#logoGrad)" stroke-width="1" opacity="0.6"/>
+          <line x1="19.5" y1="14" x2="24" y2="10.5" stroke="url(#logoGrad)" stroke-width="1" opacity="0.6"/>
+          <line x1="19.5" y1="18" x2="24" y2="21.5" stroke="url(#logoGrad)" stroke-width="1" opacity="0.6"/>
+          <line x1="16" y1="20" x2="16" y2="26" stroke="url(#logoGrad)" stroke-width="1" opacity="0.6"/>
+          <line x1="12.5" y1="18" x2="8" y2="21.5" stroke="url(#logoGrad)" stroke-width="1" opacity="0.6"/>
+          <line x1="12.5" y1="14" x2="8" y2="10.5" stroke="url(#logoGrad)" stroke-width="1" opacity="0.6"/>
+        </svg>
+        <div>
+          <div class="text-base font-bold tracking-wide gradient-text">CORTHEX</div>
+        </div>
       </div>
-      <span class="text-xs text-gray-500 border border-hq-border rounded px-2 py-0.5">v0.4.0</span>
-
-      <!-- Tab Navigation -->
-      <nav class="flex items-center gap-1 ml-4">
-        <button @click="currentTab = 'command'"
-                :class="currentTab === 'command' ? 'bg-hq-accent/20 text-hq-accent border-hq-accent' : 'text-gray-400 border-transparent hover:text-gray-300'"
-                class="text-sm px-3 py-1.5 rounded-lg border transition font-medium">
-          관제실
-        </button>
-        <button @click="currentTab = 'office'; loadOfficeData()"
-                :class="currentTab === 'office' ? 'bg-hq-accent/20 text-hq-accent border-hq-accent' : 'text-gray-400 border-transparent hover:text-gray-300'"
-                class="text-sm px-3 py-1.5 rounded-lg border transition font-medium">
-          사무실
-        </button>
-        <button @click="currentTab = 'knowledge'; loadKnowledge()"
-                :class="currentTab === 'knowledge' ? 'bg-hq-accent/20 text-hq-accent border-hq-accent' : 'text-gray-400 border-transparent hover:text-gray-300'"
-                class="text-sm px-3 py-1.5 rounded-lg border transition font-medium">
-          지식관리
-        </button>
-        <button @click="currentTab = 'tasks'; loadTasks()"
-                :class="currentTab === 'tasks' ? 'bg-hq-accent/20 text-hq-accent border-hq-accent' : 'text-gray-400 border-transparent hover:text-gray-300'"
-                class="text-sm px-3 py-1.5 rounded-lg border transition font-medium">
-          작업내역
-          <span x-show="runningTaskCount > 0"
-                class="ml-1 bg-hq-yellow text-black text-[10px] rounded-full px-1.5 py-0.5 font-bold"
-                x-text="runningTaskCount"></span>
-        </button>
-        <button @click="currentTab = 'archive'; loadFullArchive()"
-                :class="currentTab === 'archive' ? 'bg-hq-accent/20 text-hq-accent border-hq-accent' : 'text-gray-400 border-transparent hover:text-gray-300'"
-                class="text-sm px-3 py-1.5 rounded-lg border transition font-medium">
-          아카이브
-        </button>
-      </nav>
+      <div class="flex items-center gap-2">
+        <span class="text-[10px] font-mono text-hq-muted bg-hq-surface border border-hq-border rounded-md px-2 py-0.5">v0.3.0</span>
+        <span class="text-[10px] font-mono text-hq-cyan/60 bg-hq-cyan/5 border border-hq-cyan/20 rounded-md px-2 py-0.5">CEO MODE</span>
+      </div>
     </div>
 
-    <div class="flex items-center gap-6">
-      <div class="flex items-center gap-2 text-sm">
+    <div class="flex items-center gap-5">
+      <!-- System Status -->
+      <div class="flex items-center gap-2">
         <template x-if="systemStatus === 'idle'">
-          <span class="flex items-center gap-1.5">
+          <div class="flex items-center gap-2 bg-hq-green/10 border border-hq-green/20 rounded-lg px-3 py-1">
             <span class="w-2 h-2 rounded-full bg-hq-green"></span>
-            <span class="text-gray-400">대기중</span>
-          </span>
+            <span class="text-xs font-medium text-hq-green">READY</span>
+          </div>
         </template>
         <template x-if="systemStatus === 'working'">
-          <span class="flex items-center gap-1.5">
+          <div class="flex items-center gap-2 bg-hq-yellow/10 border border-hq-yellow/20 rounded-lg px-3 py-1">
             <span class="w-2 h-2 rounded-full bg-hq-yellow pulse-dot"></span>
-            <span class="text-hq-yellow">처리중</span>
-          </span>
+            <span class="text-xs font-medium text-hq-yellow">PROCESSING</span>
+          </div>
         </template>
         <template x-if="systemStatus === 'error'">
-          <span class="flex items-center gap-1.5">
+          <div class="flex items-center gap-2 bg-hq-red/10 border border-hq-red/20 rounded-lg px-3 py-1">
             <span class="w-2 h-2 rounded-full bg-hq-red"></span>
-            <span class="text-hq-red">오류</span>
-          </span>
+            <span class="text-xs font-medium text-hq-red">ERROR</span>
+          </div>
         </template>
       </div>
-      <div class="text-sm text-gray-400">
-        <span class="text-gray-500">비용</span>
-        <span class="text-hq-green font-mono ml-1" x-text="'$' + totalCost.toFixed(4)"></span>
+
+      <!-- Metrics -->
+      <div class="flex items-center gap-4">
+        <div class="flex items-center gap-1.5">
+          <svg class="w-3.5 h-3.5 text-hq-green/60" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          <span class="text-xs font-mono text-hq-green" x-text="'$' + totalCost.toFixed(4)"></span>
+        </div>
+        <div class="flex items-center gap-1.5">
+          <svg class="w-3.5 h-3.5 text-hq-purple/60" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/></svg>
+          <span class="text-xs font-mono text-hq-text/70" x-text="totalTokens.toLocaleString()"></span>
+        </div>
       </div>
-      <div class="text-sm text-gray-400">
-        <span class="text-gray-500">토큰</span>
-        <span class="font-mono ml-1" x-text="totalTokens.toLocaleString()"></span>
-      </div>
-      <div class="flex items-center gap-1.5 text-xs cursor-pointer" :class="wsConnected ? 'text-hq-green' : 'text-hq-red'"
-           @click="if(!wsConnected) { connectWebSocket(); }"
-           :title="wsConnected ? '서버 연결 정상' : '클릭하여 재연결 시도'">
+
+      <!-- Connection -->
+      <div class="flex items-center gap-1.5" :class="wsConnected ? 'text-hq-green' : 'text-hq-red'">
         <span class="w-1.5 h-1.5 rounded-full" :class="wsConnected ? 'bg-hq-green' : 'bg-hq-red'"></span>
-        <span x-text="wsConnected ? '연결됨' : '연결 끊김 (클릭: 재연결)'"></span>
+        <span class="text-[11px] font-mono" x-text="wsConnected ? 'LIVE' : 'OFFLINE'"></span>
       </div>
     </div>
   </header>
 
-  <!-- ═══════════════════════════════════════════ -->
-  <!--  TAB 1: 관제실 (Command Center)            -->
-  <!-- ═══════════════════════════════════════════ -->
-  <div x-show="currentTab === 'command'" class="flex flex-1 overflow-hidden">
+  <!-- ═══ Main Layout ═══ -->
+  <div class="flex flex-1 overflow-hidden">
 
-    <!-- Left Panel: Org Tree + Activity Log -->
-    <aside class="w-72 bg-hq-panel border-r border-hq-border flex flex-col shrink-0">
-      <div class="flex-1 overflow-y-auto scrollbar-thin p-3">
-        <div class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 px-1">조직도</div>
+    <!-- ═══ Left Panel: Organization ═══ -->
+    <aside class="w-[280px] bg-hq-surface border-r border-hq-border flex flex-col shrink-0">
+
+      <!-- Org Tree -->
+      <div class="flex-1 overflow-y-auto scrollbar-thin p-3 space-y-1">
+        <div class="flex items-center justify-between px-2 mb-3">
+          <div class="text-[10px] font-bold text-hq-muted uppercase tracking-[0.15em]">Organization</div>
+          <div class="text-[10px] font-mono text-hq-muted" x-text="'25 agents'"></div>
+        </div>
 
         <!-- CEO -->
-        <div class="mb-1">
-          <div class="flex items-center gap-2 px-2 py-1.5 rounded text-sm font-semibold text-white">
-            <span class="text-lg">👤</span> CEO (동희 님)
+        <div class="mb-2">
+          <div class="flex items-center gap-2.5 px-2 py-2 rounded-lg bg-gradient-to-r from-hq-accent/10 to-hq-purple/10 border border-hq-accent/20">
+            <div class="agent-avatar bg-gradient-to-br from-hq-accent to-hq-purple text-white">
+              CEO
+            </div>
+            <div>
+              <div class="text-sm font-semibold text-white">CEO</div>
+              <div class="text-[10px] text-hq-muted">Command Center</div>
+            </div>
           </div>
         </div>
 
         <!-- 비서실 -->
-        <div class="ml-2 mb-1">
+        <div class="mb-1">
           <button @click="toggleSection('secretary')"
-                  class="flex items-center gap-2 px-2 py-1 rounded hover:bg-white/5 w-full text-left text-sm">
-            <span class="text-xs text-gray-500" x-text="expanded.secretary ? '▼' : '▶'"></span>
-            <span class="text-yellow-400">📋</span>
-            <span>비서실</span>
-            <span class="ml-auto text-xs" :class="getSectionStatusColor('secretary')"
+                  class="flex items-center gap-2.5 px-2 py-1.5 rounded-lg hover:bg-white/[0.03] w-full text-left transition-colors group">
+            <span class="text-[10px] text-hq-muted transition-transform duration-200" :class="expanded.secretary ? 'rotate-90' : ''" >&#9654;</span>
+            <div class="agent-avatar bg-hq-yellow/20 text-hq-yellow text-[10px]">BS</div>
+            <div class="flex-1">
+              <span class="text-sm text-hq-text/90">비서실</span>
+            </div>
+            <span class="status-badge" :class="getSectionBadgeClass('secretary')"
                   x-text="getSectionStatusText('secretary')"></span>
           </button>
-          <div x-show="expanded.secretary" x-collapse class="ml-6 space-y-0.5">
-            <template x-for="id in ['chief_of_staff','report_worker','schedule_worker','relay_worker']" :key="id">
-              <div class="flex items-center gap-2 px-2 py-0.5 rounded text-xs text-gray-400 hover:bg-white/5 cursor-pointer"
-                   @click="currentTab='office'; selectAgent(id)">
-                <span class="w-1.5 h-1.5 rounded-full" :class="getAgentDotClass(id)"></span>
-                <span x-text="getAgentName(id)"></span>
+          <div x-show="expanded.secretary" x-collapse class="ml-10 space-y-0.5 mt-1">
+            <template x-for="id in ['chief_of_staff', 'report_worker', 'schedule_worker', 'relay_worker']" :key="id">
+              <div class="flex items-center gap-2 px-2 py-1 rounded-md hover:bg-white/[0.02] transition-colors">
+                <span class="w-1.5 h-1.5 rounded-full transition-colors" :class="getAgentDotClass(id)"></span>
+                <span class="text-xs text-hq-muted" x-text="getAgentName(id)"></span>
+                <span x-show="activeAgents[id]?.status === 'working'"
+                      class="ml-auto text-[9px] font-mono text-hq-yellow"
+                      x-text="Math.round((activeAgents[id]?.progress || 0) * 100) + '%'"></span>
               </div>
             </template>
           </div>
         </div>
 
         <!-- LEET Master 본부 -->
-        <div class="ml-2 mb-1">
+        <div class="mb-1">
           <button @click="toggleSection('leet_master')"
-                  class="flex items-center gap-2 px-2 py-1 rounded hover:bg-white/5 w-full text-left text-sm">
-            <span class="text-xs text-gray-500" x-text="expanded.leet_master ? '▼' : '▶'"></span>
-            <span class="text-cyan-400">🏗️</span>
-            <span class="text-cyan-400 font-medium">LEET Master 본부</span>
-            <span class="ml-auto text-xs" :class="getSectionStatusColor('leet_master')"
+                  class="flex items-center gap-2.5 px-2 py-1.5 rounded-lg hover:bg-white/[0.03] w-full text-left transition-colors group">
+            <span class="text-[10px] text-hq-muted transition-transform duration-200" :class="expanded.leet_master ? 'rotate-90' : ''">&#9654;</span>
+            <div class="agent-avatar bg-hq-cyan/20 text-hq-cyan text-[10px]">LM</div>
+            <div class="flex-1">
+              <span class="text-sm font-semibold text-hq-cyan">LEET Master</span>
+            </div>
+            <span class="status-badge" :class="getSectionBadgeClass('leet_master')"
                   x-text="getSectionStatusText('leet_master')"></span>
           </button>
-          <div x-show="expanded.leet_master" x-collapse>
+          <div x-show="expanded.leet_master" x-collapse class="space-y-0.5 mt-1">
 
-            <!-- CTO -->
-            <div class="ml-4 mb-1">
+            <!-- 기술개발처 CTO -->
+            <div class="ml-5 mb-1">
               <button @click="toggleSection('tech')"
-                      class="flex items-center gap-2 px-2 py-1 rounded hover:bg-white/5 w-full text-left text-sm">
-                <span class="text-xs text-gray-500" x-text="expanded.tech ? '▼' : '▶'"></span>
-                <span class="w-1.5 h-1.5 rounded-full" :class="getAgentDotClass('cto_manager')"></span>
-                <span class="text-cyan-400">기술개발처 (CTO)</span>
+                      class="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-white/[0.03] w-full text-left transition-colors">
+                <span class="text-[10px] text-hq-muted transition-transform duration-200" :class="expanded.tech ? 'rotate-90' : ''">&#9654;</span>
+                <div class="agent-avatar bg-hq-cyan/15 text-hq-cyan text-[9px]" :class="getAgentDotClass('cto_manager').includes('pulse') ? 'ring-1 ring-hq-green ring-offset-1 ring-offset-hq-surface' : ''">
+                  CTO
+                </div>
+                <span class="text-xs text-hq-text/80">기술개발처</span>
+                <span class="ml-auto status-badge" :class="getSectionBadgeClass('tech')"
+                      x-text="getSectionStatusText('tech')"></span>
               </button>
-              <div x-show="expanded.tech" x-collapse class="ml-6 space-y-0.5">
-                <template x-for="id in ['cto_manager','frontend_specialist','backend_specialist','infra_specialist','ai_model_specialist']" :key="id">
-                  <div class="flex items-center gap-2 px-2 py-0.5 text-xs text-gray-400 hover:bg-white/5 cursor-pointer rounded"
-                       @click="currentTab='office'; selectAgent(id)">
-                    <span class="w-1.5 h-1.5 rounded-full" :class="getAgentDotClass(id)"></span>
-                    <span x-text="getAgentName(id)"></span>
+              <div x-show="expanded.tech" x-collapse class="ml-10 space-y-0.5 mt-1">
+                <template x-for="id in ['frontend_specialist','backend_specialist','infra_specialist','ai_model_specialist']" :key="id">
+                  <div class="flex items-center gap-2 px-2 py-1 rounded-md hover:bg-white/[0.02] transition-colors">
+                    <span class="w-1.5 h-1.5 rounded-full transition-colors" :class="getAgentDotClass(id)"></span>
+                    <span class="text-xs text-hq-muted" x-text="getAgentName(id)"></span>
+                    <span x-show="activeAgents[id]?.status === 'working'"
+                          class="ml-auto text-[9px] font-mono text-hq-yellow"
+                          x-text="Math.round((activeAgents[id]?.progress || 0) * 100) + '%'"></span>
                   </div>
                 </template>
               </div>
             </div>
 
-            <!-- CSO -->
-            <div class="ml-4 mb-1">
+            <!-- 사업기획처 CSO -->
+            <div class="ml-5 mb-1">
               <button @click="toggleSection('strategy')"
-                      class="flex items-center gap-2 px-2 py-1 rounded hover:bg-white/5 w-full text-left text-sm">
-                <span class="text-xs text-gray-500" x-text="expanded.strategy ? '▼' : '▶'"></span>
-                <span class="w-1.5 h-1.5 rounded-full" :class="getAgentDotClass('cso_manager')"></span>
-                <span class="text-cyan-400">사업기획처 (CSO)</span>
+                      class="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-white/[0.03] w-full text-left transition-colors">
+                <span class="text-[10px] text-hq-muted transition-transform duration-200" :class="expanded.strategy ? 'rotate-90' : ''">&#9654;</span>
+                <div class="agent-avatar bg-hq-cyan/15 text-hq-cyan text-[9px]">CSO</div>
+                <span class="text-xs text-hq-text/80">사업기획처</span>
+                <span class="ml-auto status-badge" :class="getSectionBadgeClass('strategy')"
+                      x-text="getSectionStatusText('strategy')"></span>
               </button>
-              <div x-show="expanded.strategy" x-collapse class="ml-6 space-y-0.5">
-                <template x-for="id in ['cso_manager','market_research_specialist','business_plan_specialist','financial_model_specialist']" :key="id">
-                  <div class="flex items-center gap-2 px-2 py-0.5 text-xs text-gray-400 hover:bg-white/5 cursor-pointer rounded"
-                       @click="currentTab='office'; selectAgent(id)">
-                    <span class="w-1.5 h-1.5 rounded-full" :class="getAgentDotClass(id)"></span>
-                    <span x-text="getAgentName(id)"></span>
+              <div x-show="expanded.strategy" x-collapse class="ml-10 space-y-0.5 mt-1">
+                <template x-for="id in ['market_research_specialist','business_plan_specialist','financial_model_specialist']" :key="id">
+                  <div class="flex items-center gap-2 px-2 py-1 rounded-md hover:bg-white/[0.02] transition-colors">
+                    <span class="w-1.5 h-1.5 rounded-full transition-colors" :class="getAgentDotClass(id)"></span>
+                    <span class="text-xs text-hq-muted" x-text="getAgentName(id)"></span>
+                    <span x-show="activeAgents[id]?.status === 'working'"
+                          class="ml-auto text-[9px] font-mono text-hq-yellow"
+                          x-text="Math.round((activeAgents[id]?.progress || 0) * 100) + '%'"></span>
                   </div>
                 </template>
               </div>
             </div>
 
-            <!-- CLO -->
-            <div class="ml-4 mb-1">
+            <!-- 법무 IP처 CLO -->
+            <div class="ml-5 mb-1">
               <button @click="toggleSection('legal')"
-                      class="flex items-center gap-2 px-2 py-1 rounded hover:bg-white/5 w-full text-left text-sm">
-                <span class="text-xs text-gray-500" x-text="expanded.legal ? '▼' : '▶'"></span>
-                <span class="w-1.5 h-1.5 rounded-full" :class="getAgentDotClass('clo_manager')"></span>
-                <span class="text-cyan-400">법무·IP처 (CLO)</span>
+                      class="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-white/[0.03] w-full text-left transition-colors">
+                <span class="text-[10px] text-hq-muted transition-transform duration-200" :class="expanded.legal ? 'rotate-90' : ''">&#9654;</span>
+                <div class="agent-avatar bg-hq-cyan/15 text-hq-cyan text-[9px]">CLO</div>
+                <span class="text-xs text-hq-text/80">법무 IP처</span>
+                <span class="ml-auto status-badge" :class="getSectionBadgeClass('legal')"
+                      x-text="getSectionStatusText('legal')"></span>
               </button>
-              <div x-show="expanded.legal" x-collapse class="ml-6 space-y-0.5">
-                <template x-for="id in ['clo_manager','copyright_specialist','patent_specialist']" :key="id">
-                  <div class="flex items-center gap-2 px-2 py-0.5 text-xs text-gray-400 hover:bg-white/5 cursor-pointer rounded"
-                       @click="currentTab='office'; selectAgent(id)">
-                    <span class="w-1.5 h-1.5 rounded-full" :class="getAgentDotClass(id)"></span>
-                    <span x-text="getAgentName(id)"></span>
+              <div x-show="expanded.legal" x-collapse class="ml-10 space-y-0.5 mt-1">
+                <template x-for="id in ['copyright_specialist','patent_specialist']" :key="id">
+                  <div class="flex items-center gap-2 px-2 py-1 rounded-md hover:bg-white/[0.02] transition-colors">
+                    <span class="w-1.5 h-1.5 rounded-full transition-colors" :class="getAgentDotClass(id)"></span>
+                    <span class="text-xs text-hq-muted" x-text="getAgentName(id)"></span>
+                    <span x-show="activeAgents[id]?.status === 'working'"
+                          class="ml-auto text-[9px] font-mono text-hq-yellow"
+                          x-text="Math.round((activeAgents[id]?.progress || 0) * 100) + '%'"></span>
                   </div>
                 </template>
               </div>
             </div>
 
-            <!-- CMO -->
-            <div class="ml-4 mb-1">
+            <!-- 마케팅 고객처 CMO -->
+            <div class="ml-5 mb-1">
               <button @click="toggleSection('marketing')"
-                      class="flex items-center gap-2 px-2 py-1 rounded hover:bg-white/5 w-full text-left text-sm">
-                <span class="text-xs text-gray-500" x-text="expanded.marketing ? '▼' : '▶'"></span>
-                <span class="w-1.5 h-1.5 rounded-full" :class="getAgentDotClass('cmo_manager')"></span>
-                <span class="text-cyan-400">마케팅·고객처 (CMO)</span>
+                      class="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-white/[0.03] w-full text-left transition-colors">
+                <span class="text-[10px] text-hq-muted transition-transform duration-200" :class="expanded.marketing ? 'rotate-90' : ''">&#9654;</span>
+                <div class="agent-avatar bg-hq-cyan/15 text-hq-cyan text-[9px]">CMO</div>
+                <span class="text-xs text-hq-text/80">마케팅 고객처</span>
+                <span class="ml-auto status-badge" :class="getSectionBadgeClass('marketing')"
+                      x-text="getSectionStatusText('marketing')"></span>
               </button>
-              <div x-show="expanded.marketing" x-collapse class="ml-6 space-y-0.5">
-                <template x-for="id in ['cmo_manager','survey_specialist','content_specialist','community_specialist']" :key="id">
-                  <div class="flex items-center gap-2 px-2 py-0.5 text-xs text-gray-400 hover:bg-white/5 cursor-pointer rounded"
-                       @click="currentTab='office'; selectAgent(id)">
-                    <span class="w-1.5 h-1.5 rounded-full" :class="getAgentDotClass(id)"></span>
-                    <span x-text="getAgentName(id)"></span>
+              <div x-show="expanded.marketing" x-collapse class="ml-10 space-y-0.5 mt-1">
+                <template x-for="id in ['survey_specialist','content_specialist','community_specialist']" :key="id">
+                  <div class="flex items-center gap-2 px-2 py-1 rounded-md hover:bg-white/[0.02] transition-colors">
+                    <span class="w-1.5 h-1.5 rounded-full transition-colors" :class="getAgentDotClass(id)"></span>
+                    <span class="text-xs text-hq-muted" x-text="getAgentName(id)"></span>
+                    <span x-show="activeAgents[id]?.status === 'working'"
+                          class="ml-auto text-[9px] font-mono text-hq-yellow"
+                          x-text="Math.round((activeAgents[id]?.progress || 0) * 100) + '%'"></span>
                   </div>
                 </template>
               </div>
             </div>
+
           </div>
         </div>
 
         <!-- 투자분석 본부 -->
-        <div class="ml-2 mb-1">
+        <div class="mb-1">
           <button @click="toggleSection('investment')"
-                  class="flex items-center gap-2 px-2 py-1 rounded hover:bg-white/5 w-full text-left text-sm">
-            <span class="text-xs text-gray-500" x-text="expanded.investment ? '▼' : '▶'"></span>
-            <span class="text-purple-400">📊</span>
-            <span class="text-purple-400 font-medium">투자분석 본부</span>
-          </button>
-          <div x-show="expanded.investment" x-collapse>
-            <div class="ml-4 mb-1">
-              <button @click="toggleSection('finance')"
-                      class="flex items-center gap-2 px-2 py-1 rounded hover:bg-white/5 w-full text-left text-sm">
-                <span class="text-xs text-gray-500" x-text="expanded.finance ? '▼' : '▶'"></span>
-                <span class="w-1.5 h-1.5 rounded-full" :class="getAgentDotClass('cio_manager')"></span>
-                <span class="text-purple-400">투자분석처 (CIO)</span>
-              </button>
-              <div x-show="expanded.finance" x-collapse class="ml-6 space-y-0.5">
-                <template x-for="id in ['cio_manager','market_condition_specialist','stock_analysis_specialist','technical_analysis_specialist','risk_management_specialist']" :key="id">
-                  <div class="flex items-center gap-2 px-2 py-0.5 text-xs text-gray-400 hover:bg-white/5 cursor-pointer rounded"
-                       @click="currentTab='office'; selectAgent(id)">
-                    <span class="w-1.5 h-1.5 rounded-full" :class="getAgentDotClass(id)"></span>
-                    <span x-text="getAgentName(id)"></span>
-                  </div>
-                </template>
-              </div>
+                  class="flex items-center gap-2.5 px-2 py-1.5 rounded-lg hover:bg-white/[0.03] w-full text-left transition-colors group">
+            <span class="text-[10px] text-hq-muted transition-transform duration-200" :class="expanded.investment ? 'rotate-90' : ''">&#9654;</span>
+            <div class="agent-avatar bg-hq-purple/20 text-hq-purple text-[10px]">FN</div>
+            <div class="flex-1">
+              <span class="text-sm font-semibold text-hq-purple">투자분석</span>
             </div>
-          </div>
-        </div>
+            <span class="status-badge" :class="getSectionBadgeClass('investment')"
+                  x-text="getSectionStatusText('investment')"></span>
+          </button>
+          <div x-show="expanded.investment" x-collapse class="space-y-0.5 mt-1">
 
-        <!-- 출판·기록 본부 -->
-        <div class="ml-2 mb-1">
-          <button @click="toggleSection('publishing_hq')"
-                  class="flex items-center gap-2 px-2 py-1 rounded hover:bg-white/5 w-full text-left text-sm">
-            <span class="text-xs text-gray-500" x-text="expanded.publishing_hq ? '▼' : '▶'"></span>
-            <span class="text-amber-400">📚</span>
-            <span class="text-amber-400 font-medium">출판·기록 본부</span>
-            <span class="ml-auto text-xs" :class="getSectionStatusColor('publishing_hq')"
-                  x-text="getSectionStatusText('publishing_hq')"></span>
-          </button>
-          <div x-show="expanded.publishing_hq" x-collapse>
-            <div class="ml-4 mb-1">
-              <button @click="toggleSection('publishing')"
-                      class="flex items-center gap-2 px-2 py-1 rounded hover:bg-white/5 w-full text-left text-sm">
-                <span class="text-xs text-gray-500" x-text="expanded.publishing ? '▼' : '▶'"></span>
-                <span class="w-1.5 h-1.5 rounded-full" :class="getAgentDotClass('cpo_manager')"></span>
-                <span class="text-amber-400">출판·기록처 (CPO)</span>
+            <!-- 투자분석처 CIO -->
+            <div class="ml-5 mb-1">
+              <button @click="toggleSection('finance')"
+                      class="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-white/[0.03] w-full text-left transition-colors">
+                <span class="text-[10px] text-hq-muted transition-transform duration-200" :class="expanded.finance ? 'rotate-90' : ''">&#9654;</span>
+                <div class="agent-avatar bg-hq-purple/15 text-hq-purple text-[9px]">CIO</div>
+                <span class="text-xs text-hq-text/80">투자분석처</span>
+                <span class="ml-auto status-badge" :class="getSectionBadgeClass('finance')"
+                      x-text="getSectionStatusText('finance')"></span>
               </button>
-              <div x-show="expanded.publishing" x-collapse class="ml-6 space-y-0.5">
-                <template x-for="id in ['cpo_manager','chronicle_specialist','editor_specialist','archive_specialist']" :key="id">
-                  <div class="flex items-center gap-2 px-2 py-0.5 text-xs text-gray-400 hover:bg-white/5 cursor-pointer rounded"
-                       @click="currentTab='office'; selectAgent(id)">
-                    <span class="w-1.5 h-1.5 rounded-full" :class="getAgentDotClass(id)"></span>
-                    <span x-text="getAgentName(id)"></span>
+              <div x-show="expanded.finance" x-collapse class="ml-10 space-y-0.5 mt-1">
+                <template x-for="id in ['market_condition_specialist','stock_analysis_specialist','technical_analysis_specialist','risk_management_specialist']" :key="id">
+                  <div class="flex items-center gap-2 px-2 py-1 rounded-md hover:bg-white/[0.02] transition-colors">
+                    <span class="w-1.5 h-1.5 rounded-full transition-colors" :class="getAgentDotClass(id)"></span>
+                    <span class="text-xs text-hq-muted" x-text="getAgentName(id)"></span>
+                    <template x-if="id !== 'risk_management_specialist'">
+                      <span class="text-[9px] font-mono text-hq-cyan/40 ml-auto">PARALLEL</span>
+                    </template>
+                    <template x-if="id === 'risk_management_specialist'">
+                      <span class="text-[9px] font-mono text-hq-purple/40 ml-auto">SEQ</span>
+                    </template>
                   </div>
                 </template>
               </div>
             </div>
+
           </div>
         </div>
 
         <!-- Tool Pool -->
-        <div class="ml-2 mb-1">
+        <div class="mb-1">
           <button @click="toggleSection('tools')"
-                  class="flex items-center gap-2 px-2 py-1 rounded hover:bg-white/5 w-full text-left text-sm">
-            <span class="text-xs text-gray-500" x-text="expanded.tools ? '▼' : '▶'"></span>
-            <span class="text-red-400">🔧</span>
-            <span>AgentTool Pool</span>
+                  class="flex items-center gap-2.5 px-2 py-1.5 rounded-lg hover:bg-white/[0.03] w-full text-left transition-colors group">
+            <span class="text-[10px] text-hq-muted transition-transform duration-200" :class="expanded.tools ? 'rotate-90' : ''">&#9654;</span>
+            <div class="agent-avatar bg-hq-red/15 text-hq-red text-[10px]">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+            </div>
+            <span class="text-sm text-hq-text/70">Tool Pool</span>
+            <span class="text-[10px] font-mono text-hq-muted ml-auto">5</span>
           </button>
-          <div x-show="expanded.tools" x-collapse class="ml-6 space-y-0.5">
-            <template x-for="t in ['변리사','세무사','디자이너','번역가','웹검색','SNS 발행기']" :key="t">
-              <div class="flex items-center gap-2 px-2 py-0.5 text-xs text-gray-500">
-                <span class="w-1.5 h-1.5 rounded-full bg-gray-600"></span>
-                <span x-text="t + ' Tool'"></span>
+          <div x-show="expanded.tools" x-collapse class="ml-10 space-y-0.5 mt-1">
+            <template x-for="t in [{n:'변리사', c:'text-amber-400'}, {n:'세무사', c:'text-emerald-400'}, {n:'디자이너', c:'text-pink-400'}, {n:'번역가', c:'text-sky-400'}, {n:'웹검색', c:'text-orange-400'}]" :key="t.n">
+              <div class="flex items-center gap-2 px-2 py-1 rounded-md hover:bg-white/[0.02] transition-colors">
+                <span class="w-1.5 h-1.5 rounded-full bg-hq-muted/50"></span>
+                <span class="text-xs text-hq-muted" :class="t.c" x-text="t.n"></span>
+                <span class="text-[9px] text-hq-muted/50 ml-auto">TOOL</span>
               </div>
             </template>
-          </div>
-        </div>
-      </div>
-
-      <!-- SNS 연동 상태 -->
-      <div class="border-t border-hq-border px-3 py-2 shrink-0">
-        <div class="text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-1.5">SNS 연동</div>
-        <div class="space-y-1">
-          <div class="flex items-center justify-between text-[10px]">
-            <span class="text-gray-400">Instagram</span>
-            <span :class="snsStatus.instagram?.enabled ? 'text-hq-green' : 'text-gray-600'"
-                  x-text="snsStatus.instagram?.enabled ? (snsStatus.instagram?.configured ? '연결됨' : '키 미설정') : '미연동'"></span>
-          </div>
-          <div class="flex items-center justify-between text-[10px]">
-            <span class="text-gray-400">YouTube</span>
-            <span :class="snsStatus.youtube?.enabled ? 'text-hq-green' : 'text-gray-600'"
-                  x-text="snsStatus.youtube?.enabled ? (snsStatus.youtube?.configured ? '연결됨' : '키 미설정') : '미연동'"></span>
           </div>
         </div>
       </div>
 
       <!-- Activity Log -->
-      <div class="h-48 border-t border-hq-border shrink-0">
-        <div class="text-xs font-semibold text-gray-500 uppercase tracking-wider px-3 pt-2 pb-1">활동 로그</div>
-        <div class="overflow-y-auto scrollbar-thin h-36 px-3 space-y-1">
-          <template x-for="(log, i) in activityLogs.slice(-30).reverse()" :key="i">
-            <div class="text-[11px] text-gray-500 fade-in">
-              <span class="text-gray-600 font-mono" x-text="log.time"></span>
-              <span class="text-gray-400" x-text="log.agent_id"></span>
-              <span x-text="log.action"></span>
-            </div>
-          </template>
-          <template x-if="activityLogs.length === 0">
-            <div class="text-[11px] text-gray-600 italic">아직 활동이 없습니다</div>
-          </template>
+      <div class="border-t border-hq-border shrink-0">
+        <button @click="logExpanded = !logExpanded"
+                class="w-full flex items-center justify-between px-4 py-2 hover:bg-white/[0.02] transition-colors">
+          <div class="flex items-center gap-2">
+            <svg class="w-3.5 h-3.5 text-hq-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+            <span class="text-[10px] font-bold text-hq-muted uppercase tracking-[0.15em]">Activity Log</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <span x-show="activityLogs.length > 0"
+                  class="text-[9px] font-mono bg-hq-accent/10 text-hq-accent px-1.5 py-0.5 rounded"
+                  x-text="activityLogs.length"></span>
+            <span class="text-[10px] text-hq-muted transition-transform duration-200"
+                  :class="logExpanded ? 'rotate-180' : ''">&#9660;</span>
+          </div>
+        </button>
+        <div x-show="logExpanded" x-collapse>
+          <div class="overflow-y-auto scrollbar-thin max-h-52 px-3 pb-3 space-y-0.5">
+            <template x-for="(log, i) in activityLogs.slice(-30).reverse()" :key="i">
+              <div class="log-item text-[11px] text-hq-muted fade-in">
+                <span class="font-mono text-hq-muted/50" x-text="log.time"></span>
+                <span class="text-hq-cyan/70 font-medium" x-text="log.agent_id"></span>
+                <span x-text="log.action"></span>
+              </div>
+            </template>
+            <template x-if="activityLogs.length === 0">
+              <div class="text-[11px] text-hq-muted/40 italic px-2 py-2">Waiting for activity...</div>
+            </template>
+          </div>
         </div>
       </div>
     </aside>
 
-    <!-- Right Panel: Chat -->
-    <main class="flex-1 flex flex-col overflow-hidden">
-      <div class="flex-1 overflow-y-auto scrollbar-thin p-6 space-y-4" x-ref="chatArea">
+    <!-- ═══ Right Panel: Chat ═══ -->
+    <main class="flex-1 flex flex-col overflow-hidden bg-hq-bg">
 
-        <!-- Welcome -->
+      <!-- Chat Messages -->
+      <div class="flex-1 overflow-y-auto scrollbar-thin p-6 space-y-4 bg-grid" id="chatArea"
+           x-ref="chatArea">
+
+        <!-- ═══ Welcome Screen ═══ -->
         <template x-if="messages.length === 0">
-          <div class="flex flex-col items-center justify-center h-full text-center">
-            <div class="text-5xl mb-4">🏢</div>
-            <h2 class="text-2xl font-bold text-white mb-2">CORTHEX HQ</h2>
-            <p class="text-gray-400 mb-6 max-w-md">
-              25명의 AI 에이전트가 대기하고 있습니다.<br>
-              한국어로 명령을 입력하세요.
+          <div class="flex flex-col items-center justify-center h-full text-center fade-in-up">
+
+            <!-- Hero Logo -->
+            <div class="mb-6 relative">
+              <svg width="72" height="72" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" class="drop-shadow-lg">
+                <defs>
+                  <linearGradient id="heroGrad" x1="0" y1="0" x2="32" y2="32">
+                    <stop offset="0%" stop-color="#06b6d4"/>
+                    <stop offset="50%" stop-color="#3b82f6"/>
+                    <stop offset="100%" stop-color="#8b5cf6"/>
+                  </linearGradient>
+                </defs>
+                <path d="M16 2L28 9V23L16 30L4 23V9L16 2Z" stroke="url(#heroGrad)" stroke-width="1.5" fill="none"/>
+                <path d="M16 6L24 10.5V21.5L16 26L8 21.5V10.5L16 6Z" stroke="url(#heroGrad)" stroke-width="1" fill="none" opacity="0.4"/>
+                <circle cx="16" cy="16" r="4" fill="url(#heroGrad)" opacity="0.8"/>
+                <circle cx="16" cy="16" r="2" fill="#0a0e1a"/>
+                <line x1="16" y1="12" x2="16" y2="6" stroke="url(#heroGrad)" stroke-width="1" opacity="0.5"/>
+                <line x1="19.5" y1="14" x2="24" y2="10.5" stroke="url(#heroGrad)" stroke-width="1" opacity="0.5"/>
+                <line x1="19.5" y1="18" x2="24" y2="21.5" stroke="url(#heroGrad)" stroke-width="1" opacity="0.5"/>
+                <line x1="16" y1="20" x2="16" y2="26" stroke="url(#heroGrad)" stroke-width="1" opacity="0.5"/>
+                <line x1="12.5" y1="18" x2="8" y2="21.5" stroke="url(#heroGrad)" stroke-width="1" opacity="0.5"/>
+                <line x1="12.5" y1="14" x2="8" y2="10.5" stroke="url(#heroGrad)" stroke-width="1" opacity="0.5"/>
+              </svg>
+              <div class="absolute inset-0 bg-hq-accent/10 rounded-full blur-3xl scale-150"></div>
+            </div>
+
+            <!-- Title -->
+            <h1 class="text-4xl font-extrabold gradient-text mb-2 tracking-tight">CORTHEX HQ</h1>
+            <p class="text-hq-muted text-sm mb-8 max-w-sm leading-relaxed">
+              AI Agent Corporation Command Center<br>
+              <span class="text-hq-text/50">25 agents across 5 divisions, ready for your command</span>
             </p>
-            <div class="flex flex-wrap gap-2 justify-center max-w-lg">
+
+            <!-- Division Summary Cards -->
+            <div class="flex gap-3 mb-8">
+              <div class="glass border border-hq-border rounded-xl px-4 py-3 hover-glow cursor-default">
+                <div class="text-lg font-bold text-hq-cyan">4</div>
+                <div class="text-[10px] text-hq-muted uppercase tracking-wider">Divisions</div>
+              </div>
+              <div class="glass border border-hq-border rounded-xl px-4 py-3 hover-glow cursor-default">
+                <div class="text-lg font-bold text-hq-accent">25</div>
+                <div class="text-[10px] text-hq-muted uppercase tracking-wider">Agents</div>
+              </div>
+              <div class="glass border border-hq-border rounded-xl px-4 py-3 hover-glow cursor-default">
+                <div class="text-lg font-bold text-hq-purple">5</div>
+                <div class="text-[10px] text-hq-muted uppercase tracking-wider">Tools</div>
+              </div>
+              <div class="glass border border-hq-border rounded-xl px-4 py-3 hover-glow cursor-default">
+                <div class="text-lg font-bold text-hq-green">2</div>
+                <div class="text-[10px] text-hq-muted uppercase tracking-wider">LLMs</div>
+              </div>
+            </div>
+
+            <!-- Preset Commands -->
+            <div class="grid grid-cols-2 gap-3 max-w-lg w-full">
               <button @click="sendPreset('LEET MASTER 서비스의 기술 스택을 제안해줘')"
-                      class="text-sm bg-hq-panel border border-hq-border rounded-lg px-4 py-2 hover:bg-white/5 text-gray-300 transition">
-                🖥️ 기술 스택 제안
+                      class="glass border border-hq-border rounded-xl px-4 py-3.5 text-left hover-lift hover-glow group">
+                <div class="flex items-center gap-2 mb-1.5">
+                  <div class="w-7 h-7 rounded-lg bg-hq-cyan/15 flex items-center justify-center">
+                    <svg class="w-4 h-4 text-hq-cyan" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/></svg>
+                  </div>
+                  <span class="text-sm font-semibold text-hq-text group-hover:text-white transition-colors">기술 스택 제안</span>
+                </div>
+                <p class="text-[11px] text-hq-muted leading-relaxed">CTO + 기술팀이 최적의 아키텍처를 설계합니다</p>
               </button>
+
               <button @click="sendPreset('삼성전자 주가를 분석해줘')"
-                      class="text-sm bg-hq-panel border border-hq-border rounded-lg px-4 py-2 hover:bg-white/5 text-gray-300 transition">
-                📊 주가 분석
+                      class="glass border border-hq-border rounded-xl px-4 py-3.5 text-left hover-lift hover-glow group">
+                <div class="flex items-center gap-2 mb-1.5">
+                  <div class="w-7 h-7 rounded-lg bg-hq-purple/15 flex items-center justify-center">
+                    <svg class="w-4 h-4 text-hq-purple" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"/></svg>
+                  </div>
+                  <span class="text-sm font-semibold text-hq-text group-hover:text-white transition-colors">주가 분석</span>
+                </div>
+                <p class="text-[11px] text-hq-muted leading-relaxed">4명의 투자분석팀이 병렬로 분석합니다</p>
               </button>
+
               <button @click="sendPreset('서비스 이용약관 초안을 만들어줘')"
-                      class="text-sm bg-hq-panel border border-hq-border rounded-lg px-4 py-2 hover:bg-white/5 text-gray-300 transition">
-                📋 이용약관 작성
+                      class="glass border border-hq-border rounded-xl px-4 py-3.5 text-left hover-lift hover-glow group">
+                <div class="flex items-center gap-2 mb-1.5">
+                  <div class="w-7 h-7 rounded-lg bg-hq-green/15 flex items-center justify-center">
+                    <svg class="w-4 h-4 text-hq-green" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                  </div>
+                  <span class="text-sm font-semibold text-hq-text group-hover:text-white transition-colors">이용약관 작성</span>
+                </div>
+                <p class="text-[11px] text-hq-muted leading-relaxed">CLO + 법무팀이 법적 문서를 작성합니다</p>
               </button>
+
               <button @click="sendPreset('마케팅 콘텐츠 전략을 수립해줘')"
-                      class="text-sm bg-hq-panel border border-hq-border rounded-lg px-4 py-2 hover:bg-white/5 text-gray-300 transition">
-                📣 마케팅 전략
+                      class="glass border border-hq-border rounded-xl px-4 py-3.5 text-left hover-lift hover-glow group">
+                <div class="flex items-center gap-2 mb-1.5">
+                  <div class="w-7 h-7 rounded-lg bg-hq-yellow/15 flex items-center justify-center">
+                    <svg class="w-4 h-4 text-hq-yellow" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z"/></svg>
+                  </div>
+                  <span class="text-sm font-semibold text-hq-text group-hover:text-white transition-colors">마케팅 전략</span>
+                </div>
+                <p class="text-[11px] text-hq-muted leading-relaxed">CMO + 마케팅팀이 전략을 수립합니다</p>
               </button>
             </div>
+
+            <!-- Hint -->
+            <p class="text-[11px] text-hq-muted/40 mt-6">한국어로 자유롭게 명령을 입력하세요</p>
           </div>
         </template>
 
-        <!-- Messages -->
+        <!-- ═══ Messages ═══ -->
         <template x-for="(msg, i) in messages" :key="i">
-          <div class="fade-in">
+          <div class="fade-in-up">
+
+            <!-- User message -->
             <template x-if="msg.type === 'user'">
               <div class="flex justify-end mb-4">
-                <div class="bg-hq-accent/20 border border-hq-accent/30 rounded-2xl rounded-tr-sm px-4 py-3 max-w-2xl">
-                  <div class="text-xs text-hq-accent mb-1 font-semibold">CEO</div>
-                  <div class="text-gray-200" x-text="msg.text"></div>
+                <div class="max-w-2xl">
+                  <div class="bg-gradient-to-br from-hq-accent/20 to-hq-purple/10 border border-hq-accent/20 rounded-2xl rounded-tr-md px-5 py-3.5 glow-blue">
+                    <div class="flex items-center gap-2 mb-1.5">
+                      <div class="w-5 h-5 rounded-md bg-gradient-to-br from-hq-accent to-hq-purple flex items-center justify-center">
+                        <svg class="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+                      </div>
+                      <span class="text-[11px] font-bold text-hq-accent uppercase tracking-wider">CEO Command</span>
+                    </div>
+                    <div class="text-hq-text text-sm leading-relaxed" x-text="msg.text"></div>
+                  </div>
                 </div>
               </div>
             </template>
+
+            <!-- Processing indicator -->
             <template x-if="msg.type === 'processing'">
               <div class="mb-4">
-                <div class="bg-hq-panel border border-hq-border rounded-2xl rounded-tl-sm px-4 py-3 max-w-3xl">
-                  <div class="text-xs text-hq-yellow mb-2 font-semibold flex items-center gap-2">
-                    <span class="w-2 h-2 rounded-full bg-hq-yellow pulse-dot"></span>
-                    에이전트 조직이 처리 중입니다...
-                  </div>
-                  <div class="space-y-2">
-                    <template x-for="(status, agentId) in activeAgents" :key="agentId">
-                      <div x-show="status.status === 'working'" class="fade-in">
-                        <div class="flex items-center justify-between text-xs text-gray-400 mb-1">
-                          <span x-text="getAgentName(agentId)"></span>
-                          <span x-text="Math.round(status.progress * 100) + '%'"></span>
-                        </div>
-                        <div class="h-1.5 bg-gray-700 rounded-full overflow-hidden">
-                          <div class="h-full bg-hq-accent rounded-full progress-bar"
-                               :style="'width:' + (status.progress * 100) + '%'"></div>
-                        </div>
+                <div class="max-w-3xl">
+                  <div class="glass border border-hq-yellow/20 rounded-2xl rounded-tl-md px-5 py-4">
+                    <div class="flex items-center gap-2 mb-3">
+                      <span class="w-2 h-2 rounded-full bg-hq-yellow pulse-dot"></span>
+                      <span class="text-xs font-bold text-hq-yellow uppercase tracking-wider">Agents Working</span>
+                      <div class="ml-auto flex gap-1">
+                        <span class="w-1 h-1 rounded-full bg-hq-yellow/60 pulse-dot" style="animation-delay: 0s"></span>
+                        <span class="w-1 h-1 rounded-full bg-hq-yellow/60 pulse-dot" style="animation-delay: 0.3s"></span>
+                        <span class="w-1 h-1 rounded-full bg-hq-yellow/60 pulse-dot" style="animation-delay: 0.6s"></span>
                       </div>
-                    </template>
+                    </div>
+                    <div class="space-y-2.5">
+                      <template x-for="(status, agentId) in activeAgents" :key="agentId">
+                        <div x-show="status.status === 'working'" class="fade-in">
+                          <div class="flex items-center justify-between mb-1">
+                            <div class="flex items-center gap-2">
+                              <div class="w-5 h-5 rounded-md flex items-center justify-center text-[8px] font-bold"
+                                   :class="getAgentAvatarClass(agentId)"
+                                   x-text="getAgentInitials(agentId)"></div>
+                              <span class="text-xs text-hq-text/80 font-medium" x-text="getAgentName(agentId)"></span>
+                            </div>
+                            <span class="text-[10px] font-mono text-hq-yellow" x-text="Math.round(status.progress * 100) + '%'"></span>
+                          </div>
+                          <div class="h-1 bg-hq-bg rounded-full overflow-hidden">
+                            <div class="h-full rounded-full progress-bar bg-gradient-to-r from-hq-yellow to-hq-accent"
+                                 :style="'width:' + (status.progress * 100) + '%'"></div>
+                          </div>
+                        </div>
+                      </template>
+                    </div>
                   </div>
                 </div>
               </div>
             </template>
+
+            <!-- Agent result -->
             <template x-if="msg.type === 'result'">
               <div class="mb-4">
-                <div class="bg-hq-panel border border-hq-border rounded-2xl rounded-tl-sm px-5 py-4 max-w-4xl">
-                  <div class="flex items-center justify-between mb-3">
-                    <div class="text-xs text-hq-green font-semibold flex items-center gap-2">
-                      <span class="w-2 h-2 rounded-full bg-hq-green"></span>
-                      <span x-text="getAgentName(msg.sender_id) || '결과'"></span>
+                <div class="max-w-4xl">
+                  <div class="glass border border-hq-green/20 rounded-2xl rounded-tl-md overflow-hidden">
+                    <!-- Result header -->
+                    <div class="flex items-center justify-between px-5 py-3 border-b border-hq-border/50 bg-hq-green/[0.03]">
+                      <div class="flex items-center gap-2.5">
+                        <div class="w-2 h-2 rounded-full bg-hq-green"></div>
+                        <span class="text-xs font-bold text-hq-green uppercase tracking-wider"
+                              x-text="getAgentName(msg.sender_id) || 'Result'"></span>
+                      </div>
+                      <div class="flex items-center gap-4 text-[11px] font-mono text-hq-muted">
+                        <div class="flex items-center gap-1">
+                          <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                          <span x-text="msg.time_seconds + 's'"></span>
+                        </div>
+                        <div class="flex items-center gap-1">
+                          <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                          <span x-text="'$' + (msg.cost || 0).toFixed(4)"></span>
+                        </div>
+                      </div>
                     </div>
-                    <div class="flex items-center gap-3 text-[11px] text-gray-500">
-                      <span x-text="msg.time_seconds + '초'"></span>
-                      <span x-text="'$' + (msg.cost || 0).toFixed(4)"></span>
+                    <!-- Result body -->
+                    <div class="px-5 py-4">
+                      <div class="text-sm leading-relaxed markdown-body"
+                           x-html="renderMarkdown(msg.content)"></div>
                     </div>
                   </div>
-                  <div class="text-gray-300 text-sm leading-relaxed markdown-body"
-                       x-html="renderMarkdown(msg.content)"></div>
                 </div>
               </div>
             </template>
+
+            <!-- Error -->
             <template x-if="msg.type === 'error'">
               <div class="mb-4">
-                <div class="bg-red-900/20 border border-hq-red/30 rounded-2xl rounded-tl-sm px-4 py-3 max-w-2xl">
-                  <div class="text-xs text-hq-red mb-1 font-semibold">오류</div>
-                  <div class="text-gray-300 text-sm" x-text="msg.text"></div>
+                <div class="max-w-2xl">
+                  <div class="bg-hq-red/5 border border-hq-red/20 rounded-2xl rounded-tl-md px-5 py-4">
+                    <div class="flex items-center gap-2 mb-2">
+                      <svg class="w-4 h-4 text-hq-red" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/></svg>
+                      <span class="text-xs font-bold text-hq-red uppercase tracking-wider">Error</span>
+                    </div>
+                    <div class="text-sm text-hq-text/80" x-text="msg.text"></div>
+                  </div>
                 </div>
               </div>
             </template>
+
           </div>
         </template>
       </div>
 
-      <!-- Input Bar -->
-      <div class="border-t border-hq-border bg-hq-panel p-4 shrink-0">
+      <!-- ═══ Input Bar ═══ -->
+      <div class="border-t border-hq-border bg-hq-surface/80 backdrop-blur-sm p-4 shrink-0">
         <form @submit.prevent="sendMessage()" class="flex items-center gap-3 max-w-4xl mx-auto">
-          <select x-model="taskDepth"
-                  class="bg-hq-bg border border-hq-border rounded-xl px-2 py-3 text-xs text-gray-400
-                         focus:outline-none focus:border-hq-accent shrink-0">
-            <option value="1">빠른</option>
-            <option value="3">보통</option>
-            <option value="5">심화</option>
-          </select>
-          <select x-model="batchMode"
-                  class="bg-hq-bg border border-hq-border rounded-xl px-2 py-3 text-xs text-gray-400
-                         focus:outline-none focus:border-hq-accent shrink-0"
-                  :class="batchMode === 'batch' ? 'border-green-500/50 text-green-400' : ''">
-            <option value="realtime">실시간</option>
-            <option value="batch">절약 (-50%)</option>
-          </select>
-          <input type="text" x-model="inputText" :disabled="systemStatus === 'working'"
-                 placeholder="명령을 입력하세요..."
-                 class="flex-1 bg-hq-bg border border-hq-border rounded-xl px-4 py-3 text-sm text-gray-200
-                        placeholder-gray-500 focus:outline-none focus:border-hq-accent focus:ring-1
-                        focus:ring-hq-accent/50 disabled:opacity-50 transition" autofocus>
-          <button type="submit" :disabled="!inputText.trim() || systemStatus === 'working'"
-                  class="bg-hq-accent hover:bg-blue-600 disabled:bg-gray-700 disabled:text-gray-500
-                         text-white rounded-xl px-6 py-3 text-sm font-medium transition shrink-0">
-            <span x-show="systemStatus !== 'working'">보내기</span>
+          <div class="flex-1 relative">
+            <input type="text"
+                   x-model="inputText"
+                   :disabled="systemStatus === 'working'"
+                   placeholder="Enter your command..."
+                   class="w-full bg-hq-bg border border-hq-border rounded-xl px-4 py-3 pr-10 text-sm text-hq-text
+                          placeholder-hq-muted/50 focus:outline-none focus:border-hq-accent/50 input-glow
+                          disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                   autofocus>
+            <div class="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-mono text-hq-muted/30"
+                 x-show="!inputText.trim() && systemStatus !== 'working'">
+              Enter &#9166;
+            </div>
+          </div>
+          <button type="submit"
+                  :disabled="!inputText.trim() || systemStatus === 'working'"
+                  class="bg-gradient-to-r from-hq-accent to-hq-purple hover:from-blue-500 hover:to-violet-500
+                         disabled:from-gray-700 disabled:to-gray-700 disabled:text-hq-muted
+                         text-white rounded-xl px-6 py-3 text-sm font-semibold transition-all shrink-0
+                         hover:shadow-lg hover:shadow-hq-accent/20 disabled:shadow-none">
+            <span x-show="systemStatus !== 'working'">Send</span>
             <span x-show="systemStatus === 'working'" class="flex items-center gap-2">
               <svg class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
               </svg>
-              처리중
+              Working
             </span>
           </button>
         </form>
@@ -517,656 +822,10 @@
     </main>
   </div>
 
-  <!-- ═══════════════════════════════════════════ -->
-  <!--  TAB 2: 사무실 (Virtual Office)             -->
-  <!-- ═══════════════════════════════════════════ -->
-  <div x-show="currentTab === 'office'" class="flex flex-1 overflow-hidden">
-
-    <!-- Office Floor Plan -->
-    <div class="flex-1 overflow-y-auto scrollbar-thin p-6" :class="selectedAgent ? '' : ''">
-
-      <!-- CEO Room -->
-      <div class="mb-6">
-        <div class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">CEO Office</div>
-        <div class="bg-gradient-to-r from-yellow-900/20 to-amber-900/20 border border-yellow-700/30 rounded-xl p-4">
-          <div class="flex items-center gap-3">
-            <div class="w-12 h-12 bg-yellow-600/30 rounded-xl flex items-center justify-center text-2xl">👤</div>
-            <div>
-              <div class="font-bold text-yellow-300">동희 님</div>
-              <div class="text-xs text-yellow-600">CEO / Founder</div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Secretary Office -->
-      <div class="mb-6">
-        <div class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">📋 비서실</div>
-        <div class="grid grid-cols-4 gap-3">
-          <template x-for="id in ['chief_of_staff','report_worker','schedule_worker','relay_worker']" :key="id">
-            <div @click="selectAgent(id)"
-                 class="desk-card bg-hq-panel border rounded-xl p-3 cursor-pointer"
-                 :class="selectedAgent === id ? 'border-hq-accent ring-1 ring-hq-accent/50' : 'border-hq-border hover:border-gray-500'">
-              <div class="flex items-center gap-2 mb-2">
-                <div class="w-9 h-9 rounded-lg flex items-center justify-center text-lg"
-                     :class="getAgentAvatarBg(id)"
-                     x-text="getAgentEmoji(id)">
-                </div>
-                <div class="w-2 h-2 rounded-full" :class="getAgentDotClass(id)"></div>
-              </div>
-              <div class="text-xs font-medium text-gray-300 truncate" x-text="getAgentName(id)"></div>
-              <div class="text-[10px] text-gray-500 truncate" x-text="agentMeta[id]?.role || ''"></div>
-            </div>
-          </template>
-        </div>
-      </div>
-
-      <!-- LEET Master Division -->
-      <div class="mb-6">
-        <div class="text-xs font-semibold text-cyan-500 uppercase tracking-wider mb-3">🏗️ LEET Master 본부</div>
-        <div class="grid grid-cols-2 gap-4">
-
-          <!-- CTO Room -->
-          <div class="bg-cyan-900/10 border border-cyan-800/30 rounded-xl p-4">
-            <div class="text-xs font-semibold text-cyan-400 mb-3">기술개발처 (CTO)</div>
-            <div class="grid grid-cols-2 gap-2">
-              <template x-for="id in ['cto_manager','frontend_specialist','backend_specialist','infra_specialist','ai_model_specialist']" :key="id">
-                <div @click="selectAgent(id)"
-                     class="desk-card bg-hq-panel/80 border rounded-lg p-2.5 cursor-pointer"
-                     :class="selectedAgent === id ? 'border-hq-accent ring-1 ring-hq-accent/50' : 'border-hq-border/50 hover:border-gray-500'">
-                  <div class="flex items-center gap-2 mb-1">
-                    <div class="w-7 h-7 rounded-md flex items-center justify-center text-sm"
-                         :class="getAgentAvatarBg(id)"
-                         x-text="getAgentEmoji(id)"></div>
-                    <div class="w-1.5 h-1.5 rounded-full" :class="getAgentDotClass(id)"></div>
-                  </div>
-                  <div class="text-[11px] font-medium text-gray-300 truncate" x-text="getAgentName(id)"></div>
-                </div>
-              </template>
-            </div>
-          </div>
-
-          <!-- CSO Room -->
-          <div class="bg-cyan-900/10 border border-cyan-800/30 rounded-xl p-4">
-            <div class="text-xs font-semibold text-cyan-400 mb-3">사업기획처 (CSO)</div>
-            <div class="grid grid-cols-2 gap-2">
-              <template x-for="id in ['cso_manager','market_research_specialist','business_plan_specialist','financial_model_specialist']" :key="id">
-                <div @click="selectAgent(id)"
-                     class="desk-card bg-hq-panel/80 border rounded-lg p-2.5 cursor-pointer"
-                     :class="selectedAgent === id ? 'border-hq-accent ring-1 ring-hq-accent/50' : 'border-hq-border/50 hover:border-gray-500'">
-                  <div class="flex items-center gap-2 mb-1">
-                    <div class="w-7 h-7 rounded-md flex items-center justify-center text-sm"
-                         :class="getAgentAvatarBg(id)"
-                         x-text="getAgentEmoji(id)"></div>
-                    <div class="w-1.5 h-1.5 rounded-full" :class="getAgentDotClass(id)"></div>
-                  </div>
-                  <div class="text-[11px] font-medium text-gray-300 truncate" x-text="getAgentName(id)"></div>
-                </div>
-              </template>
-            </div>
-          </div>
-
-          <!-- CLO Room -->
-          <div class="bg-cyan-900/10 border border-cyan-800/30 rounded-xl p-4">
-            <div class="text-xs font-semibold text-cyan-400 mb-3">법무·IP처 (CLO)</div>
-            <div class="grid grid-cols-2 gap-2">
-              <template x-for="id in ['clo_manager','copyright_specialist','patent_specialist']" :key="id">
-                <div @click="selectAgent(id)"
-                     class="desk-card bg-hq-panel/80 border rounded-lg p-2.5 cursor-pointer"
-                     :class="selectedAgent === id ? 'border-hq-accent ring-1 ring-hq-accent/50' : 'border-hq-border/50 hover:border-gray-500'">
-                  <div class="flex items-center gap-2 mb-1">
-                    <div class="w-7 h-7 rounded-md flex items-center justify-center text-sm"
-                         :class="getAgentAvatarBg(id)"
-                         x-text="getAgentEmoji(id)"></div>
-                    <div class="w-1.5 h-1.5 rounded-full" :class="getAgentDotClass(id)"></div>
-                  </div>
-                  <div class="text-[11px] font-medium text-gray-300 truncate" x-text="getAgentName(id)"></div>
-                </div>
-              </template>
-            </div>
-          </div>
-
-          <!-- CMO Room -->
-          <div class="bg-cyan-900/10 border border-cyan-800/30 rounded-xl p-4">
-            <div class="text-xs font-semibold text-cyan-400 mb-3">마케팅·고객처 (CMO)</div>
-            <div class="grid grid-cols-2 gap-2">
-              <template x-for="id in ['cmo_manager','survey_specialist','content_specialist','community_specialist']" :key="id">
-                <div @click="selectAgent(id)"
-                     class="desk-card bg-hq-panel/80 border rounded-lg p-2.5 cursor-pointer"
-                     :class="selectedAgent === id ? 'border-hq-accent ring-1 ring-hq-accent/50' : 'border-hq-border/50 hover:border-gray-500'">
-                  <div class="flex items-center gap-2 mb-1">
-                    <div class="w-7 h-7 rounded-md flex items-center justify-center text-sm"
-                         :class="getAgentAvatarBg(id)"
-                         x-text="getAgentEmoji(id)"></div>
-                    <div class="w-1.5 h-1.5 rounded-full" :class="getAgentDotClass(id)"></div>
-                  </div>
-                  <div class="text-[11px] font-medium text-gray-300 truncate" x-text="getAgentName(id)"></div>
-                </div>
-              </template>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Finance Division -->
-      <div class="mb-6">
-        <div class="text-xs font-semibold text-purple-400 uppercase tracking-wider mb-3">📊 투자분석 본부</div>
-        <div class="bg-purple-900/10 border border-purple-800/30 rounded-xl p-4">
-          <div class="text-xs font-semibold text-purple-400 mb-3">투자분석처 (CIO)</div>
-          <div class="grid grid-cols-5 gap-2">
-            <template x-for="id in ['cio_manager','market_condition_specialist','stock_analysis_specialist','technical_analysis_specialist','risk_management_specialist']" :key="id">
-              <div @click="selectAgent(id)"
-                   class="desk-card bg-hq-panel/80 border rounded-lg p-2.5 cursor-pointer"
-                   :class="selectedAgent === id ? 'border-hq-accent ring-1 ring-hq-accent/50' : 'border-hq-border/50 hover:border-gray-500'">
-                <div class="flex items-center gap-2 mb-1">
-                  <div class="w-7 h-7 rounded-md flex items-center justify-center text-sm"
-                       :class="getAgentAvatarBg(id)"
-                       x-text="getAgentEmoji(id)"></div>
-                  <div class="w-1.5 h-1.5 rounded-full" :class="getAgentDotClass(id)"></div>
-                </div>
-                <div class="text-[11px] font-medium text-gray-300 truncate" x-text="getAgentName(id)"></div>
-              </div>
-            </template>
-          </div>
-        </div>
-      </div>
-
-      <!-- Publishing Division -->
-      <div class="mb-6">
-        <div class="text-xs font-semibold text-amber-400 uppercase tracking-wider mb-3">📚 출판·기록 본부</div>
-        <div class="bg-amber-900/10 border border-amber-800/30 rounded-xl p-4">
-          <div class="text-xs font-semibold text-amber-400 mb-3">출판·기록처 (CPO)</div>
-          <div class="grid grid-cols-4 gap-2">
-            <template x-for="id in ['cpo_manager','chronicle_specialist','editor_specialist','archive_specialist']" :key="id">
-              <div @click="selectAgent(id)"
-                   class="desk-card bg-hq-panel/80 border rounded-lg p-2.5 cursor-pointer"
-                   :class="selectedAgent === id ? 'border-hq-accent ring-1 ring-hq-accent/50' : 'border-hq-border/50 hover:border-gray-500'">
-                <div class="flex items-center gap-2 mb-1">
-                  <div class="w-7 h-7 rounded-md flex items-center justify-center text-sm"
-                       :class="getAgentAvatarBg(id)"
-                       x-text="getAgentEmoji(id)"></div>
-                  <div class="w-1.5 h-1.5 rounded-full" :class="getAgentDotClass(id)"></div>
-                </div>
-                <div class="text-[11px] font-medium text-gray-300 truncate" x-text="getAgentName(id)"></div>
-              </div>
-            </template>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Agent Detail Side Panel -->
-    <aside x-show="selectedAgent" x-transition
-           class="w-96 bg-hq-panel border-l border-hq-border flex flex-col shrink-0 overflow-hidden">
-      <template x-if="agentDetail">
-        <div class="flex flex-col h-full">
-          <!-- Header -->
-          <div class="p-4 border-b border-hq-border shrink-0">
-            <div class="flex items-center justify-between mb-3">
-              <div class="flex items-center gap-3">
-                <div class="w-10 h-10 rounded-xl flex items-center justify-center text-xl"
-                     :class="getAgentAvatarBg(agentDetail.agent_id)"
-                     x-text="getAgentEmoji(agentDetail.agent_id)"></div>
-                <div>
-                  <div class="font-bold text-white" x-text="agentDetail.name_ko"></div>
-                  <div class="text-xs text-gray-500" x-text="agentDetail.name"></div>
-                </div>
-              </div>
-              <button @click="selectedAgent = null; agentDetail = null"
-                      class="text-gray-500 hover:text-gray-300 text-lg">✕</button>
-            </div>
-
-            <!-- Tags -->
-            <div class="flex flex-wrap gap-1.5">
-              <span class="text-[10px] px-2 py-0.5 rounded-full border"
-                    :class="{
-                      'border-blue-600 text-blue-400 bg-blue-900/20': agentDetail.role === 'manager',
-                      'border-green-600 text-green-400 bg-green-900/20': agentDetail.role === 'specialist',
-                      'border-yellow-600 text-yellow-400 bg-yellow-900/20': agentDetail.role === 'worker',
-                    }"
-                    x-text="agentDetail.role"></span>
-              <div class="relative inline-flex items-center gap-1">
-                <select x-model="agentDetail.model_name"
-                        @change="saveModel()"
-                        class="text-[10px] px-2 py-0.5 rounded-full border border-hq-border text-gray-400
-                               bg-hq-bg appearance-none cursor-pointer hover:border-hq-accent
-                               focus:outline-none focus:border-hq-accent pr-5"
-                        :disabled="modelSaving">
-                  <template x-for="m in availableModels" :key="m.name">
-                    <option :value="m.name" x-text="m.name" :selected="m.name === agentDetail.model_name"></option>
-                  </template>
-                </select>
-                <span x-show="modelSaving" class="text-[9px] text-hq-yellow">...</span>
-                <span x-show="modelSaved" class="text-[9px] text-hq-green fade-in">&#10003;</span>
-              </div>
-              <div class="relative inline-flex items-center gap-1">
-                <select x-model="agentDetail.reasoning_effort"
-                        @change="saveReasoning()"
-                        class="text-[10px] px-2 py-0.5 rounded-full border border-hq-border text-gray-400
-                               bg-hq-bg appearance-none cursor-pointer hover:border-hq-accent
-                               focus:outline-none focus:border-hq-accent pr-5"
-                        :disabled="reasoningSaving || getReasoningLevels().length === 0">
-                  <option value="">추론: 기본</option>
-                  <template x-for="level in getReasoningLevels()" :key="level">
-                    <option :value="level" x-text="'추론: ' + ({low:'낮음', medium:'중간', high:'높음'}[level] || level)"></option>
-                  </template>
-                </select>
-                <span x-show="reasoningSaving" class="text-[9px] text-hq-yellow">...</span>
-                <span x-show="reasoningSaved" class="text-[9px] text-hq-green fade-in">&#10003;</span>
-              </div>
-              <span class="text-[10px] px-2 py-0.5 rounded-full border border-hq-border text-gray-400"
-                    x-text="agentDetail.division"></span>
-            </div>
-          </div>
-
-          <!-- Info -->
-          <div class="p-4 border-b border-hq-border shrink-0 space-y-2">
-            <div class="text-xs text-gray-500">능력치</div>
-            <div class="flex flex-wrap gap-1">
-              <template x-for="cap in (agentDetail.capabilities || [])" :key="cap">
-                <span class="text-[10px] px-2 py-0.5 bg-hq-bg rounded-md text-gray-400" x-text="cap"></span>
-              </template>
-            </div>
-            <template x-if="agentDetail.subordinate_ids && agentDetail.subordinate_ids.length > 0">
-              <div>
-                <div class="text-xs text-gray-500 mt-2">부하 직원</div>
-                <div class="flex flex-wrap gap-1 mt-1">
-                  <template x-for="sid in agentDetail.subordinate_ids" :key="sid">
-                    <span class="text-[10px] px-2 py-0.5 bg-blue-900/20 border border-blue-800/30 rounded-md text-blue-400 cursor-pointer hover:bg-blue-900/40"
-                          @click="selectAgent(sid)" x-text="getAgentName(sid)"></span>
-                  </template>
-                </div>
-              </div>
-            </template>
-            <template x-if="agentDetail.superior_id">
-              <div>
-                <div class="text-xs text-gray-500 mt-2">상관</div>
-                <span class="text-[10px] px-2 py-0.5 bg-amber-900/20 border border-amber-800/30 rounded-md text-amber-400 cursor-pointer hover:bg-amber-900/40"
-                      @click="selectAgent(agentDetail.superior_id)"
-                      x-text="getAgentName(agentDetail.superior_id)"></span>
-              </div>
-            </template>
-          </div>
-
-          <!-- Soul Editor -->
-          <div class="flex-1 flex flex-col overflow-hidden p-4">
-            <div class="flex items-center justify-between mb-2">
-              <div class="text-xs font-semibold text-gray-400">Soul (시스템 프롬프트)</div>
-              <div class="flex items-center gap-2">
-                <span x-show="soulSaving" class="text-[10px] text-hq-yellow">저장중...</span>
-                <span x-show="soulSaved" class="text-[10px] text-hq-green fade-in">저장 완료!</span>
-              </div>
-            </div>
-            <textarea x-model="soulText"
-                      @input="soulChanged = true; soulSaved = false"
-                      class="flex-1 bg-hq-bg border border-hq-border rounded-lg p-3 text-xs text-gray-300
-                             font-mono leading-relaxed resize-none scrollbar-thin
-                             focus:outline-none focus:border-hq-accent focus:ring-1 focus:ring-hq-accent/50"
-                      placeholder="에이전트의 성격과 역할을 정의하세요..."></textarea>
-            <button @click="saveSoul()"
-                    :disabled="!soulChanged || soulSaving"
-                    class="mt-3 bg-hq-accent hover:bg-blue-600 disabled:bg-gray-700 disabled:text-gray-500
-                           text-white text-xs rounded-lg px-4 py-2 font-medium transition">
-              Soul 저장 (즉시 반영)
-            </button>
-          </div>
-        </div>
-      </template>
-    </aside>
-  </div>
-
-  <!-- ═══════════════════════════════════════════ -->
-  <!--  TAB 3: 지식관리 (Knowledge Management)     -->
-  <!-- ═══════════════════════════════════════════ -->
-  <div x-show="currentTab === 'knowledge'" class="flex flex-1 overflow-hidden">
-
-    <!-- File List -->
-    <aside class="w-72 bg-hq-panel border-r border-hq-border flex flex-col shrink-0">
-      <div class="p-3 border-b border-hq-border">
-        <div class="flex items-center justify-between mb-2">
-          <div class="text-xs font-semibold text-gray-500 uppercase tracking-wider">지식 파일</div>
-          <button @click="showNewFileForm = !showNewFileForm"
-                  class="text-xs text-hq-accent hover:text-blue-400 font-medium">+ 새 파일</button>
-        </div>
-
-        <!-- New File Form -->
-        <div x-show="showNewFileForm" class="space-y-2 mt-2 fade-in">
-          <select x-model="newFileFolder"
-                  class="w-full bg-hq-bg border border-hq-border rounded-lg px-2 py-1.5 text-xs text-gray-300">
-            <option value="shared">shared (전체 공유)</option>
-            <option value="leet_master">leet_master (LEET Master 본부)</option>
-            <option value="finance">finance (투자분석 본부)</option>
-            <option value="publishing">publishing (출판·기록 본부)</option>
-          </select>
-          <input x-model="newFileName" placeholder="파일명 (예: CONTEXT)"
-                 class="w-full bg-hq-bg border border-hq-border rounded-lg px-2 py-1.5 text-xs text-gray-300 placeholder-gray-600">
-          <button @click="createNewFile()"
-                  :disabled="!newFileName.trim()"
-                  class="w-full bg-hq-accent hover:bg-blue-600 disabled:bg-gray-700 text-white text-xs rounded-lg py-1.5 font-medium transition">
-            생성
-          </button>
-        </div>
-      </div>
-
-      <!-- File Tree (folder accordion) -->
-      <div class="flex-1 overflow-y-auto scrollbar-thin p-3 space-y-2">
-        <template x-for="group in getKnowledgeFolders()" :key="group.folder">
-          <div>
-            <button @click="toggleKnowledgeFolder(group.folder)"
-                    class="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-white/5 w-full text-left text-xs font-semibold"
-                    :class="getKnowledgeFolderStyle(group.folder).color">
-              <span class="text-[10px] text-gray-500"
-                    x-text="knowledgeExpanded[group.folder] ? '▼' : '▶'"></span>
-              <span>📁</span>
-              <span x-text="getKnowledgeFolderStyle(group.folder).label"></span>
-              <span class="ml-auto text-[10px] text-gray-600"
-                    x-text="group.files.length + '개'"></span>
-            </button>
-            <div x-show="knowledgeExpanded[group.folder]" x-collapse class="ml-4 space-y-0.5 mt-1">
-              <template x-for="file in group.files" :key="file.path">
-                <div @click="selectKnowledgeFile(file)"
-                     class="flex items-center gap-2 px-2 py-1.5 rounded-lg cursor-pointer text-xs"
-                     :class="selectedFile?.path === file.path
-                       ? 'bg-hq-accent/20 text-hq-accent border border-hq-accent/30'
-                       : 'text-gray-400 hover:bg-white/5'">
-                  <span class="text-gray-600">📄</span>
-                  <div class="flex-1 min-w-0">
-                    <div class="truncate font-medium" x-text="file.filename"></div>
-                  </div>
-                  <div class="text-[10px] text-gray-600 shrink-0"
-                       x-text="(file.size / 1024).toFixed(1) + 'KB'"></div>
-                </div>
-              </template>
-            </div>
-          </div>
-        </template>
-        <template x-if="knowledgeFiles.length === 0">
-          <div class="text-xs text-gray-600 italic p-2">파일이 없습니다</div>
-        </template>
-      </div>
-    </aside>
-
-    <!-- Knowledge Editor -->
-    <main class="flex-1 flex flex-col overflow-hidden">
-      <template x-if="selectedFile">
-        <div class="flex flex-col h-full">
-          <!-- File Header -->
-          <div class="p-4 border-b border-hq-border flex items-center justify-between shrink-0">
-            <div class="flex items-center gap-3">
-              <span class="text-lg">📄</span>
-              <div>
-                <div class="font-medium text-white text-sm" x-text="selectedFile.filename"></div>
-                <div class="text-xs text-gray-500" x-text="'knowledge/' + selectedFile.path"></div>
-              </div>
-            </div>
-            <div class="flex items-center gap-3">
-              <span x-show="fileSaving" class="text-xs text-hq-yellow">저장중...</span>
-              <span x-show="fileSaved" class="text-xs text-hq-green fade-in">저장됨!</span>
-              <button @click="saveKnowledgeFile()"
-                      :disabled="!fileChanged || fileSaving"
-                      class="bg-hq-accent hover:bg-blue-600 disabled:bg-gray-700 disabled:text-gray-500
-                             text-white text-xs rounded-lg px-4 py-2 font-medium transition">
-                저장
-              </button>
-              <button @click="deleteKnowledgeFile()"
-                      class="bg-red-900/30 hover:bg-red-900/50 text-red-400 text-xs rounded-lg px-3 py-2 font-medium transition border border-red-800/30">
-                삭제
-              </button>
-            </div>
-          </div>
-          <!-- Editor -->
-          <textarea x-model="fileContent"
-                    @input="fileChanged = true; fileSaved = false"
-                    class="flex-1 bg-hq-bg p-6 text-sm text-gray-300 font-mono leading-relaxed
-                           resize-none scrollbar-thin focus:outline-none"
-                    placeholder="마크다운 내용을 입력하세요..."></textarea>
-        </div>
-      </template>
-      <template x-if="!selectedFile">
-        <div class="flex-1 flex items-center justify-center">
-          <div class="text-center">
-            <div class="text-4xl mb-3">📚</div>
-            <div class="text-gray-500 text-sm">왼쪽에서 파일을 선택하거나<br>새 파일을 만드세요</div>
-            <div class="mt-4 text-xs text-gray-600 max-w-sm">
-              여기에 CONTEXT.md, README.md, STATUS.md, TODO.md 같은<br>
-              프로젝트 문서를 업로드하면 에이전트들이 공유 지식으로 사용합니다.
-            </div>
-          </div>
-        </div>
-      </template>
-    </main>
-  </div>
-
-  <!-- ═══════════════════════════════════════════ -->
-  <!--  TAB 4: 작업내역 (Task History)              -->
-  <!-- ═══════════════════════════════════════════ -->
-  <div x-show="currentTab === 'tasks'" class="flex flex-1 overflow-hidden">
-
-    <!-- Task List Sidebar -->
-    <aside class="w-80 bg-hq-panel border-r border-hq-border flex flex-col shrink-0">
-      <div class="p-3 border-b border-hq-border flex items-center justify-between">
-        <div class="text-xs font-semibold text-gray-500 uppercase tracking-wider">작업 내역</div>
-        <button @click="loadTasks()" class="text-xs text-hq-accent hover:text-blue-400">새로고침</button>
-      </div>
-      <div class="flex-1 overflow-y-auto scrollbar-thin p-3 space-y-2">
-        <template x-for="task in taskList" :key="task.task_id">
-          <div @click="selectTask(task.task_id)"
-               class="p-3 rounded-xl border cursor-pointer transition"
-               :class="selectedTask?.task_id === task.task_id
-                 ? 'border-hq-accent bg-hq-accent/10'
-                 : 'border-hq-border hover:border-gray-500'">
-            <div class="flex items-center gap-2 mb-1">
-              <span class="w-2 h-2 rounded-full shrink-0"
-                    :class="{
-                      'bg-hq-yellow pulse-dot': task.status === 'running',
-                      'bg-hq-green': task.status === 'completed' && task.success,
-                      'bg-red-500': task.status === 'failed' || (task.status === 'completed' && !task.success),
-                      'bg-gray-500': task.status === 'queued',
-                    }"></span>
-              <span class="text-xs font-mono text-gray-500" x-text="'#' + task.task_id"></span>
-              <span class="text-[10px] text-gray-600 ml-auto" x-text="formatTime(task.created_at)"></span>
-            </div>
-            <div class="text-sm text-gray-300 truncate" x-text="task.command"></div>
-            <div class="flex items-center gap-3 mt-1.5 text-[10px] text-gray-500">
-              <span x-show="task.time_seconds" x-text="task.time_seconds + '초'"></span>
-              <span x-show="task.cost" x-text="'$' + task.cost.toFixed(4)"></span>
-              <span class="px-1.5 py-0.5 rounded text-[9px]"
-                    :class="{
-                      'bg-yellow-900/30 text-yellow-400': task.status === 'running',
-                      'bg-green-900/30 text-green-400': task.status === 'completed',
-                      'bg-red-900/30 text-red-400': task.status === 'failed',
-                    }"
-                    x-text="task.status === 'running' ? '진행중' : task.status === 'completed' ? '완료' : '실패'"></span>
-            </div>
-          </div>
-        </template>
-        <template x-if="taskList.length === 0">
-          <div class="text-xs text-gray-600 italic p-2 text-center">아직 작업이 없습니다.<br>관제실에서 명령을 입력하세요.</div>
-        </template>
-      </div>
-    </aside>
-
-    <!-- Task Detail -->
-    <main class="flex-1 flex flex-col overflow-hidden">
-      <template x-if="selectedTask">
-        <div class="flex flex-col h-full">
-          <div class="p-4 border-b border-hq-border flex items-center justify-between shrink-0">
-            <div class="min-w-0">
-              <div class="font-medium text-white truncate" x-text="selectedTask.command"></div>
-              <div class="text-xs text-gray-500 mt-1 flex items-center gap-2">
-                <span x-text="'#' + selectedTask.task_id"></span>
-                <span>|</span>
-                <span x-text="selectedTask.time_seconds + '초'"></span>
-                <span>|</span>
-                <span x-text="'$' + (selectedTask.cost || 0).toFixed(4)"></span>
-                <span x-show="selectedTask.tokens_used">|</span>
-                <span x-show="selectedTask.tokens_used" x-text="(selectedTask.tokens_used || 0).toLocaleString() + ' 토큰'"></span>
-              </div>
-            </div>
-            <a x-show="selectedTask.output_file"
-               :href="'/' + selectedTask.output_file"
-               download
-               class="text-xs bg-hq-accent/20 border border-hq-accent/30 text-hq-accent px-3 py-1.5 rounded-lg hover:bg-hq-accent/30 shrink-0">
-              다운로드
-            </a>
-          </div>
-          <div class="flex-1 overflow-y-auto scrollbar-thin p-6">
-            <div class="markdown-body text-gray-300 text-sm leading-relaxed max-w-4xl"
-                 x-html="renderMarkdown(selectedTask.result_data || '처리 중...')"></div>
-
-            <!-- 중간 보고서 아카이브 -->
-            <div class="mt-6 border-t border-hq-border pt-4 max-w-4xl">
-              <button @click="archiveExpanded = !archiveExpanded; if(archiveExpanded && archiveReports.length === 0) loadArchiveReports()"
-                      class="flex items-center gap-2 text-sm text-gray-400 hover:text-gray-200 transition">
-                <span x-text="archiveExpanded ? '▼' : '▶'"></span>
-                <span>중간 보고서 (에이전트별 원본)</span>
-                <span x-show="archiveReports.length > 0" class="text-xs bg-hq-accent/20 text-hq-accent px-2 py-0.5 rounded-full"
-                      x-text="archiveReports.length + '건'"></span>
-              </button>
-              <div x-show="archiveExpanded" x-cloak class="mt-3 space-y-2">
-                <div x-show="archiveLoading" class="text-xs text-gray-500">불러오는 중...</div>
-                <div x-show="!archiveLoading && archiveReports.length === 0" class="text-xs text-gray-500">
-                  이 작업의 중간 보고서가 없습니다.
-                </div>
-                <template x-for="report in archiveReports" :key="report.filename">
-                  <div class="bg-hq-panel border border-hq-border rounded-lg p-3">
-                    <div class="flex items-center justify-between cursor-pointer"
-                         @click="report._expanded = !report._expanded; if(report._expanded && !report._content) viewArchiveReport(report.division, report.filename).then(() => { report._content = _archiveViewContent; })">
-                      <div class="flex items-center gap-2">
-                        <span class="text-xs px-2 py-0.5 rounded-full"
-                              :class="{'bg-blue-500/20 text-blue-400': report.division === 'tech',
-                                        'bg-green-500/20 text-green-400': report.division === 'finance',
-                                        'bg-purple-500/20 text-purple-400': report.division === 'strategy',
-                                        'bg-yellow-500/20 text-yellow-400': report.division === 'secretary',
-                                        'bg-red-500/20 text-red-400': report.division === 'legal',
-                                        'bg-pink-500/20 text-pink-400': report.division === 'marketing',
-                                        'bg-orange-500/20 text-orange-400': report.division === 'publishing',
-                                        'bg-gray-500/20 text-gray-400': !['tech','finance','strategy','secretary','legal','marketing','publishing'].includes(report.division)}"
-                              x-text="report.division"></span>
-                        <span class="text-sm text-gray-300" x-text="report.filename.replace(/^\d{8}_\d{6}_/, '').replace('.md', '')"></span>
-                      </div>
-                      <span class="text-xs text-gray-500" x-text="report._expanded ? '▼' : '▶'"></span>
-                    </div>
-                    <div x-show="report._expanded" x-cloak class="mt-3 border-t border-hq-border pt-3">
-                      <div class="markdown-body text-gray-400 text-xs leading-relaxed"
-                           x-html="renderMarkdown(report._content || '불러오는 중...')"></div>
-                    </div>
-                  </div>
-                </template>
-              </div>
-            </div>
-          </div>
-        </div>
-      </template>
-      <template x-if="!selectedTask">
-        <div class="flex-1 flex items-center justify-center">
-          <div class="text-center">
-            <div class="text-4xl mb-3">📋</div>
-            <div class="text-gray-500 text-sm">왼쪽에서 작업을 선택하세요</div>
-          </div>
-        </div>
-      </template>
-    </main>
-  </div>
-
-  <!-- ═══════════════════════════════════════════ -->
-  <!--  Archive Tab                                -->
-  <!-- ═══════════════════════════════════════════ -->
-  <div x-show="currentTab === 'archive'" class="flex flex-1 overflow-hidden">
-    <!-- Sidebar: 부서 필터 -->
-    <aside class="w-56 border-r border-hq-border flex flex-col overflow-y-auto scrollbar-thin">
-      <div class="p-3 border-b border-hq-border">
-        <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider">부서 필터</h3>
-      </div>
-      <div class="p-2 space-y-1">
-        <button @click="archiveFilter = ''"
-                :class="archiveFilter === '' ? 'bg-hq-accent/20 text-hq-accent' : 'text-gray-400 hover:text-gray-300'"
-                class="w-full text-left text-xs px-2 py-1.5 rounded transition">
-          전체 부서
-          <span class="text-[10px] opacity-60" x-text="'(' + fullArchiveList.length + ')'"></span>
-        </button>
-        <template x-for="div in archiveDivisions" :key="div.key">
-          <button @click="archiveFilter = div.key"
-                  :class="archiveFilter === div.key ? 'bg-hq-accent/20 text-hq-accent' : 'text-gray-400 hover:text-gray-300'"
-                  class="w-full text-left text-xs px-2 py-1.5 rounded transition">
-            <span x-text="div.label"></span>
-            <span class="text-[10px] opacity-60" x-text="'(' + div.count + ')'"></span>
-          </button>
-        </template>
-      </div>
-    </aside>
-
-    <!-- Main: 보고서 목록 + 상세 -->
-    <main class="flex-1 flex flex-col overflow-hidden">
-      <!-- 헤더 -->
-      <div class="p-3 border-b border-hq-border flex items-center justify-between">
-        <h3 class="text-sm font-bold text-gray-300">
-          부서별 아카이브
-          <span class="text-[10px] text-gray-500 ml-2" x-text="filteredArchive.length + '건'"></span>
-        </h3>
-        <button @click="loadFullArchive()" class="text-[10px] text-gray-500 hover:text-hq-accent transition">새로고침</button>
-      </div>
-
-      <!-- 보고서 목록 (좌) + 상세 내용 (우) -->
-      <div class="flex flex-1 overflow-hidden">
-        <!-- 보고서 목록 -->
-        <div class="w-80 border-r border-hq-border overflow-y-auto scrollbar-thin">
-          <template x-if="archiveTabLoading">
-            <div class="p-4 text-center text-gray-500 text-sm">불러오는 중...</div>
-          </template>
-          <template x-if="!archiveTabLoading && filteredArchive.length === 0">
-            <div class="p-4 text-center text-gray-500 text-sm">보고서 없음</div>
-          </template>
-          <template x-for="(item, idx) in filteredArchive" :key="item.division + '/' + item.filename">
-            <div @click="viewArchiveItem(item)"
-                 :class="archiveViewItem?.filename === item.filename ? 'bg-hq-accent/10 border-l-2 border-hq-accent' : 'border-l-2 border-transparent hover:bg-white/5'"
-                 class="p-3 cursor-pointer transition">
-              <div class="flex items-center gap-2 mb-1">
-                <span class="text-[10px] px-1.5 py-0.5 rounded-full border border-hq-border text-gray-400"
-                      x-text="divisionLabel(item.division)"></span>
-                <span class="text-[10px] text-gray-500" x-text="formatArchiveDate(item.filename)"></span>
-              </div>
-              <div class="text-xs text-gray-300 truncate" x-text="extractAgentFromFilename(item.filename)"></div>
-            </div>
-          </template>
-        </div>
-
-        <!-- 상세 내용 -->
-        <div class="flex-1 overflow-y-auto scrollbar-thin p-4">
-          <template x-if="!archiveViewItem">
-            <div class="flex items-center justify-center h-full">
-              <div class="text-center">
-                <div class="text-4xl mb-3">📁</div>
-                <div class="text-gray-500 text-sm">왼쪽에서 보고서를 선택하세요</div>
-              </div>
-            </div>
-          </template>
-          <template x-if="archiveViewItem">
-            <div>
-              <div class="flex items-center gap-2 mb-3">
-                <span class="text-xs px-2 py-0.5 rounded-full bg-hq-accent/20 text-hq-accent"
-                      x-text="divisionLabel(archiveViewItem.division)"></span>
-                <span class="text-xs text-gray-500" x-text="archiveViewItem.filename"></span>
-              </div>
-              <div class="prose prose-invert prose-sm max-w-none text-gray-300 text-xs leading-relaxed whitespace-pre-wrap"
-                   x-html="renderMarkdown(archiveViewContent)"></div>
-            </div>
-          </template>
-        </div>
-      </div>
-    </main>
-  </div>
-
-  <!-- ═══════════════════════════════════════════ -->
-  <!--  Script                                     -->
-  <!-- ═══════════════════════════════════════════ -->
   <script>
     function corthexApp() {
       return {
-        // Tab state
-        currentTab: 'command',
-
-        // Command Center state
+        // State
         inputText: '',
         messages: [],
         systemStatus: 'idle',
@@ -1176,69 +835,27 @@
         activityLogs: [],
         activeAgents: {},
         ws: null,
+        logExpanded: true,
 
-        // Org tree
+        // Org tree expand state
         expanded: {
-          secretary: false, leet_master: true, tech: false, strategy: false,
-          legal: false, marketing: false, investment: true, finance: false,
-          publishing_hq: true, publishing: false, tools: false,
+          secretary: false,
+          leet_master: true,
+          tech: false,
+          strategy: false,
+          legal: false,
+          marketing: false,
+          investment: true,
+          finance: false,
+          tools: false,
         },
 
-        // Office state
-        selectedAgent: null,
-        agentDetail: null,
-        soulText: '',
-        soulChanged: false,
-        soulSaving: false,
-        soulSaved: false,
-        agentMeta: {},
-        availableModels: [],
-        modelSaving: false,
-        modelSaved: false,
-        reasoningSaving: false,
-        reasoningSaved: false,
-
-        // Knowledge state
-        knowledgeFiles: [],
-        knowledgeExpanded: { shared: true, leet_master: true, finance: true },
-        selectedFile: null,
-        fileContent: '',
-        fileChanged: false,
-        fileSaving: false,
-        fileSaved: false,
-        showNewFileForm: false,
-        newFileFolder: 'shared',
-        newFileName: '',
-
-        // Task history state
-        taskList: [],
-        selectedTask: null,
-        runningTaskCount: 0,
-        taskDepth: '3',
-        batchMode: 'realtime',
-        // Archive (중간 보고서) - 작업내역 내 인라인
-        archiveReports: [],
-        archiveExpanded: false,
-        archiveLoading: false,
-        _archiveViewContent: '',
-        _archiveViewFile: '',
-
-        // Archive Tab (전체 아카이브 탭)
-        fullArchiveList: [],
-        archiveFilter: '',
-        archiveTabLoading: false,
-        archiveViewItem: null,
-        archiveViewContent: '',
-
-        // SNS 상태
-        snsStatus: {},
-
-        // Agent info
+        // Agent name mapping
         agentNames: {
           'chief_of_staff': '비서실장',
-          'report_worker': '보고 요약 Worker',
-          'schedule_worker': '일정/미결 추적 Worker',
-          'relay_worker': '정보 중계 Worker',
+          'report_worker': '보고 요약',
+          'schedule_worker': '일정 추적',
+          'relay_worker': '정보 중계',
           'cto_manager': 'CTO 기술개발처장',
           'frontend_specialist': '프론트엔드',
           'backend_specialist': '백엔드/API',
@@ -1248,10 +865,10 @@
           'market_research_specialist': '시장조사',
           'business_plan_specialist': '사업계획서',
           'financial_model_specialist': '재무모델링',
-          'clo_manager': 'CLO 법무·IP처장',
+          'clo_manager': 'CLO 법무 IP처장',
           'copyright_specialist': '저작권',
           'patent_specialist': '특허/약관',
-          'cmo_manager': 'CMO 마케팅·고객처장',
+          'cmo_manager': 'CMO 마케팅처장',
           'survey_specialist': '설문/리서치',
           'content_specialist': '콘텐츠',
           'community_specialist': '커뮤니티',
@@ -1260,136 +877,143 @@
           'stock_analysis_specialist': '종목분석',
           'technical_analysis_specialist': '기술적분석',
           'risk_management_specialist': '리스크관리',
-          'cpo_manager': 'CPO 출판·기록처장',
-          'chronicle_specialist': '회사연대기',
-          'editor_specialist': '콘텐츠편집',
-          'archive_specialist': '아카이브',
         },
 
-        agentEmojis: {
-          'chief_of_staff': '🎖️', 'report_worker': '📝', 'schedule_worker': '📅', 'relay_worker': '📡',
-          'cto_manager': '🧑‍💻', 'frontend_specialist': '🎨', 'backend_specialist': '⚙️',
-          'infra_specialist': '🗄️', 'ai_model_specialist': '🤖',
-          'cso_manager': '📈', 'market_research_specialist': '🔍',
-          'business_plan_specialist': '📋', 'financial_model_specialist': '💰',
-          'clo_manager': '⚖️', 'copyright_specialist': '©️', 'patent_specialist': '📜',
-          'cmo_manager': '📣', 'survey_specialist': '📊', 'content_specialist': '✍️', 'community_specialist': '👥',
-          'cio_manager': '💹', 'market_condition_specialist': '🌍',
-          'stock_analysis_specialist': '📉', 'technical_analysis_specialist': '📐',
-          'risk_management_specialist': '🛡️',
-          'cpo_manager': '📚', 'chronicle_specialist': '🏛️',
-          'editor_specialist': '✒️', 'archive_specialist': '🗂️',
+        // Agent initials for avatars
+        agentInitials: {
+          'chief_of_staff': 'CS',
+          'report_worker': 'RP',
+          'schedule_worker': 'SC',
+          'relay_worker': 'RL',
+          'cto_manager': 'CTO',
+          'frontend_specialist': 'FE',
+          'backend_specialist': 'BE',
+          'infra_specialist': 'IF',
+          'ai_model_specialist': 'AI',
+          'cso_manager': 'CSO',
+          'market_research_specialist': 'MR',
+          'business_plan_specialist': 'BP',
+          'financial_model_specialist': 'FM',
+          'clo_manager': 'CLO',
+          'copyright_specialist': 'CR',
+          'patent_specialist': 'PT',
+          'cmo_manager': 'CMO',
+          'survey_specialist': 'SV',
+          'content_specialist': 'CT',
+          'community_specialist': 'CM',
+          'cio_manager': 'CIO',
+          'market_condition_specialist': 'MC',
+          'stock_analysis_specialist': 'SA',
+          'technical_analysis_specialist': 'TA',
+          'risk_management_specialist': 'RM',
         },
 
+        // Division mapping for auto-expand
         agentDivision: {
           'chief_of_staff': 'secretary', 'report_worker': 'secretary',
           'schedule_worker': 'secretary', 'relay_worker': 'secretary',
-          'cto_manager': 'tech', 'frontend_specialist': 'tech', 'backend_specialist': 'tech',
+          'cto_manager': 'tech',
+          'frontend_specialist': 'tech', 'backend_specialist': 'tech',
           'infra_specialist': 'tech', 'ai_model_specialist': 'tech',
           'cso_manager': 'strategy', 'market_research_specialist': 'strategy',
           'business_plan_specialist': 'strategy', 'financial_model_specialist': 'strategy',
-          'clo_manager': 'legal', 'copyright_specialist': 'legal', 'patent_specialist': 'legal',
-          'cmo_manager': 'marketing', 'survey_specialist': 'marketing',
-          'content_specialist': 'marketing', 'community_specialist': 'marketing',
+          'clo_manager': 'legal', 'copyright_specialist': 'legal',
+          'patent_specialist': 'legal', 'cmo_manager': 'marketing',
+          'survey_specialist': 'marketing', 'content_specialist': 'marketing',
+          'community_specialist': 'marketing',
           'cio_manager': 'finance', 'market_condition_specialist': 'finance',
           'stock_analysis_specialist': 'finance', 'technical_analysis_specialist': 'finance',
           'risk_management_specialist': 'finance',
-          'cpo_manager': 'publishing', 'chronicle_specialist': 'publishing',
-          'editor_specialist': 'publishing', 'archive_specialist': 'publishing',
         },
 
-        // ─── Init ───
+        // Agent color mapping
+        agentColorMap: {
+          'secretary': 'bg-hq-yellow/20 text-hq-yellow',
+          'tech': 'bg-hq-cyan/20 text-hq-cyan',
+          'strategy': 'bg-hq-cyan/20 text-hq-cyan',
+          'legal': 'bg-hq-cyan/20 text-hq-cyan',
+          'marketing': 'bg-hq-cyan/20 text-hq-cyan',
+          'finance': 'bg-hq-purple/20 text-hq-purple',
+        },
+
         init() {
           this.connectWebSocket();
-          this.loadSNSStatus();
         },
 
-        async loadSNSStatus() {
-          try {
-            const res = await fetch('/api/sns/status');
-            this.snsStatus = await res.json();
-          } catch (e) { console.warn('SNS 상태 로드 실패:', e); }
-        },
-
-        // ─── WebSocket ───
         connectWebSocket() {
-          // 이전 연결 정리 (좀비 연결 방지)
-          if (this.ws) {
-            this.ws.onclose = null;
-            this.ws.onmessage = null;
-            this.ws.onerror = null;
-            try { this.ws.close(); } catch (_) {}
-          }
-          try {
-            const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-            this.ws = new WebSocket(`${protocol}//${location.host}/ws`);
-            this.ws.onopen = () => { this.wsConnected = true; console.log('WebSocket 연결됨'); };
-            this.ws.onclose = () => {
-              this.wsConnected = false;
-              console.log('WebSocket 연결 끊김, 3초 후 재시도...');
-              setTimeout(() => this.connectWebSocket(), 3000);
-            };
-            this.ws.onerror = (e) => { console.error('WebSocket 에러:', e); };
-            this.ws.onmessage = (event) => { this.handleWsMessage(JSON.parse(event.data)); };
-          } catch (e) {
-            console.error('WebSocket 연결 실패:', e);
+          const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+          this.ws = new WebSocket(`${protocol}//${location.host}/ws`);
+
+          this.ws.onopen = () => {
+            this.wsConnected = true;
+          };
+
+          this.ws.onclose = () => {
             this.wsConnected = false;
             setTimeout(() => this.connectWebSocket(), 3000);
-          }
+          };
+
+          this.ws.onmessage = (event) => {
+            const msg = JSON.parse(event.data);
+            this.handleWsMessage(msg);
+          };
         },
 
         handleWsMessage(msg) {
           switch (msg.event) {
-            case 'task_accepted':
-              this.systemStatus = 'working';
-              this.messages.push({ type: 'processing', id: Date.now(), task_id: msg.data.task_id });
-              this.runningTaskCount++;
-              break;
-            case 'task_completed':
-              this.messages = this.messages.filter(m => m.type !== 'processing');
-              this.messages.push({
-                type: 'result', content: msg.data.content, sender_id: 'chief_of_staff',
-                time_seconds: msg.data.time_seconds, cost: msg.data.cost, task_id: msg.data.task_id,
-              });
-              this.systemStatus = 'idle';
-              this.runningTaskCount = Math.max(0, this.runningTaskCount - 1);
-              if (this.currentTab === 'tasks') this.loadTasks();
-              this.$nextTick(() => this.scrollToBottom());
-              break;
             case 'processing_start':
               this.systemStatus = 'working';
               this.messages.push({ type: 'processing', id: Date.now() });
               break;
+
             case 'agent_status':
               const d = msg.data;
-              this.activeAgents[d.agent_id] = { status: d.status, progress: d.progress || 0 };
+              this.activeAgents[d.agent_id] = {
+                status: d.status,
+                progress: d.progress || 0,
+              };
+
               if (d.status === 'working') {
                 const div = this.agentDivision[d.agent_id];
                 if (div) {
                   this.expanded[div] = true;
-                  if (['tech','strategy','legal','marketing'].includes(div)) this.expanded.leet_master = true;
-                  if (div === 'finance') this.expanded.investment = true;
+                  if (['tech','strategy','legal','marketing'].includes(div)) {
+                    this.expanded.leet_master = true;
+                  }
+                  if (div === 'finance') {
+                    this.expanded.investment = true;
+                  }
                 }
-                if (d.progress < 0.9) this.simulateProgress(d.agent_id);
+              }
+
+              if (d.status === 'working' && d.progress < 0.9) {
+                this.simulateProgress(d.agent_id);
               }
               break;
+
             case 'activity_log':
               this.activityLogs.push(msg.data);
               break;
+
             case 'cost_update':
               this.totalCost = msg.data.total_cost;
               this.totalTokens = msg.data.total_tokens;
               break;
+
             case 'result':
               this.messages = this.messages.filter(m => m.type !== 'processing');
               this.messages.push({
-                type: 'result', content: msg.data.content, sender_id: msg.data.sender_id,
-                time_seconds: msg.data.time_seconds, cost: msg.data.cost,
+                type: 'result',
+                content: msg.data.content,
+                sender_id: msg.data.sender_id,
+                time_seconds: msg.data.time_seconds,
+                cost: msg.data.cost,
               });
               this.systemStatus = 'idle';
               this.totalCost = msg.data.cost || this.totalCost;
               this.$nextTick(() => this.scrollToBottom());
               break;
+
             case 'error':
               this.messages = this.messages.filter(m => m.type !== 'processing');
               this.messages.push({ type: 'error', text: msg.data.message });
@@ -1402,430 +1026,118 @@
         simulateProgress(agentId) {
           const interval = setInterval(() => {
             if (!this.activeAgents[agentId] || this.activeAgents[agentId].status !== 'working') {
-              clearInterval(interval); return;
+              clearInterval(interval);
+              return;
             }
-            const cur = this.activeAgents[agentId].progress;
-            if (cur < 0.9) {
-              this.activeAgents[agentId].progress = Math.min(0.9, cur + 0.05 + Math.random() * 0.1);
-            } else { clearInterval(interval); }
+            const current = this.activeAgents[agentId].progress;
+            if (current < 0.9) {
+              this.activeAgents[agentId].progress = Math.min(0.9, current + 0.05 + Math.random() * 0.1);
+            } else {
+              clearInterval(interval);
+            }
           }, 800);
         },
 
-        // ─── Chat ───
         sendMessage() {
           const text = this.inputText.trim();
           if (!text || this.systemStatus === 'working') return;
-          this.messages = [...this.messages, { type: 'user', text }];
+
+          this.messages.push({ type: 'user', text });
           this.inputText = '';
           this.activeAgents = {};
-          if (this.ws?.readyState === WebSocket.OPEN) {
-            this.ws.send(JSON.stringify({ type: 'command', text, depth: parseInt(this.taskDepth) || 3, batch: this.batchMode === 'batch' }));
+
+          if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+            this.ws.send(JSON.stringify({ type: 'command', text }));
           }
+
           this.$nextTick(() => this.scrollToBottom());
         },
 
-        sendPreset(text) { this.inputText = text; this.sendMessage(); },
-
-        // ─── Office ───
-        async loadOfficeData() {
-          if (Object.keys(this.agentMeta).length > 0) return;
-          try {
-            const [agentsRes, modelsRes] = await Promise.all([
-              fetch('/api/agents'),
-              fetch('/api/models'),
-            ]);
-            const agents = await agentsRes.json();
-            agents.forEach(a => { this.agentMeta[a.agent_id] = a; });
-            this.availableModels = await modelsRes.json();
-          } catch (e) { console.error('Failed to load office data:', e); }
+        sendPreset(text) {
+          this.inputText = text;
+          this.sendMessage();
         },
 
-        async selectAgent(id) {
-          this.selectedAgent = id;
-          this.soulChanged = false;
-          this.soulSaved = false;
-          this.modelSaving = false;
-          this.modelSaved = false;
-          try {
-            const res = await fetch(`/api/agents/${id}`);
-            this.agentDetail = await res.json();
-            this.soulText = this.agentDetail.system_prompt || '';
-          } catch (e) { console.error('Failed to load agent:', e); }
+        toggleSection(section) {
+          this.expanded[section] = !this.expanded[section];
         },
 
-        async saveSoul() {
-          if (!this.selectedAgent || !this.soulChanged) return;
-          this.soulSaving = true;
-          try {
-            await fetch(`/api/agents/${this.selectedAgent}/soul`, {
-              method: 'PUT',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ system_prompt: this.soulText }),
-            });
-            this.soulChanged = false;
-            this.soulSaved = true;
-            this.soulSaving = false;
-            setTimeout(() => { this.soulSaved = false; }, 2000);
-          } catch (e) {
-            this.soulSaving = false;
-            alert('저장 실패: ' + e.message);
-          }
+        getAgentName(id) {
+          return this.agentNames[id] || id;
         },
 
-        async saveModel() {
-          if (!this.selectedAgent || !this.agentDetail) return;
-          this.modelSaving = true;
-          this.modelSaved = false;
-          try {
-            const res = await fetch(`/api/agents/${this.selectedAgent}/model`, {
-              method: 'PUT',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ model_name: this.agentDetail.model_name }),
-            });
-            const data = await res.json();
-            if (data.error) {
-              alert('모델 변경 실패: ' + data.error);
-              this.modelSaving = false;
-              return;
-            }
-            if (this.agentMeta[this.selectedAgent]) {
-              this.agentMeta[this.selectedAgent].model_name = this.agentDetail.model_name;
-            }
-            // 새 모델이 현재 추론 수준을 미지원하면 리셋
-            const levels = this.getReasoningLevels();
-            if (this.agentDetail.reasoning_effort && !levels.includes(this.agentDetail.reasoning_effort)) {
-              this.agentDetail.reasoning_effort = '';
-              this.saveReasoning();
-            }
-            this.modelSaving = false;
-            this.modelSaved = true;
-            setTimeout(() => { this.modelSaved = false; }, 2000);
-          } catch (e) {
-            this.modelSaving = false;
-            alert('모델 변경 실패: ' + e.message);
-          }
+        getAgentInitials(id) {
+          return this.agentInitials[id] || id.substring(0, 2).toUpperCase();
         },
 
-        getReasoningLevels() {
-          const model = this.availableModels.find(m => m.name === this.agentDetail?.model_name);
-          return model?.reasoning_levels || [];
-        },
-
-        async saveReasoning() {
-          if (!this.selectedAgent || !this.agentDetail) return;
-          this.reasoningSaving = true;
-          this.reasoningSaved = false;
-          try {
-            const res = await fetch(`/api/agents/${this.selectedAgent}/reasoning`, {
-              method: 'PUT',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ reasoning_effort: this.agentDetail.reasoning_effort || '' }),
-            });
-            const data = await res.json();
-            if (data.error) {
-              alert('추론 수준 변경 실패: ' + data.error);
-              this.reasoningSaving = false;
-              return;
-            }
-            this.reasoningSaving = false;
-            this.reasoningSaved = true;
-            setTimeout(() => { this.reasoningSaved = false; }, 2000);
-          } catch (e) {
-            this.reasoningSaving = false;
-            alert('추론 수준 변경 실패: ' + e.message);
-          }
-        },
-
-        // ─── Tasks ───
-        async loadTasks() {
-          try {
-            const res = await fetch('/api/tasks');
-            this.taskList = await res.json();
-            this.runningTaskCount = this.taskList.filter(t => t.status === 'running').length;
-          } catch (e) { console.error('Failed to load tasks:', e); }
-        },
-
-        async selectTask(taskId) {
-          try {
-            const res = await fetch(`/api/tasks/${taskId}`);
-            this.selectedTask = await res.json();
-            this.archiveReports = [];
-            this.archiveExpanded = false;
-          } catch (e) { console.error('Failed to load task:', e); }
-        },
-
-        async loadArchiveReports() {
-          if (!this.selectedTask) return;
-          this.archiveLoading = true;
-          try {
-            const res = await fetch('/api/archive');
-            const allFiles = await res.json();
-            // 시간 기반 필터: 작업 생성 시간 ± 10분 이내의 보고서
-            const taskTime = new Date(this.selectedTask.created_at).getTime();
-            const window = 10 * 60 * 1000; // 10분
-            this.archiveReports = allFiles.filter(f => {
-              const fTime = new Date(f.modified).getTime();
-              return Math.abs(fTime - taskTime) < window;
-            });
-          } catch (e) { console.error('Failed to load archive:', e); }
-          this.archiveLoading = false;
-        },
-
-        async viewArchiveReport(division, filename) {
-          try {
-            const res = await fetch(`/api/archive/${division}/${filename}`);
-            const data = await res.json();
-            if (data.content) {
-              this._archiveViewContent = data.content;
-              this._archiveViewFile = filename;
-            }
-          } catch (e) { console.error('Failed to load archive report:', e); }
-        },
-
-        formatTime(iso) {
-          if (!iso) return '';
-          const d = new Date(iso);
-          return d.toLocaleString('ko-KR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-        },
-
-        // ─── Archive Tab (전체 아카이브) ───
-        get archiveDivisions() {
-          const labels = {
-            'secretary': '비서실',
-            'leet_master.tech': '기술개발처',
-            'leet_master.strategy': '사업기획처',
-            'leet_master.legal': '법무·IP처',
-            'leet_master.marketing': '마케팅처',
-            'finance.investment': '투자분석처',
-            'publishing': '출판기록처',
-          };
-          const counts = {};
-          for (const item of this.fullArchiveList) {
-            counts[item.division] = (counts[item.division] || 0) + 1;
-          }
-          return Object.entries(counts)
-            .map(([key, count]) => ({ key, label: labels[key] || key, count }))
-            .sort((a, b) => a.label.localeCompare(b.label, 'ko'));
-        },
-
-        get filteredArchive() {
-          if (!this.archiveFilter) return this.fullArchiveList;
-          return this.fullArchiveList.filter(f => f.division === this.archiveFilter);
-        },
-
-        divisionLabel(div) {
-          const labels = {
-            'secretary': '비서실',
-            'leet_master.tech': '기술개발처',
-            'leet_master.strategy': '사업기획처',
-            'leet_master.legal': '법무·IP처',
-            'leet_master.marketing': '마케팅처',
-            'finance.investment': '투자분석처',
-            'publishing': '출판기록처',
-          };
-          return labels[div] || div;
-        },
-
-        formatArchiveDate(filename) {
-          // 20250212_143052_agent.md → 2025-02-12 14:30
-          const m = filename.match(/^(\d{4})(\d{2})(\d{2})_(\d{2})(\d{2})/);
-          if (!m) return filename;
-          return `${m[1]}-${m[2]}-${m[3]} ${m[4]}:${m[5]}`;
-        },
-
-        extractAgentFromFilename(filename) {
-          // 20250212_143052_cto_manager.md → cto_manager
-          const m = filename.match(/^\d{8}_\d{6}_(.+)\.md$/);
-          if (!m) return filename;
-          const agentId = m[1];
-          return this.agentNames[agentId] || agentId;
-        },
-
-        async loadFullArchive() {
-          this.archiveTabLoading = true;
-          try {
-            const res = await fetch('/api/archive');
-            this.fullArchiveList = await res.json();
-          } catch (e) { console.error('Failed to load archive:', e); }
-          this.archiveTabLoading = false;
-        },
-
-        async viewArchiveItem(item) {
-          this.archiveViewItem = item;
-          this.archiveViewContent = '';
-          try {
-            const res = await fetch(`/api/archive/${item.division}/${item.filename}`);
-            const data = await res.json();
-            this.archiveViewContent = data.content || '';
-          } catch (e) { console.error('Failed to load archive item:', e); }
-        },
-
-        // ─── Knowledge ───
-        async loadKnowledge() {
-          try {
-            const res = await fetch('/api/knowledge');
-            this.knowledgeFiles = await res.json();
-          } catch (e) { console.error('Failed to load knowledge:', e); }
-        },
-
-        async selectKnowledgeFile(file) {
-          this.selectedFile = file;
-          this.fileChanged = false;
-          this.fileSaved = false;
-          try {
-            const res = await fetch(`/api/knowledge/${file.folder}/${file.filename}`);
-            const data = await res.json();
-            this.fileContent = data.content || '';
-          } catch (e) { console.error('Failed to load file:', e); }
-        },
-
-        async saveKnowledgeFile() {
-          if (!this.selectedFile || !this.fileChanged) return;
-          this.fileSaving = true;
-          try {
-            const res = await fetch('/api/knowledge', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                folder: this.selectedFile.folder,
-                filename: this.selectedFile.filename,
-                content: this.fileContent,
-              }),
-            });
-            const data = await res.json();
-            if (data.error) {
-              this.fileSaving = false;
-              alert('저장 실패: ' + data.error);
-              return;
-            }
-            this.fileChanged = false;
-            this.fileSaved = true;
-            this.fileSaving = false;
-            setTimeout(() => { this.fileSaved = false; }, 2000);
-          } catch (e) {
-            this.fileSaving = false;
-            alert('저장 실패: ' + e.message);
-          }
-        },
-
-        async deleteKnowledgeFile() {
-          if (!this.selectedFile) return;
-          if (!confirm(`"${this.selectedFile.filename}" 파일을 삭제하시겠습니까?`)) return;
-          try {
-            await fetch(`/api/knowledge/${this.selectedFile.folder}/${this.selectedFile.filename}`, {
-              method: 'DELETE',
-            });
-            this.selectedFile = null;
-            this.fileContent = '';
-            await this.loadKnowledge();
-          } catch (e) { alert('삭제 실패: ' + e.message); }
-        },
-
-        async createNewFile() {
-          if (!this.newFileName.trim()) return;
-          try {
-            const res = await fetch('/api/knowledge', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                folder: this.newFileFolder,
-                filename: this.newFileName.trim(),
-                content: `# ${this.newFileName.trim()}\n\n내용을 입력하세요.\n`,
-              }),
-            });
-            const data = await res.json();
-            if (data.error) {
-              alert('생성 실패: ' + data.error + '\n\nrun.bat으로 서버가 실행 중인지 확인하세요.');
-              return;
-            }
-            this.showNewFileForm = false;
-            this.newFileName = '';
-            await this.loadKnowledge();
-          } catch (e) { alert('생성 실패: ' + e.message + '\n\n서버가 실행 중인지 확인하세요.'); }
-        },
-
-        // ─── Helpers ───
-        toggleSection(s) { this.expanded[s] = !this.expanded[s]; },
-        toggleKnowledgeFolder(folder) { this.knowledgeExpanded[folder] = !this.knowledgeExpanded[folder]; },
-
-        getKnowledgeFolders() {
-          const grouped = {};
-          for (const file of this.knowledgeFiles) {
-            if (!grouped[file.folder]) grouped[file.folder] = [];
-            grouped[file.folder].push(file);
-          }
-          const order = ['shared', 'leet_master', 'finance'];
-          const result = [];
-          for (const key of order) {
-            if (grouped[key]) { result.push({ folder: key, files: grouped[key] }); delete grouped[key]; }
-          }
-          for (const [key, files] of Object.entries(grouped)) {
-            result.push({ folder: key, files });
-          }
-          return result;
-        },
-
-        getKnowledgeFolderStyle(folder) {
-          const styles = {
-            shared:      { label: 'shared (전체 공유)', color: 'text-gray-400' },
-            leet_master: { label: 'leet_master (LEET Master)', color: 'text-cyan-400' },
-            finance:     { label: 'finance (투자분석)', color: 'text-purple-400' },
-            publishing:  { label: 'publishing (출판·기록)', color: 'text-amber-400' },
-          };
-          return styles[folder] || { label: folder, color: 'text-gray-400' };
-        },
-
-        getAgentName(id) { return this.agentNames[id] || id; },
-        getAgentEmoji(id) { return this.agentEmojis[id] || '🤖'; },
-
-        getAgentAvatarBg(id) {
+        getAgentAvatarClass(id) {
           const div = this.agentDivision[id];
-          if (!div) return 'bg-gray-700';
-          const m = { secretary: 'bg-yellow-900/40', tech: 'bg-cyan-900/40', strategy: 'bg-emerald-900/40',
-                      legal: 'bg-orange-900/40', marketing: 'bg-pink-900/40', finance: 'bg-purple-900/40',
-                      publishing: 'bg-amber-900/40' };
-          return m[div] || 'bg-gray-700';
+          return this.agentColorMap[div] || 'bg-hq-accent/20 text-hq-accent';
         },
 
         getAgentDotClass(id) {
-          const s = this.activeAgents[id];
-          if (!s) return 'bg-amber-500';
-          if (s.status === 'working') return 'bg-hq-green pulse-dot';
-          if (s.status === 'done') return 'bg-hq-green';
-          return 'bg-amber-500';
+          const status = this.activeAgents[id];
+          if (!status) return 'bg-hq-muted/40';
+          switch (status.status) {
+            case 'working': return 'bg-hq-green pulse-dot';
+            case 'done': return 'bg-hq-green';
+            case 'idle': return 'bg-hq-muted/40';
+            default: return 'bg-hq-muted/30';
+          }
+        },
+
+        getSectionBadgeClass(section) {
+          const ids = this.getSectionAgentIds(section);
+          const hasWorking = ids.some(id => this.activeAgents[id]?.status === 'working');
+          if (hasWorking) return 'bg-hq-yellow/15 text-hq-yellow border border-hq-yellow/20';
+          const hasDone = ids.some(id => this.activeAgents[id]?.status === 'done');
+          if (hasDone) return 'bg-hq-green/15 text-hq-green border border-hq-green/20';
+          return 'hidden';
         },
 
         getSectionStatusColor(section) {
           const ids = this.getSectionAgentIds(section);
-          if (ids.some(id => this.activeAgents[id]?.status === 'working')) return 'text-hq-yellow';
-          if (ids.some(id => this.activeAgents[id]?.status === 'done')) return 'text-hq-green';
-          return 'text-gray-600';
+          const hasWorking = ids.some(id => this.activeAgents[id]?.status === 'working');
+          if (hasWorking) return 'text-hq-yellow';
+          const hasDone = ids.some(id => this.activeAgents[id]?.status === 'done');
+          if (hasDone) return 'text-hq-green';
+          return 'text-hq-muted/30';
         },
 
         getSectionStatusText(section) {
           const ids = this.getSectionAgentIds(section);
-          const w = ids.filter(id => this.activeAgents[id]?.status === 'working').length;
-          if (w > 0) return `${w}명 작업중`;
-          const d = ids.filter(id => this.activeAgents[id]?.status === 'done').length;
-          if (d > 0) return `${d}명 완료`;
+          const working = ids.filter(id => this.activeAgents[id]?.status === 'working').length;
+          if (working > 0) return `${working} active`;
+          const done = ids.filter(id => this.activeAgents[id]?.status === 'done').length;
+          if (done > 0) return `${done} done`;
           return '';
         },
 
         getSectionAgentIds(section) {
           if (section === 'leet_master') {
-            return Object.entries(this.agentDivision).filter(([_,d]) => ['tech','strategy','legal','marketing'].includes(d)).map(([id]) => id);
+            return Object.entries(this.agentDivision)
+              .filter(([_, div]) => ['tech','strategy','legal','marketing'].includes(div))
+              .map(([id]) => id);
           }
           if (section === 'investment') {
-            return Object.entries(this.agentDivision).filter(([_,d]) => d === 'finance').map(([id]) => id);
+            return Object.entries(this.agentDivision)
+              .filter(([_, div]) => div === 'finance')
+              .map(([id]) => id);
           }
-          if (section === 'publishing_hq') {
-            return Object.entries(this.agentDivision).filter(([_,d]) => d === 'publishing').map(([id]) => id);
-          }
-          return Object.entries(this.agentDivision).filter(([_,d]) => d === section).map(([id]) => id);
+          return Object.entries(this.agentDivision)
+            .filter(([_, div]) => div === section)
+            .map(([id]) => id);
         },
 
-        renderMarkdown(text) { try { return marked.parse(text || ''); } catch { return text; } },
-        scrollToBottom() { const el = this.$refs.chatArea; if (el) el.scrollTop = el.scrollHeight; },
+        renderMarkdown(text) {
+          try { return marked.parse(text || ''); }
+          catch { return text; }
+        },
+
+        scrollToBottom() {
+          const el = this.$refs.chatArea;
+          if (el) el.scrollTop = el.scrollHeight;
+        },
       };
     }
   </script>
