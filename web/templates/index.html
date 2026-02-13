@@ -745,8 +745,8 @@
         <button @click="errorAlert.visible = false" class="text-hq-red/50 hover:text-hq-red text-lg">&times;</button>
       </div>
 
-      <!-- ═══ Tab Navigation ═══ -->
-      <div class="flex items-center gap-0.5 px-3 pt-1.5 pb-0 border-b border-hq-border bg-hq-surface/50 shrink-0 overflow-x-auto">
+      <!-- ═══ Tab Navigation (채팅 모드일 때만 표시) ═══ -->
+      <div x-show="viewMode === 'chat'" class="flex items-center gap-0.5 px-3 pt-1.5 pb-0 border-b border-hq-border bg-hq-surface/50 shrink-0 overflow-x-auto">
         <template x-for="tab in tabs" :key="tab.id">
           <button @click="switchTab(tab.id)"
                   :class="activeTab === tab.id
@@ -760,7 +760,7 @@
       </div>
 
       <!-- ═══ Tab: 홈 (Home Dashboard) ═══ -->
-      <div x-show="activeTab === 'home'" x-cloak class="flex-1 overflow-y-auto scrollbar-thin p-6 bg-grid">
+      <div x-show="viewMode === 'chat' && activeTab === 'home'" x-cloak class="flex-1 overflow-y-auto scrollbar-thin p-6 bg-grid">
         <div class="max-w-5xl mx-auto fade-in-up">
           <div class="mb-6">
             <h1 class="text-2xl font-bold gradient-text mb-1">CORTHEX HQ 대시보드</h1>
@@ -879,7 +879,7 @@
       </div>
 
       <!-- ═══ Tab: 명령 (Command) ═══ -->
-      <div x-show="activeTab === 'command'" x-cloak class="flex-1 flex flex-col overflow-hidden">
+      <div x-show="viewMode === 'chat' && activeTab === 'command'" x-cloak class="flex-1 flex flex-col overflow-hidden">
 
       <!-- Chat Messages -->
       <div class="flex-1 overflow-y-auto scrollbar-thin p-6 space-y-4 bg-grid" id="chatArea"
@@ -1184,7 +1184,7 @@
       </div><!-- /command tab -->
 
       <!-- ═══ Tab: 성능 (Performance) ═══ -->
-      <div x-show="activeTab === 'performance'" x-cloak class="flex-1 overflow-y-auto scrollbar-thin p-6 bg-grid">
+      <div x-show="viewMode === 'chat' && activeTab === 'performance'" x-cloak class="flex-1 overflow-y-auto scrollbar-thin p-6 bg-grid">
         <div class="max-w-5xl mx-auto fade-in-up">
           <h1 class="text-xl font-bold text-white mb-1">에이전트 성능</h1>
           <p class="text-sm text-hq-muted mb-6">에이전트별 작업 통계를 확인하세요</p>
@@ -1261,7 +1261,7 @@
       </div>
 
       <!-- ═══ Office View (가상 사무실) ═══ -->
-      <div x-show="viewMode === 'office'" class="flex-1 overflow-y-auto scrollbar-thin p-6 bg-grid">
+      <div x-show="viewMode === 'office'" x-transition.opacity.duration.200ms class="flex-1 overflow-y-auto scrollbar-thin p-6 bg-grid">
         <div class="max-w-5xl mx-auto space-y-5 fade-in-up">
 
           <!-- CEO 사무실 -->
@@ -1432,14 +1432,14 @@
       </div>
 
       <!-- ═══ Dashboard View ═══ -->
-      <div x-show="viewMode === 'dashboard'" class="flex-1 overflow-y-auto scrollbar-thin p-6 bg-grid">
+      <div x-show="viewMode === 'dashboard'" x-transition.opacity.duration.200ms class="flex-1 overflow-y-auto scrollbar-thin p-6 bg-grid">
         <div x-show="dashboard.loading" class="flex items-center justify-center h-full">
           <div class="text-hq-muted flex items-center gap-2">
             <svg class="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
             대시보드 로딩 중...
 
       <!-- ═══ Tab: 작업내역 (History) ═══ -->
-      <div x-show="activeTab === 'history'" x-cloak class="flex-1 flex flex-col overflow-hidden">
+      <div x-show="viewMode === 'chat' && activeTab === 'history'" x-cloak class="flex-1 flex flex-col overflow-hidden">
         <div class="px-6 pt-4 pb-3 shrink-0 border-b border-hq-border bg-hq-surface/30">
           <div class="flex items-center gap-3 max-w-5xl mx-auto">
             <!-- Search -->
@@ -1539,7 +1539,7 @@
       </div>
 
       <!-- ═══ Tab: 예약 (Schedule) ═══ -->
-      <div x-show="activeTab === 'schedule'" x-cloak class="flex-1 overflow-y-auto scrollbar-thin p-6 bg-grid">
+      <div x-show="viewMode === 'chat' && activeTab === 'schedule'" x-cloak class="flex-1 overflow-y-auto scrollbar-thin p-6 bg-grid">
         <div class="max-w-4xl mx-auto fade-in-up">
           <div class="flex items-center justify-between mb-6">
             <div>
@@ -1587,7 +1587,7 @@
       </div>
 
       <!-- ═══ Tab: 워크플로우 (Workflow) ═══ -->
-      <div x-show="activeTab === 'workflow'" x-cloak class="flex-1 overflow-y-auto scrollbar-thin p-6 bg-grid">
+      <div x-show="viewMode === 'chat' && activeTab === 'workflow'" x-cloak class="flex-1 overflow-y-auto scrollbar-thin p-6 bg-grid">
         <div class="max-w-4xl mx-auto fade-in-up">
           <div class="flex items-center justify-between mb-6">
             <div>
@@ -1639,7 +1639,7 @@
       </div>
 
       <!-- ═══ Activity Log View (활동 로그) ═══ -->
-      <div x-show="activeTab === 'activityLog'" class="flex-1 overflow-y-auto scrollbar-thin p-6 bg-grid">
+      <div x-show="viewMode === 'chat' && activeTab === 'activityLog'" class="flex-1 overflow-y-auto scrollbar-thin p-6 bg-grid">
         <div class="max-w-4xl mx-auto fade-in-up">
           <div class="flex items-center justify-between mb-4">
             <h2 class="text-lg font-bold text-hq-text">활동 로그</h2>
@@ -1675,7 +1675,7 @@
       </div>
 
       <!-- ═══ Knowledge View (지식 관리) ═══ -->
-      <div x-show="activeTab === 'knowledge'" class="flex-1 overflow-hidden flex bg-grid">
+      <div x-show="viewMode === 'chat' && activeTab === 'knowledge'" class="flex-1 overflow-hidden flex bg-grid">
         <!-- Left: File Tree -->
         <div class="w-64 border-r border-hq-border overflow-y-auto scrollbar-thin p-4 bg-hq-surface/30 shrink-0">
           <div class="flex items-center justify-between mb-3">
@@ -1734,7 +1734,7 @@
       </div>
 
       <!-- ═══ Archive View (아카이브) ═══ -->
-      <div x-show="activeTab === 'archive'" class="flex-1 overflow-y-auto scrollbar-thin p-6 bg-grid">
+      <div x-show="viewMode === 'chat' && activeTab === 'archive'" class="flex-1 overflow-y-auto scrollbar-thin p-6 bg-grid">
         <div class="max-w-5xl mx-auto fade-in-up">
           <div class="flex items-center justify-between mb-4">
             <h2 class="text-lg font-bold text-hq-text">아카이브 (보고서 저장소)</h2>
@@ -1792,7 +1792,7 @@
       </div>
 
       <!-- ═══ SNS Management View (SNS 관리) ═══ -->
-      <div x-show="activeTab === 'sns'" class="flex-1 overflow-y-auto scrollbar-thin p-6 bg-grid">
+      <div x-show="viewMode === 'chat' && activeTab === 'sns'" class="flex-1 overflow-y-auto scrollbar-thin p-6 bg-grid">
         <div class="max-w-5xl mx-auto fade-in-up">
           <h2 class="text-lg font-bold text-hq-text mb-4">SNS 관리</h2>
           <!-- Sub Tabs -->
