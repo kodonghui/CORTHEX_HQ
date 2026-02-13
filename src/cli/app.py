@@ -29,6 +29,8 @@ from src.core.message import Message, MessageType
 from src.core.orchestrator import Orchestrator
 from src.core.performance import build_performance_report
 from src.core.preset import PresetManager
+from src.core.quality_gate import QualityGate
+from src.core.quality_rules_manager import QualityRulesManager
 from src.core.registry import AgentRegistry
 from src.core.replay import build_replay, get_last_correlation_id, ReplayNode
 from src.llm.anthropic_provider import AnthropicProvider
@@ -113,6 +115,9 @@ class CorthexCLI:
                     continue
                 if cmd_lower in ("feedback", "피드백"):
                     self._show_feedback_stats()
+                    continue
+                if cmd_lower in ("quality", "품질", "검수"):
+                    self._show_quality_stats()
                     continue
                 if cmd_lower in ("좋아", "good", "👍"):
                     self._record_feedback("good")
@@ -294,6 +299,14 @@ class CorthexCLI:
         self.preset_manager = PresetManager(self.config_dir / "presets.yaml")
         preset_count = len(self.preset_manager.list_all())
         self.console.print(f"  [green]>[/green] 프리셋 {preset_count}개 로드")
+
+        # Build quality gate with rules manager
+        quality_rules_path = self.config_dir / "quality_rules.yaml"
+        quality_rules_manager = QualityRulesManager(quality_rules_path)
+        quality_gate = QualityGate(quality_rules_path)
+        quality_gate.set_rules_manager(quality_rules_manager)
+        context.set_quality_gate(quality_gate)
+        self.console.print(f"  [green]>[/green] 품질 게이트 초기화 (검수 모델: {quality_rules_manager.review_model})")
 
         # Build feedback manager
         data_dir = self.config_dir.parent / "data"
@@ -733,6 +746,64 @@ class CorthexCLI:
                 self.console.print(f"  {icon} {entry.get('agent_id', '?')}{comment} [dim]{entry['timestamp'][:16]}[/dim]")
             self.console.print()
 
+    def _show_quality_stats(self) -> None:
+        """Show quality gate statistics."""
+        if not self.context or not self.context.quality_gate:
+            self.console.print("[dim]품질 게이트가 초기화되지 않았습니다.[/dim]")
+            return
+
+        data = self.context.quality_gate.stats.to_dict()
+
+        if data["total_reviewed"] == 0:
+            self.console.print("[dim]아직 검수된 보고서가 없습니다. 명령을 실행하면 자동으로 검수됩니다.[/dim]")
+            return
+
+        # Summary
+        rate_style = (
+            "[green]" if data["pass_rate"] >= 80
+            else "[yellow]" if data["pass_rate"] >= 50
+            else "[red]"
+        )
+        self.console.print(
+            f"\n[bold]품질 게이트 현황:[/bold] "
+            f"검수 {data['total_reviewed']}건 | "
+            f"통과 {data['total_passed']}건 | "
+            f"반려 {data['total_rejected']}건 | "
+            f"통과율 {rate_style}{data['pass_rate']}%[/]\n"
+        )
+
+        if data["total_retried"] > 0:
+            self.console.print(
+                f"  재시도 {data['total_retried']}건 중 "
+                f"{data['total_retry_passed']}건 통과 "
+                f"(재시도 성공률: {data['retry_success_rate']}%)\n"
+            )
+
+        # Rejections by agent
+        if data["rejections_by_agent"]:
+            table = Table(title="에이전트별 반려 횟수")
+            table.add_column("에이전트", style="cyan")
+            table.add_column("반려 횟수", justify="right", style="red")
+
+            for agent_id, count in sorted(
+                data["rejections_by_agent"].items(), key=lambda x: x[1], reverse=True
+            ):
+                table.add_row(agent_id, str(count))
+            self.console.print(table)
+
+        # Recent rejections
+        recent = data.get("recent_rejections", [])
+        if recent:
+            self.console.print("\n[bold]최근 반려 내역:[/bold]")
+            for entry in recent[-5:]:
+                self.console.print(
+                    f"  [red]X[/red] [cyan]{entry['reviewer']}[/cyan] → "
+                    f"{entry['target']} (점수: {entry['score']})\n"
+                    f"    [dim]사유: {entry['reason']}[/dim]\n"
+                    f"    [dim]업무: {entry['task']}[/dim]"
+                )
+            self.console.print()
+
     def _record_feedback(self, rating: str) -> None:
         """Record CEO feedback for the last command."""
         if not self.feedback_manager:
@@ -771,6 +842,7 @@ class CorthexCLI:
             "[cyan]피드백 / feedback[/cyan]     - CEO 피드백 통계 확인\n"
             "[cyan]좋아 / good[/cyan]           - 마지막 결과에 긍정 피드백\n"
             "[cyan]별로 / bad[/cyan]            - 마지막 결과에 부정 피드백 (의견 입력 가능)\n"
+            "[cyan]품질 / quality[/cyan]        - 품질 게이트 검수 통계\n"
             "[cyan]프리셋 목록[/cyan]           - 저장된 명령 프리셋 조회\n"
             "[cyan]프리셋 저장 <이름> <명령>[/cyan] - 명령 프리셋 저장\n"
             "[cyan]프리셋 삭제 <이름>[/cyan]    - 명령 프리셋 삭제\n"

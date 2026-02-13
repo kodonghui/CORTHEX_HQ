@@ -33,6 +33,9 @@ from src.core.task_store import TaskStore, StoredTask, TaskStatus
 from src.core.orchestrator import Orchestrator
 from src.core.performance import build_performance_report
 from src.core.preset import PresetManager
+from src.core.quality_gate import QualityGate
+from src.core.quality_rules_manager import QualityRulesManager
+from src.core.git_sync import git_auto_sync
 from src.core.registry import AgentRegistry
 from src.core.replay import build_replay, get_last_correlation_id
 from src.llm.anthropic_provider import AnthropicProvider
@@ -83,19 +86,20 @@ context: SharedContext | None = None
 knowledge_mgr: KnowledgeManager | None = None
 agents_cfg_raw: dict | None = None  # raw YAML config for soul editing
 task_store: TaskStore = TaskStore()
-telegram_bot: Any = None  # CorthexTelegramBot (optional)
+telegram_app: Any = None  # telegram.ext.Application (src.telegram)
 budget_manager: BudgetManager | None = None
 preset_manager: PresetManager | None = None
 oauth_manager: OAuthManager | None = None
 webhook_receiver: WebhookReceiver | None = None
 tool_pool_ref: ToolPool | None = None
 feedback_manager: FeedbackManager | None = None
+quality_rules_manager: QualityRulesManager | None = None
 
 
 @app.on_event("startup")
 async def startup() -> None:
     """Initialize the agent system on server start."""
-    global orchestrator, model_router, registry, context, knowledge_mgr, agents_cfg_raw, budget_manager, preset_manager, oauth_manager, webhook_receiver, tool_pool_ref, feedback_manager
+    global orchestrator, model_router, registry, context, knowledge_mgr, agents_cfg_raw, budget_manager, preset_manager, oauth_manager, webhook_receiver, tool_pool_ref, feedback_manager, quality_rules_manager
 
     logger.info("CORTHEX HQ 시스템 초기화 중...")
 
@@ -151,6 +155,12 @@ async def startup() -> None:
 
         context.set_status_callback(on_message)
 
+        # Build quality gate with rules manager (CEO 웹 UI에서 설정 변경 가능)
+        quality_rules_manager = QualityRulesManager(CONFIG_DIR / "quality_rules.yaml")
+        quality_gate = QualityGate(CONFIG_DIR / "quality_rules.yaml")
+        quality_gate.set_rules_manager(quality_rules_manager)
+        context.set_quality_gate(quality_gate)
+
         # Build orchestrator
         orchestrator = Orchestrator(registry, model_router)
 
@@ -167,28 +177,26 @@ async def startup() -> None:
 
         logger.info("CORTHEX HQ 시스템 준비 완료 (에이전트 %d명)", registry.agent_count)
 
-        # Telegram Bot (선택사항)
-        tg_token = os.getenv("TELEGRAM_BOT_TOKEN", "")
-        tg_chat_id = os.getenv("TELEGRAM_CHAT_ID", "")
-        if tg_token and tg_chat_id:
+        # 텔레그램 봇 초기화 (src.telegram 패키지 — 양방향 브릿지)
+        if os.getenv("TELEGRAM_ENABLED", "0") == "1":
             try:
-                from src.integrations.telegram_bot import CorthexTelegramBot, HAS_TELEGRAM
-                if HAS_TELEGRAM:
-                    global telegram_bot
-                    telegram_bot = CorthexTelegramBot(
-                        token=tg_token,
-                        allowed_chat_id=tg_chat_id,
-                        command_callback=_execute_command_for_api,
-                    )
-                    async def _start_telegram():
-                        try:
-                            await telegram_bot.start()
-                        except Exception as exc:
-                            logger.error("텔레그램 봇 시작 실패: %s", exc, exc_info=True)
-                    asyncio.create_task(_start_telegram())
-                    logger.info("텔레그램 봇 활성화됨 (chat_id=%s)", tg_chat_id)
+                from src.telegram.bot import create_bot
+                global telegram_app
+                telegram_app = await create_bot(
+                    orchestrator=orchestrator,
+                    ws_manager=ws_manager,
+                    model_router=model_router,
+                    registry=registry,
+                )
+                await telegram_app.initialize()
+                await telegram_app.start()
+                asyncio.create_task(telegram_app.updater.start_polling(drop_pending_updates=True))
+                logger.info("텔레그램 봇 시작 완료 (src.telegram)")
             except Exception as e:
-                logger.warning("텔레그램 봇 초기화 실패: %s", e)
+                logger.error("텔레그램 봇 시작 실패 (웹 서버는 계속 동작): %s", e)
+                telegram_app = None
+        else:
+            logger.info("텔레그램 봇 비활성화 (TELEGRAM_ENABLED=0)")
 
     except Exception as e:
         logger.error("시스템 초기화 실패: %s", e, exc_info=True)
@@ -206,6 +214,14 @@ async def startup() -> None:
 @app.on_event("shutdown")
 async def shutdown() -> None:
     """Clean up resources on server shutdown."""
+    if telegram_app:
+        try:
+            await telegram_app.updater.stop()
+            await telegram_app.stop()
+            await telegram_app.shutdown()
+            logger.info("텔레그램 봇 종료 완료")
+        except Exception as e:
+            logger.warning("텔레그램 봇 종료 중 오류 (무시): %s", e)
     if model_router:
         await model_router.close()
     logger.info("CORTHEX HQ 시스템 종료")
@@ -236,6 +252,15 @@ async def _handle_message_event(msg: Message) -> None:
             )
         # 중간 보고서 아카이브 저장
         _archive_agent_report(msg)
+
+    # 텔레그램 브릿지에도 이벤트 전달
+    try:
+        from src.telegram.bot import get_bridge
+        bridge = get_bridge()
+        if bridge:
+            await bridge.on_agent_event(msg)
+    except ImportError:
+        pass
 
 
 # ─── Archive ───
@@ -412,6 +437,75 @@ async def get_tools() -> list[dict]:
         (CONFIG_DIR / "tools.yaml").read_text(encoding="utf-8")
     )
     return tools_cfg.get("tools", [])
+
+
+@app.get("/api/quality")
+async def get_quality() -> dict:
+    """Return quality gate statistics."""
+    if not context or not context.quality_gate:
+        return {"error": "시스템 미초기화"}
+    return context.quality_gate.stats.to_dict()
+
+
+@app.get("/api/quality-rules")
+async def get_quality_rules() -> dict:
+    """Return quality gate configuration (rules + rubrics)."""
+    if not quality_rules_manager:
+        return {"error": "시스템 미초기화"}
+    return quality_rules_manager.to_dict()
+
+
+@app.get("/api/available-models")
+async def get_available_models() -> list[dict]:
+    """Return list of all available models from models.yaml."""
+    models_path = CONFIG_DIR / "models.yaml"
+    if not models_path.exists():
+        return []
+    models_cfg = yaml.safe_load(models_path.read_text(encoding="utf-8"))
+    models: list[dict] = []
+    for provider_name, provider_data in models_cfg.get("providers", {}).items():
+        for m in provider_data.get("models", []):
+            models.append({
+                "name": m["name"],
+                "provider": provider_name,
+                "tier": m.get("tier", ""),
+                "cost_input": m.get("cost_per_1m_input", 0),
+                "cost_output": m.get("cost_per_1m_output", 0),
+            })
+    return models
+
+
+@app.put("/api/quality-rules/model")
+async def update_review_model(body: dict) -> dict:
+    """Update the review model used for quality checks."""
+    if not quality_rules_manager:
+        return {"error": "시스템 미초기화"}
+    model_name = body.get("review_model", "").strip()
+    if not model_name:
+        return {"error": "review_model이 필요합니다"}
+    quality_rules_manager.set_review_model(model_name)
+    sync = await git_auto_sync(
+        quality_rules_manager.path,
+        f"[CORTHEX HQ] 검수 모델 변경: {model_name}",
+    )
+    return {"success": True, "review_model": model_name, "git_sync": sync}
+
+
+@app.put("/api/quality-rules/rubric/{division}")
+async def update_rubric(division: str, body: dict) -> dict:
+    """Create or update a rubric for a specific division."""
+    if not quality_rules_manager:
+        return {"error": "시스템 미초기화"}
+    name = body.get("name", "").strip()
+    prompt = body.get("prompt", "").strip()
+    if not name or not prompt:
+        return {"error": "name과 prompt가 필요합니다"}
+    quality_rules_manager.set_rubric(division, name, prompt)
+    sync = await git_auto_sync(
+        quality_rules_manager.path,
+        f"[CORTHEX HQ] 검수 기준 변경: {division}",
+    )
+    return {"success": True, "division": division, "git_sync": sync}
 
 
 @app.get("/api/replay/latest")
