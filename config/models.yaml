@@ -20,21 +20,21 @@ providers:
         cost_per_1m_output: 10.00
         max_tokens: 32768
         tier: "manager"
-        reasoning_levels: ["low", "medium", "high"]
+        reasoning_levels: ["minimal", "low", "medium", "high"]
 
       - name: "gpt-5-2"
         cost_per_1m_input: 1.75
         cost_per_1m_output: 14.00
         max_tokens: 32768
         tier: "manager"
-        reasoning_levels: ["low", "medium", "high"]
+        reasoning_levels: ["none", "low", "medium", "high", "xhigh"]
 
       - name: "gpt-5-2-pro"
         cost_per_1m_input: 21.00
         cost_per_1m_output: 168.00
         max_tokens: 32768
         tier: "executive"
-        reasoning_levels: ["low", "medium", "high"]
+        reasoning_levels: ["medium", "high", "xhigh"]
 
   anthropic:
     api_key_env: "ANTHROPIC_API_KEY"

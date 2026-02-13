@@ -556,6 +556,7 @@ async def get_available_models() -> list[dict]:
                 "tier": m.get("tier", ""),
                 "cost_input": m.get("cost_per_1m_input", 0),
                 "cost_output": m.get("cost_per_1m_output", 0),
+                "reasoning_levels": m.get("reasoning_levels", []),
             })
     return models
 
@@ -827,7 +828,7 @@ async def update_reasoning_effort(agent_id: str, body: ReasoningUpdateRequest) -
     if not registry or not agents_cfg_raw:
         return {"error": "not initialized"}
 
-    valid = {"", "low", "medium", "high"}
+    valid = {"", "none", "minimal", "low", "medium", "high", "xhigh"}
     if body.reasoning_effort not in valid:
         return {"error": f"Invalid reasoning_effort: {body.reasoning_effort}"}
 
