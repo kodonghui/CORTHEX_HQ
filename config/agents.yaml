@@ -394,6 +394,9 @@ agents:
       - YouTube: 영상 업로드/메타데이터 관리
       - Instagram: 이미지/릴스 게시
       - LinkedIn: 텍스트/이미지/링크 게시물
+      - Naver Cafe: 네이버 카페 게시글 (Official API, extra에 club_id/menu_id 필요)
+      - Naver Blog: 네이버 블로그 글 (Selenium 기반, 안정성 주의)
+      - Daum Cafe: 다음 카페 게시글 (Selenium 기반, extra에 cafe_id/board_id 필요)
     capabilities:
       - "마케팅 전략"
       - "고객 리서치"
@@ -457,7 +460,13 @@ agents:
       발행 요청 시 platform, title, body, tags를 포함하세요.
       ※ 실제 발행은 CEO 승인 후 CMO가 실행합니다.
       ※ 당신은 콘텐츠 작성과 submit만 담당합니다.
-      지원 플랫폼: tistory, youtube, instagram, linkedin
+      지원 플랫폼: tistory, youtube, instagram, linkedin, naver_cafe, naver_blog, daum_cafe
+
+      ## 한국 플랫폼 사용 시 참고
+      - naver_cafe: extra에 club_id, menu_id 지정 (환경변수 기본값 사용 가능)
+      - naver_blog: NAVER_ID/PW 환경변수 필요 (Selenium 자동화)
+      - daum_cafe: extra에 cafe_id, board_id 지정. KAKAO_ID/PW 환경변수 필요 (Selenium 자동화)
+      - Selenium 기반 플랫폼(naver_blog, daum_cafe)은 CAPTCHA 발생 시 실패할 수 있음
     capabilities:
       - "콘텐츠 작성"
       - "카피라이팅"

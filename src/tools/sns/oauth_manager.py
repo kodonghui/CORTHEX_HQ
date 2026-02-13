@@ -102,6 +102,14 @@ PLATFORM_CONFIG: dict[str, dict[str, str]] = {
         "env_redirect_uri": "LINKEDIN_REDIRECT_URI",
         "scope": "openid profile w_member_social",
     },
+    "naver_cafe": {
+        "auth_url": "https://nid.naver.com/oauth2.0/authorize",
+        "token_url": "https://nid.naver.com/oauth2.0/token",
+        "env_client_id": "NAVER_CLIENT_ID",
+        "env_client_secret": "NAVER_CLIENT_SECRET",
+        "env_redirect_uri": "NAVER_REDIRECT_URI",
+        "scope": "cafe",
+    },
 }
 
 

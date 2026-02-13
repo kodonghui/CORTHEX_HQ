@@ -23,6 +23,9 @@ from src.tools.sns.tistory_publisher import TistoryPublisher
 from src.tools.sns.youtube_publisher import YouTubePublisher
 from src.tools.sns.instagram_publisher import InstagramPublisher
 from src.tools.sns.linkedin_publisher import LinkedInPublisher
+from src.tools.sns.naver_cafe_publisher import NaverCafePublisher
+from src.tools.sns.naver_blog_publisher import NaverBlogPublisher
+from src.tools.sns.daum_cafe_publisher import DaumCafePublisher
 
 if TYPE_CHECKING:
     from src.llm.router import ModelRouter
@@ -100,6 +103,9 @@ class SNSManager(BaseTool):
             "youtube": YouTubePublisher(self.oauth),
             "instagram": InstagramPublisher(self.oauth),
             "linkedin": LinkedInPublisher(self.oauth),
+            "naver_cafe": NaverCafePublisher(self.oauth),
+            "naver_blog": NaverBlogPublisher(self.oauth),
+            "daum_cafe": DaumCafePublisher(self.oauth),
         }
         self._queue: list[SNSPublishRequest] = []
         self._load_queue()
@@ -322,9 +328,26 @@ class SNSManager(BaseTool):
 
     # ── status: 연결 상태 ──
 
+    # Selenium 기반 퍼블리셔 (OAuth 아닌 credential 로그인)
+    _SELENIUM_PLATFORMS = {"naver_blog", "daum_cafe"}
+
     def _handle_status(self) -> dict[str, Any]:
+        platform_status = self.oauth.status()
+
+        # Selenium 기반 퍼블리셔는 OAuth 상태가 아닌 credential 존재 여부로 표시
+        for platform_name in self._SELENIUM_PLATFORMS:
+            pub = self._publishers.get(platform_name)
+            if pub:
+                platform_status.append({
+                    "platform": platform_name,
+                    "connected": True,
+                    "expired": False,
+                    "has_refresh": False,
+                    "auth_type": "selenium",
+                })
+
         return {
-            "platforms": self.oauth.status(),
+            "platforms": platform_status,
             "queue_summary": self._handle_queue()["summary"],
         }
 
