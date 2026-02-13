@@ -15,6 +15,8 @@ import sys
 import webbrowser
 from threading import Timer
 
+from pathlib import Path
+
 import uvicorn
 from dotenv import load_dotenv
 
@@ -26,7 +28,12 @@ def open_browser() -> None:
 
 def main() -> None:
     """웹 서버를 시작합니다."""
-    load_dotenv()
+    # .env.local 우선 → .env 폴백 (AnySign4PC .env 잠금 방지)
+    env_local = Path(".env.local")
+    if env_local.exists():
+        load_dotenv(env_local)
+    else:
+        load_dotenv()
 
     # Setup logging
     logging.basicConfig(

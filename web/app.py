@@ -32,6 +32,8 @@ from src.llm.anthropic_provider import AnthropicProvider
 from src.llm.openai_provider import OpenAIProvider
 from src.llm.router import ModelRouter
 from src.tools.pool import ToolPool
+from src.tools.sns.oauth_manager import OAuthManager
+from src.tools.sns.webhook_receiver import WebhookReceiver
 from web.ws_manager import ConnectionManager
 
 logger = logging.getLogger("corthex.web")
@@ -44,7 +46,12 @@ TEMPLATE_DIR = BASE_DIR / "templates"
 STATIC_DIR = BASE_DIR / "static"
 
 # Load environment
-load_dotenv(PROJECT_DIR / ".env")
+# .env.local 우선 → .env 폴백 (AnySign4PC .env 잠금 방지)
+_env_local = PROJECT_DIR / ".env.local"
+if _env_local.exists():
+    load_dotenv(_env_local)
+else:
+    load_dotenv(PROJECT_DIR / ".env")
 
 # FastAPI app
 app = FastAPI(title="CORTHEX HQ", version="0.4.0")
@@ -61,12 +68,15 @@ registry: AgentRegistry | None = None
 context: SharedContext | None = None
 budget_manager: BudgetManager | None = None
 preset_manager: PresetManager | None = None
+oauth_manager: OAuthManager | None = None
+webhook_receiver: WebhookReceiver | None = None
+tool_pool_ref: ToolPool | None = None
 
 
 @app.on_event("startup")
 async def startup() -> None:
     """Initialize the agent system on server start."""
-    global orchestrator, model_router, registry, context, budget_manager, preset_manager
+    global orchestrator, model_router, registry, context, budget_manager, preset_manager, oauth_manager, webhook_receiver, tool_pool_ref
 
     logger.info("CORTHEX HQ 시스템 초기화 중...")
 
@@ -116,6 +126,11 @@ async def startup() -> None:
     # Build budget & preset managers
     budget_manager = BudgetManager(CONFIG_DIR / "budget.yaml")
     preset_manager = PresetManager(CONFIG_DIR / "presets.yaml")
+
+    # Initialize SNS subsystem
+    oauth_manager = OAuthManager()
+    webhook_receiver = WebhookReceiver()
+    tool_pool_ref = tool_pool
 
     logger.info("CORTHEX HQ 시스템 준비 완료 (에이전트 %d명)", registry.agent_count)
 
@@ -318,3 +333,138 @@ async def websocket_endpoint(ws: WebSocket) -> None:
 
     except WebSocketDisconnect:
         ws_manager.disconnect(ws)
+
+
+# ─── SNS 연동 API ───
+
+
+@app.get("/api/sns/status")
+async def sns_status() -> dict:
+    """SNS 플랫폼 연결 상태 조회."""
+    if not oauth_manager:
+        return {"platforms": []}
+    return {"platforms": oauth_manager.status()}
+
+
+@app.get("/api/sns/queue")
+async def sns_queue() -> dict:
+    """SNS 발행 승인 큐 조회."""
+    if not tool_pool_ref:
+        return {"error": "시스템 미초기화"}
+    try:
+        result = await tool_pool_ref.invoke("sns_manager", action="queue")
+        return result
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@app.post("/api/sns/approve/{request_id}")
+async def sns_approve(request_id: str) -> dict:
+    """CEO가 SNS 발행 요청을 승인."""
+    if not tool_pool_ref:
+        return {"error": "시스템 미초기화"}
+    try:
+        result = await tool_pool_ref.invoke(
+            "sns_manager", action="approve", request_id=request_id,
+        )
+        return result
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@app.post("/api/sns/reject/{request_id}")
+async def sns_reject(request_id: str, request: Request) -> dict:
+    """CEO가 SNS 발행 요청을 거절."""
+    if not tool_pool_ref:
+        return {"error": "시스템 미초기화"}
+    try:
+        body = await request.json()
+        result = await tool_pool_ref.invoke(
+            "sns_manager", action="reject",
+            request_id=request_id,
+            reason=body.get("reason", ""),
+        )
+        return result
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@app.get("/api/sns/auth/{platform}")
+async def sns_auth_url(platform: str) -> dict:
+    """OAuth 인증 URL 생성."""
+    if not oauth_manager:
+        return {"error": "시스템 미초기화"}
+    try:
+        url = oauth_manager.get_auth_url(platform)
+        return {"platform": platform, "auth_url": url}
+    except ValueError as e:
+        return {"error": str(e)}
+
+
+@app.get("/oauth/callback/{platform}")
+async def oauth_callback(platform: str, code: str = "") -> HTMLResponse:
+    """OAuth 인증 콜백 (각 플랫폼에서 리다이렉트)."""
+    if not oauth_manager or not code:
+        return HTMLResponse("<h1>인증 실패</h1><p>코드가 없습니다.</p>")
+    try:
+        await oauth_manager.exchange_code(platform, code)
+        return HTMLResponse(
+            f"<h1>{platform} 연결 완료!</h1>"
+            f"<p>이 창을 닫고 CORTHEX HQ 대시보드로 돌아가세요.</p>"
+            f"<script>setTimeout(()=>window.close(), 2000)</script>"
+        )
+    except Exception as e:
+        return HTMLResponse(f"<h1>인증 실패</h1><p>{e}</p>")
+
+
+# ─── Webhook 수신 엔드포인트 ───
+
+
+@app.post("/webhook/{platform}")
+async def webhook_endpoint(platform: str, request: Request) -> dict:
+    """SNS 플랫폼으로부터 Webhook 이벤트 수신."""
+    if not webhook_receiver:
+        return {"error": "시스템 미초기화"}
+
+    body = await request.body()
+    headers = dict(request.headers)
+
+    handler_map = {
+        "youtube": webhook_receiver.handle_youtube,
+        "instagram": webhook_receiver.handle_instagram,
+        "linkedin": webhook_receiver.handle_linkedin,
+        "tistory": webhook_receiver.handle_tistory,
+    }
+
+    handler = handler_map.get(platform)
+    if not handler:
+        return {"error": f"미지원 플랫폼: {platform}"}
+
+    return await handler(body, headers)
+
+
+@app.get("/webhook/{platform}")
+async def webhook_verify(platform: str, request: Request) -> Any:
+    """Webhook 구독 검증 (Instagram/YouTube 용)."""
+    params = dict(request.query_params)
+
+    # Instagram/Facebook Webhook 검증
+    if "hub.challenge" in params:
+        verify_token = os.getenv("WEBHOOK_VERIFY_TOKEN", "corthex-webhook")
+        if params.get("hub.verify_token") == verify_token:
+            return int(params["hub.challenge"])
+        return {"error": "검증 실패"}
+
+    # YouTube PubSubHubbub 검증
+    if "hub.challenge" in params:
+        return params["hub.challenge"]
+
+    return {"status": "ok"}
+
+
+@app.get("/api/sns/events")
+async def sns_events(limit: int = 20) -> dict:
+    """최근 Webhook 이벤트 조회."""
+    if not webhook_receiver:
+        return {"events": []}
+    return {"events": webhook_receiver.recent_events(limit)}
