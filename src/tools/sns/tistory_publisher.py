@@ -1,100 +1,397 @@
 """
-Tistory 블로그 퍼블리셔.
+Tistory 블로그 퍼블리셔 (Selenium 기반).
 
-Tistory Open API를 통해 블로그 글을 자동으로 작성·수정·삭제합니다.
-- 글 작성 (HTML 본문 지원)
-- 카테고리/태그 설정
-- 공개/비공개/보호 설정
+Tistory Open API는 2024년 2월 폐지되어 Selenium 브라우저 자동화를 사용합니다.
+- 카카오 계정 로그인
+- 블로그 글 작성 (제목 + 본문 + 태그)
+- 공개/비공개 설정
+- 주의: UI 변경 시 셀렉터 업데이트 필요.
 """
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
+import time
 from typing import Any
 
-import httpx
+from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.common.exceptions import TimeoutException
 
 from src.tools.sns.base_publisher import BasePublisher, PostContent, PublishResult
+from src.tools.sns.browser_utils import SNSBrowserManager, random_delay
 
 logger = logging.getLogger("corthex.sns.tistory")
 
-TISTORY_API = "https://www.tistory.com/apis"
+KAKAO_LOGIN_URL = "https://accounts.kakao.com/login/"
 
 
 class TistoryPublisher(BasePublisher):
-    """Tistory 블로그 자동 퍼블리셔."""
+    """Tistory 블로그 Selenium 기반 퍼블리셔.
+
+    Tistory Open API 폐지(2024.02)로 Selenium 자동화를 사용합니다.
+    카카오 계정 로그인이 필요합니다.
+    """
 
     platform = "tistory"
+
+    def __init__(self, oauth: Any) -> None:
+        super().__init__(oauth)
+        self._headless = os.getenv("SNS_BROWSER_HEADLESS", "true").lower() == "true"
+
+    @property
+    def kakao_id(self) -> str:
+        return os.getenv("KAKAO_ID", "")
+
+    @property
+    def kakao_pw(self) -> str:
+        return os.getenv("KAKAO_PW", "")
 
     @property
     def blog_name(self) -> str:
         return os.getenv("TISTORY_BLOG_NAME", "")
 
-    async def _api_call(
-        self, endpoint: str, method: str = "POST", **params: Any
-    ) -> dict[str, Any]:
-        token = await self._get_token()
-        params["access_token"] = token
-        params["output"] = "json"
+    @property
+    def write_url(self) -> str:
         if self.blog_name:
-            params.setdefault("blogName", self.blog_name)
+            return f"https://{self.blog_name}.tistory.com/manage/newpost"
+        return ""
 
-        async with httpx.AsyncClient() as client:
-            url = f"{TISTORY_API}/{endpoint}"
-            if method == "GET":
-                resp = await client.get(url, params=params)
-            else:
-                resp = await client.post(url, data=params)
-            return resp.json()
+    async def check_connection(self) -> bool:
+        """Selenium 기반이므로 credential 존재 여부로 확인."""
+        return bool(self.kakao_id and self.kakao_pw and self.blog_name)
 
     async def publish(self, content: PostContent) -> PublishResult:
-        visibility_map = {"public": "3", "protected": "1", "private": "0", "draft": "0"}
-
-        params: dict[str, Any] = {
-            "title": content.title,
-            "content": content.body,
-            "visibility": visibility_map.get(content.visibility, "3"),
-        }
-        if content.tags:
-            params["tag"] = ",".join(content.tags)
-        if content.category:
-            params["category"] = content.category
-
-        data = await self._api_call("post/write", **params)
-
-        tistory = data.get("tistory", {})
-        if tistory.get("status") == "200":
-            post_id = str(tistory.get("postId", ""))
-            post_url = tistory.get("url", "")
-            logger.info("[Tistory] 글 발행 성공: %s", post_url)
+        if not self.kakao_id or not self.kakao_pw:
             return PublishResult(
-                success=True,
-                platform="tistory",
-                post_id=post_id,
-                post_url=post_url,
-                message="Tistory 글 발행 완료",
-                raw_response=data,
+                success=False,
+                platform=self.platform,
+                message="KAKAO_ID, KAKAO_PW 환경변수가 필요합니다.",
+            )
+        if not self.blog_name:
+            return PublishResult(
+                success=False,
+                platform=self.platform,
+                message="TISTORY_BLOG_NAME 환경변수가 필요합니다. (예: corthex)",
             )
 
-        error_msg = tistory.get("error_message", str(data))
-        logger.error("[Tistory] 글 발행 실패: %s", error_msg)
-        return PublishResult(
-            success=False,
-            platform="tistory",
-            message=f"발행 실패: {error_msg}",
-            raw_response=data,
-        )
+        try:
+            return await asyncio.to_thread(self._publish_sync, content)
+        except Exception as e:
+            logger.error("[Tistory] 발행 실패: %s", e)
+            return PublishResult(
+                success=False,
+                platform=self.platform,
+                message=f"Selenium 오류: {e}",
+            )
+
+    def _publish_sync(self, content: PostContent) -> PublishResult:
+        """동기 Selenium 발행 플로우 (asyncio.to_thread로 실행)."""
+        browser = SNSBrowserManager(headless=self._headless)
+        try:
+            driver = browser.driver
+
+            # 1. 카카오 로그인
+            if not self._login(browser):
+                return PublishResult(
+                    success=False,
+                    platform=self.platform,
+                    message="카카오 로그인 실패",
+                )
+
+            # 2. 글쓰기 페이지 이동
+            driver.get(self.write_url)
+            random_delay(3.0, 5.0)
+
+            wait = WebDriverWait(driver, 20)
+
+            # 3. 제목 입력
+            try:
+                title_input = wait.until(
+                    EC.presence_of_element_located(
+                        (By.CSS_SELECTOR,
+                         "input#post-title-inp, "
+                         "input[name='title'], "
+                         "input.tit_post, "
+                         "textarea#title")
+                    )
+                )
+                title_input.clear()
+                title_input.send_keys(content.title)
+            except TimeoutException:
+                try:
+                    title_el = driver.find_element(
+                        By.XPATH, "//input[contains(@placeholder, '제목')]"
+                    )
+                    title_el.clear()
+                    title_el.send_keys(content.title)
+                except Exception as e:
+                    return PublishResult(
+                        success=False,
+                        platform=self.platform,
+                        message=f"제목 입력 영역을 찾을 수 없습니다: {e}",
+                    )
+
+            random_delay(0.5, 1.0)
+
+            # 4. 본문 입력
+            body_filled = False
+
+            # 방법 1: 새 에디터 (contenteditable)
+            try:
+                editor_frame = driver.find_element(
+                    By.CSS_SELECTOR, "iframe#editor-tistory_ifr, iframe.mce-edit-area"
+                )
+                driver.switch_to.frame(editor_frame)
+                editor_body = driver.find_element(By.CSS_SELECTOR, "body#tinymce, body")
+                editor_body.click()
+                random_delay(0.3, 0.5)
+
+                if "<" in content.body and ">" in content.body:
+                    driver.execute_script(
+                        "document.body.innerHTML = arguments[0];", content.body
+                    )
+                else:
+                    editor_body.send_keys(content.body)
+
+                driver.switch_to.default_content()
+                body_filled = True
+            except Exception:
+                try:
+                    driver.switch_to.default_content()
+                except Exception:
+                    pass
+
+            # 방법 2: 구 에디터 textarea
+            if not body_filled:
+                try:
+                    textarea = driver.find_element(
+                        By.CSS_SELECTOR, "textarea#content, textarea.textarea_tit"
+                    )
+                    textarea.send_keys(content.body)
+                    body_filled = True
+                except Exception:
+                    pass
+
+            # 방법 3: contenteditable div (iframe 없는 버전)
+            if not body_filled:
+                try:
+                    body_div = driver.find_element(
+                        By.CSS_SELECTOR, "div[contenteditable='true'], div.mce-content-body"
+                    )
+                    body_div.click()
+                    body_div.send_keys(content.body)
+                    body_filled = True
+                except Exception as e:
+                    return PublishResult(
+                        success=False,
+                        platform=self.platform,
+                        message=f"본문 입력 영역을 찾을 수 없습니다: {e}",
+                    )
+
+            random_delay(1.0, 2.0)
+
+            # 5. 태그 입력
+            if content.tags:
+                self._set_tags(driver, content.tags)
+
+            # 6. 공개/비공개 설정
+            if content.visibility == "private":
+                self._set_private(driver)
+
+            # 7. 발행 버튼 클릭
+            try:
+                publish_btn = wait.until(
+                    EC.element_to_be_clickable(
+                        (By.CSS_SELECTOR,
+                         "button#publish-layer-btn, "
+                         "button.btn_publish, "
+                         "button.btn-publish, "
+                         "button#save-btn")
+                    )
+                )
+                publish_btn.click()
+            except TimeoutException:
+                try:
+                    btn = driver.find_element(
+                        By.XPATH,
+                        "//button[contains(text(), '발행') or contains(text(), '완료') or contains(text(), '저장')]"
+                    )
+                    btn.click()
+                except Exception as e:
+                    return PublishResult(
+                        success=False,
+                        platform=self.platform,
+                        message=f"발행 버튼을 찾을 수 없습니다: {e}",
+                    )
+
+            random_delay(2.0, 3.0)
+
+            # 8. 발행 확인 다이얼로그 (공개 설정 팝업)
+            try:
+                confirm_btn = WebDriverWait(driver, 5).until(
+                    EC.element_to_be_clickable(
+                        (By.CSS_SELECTOR,
+                         "button.btn_ok, "
+                         "button.btn-publish-layer, "
+                         "button#publish-btn")
+                    )
+                )
+                confirm_btn.click()
+                random_delay(3.0, 5.0)
+            except TimeoutException:
+                random_delay(2.0, 3.0)
+
+            # 9. 결과 확인
+            current_url = driver.current_url
+            blog_domain = f"{self.blog_name}.tistory.com"
+
+            if blog_domain in current_url and "manage/newpost" not in current_url:
+                post_id = current_url.rstrip("/").split("/")[-1]
+                logger.info("[Tistory] 글 발행 성공: %s", current_url)
+                return PublishResult(
+                    success=True,
+                    platform=self.platform,
+                    post_id=post_id,
+                    post_url=current_url,
+                    message="Tistory 글 발행 완료",
+                )
+
+            # manage 페이지로 돌아왔으면 글 목록에서 최신 글 URL 확인
+            if "manage" in current_url:
+                try:
+                    driver.get(f"https://{self.blog_name}.tistory.com/")
+                    random_delay(2.0, 3.0)
+                    latest_link = driver.find_element(
+                        By.CSS_SELECTOR, "a.link_post, article a, .post-item a"
+                    )
+                    post_url = latest_link.get_attribute("href") or ""
+                    if post_url:
+                        post_id = post_url.rstrip("/").split("/")[-1]
+                        logger.info("[Tistory] 글 발행 성공 (목록에서 확인): %s", post_url)
+                        return PublishResult(
+                            success=True,
+                            platform=self.platform,
+                            post_id=post_id,
+                            post_url=post_url,
+                            message="Tistory 글 발행 완료",
+                        )
+                except Exception:
+                    pass
+
+            return PublishResult(
+                success=False,
+                platform=self.platform,
+                message=f"발행 후 URL 확인 실패. 현재 URL: {current_url}",
+            )
+
+        finally:
+            browser.quit()
+
+    def _login(self, browser: SNSBrowserManager) -> bool:
+        """카카오 로그인. 다음 카페 퍼블리셔와 동일한 패턴."""
+        driver = browser.driver
+
+        # 쿠키 먼저 시도
+        driver.get(f"https://{self.blog_name}.tistory.com/")
+        random_delay(1.0, 2.0)
+        if browser.load_cookies("kakao"):
+            driver.refresh()
+            random_delay(2.0, 3.0)
+            if self._is_logged_in(driver):
+                logger.info("[Tistory] 쿠키 로그인 성공")
+                return True
+
+        # 카카오 계정으로 로그인
+        try:
+            login_url = (
+                f"{KAKAO_LOGIN_URL}"
+                f"?continue=https://{self.blog_name}.tistory.com/manage"
+            )
+            driver.get(login_url)
+            random_delay(2.0, 3.0)
+
+            wait = WebDriverWait(driver, 15)
+
+            id_input = wait.until(
+                EC.presence_of_element_located(
+                    (By.CSS_SELECTOR, "input[name='loginId'], input#loginId")
+                )
+            )
+            id_input.clear()
+            id_input.send_keys(self.kakao_id)
+
+            pw_input = driver.find_element(
+                By.CSS_SELECTOR, "input[name='password'], input#password"
+            )
+            pw_input.clear()
+            pw_input.send_keys(self.kakao_pw)
+
+            login_btn = driver.find_element(
+                By.CSS_SELECTOR, "button[type='submit'], button.btn_confirm"
+            )
+            login_btn.click()
+            random_delay(4.0, 6.0)
+
+            # 로그인 확인
+            driver.get(f"https://{self.blog_name}.tistory.com/manage")
+            random_delay(2.0, 3.0)
+
+            if self._is_logged_in(driver):
+                browser.save_cookies("kakao")
+                logger.info("[Tistory] 로그인 성공")
+                return True
+
+            logger.error("[Tistory] 로그인 실패")
+            return False
+
+        except Exception as e:
+            logger.error("[Tistory] 로그인 예외: %s", e)
+            return False
+
+    def _is_logged_in(self, driver: Any) -> bool:
+        try:
+            page = driver.page_source
+            return (
+                "manage" in driver.current_url
+                or "로그아웃" in page
+                or "logout" in page.lower()
+                or "tistory.com/manage" in driver.current_url
+            )
+        except Exception:
+            return False
+
+    def _set_tags(self, driver: Any, tags: list[str]) -> None:
+        try:
+            tag_input = WebDriverWait(driver, 5).until(
+                EC.presence_of_element_located(
+                    (By.CSS_SELECTOR,
+                     "input#tagText, "
+                     "input.tag-input, "
+                     "input[placeholder*='태그']")
+                )
+            )
+            for tag in tags:
+                tag_input.send_keys(tag)
+                tag_input.send_keys(Keys.ENTER)
+                random_delay(0.2, 0.4)
+        except TimeoutException:
+            logger.warning("[Tistory] 태그 입력 영역을 찾을 수 없습니다.")
+
+    def _set_private(self, driver: Any) -> None:
+        try:
+            vis_select = driver.find_element(
+                By.CSS_SELECTOR,
+                "select#visibility, select[name='visibility']"
+            )
+            from selenium.webdriver.support.ui import Select
+            Select(vis_select).select_by_value("0")
+        except Exception:
+            logger.warning("[Tistory] 비공개 설정 실패")
 
     async def delete(self, post_id: str) -> bool:
-        data = await self._api_call("post/delete", postId=post_id)
-        return data.get("tistory", {}).get("status") == "200"
-
-    async def get_categories(self) -> list[dict[str, str]]:
-        data = await self._api_call("category/list", method="GET")
-        categories = data.get("tistory", {}).get("item", {}).get("categories", [])
-        return [{"id": c["id"], "name": c["name"]} for c in categories]
-
-    async def get_posts(self, page: int = 1) -> list[dict[str, Any]]:
-        data = await self._api_call("post/list", method="GET", page=str(page))
-        posts = data.get("tistory", {}).get("item", {}).get("posts", [])
-        return posts
+        logger.warning("[Tistory] Selenium 기반 삭제는 현재 미지원입니다.")
+        return False

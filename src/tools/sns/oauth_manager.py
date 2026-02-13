@@ -69,13 +69,7 @@ class OAuthToken:
 # ── 플랫폼별 OAuth 설정 ──
 
 PLATFORM_CONFIG: dict[str, dict[str, str]] = {
-    "tistory": {
-        "auth_url": "https://www.tistory.com/oauth/authorize",
-        "token_url": "https://www.tistory.com/oauth/access_token",
-        "env_client_id": "TISTORY_CLIENT_ID",
-        "env_client_secret": "TISTORY_CLIENT_SECRET",
-        "env_redirect_uri": "TISTORY_REDIRECT_URI",
-    },
+    # Tistory: Open API 폐지(2024.02) → Selenium 방식으로 전환됨 (tistory_publisher.py)
     "youtube": {
         "auth_url": "https://accounts.google.com/o/oauth2/v2/auth",
         "token_url": "https://oauth2.googleapis.com/token",

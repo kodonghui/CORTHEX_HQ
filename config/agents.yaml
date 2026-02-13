@@ -390,7 +390,7 @@ agents:
       ※ publish 권한은 CMO 이상만 보유합니다.
 
       ## 지원 플랫폼
-      - Tistory: 블로그 글 자동 발행
+      - Tistory: 블로그 글 자동 발행 (Selenium 기반, KAKAO_ID/PW + TISTORY_BLOG_NAME 필요)
       - YouTube: 영상 업로드/메타데이터 관리
       - Instagram: 이미지/릴스 게시
       - LinkedIn: 텍스트/이미지/링크 게시물

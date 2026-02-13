@@ -329,7 +329,7 @@ class SNSManager(BaseTool):
     # ── status: 연결 상태 ──
 
     # Selenium 기반 퍼블리셔 (OAuth 아닌 credential 로그인)
-    _SELENIUM_PLATFORMS = {"naver_blog", "daum_cafe"}
+    _SELENIUM_PLATFORMS = {"tistory", "naver_blog", "daum_cafe"}
 
     def _handle_status(self) -> dict[str, Any]:
         platform_status = self.oauth.status()
