@@ -22,12 +22,14 @@ from starlette.requests import Request
 
 from src.core.budget import BudgetManager
 from src.core.context import SharedContext
+from src.core.feedback import FeedbackManager
 from src.core.healthcheck import run_healthcheck
 from src.core.message import Message, MessageType
 from src.core.orchestrator import Orchestrator
 from src.core.performance import build_performance_report
 from src.core.preset import PresetManager
 from src.core.registry import AgentRegistry
+from src.core.replay import build_replay, get_last_correlation_id
 from src.llm.anthropic_provider import AnthropicProvider
 from src.llm.openai_provider import OpenAIProvider
 from src.llm.router import ModelRouter
@@ -47,7 +49,7 @@ STATIC_DIR = BASE_DIR / "static"
 load_dotenv(PROJECT_DIR / ".env")
 
 # FastAPI app
-app = FastAPI(title="CORTHEX HQ", version="0.4.0")
+app = FastAPI(title="CORTHEX HQ", version="0.5.0")
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 templates = Jinja2Templates(directory=str(TEMPLATE_DIR))
 
@@ -61,12 +63,13 @@ registry: AgentRegistry | None = None
 context: SharedContext | None = None
 budget_manager: BudgetManager | None = None
 preset_manager: PresetManager | None = None
+feedback_manager: FeedbackManager | None = None
 
 
 @app.on_event("startup")
 async def startup() -> None:
     """Initialize the agent system on server start."""
-    global orchestrator, model_router, registry, context, budget_manager, preset_manager
+    global orchestrator, model_router, registry, context, budget_manager, preset_manager, feedback_manager
 
     logger.info("CORTHEX HQ 시스템 초기화 중...")
 
@@ -113,9 +116,11 @@ async def startup() -> None:
     # Build orchestrator
     orchestrator = Orchestrator(registry, model_router)
 
-    # Build budget & preset managers
+    # Build budget, preset & feedback managers
     budget_manager = BudgetManager(CONFIG_DIR / "budget.yaml")
     preset_manager = PresetManager(CONFIG_DIR / "presets.yaml")
+    data_dir = PROJECT_DIR / "data"
+    feedback_manager = FeedbackManager(data_dir / "feedback.json")
 
     logger.info("CORTHEX HQ 시스템 준비 완료 (에이전트 %d명)", registry.agent_count)
 
@@ -259,6 +264,63 @@ async def get_tools() -> list[dict]:
         (CONFIG_DIR / "tools.yaml").read_text(encoding="utf-8")
     )
     return tools_cfg.get("tools", [])
+
+
+@app.get("/api/replay/latest")
+async def get_replay_latest() -> dict:
+    """Get replay for the most recent command."""
+    if not context:
+        return {"error": "시스템 미초기화"}
+    cid = get_last_correlation_id(context)
+    if not cid:
+        return {"error": "실행된 명령이 없습니다"}
+    report = build_replay(cid, context)
+    if not report:
+        return {"error": "리플레이 데이터 없음"}
+    return report.to_dict()
+
+
+@app.get("/api/replay/{correlation_id}")
+async def get_replay(correlation_id: str) -> dict:
+    """Get replay for a specific correlation_id."""
+    if not context:
+        return {"error": "시스템 미초기화"}
+    report = build_replay(correlation_id, context)
+    if not report:
+        return {"error": "리플레이 데이터 없음"}
+    return report.to_dict()
+
+
+@app.get("/api/feedback")
+async def get_feedback() -> dict:
+    """Return CEO feedback statistics."""
+    if not feedback_manager:
+        return {"error": "시스템 미초기화"}
+    return feedback_manager.to_dict()
+
+
+@app.post("/api/feedback")
+async def add_feedback(body: dict) -> dict:
+    """Record CEO feedback for a task result."""
+    if not feedback_manager:
+        return {"error": "시스템 미초기화"}
+    correlation_id = body.get("correlation_id", "").strip()
+    rating = body.get("rating", "").strip()
+    if not correlation_id or rating not in ("good", "bad"):
+        return {"error": "correlation_id와 rating(good/bad)이 필요합니다"}
+    comment = body.get("comment", "")
+    agent_id = body.get("agent_id", "")
+    feedback_manager.add(
+        correlation_id=correlation_id,
+        rating=rating,
+        comment=comment,
+        agent_id=agent_id,
+    )
+    return {
+        "success": True,
+        "satisfaction_rate": feedback_manager.satisfaction_rate,
+        "total": feedback_manager.total_count,
+    }
 
 
 @app.websocket("/ws")

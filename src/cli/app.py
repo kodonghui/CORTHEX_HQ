@@ -141,8 +141,17 @@ class CorthexCLI:
                 # Process command with live streaming
                 result = await self._process_with_streaming(user_input)
 
+                # Track for replay/feedback
+                self._last_correlation_id = result.correlation_id
+                self._last_sender_id = result.sender_id
+
                 # Display result
                 self._display_result(result)
+
+                # Feedback prompt
+                self.console.print(
+                    "[dim]결과가 마음에 드시면 '좋아', 아니면 '별로'를 입력하세요.[/dim]"
+                )
 
                 # Budget warning after each command
                 if self.budget_manager and self.model_router:
@@ -285,12 +294,21 @@ class CorthexCLI:
         preset_count = len(self.preset_manager.list_all())
         self.console.print(f"  [green]>[/green] 프리셋 {preset_count}개 로드")
 
+        # Build feedback manager
+        data_dir = self.config_dir.parent / "data"
+        self.feedback_manager = FeedbackManager(data_dir / "feedback.json")
+        fb_count = self.feedback_manager.total_count
+        if fb_count:
+            self.console.print(f"  [green]>[/green] 피드백 {fb_count}건 로드")
+        else:
+            self.console.print("  [green]>[/green] 피드백 시스템 초기화")
+
         return orchestrator, model_router, registry, context
 
     def _show_banner(self) -> None:
         panel = Panel(
             f"[bold white]{_BANNER}[/bold white]\n"
-            "[dim]AI Agent Corporation Headquarters v0.4.0[/dim]",
+            "[dim]AI Agent Corporation Headquarters v0.5.0[/dim]",
             title="[bold yellow]CORTHEX HQ[/bold yellow]",
             border_style="bright_blue",
         )
@@ -593,6 +611,152 @@ class CorthexCLI:
 
         self.console.print(table)
 
+    def _show_replay(self) -> None:
+        """Show delegation tree replay for the last command."""
+        if not self.context:
+            self.console.print("[dim]시스템이 아직 초기화되지 않았습니다.[/dim]")
+            return
+
+        cid = self._last_correlation_id or get_last_correlation_id(self.context)
+        if not cid:
+            self.console.print("[dim]아직 실행된 명령이 없습니다. 먼저 명령을 실행하세요.[/dim]")
+            return
+
+        report = build_replay(cid, self.context)
+        if not report or not report.root:
+            self.console.print("[dim]리플레이 데이터를 찾을 수 없습니다.[/dim]")
+            return
+
+        # Build Rich Tree
+        def _build_tree(node: ReplayNode, tree: Tree) -> None:
+            status = "[green]✓[/green]" if node.success else "[red]✗[/red]"
+            time_str = f"{node.execution_time:.1f}초" if node.execution_time else ""
+            label = f"{status} [cyan]{node.agent_name}[/cyan] ({node.role})"
+            if node.task_description:
+                label += f"\n    [dim]업무: {node.task_description[:60]}[/dim]"
+            if node.result_summary:
+                label += f"\n    [dim]결과: {node.result_summary[:60]}[/dim]"
+            if time_str:
+                label += f"  [yellow]{time_str}[/yellow]"
+
+            for child in node.children:
+                branch = tree.add(label)
+                _build_tree(child, branch)
+                return  # already added this node as a branch
+
+            # Leaf node
+            tree.add(label)
+
+        root = report.root
+        root_label = (
+            f"[bold cyan]{root.agent_name}[/bold cyan] ({root.role})"
+        )
+        if root.task_description:
+            root_label += f"\n  [dim]{root.task_description[:80]}[/dim]"
+
+        rich_tree = Tree(root_label)
+        for child in root.children:
+            status = "[green]✓[/green]" if child.success else "[red]✗[/red]"
+            time_str = f" [yellow]{child.execution_time:.1f}초[/yellow]" if child.execution_time else ""
+            child_label = f"{status} [cyan]{child.agent_name}[/cyan] ({child.role}){time_str}"
+            if child.task_description:
+                child_label += f"\n    [dim]업무: {child.task_description[:60]}[/dim]"
+            if child.result_summary:
+                child_label += f"\n    [dim]결과: {child.result_summary[:60]}[/dim]"
+
+            branch = rich_tree.add(child_label)
+            for grandchild in child.children:
+                _build_tree(grandchild, branch)
+
+        self.console.print(Panel(
+            rich_tree,
+            title=f"[bold]협업 리플레이[/bold] | 참여 에이전트 {report.total_agents_involved}명 | 총 {report.total_execution_time:.1f}초",
+            border_style="bright_blue",
+        ))
+
+    def _show_feedback_stats(self) -> None:
+        """Show CEO feedback statistics."""
+        if not self.feedback_manager:
+            self.console.print("[dim]피드백 시스템이 초기화되지 않았습니다.[/dim]")
+            return
+
+        data = self.feedback_manager.to_dict()
+
+        if data["total"] == 0:
+            self.console.print("[dim]아직 피드백이 없습니다. 결과를 받은 후 '좋아' 또는 '별로'를 입력하세요.[/dim]")
+            return
+
+        # Summary
+        rate_style = (
+            "[green]" if data["satisfaction_rate"] >= 80
+            else "[yellow]" if data["satisfaction_rate"] >= 50
+            else "[red]"
+        )
+        self.console.print(
+            f"\n[bold]CEO 만족도:[/bold] {rate_style}{data['satisfaction_rate']}%[/] "
+            f"(좋아 {data['good']}건 / 별로 {data['bad']}건 / 총 {data['total']}건)\n"
+        )
+
+        # Per-agent table
+        by_agent = data.get("by_agent", {})
+        if by_agent:
+            table = Table(title="에이전트별 피드백")
+            table.add_column("에이전트", style="cyan")
+            table.add_column("좋아", justify="right", style="green")
+            table.add_column("별로", justify="right", style="red")
+            table.add_column("합계", justify="right")
+            table.add_column("만족도", justify="right")
+
+            for agent_id, stats in by_agent.items():
+                sat_style = (
+                    "[green]" if stats["satisfaction_pct"] >= 80
+                    else "[yellow]" if stats["satisfaction_pct"] >= 50
+                    else "[red]"
+                )
+                table.add_row(
+                    agent_id,
+                    str(stats["good"]),
+                    str(stats["bad"]),
+                    str(stats["total"]),
+                    f"{sat_style}{stats['satisfaction_pct']}%[/]",
+                )
+            self.console.print(table)
+
+        # Recent entries
+        recent = data.get("recent", [])
+        if recent:
+            self.console.print("\n[bold]최근 피드백:[/bold]")
+            for entry in recent[-5:]:
+                icon = "[green]👍[/green]" if entry["rating"] == "good" else "[red]👎[/red]"
+                comment = f" - {entry['comment']}" if entry.get("comment") else ""
+                self.console.print(f"  {icon} {entry.get('agent_id', '?')}{comment} [dim]{entry['timestamp'][:16]}[/dim]")
+            self.console.print()
+
+    def _record_feedback(self, rating: str) -> None:
+        """Record CEO feedback for the last command."""
+        if not self.feedback_manager:
+            self.console.print("[dim]피드백 시스템이 초기화되지 않았습니다.[/dim]")
+            return
+
+        if not self._last_correlation_id:
+            self.console.print("[dim]평가할 결과가 없습니다. 먼저 명령을 실행하세요.[/dim]")
+            return
+
+        # Optional comment
+        comment = ""
+        if rating == "bad":
+            comment = Prompt.ask("[dim]개선 의견이 있으시면 입력하세요 (Enter로 건너뛰기)[/dim]", default="")
+
+        self.feedback_manager.add(
+            correlation_id=self._last_correlation_id,
+            rating=rating,
+            comment=comment,
+            agent_id=self._last_sender_id,
+        )
+
+        icon = "[green]👍 좋아요![/green]" if rating == "good" else "[yellow]👎 피드백 기록됨[/yellow]"
+        self.console.print(f"  {icon} (만족도: {self.feedback_manager.satisfaction_rate:.0f}%)")
+
     def _show_help(self) -> None:
         help_text = (
             "[bold]사용 가능한 명령어:[/bold]\n\n"
@@ -602,6 +766,10 @@ class CorthexCLI:
             "[cyan]예산 / budget[/cyan]        - 토큰 예산 현황\n"
             "[cyan]헬스체크 / health[/cyan]     - 시스템 상태 진단\n"
             "[cyan]성과 / performance[/cyan]    - 에이전트 성과 대시보드\n"
+            "[cyan]리플레이 / replay[/cyan]     - 마지막 명령의 협업 과정 시각화\n"
+            "[cyan]피드백 / feedback[/cyan]     - CEO 피드백 통계 확인\n"
+            "[cyan]좋아 / good[/cyan]           - 마지막 결과에 긍정 피드백\n"
+            "[cyan]별로 / bad[/cyan]            - 마지막 결과에 부정 피드백 (의견 입력 가능)\n"
             "[cyan]프리셋 목록[/cyan]           - 저장된 명령 프리셋 조회\n"
             "[cyan]프리셋 저장 <이름> <명령>[/cyan] - 명령 프리셋 저장\n"
             "[cyan]프리셋 삭제 <이름>[/cyan]    - 명령 프리셋 삭제\n"
@@ -611,6 +779,9 @@ class CorthexCLI:
             '  "LEET MASTER 서비스의 기술 스택을 제안해줘"\n'
             '  "삼성전자 주가를 분석해줘"\n'
             '  "아까 분석한 내용을 좀 더 자세히 설명해줘"  ← 대화 맥락 유지!\n\n'
+            "[bold]피드백 사용:[/bold]\n"
+            "  명령 실행 → 결과 확인 → '좋아' 또는 '별로' 입력\n"
+            "  '피드백' 입력하면 누적 만족도 통계 확인 가능!\n\n"
             "[bold]프리셋 사용:[/bold]\n"
             '  프리셋 저장 주간보고 "이번 주 전체 사업부 현황을 요약해줘"\n'
             '  주간보고  ← 저장된 명령 바로 실행!'
