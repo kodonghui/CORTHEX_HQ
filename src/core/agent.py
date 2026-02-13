@@ -120,7 +120,19 @@ class BaseAgent(ABC):
 
         self.context.log_message(result)
         logger.info("[%s] 작업 완료 (%.1f초)", self.agent_id, elapsed)
+
+        # 산출물을 부서별/날짜별 아카이브에 저장
+        self._save_to_archive(request.task_description, result)
+
         return result
+
+    def _save_to_archive(self, task_description: str, result: TaskResult) -> None:
+        """산출물을 부서별/날짜별 아카이브에 저장."""
+        try:
+            from src.core.report_saver import save_agent_report
+            save_agent_report(self.config, task_description, result)
+        except Exception as e:
+            logger.warning("[%s] 아카이브 저장 실패 (무시): %s", self.agent_id, e)
 
     @abstractmethod
     async def execute(self, request: TaskRequest) -> Any:

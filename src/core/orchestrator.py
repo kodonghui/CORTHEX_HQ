@@ -4,9 +4,10 @@ CEO Orchestrator: routes all CEO commands through the Chief of Staff.
 Flow:
 1. CEO types a command in CLI
 2. Orchestrator sends it to the Chief of Staff (비서실장)
-3. Chief of Staff decomposes and delegates to managers
-4. Collects TaskResult
-5. Returns result to CLI
+3. 비서실장 → 처장(Manager) → Specialist/Worker → 처장 → 비서실장
+4. 비서실장이 최종 TaskResult를 CEO에게 반환
+5. reports/ 디렉토리에 보고서 저장
+6. GitHub 자동 푸시
 
 Supports conversation context: recent command-result pairs are passed
 as context so follow-up questions can reference prior results.
@@ -18,6 +19,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 from src.core.message import TaskRequest, TaskResult
+from src.core.git_sync import auto_push_reports
 
 if TYPE_CHECKING:
     from src.core.registry import AgentRegistry
@@ -87,6 +89,9 @@ class Orchestrator:
         # Keep bounded
         if len(self._history) > _MAX_CONTEXT_TURNS * 2:
             self._history = self._history[-_MAX_CONTEXT_TURNS:]
+
+        # 모든 에이전트 산출물이 저장된 후 한 번에 GitHub 푸시
+        await auto_push_reports(user_input)
 
         return result
 
