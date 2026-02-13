@@ -26,6 +26,7 @@ if TYPE_CHECKING:
     from src.llm.router import ModelRouter
     from src.tools.pool import ToolPool
     from src.core.context import SharedContext
+    from src.core.memory import MemoryManager
 
 logger = logging.getLogger("corthex.agent")
 
@@ -74,13 +75,18 @@ class BaseAgent(ABC):
         self.model_router = model_router
         self.tool_pool = tool_pool
         self.context = context
+        self._memory_manager: Optional[MemoryManager] = None
+
+    def set_memory_manager(self, mm: MemoryManager) -> None:
+        """메모리 매니저를 주입합니다."""
+        self._memory_manager = mm
 
     @property
     def agent_id(self) -> str:
         return self.config.agent_id
 
     async def handle_task(self, request: TaskRequest) -> TaskResult:
-        """Main entry point. Handles a task request end-to-end."""
+        """Main entry point. Handles a task request end-to-end with retry."""
         start = time.monotonic()
         self.context.log_message(request)
         logger.info("[%s] 작업 수신: %s", self.agent_id, request.task_description[:80])
@@ -88,44 +94,102 @@ class BaseAgent(ABC):
         # context에서 batch 모드 플래그 설정
         self._use_batch = request.context.get("use_batch", False)
 
-        try:
-            result_data = await self.execute(request)
-            elapsed = time.monotonic() - start
+        max_retries = self.config.max_retries
+        last_error: Optional[Exception] = None
 
-            summary = await self._summarize(result_data)
-            result = TaskResult(
-                sender_id=self.agent_id,
-                receiver_id=request.sender_id,
-                parent_message_id=request.id,
-                correlation_id=request.correlation_id,
-                success=True,
-                result_data=result_data,
-                summary=summary,
-                task_description=request.task_description,
-                execution_time_seconds=round(elapsed, 2),
-            )
-        except Exception as e:
-            elapsed = time.monotonic() - start
-            logger.error("[%s] 오류 발생: %s", self.agent_id, e)
-            result = TaskResult(
-                sender_id=self.agent_id,
-                receiver_id=request.sender_id,
-                parent_message_id=request.id,
-                correlation_id=request.correlation_id,
-                success=False,
-                result_data={"error": str(e)},
-                summary=f"오류: {e}",
-                task_description=request.task_description,
-                execution_time_seconds=round(elapsed, 2),
-            )
+        for attempt in range(max_retries + 1):
+            try:
+                if attempt > 0:
+                    wait = 2 ** (attempt - 1)  # 지수 백오프: 1초, 2초
+                    logger.info("[%s] 재시도 %d/%d (대기 %d초)", self.agent_id, attempt, max_retries, wait)
+                    await asyncio.sleep(wait)
+
+                result_data = await self.execute(request)
+                elapsed = time.monotonic() - start
+
+                summary = await self._summarize(result_data)
+                result = TaskResult(
+                    sender_id=self.agent_id,
+                    receiver_id=request.sender_id,
+                    parent_message_id=request.id,
+                    correlation_id=request.correlation_id,
+                    success=True,
+                    result_data=result_data,
+                    summary=summary,
+                    task_description=request.task_description,
+                    execution_time_seconds=round(elapsed, 2),
+                )
+
+                self.context.log_message(result)
+                logger.info("[%s] 작업 완료 (%.1f초)", self.agent_id, elapsed)
+
+                # 산출물을 부서별/날짜별 아카이브에 저장
+                self._save_to_archive(request.task_description, result)
+
+                # 성공 시 메모리 자동 추출 (비동기, 실패해도 무시)
+                if self._memory_manager:
+                    asyncio.create_task(
+                        self._extract_memory(request.task_description, summary)
+                    )
+
+                return result
+
+            except Exception as e:
+                last_error = e
+                logger.error("[%s] 오류 발생 (시도 %d/%d): %s", self.agent_id, attempt + 1, max_retries + 1, e)
+                if attempt < max_retries:
+                    continue  # 재시도
+
+        # 모든 재시도 실패
+        elapsed = time.monotonic() - start
+        result = TaskResult(
+            sender_id=self.agent_id,
+            receiver_id=request.sender_id,
+            parent_message_id=request.id,
+            correlation_id=request.correlation_id,
+            success=False,
+            result_data={"error": str(last_error)},
+            summary=f"오류 ({max_retries + 1}회 시도 후 실패): {last_error}",
+            task_description=request.task_description,
+            execution_time_seconds=round(elapsed, 2),
+        )
 
         self.context.log_message(result)
-        logger.info("[%s] 작업 완료 (%.1f초)", self.agent_id, elapsed)
+        logger.info("[%s] 작업 실패 (%.1f초, %d회 재시도)", self.agent_id, elapsed, max_retries)
 
-        # 산출물을 부서별/날짜별 아카이브에 저장
         self._save_to_archive(request.task_description, result)
-
         return result
+
+    async def _extract_memory(self, task_desc: str, summary: str) -> None:
+        """작업 완료 후 핵심 학습 사항을 메모리에 자동 저장합니다."""
+        try:
+            response = await self.model_router.complete(
+                model_name="gpt-4o-mini",  # 저렴한 모델 사용
+                messages=[
+                    {"role": "system", "content": (
+                        "당신은 AI 에이전트의 학습 사항을 추출하는 도우미입니다.\n"
+                        "작업 내용과 결과를 보고, 향후 같은 종류의 작업에서 기억해둘 만한\n"
+                        "핵심 교훈 1~3개를 추출하세요.\n"
+                        "반드시 JSON 배열로만 응답하세요:\n"
+                        '[{"key": "짧은 제목", "value": "학습 내용"}]'
+                    )},
+                    {"role": "user", "content": f"작업: {task_desc}\n결과 요약: {summary}"},
+                ],
+                temperature=0.0,
+                agent_id=self.agent_id,
+            )
+            import json as _json
+            import re as _re
+            match = _re.search(r'\[.*\]', response.content, _re.DOTALL)
+            if match:
+                items = _json.loads(match.group())
+                for item in items[:3]:
+                    key = item.get("key", "")
+                    value = item.get("value", "")
+                    if key and value:
+                        self._memory_manager.add(self.agent_id, key, value, source="auto")
+        except Exception as e:
+            logger.debug("[%s] 메모리 추출 실패 (무시): %s", self.agent_id, e)
 
     def _save_to_archive(self, task_description: str, result: TaskResult) -> None:
         """산출물을 부서별/날짜별 아카이브에 저장."""
@@ -141,7 +205,17 @@ class BaseAgent(ABC):
         ...
 
     async def think(self, messages: list[dict[str, str]]) -> str:
-        """Call the LLM through the model router."""
+        """Call the LLM through the model router with memory injection."""
+        # 메모리 주입: 시스템 프롬프트에 장기 기억 추가
+        if self._memory_manager:
+            mem_context = self._memory_manager.get_context_string(self.agent_id)
+            if mem_context and messages and messages[0].get("role") == "system":
+                messages = list(messages)  # 원본 보호
+                messages[0] = {
+                    "role": "system",
+                    "content": messages[0]["content"] + mem_context,
+                }
+
         # context에서 batch 모드 확인
         use_batch = getattr(self, '_use_batch', False)
         response = await self.model_router.complete(
