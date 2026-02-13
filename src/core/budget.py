@@ -122,8 +122,13 @@ class BudgetManager:
         monthly_cost = 0.0
 
         for record in cost_tracker._records:
-            monthly_cost += record.cost_usd
-            daily_cost += record.cost_usd
+            record_date = record.timestamp.date()
+            # 이번 달 비용만 합산
+            if record_date.year == current_year and record_date.month == current_month:
+                monthly_cost += record.cost_usd
+            # 오늘 비용만 합산
+            if record_date == today:
+                daily_cost += record.cost_usd
 
         return BudgetStatus(
             daily_limit=self.daily_limit,

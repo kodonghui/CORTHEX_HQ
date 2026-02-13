@@ -361,7 +361,7 @@ async def get_cost() -> dict:
     }
 
 
-@app.get("/api/health")
+@app.get("/api/healthcheck")
 async def get_health() -> dict:
     """Run system health check and return results."""
     if not registry or not model_router:
@@ -1352,14 +1352,14 @@ async def webhook_verify(platform: str, request: Request) -> Any:
     """Webhook 구독 검증 (Instagram/YouTube 용)."""
     params = dict(request.query_params)
 
-    # Instagram/Facebook Webhook 검증
-    if "hub.challenge" in params:
+    # Instagram/Facebook Webhook 검증 (hub.verify_token으로 구분)
+    if "hub.challenge" in params and "hub.verify_token" in params:
         verify_token = os.getenv("WEBHOOK_VERIFY_TOKEN", "corthex-webhook")
         if params.get("hub.verify_token") == verify_token:
             return int(params["hub.challenge"])
         return {"error": "검증 실패"}
 
-    # YouTube PubSubHubbub 검증
+    # YouTube PubSubHubbub 검증 (hub.challenge만 있고 verify_token 없음)
     if "hub.challenge" in params:
         return params["hub.challenge"]
 

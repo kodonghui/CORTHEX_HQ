@@ -62,7 +62,7 @@ class ToolPool:
         if tool_id not in self._tools:
             raise ToolNotFoundError(tool_id)
         logger.info("[%s] 도구 호출: %s", caller_id, tool_id)
-        return await self._tools[tool_id].execute(**kwargs)
+        return await self._tools[tool_id].execute(caller_id=caller_id, **kwargs)
 
     def list_tools(self) -> list[dict]:
         return [
