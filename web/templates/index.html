@@ -1106,6 +1106,7 @@
               break;
 
             case 'activity_log':
+              msg.data.time = new Date().toLocaleTimeString('ko-KR', { timeZone: 'Asia/Seoul', hour12: false });
               this.activityLogs.push(msg.data);
               break;
 
