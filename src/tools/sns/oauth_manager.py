@@ -14,6 +14,7 @@ import os
 import time
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlencode
 
 import httpx
 
@@ -170,11 +171,7 @@ class OAuthManager:
         if "scope" in cfg:
             params["scope"] = cfg["scope"]
 
-        # Tistory는 response_type이 다름
-        if platform == "tistory":
-            params["response_type"] = "code"
-
-        query = "&".join(f"{k}={v}" for k, v in params.items())
+        query = urlencode(params)
         return f"{cfg['auth_url']}?{query}"
 
     # ── 인증 코드 → 토큰 교환 ──
@@ -199,23 +196,12 @@ class OAuthManager:
         async with httpx.AsyncClient() as client:
             resp = await client.post(cfg["token_url"], data=payload)
 
-            if platform == "tistory":
-                # Tistory는 key=value 형태로 반환
-                if "access_token" in resp.text:
-                    parts = dict(p.split("=") for p in resp.text.split("&"))
-                    token = OAuthToken(
-                        platform="tistory",
-                        access_token=parts["access_token"],
-                    )
-                else:
-                    raise RuntimeError(f"Tistory 토큰 교환 실패: {resp.text}")
-            else:
-                data = resp.json()
-                if "error" in data:
-                    raise RuntimeError(f"{platform} 토큰 교환 실패: {data}")
+            data = resp.json()
+            if "error" in data:
+                raise RuntimeError(f"{platform} 토큰 교환 실패: {data}")
 
-                expires_in = data.get("expires_in", 0)
-                token = OAuthToken(
+            expires_in = data.get("expires_in", 0)
+            token = OAuthToken(
                     platform=platform,
                     access_token=data["access_token"],
                     refresh_token=data.get("refresh_token", ""),
