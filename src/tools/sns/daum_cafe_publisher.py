@@ -45,11 +45,11 @@ class DaumCafePublisher(BasePublisher):
 
     @property
     def kakao_id(self) -> str:
-        return os.getenv("KAKAO_ID", "")
+        return os.getenv("DAUM_KAKAO_ID", "") or os.getenv("KAKAO_ID", "")
 
     @property
     def kakao_pw(self) -> str:
-        return os.getenv("KAKAO_PW", "")
+        return os.getenv("DAUM_KAKAO_PW", "") or os.getenv("KAKAO_PW", "")
 
     @property
     def default_cafe_id(self) -> str:
