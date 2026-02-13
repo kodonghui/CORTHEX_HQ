@@ -157,7 +157,7 @@ class BaseAgent(ABC):
         if len(text) < 200:
             return text
         response = await self.model_router.complete(
-            model_name="gpt-4o-mini",
+            model_name=self.config.model_name,
             messages=[
                 {"role": "system", "content": "주어진 내용을 한국어 1-2문장으로 요약하세요."},
                 {"role": "user", "content": text[:3000]},
@@ -186,10 +186,10 @@ class ManagerAgent(BaseAgent):
             ])
 
         # Step 2: Delegate sub-tasks in parallel
-        results = await self._delegate_subtasks(plan, request)
+        results, errors = await self._delegate_subtasks(plan, request)
 
         # Step 3: Synthesize results
-        return await self._synthesize_results(request, results)
+        return await self._synthesize_results(request, results, errors)
 
     async def _plan_decomposition(self, request: TaskRequest) -> list[dict[str, str]]:
         """Ask LLM to break the task into sub-tasks for subordinates."""
@@ -221,9 +221,10 @@ class ManagerAgent(BaseAgent):
 
     async def _delegate_subtasks(
         self, plan: list[dict[str, str]], parent_request: TaskRequest
-    ) -> list[TaskResult]:
+    ) -> tuple[list[TaskResult], list[str]]:
         """Send sub-tasks to subordinates in parallel."""
         tasks = []
+        dispatched_ids: list[str] = []
         for item in plan:
             assignee_id = item.get("assignee_id", "")
             task_desc = item.get("task", "")
@@ -245,25 +246,34 @@ class ManagerAgent(BaseAgent):
                 context=parent_request.context,
             )
             tasks.append(agent.handle_task(sub_request))
+            dispatched_ids.append(assignee_id)
 
         if not tasks:
-            return []
+            return [], []
 
         raw_results = await asyncio.gather(*tasks, return_exceptions=True)
         results = []
-        for r in raw_results:
+        errors = []
+        for i, r in enumerate(raw_results):
             if isinstance(r, TaskResult):
                 results.append(r)
             elif isinstance(r, Exception):
-                logger.error("[%s] 부하 작업 실패: %s", self.agent_id, r)
-        return results
+                aid = dispatched_ids[i]
+                logger.error("[%s] 부하 작업 실패 (%s): %s", self.agent_id, aid, r)
+                errors.append(f"{aid}: {r}")
+        return results, errors
 
     async def _synthesize_results(
-        self, request: TaskRequest, results: list[TaskResult]
+        self, request: TaskRequest, results: list[TaskResult], errors: list[str] | None = None,
     ) -> str:
         """Combine subordinate results into a unified response."""
         if not results:
-            return "부하 에이전트로부터 결과를 받지 못했습니다."
+            error_detail = "\n".join(f"- {e}" for e in (errors or []))
+            return (
+                "부하 에이전트로부터 결과를 받지 못했습니다.\n\n"
+                f"실패 원인:\n{error_detail}" if error_detail
+                else "부하 에이전트로부터 결과를 받지 못했습니다."
+            )
 
         result_text = "\n\n".join(
             f"### [{r.sender_id}]\n{r.result_data}" for r in results
@@ -298,7 +308,17 @@ class ManagerAgent(BaseAgent):
             try:
                 return json.loads(match.group())
             except json.JSONDecodeError:
-                pass
+                logger.warning(
+                    "[%s] JSON 파싱 실패, 첫 번째 부하에게 전체 작업 할당. 응답: %s",
+                    self.agent_id,
+                    response[:200],
+                )
+        else:
+            logger.warning(
+                "[%s] LLM 응답에서 JSON 배열을 찾을 수 없음. 응답: %s",
+                self.agent_id,
+                response[:200],
+            )
         # Fallback: assign entire task to first subordinate
         if self.config.subordinate_ids:
             return [{"assignee_id": self.config.subordinate_ids[0], "task": response}]

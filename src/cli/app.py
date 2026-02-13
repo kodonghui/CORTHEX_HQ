@@ -233,10 +233,11 @@ class CorthexCLI:
 
         if not openai_provider and not anthropic_provider:
             self.console.print(
-                "[bold red]경고: API 키가 설정되지 않았습니다![/bold red]\n"
+                "[bold red]오류: API 키가 설정되지 않았습니다![/bold red]\n"
                 "[yellow].env 파일에 OPENAI_API_KEY 또는 ANTHROPIC_API_KEY를 설정하세요.\n"
                 "cp .env.example .env  후 키를 입력하세요.[/yellow]"
             )
+            raise SystemExit(1)
 
         model_router = ModelRouter(
             openai_provider=openai_provider,
