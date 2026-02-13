@@ -318,26 +318,77 @@
     </div>
 
     <div class="flex items-center gap-5">
-      <!-- System Status -->
-      <div class="flex items-center gap-2">
+      <!-- System Status (click → health popover) -->
+      <div class="flex items-center gap-2 relative">
         <template x-if="systemStatus === 'idle'">
-          <div class="flex items-center gap-2 bg-hq-green/10 border border-hq-green/20 rounded-lg px-3 py-1">
+          <div @click="showHealthPopover = !showHealthPopover; if(showHealthPopover) loadHealth()"
+               class="flex items-center gap-2 bg-hq-green/10 border border-hq-green/20 rounded-lg px-3 py-1 cursor-pointer hover:bg-hq-green/20 transition">
             <span class="w-2 h-2 rounded-full bg-hq-green"></span>
             <span class="text-xs font-medium text-hq-green">대기</span>
           </div>
         </template>
         <template x-if="systemStatus === 'working'">
-          <div class="flex items-center gap-2 bg-hq-yellow/10 border border-hq-yellow/20 rounded-lg px-3 py-1">
+          <div @click="showHealthPopover = !showHealthPopover; if(showHealthPopover) loadHealth()"
+               class="flex items-center gap-2 bg-hq-yellow/10 border border-hq-yellow/20 rounded-lg px-3 py-1 cursor-pointer hover:bg-hq-yellow/20 transition">
             <span class="w-2 h-2 rounded-full bg-hq-yellow pulse-dot"></span>
             <span class="text-xs font-medium text-hq-yellow">처리중</span>
           </div>
         </template>
         <template x-if="systemStatus === 'error'">
-          <div class="flex items-center gap-2 bg-hq-red/10 border border-hq-red/20 rounded-lg px-3 py-1">
+          <div @click="showHealthPopover = !showHealthPopover; if(showHealthPopover) loadHealth()"
+               class="flex items-center gap-2 bg-hq-red/10 border border-hq-red/20 rounded-lg px-3 py-1 cursor-pointer hover:bg-hq-red/20 transition">
             <span class="w-2 h-2 rounded-full bg-hq-red"></span>
             <span class="text-xs font-medium text-hq-red">오류</span>
           </div>
         </template>
+        <!-- Health Popover -->
+        <div x-show="showHealthPopover" @click.outside="showHealthPopover = false" x-transition
+             class="absolute top-full mt-2 right-0 w-72 glass border border-hq-border rounded-xl p-4 shadow-xl z-30"
+             style="display: none;">
+          <h4 class="text-xs font-bold text-hq-text uppercase tracking-wider mb-3">시스템 상태 상세</h4>
+          <template x-if="healthData">
+            <div class="space-y-2">
+              <div class="flex items-center justify-between">
+                <span class="text-xs text-hq-muted">전체</span>
+                <span class="text-xs font-bold" :class="healthData.overall === 'ok' ? 'text-hq-green' : healthData.overall === 'warning' ? 'text-hq-yellow' : 'text-hq-red'"
+                      x-text="healthData.overall === 'ok' ? '정상' : healthData.overall === 'warning' ? '경고' : '오류'"></span>
+              </div>
+              <div class="flex items-center justify-between">
+                <span class="text-xs text-hq-muted">오케스트레이터 (지휘자)</span>
+                <span class="text-xs" x-text="healthData.orchestrator !== undefined ? (healthData.orchestrator ? '✅' : '❌') : (healthData.message || '-')"></span>
+              </div>
+              <div class="flex items-center justify-between" x-show="healthData.model_router !== undefined">
+                <span class="text-xs text-hq-muted">모델 라우터 (경로 배정)</span>
+                <span class="text-xs" x-text="healthData.model_router ? '✅' : '❌'"></span>
+              </div>
+              <div class="flex items-center justify-between" x-show="healthData.registry !== undefined">
+                <span class="text-xs text-hq-muted">에이전트 레지스트리 (등록소)</span>
+                <span class="text-xs" x-text="healthData.registry ? '✅' : '❌'"></span>
+              </div>
+              <div class="flex items-center justify-between" x-show="healthData.knowledge_mgr !== undefined">
+                <span class="text-xs text-hq-muted">지식 관리자</span>
+                <span class="text-xs" x-text="healthData.knowledge_mgr ? '✅' : '❌'"></span>
+              </div>
+              <div class="flex items-center justify-between" x-show="healthData.agent_count !== undefined">
+                <span class="text-xs text-hq-muted">등록된 에이전트</span>
+                <span class="text-xs font-mono text-hq-accent" x-text="healthData.agent_count + '명'"></span>
+              </div>
+              <template x-if="healthData.checks && healthData.checks.length > 0">
+                <div class="border-t border-hq-border/50 pt-2 mt-2 space-y-1">
+                  <template x-for="check in healthData.checks" :key="check.name || check">
+                    <div class="flex items-center justify-between">
+                      <span class="text-[11px] text-hq-muted" x-text="check.name || check"></span>
+                      <span class="text-[11px]" :class="check.ok ? 'text-hq-green' : 'text-hq-red'" x-text="check.ok ? '✅' : '❌'"></span>
+                    </div>
+                  </template>
+                </div>
+              </template>
+            </div>
+          </template>
+          <template x-if="!healthData">
+            <div class="text-xs text-hq-muted text-center py-2">로딩 중...</div>
+          </template>
+        </div>
       </div>
 
       <!-- Metrics -->
@@ -844,6 +895,19 @@
                           <button @click="copyToClipboard(msg.content)" class="text-hq-muted hover:text-hq-green transition p-1" title="복사">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
                           </button>
+                          <!-- Feedback Buttons -->
+                          <div class="flex items-center gap-0.5 border-l border-hq-border/40 pl-2 ml-1">
+                            <button @click="sendFeedback(msg, 'good')" :disabled="msg.feedbackSent"
+                              :class="msg.feedbackRating === 'good' ? 'text-hq-green' : 'text-hq-muted hover:text-hq-green'"
+                              class="transition p-1 disabled:opacity-50" title="좋아요">
+                              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 10h4.764a2 2 0 011.789 2.894l-3.5 7A2 2 0 0115.263 21h-4.017c-.163 0-.326-.02-.485-.06L7 20m7-10V5a2 2 0 00-2-2h-.095c-.5 0-.905.405-.905.905 0 .714-.211 1.412-.608 2.006L7 11v9m7-10h-2M7 20H5a2 2 0 01-2-2v-6a2 2 0 012-2h2.5"/></svg>
+                            </button>
+                            <button @click="sendFeedback(msg, 'bad')" :disabled="msg.feedbackSent"
+                              :class="msg.feedbackRating === 'bad' ? 'text-hq-red' : 'text-hq-muted hover:text-hq-red'"
+                              class="transition p-1 disabled:opacity-50" title="아쉬워요">
+                              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14H5.236a2 2 0 01-1.789-2.894l3.5-7A2 2 0 018.736 3h4.018c.163 0 .326.02.485.06L17 4m-7 10v2a3.5 3.5 0 003.5 3.5h.5a2 2 0 002-2v-.5c0-.966-.393-1.84-1.027-2.472L17 13V4m-7 10h2M17 4h2a2 2 0 012 2v6a2 2 0 01-2 2h-2.5"/></svg>
+                            </button>
+                          </div>
                           <button x-show="isLongContent(msg.content)" @click="msg.collapsed = !msg.collapsed"
                             class="text-hq-muted hover:text-white transition p-1" title="접기/펼치기">
                             <svg class="w-4 h-4 transition-transform" :class="msg.collapsed ? '' : 'rotate-180'" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"/></svg>
@@ -1127,6 +1191,71 @@
                    x-text="(dashboard.feedback?.satisfaction_rate || 0) + '%'"></div>
             </div>
           </div>
+          <!-- Budget Status (예산 현황) -->
+          <div class="grid grid-cols-2 gap-4">
+            <div class="glass border border-hq-border rounded-xl p-4">
+              <h3 class="text-xs font-bold text-hq-text uppercase tracking-wider mb-3">일일 예산</h3>
+              <div class="flex items-end justify-between mb-2">
+                <span class="text-lg font-bold text-hq-accent" x-text="'$' + (budget.daily_used || 0).toFixed(2)"></span>
+                <span class="text-xs text-hq-muted" x-text="'/ $' + (budget.daily_limit || 0).toFixed(2)"></span>
+              </div>
+              <div class="h-2 bg-hq-bg rounded-full overflow-hidden">
+                <div class="h-full rounded-full transition-all progress-bar"
+                     :class="(budget.daily_used||0)/(budget.daily_limit||1)*100 > 80 ? 'bg-hq-red' : (budget.daily_used||0)/(budget.daily_limit||1)*100 > 50 ? 'bg-hq-yellow' : 'bg-hq-green'"
+                     :style="'width:' + Math.min(100, (budget.daily_used||0)/(budget.daily_limit||1)*100) + '%'"></div>
+              </div>
+            </div>
+            <div class="glass border border-hq-border rounded-xl p-4">
+              <h3 class="text-xs font-bold text-hq-text uppercase tracking-wider mb-3">월간 예산</h3>
+              <div class="flex items-end justify-between mb-2">
+                <span class="text-lg font-bold text-hq-accent" x-text="'$' + (budget.monthly_used || 0).toFixed(2)"></span>
+                <span class="text-xs text-hq-muted" x-text="'/ $' + (budget.monthly_limit || 0).toFixed(2)"></span>
+              </div>
+              <div class="h-2 bg-hq-bg rounded-full overflow-hidden">
+                <div class="h-full rounded-full transition-all progress-bar"
+                     :class="(budget.monthly_used||0)/(budget.monthly_limit||1)*100 > 80 ? 'bg-hq-red' : (budget.monthly_used||0)/(budget.monthly_limit||1)*100 > 50 ? 'bg-hq-yellow' : 'bg-hq-green'"
+                     :style="'width:' + Math.min(100, (budget.monthly_used||0)/(budget.monthly_limit||1)*100) + '%'"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Quality Gate Statistics (품질 검수 통계) -->
+          <div class="glass border border-hq-border rounded-xl p-5">
+            <h3 class="text-sm font-bold text-hq-text mb-4">품질 검수 통계</h3>
+            <div class="grid grid-cols-4 gap-3 mb-4">
+              <div class="bg-hq-bg rounded-lg p-3 text-center">
+                <div class="text-[10px] text-hq-muted uppercase mb-1">합격률</div>
+                <div class="text-xl font-bold" :class="(quality.pass_rate||0) >= 80 ? 'text-hq-green' : (quality.pass_rate||0) >= 50 ? 'text-hq-yellow' : 'text-hq-red'"
+                     x-text="(quality.pass_rate || 0).toFixed(1) + '%'"></div>
+              </div>
+              <div class="bg-hq-bg rounded-lg p-3 text-center">
+                <div class="text-[10px] text-hq-muted uppercase mb-1">총 검수</div>
+                <div class="text-xl font-bold text-hq-accent" x-text="quality.total_reviewed || 0"></div>
+              </div>
+              <div class="bg-hq-bg rounded-lg p-3 text-center">
+                <div class="text-[10px] text-hq-muted uppercase mb-1">합격</div>
+                <div class="text-xl font-bold text-hq-green" x-text="quality.total_passed || 0"></div>
+              </div>
+              <div class="bg-hq-bg rounded-lg p-3 text-center">
+                <div class="text-[10px] text-hq-muted uppercase mb-1">불합격</div>
+                <div class="text-xl font-bold text-hq-red" x-text="quality.total_failed || 0"></div>
+              </div>
+            </div>
+            <template x-if="quality.rejections_by_agent && Object.keys(quality.rejections_by_agent).length > 0">
+              <div>
+                <h4 class="text-xs text-hq-muted mb-2">에이전트별 불합격</h4>
+                <div class="space-y-1">
+                  <template x-for="(count, agent) in quality.rejections_by_agent" :key="agent">
+                    <div class="flex items-center justify-between bg-hq-bg rounded-lg px-3 py-1.5">
+                      <span class="text-xs text-hq-text/80" x-text="getAgentName(agent)"></span>
+                      <span class="text-xs font-mono text-hq-red" x-text="count + '건'"></span>
+                    </div>
+                  </template>
+                </div>
+              </div>
+            </template>
+          </div>
+
           <!-- Cost by Model -->
           <div class="glass border border-hq-border rounded-xl p-5">
             <h3 class="text-sm font-bold text-hq-text mb-4">모델별 비용</h3>
@@ -1171,7 +1300,7 @@
             <h3 class="text-sm font-bold text-hq-text mb-4">최근 작업</h3>
             <div class="space-y-2">
               <template x-for="task in (dashboard.tasks || []).slice(0, 10)" :key="task.task_id">
-                <div class="flex items-center gap-3 p-3 bg-hq-bg rounded-lg">
+                <div @click="openTaskDetail(task.task_id)" class="flex items-center gap-3 p-3 bg-hq-bg rounded-lg cursor-pointer hover:bg-hq-surface transition">
                   <span class="w-2 h-2 rounded-full shrink-0"
                     :class="task.success === true ? 'bg-hq-green' : task.success === false ? 'bg-hq-red' : 'bg-hq-yellow'"></span>
                   <span class="text-sm text-hq-text/80 flex-1 truncate" x-text="task.command"></span>
@@ -1457,6 +1586,66 @@
     </div>
   </div>
 
+  <!-- ═══ Task Detail Modal (작업 상세) ═══ -->
+  <div x-show="showTaskDetail" x-transition.opacity
+       class="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
+       @click.self="showTaskDetail = false" style="display: none;">
+    <div class="bg-hq-panel border border-hq-border rounded-2xl w-[800px] max-h-[85vh] overflow-y-auto p-6" @click.stop>
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-lg font-bold text-white">작업 상세</h2>
+        <button @click="showTaskDetail = false" class="text-gray-400 hover:text-white text-xl">&times;</button>
+      </div>
+      <template x-if="taskDetailData">
+        <div>
+          <!-- Task Info -->
+          <div class="bg-hq-bg rounded-xl p-4 mb-4">
+            <div class="grid grid-cols-2 gap-3 text-xs">
+              <div><span class="text-hq-muted">명령:</span> <span class="text-hq-text ml-1" x-text="taskDetailData.command"></span></div>
+              <div><span class="text-hq-muted">상태:</span>
+                <span class="ml-1 status-badge"
+                      :class="taskDetailData.status === 'completed' ? 'bg-hq-green/10 text-hq-green' : taskDetailData.status === 'failed' ? 'bg-hq-red/10 text-hq-red' : 'bg-hq-yellow/10 text-hq-yellow'"
+                      x-text="taskDetailData.status === 'completed' ? '완료' : taskDetailData.status === 'failed' ? '실패' : '진행중'"></span>
+              </div>
+              <div><span class="text-hq-muted">소요시간:</span> <span class="text-hq-text font-mono ml-1" x-text="(taskDetailData.time_seconds || 0) + 's'"></span></div>
+              <div><span class="text-hq-muted">비용:</span> <span class="text-hq-green font-mono ml-1" x-text="'$' + (taskDetailData.cost || 0).toFixed(4)"></span></div>
+              <div x-show="taskDetailData.tokens_used"><span class="text-hq-muted">토큰(사용량):</span> <span class="text-hq-purple font-mono ml-1" x-text="(taskDetailData.tokens_used || 0).toLocaleString()"></span></div>
+              <div><span class="text-hq-muted">생성일:</span> <span class="text-hq-text font-mono ml-1" x-text="taskDetailData.created_at ? new Date(taskDetailData.created_at).toLocaleString('ko-KR') : '-'"></span></div>
+            </div>
+          </div>
+          <!-- Tabs -->
+          <div class="flex gap-2 mb-4">
+            <button @click="taskDetailTab = 'result'" :class="taskDetailTab === 'result' ? 'bg-hq-accent/20 text-hq-accent' : 'text-hq-muted'" class="px-3 py-1 text-xs font-semibold rounded-lg transition">결과</button>
+            <button @click="taskDetailTab = 'replay'; loadTaskReplay(taskDetailData.task_id)" :class="taskDetailTab === 'replay' ? 'bg-hq-accent/20 text-hq-accent' : 'text-hq-muted'" class="px-3 py-1 text-xs font-semibold rounded-lg transition">리플레이 (실행 과정)</button>
+          </div>
+          <!-- Result Tab -->
+          <div x-show="taskDetailTab === 'result'" class="bg-hq-bg rounded-xl p-4">
+            <template x-if="taskDetailData.result_data">
+              <div class="text-sm leading-relaxed markdown-body" x-html="renderMarkdown(taskDetailData.result_data)"></div>
+            </template>
+            <template x-if="!taskDetailData.result_data">
+              <div class="text-sm text-hq-muted text-center py-4">결과 데이터가 없습니다</div>
+            </template>
+          </div>
+          <!-- Replay Tab -->
+          <div x-show="taskDetailTab === 'replay'" class="bg-hq-bg rounded-xl p-4">
+            <template x-if="taskReplay && taskReplay.root">
+              <div class="space-y-2" x-html="renderReplayTree(taskReplay.root, 0)"></div>
+            </template>
+            <template x-if="!taskReplay">
+              <div class="text-sm text-hq-muted text-center py-4">리플레이 데이터를 불러오는 중...</div>
+            </template>
+            <template x-if="taskReplay && !taskReplay.root">
+              <div class="text-sm text-hq-muted text-center py-4">리플레이 데이터가 없습니다</div>
+            </template>
+          </div>
+        </div>
+      </template>
+      <template x-if="!taskDetailData">
+        <div class="text-center py-8 text-hq-muted">로딩 중...</div>
+      </template>
+    </div>
+  </div>
+
   <script>
     function corthexApp() {
       return {
@@ -1521,6 +1710,39 @@
         agentModelSelection: '',
         agentReasoningSelection: '',
         agentConfigSaveStatus: '',
+
+        // Health check
+        healthData: null,
+        showHealthPopover: false,
+
+        // Dashboard extras (budget, quality, task detail)
+        budget: {},
+        quality: {},
+        showTaskDetail: false,
+        taskDetailData: null,
+        taskReplay: null,
+        taskDetailTab: 'result',
+
+        // Preset management
+        showAddPreset: false,
+        newPresetName: '',
+        newPresetCommand: '',
+
+        // More menu + new views
+        showMoreMenu: false,
+        activityLogFilter: 'all',
+
+        // Knowledge management
+        knowledge: { files: [], loading: false, selectedFile: null, content: '', editMode: false, saving: false, newFileName: '', newFolder: '', showCreateForm: false },
+
+        // Archive browser
+        archive: { files: [], loading: false, selectedReport: null, content: '', filterDivision: 'all', searchCorrelation: '' },
+
+        // SNS management
+        sns: { tab: 'status', status: {}, oauthStatus: {}, queue: [], events: [], loading: false,
+               igCaption: '', igImageUrl: '', igVideoUrl: '', igReelCaption: '',
+               ytFilePath: '', ytTitle: '', ytDesc: '', ytTags: '', ytPrivacy: 'private',
+               rejectReason: '', rejectingId: null, queueFilter: 'all' },
 
         // Org tree expand state
         expanded: {
@@ -1632,6 +1854,10 @@
           this.greeting = this.getGreeting();
           // Presets
           this.loadPresets();
+          // Dynamic agent/tool loading
+          this.loadAgentsAndTools();
+          // Restore conversation
+          this.loadConversation();
           // Notification permission
           this.requestNotificationPermission();
           // WebSocket
@@ -1758,7 +1984,10 @@
                 time_seconds: msg.data.time_seconds,
                 cost: msg.data.cost,
                 quality_score: msg.data.quality_score || null,
+                task_id: this.currentTaskId || msg.data.task_id || '',
                 collapsed: false,
+                feedbackSent: false,
+                feedbackRating: null,
               });
               this.systemStatus = 'idle';
               this.currentTaskId = null;
@@ -1960,21 +2189,72 @@
         async loadDashboard() {
           this.dashboard.loading = true;
           try {
-            const [tasks, cost, perf, feedback] = await Promise.all([
+            const [tasks, cost, perf, feedback, budgetRes, qualityRes] = await Promise.all([
               fetch('/api/tasks').then(r => r.ok ? r.json() : []),
               fetch('/api/cost').then(r => r.ok ? r.json() : {}),
               fetch('/api/performance').then(r => r.ok ? r.json() : {}),
               fetch('/api/feedback').then(r => r.ok ? r.json() : {}),
+              fetch('/api/budget').then(r => r.ok ? r.json() : {}),
+              fetch('/api/quality').then(r => r.ok ? r.json() : {}),
             ]);
             this.dashboard.tasks = Array.isArray(tasks) ? tasks : [];
             this.dashboard.cost = cost;
             this.dashboard.performance = perf;
             this.dashboard.feedback = feedback;
+            this.budget = budgetRes;
+            this.quality = qualityRes;
           } catch (e) {
             this.showToast('대시보드 데이터를 불러올 수 없습니다.', 'error');
           } finally {
             this.dashboard.loading = false;
           }
+        },
+
+        async openTaskDetail(taskId) {
+          this.taskDetailData = null;
+          this.taskReplay = null;
+          this.taskDetailTab = 'result';
+          this.showTaskDetail = true;
+          try {
+            const res = await fetch(`/api/tasks/${taskId}`);
+            if (res.ok) this.taskDetailData = await res.json();
+            else this.showToast('작업 정보를 불러올 수 없습니다.', 'error');
+          } catch {
+            this.showToast('작업 상세 로드 실패', 'error');
+          }
+        },
+
+        async loadTaskReplay(taskId) {
+          this.taskReplay = null;
+          try {
+            const res = await fetch(`/api/replay/${taskId}`);
+            if (res.ok) this.taskReplay = await res.json();
+            else {
+              const latest = await fetch('/api/replay/latest');
+              if (latest.ok) this.taskReplay = await latest.json();
+              else this.taskReplay = {};
+            }
+          } catch {
+            this.taskReplay = {};
+          }
+        },
+
+        renderReplayTree(node, depth) {
+          if (!node) return '';
+          const indent = depth * 20;
+          const color = depth === 0 ? 'hq-accent' : depth === 1 ? 'hq-cyan' : 'hq-purple';
+          let html = `<div style="margin-left:${indent}px" class="flex items-start gap-2 p-2 bg-hq-surface/50 rounded-lg mb-1">
+            <span class="w-2 h-2 rounded-full bg-${color} mt-1.5 shrink-0"></span>
+            <div>
+              <span class="text-xs font-bold text-${color}">${this.getAgentName(node.agent_id || node.agent || '')}</span>
+              ${node.action ? `<span class="text-xs text-hq-muted ml-2">${node.action}</span>` : ''}
+              ${node.result ? `<div class="text-xs text-hq-text/60 mt-1 truncate max-w-lg">${(node.result || '').substring(0, 100)}${(node.result||'').length > 100 ? '...' : ''}</div>` : ''}
+            </div>
+          </div>`;
+          if (node.children && Array.isArray(node.children)) {
+            node.children.forEach(child => { html += this.renderReplayTree(child, depth + 1); });
+          }
+          return html;
         },
 
         // ── Existing Helpers ──
@@ -2234,6 +2514,75 @@
             this.showToast('추론 정도 변경에 실패했습니다.', 'error');
           }
           setTimeout(() => { this.agentConfigSaveStatus = ''; }, 2500);
+        },
+
+        // ── Dynamic Loading ──
+        async loadAgentsAndTools() {
+          try {
+            const [agents, tools] = await Promise.all([
+              fetch('/api/agents').then(r => r.ok ? r.json() : []),
+              fetch('/api/tools').then(r => r.ok ? r.json() : []),
+            ]);
+            if (Array.isArray(agents) && agents.length > 0) {
+              agents.forEach(a => {
+                this.agentNames[a.agent_id] = a.name_ko || a.agent_id;
+                const nameKo = a.name_ko || a.agent_id;
+                this.agentInitials[a.agent_id] = nameKo.length >= 2 ? nameKo.substring(0, 2) : nameKo.toUpperCase();
+                if (a.division) {
+                  const divMap = { '비서실': 'secretary', '기술개발처': 'tech', '사업기획처': 'strategy',
+                                   '법무처': 'legal', '마케팅처': 'marketing', '투자분석처': 'finance' };
+                  this.agentDivision[a.agent_id] = divMap[a.division] || a.division;
+                }
+              });
+            }
+          } catch (e) {
+            console.warn('에이전트/도구 동적 로딩 실패, 하드코딩 사용:', e);
+          }
+        },
+
+        async loadConversation() {
+          try {
+            const res = await fetch('/api/conversation');
+            if (!res.ok) return;
+            const history = await res.json();
+            if (Array.isArray(history) && history.length > 0) {
+              history.forEach(item => {
+                if (item.command) this.messages.push({ type: 'user', text: item.command });
+                if (item.summary) this.messages.push({ type: 'result', content: item.summary, sender_id: 'system', collapsed: false, feedbackSent: false, feedbackRating: null });
+              });
+              this.$nextTick(() => this.scrollToBottom());
+            }
+          } catch (e) {
+            console.warn('대화 기록 복원 실패:', e);
+          }
+        },
+
+        async sendFeedback(msg, rating) {
+          if (msg.feedbackSent) return;
+          try {
+            const res = await fetch('/api/feedback', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ correlation_id: msg.task_id || '', rating, agent_id: msg.sender_id || '' }),
+            });
+            const data = await res.json();
+            if (data.success) {
+              msg.feedbackSent = true;
+              msg.feedbackRating = rating;
+              this.showToast(rating === 'good' ? '긍정 피드백을 보냈습니다.' : '부정 피드백을 보냈습니다.', 'success');
+            } else {
+              this.showToast(data.error || '피드백 전송 실패', 'error');
+            }
+          } catch {
+            this.showToast('피드백 전송에 실패했습니다.', 'error');
+          }
+        },
+
+        async loadHealth() {
+          try {
+            const res = await fetch('/api/health');
+            if (res.ok) this.healthData = await res.json();
+          } catch { /* 무시 */ }
         },
 
         scrollToBottom() {
