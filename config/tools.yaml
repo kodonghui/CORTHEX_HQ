@@ -42,6 +42,12 @@ tools:
 
   # ─── SNS 연동 도구 ───
 
+  - tool_id: "leet_survey"
+    name: "LEET Survey"
+    name_ko: "LEET 해설 서베이"
+    description: "6개 커뮤니티(다음카페/네이버카페/네이버블로그/오르비/디시인사이드/티스토리)에서 LEET 해설 부정의견 자동 수집·분석"
+    model_name: "gpt-4o-mini"
+
   - tool_id: "sns_manager"
     name: "SNS Manager"
     name_ko: "SNS 매니저"

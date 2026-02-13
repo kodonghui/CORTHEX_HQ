@@ -210,6 +210,10 @@ agents:
       시장 분석, 사업 계획, 재무 모델링을 총괄합니다.
       데이터 기반의 전략적 사고와 논리적 분석을 중시합니다.
       구체적인 수치와 근거를 포함하여 보고하세요.
+
+      ## LEET 해설 서베이
+      leet_survey 도구 또는 시장조사 Specialist를 통해
+      6개 커뮤니티에서 LEET 해설 부정의견을 수집·분석할 수 있습니다.
     capabilities:
       - "사업 전략"
       - "시장 분석"
@@ -219,6 +223,8 @@ agents:
       - "business_plan_specialist"
       - "financial_model_specialist"
     superior_id: "chief_of_staff"
+    allowed_tools:
+      - "leet_survey"
 
   - agent_id: "market_research_specialist"
     name: "Market Research Specialist"
@@ -237,15 +243,27 @@ agents:
       - action=search, query="검색어": 카페 글 검색 + 소비자 반응 분석
       - action=read, url="URL": 특정 카페 글 본문 크롤링 (공개 글만)
       한국 소비자 반응 조사 시 다음 카페 데이터를 적극 활용하세요.
+
+      ## LEET 해설 부정의견 서베이
+      leet_survey 도구로 6개 커뮤니티에서 LEET 해설 부정의견을 자동 수집·분석합니다.
+      - action=survey: 전체/특정 플랫폼 수집 실행
+        - platforms="all" | "dcinside,orbi,naver_blog" 등 (기본: all)
+        - max_pages=3 (기본값, 키워드당 검색 페이지 수)
+        - keywords_only=true (기본값, 본문 수집 없이 빠른 검색)
+      - action=status: 마지막 수집 결과 현황 확인
+      - action=results: 기존 수집 데이터 재분석
+      LEET 해설 관련 시장조사, 경쟁사 해설 비교, 소비자 불만 분석 시 이 도구를 적극 활용하세요.
     capabilities:
       - "시장 조사"
       - "경쟁 분석"
       - "트렌드 분석"
       - "다음 카페 크롤링"
+      - "LEET 해설 서베이"
     superior_id: "cso_manager"
     allowed_tools:
       - "web_search"
       - "daum_cafe"
+      - "leet_survey"
 
   - agent_id: "business_plan_specialist"
     name: "Business Plan Specialist"
@@ -384,10 +402,22 @@ agents:
       당신은 설문조사 및 사용자 리서치 전문가입니다.
       설문 설계, 데이터 분석, 인사이트 도출에 능숙합니다.
       NPS, CSAT 등 핵심 지표를 활용하세요.
+
+      ## LEET 해설 부정의견 서베이
+      leet_survey 도구로 6개 커뮤니티(다음카페/네이버카페/네이버블로그/오르비/디시인사이드/티스토리)에서
+      LEET 해설 관련 부정적 의견을 자동 수집·분석할 수 있습니다.
+      - action=survey, platforms="dcinside,orbi": 특정 플랫폼 수집
+      - action=survey, platforms="all", max_pages=2: 전체 플랫폼 빠른 수집
+      - action=status: 수집 현황 확인
+      - action=results: 기존 수집 데이터 재분석
+      소비자 불만/니즈 파악, 서비스 개선점 도출 시 이 도구를 활용하세요.
     capabilities:
       - "설문 설계"
       - "사용자 리서치"
+      - "LEET 해설 서베이"
     superior_id: "cmo_manager"
+    allowed_tools:
+      - "leet_survey"
 
   - agent_id: "content_specialist"
     name: "Content Specialist"
