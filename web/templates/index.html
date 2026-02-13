@@ -262,6 +262,21 @@
       50% { box-shadow: 0 0 14px rgba(250,204,21,0.6), 0 0 28px rgba(250,204,21,0.15); }
     }
     .agent-working-glow { animation: agentGlow 2s ease-in-out infinite; border-radius: 50%; }
+
+    /* ═══ Office floor plan ═══ */
+    .office-room { border-radius: 16px; padding: 20px; transition: all 0.3s ease; }
+    .desk-card {
+      border-radius: 12px; padding: 12px; cursor: pointer;
+      transition: all 0.2s ease; position: relative; min-width: 100px;
+    }
+    .desk-card:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,0.25); }
+    .status-light { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+    .status-light-working { background: #10b981; box-shadow: 0 0 10px rgba(16,185,129,0.6); animation: pulseDot 1.5s ease-in-out infinite; }
+    .status-light-idle { background: #f59e0b; box-shadow: 0 0 6px rgba(245,158,11,0.4); }
+    .status-light-done { background: #10b981; }
+    .status-light-off { background: #475569; }
+    html:not(.dark) .desk-card:hover { box-shadow: 0 6px 20px rgba(0,0,0,0.08); }
+    html:not(.dark) .office-room { border-color: #e2e8f0; }
   </style>
 </head>
 
@@ -343,11 +358,14 @@
         <span class="text-[11px] font-mono" x-text="wsConnected ? '연결됨' : '끊김'"></span>
       </div>
 
-      <!-- View Toggle: 채팅/대시보드 -->
+      <!-- View Toggle: 채팅/사무실/대시보드 -->
       <div class="flex items-center bg-hq-surface border border-hq-border rounded-lg">
         <button @click="viewMode = 'chat'"
                 :class="viewMode === 'chat' ? 'bg-hq-accent/20 text-hq-accent' : 'text-hq-muted hover:text-hq-text'"
                 class="px-3 py-1 text-xs font-semibold rounded-l-lg transition-colors">채팅</button>
+        <button @click="viewMode = 'office'"
+                :class="viewMode === 'office' ? 'bg-hq-accent/20 text-hq-accent' : 'text-hq-muted hover:text-hq-text'"
+                class="px-3 py-1 text-xs font-semibold border-x border-hq-border transition-colors">사무실</button>
         <button @click="viewMode = 'dashboard'; loadDashboard()"
                 :class="viewMode === 'dashboard' ? 'bg-hq-accent/20 text-hq-accent' : 'text-hq-muted hover:text-hq-text'"
                 class="px-3 py-1 text-xs font-semibold rounded-r-lg transition-colors">대시보드</button>
@@ -442,7 +460,7 @@
           </button>
           <div x-show="expanded.secretary" x-collapse class="ml-10 space-y-0.5 mt-1">
             <template x-for="id in ['chief_of_staff', 'report_worker', 'schedule_worker', 'relay_worker']" :key="id">
-              <div :id="'agent-' + id" class="flex items-center gap-2 px-2 py-1 rounded-md hover:bg-white/[0.02] transition-all duration-300">
+              <div :id="'agent-' + id" @click="openAgentConfig(id)" class="flex items-center gap-2 px-2 py-1 rounded-md hover:bg-white/[0.02] transition-all duration-300 cursor-pointer">
                 <span class="w-1.5 h-1.5 rounded-full transition-colors" :class="[getAgentDotClass(id), activeAgents[id]?.status==='working' ? 'agent-working-glow' : '']"></span>
                 <span class="text-xs text-hq-muted" x-text="getAgentName(id)"></span>
                 <span x-show="activeAgents[id]?.status === 'working'"
@@ -481,7 +499,7 @@
               </button>
               <div x-show="expanded.tech" x-collapse class="ml-10 space-y-0.5 mt-1">
                 <template x-for="id in ['frontend_specialist','backend_specialist','infra_specialist','ai_model_specialist']" :key="id">
-                  <div :id="'agent-' + id" class="flex items-center gap-2 px-2 py-1 rounded-md hover:bg-white/[0.02] transition-all duration-300">
+                  <div :id="'agent-' + id" @click="openAgentConfig(id)" class="flex items-center gap-2 px-2 py-1 rounded-md hover:bg-white/[0.02] transition-all duration-300 cursor-pointer">
                     <span class="w-1.5 h-1.5 rounded-full transition-colors" :class="[getAgentDotClass(id), activeAgents[id]?.status==='working' ? 'agent-working-glow' : '']"></span>
                     <span class="text-xs text-hq-muted" x-text="getAgentName(id)"></span>
                     <span x-show="activeAgents[id]?.status === 'working'"
@@ -504,7 +522,7 @@
               </button>
               <div x-show="expanded.strategy" x-collapse class="ml-10 space-y-0.5 mt-1">
                 <template x-for="id in ['market_research_specialist','business_plan_specialist','financial_model_specialist']" :key="id">
-                  <div :id="'agent-' + id" class="flex items-center gap-2 px-2 py-1 rounded-md hover:bg-white/[0.02] transition-all duration-300">
+                  <div :id="'agent-' + id" @click="openAgentConfig(id)" class="flex items-center gap-2 px-2 py-1 rounded-md hover:bg-white/[0.02] transition-all duration-300 cursor-pointer">
                     <span class="w-1.5 h-1.5 rounded-full transition-colors" :class="[getAgentDotClass(id), activeAgents[id]?.status==='working' ? 'agent-working-glow' : '']"></span>
                     <span class="text-xs text-hq-muted" x-text="getAgentName(id)"></span>
                     <span x-show="activeAgents[id]?.status === 'working'"
@@ -527,7 +545,7 @@
               </button>
               <div x-show="expanded.legal" x-collapse class="ml-10 space-y-0.5 mt-1">
                 <template x-for="id in ['copyright_specialist','patent_specialist']" :key="id">
-                  <div :id="'agent-' + id" class="flex items-center gap-2 px-2 py-1 rounded-md hover:bg-white/[0.02] transition-all duration-300">
+                  <div :id="'agent-' + id" @click="openAgentConfig(id)" class="flex items-center gap-2 px-2 py-1 rounded-md hover:bg-white/[0.02] transition-all duration-300 cursor-pointer">
                     <span class="w-1.5 h-1.5 rounded-full transition-colors" :class="[getAgentDotClass(id), activeAgents[id]?.status==='working' ? 'agent-working-glow' : '']"></span>
                     <span class="text-xs text-hq-muted" x-text="getAgentName(id)"></span>
                     <span x-show="activeAgents[id]?.status === 'working'"
@@ -550,7 +568,7 @@
               </button>
               <div x-show="expanded.marketing" x-collapse class="ml-10 space-y-0.5 mt-1">
                 <template x-for="id in ['survey_specialist','content_specialist','community_specialist']" :key="id">
-                  <div :id="'agent-' + id" class="flex items-center gap-2 px-2 py-1 rounded-md hover:bg-white/[0.02] transition-all duration-300">
+                  <div :id="'agent-' + id" @click="openAgentConfig(id)" class="flex items-center gap-2 px-2 py-1 rounded-md hover:bg-white/[0.02] transition-all duration-300 cursor-pointer">
                     <span class="w-1.5 h-1.5 rounded-full transition-colors" :class="[getAgentDotClass(id), activeAgents[id]?.status==='working' ? 'agent-working-glow' : '']"></span>
                     <span class="text-xs text-hq-muted" x-text="getAgentName(id)"></span>
                     <span x-show="activeAgents[id]?.status === 'working'"
@@ -590,7 +608,7 @@
               </button>
               <div x-show="expanded.finance" x-collapse class="ml-10 space-y-0.5 mt-1">
                 <template x-for="id in ['market_condition_specialist','stock_analysis_specialist','technical_analysis_specialist','risk_management_specialist']" :key="id">
-                  <div :id="'agent-' + id" class="flex items-center gap-2 px-2 py-1 rounded-md hover:bg-white/[0.02] transition-all duration-300">
+                  <div :id="'agent-' + id" @click="openAgentConfig(id)" class="flex items-center gap-2 px-2 py-1 rounded-md hover:bg-white/[0.02] transition-all duration-300 cursor-pointer">
                     <span class="w-1.5 h-1.5 rounded-full transition-colors" :class="[getAgentDotClass(id), activeAgents[id]?.status==='working' ? 'agent-working-glow' : '']"></span>
                     <span class="text-xs text-hq-muted" x-text="getAgentName(id)"></span>
                     <template x-if="id !== 'risk_management_specialist'">
@@ -909,6 +927,177 @@
         </div>
       </div>
 
+      <!-- ═══ Office View (가상 사무실) ═══ -->
+      <div x-show="viewMode === 'office'" class="flex-1 overflow-y-auto scrollbar-thin p-6 bg-grid">
+        <div class="max-w-5xl mx-auto space-y-5 fade-in-up">
+
+          <!-- CEO 사무실 -->
+          <div class="office-room glass border border-hq-accent/20 bg-gradient-to-br from-hq-accent/5 to-hq-purple/5">
+            <div class="flex items-center gap-2 mb-3">
+              <span class="text-lg">👔</span>
+              <span class="text-sm font-bold text-hq-accent uppercase tracking-wider">CEO 사무실</span>
+            </div>
+            <div class="flex gap-3">
+              <div class="desk-card glass border border-hq-accent/30 w-[160px] cursor-default">
+                <div class="flex items-center justify-between mb-2">
+                  <div class="agent-avatar bg-gradient-to-br from-hq-accent to-hq-purple text-white text-[10px]">CEO</div>
+                  <div class="status-light status-light-working"></div>
+                </div>
+                <div class="text-sm font-semibold text-hq-text">CEO</div>
+                <div class="text-[10px] text-hq-muted">총괄 사령관 (You)</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 비서실 -->
+          <div class="office-room glass border border-hq-yellow/20 bg-hq-yellow/[0.02]">
+            <div class="flex items-center gap-2 mb-3">
+              <span class="text-lg">📋</span>
+              <span class="text-sm font-bold text-hq-yellow uppercase tracking-wider">비서실</span>
+              <span class="text-[10px] text-hq-muted ml-auto">4명</span>
+            </div>
+            <div class="grid grid-cols-4 gap-3">
+              <template x-for="id in ['chief_of_staff', 'report_worker', 'schedule_worker', 'relay_worker']" :key="id">
+                <div class="desk-card glass border border-hq-border hover:border-hq-yellow/30" @click="openAgentConfig(id)">
+                  <div class="flex items-center justify-between mb-2">
+                    <div class="agent-avatar bg-hq-yellow/20 text-hq-yellow text-[9px]" x-text="getAgentInitials(id)"></div>
+                    <div class="status-light" :class="getAgentStatusLight(id)"></div>
+                  </div>
+                  <div class="text-xs font-semibold text-hq-text truncate" x-text="getAgentName(id)"></div>
+                  <div class="text-[10px] text-hq-muted/60 font-mono truncate" x-text="id"></div>
+                </div>
+              </template>
+            </div>
+          </div>
+
+          <!-- LEET Master 본부 -->
+          <div class="office-room glass border border-hq-cyan/20 bg-hq-cyan/[0.02]">
+            <div class="flex items-center gap-2 mb-4">
+              <span class="text-lg">🏢</span>
+              <span class="text-sm font-bold text-hq-cyan uppercase tracking-wider">LEET Master 본부</span>
+              <span class="text-[10px] text-hq-muted ml-auto">16명 (4개 처)</span>
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+              <!-- 기술개발처 CTO -->
+              <div class="bg-hq-bg/50 border border-hq-border rounded-xl p-3">
+                <div class="flex items-center gap-2 mb-3">
+                  <span class="text-sm">🔧</span>
+                  <span class="text-xs font-bold text-hq-cyan">기술개발처 (CTO)</span>
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                  <template x-for="id in ['cto_manager','frontend_specialist','backend_specialist','infra_specialist','ai_model_specialist']" :key="id">
+                    <div class="desk-card bg-hq-surface border border-hq-border hover:border-hq-cyan/30" @click="openAgentConfig(id)">
+                      <div class="flex items-center justify-between mb-1.5">
+                        <div class="agent-avatar bg-hq-cyan/20 text-hq-cyan text-[8px]" x-text="getAgentInitials(id)"></div>
+                        <div class="status-light" :class="getAgentStatusLight(id)"></div>
+                      </div>
+                      <div class="text-[11px] font-medium text-hq-text truncate" x-text="getAgentName(id)"></div>
+                    </div>
+                  </template>
+                </div>
+              </div>
+              <!-- 사업기획처 CSO -->
+              <div class="bg-hq-bg/50 border border-hq-border rounded-xl p-3">
+                <div class="flex items-center gap-2 mb-3">
+                  <span class="text-sm">📊</span>
+                  <span class="text-xs font-bold text-hq-cyan">사업기획처 (CSO)</span>
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                  <template x-for="id in ['cso_manager','market_research_specialist','business_plan_specialist','financial_model_specialist']" :key="id">
+                    <div class="desk-card bg-hq-surface border border-hq-border hover:border-hq-cyan/30" @click="openAgentConfig(id)">
+                      <div class="flex items-center justify-between mb-1.5">
+                        <div class="agent-avatar bg-hq-cyan/20 text-hq-cyan text-[8px]" x-text="getAgentInitials(id)"></div>
+                        <div class="status-light" :class="getAgentStatusLight(id)"></div>
+                      </div>
+                      <div class="text-[11px] font-medium text-hq-text truncate" x-text="getAgentName(id)"></div>
+                    </div>
+                  </template>
+                </div>
+              </div>
+              <!-- 법무 IP처 CLO -->
+              <div class="bg-hq-bg/50 border border-hq-border rounded-xl p-3">
+                <div class="flex items-center gap-2 mb-3">
+                  <span class="text-sm">⚖️</span>
+                  <span class="text-xs font-bold text-hq-cyan">법무 IP처 (CLO)</span>
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                  <template x-for="id in ['clo_manager','copyright_specialist','patent_specialist']" :key="id">
+                    <div class="desk-card bg-hq-surface border border-hq-border hover:border-hq-cyan/30" @click="openAgentConfig(id)">
+                      <div class="flex items-center justify-between mb-1.5">
+                        <div class="agent-avatar bg-hq-cyan/20 text-hq-cyan text-[8px]" x-text="getAgentInitials(id)"></div>
+                        <div class="status-light" :class="getAgentStatusLight(id)"></div>
+                      </div>
+                      <div class="text-[11px] font-medium text-hq-text truncate" x-text="getAgentName(id)"></div>
+                    </div>
+                  </template>
+                </div>
+              </div>
+              <!-- 마케팅 고객처 CMO -->
+              <div class="bg-hq-bg/50 border border-hq-border rounded-xl p-3">
+                <div class="flex items-center gap-2 mb-3">
+                  <span class="text-sm">📣</span>
+                  <span class="text-xs font-bold text-hq-cyan">마케팅 고객처 (CMO)</span>
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                  <template x-for="id in ['cmo_manager','survey_specialist','content_specialist','community_specialist']" :key="id">
+                    <div class="desk-card bg-hq-surface border border-hq-border hover:border-hq-cyan/30" @click="openAgentConfig(id)">
+                      <div class="flex items-center justify-between mb-1.5">
+                        <div class="agent-avatar bg-hq-cyan/20 text-hq-cyan text-[8px]" x-text="getAgentInitials(id)"></div>
+                        <div class="status-light" :class="getAgentStatusLight(id)"></div>
+                      </div>
+                      <div class="text-[11px] font-medium text-hq-text truncate" x-text="getAgentName(id)"></div>
+                    </div>
+                  </template>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 투자분석 본부 -->
+          <div class="office-room glass border border-hq-purple/20 bg-hq-purple/[0.02]">
+            <div class="flex items-center gap-2 mb-3">
+              <span class="text-lg">📈</span>
+              <span class="text-sm font-bold text-hq-purple uppercase tracking-wider">투자분석 본부</span>
+              <span class="text-[10px] text-hq-muted ml-auto">5명</span>
+            </div>
+            <div class="grid grid-cols-5 gap-3">
+              <template x-for="id in ['cio_manager','market_condition_specialist','stock_analysis_specialist','technical_analysis_specialist','risk_management_specialist']" :key="id">
+                <div class="desk-card glass border border-hq-border hover:border-hq-purple/30" @click="openAgentConfig(id)">
+                  <div class="flex items-center justify-between mb-2">
+                    <div class="agent-avatar bg-hq-purple/20 text-hq-purple text-[8px]" x-text="getAgentInitials(id)"></div>
+                    <div class="status-light" :class="getAgentStatusLight(id)"></div>
+                  </div>
+                  <div class="text-[11px] font-medium text-hq-text truncate" x-text="getAgentName(id)"></div>
+                </div>
+              </template>
+            </div>
+          </div>
+
+          <!-- 도구 풀 -->
+          <div class="office-room glass border border-hq-border bg-hq-red/[0.02]">
+            <div class="flex items-center gap-2 mb-3">
+              <span class="text-lg">🛠️</span>
+              <span class="text-sm font-bold text-hq-red/70 uppercase tracking-wider">도구 풀</span>
+              <span class="text-[10px] text-hq-muted ml-auto">5개</span>
+            </div>
+            <div class="grid grid-cols-5 gap-3">
+              <template x-for="tool in [{n:'변리사',c:'amber'},{n:'세무사',c:'emerald'},{n:'디자이너',c:'pink'},{n:'번역가',c:'sky'},{n:'웹검색',c:'orange'}]" :key="tool.n">
+                <div class="desk-card bg-hq-surface border border-hq-border cursor-default">
+                  <div class="flex items-center justify-between mb-2">
+                    <div class="agent-avatar bg-hq-muted/10 text-hq-muted text-[9px]">T</div>
+                    <div class="status-light status-light-off"></div>
+                  </div>
+                  <div class="text-[11px] font-medium text-hq-muted" x-text="tool.n"></div>
+                  <div class="text-[9px] text-hq-muted/50">외부 도구</div>
+                </div>
+              </template>
+            </div>
+          </div>
+
+          <p class="text-center text-[11px] text-hq-muted/40 mt-4">에이전트를 클릭하면 모델, 추론 정도, 소울(성격)을 설정할 수 있습니다</p>
+        </div>
+      </div>
+
       <!-- ═══ Dashboard View ═══ -->
       <div x-show="viewMode === 'dashboard'" class="flex-1 overflow-y-auto scrollbar-thin p-6 bg-grid">
         <div x-show="dashboard.loading" class="flex items-center justify-center h-full">
@@ -1119,6 +1308,155 @@
     </div>
   </div>
 
+  <!-- ═══ Agent Config Modal (에이전트 설정) ═══ -->
+  <div x-show="showAgentConfig" x-transition.opacity
+       class="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
+       @click.self="showAgentConfig = false" style="display: none;">
+    <div class="bg-hq-panel border border-hq-border rounded-2xl w-[600px] max-h-[85vh] overflow-y-auto p-6"
+         @click.stop>
+
+      <!-- Loading -->
+      <div x-show="agentConfigLoading" class="flex items-center justify-center py-12">
+        <svg class="animate-spin w-6 h-6 text-hq-accent" fill="none" viewBox="0 0 24 24">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+        </svg>
+      </div>
+
+      <!-- Content -->
+      <div x-show="!agentConfigLoading && agentConfigData">
+        <!-- Header -->
+        <div class="flex items-center justify-between mb-5">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold"
+                 :class="getAgentAvatarClass(agentConfigId)"
+                 x-text="getAgentInitials(agentConfigId)"></div>
+            <div>
+              <h2 class="text-lg font-bold text-white" x-text="agentConfigData?.name_ko || agentConfigData?.name || agentConfigId"></h2>
+              <div class="text-xs text-hq-muted" x-text="(agentConfigData?.role || '') + ' · ' + (agentConfigData?.division || '')"></div>
+            </div>
+          </div>
+          <button @click="showAgentConfig = false" class="text-hq-muted hover:text-white text-xl">&times;</button>
+        </div>
+
+        <!-- Tabs -->
+        <div class="flex gap-1 mb-5 bg-hq-bg rounded-xl p-1">
+          <button @click="agentConfigTab = 'info'"
+                  :class="agentConfigTab === 'info' ? 'bg-hq-accent/20 text-hq-accent' : 'text-hq-muted hover:text-hq-text'"
+                  class="flex-1 px-3 py-2 text-xs font-semibold rounded-lg transition-colors">기본 정보</button>
+          <button @click="agentConfigTab = 'model'"
+                  :class="agentConfigTab === 'model' ? 'bg-hq-accent/20 text-hq-accent' : 'text-hq-muted hover:text-hq-text'"
+                  class="flex-1 px-3 py-2 text-xs font-semibold rounded-lg transition-colors">모델 설정</button>
+          <button @click="agentConfigTab = 'reasoning'"
+                  :class="agentConfigTab === 'reasoning' ? 'bg-hq-accent/20 text-hq-accent' : 'text-hq-muted hover:text-hq-text'"
+                  class="flex-1 px-3 py-2 text-xs font-semibold rounded-lg transition-colors">추론 정도</button>
+          <button @click="agentConfigTab = 'soul'"
+                  :class="agentConfigTab === 'soul' ? 'bg-hq-accent/20 text-hq-accent' : 'text-hq-muted hover:text-hq-text'"
+                  class="flex-1 px-3 py-2 text-xs font-semibold rounded-lg transition-colors">소울</button>
+        </div>
+
+        <!-- Tab: Info -->
+        <div x-show="agentConfigTab === 'info'">
+          <div class="bg-hq-bg rounded-xl p-4 space-y-3">
+            <div class="flex justify-between"><span class="text-xs text-hq-muted">에이전트 ID</span><span class="text-xs font-mono text-hq-text" x-text="agentConfigId"></span></div>
+            <div class="flex justify-between"><span class="text-xs text-hq-muted">이름 (한국어)</span><span class="text-xs text-hq-text" x-text="agentConfigData?.name_ko || '-'"></span></div>
+            <div class="flex justify-between"><span class="text-xs text-hq-muted">역할</span><span class="text-xs text-hq-text" x-text="agentConfigData?.role || '-'"></span></div>
+            <div class="flex justify-between"><span class="text-xs text-hq-muted">부서</span><span class="text-xs text-hq-text" x-text="agentConfigData?.division || '-'"></span></div>
+            <div class="flex justify-between"><span class="text-xs text-hq-muted">현재 모델</span><span class="text-xs font-mono text-hq-cyan" x-text="agentConfigData?.model_name || '-'"></span></div>
+            <div class="flex justify-between"><span class="text-xs text-hq-muted">추론 정도</span><span class="text-xs text-hq-text" x-text="agentConfigData?.reasoning_effort || '기본값'"></span></div>
+            <div x-show="agentConfigData?.capabilities?.length > 0">
+              <span class="text-xs text-hq-muted block mb-1">능력치</span>
+              <div class="flex flex-wrap gap-1">
+                <template x-for="cap in (agentConfigData?.capabilities || [])" :key="cap">
+                  <span class="text-[10px] bg-hq-accent/10 text-hq-accent border border-hq-accent/20 rounded-md px-2 py-0.5" x-text="cap"></span>
+                </template>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab: Model -->
+        <div x-show="agentConfigTab === 'model'">
+          <div class="bg-hq-bg rounded-xl p-4">
+            <label class="text-xs text-hq-muted block mb-2">AI 모델 선택</label>
+            <p class="text-[11px] text-hq-muted/70 mb-3">이 에이전트가 사용할 AI 모델을 변경합니다. 변경 즉시 적용됩니다.</p>
+            <select x-model="agentModelSelection"
+                    class="w-full bg-hq-panel border border-hq-border rounded-lg px-3 py-2.5 text-sm text-hq-text mb-3">
+              <template x-for="m in availableModels" :key="m.name">
+                <option :value="m.name" x-text="m.name + ' (' + m.provider + ', $' + m.cost_input + '/' + m.cost_output + ')'"></option>
+              </template>
+            </select>
+            <div class="flex items-center gap-2">
+              <button @click="saveAgentModel()"
+                      class="bg-hq-accent hover:bg-blue-600 text-white rounded-lg px-4 py-2 text-sm transition-colors">모델 변경</button>
+              <span class="text-xs text-hq-muted" x-show="agentModelSelection !== agentConfigData?.model_name">
+                현재: <span class="font-mono text-hq-cyan" x-text="agentConfigData?.model_name"></span>
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab: Reasoning -->
+        <div x-show="agentConfigTab === 'reasoning'">
+          <div class="bg-hq-bg rounded-xl p-4">
+            <label class="text-xs text-hq-muted block mb-2">추론 정도 (Reasoning Effort)</label>
+            <p class="text-[11px] text-hq-muted/70 mb-4">에이전트가 답변할 때 얼마나 깊이 생각할지 결정합니다. 높을수록 정확하지만 느리고 비용이 더 듭니다.</p>
+            <div class="grid grid-cols-3 gap-3 mb-3">
+              <button @click="agentReasoningSelection = 'low'"
+                      :class="agentReasoningSelection === 'low' ? 'border-hq-green bg-hq-green/10 text-hq-green' : 'border-hq-border text-hq-muted hover:text-hq-text'"
+                      class="border-2 rounded-xl p-4 text-center transition-all">
+                <div class="text-2xl mb-1">⚡</div>
+                <div class="text-sm font-bold">낮음</div>
+                <div class="text-[10px] mt-1">빠르고 저렴</div>
+              </button>
+              <button @click="agentReasoningSelection = 'medium'"
+                      :class="agentReasoningSelection === 'medium' ? 'border-hq-yellow bg-hq-yellow/10 text-hq-yellow' : 'border-hq-border text-hq-muted hover:text-hq-text'"
+                      class="border-2 rounded-xl p-4 text-center transition-all">
+                <div class="text-2xl mb-1">🧠</div>
+                <div class="text-sm font-bold">보통</div>
+                <div class="text-[10px] mt-1">균형잡힌 성능</div>
+              </button>
+              <button @click="agentReasoningSelection = 'high'"
+                      :class="agentReasoningSelection === 'high' ? 'border-hq-purple bg-hq-purple/10 text-hq-purple' : 'border-hq-border text-hq-muted hover:text-hq-text'"
+                      class="border-2 rounded-xl p-4 text-center transition-all">
+                <div class="text-2xl mb-1">🔬</div>
+                <div class="text-sm font-bold">높음</div>
+                <div class="text-[10px] mt-1">정확하지만 느림</div>
+              </button>
+            </div>
+            <button @click="saveAgentReasoning()"
+                    class="bg-hq-accent hover:bg-blue-600 text-white rounded-lg px-4 py-2 text-sm transition-colors">추론 정도 변경</button>
+          </div>
+        </div>
+
+        <!-- Tab: Soul -->
+        <div x-show="agentConfigTab === 'soul'">
+          <div class="bg-hq-bg rounded-xl p-4">
+            <label class="text-xs text-hq-muted block mb-2">시스템 프롬프트 (소울)</label>
+            <p class="text-[11px] text-hq-muted/70 mb-3">에이전트의 성격과 행동 방식을 결정하는 핵심 지시문입니다. 변경하면 즉시 반영됩니다.</p>
+            <textarea x-model="agentSoulText" rows="12"
+                      class="w-full bg-hq-panel border border-hq-border rounded-lg px-4 py-3 text-sm text-hq-text font-mono resize-y focus:outline-none focus:border-hq-accent/50 input-glow"
+                      placeholder="이 에이전트의 시스템 프롬프트를 입력하세요..."></textarea>
+            <div class="flex items-center justify-between mt-3">
+              <span class="text-[10px] text-hq-muted font-mono" x-text="agentSoulText.length + '자'"></span>
+              <button @click="saveAgentSoul()"
+                      class="bg-hq-accent hover:bg-blue-600 text-white rounded-lg px-5 py-2 text-sm transition-colors">
+                소울 저장 (즉시 반영)
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Save status -->
+        <div class="mt-4 text-center h-5">
+          <span x-show="agentConfigSaveStatus === 'saving'" class="text-xs text-hq-yellow">저장 중...</span>
+          <span x-show="agentConfigSaveStatus === 'saved'" class="text-xs text-hq-green">저장 완료</span>
+          <span x-show="agentConfigSaveStatus === 'error'" class="text-xs text-hq-red">저장 실패</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script>
     function corthexApp() {
       return {
@@ -1172,6 +1510,17 @@
         rubricEditName: '',
         rubricEditPrompt: '',
         qualitySaveStatus: '',
+
+        // Agent config modal
+        showAgentConfig: false,
+        agentConfigData: null,
+        agentConfigId: '',
+        agentConfigTab: 'info',
+        agentConfigLoading: false,
+        agentSoulText: '',
+        agentModelSelection: '',
+        agentReasoningSelection: '',
+        agentConfigSaveStatus: '',
 
         // Org tree expand state
         expanded: {
@@ -1783,6 +2132,108 @@
             'finance.investment': '투자분석처 (CIO)',
           };
           return labels[division] || division;
+        },
+
+        // ── Office & Agent Config ──
+        getAgentStatusLight(agentId) {
+          const agent = this.activeAgents[agentId];
+          if (!agent) return 'status-light-idle';
+          if (agent.status === 'working') return 'status-light-working';
+          if (agent.status === 'done') return 'status-light-done';
+          return 'status-light-idle';
+        },
+
+        async openAgentConfig(agentId) {
+          this.agentConfigId = agentId;
+          this.agentConfigLoading = true;
+          this.showAgentConfig = true;
+          this.agentConfigTab = 'info';
+          this.agentConfigSaveStatus = '';
+          try {
+            const [agentRes, modelsRes] = await Promise.all([
+              fetch(`/api/agents/${agentId}`).then(r => r.json()),
+              this.availableModels.length ? Promise.resolve(this.availableModels) :
+                fetch('/api/available-models').then(r => r.json()),
+            ]);
+            this.agentConfigData = agentRes;
+            if (!this.availableModels.length) this.availableModels = modelsRes;
+            this.agentSoulText = agentRes.system_prompt || '';
+            this.agentModelSelection = agentRes.model_name || '';
+            this.agentReasoningSelection = agentRes.reasoning_effort || '';
+          } catch (e) {
+            this.showToast('에이전트 정보를 불러올 수 없습니다.', 'error');
+          } finally {
+            this.agentConfigLoading = false;
+          }
+        },
+
+        async saveAgentSoul() {
+          this.agentConfigSaveStatus = 'saving';
+          try {
+            const res = await fetch(`/api/agents/${this.agentConfigId}/soul`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ system_prompt: this.agentSoulText }),
+            }).then(r => r.json());
+            if (res.error) {
+              this.showToast(res.error, 'error');
+              this.agentConfigSaveStatus = 'error';
+            } else {
+              this.agentConfigData.system_prompt = this.agentSoulText;
+              this.agentConfigSaveStatus = 'saved';
+              this.showToast('소울이 저장되었습니다.', 'success');
+            }
+          } catch {
+            this.agentConfigSaveStatus = 'error';
+            this.showToast('소울 저장에 실패했습니다.', 'error');
+          }
+          setTimeout(() => { this.agentConfigSaveStatus = ''; }, 2500);
+        },
+
+        async saveAgentModel() {
+          this.agentConfigSaveStatus = 'saving';
+          try {
+            const res = await fetch(`/api/agents/${this.agentConfigId}/model`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ model_name: this.agentModelSelection }),
+            }).then(r => r.json());
+            if (res.error) {
+              this.showToast(res.error, 'error');
+              this.agentConfigSaveStatus = 'error';
+            } else {
+              this.agentConfigData.model_name = this.agentModelSelection;
+              this.agentConfigSaveStatus = 'saved';
+              this.showToast('모델이 변경되었습니다.', 'success');
+            }
+          } catch {
+            this.agentConfigSaveStatus = 'error';
+            this.showToast('모델 변경에 실패했습니다.', 'error');
+          }
+          setTimeout(() => { this.agentConfigSaveStatus = ''; }, 2500);
+        },
+
+        async saveAgentReasoning() {
+          this.agentConfigSaveStatus = 'saving';
+          try {
+            const res = await fetch(`/api/agents/${this.agentConfigId}/reasoning`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ reasoning_effort: this.agentReasoningSelection }),
+            }).then(r => r.json());
+            if (res.error) {
+              this.showToast(res.error, 'error');
+              this.agentConfigSaveStatus = 'error';
+            } else {
+              this.agentConfigData.reasoning_effort = this.agentReasoningSelection;
+              this.agentConfigSaveStatus = 'saved';
+              this.showToast('추론 정도가 변경되었습니다.', 'success');
+            }
+          } catch {
+            this.agentConfigSaveStatus = 'error';
+            this.showToast('추론 정도 변경에 실패했습니다.', 'error');
+          }
+          setTimeout(() => { this.agentConfigSaveStatus = ''; }, 2500);
         },
 
         scrollToBottom() {
