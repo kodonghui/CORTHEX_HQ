@@ -19,14 +19,18 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Create PR and auto-merge
+      - name: Check commit and create PR
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           BRANCH="${GITHUB_REF_NAME}"
           echo "🔄 브랜치: $BRANCH"
 
-          # 1단계: PR이 이미 있는지 확인
+          # 최신 커밋 메시지 확인
+          COMMIT_MSG=$(git log -1 --format=%s)
+          echo "📝 커밋 메시지: $COMMIT_MSG"
+
+          # 1단계: PR이 이미 있는지 확인, 없으면 생성
           EXISTING_PR=$(gh pr list --head "$BRANCH" --json number -q '.[0].number' 2>/dev/null || echo "")
 
           if [ -n "$EXISTING_PR" ]; then
@@ -41,15 +45,24 @@ jobs:
             echo "✅ PR 생성 완료"
           fi
 
-          # 2단계: GitHub가 PR 상태를 계산할 시간을 줌
+          # 2단계: [완료] 키워드 확인
+          if echo "$COMMIT_MSG" | grep -q '\[완료\]'; then
+            echo "🏁 [완료] 키워드 발견 → 자동 머지 진행"
+          else
+            echo "⏸️ [완료] 키워드 없음 → PR만 생성하고 머지는 건너뜀"
+            echo "   (작업이 끝나면 커밋 메시지에 [완료]를 넣고 push하세요)"
+            exit 0
+          fi
+
+          # 3단계: GitHub가 PR 상태를 계산할 시간을 줌
           echo "⏳ 10초 대기 (GitHub 처리 시간)..."
           sleep 10
 
-          # 3단계: 머지 시도 (최대 3회 재시도)
+          # 4단계: 머지 시도 (최대 3회 재시도)
           for i in 1 2 3; do
             echo "🔀 머지 시도 ($i/3)..."
             if gh pr merge "$BRANCH" --merge --delete-branch 2>&1; then
-              echo "🎉 머지 완료!"
+              echo "🎉 머지 완료! 브랜치도 자동 삭제됨"
               exit 0
             fi
             echo "⏳ 재시도 전 10초 대기..."
