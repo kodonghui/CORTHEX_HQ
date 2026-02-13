@@ -20,6 +20,7 @@ from typing import Any, Optional, TYPE_CHECKING
 from pydantic import BaseModel, Field, ConfigDict
 
 from src.core.message import TaskRequest, TaskResult, MessageType
+from src.core.quality_gate import QualityGate
 
 if TYPE_CHECKING:
     from src.llm.router import ModelRouter
@@ -182,6 +183,7 @@ class ManagerAgent(BaseAgent):
     """
     A manager decomposes tasks and delegates to subordinates.
     All subordinate tasks run in parallel via asyncio.gather.
+    Quality gate: reviews subordinate results and rejects low quality.
     """
 
     async def execute(self, request: TaskRequest) -> Any:
@@ -198,8 +200,135 @@ class ManagerAgent(BaseAgent):
         # Step 2: Delegate sub-tasks in parallel
         results, errors = await self._delegate_subtasks(plan, request)
 
-        # Step 3: Synthesize results
+        # Step 3: Quality gate - review and retry if needed
+        results = await self._quality_review(results, plan, request)
+
+        # Step 4: Synthesize results
         return await self._synthesize_results(request, results, errors)
+
+    async def _quality_review(
+        self,
+        results: list[TaskResult],
+        plan: list[dict[str, str]],
+        parent_request: TaskRequest,
+    ) -> list[TaskResult]:
+        """품질 게이트: 부하 결과를 검수하고 미달 시 반려/재시도."""
+        quality_gate = self.context.quality_gate
+        if not quality_gate:
+            return results
+
+        reviewed: list[TaskResult] = []
+        retry_tasks: list[tuple[TaskResult, dict[str, str], str]] = []
+
+        # Step 1: Review each result
+        for result in results:
+            task_desc = ""
+            for item in plan:
+                if item.get("assignee_id") == result.sender_id:
+                    task_desc = item.get("task", "")
+                    break
+
+            # Rule-based check first (free)
+            rule_review = quality_gate.rule_based_check(result.result_data, task_desc)
+
+            if rule_review.passed:
+                # Passed rule check -> LLM review
+                llm_review = await quality_gate.llm_review(
+                    result.result_data,
+                    task_desc,
+                    self.model_router,
+                    reviewer_id=self.agent_id,
+                    division=self.config.division,
+                )
+                quality_gate.record_review(
+                    llm_review, self.agent_id, result.sender_id, task_desc,
+                )
+                if llm_review.passed:
+                    reviewed.append(result)
+                else:
+                    logger.info(
+                        "[%s] 품질 반려: %s (점수: %d, 사유: %s)",
+                        self.agent_id, result.sender_id,
+                        llm_review.score, llm_review.rejection_reason,
+                    )
+                    plan_item = {"assignee_id": result.sender_id, "task": task_desc}
+                    retry_tasks.append((result, plan_item, llm_review.rejection_reason))
+            else:
+                quality_gate.record_review(
+                    rule_review, self.agent_id, result.sender_id, task_desc,
+                )
+                logger.info(
+                    "[%s] 규칙 반려: %s (사유: %s)",
+                    self.agent_id, result.sender_id, rule_review.rejection_reason,
+                )
+                plan_item = {"assignee_id": result.sender_id, "task": task_desc}
+                retry_tasks.append((result, plan_item, rule_review.rejection_reason))
+
+        # Step 2: Retry rejected tasks (max 1 retry each)
+        if retry_tasks:
+            retry_results = await self._retry_rejected(retry_tasks, parent_request)
+            for retry_result in retry_results:
+                # Re-review the retry
+                task_desc = ""
+                for _, plan_item, _ in retry_tasks:
+                    if plan_item["assignee_id"] == retry_result.sender_id:
+                        task_desc = plan_item["task"]
+                        break
+                re_review = quality_gate.rule_based_check(retry_result.result_data, task_desc)
+                quality_gate.record_review(
+                    re_review, self.agent_id, retry_result.sender_id, task_desc,
+                    is_retry=True,
+                )
+                # Accept retry result regardless (already retried once)
+                reviewed.append(retry_result)
+
+        return reviewed
+
+    async def _retry_rejected(
+        self,
+        retry_tasks: list[tuple[TaskResult, dict[str, str], str]],
+        parent_request: TaskRequest,
+    ) -> list[TaskResult]:
+        """반려된 작업을 피드백과 함께 1회 재시도."""
+        tasks = []
+        for original_result, plan_item, rejection_reason in retry_tasks:
+            assignee_id = plan_item["assignee_id"]
+            original_task = plan_item["task"]
+
+            try:
+                agent = self.context.registry.get_agent(assignee_id)
+            except Exception:
+                continue
+
+            # Retry with feedback about what was wrong
+            retry_desc = (
+                f"{original_task}\n\n"
+                f"[품질 검수 반려] 이전 결과가 반려되었습니다.\n"
+                f"반려 사유: {rejection_reason}\n"
+                f"위 사유를 보완하여 더 구체적이고 정확하게 다시 작성해주세요."
+            )
+
+            sub_request = TaskRequest(
+                sender_id=self.agent_id,
+                receiver_id=assignee_id,
+                task_description=retry_desc,
+                correlation_id=parent_request.correlation_id,
+                parent_message_id=parent_request.id,
+                context=parent_request.context,
+            )
+            tasks.append(agent.handle_task(sub_request))
+
+        if not tasks:
+            return []
+
+        raw_results = await asyncio.gather(*tasks, return_exceptions=True)
+        results = []
+        for r in raw_results:
+            if isinstance(r, TaskResult):
+                results.append(r)
+            elif isinstance(r, Exception):
+                logger.error("[%s] 재시도 작업 실패: %s", self.agent_id, r)
+        return results
 
     async def _plan_decomposition(self, request: TaskRequest) -> list[dict[str, str]]:
         """Ask LLM to break the task into sub-tasks for subordinates."""

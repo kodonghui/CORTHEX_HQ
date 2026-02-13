@@ -296,6 +296,16 @@
         <span class="w-1.5 h-1.5 rounded-full" :class="wsConnected ? 'bg-hq-green' : 'bg-hq-red'"></span>
         <span class="text-[11px] font-mono" x-text="wsConnected ? 'LIVE' : 'OFFLINE'"></span>
       </div>
+
+      <!-- Quality Settings Button -->
+      <button @click="showQualitySettings = true; loadQualityRules()"
+              class="text-gray-400 hover:text-white transition ml-1" title="품질 검수 설정">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+        </svg>
+      </button>
     </div>
   </header>
 
@@ -822,6 +832,99 @@
     </main>
   </div>
 
+  <!-- ═══ Quality Gate Settings Modal ═══ -->
+  <div x-show="showQualitySettings" x-transition.opacity
+       class="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
+       @click.self="showQualitySettings = false" style="display: none;">
+    <div class="bg-hq-panel border border-hq-border rounded-2xl w-[700px] max-h-[80vh] overflow-y-auto p-6"
+         @click.stop>
+
+      <div class="flex items-center justify-between mb-6">
+        <h2 class="text-lg font-bold text-white">품질 검수 설정</h2>
+        <button @click="showQualitySettings = false" class="text-gray-400 hover:text-white text-xl">&times;</button>
+      </div>
+
+      <!-- Section 1: Review Model Selection -->
+      <div class="mb-6 p-4 bg-hq-bg rounded-xl">
+        <h3 class="text-sm font-semibold text-gray-300 mb-2">검수 모델</h3>
+        <p class="text-xs text-gray-500 mb-3">모든 품질 검수에 사용할 AI 모델을 선택하세요.</p>
+        <div class="flex items-center gap-3">
+          <select x-model="selectedReviewModel"
+                  class="flex-1 bg-hq-panel border border-hq-border rounded-lg px-3 py-2 text-sm text-gray-200">
+            <template x-for="m in availableModels" :key="m.name">
+              <option :value="m.name"
+                      x-text="m.name + ' (' + m.provider + ', $' + m.cost_input + '/' + m.cost_output + ')'">
+              </option>
+            </template>
+          </select>
+          <button @click="saveReviewModel()"
+                  class="bg-hq-accent hover:bg-blue-600 text-white rounded-lg px-4 py-2 text-sm whitespace-nowrap">
+            저장
+          </button>
+        </div>
+      </div>
+
+      <!-- Section 2: Rubrics per Division -->
+      <div class="mb-4">
+        <h3 class="text-sm font-semibold text-gray-300 mb-2">부서별 검수 기준 (루브릭)</h3>
+        <p class="text-xs text-gray-500 mb-3">각 부서별 검수 기준을 설정하세요. 미설정 부서는 '기본' 기준이 적용됩니다.</p>
+
+        <div class="space-y-2">
+          <template x-for="div in ['default', ...(qualityRules.known_divisions || [])]" :key="div">
+            <div class="p-3 bg-hq-bg rounded-lg">
+              <div class="flex items-center justify-between">
+                <div>
+                  <span class="text-sm text-gray-200 font-medium" x-text="getDivisionLabel(div)"></span>
+                  <span x-show="qualityRules.rubrics && qualityRules.rubrics[div]"
+                        class="ml-2 text-xs text-green-400">설정됨</span>
+                  <span x-show="!qualityRules.rubrics || !qualityRules.rubrics[div]"
+                        class="ml-2 text-xs text-gray-500">기본 적용</span>
+                </div>
+                <button @click="startEditRubric(div)"
+                        class="text-xs text-hq-accent hover:text-blue-400">편집</button>
+              </div>
+              <template x-if="qualityRules.rubrics && qualityRules.rubrics[div]">
+                <p class="text-xs text-gray-500 mt-1 truncate"
+                   x-text="qualityRules.rubrics[div].prompt.substring(0, 80) + '...'"></p>
+              </template>
+            </div>
+          </template>
+        </div>
+      </div>
+
+      <!-- Rubric Editor -->
+      <div x-show="editingRubric !== null" class="mt-4 p-4 bg-hq-bg rounded-xl border border-hq-accent/30">
+        <h4 class="text-sm font-semibold text-hq-accent mb-3"
+            x-text="getDivisionLabel(editingRubric) + ' 검수 기준 편집'"></h4>
+        <div class="mb-3">
+          <label class="text-xs text-gray-400 mb-1 block">기준 이름</label>
+          <input x-model="rubricEditName"
+                 class="w-full bg-hq-panel border border-hq-border rounded-lg px-3 py-2 text-sm text-gray-200"
+                 placeholder="예: 기술개발처 검수 기준">
+        </div>
+        <div class="mb-3">
+          <label class="text-xs text-gray-400 mb-1 block">검수 기준 (프롬프트)</label>
+          <textarea x-model="rubricEditPrompt" rows="8"
+                    class="w-full bg-hq-panel border border-hq-border rounded-lg px-3 py-2 text-sm text-gray-200 resize-y font-mono"
+                    placeholder="다음 기준으로 검수하세요:&#10;1. ...&#10;2. ...&#10;3. ..."></textarea>
+        </div>
+        <div class="flex items-center gap-2">
+          <button @click="saveRubric()"
+                  class="bg-hq-accent hover:bg-blue-600 text-white rounded-lg px-4 py-2 text-sm">저장</button>
+          <button @click="editingRubric = null"
+                  class="bg-gray-700 hover:bg-gray-600 text-gray-300 rounded-lg px-4 py-2 text-sm">취소</button>
+        </div>
+      </div>
+
+      <!-- Save status -->
+      <div class="mt-4 text-center h-5">
+        <span x-show="qualitySaveStatus === 'saving'" class="text-xs text-yellow-400">저장 중...</span>
+        <span x-show="qualitySaveStatus === 'saved'" class="text-xs text-green-400">저장 완료 (Git 동기화됨)</span>
+        <span x-show="qualitySaveStatus === 'error'" class="text-xs text-red-400">저장 실패</span>
+      </div>
+    </div>
+  </div>
+
   <script>
     function corthexApp() {
       return {
@@ -836,6 +939,16 @@
         activeAgents: {},
         ws: null,
         logExpanded: true,
+
+        // Quality gate settings
+        showQualitySettings: false,
+        qualityRules: { rules: {}, rubrics: {}, known_divisions: [] },
+        availableModels: [],
+        selectedReviewModel: '',
+        editingRubric: null,
+        rubricEditName: '',
+        rubricEditPrompt: '',
+        qualitySaveStatus: '',
 
         // Org tree expand state
         expanded: {
@@ -1132,6 +1245,86 @@
         renderMarkdown(text) {
           try { return marked.parse(text || ''); }
           catch { return text; }
+        },
+
+        // ── Quality Gate Settings ──────────────────
+
+        async loadQualityRules() {
+          try {
+            const [rulesRes, modelsRes] = await Promise.all([
+              fetch('/api/quality-rules').then(r => r.json()),
+              fetch('/api/available-models').then(r => r.json()),
+            ]);
+            this.qualityRules = rulesRes;
+            this.availableModels = modelsRes;
+            this.selectedReviewModel = rulesRes.rules?.review_model || 'gpt-4o-mini';
+          } catch (e) {
+            console.error('Failed to load quality rules:', e);
+          }
+        },
+
+        async saveReviewModel() {
+          this.qualitySaveStatus = 'saving';
+          try {
+            const res = await fetch('/api/quality-rules/model', {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ review_model: this.selectedReviewModel }),
+            }).then(r => r.json());
+            this.qualitySaveStatus = res.success ? 'saved' : 'error';
+          } catch {
+            this.qualitySaveStatus = 'error';
+          }
+          setTimeout(() => { this.qualitySaveStatus = ''; }, 2500);
+        },
+
+        startEditRubric(division) {
+          this.editingRubric = division;
+          const rubric = this.qualityRules.rubrics?.[division] || { name: '', prompt: '' };
+          this.rubricEditName = rubric.name || '';
+          this.rubricEditPrompt = rubric.prompt || '';
+        },
+
+        async saveRubric() {
+          if (!this.editingRubric) return;
+          this.qualitySaveStatus = 'saving';
+          try {
+            const res = await fetch(`/api/quality-rules/rubric/${this.editingRubric}`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                name: this.rubricEditName,
+                prompt: this.rubricEditPrompt,
+              }),
+            }).then(r => r.json());
+            if (res.success) {
+              if (!this.qualityRules.rubrics) this.qualityRules.rubrics = {};
+              this.qualityRules.rubrics[this.editingRubric] = {
+                name: this.rubricEditName,
+                prompt: this.rubricEditPrompt,
+              };
+              this.editingRubric = null;
+              this.qualitySaveStatus = 'saved';
+            } else {
+              this.qualitySaveStatus = 'error';
+            }
+          } catch {
+            this.qualitySaveStatus = 'error';
+          }
+          setTimeout(() => { this.qualitySaveStatus = ''; }, 2500);
+        },
+
+        getDivisionLabel(division) {
+          const labels = {
+            'default': '기본 (전체 공통)',
+            'secretary': '비서실',
+            'leet_master.tech': '기술개발처 (CTO)',
+            'leet_master.strategy': '사업기획처 (CSO)',
+            'leet_master.legal': '법무처 (CLO)',
+            'leet_master.marketing': '마케팅처 (CMO)',
+            'finance.investment': '투자분석처 (CIO)',
+          };
+          return labels[division] || division;
         },
 
         scrollToBottom() {
