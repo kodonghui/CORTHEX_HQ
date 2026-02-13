@@ -42,7 +42,12 @@ TEMPLATE_DIR = BASE_DIR / "templates"
 STATIC_DIR = BASE_DIR / "static"
 
 # Load environment
-load_dotenv(PROJECT_DIR / ".env")
+# .env.local 우선 → .env 폴백 (AnySign4PC .env 잠금 방지)
+_env_local = PROJECT_DIR / ".env.local"
+if _env_local.exists():
+    load_dotenv(_env_local)
+else:
+    load_dotenv(PROJECT_DIR / ".env")
 
 # FastAPI app
 app = FastAPI(title="CORTHEX HQ", version="0.3.0")

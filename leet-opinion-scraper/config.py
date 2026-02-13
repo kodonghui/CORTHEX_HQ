@@ -4,9 +4,16 @@ All constants, keywords, patterns, and URLs.
 """
 
 import os
+from pathlib import Path
+
 from dotenv import load_dotenv
 
-load_dotenv()
+# .env.local 우선 → .env 폴백 (AnySign4PC .env 잠금 방지)
+_env_local = Path(__file__).resolve().parent.parent / ".env.local"
+if _env_local.exists():
+    load_dotenv(_env_local)
+else:
+    load_dotenv()
 
 # ── Login credentials ──────────────────────────────────────────────
 KAKAO_ID = os.getenv("KAKAO_ID", "")

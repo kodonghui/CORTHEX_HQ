@@ -16,6 +16,8 @@ import asyncio
 import logging
 import sys
 
+from pathlib import Path
+
 from dotenv import load_dotenv
 
 
@@ -34,7 +36,12 @@ def setup_logging() -> None:
 
 def cli() -> None:
     """Main entry point."""
-    load_dotenv()
+    # .env.local 우선 → .env 폴백 (AnySign4PC .env 잠금 방지)
+    env_local = Path(".env.local")
+    if env_local.exists():
+        load_dotenv(env_local)
+    else:
+        load_dotenv()
     setup_logging()
 
     from src.cli.app import CorthexCLI
