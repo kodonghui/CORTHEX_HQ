@@ -71,6 +71,7 @@ class TaskResult(Message):
     success: bool = True
     result_data: Any = None
     summary: str = ""
+    task_description: str = ""  # 원래 지시 내용 (아카이브용)
     tokens_used: int = 0
     cost_usd: float = 0.0
     execution_time_seconds: float = 0.0

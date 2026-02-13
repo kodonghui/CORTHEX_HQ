@@ -7,35 +7,57 @@ providers:
   openai:
     api_key_env: "OPENAI_API_KEY"
     models:
-      - name: "gpt-4o"
-        cost_per_1m_input: 2.50
-        cost_per_1m_output: 10.00
-        max_tokens: 16384
-        tier: "manager"
-
-      - name: "gpt-4o-mini"
-        cost_per_1m_input: 0.15
-        cost_per_1m_output: 0.60
+      # ── GPT-5 시리즈 ──
+      - name: "gpt-5-mini"
+        cost_per_1m_input: 0.25
+        cost_per_1m_output: 2.00
         max_tokens: 16384
         tier: "worker"
+        reasoning_levels: ["low", "medium", "high"]
 
-      - name: "gpt-4.1-nano"
-        cost_per_1m_input: 0.10
-        cost_per_1m_output: 0.40
-        max_tokens: 16384
-        tier: "utility"
+      - name: "gpt-5"
+        cost_per_1m_input: 1.25
+        cost_per_1m_output: 10.00
+        max_tokens: 32768
+        tier: "manager"
+        reasoning_levels: ["low", "medium", "high"]
+
+      - name: "gpt-5-2"
+        cost_per_1m_input: 1.75
+        cost_per_1m_output: 14.00
+        max_tokens: 32768
+        tier: "manager"
+        reasoning_levels: ["low", "medium", "high"]
+
+      - name: "gpt-5-2-pro"
+        cost_per_1m_input: 21.00
+        cost_per_1m_output: 168.00
+        max_tokens: 32768
+        tier: "executive"
+        reasoning_levels: ["low", "medium", "high"]
 
   anthropic:
     api_key_env: "ANTHROPIC_API_KEY"
     models:
+      # ── Claude 4.6 (최신) ──
+      - name: "claude-opus-4-6"
+        cost_per_1m_input: 5.00
+        cost_per_1m_output: 25.00
+        max_tokens: 16384
+        tier: "executive"
+        reasoning_levels: ["low", "medium", "high"]
+
+      # ── Claude 4.5 ──
       - name: "claude-sonnet-4-5-20250929"
         cost_per_1m_input: 3.00
         cost_per_1m_output: 15.00
         max_tokens: 8192
         tier: "manager"
+        reasoning_levels: ["low", "medium", "high"]
 
       - name: "claude-haiku-4-5-20251001"
         cost_per_1m_input: 0.80
         cost_per_1m_output: 4.00
         max_tokens: 8192
         tier: "specialist"
+        reasoning_levels: []
