@@ -2477,31 +2477,45 @@
           <div class="bg-hq-bg rounded-xl p-4">
             <label class="text-xs text-hq-muted block mb-2">추론 정도 (Reasoning Effort)</label>
             <p class="text-[11px] text-hq-muted/70 mb-4">에이전트가 답변할 때 얼마나 깊이 생각할지 결정합니다. 높을수록 정확하지만 느리고 비용이 더 듭니다.</p>
-            <div class="grid grid-cols-3 gap-3 mb-3">
-              <button @click="agentReasoningSelection = 'low'"
-                      :class="agentReasoningSelection === 'low' ? 'border-hq-green bg-hq-green/10 text-hq-green' : 'border-hq-border text-hq-muted hover:text-hq-text'"
-                      class="border-2 rounded-xl p-4 text-center transition-all">
-                <div class="text-2xl mb-1">⚡</div>
-                <div class="text-sm font-bold">낮음</div>
-                <div class="text-[10px] mt-1">빠르고 저렴</div>
-              </button>
-              <button @click="agentReasoningSelection = 'medium'"
-                      :class="agentReasoningSelection === 'medium' ? 'border-hq-yellow bg-hq-yellow/10 text-hq-yellow' : 'border-hq-border text-hq-muted hover:text-hq-text'"
-                      class="border-2 rounded-xl p-4 text-center transition-all">
-                <div class="text-2xl mb-1">🧠</div>
-                <div class="text-sm font-bold">보통</div>
-                <div class="text-[10px] mt-1">균형잡힌 성능</div>
-              </button>
-              <button @click="agentReasoningSelection = 'high'"
-                      :class="agentReasoningSelection === 'high' ? 'border-hq-purple bg-hq-purple/10 text-hq-purple' : 'border-hq-border text-hq-muted hover:text-hq-text'"
-                      class="border-2 rounded-xl p-4 text-center transition-all">
-                <div class="text-2xl mb-1">🔬</div>
-                <div class="text-sm font-bold">높음</div>
-                <div class="text-[10px] mt-1">정확하지만 느림</div>
-              </button>
-            </div>
-            <button @click="saveAgentReasoning()"
-                    class="bg-hq-accent hover:bg-blue-600 text-white rounded-lg px-4 py-2 text-sm transition-colors">추론 정도 변경</button>
+
+            <!-- 추론 미지원 모델 -->
+            <template x-if="agentReasoningOptions.length === 0">
+              <div class="text-center py-6">
+                <div class="text-3xl mb-2">🚫</div>
+                <p class="text-sm text-hq-muted">이 모델은 추론 정도 설정을 지원하지 않습니다.</p>
+                <p class="text-[11px] text-hq-muted/60 mt-1">추론을 지원하는 모델로 변경하면 설정할 수 있습니다.</p>
+              </div>
+            </template>
+
+            <!-- 추론 지원 모델: 동적 버튼 -->
+            <template x-if="agentReasoningOptions.length > 0">
+              <div>
+                <div class="grid gap-3 mb-3" :class="agentReasoningOptions.length <= 3 ? 'grid-cols-3' : (agentReasoningOptions.length <= 4 ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-2 sm:grid-cols-3')">
+                  <template x-for="level in agentReasoningOptions" :key="level">
+                    <button @click="agentReasoningSelection = level"
+                            :class="agentReasoningSelection === level
+                              ? (level === 'none' ? 'border-gray-400 bg-gray-400/10 text-gray-300'
+                                : level === 'minimal' ? 'border-teal-400 bg-teal-400/10 text-teal-300'
+                                : level === 'low' ? 'border-hq-green bg-hq-green/10 text-hq-green'
+                                : level === 'medium' ? 'border-hq-yellow bg-hq-yellow/10 text-hq-yellow'
+                                : level === 'high' ? 'border-hq-purple bg-hq-purple/10 text-hq-purple'
+                                : 'border-red-400 bg-red-400/10 text-red-300')
+                              : 'border-hq-border text-hq-muted hover:text-hq-text'"
+                            class="border-2 rounded-xl p-4 text-center transition-all">
+                      <div class="text-2xl mb-1" x-text="({none:'⛔',minimal:'💨',low:'⚡',medium:'🧠',high:'🔬',xhigh:'🔥'})[level] || '❓'"></div>
+                      <div class="text-sm font-bold" x-text="({none:'없음',minimal:'최소',low:'낮음',medium:'보통',high:'높음',xhigh:'최고'})[level] || level"></div>
+                      <div class="text-[10px] mt-1" x-text="({none:'추론 비활성화',minimal:'아주 빠름',low:'빠르고 저렴',medium:'균형잡힌 성능',high:'정확하지만 느림',xhigh:'최대 깊이, 비쌈'})[level] || ''"></div>
+                    </button>
+                  </template>
+                </div>
+                <div class="flex items-center gap-2">
+                  <button @click="saveAgentReasoning()"
+                          class="bg-hq-accent hover:bg-blue-600 text-white rounded-lg px-4 py-2 text-sm transition-colors">추론 정도 변경</button>
+                  <button @click="agentReasoningSelection = ''; saveAgentReasoning()"
+                          class="border border-hq-border hover:border-hq-muted text-hq-muted hover:text-hq-text rounded-lg px-4 py-2 text-sm transition-colors">초기화 (기본값)</button>
+                </div>
+              </div>
+            </template>
           </div>
         </div>
 
@@ -2701,6 +2715,7 @@
         agentSoulText: '',
         agentModelSelection: '',
         agentReasoningSelection: '',
+        agentReasoningOptions: [],
         agentConfigSaveStatus: '',
 
         // Health check
@@ -3417,6 +3432,9 @@
             this.agentSoulText = agentRes.system_prompt || '';
             this.agentModelSelection = agentRes.model_name || '';
             this.agentReasoningSelection = agentRes.reasoning_effort || '';
+            // 현재 모델의 추론 정도 옵션 조회
+            const currentModel = this.availableModels.find(m => m.name === this.agentModelSelection);
+            this.agentReasoningOptions = currentModel?.reasoning_levels || [];
           } catch (e) {
             this.showToast('에이전트 정보를 불러올 수 없습니다.', 'error');
           } finally {
@@ -3460,6 +3478,13 @@
               this.agentConfigSaveStatus = 'error';
             } else {
               this.agentConfigData.model_name = this.agentModelSelection;
+              // 모델 변경 시 추론 옵션도 갱신
+              const newModel = this.availableModels.find(m => m.name === this.agentModelSelection);
+              this.agentReasoningOptions = newModel?.reasoning_levels || [];
+              // 현재 선택된 추론 정도가 새 모델에서 지원 안 되면 초기화
+              if (this.agentReasoningSelection && !this.agentReasoningOptions.includes(this.agentReasoningSelection)) {
+                this.agentReasoningSelection = '';
+              }
               this.agentConfigSaveStatus = 'saved';
               this.showToast('모델이 변경되었습니다.', 'success');
             }
