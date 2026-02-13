@@ -1,0 +1,18 @@
+# CORTHEX HQ 품질 게이트 규칙 설정
+# 매니저급 에이전트가 부하 보고서를 검수할 때 적용되는 기준
+
+rules:
+  # 최소 응답 길이 (글자 수). 이보다 짧으면 자동 반려
+  min_length: 50
+
+  # 반려 시 최대 재시도 횟수 (비용 절약을 위해 1회 권장)
+  max_retry: 1
+
+  # LLM 기반 할루시네이션 검사 활성화
+  check_hallucination: true
+
+  # LLM 기반 관련성 검사 활성화
+  check_relevance: true
+
+  # 검수에 사용할 LLM 모델 (저비용 모델 권장)
+  review_model: "gpt-4o-mini"

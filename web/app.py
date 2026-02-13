@@ -29,6 +29,7 @@ from src.core.orchestrator import Orchestrator
 from src.core.performance import build_performance_report
 from src.core.preset import PresetManager
 from src.core.registry import AgentRegistry
+from src.core.quality_gate import QualityGate
 from src.core.replay import build_replay, get_last_correlation_id
 from src.llm.anthropic_provider import AnthropicProvider
 from src.llm.openai_provider import OpenAIProvider
@@ -115,6 +116,10 @@ async def startup() -> None:
 
     # Build orchestrator
     orchestrator = Orchestrator(registry, model_router)
+
+    # Build quality gate
+    quality_gate = QualityGate(CONFIG_DIR / "quality_rules.yaml")
+    context.set_quality_gate(quality_gate)
 
     # Build budget, preset & feedback managers
     budget_manager = BudgetManager(CONFIG_DIR / "budget.yaml")
@@ -264,6 +269,14 @@ async def get_tools() -> list[dict]:
         (CONFIG_DIR / "tools.yaml").read_text(encoding="utf-8")
     )
     return tools_cfg.get("tools", [])
+
+
+@app.get("/api/quality")
+async def get_quality() -> dict:
+    """Return quality gate statistics."""
+    if not context or not context.quality_gate:
+        return {"error": "시스템 미초기화"}
+    return context.quality_gate.stats.to_dict()
 
 
 @app.get("/api/replay/latest")

@@ -15,6 +15,7 @@ from src.core.message import Message
 
 if TYPE_CHECKING:
     from src.core.registry import AgentRegistry
+    from src.core.quality_gate import QualityGate
 
 
 class SharedContext:
@@ -22,12 +23,16 @@ class SharedContext:
 
     def __init__(self) -> None:
         self.registry: Optional[AgentRegistry] = None
+        self.quality_gate: Optional[QualityGate] = None
         self._conversations: dict[str, list[Message]] = {}
         self._bulletin: list[Message] = []
         self._status_callback: Optional[Callable[[Message], Any]] = None
 
     def set_registry(self, registry: AgentRegistry) -> None:
         self.registry = registry
+
+    def set_quality_gate(self, gate: QualityGate) -> None:
+        self.quality_gate = gate
 
     def set_status_callback(self, callback: Callable[[Message], Any]) -> None:
         self._status_callback = callback
