@@ -57,8 +57,9 @@ class AnthropicProvider(LLMProvider):
         resp = await self._client.messages.create(**kwargs)
 
         content = resp.content[0].text if resp.content else ""
-        input_tokens = resp.usage.input_tokens
-        output_tokens = resp.usage.output_tokens
+        usage = resp.usage
+        input_tokens = usage.input_tokens if usage else 0
+        output_tokens = usage.output_tokens if usage else 0
         cost = self._calculate_cost(model, input_tokens, output_tokens)
 
         logger.debug(
