@@ -216,6 +216,7 @@ class ManagerAgent(BaseAgent):
                     task_desc,
                     self.model_router,
                     reviewer_id=self.agent_id,
+                    division=self.config.division,
                 )
                 quality_gate.record_review(
                     llm_review, self.agent_id, result.sender_id, task_desc,

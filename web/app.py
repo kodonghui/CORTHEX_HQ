@@ -28,8 +28,10 @@ from src.core.message import Message, MessageType
 from src.core.orchestrator import Orchestrator
 from src.core.performance import build_performance_report
 from src.core.preset import PresetManager
-from src.core.registry import AgentRegistry
 from src.core.quality_gate import QualityGate
+from src.core.quality_rules_manager import QualityRulesManager
+from src.core.git_sync import git_auto_sync
+from src.core.registry import AgentRegistry
 from src.core.replay import build_replay, get_last_correlation_id
 from src.llm.anthropic_provider import AnthropicProvider
 from src.llm.openai_provider import OpenAIProvider
@@ -65,12 +67,13 @@ context: SharedContext | None = None
 budget_manager: BudgetManager | None = None
 preset_manager: PresetManager | None = None
 feedback_manager: FeedbackManager | None = None
+quality_rules_manager: QualityRulesManager | None = None
 
 
 @app.on_event("startup")
 async def startup() -> None:
     """Initialize the agent system on server start."""
-    global orchestrator, model_router, registry, context, budget_manager, preset_manager, feedback_manager
+    global orchestrator, model_router, registry, context, budget_manager, preset_manager, feedback_manager, quality_rules_manager
 
     logger.info("CORTHEX HQ 시스템 초기화 중...")
 
@@ -117,8 +120,10 @@ async def startup() -> None:
     # Build orchestrator
     orchestrator = Orchestrator(registry, model_router)
 
-    # Build quality gate
+    # Build quality gate with rules manager (CEO 웹 UI에서 설정 변경 가능)
+    quality_rules_manager = QualityRulesManager(CONFIG_DIR / "quality_rules.yaml")
     quality_gate = QualityGate(CONFIG_DIR / "quality_rules.yaml")
+    quality_gate.set_rules_manager(quality_rules_manager)
     context.set_quality_gate(quality_gate)
 
     # Build budget, preset & feedback managers
@@ -277,6 +282,67 @@ async def get_quality() -> dict:
     if not context or not context.quality_gate:
         return {"error": "시스템 미초기화"}
     return context.quality_gate.stats.to_dict()
+
+
+@app.get("/api/quality-rules")
+async def get_quality_rules() -> dict:
+    """Return quality gate configuration (rules + rubrics)."""
+    if not quality_rules_manager:
+        return {"error": "시스템 미초기화"}
+    return quality_rules_manager.to_dict()
+
+
+@app.get("/api/available-models")
+async def get_available_models() -> list[dict]:
+    """Return list of all available models from models.yaml."""
+    models_path = CONFIG_DIR / "models.yaml"
+    if not models_path.exists():
+        return []
+    models_cfg = yaml.safe_load(models_path.read_text(encoding="utf-8"))
+    models: list[dict] = []
+    for provider_name, provider_data in models_cfg.get("providers", {}).items():
+        for m in provider_data.get("models", []):
+            models.append({
+                "name": m["name"],
+                "provider": provider_name,
+                "tier": m.get("tier", ""),
+                "cost_input": m.get("cost_per_1m_input", 0),
+                "cost_output": m.get("cost_per_1m_output", 0),
+            })
+    return models
+
+
+@app.put("/api/quality-rules/model")
+async def update_review_model(body: dict) -> dict:
+    """Update the review model used for quality checks."""
+    if not quality_rules_manager:
+        return {"error": "시스템 미초기화"}
+    model_name = body.get("review_model", "").strip()
+    if not model_name:
+        return {"error": "review_model이 필요합니다"}
+    quality_rules_manager.set_review_model(model_name)
+    sync = await git_auto_sync(
+        quality_rules_manager.path,
+        f"[CORTHEX HQ] 검수 모델 변경: {model_name}",
+    )
+    return {"success": True, "review_model": model_name, "git_sync": sync}
+
+
+@app.put("/api/quality-rules/rubric/{division}")
+async def update_rubric(division: str, body: dict) -> dict:
+    """Create or update a rubric for a specific division."""
+    if not quality_rules_manager:
+        return {"error": "시스템 미초기화"}
+    name = body.get("name", "").strip()
+    prompt = body.get("prompt", "").strip()
+    if not name or not prompt:
+        return {"error": "name과 prompt가 필요합니다"}
+    quality_rules_manager.set_rubric(division, name, prompt)
+    sync = await git_auto_sync(
+        quality_rules_manager.path,
+        f"[CORTHEX HQ] 검수 기준 변경: {division}",
+    )
+    return {"success": True, "division": division, "git_sync": sync}
 
 
 @app.get("/api/replay/latest")

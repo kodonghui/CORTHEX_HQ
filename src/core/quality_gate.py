@@ -26,6 +26,7 @@ import yaml
 from pathlib import Path
 
 if TYPE_CHECKING:
+    from src.core.quality_rules_manager import QualityRulesManager
     from src.llm.router import ModelRouter
 
 logger = logging.getLogger("corthex.quality_gate")
@@ -88,6 +89,7 @@ class QualityGate:
     def __init__(self, config_path: Path | None = None) -> None:
         self.stats = QualityStats()
         self._rules = self._default_rules()
+        self._rules_manager: QualityRulesManager | None = None
 
         if config_path and config_path.exists():
             try:
@@ -106,6 +108,22 @@ class QualityGate:
             "check_relevance": True,
             "review_model": "gpt-4o-mini",
         }
+
+    def set_rules_manager(self, manager: QualityRulesManager) -> None:
+        """QualityRulesManager를 연결하여 동적 루브릭/모델 조회를 활성화한다."""
+        self._rules_manager = manager
+
+    def _get_rubric_prompt(self, division: str) -> str:
+        """부서별 루브릭 프롬프트를 반환한다. rules_manager가 없으면 기본값."""
+        if self._rules_manager:
+            return self._rules_manager.get_rubric_prompt(division)
+        return (
+            "다음 기준으로 검수하세요:\n"
+            "1. 관련성: 업무 지시에 실제로 답하고 있는가? (0-30점)\n"
+            "2. 구체성: 막연한 일반론이 아닌 구체적 내용이 있는가? (0-30점)\n"
+            "3. 신뢰성: 출처 없는 숫자, 존재하지 않는 사실 등 "
+            "할루시네이션 징후가 있는가? (0-40점)"
+        )
 
     def rule_based_check(self, result_data: Any, task_description: str) -> ReviewResult:
         """규칙 기반 검사 (LLM 호출 없음)."""
@@ -155,19 +173,25 @@ class QualityGate:
         task_description: str,
         model_router: ModelRouter,
         reviewer_id: str = "",
+        division: str = "",
     ) -> ReviewResult:
-        """LLM 기반 품질 검수 (gpt-4o-mini 1회)."""
+        """LLM 기반 품질 검수. 모델과 루브릭은 QualityRulesManager에서 동적 조회."""
         text = str(result_data or "")[:3000]
-        review_model = self._rules.get("review_model", "gpt-4o-mini")
+
+        # 동적 모델 조회: rules_manager > _rules > 기본값
+        if self._rules_manager:
+            review_model = self._rules_manager.review_model
+        else:
+            review_model = self._rules.get("review_model", "gpt-4o-mini")
+
+        # 부서별 루브릭 조회
+        rubric_text = self._get_rubric_prompt(division)
 
         prompt = (
             "당신은 보고서 품질 검수관입니다. 아래 보고서를 검수하세요.\n\n"
             f"## 원래 업무 지시\n{task_description}\n\n"
             f"## 제출된 보고서\n{text}\n\n"
-            "다음 기준으로 검수하세요:\n"
-            "1. 관련성: 업무 지시에 실제로 답하고 있는가? (0-30점)\n"
-            "2. 구체성: 막연한 일반론이 아닌 구체적 내용이 있는가? (0-30점)\n"
-            "3. 신뢰성: 출처 없는 숫자, 존재하지 않는 사실 등 할루시네이션 징후가 있는가? (0-40점)\n\n"
+            f"{rubric_text}\n\n"
             "반드시 아래 형식으로만 답하세요:\n"
             "점수: [0-100]\n"
             "통과: [예/아니오]\n"

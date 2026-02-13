@@ -30,6 +30,7 @@ from src.core.orchestrator import Orchestrator
 from src.core.performance import build_performance_report
 from src.core.preset import PresetManager
 from src.core.quality_gate import QualityGate
+from src.core.quality_rules_manager import QualityRulesManager
 from src.core.registry import AgentRegistry
 from src.core.replay import build_replay, get_last_correlation_id, ReplayNode
 from src.llm.anthropic_provider import AnthropicProvider
@@ -298,10 +299,13 @@ class CorthexCLI:
         preset_count = len(self.preset_manager.list_all())
         self.console.print(f"  [green]>[/green] 프리셋 {preset_count}개 로드")
 
-        # Build quality gate
-        quality_gate = QualityGate(self.config_dir / "quality_rules.yaml")
+        # Build quality gate with rules manager
+        quality_rules_path = self.config_dir / "quality_rules.yaml"
+        quality_rules_manager = QualityRulesManager(quality_rules_path)
+        quality_gate = QualityGate(quality_rules_path)
+        quality_gate.set_rules_manager(quality_rules_manager)
         context.set_quality_gate(quality_gate)
-        self.console.print("  [green]>[/green] 품질 게이트 초기화")
+        self.console.print(f"  [green]>[/green] 품질 게이트 초기화 (검수 모델: {quality_rules_manager.review_model})")
 
         # Build feedback manager
         data_dir = self.config_dir.parent / "data"
