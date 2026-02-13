@@ -1,0 +1,20 @@
+# Environment
+.env
+
+# Output
+output/
+cookies/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+
+# IDE
+.vscode/
+.idea/
+
+# Logs
+*.log
+scraper.log

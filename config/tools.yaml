@@ -34,8 +34,22 @@ tools:
     description: "실시간 웹 검색 및 정보 수집"
     model_name: "gpt-5-mini"
 
-  - tool_id: "sns_publish"
-    name: "SNS Publisher"
-    name_ko: "SNS 발행기"
-    description: "Instagram 사진/릴스, YouTube 동영상 자동 발행"
+  - tool_id: "daum_cafe"
+    name: "Daum Cafe Search"
+    name_ko: "다음 카페 검색"
+    description: "다음 카페 글 검색 및 본문 크롤링, 소비자 반응 분석 (카카오 API)"
+    model_name: "gpt-5-mini"
+
+  # ─── SNS 연동 도구 ───
+
+  - tool_id: "leet_survey"
+    name: "LEET Survey"
+    name_ko: "LEET 해설 서베이"
+    description: "6개 커뮤니티(다음카페/네이버카페/네이버블로그/오르비/디시인사이드/티스토리)에서 LEET 해설 부정의견 자동 수집·분석"
+    model_name: "gpt-5-mini"
+
+  - tool_id: "sns_manager"
+    name: "SNS Manager"
+    name_ko: "SNS 매니저"
+    description: "Tistory/YouTube/Instagram/LinkedIn/네이버카페/네이버블로그/다음카페 통합 퍼블리싱 (CEO 승인 큐 포함)"
     model_name: "gpt-5-mini"
