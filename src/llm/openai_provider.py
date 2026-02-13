@@ -50,6 +50,8 @@ class OpenAIProvider(LLMProvider):
 
         resp = await self._client.chat.completions.create(**kwargs)
 
+        if not resp.choices:
+            raise RuntimeError(f"OpenAI 응답에 choices가 비어있습니다 (model={model})")
         choice = resp.choices[0]
         usage = resp.usage
         content = choice.message.content or ""
