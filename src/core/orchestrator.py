@@ -7,10 +7,14 @@ Flow:
 3. Chief of Staff decomposes and delegates to managers
 4. Collects TaskResult
 5. Returns result to CLI
+
+Supports conversation context: recent command-result pairs are passed
+as context so follow-up questions can reference prior results.
 """
 from __future__ import annotations
 
 import logging
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 from src.core.message import TaskRequest, TaskResult
@@ -21,6 +25,14 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger("corthex.orchestrator")
 
+_MAX_CONTEXT_TURNS = 5
+
+
+@dataclass
+class ConversationTurn:
+    command: str
+    summary: str
+
 
 class Orchestrator:
     """Routes all CEO commands through the Chief of Staff (비서실장)."""
@@ -28,16 +40,26 @@ class Orchestrator:
     def __init__(self, registry: AgentRegistry, model_router: ModelRouter) -> None:
         self.registry = registry
         self.model_router = model_router
+        self._history: list[ConversationTurn] = []
 
     async def process_command(
         self, user_input: str, context: dict | None = None,
     ) -> TaskResult:
         """Main entry: all commands go through chief_of_staff."""
+        # Build conversation context from recent history
+        context_data = {}
+        if self._history:
+            history_lines = []
+            for turn in self._history[-_MAX_CONTEXT_TURNS:]:
+                history_lines.append(f"[CEO 명령] {turn.command}")
+                history_lines.append(f"[결과 요약] {turn.summary}")
+            context_data["conversation_history"] = "\n".join(history_lines)
+
         request = TaskRequest(
             sender_id="ceo",
             receiver_id="chief_of_staff",
             task_description=user_input,
-            context=context or {},
+            context={**(context or {}), **context_data},
         )
 
         logger.info("CEO 명령 → 비서실장: %s", user_input[:80])
@@ -56,4 +78,26 @@ class Orchestrator:
                 summary=f"오류: {e}",
             )
 
+        # Store in history for future context
+        summary = result.summary or str(result.result_data)[:200]
+        self._history.append(ConversationTurn(
+            command=user_input,
+            summary=summary,
+        ))
+        # Keep bounded
+        if len(self._history) > _MAX_CONTEXT_TURNS * 2:
+            self._history = self._history[-_MAX_CONTEXT_TURNS:]
+
         return result
+
+    @property
+    def conversation_history(self) -> list[dict[str, str]]:
+        """Return conversation history as a list of dicts for API."""
+        return [
+            {"command": t.command, "summary": t.summary}
+            for t in self._history
+        ]
+
+    def clear_history(self) -> None:
+        """Clear conversation history."""
+        self._history.clear()

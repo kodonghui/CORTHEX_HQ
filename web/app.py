@@ -23,11 +23,15 @@ from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 from starlette.requests import Request
 
+from src.core.budget import BudgetManager
 from src.core.context import SharedContext
+from src.core.healthcheck import run_healthcheck
 from src.core.knowledge import KnowledgeManager
 from src.core.message import Message, MessageType
 from src.core.task_store import TaskStore, StoredTask, TaskStatus
 from src.core.orchestrator import Orchestrator
+from src.core.performance import build_performance_report
+from src.core.preset import PresetManager
 from src.core.registry import AgentRegistry
 from src.llm.anthropic_provider import AnthropicProvider
 from src.llm.batch_collector import BatchCollector
@@ -52,7 +56,7 @@ load_dotenv(PROJECT_DIR / ".env")
 OUTPUT_DIR = PROJECT_DIR / "output"
 
 # FastAPI app
-app = FastAPI(title="CORTHEX HQ", version="0.3.0")
+app = FastAPI(title="CORTHEX HQ", version="0.4.0")
 if STATIC_DIR.exists():
     app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 OUTPUT_DIR.mkdir(exist_ok=True)
@@ -71,12 +75,14 @@ knowledge_mgr: KnowledgeManager | None = None
 agents_cfg_raw: dict | None = None  # raw YAML config for soul editing
 task_store: TaskStore = TaskStore()
 telegram_bot: Any = None  # CorthexTelegramBot (optional)
+budget_manager: BudgetManager | None = None
+preset_manager: PresetManager | None = None
 
 
 @app.on_event("startup")
 async def startup() -> None:
     """Initialize the agent system on server start."""
-    global orchestrator, model_router, registry, context, knowledge_mgr, agents_cfg_raw
+    global orchestrator, model_router, registry, context, knowledge_mgr, agents_cfg_raw, budget_manager, preset_manager
 
     logger.info("CORTHEX HQ 시스템 초기화 중...")
 
@@ -134,6 +140,10 @@ async def startup() -> None:
 
         # Build orchestrator
         orchestrator = Orchestrator(registry, model_router)
+
+        # Build budget & preset managers
+        budget_manager = BudgetManager(CONFIG_DIR / "budget.yaml")
+        preset_manager = PresetManager(CONFIG_DIR / "presets.yaml")
 
         logger.info("CORTHEX HQ 시스템 준비 완료 (에이전트 %d명)", registry.agent_count)
 
@@ -304,6 +314,72 @@ async def get_cost() -> dict:
         "by_agent": tracker.summary_by_agent(),
         "by_provider": tracker.summary_by_provider(),
     }
+
+
+@app.get("/api/health")
+async def get_health() -> dict:
+    """Run system health check and return results."""
+    if not registry or not model_router:
+        return {"overall": "error", "checks": [], "message": "시스템 미초기화"}
+    report = await run_healthcheck(registry, model_router)
+    return report.to_dict()
+
+
+@app.get("/api/performance")
+async def get_performance() -> dict:
+    """Return agent performance statistics."""
+    if not model_router or not context:
+        return {"total_llm_calls": 0, "total_cost_usd": 0, "total_tasks": 0, "agents": []}
+    report = build_performance_report(model_router.cost_tracker, context)
+    return report.to_dict()
+
+
+@app.get("/api/budget")
+async def get_budget() -> dict:
+    """Return current budget status."""
+    if not budget_manager or not model_router:
+        return {"error": "시스템 미초기화"}
+    status = budget_manager.get_status(model_router.cost_tracker)
+    return status.to_dict()
+
+
+@app.get("/api/presets")
+async def get_presets() -> list[dict]:
+    """Return all command presets."""
+    if not preset_manager:
+        return []
+    return preset_manager.to_list()
+
+
+@app.post("/api/presets")
+async def add_preset(body: dict) -> dict:
+    """Add a new command preset."""
+    if not preset_manager:
+        return {"error": "시스템 미초기화"}
+    name = body.get("name", "").strip()
+    command = body.get("command", "").strip()
+    if not name or not command:
+        return {"error": "name과 command가 필요합니다"}
+    preset_manager.add(name, command)
+    return {"success": True, "name": name, "command": command}
+
+
+@app.delete("/api/presets/{name}")
+async def delete_preset(name: str) -> dict:
+    """Delete a command preset."""
+    if not preset_manager:
+        return {"error": "시스템 미초기화"}
+    if preset_manager.remove(name):
+        return {"success": True}
+    return {"error": f"프리셋 '{name}'을 찾을 수 없습니다"}
+
+
+@app.get("/api/conversation")
+async def get_conversation() -> list[dict]:
+    """Return conversation history."""
+    if not orchestrator:
+        return []
+    return orchestrator.conversation_history
 
 
 @app.get("/api/tools")
