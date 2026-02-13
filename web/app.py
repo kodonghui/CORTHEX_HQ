@@ -110,6 +110,14 @@ async def startup() -> None:
     logger.info("CORTHEX HQ 시스템 준비 완료 (에이전트 %d명)", registry.agent_count)
 
 
+@app.on_event("shutdown")
+async def shutdown() -> None:
+    """Clean up resources on server shutdown."""
+    if model_router:
+        await model_router.close()
+    logger.info("CORTHEX HQ 시스템 종료")
+
+
 async def _handle_message_event(msg: Message) -> None:
     """Push agent activity to WebSocket clients."""
     if msg.type == MessageType.TASK_REQUEST:
@@ -192,7 +200,15 @@ async def websocket_endpoint(ws: WebSocket) -> None:
     try:
         while True:
             data = await ws.receive_text()
-            msg = json.loads(data)
+            try:
+                msg = json.loads(data)
+            except json.JSONDecodeError:
+                logger.warning("WebSocket 잘못된 JSON 수신: %s", data[:200])
+                await ws.send_text(json.dumps({
+                    "event": "error",
+                    "data": {"message": "잘못된 JSON 형식입니다."},
+                }, ensure_ascii=False))
+                continue
 
             if msg.get("type") == "command":
                 user_input = msg.get("text", "").strip()

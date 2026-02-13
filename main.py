@@ -43,8 +43,10 @@ def cli() -> None:
     try:
         asyncio.run(app.run())
     except KeyboardInterrupt:
+        pass
+    finally:
+        app.shutdown()
         print("\nCORTHEX HQ를 종료합니다.")
-        sys.exit(0)
 
 
 if __name__ == "__main__":

@@ -201,9 +201,10 @@ class ManagerAgent(BaseAgent):
 
     async def _delegate_subtasks(
         self, plan: list[dict[str, str]], parent_request: TaskRequest
-    ) -> list[TaskResult]:
+    ) -> tuple[list[TaskResult], list[str]]:
         """Send sub-tasks to subordinates in parallel."""
         tasks = []
+        dispatched_ids: list[str] = []
         for item in plan:
             assignee_id = item.get("assignee_id", "")
             task_desc = item.get("task", "")
@@ -225,9 +226,10 @@ class ManagerAgent(BaseAgent):
                 context=parent_request.context,
             )
             tasks.append(agent.handle_task(sub_request))
+            dispatched_ids.append(assignee_id)
 
         if not tasks:
-            return []
+            return [], []
 
         raw_results = await asyncio.gather(*tasks, return_exceptions=True)
         results = []
@@ -236,9 +238,9 @@ class ManagerAgent(BaseAgent):
             if isinstance(r, TaskResult):
                 results.append(r)
             elif isinstance(r, Exception):
-                assignee_id = plan[i].get("assignee_id", "unknown") if i < len(plan) else "unknown"
-                logger.error("[%s] 부하 작업 실패 (%s): %s", self.agent_id, assignee_id, r)
-                errors.append(f"{assignee_id}: {r}")
+                aid = dispatched_ids[i]
+                logger.error("[%s] 부하 작업 실패 (%s): %s", self.agent_id, aid, r)
+                errors.append(f"{aid}: {r}")
         return results, errors
 
     async def _synthesize_results(
