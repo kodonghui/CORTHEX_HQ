@@ -23,12 +23,14 @@ from rich.tree import Tree
 
 from src.core.budget import BudgetManager
 from src.core.context import SharedContext
+from src.core.feedback import FeedbackManager
 from src.core.healthcheck import run_healthcheck, HealthStatus
 from src.core.message import Message, MessageType
 from src.core.orchestrator import Orchestrator
 from src.core.performance import build_performance_report
 from src.core.preset import PresetManager
 from src.core.registry import AgentRegistry
+from src.core.replay import build_replay, get_last_correlation_id, ReplayNode
 from src.llm.anthropic_provider import AnthropicProvider
 from src.llm.openai_provider import OpenAIProvider
 from src.llm.router import ModelRouter
@@ -58,6 +60,9 @@ class CorthexCLI:
         self.context: SharedContext | None = None
         self.budget_manager: BudgetManager | None = None
         self.preset_manager: PresetManager | None = None
+        self.feedback_manager: FeedbackManager | None = None
+        self._last_correlation_id: str = ""
+        self._last_sender_id: str = ""
         # Live streaming state
         self._active_agents: dict[str, str] = {}  # agent_id -> status text
 
@@ -102,6 +107,18 @@ class CorthexCLI:
                     continue
                 if cmd_lower in ("budget", "예산"):
                     self._show_budget()
+                    continue
+                if cmd_lower in ("replay", "리플레이"):
+                    self._show_replay()
+                    continue
+                if cmd_lower in ("feedback", "피드백"):
+                    self._show_feedback_stats()
+                    continue
+                if cmd_lower in ("좋아", "good", "👍"):
+                    self._record_feedback("good")
+                    continue
+                if cmd_lower in ("별로", "bad", "👎"):
+                    self._record_feedback("bad")
                     continue
 
                 # --- Preset commands ---
