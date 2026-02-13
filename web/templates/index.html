@@ -2678,7 +2678,7 @@
             ]);
             this.qualityRules = rulesRes;
             this.availableModels = modelsRes;
-            this.selectedReviewModel = rulesRes.rules?.review_model || 'gpt-4o-mini';
+            this.selectedReviewModel = rulesRes.rules?.review_model || (modelsRes.length ? modelsRes[0].name : '');
           } catch (e) {
             console.error('Failed to load quality rules:', e);
           }
