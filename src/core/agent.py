@@ -185,9 +185,17 @@ class ManagerAgent(BaseAgent):
             return []
 
         subordinate_info = self._describe_subordinates()
+
+        # Build context section (includes conversation history if available)
+        context_section = ""
+        conv_history = request.context.get("conversation_history", "")
+        if conv_history:
+            context_section = f"## 이전 대화 맥락\n{conv_history}\n\n"
+
         messages = [
             {"role": "system", "content": self.config.system_prompt},
             {"role": "user", "content": (
+                f"{context_section}"
                 f"## 업무 지시\n{request.task_description}\n\n"
                 f"## 사용 가능한 부하 에이전트\n{subordinate_info}\n\n"
                 "위 업무를 부하 에이전트들에게 배분하세요.\n"

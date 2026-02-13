@@ -13,16 +13,21 @@ from pathlib import Path
 
 import yaml
 from rich.console import Console
+from rich.live import Live
 from rich.markdown import Markdown
 from rich.panel import Panel
 from rich.prompt import Prompt
 from rich.table import Table
+from rich.text import Text
 from rich.tree import Tree
 
+from src.core.budget import BudgetManager
 from src.core.context import SharedContext
 from src.core.healthcheck import run_healthcheck, HealthStatus
+from src.core.message import Message, MessageType
 from src.core.orchestrator import Orchestrator
 from src.core.performance import build_performance_report
+from src.core.preset import PresetManager
 from src.core.registry import AgentRegistry
 from src.llm.anthropic_provider import AnthropicProvider
 from src.llm.openai_provider import OpenAIProvider
@@ -51,6 +56,10 @@ class CorthexCLI:
         self.model_router: ModelRouter | None = None
         self.registry: AgentRegistry | None = None
         self.context: SharedContext | None = None
+        self.budget_manager: BudgetManager | None = None
+        self.preset_manager: PresetManager | None = None
+        # Live streaming state
+        self._active_agents: dict[str, str] = {}  # agent_id -> status text
 
     async def run(self) -> None:
         """Main CLI loop."""
@@ -68,39 +77,140 @@ class CorthexCLI:
 
                 if not user_input.strip():
                     continue
-                if user_input.strip().lower() in ("exit", "quit", "종료"):
+
+                cmd = user_input.strip()
+                cmd_lower = cmd.lower()
+
+                if cmd_lower in ("exit", "quit", "종료"):
                     self._show_cost_summary()
                     self.console.print("[yellow]CORTHEX HQ를 종료합니다.[/yellow]")
                     break
-                if user_input.strip().lower() in ("help", "도움말"):
+                if cmd_lower in ("help", "도움말"):
                     self._show_help()
                     continue
-                if user_input.strip().lower() in ("cost", "비용"):
+                if cmd_lower in ("cost", "비용"):
                     self._show_cost_summary()
                     continue
-                if user_input.strip().lower() in ("org", "조직도"):
+                if cmd_lower in ("org", "조직도"):
                     self._show_org_chart()
                     continue
-                if user_input.strip().lower() in ("health", "헬스체크"):
+                if cmd_lower in ("health", "헬스체크"):
                     await self._show_healthcheck()
                     continue
-                if user_input.strip().lower() in ("performance", "성과"):
+                if cmd_lower in ("performance", "성과"):
                     self._show_performance()
                     continue
+                if cmd_lower in ("budget", "예산"):
+                    self._show_budget()
+                    continue
 
-                # Process command
-                with self.console.status(
-                    "[bold green]에이전트 조직이 업무를 처리하고 있습니다..."
-                ):
-                    result = await self.orchestrator.process_command(user_input)
+                # --- Preset commands ---
+                if cmd.startswith("프리셋 ") or cmd.startswith("preset "):
+                    self._handle_preset_command(cmd)
+                    continue
+                if cmd_lower in ("프리셋 목록", "preset list", "프리셋", "preset"):
+                    self._show_presets()
+                    continue
+
+                # Check if input matches a preset name
+                if self.preset_manager:
+                    resolved = self.preset_manager.resolve(cmd)
+                    if resolved:
+                        self.console.print(
+                            f"[dim]프리셋 '{cmd}' 실행 → {resolved}[/dim]"
+                        )
+                        user_input = resolved
+
+                # Process command with live streaming
+                result = await self._process_with_streaming(user_input)
 
                 # Display result
                 self._display_result(result)
+
+                # Budget warning after each command
+                if self.budget_manager and self.model_router:
+                    warning = self.budget_manager.check_warning(
+                        self.model_router.cost_tracker
+                    )
+                    if warning:
+                        self.console.print(f"[bold yellow]  {warning}[/bold yellow]")
 
             except KeyboardInterrupt:
                 self.console.print("\n[yellow]중단됨. '종료' 입력 시 안전하게 종료합니다.[/yellow]")
             except Exception as e:
                 self.console.print(f"[red]오류: {e}[/red]")
+
+    async def _process_with_streaming(self, user_input: str) -> object:
+        """Process command with real-time agent activity display."""
+        self._active_agents.clear()
+
+        # Set up streaming callback
+        def on_stream_message(msg: Message) -> None:
+            if not self.registry:
+                return
+            if msg.type == MessageType.TASK_REQUEST:
+                receiver_id = msg.receiver_id
+                try:
+                    agent = self.registry.get_agent(receiver_id)
+                    name = agent.config.name_ko
+                except Exception:
+                    name = receiver_id
+                self._active_agents[receiver_id] = f"[green]▶[/green] {name} 작업 중..."
+            elif msg.type == MessageType.TASK_RESULT:
+                sender_id = msg.sender_id
+                try:
+                    agent = self.registry.get_agent(sender_id)
+                    name = agent.config.name_ko
+                except Exception:
+                    name = sender_id
+                self._active_agents[sender_id] = f"[dim]✓ {name} 완료[/dim]"
+
+        # Temporarily set our streaming callback
+        old_callback = self.context._status_callback if self.context else None
+        if self.context:
+            def combined_callback(msg: Message) -> None:
+                on_stream_message(msg)
+                if old_callback:
+                    old_callback(msg)
+            self.context.set_status_callback(combined_callback)
+
+        try:
+            with Live(
+                self._build_stream_panel(),
+                console=self.console,
+                refresh_per_second=4,
+                transient=True,
+            ) as live:
+                # Run command in background, update live display periodically
+                task = asyncio.create_task(self.orchestrator.process_command(user_input))
+
+                while not task.done():
+                    live.update(self._build_stream_panel())
+                    await asyncio.sleep(0.25)
+
+                result = await task
+                return result
+        finally:
+            # Restore original callback
+            if self.context:
+                self.context.set_status_callback(old_callback)
+
+    def _build_stream_panel(self) -> Panel:
+        """Build a live-updating panel showing active agents."""
+        if not self._active_agents:
+            text = Text("에이전트 조직이 업무를 처리하고 있습니다...", style="bold green")
+        else:
+            lines = []
+            for agent_id, status in self._active_agents.items():
+                lines.append(status)
+            text = Text.from_markup("\n".join(lines))
+
+        return Panel(
+            text,
+            title="[bold yellow]작업 진행 상황[/bold yellow]",
+            border_style="yellow",
+            padding=(0, 1),
+        )
 
     async def _bootstrap(self) -> tuple[Orchestrator, ModelRouter, AgentRegistry, SharedContext]:
         """Initialize all components from config files."""
@@ -149,12 +259,21 @@ class CorthexCLI:
         orchestrator = Orchestrator(registry, model_router)
         self.console.print("  [green]>[/green] 오케스트레이터 초기화 완료")
 
+        # Build budget manager
+        self.budget_manager = BudgetManager(self.config_dir / "budget.yaml")
+        self.console.print("  [green]>[/green] 예산 관리 로드")
+
+        # Build preset manager
+        self.preset_manager = PresetManager(self.config_dir / "presets.yaml")
+        preset_count = len(self.preset_manager.list_all())
+        self.console.print(f"  [green]>[/green] 프리셋 {preset_count}개 로드")
+
         return orchestrator, model_router, registry, context
 
     def _show_banner(self) -> None:
         panel = Panel(
             f"[bold white]{_BANNER}[/bold white]\n"
-            "[dim]AI Agent Corporation Headquarters v0.3.0[/dim]",
+            "[dim]AI Agent Corporation Headquarters v0.4.0[/dim]",
             title="[bold yellow]CORTHEX HQ[/bold yellow]",
             border_style="bright_blue",
         )
@@ -256,6 +375,111 @@ class CorthexCLI:
         )
         self.console.print(table)
 
+    def _show_budget(self) -> None:
+        if not self.budget_manager or not self.model_router:
+            self.console.print("[dim]시스템이 아직 초기화되지 않았습니다.[/dim]")
+            return
+
+        status = self.budget_manager.get_status(self.model_router.cost_tracker)
+
+        table = Table(title="토큰 예산 현황")
+        table.add_column("구분", style="cyan")
+        table.add_column("한도", justify="right")
+        table.add_column("사용", justify="right")
+        table.add_column("잔여", justify="right", style="green")
+        table.add_column("소진율", justify="right")
+
+        # Daily
+        daily_style = "[red]" if status.daily_exceeded else "[yellow]" if status.daily_warning else "[green]"
+        table.add_row(
+            "일일",
+            f"${status.daily_limit:.2f}",
+            f"${status.daily_used:.4f}",
+            f"${status.daily_remaining:.4f}",
+            f"{daily_style}{status.daily_pct:.1f}%[/]",
+        )
+
+        # Monthly
+        monthly_style = "[red]" if status.monthly_exceeded else "[yellow]" if status.monthly_warning else "[green]"
+        table.add_row(
+            "월간",
+            f"${status.monthly_limit:.2f}",
+            f"${status.monthly_used:.4f}",
+            f"${status.monthly_remaining:.4f}",
+            f"{monthly_style}{status.monthly_pct:.1f}%[/]",
+        )
+
+        self.console.print(table)
+        self.console.print(
+            f"[dim]경고 임계값: {status.warn_threshold_pct}% | "
+            f"설정 파일: config/budget.yaml[/dim]"
+        )
+
+    def _handle_preset_command(self, cmd: str) -> None:
+        """Handle preset sub-commands: 저장/삭제/목록."""
+        if not self.preset_manager:
+            self.console.print("[dim]프리셋 매니저가 초기화되지 않았습니다.[/dim]")
+            return
+
+        # Remove prefix
+        for prefix in ("프리셋 ", "preset "):
+            if cmd.startswith(prefix):
+                rest = cmd[len(prefix):].strip()
+                break
+        else:
+            rest = cmd
+
+        if rest.startswith("저장 ") or rest.startswith("save "):
+            # 프리셋 저장 <이름> <명령>
+            parts = rest.split(maxsplit=2)
+            if len(parts) < 3:
+                self.console.print("[yellow]사용법: 프리셋 저장 <이름> <명령>[/yellow]")
+                return
+            name, command = parts[1], parts[2]
+            self.preset_manager.add(name, command)
+            self.console.print(f"[green]프리셋 '{name}' 저장 완료.[/green]")
+
+        elif rest.startswith("삭제 ") or rest.startswith("delete "):
+            parts = rest.split(maxsplit=1)
+            if len(parts) < 2:
+                self.console.print("[yellow]사용법: 프리셋 삭제 <이름>[/yellow]")
+                return
+            name = parts[1].strip()
+            if self.preset_manager.remove(name):
+                self.console.print(f"[green]프리셋 '{name}' 삭제 완료.[/green]")
+            else:
+                self.console.print(f"[yellow]프리셋 '{name}'을 찾을 수 없습니다.[/yellow]")
+
+        elif rest in ("목록", "list", ""):
+            self._show_presets()
+
+        else:
+            self.console.print(
+                "[yellow]사용법:\n"
+                "  프리셋 저장 <이름> <명령>\n"
+                "  프리셋 삭제 <이름>\n"
+                "  프리셋 목록[/yellow]"
+            )
+
+    def _show_presets(self) -> None:
+        if not self.preset_manager:
+            return
+
+        presets = self.preset_manager.list_all()
+        if not presets:
+            self.console.print("[dim]저장된 프리셋이 없습니다.[/dim]")
+            return
+
+        table = Table(title="명령 프리셋 (즐겨찾기)")
+        table.add_column("이름", style="cyan bold")
+        table.add_column("명령")
+
+        for name, command in presets.items():
+            table.add_row(name, command)
+
+        self.console.print(table)
+        self.console.print("[dim]프리셋 이름을 입력하면 바로 실행됩니다.[/dim]")
+
     async def _show_healthcheck(self) -> None:
         if not self.registry or not self.model_router:
             self.console.print("[dim]시스템이 아직 초기화되지 않았습니다.[/dim]")
@@ -355,19 +579,24 @@ class CorthexCLI:
     def _show_help(self) -> None:
         help_text = (
             "[bold]사용 가능한 명령어:[/bold]\n\n"
-            "[cyan]자연어 명령[/cyan]      - 어떤 업무든 한국어로 입력하세요\n"
-            "[cyan]조직도 / org[/cyan]     - 현재 조직 구조 표시\n"
-            "[cyan]비용 / cost[/cyan]      - 누적 API 비용 확인\n"
-            "[cyan]헬스체크 / health[/cyan] - 시스템 상태 진단\n"
-            "[cyan]성과 / performance[/cyan] - 에이전트 성과 대시보드\n"
-            "[cyan]도움말 / help[/cyan]    - 이 도움말 표시\n"
-            "[cyan]종료 / exit[/cyan]      - 프로그램 종료\n\n"
+            "[cyan]자연어 명령[/cyan]          - 어떤 업무든 한국어로 입력하세요\n"
+            "[cyan]조직도 / org[/cyan]         - 현재 조직 구조 표시\n"
+            "[cyan]비용 / cost[/cyan]          - 누적 API 비용 확인\n"
+            "[cyan]예산 / budget[/cyan]        - 토큰 예산 현황\n"
+            "[cyan]헬스체크 / health[/cyan]     - 시스템 상태 진단\n"
+            "[cyan]성과 / performance[/cyan]    - 에이전트 성과 대시보드\n"
+            "[cyan]프리셋 목록[/cyan]           - 저장된 명령 프리셋 조회\n"
+            "[cyan]프리셋 저장 <이름> <명령>[/cyan] - 명령 프리셋 저장\n"
+            "[cyan]프리셋 삭제 <이름>[/cyan]    - 명령 프리셋 삭제\n"
+            "[cyan]도움말 / help[/cyan]         - 이 도움말 표시\n"
+            "[cyan]종료 / exit[/cyan]           - 프로그램 종료\n\n"
             "[bold]예시 명령:[/bold]\n"
             '  "LEET MASTER 서비스의 기술 스택을 제안해줘"\n'
             '  "삼성전자 주가를 분석해줘"\n'
-            '  "서비스 이용약관 초안을 만들어줘"\n'
-            '  "이번 달 사업 현황을 요약해줘"\n'
-            '  "마케팅 콘텐츠 전략을 수립해줘"'
+            '  "아까 분석한 내용을 좀 더 자세히 설명해줘"  ← 대화 맥락 유지!\n\n'
+            "[bold]프리셋 사용:[/bold]\n"
+            '  프리셋 저장 주간보고 "이번 주 전체 사업부 현황을 요약해줘"\n'
+            '  주간보고  ← 저장된 명령 바로 실행!'
         )
         self.console.print(Panel(help_text, title="[bold]도움말[/bold]", border_style="bright_blue"))
 
