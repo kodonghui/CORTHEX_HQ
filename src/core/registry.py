@@ -89,7 +89,7 @@ class AgentRegistry:
         """Return summary of managers directly under chief_of_staff."""
         heads = []
         for agent in self._agents.values():
-            if agent.config.superior_id == "chief_of_staff" and agent.config.role == "manager":
+            if agent.config.superior_id == "chief_of_staff" and agent.config.role in ("division_head", "manager"):
                 heads.append({
                     "agent_id": agent.agent_id,
                     "name_ko": agent.config.name_ko,

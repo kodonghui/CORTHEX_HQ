@@ -45,6 +45,10 @@ from src.llm.router import ModelRouter
 from src.tools.pool import ToolPool
 from src.tools.sns.oauth_manager import OAuthManager
 from src.tools.sns.webhook_receiver import WebhookReceiver
+from src.core.auth import AuthManager
+from src.core.memory import MemoryManager
+from src.core.scheduler import Scheduler
+from src.core.workflow import WorkflowEngine
 from web.ws_manager import ConnectionManager
 
 logger = logging.getLogger("corthex.web")
@@ -94,12 +98,16 @@ webhook_receiver: WebhookReceiver | None = None
 tool_pool_ref: ToolPool | None = None
 feedback_manager: FeedbackManager | None = None
 quality_rules_manager: QualityRulesManager | None = None
+memory_manager: MemoryManager | None = None
+scheduler: Scheduler | None = None
+workflow_engine: WorkflowEngine | None = None
+auth_manager: AuthManager | None = None
 
 
 @app.on_event("startup")
 async def startup() -> None:
     """Initialize the agent system on server start."""
-    global orchestrator, model_router, registry, context, knowledge_mgr, agents_cfg_raw, budget_manager, preset_manager, oauth_manager, webhook_receiver, tool_pool_ref, feedback_manager, quality_rules_manager
+    global orchestrator, model_router, registry, context, knowledge_mgr, agents_cfg_raw, budget_manager, preset_manager, oauth_manager, webhook_receiver, tool_pool_ref, feedback_manager, quality_rules_manager, memory_manager, scheduler, workflow_engine, auth_manager
 
     logger.info("CORTHEX HQ 시스템 초기화 중...")
 
@@ -175,6 +183,21 @@ async def startup() -> None:
         webhook_receiver = WebhookReceiver()
         tool_pool_ref = tool_pool
 
+        # 에이전트 메모리 매니저 초기화 + 주입
+        memory_manager = MemoryManager(PROJECT_DIR / "data" / "memory")
+        for agent in registry.list_all():
+            agent.set_memory_manager(memory_manager)
+
+        # 작업 스케줄러 초기화 + 시작
+        scheduler = Scheduler(CONFIG_DIR / "schedules.yaml")
+        scheduler.start(orchestrator, ws_manager, task_store, model_router)
+
+        # 워크플로우 엔진 초기화
+        workflow_engine = WorkflowEngine(CONFIG_DIR / "workflows.yaml")
+
+        # 인증 매니저 초기화 (부트스트랩 모드: 사용자 없으면 인증 없이 통과)
+        auth_manager = AuthManager(PROJECT_DIR / "data" / "users.json")
+
         logger.info("CORTHEX HQ 시스템 준비 완료 (에이전트 %d명)", registry.agent_count)
 
         # 텔레그램 봇 초기화 (src.telegram 패키지 — 양방향 브릿지)
@@ -187,6 +210,8 @@ async def startup() -> None:
                     ws_manager=ws_manager,
                     model_router=model_router,
                     registry=registry,
+                    context=context,
+                    task_store=task_store,
                 )
                 await telegram_app.initialize()
                 await telegram_app.start()
@@ -222,6 +247,8 @@ async def shutdown() -> None:
             logger.info("텔레그램 봇 종료 완료")
         except Exception as e:
             logger.warning("텔레그램 봇 종료 중 오류 (무시): %s", e)
+    if scheduler:
+        scheduler.stop()
     if model_router:
         await model_router.close()
     logger.info("CORTHEX HQ 시스템 종료")
@@ -252,6 +279,8 @@ async def _handle_message_event(msg: Message) -> None:
             )
         # 중간 보고서 아카이브 저장
         _archive_agent_report(msg)
+        # SNS 발행 요청 텔레그램 알림 확인
+        await _check_sns_notifications()
 
     # 텔레그램 브릿지에도 이벤트 전달
     try:
@@ -260,6 +289,31 @@ async def _handle_message_event(msg: Message) -> None:
         if bridge:
             await bridge.on_agent_event(msg)
     except ImportError:
+        pass
+
+
+# ─── SNS 텔레그램 알림 ───
+
+_notified_sns_ids: set[str] = set()
+
+
+async def _check_sns_notifications() -> None:
+    """SNS 승인 큐에 새 요청이 있으면 텔레그램에 자동 알림."""
+    if not tool_pool_ref:
+        return
+    try:
+        from src.telegram.bot import get_notifier
+        notifier = get_notifier()
+        if not notifier:
+            return
+        result = await tool_pool_ref.invoke("sns_manager", action="queue")
+        pending = result.get("pending", [])
+        for item in pending:
+            rid = item.get("request_id", "")
+            if rid and rid not in _notified_sns_ids:
+                _notified_sns_ids.add(rid)
+                await notifier.notify_sns_approval(item)
+    except Exception:
         pass
 
 
@@ -361,7 +415,7 @@ async def get_cost() -> dict:
     }
 
 
-@app.get("/api/health")
+@app.get("/api/healthcheck")
 async def get_health() -> dict:
     """Run system health check and return results."""
     if not registry or not model_router:
@@ -377,6 +431,37 @@ async def get_performance() -> dict:
         return {"total_llm_calls": 0, "total_cost_usd": 0, "total_tasks": 0, "agents": []}
     report = build_performance_report(model_router.cost_tracker, context)
     return report.to_dict()
+
+
+@app.get("/api/dashboard")
+async def get_dashboard() -> dict:
+    """홈 대시보드 집계 통계 엔드포인트."""
+    today = datetime.now(timezone.utc).date()
+    all_tasks = task_store.list_all(limit=999)
+    today_tasks = [t for t in all_tasks if t.created_at.date() == today]
+    completed_today = [t for t in today_tasks if t.status == TaskStatus.COMPLETED]
+    failed_today = [t for t in today_tasks if t.status == TaskStatus.FAILED]
+    running_tasks = [t for t in all_tasks if t.status == TaskStatus.RUNNING]
+    recent = sorted(
+        [t for t in all_tasks if t.status == TaskStatus.COMPLETED],
+        key=lambda t: t.completed_at or t.created_at,
+        reverse=True,
+    )[:5]
+    total_cost = model_router.cost_tracker.total_cost if model_router else 0
+    total_tokens = model_router.cost_tracker.total_tokens if model_router else 0
+    agent_count = registry.agent_count if registry else 0
+    return {
+        "today_task_count": len(today_tasks),
+        "today_completed": len(completed_today),
+        "today_failed": len(failed_today),
+        "running_count": len(running_tasks),
+        "total_tasks": len(all_tasks),
+        "total_cost": round(total_cost, 6),
+        "total_tokens": total_tokens,
+        "agent_count": agent_count,
+        "recent_completed": [_task_to_dict(t) for t in recent],
+        "system_health": "ok" if orchestrator else "not_initialized",
+    }
 
 
 @app.get("/api/budget")
@@ -824,13 +909,36 @@ def _task_to_dict(t: StoredTask, include_result: bool = False) -> dict:
     if include_result:
         d["result_data"] = t.result_data
         d["tokens_used"] = t.tokens_used
+    d["bookmarked"] = getattr(t, "bookmarked", False)
+    d["correlation_id"] = getattr(t, "correlation_id", None)
     return d
 
 
 @app.get("/api/tasks")
-async def list_tasks() -> list[dict]:
-    """List all tasks with status."""
-    return [_task_to_dict(t) for t in task_store.list_all()]
+async def list_tasks(
+    keyword: str = "",
+    status: str = "",
+    date_from: str = "",
+    date_to: str = "",
+    bookmarked: bool = False,
+) -> list[dict]:
+    """List tasks with optional search/filter."""
+    if keyword or status or date_from or date_to or bookmarked:
+        tasks = task_store.search(
+            keyword=keyword, status=status,
+            date_from=date_from, date_to=date_to,
+            bookmarked_only=bookmarked,
+        )
+    else:
+        tasks = task_store.list_all()
+    return [_task_to_dict(t) for t in tasks]
+
+
+@app.post("/api/tasks/{task_id}/bookmark")
+async def toggle_task_bookmark(task_id: str) -> dict:
+    """Toggle bookmark on a task."""
+    new_state = task_store.toggle_bookmark(task_id)
+    return {"task_id": task_id, "bookmarked": new_state}
 
 
 @app.get("/api/tasks/{task_id}")
@@ -917,6 +1025,12 @@ async def list_archive() -> list[dict]:
 async def read_archive(division: str, filename: str) -> dict:
     """개별 아카이브 보고서 조회."""
     filepath = ARCHIVE_DIR / division / filename
+    # 경로 탈출 방지: ARCHIVE_DIR 바깥 파일 접근 차단
+    try:
+        if not str(filepath.resolve()).startswith(str(ARCHIVE_DIR.resolve())):
+            return {"error": "잘못된 경로입니다"}
+    except Exception:
+        return {"error": "잘못된 경로입니다"}
     if not filepath.exists() or not filepath.is_file():
         return {"error": "file not found"}
     content = filepath.read_text(encoding="utf-8")
@@ -943,6 +1057,189 @@ async def list_archive_by_correlation(correlation_id: str) -> list[dict]:
                     "content": content,
                 })
     return results
+
+
+# ─── Memory API (에이전트 장기 기억) ───
+
+
+@app.get("/api/memory/{agent_id}")
+async def get_memory(agent_id: str) -> list[dict]:
+    """에이전트의 기억 목록을 반환합니다."""
+    if not memory_manager:
+        return []
+    return memory_manager.get_all(agent_id)
+
+
+@app.post("/api/memory/{agent_id}")
+async def add_memory(agent_id: str, body: dict) -> dict:
+    """에이전트에 새 기억을 추가합니다."""
+    if not memory_manager:
+        return {"error": "시스템 미초기화"}
+    key = body.get("key", "").strip()
+    value = body.get("value", "").strip()
+    if not key or not value:
+        return {"error": "key와 value가 필요합니다"}
+    entry = memory_manager.add(agent_id, key, value, source="manual")
+    return {"success": True, **entry.to_dict()}
+
+
+@app.delete("/api/memory/{agent_id}/{memory_id}")
+async def delete_memory(agent_id: str, memory_id: str) -> dict:
+    """에이전트의 기억을 삭제합니다."""
+    if not memory_manager:
+        return {"error": "시스템 미초기화"}
+    ok = memory_manager.delete(agent_id, memory_id)
+    return {"success": ok}
+
+
+# ─── Schedule API (작업 예약) ───
+
+
+@app.get("/api/schedules")
+async def get_schedules() -> list[dict]:
+    """예약 작업 목록을 반환합니다."""
+    if not scheduler:
+        return []
+    return scheduler.list_all()
+
+
+@app.post("/api/schedules")
+async def add_schedule(body: dict) -> dict:
+    """새 예약을 추가합니다."""
+    if not scheduler:
+        return {"error": "시스템 미초기화"}
+    name = body.get("name", "").strip()
+    command = body.get("command", "").strip()
+    cron_preset = body.get("cron_preset", "").strip()
+    if not name or not command or not cron_preset:
+        return {"error": "name, command, cron_preset이 필요합니다"}
+    entry = scheduler.add(name, command, cron_preset)
+    return {"success": True, **entry}
+
+
+@app.put("/api/schedules/{schedule_id}")
+async def update_schedule(schedule_id: str, body: dict) -> dict:
+    """예약을 수정합니다."""
+    if not scheduler:
+        return {"error": "시스템 미초기화"}
+    result = scheduler.update(schedule_id, body)
+    if result:
+        return {"success": True, **result}
+    return {"error": "예약을 찾을 수 없습니다"}
+
+
+@app.post("/api/schedules/{schedule_id}/toggle")
+async def toggle_schedule(schedule_id: str) -> dict:
+    """예약 활성화/비활성화를 토글합니다."""
+    if not scheduler:
+        return {"error": "시스템 미초기화"}
+    result = scheduler.toggle(schedule_id)
+    if result:
+        return {"success": True, **result}
+    return {"error": "예약을 찾을 수 없습니다"}
+
+
+@app.delete("/api/schedules/{schedule_id}")
+async def delete_schedule(schedule_id: str) -> dict:
+    """예약을 삭제합니다."""
+    if not scheduler:
+        return {"error": "시스템 미초기화"}
+    ok = scheduler.delete(schedule_id)
+    return {"success": ok}
+
+
+# ─── Workflow API (워크플로우) ───
+
+
+@app.get("/api/workflows")
+async def get_workflows() -> list[dict]:
+    """워크플로우 목록을 반환합니다."""
+    if not workflow_engine:
+        return []
+    return workflow_engine.list_all()
+
+
+@app.post("/api/workflows")
+async def create_workflow(body: dict) -> dict:
+    """새 워크플로우를 생성합니다."""
+    if not workflow_engine:
+        return {"error": "시스템 미초기화"}
+    name = body.get("name", "").strip()
+    description = body.get("description", "").strip()
+    steps = body.get("steps", [])
+    if not name or not steps:
+        return {"error": "name과 steps가 필요합니다"}
+    result = workflow_engine.create(name, description, steps)
+    return {"success": True, **result}
+
+
+@app.put("/api/workflows/{workflow_id}")
+async def update_workflow(workflow_id: str, body: dict) -> dict:
+    """워크플로우를 수정합니다."""
+    if not workflow_engine:
+        return {"error": "시스템 미초기화"}
+    result = workflow_engine.update(workflow_id, body)
+    if result:
+        return {"success": True, **result}
+    return {"error": "워크플로우를 찾을 수 없습니다"}
+
+
+@app.delete("/api/workflows/{workflow_id}")
+async def delete_workflow(workflow_id: str) -> dict:
+    """워크플로우를 삭제합니다."""
+    if not workflow_engine:
+        return {"error": "시스템 미초기화"}
+    ok = workflow_engine.delete(workflow_id)
+    return {"success": ok}
+
+
+@app.post("/api/workflows/{workflow_id}/run")
+async def run_workflow(workflow_id: str) -> dict:
+    """워크플로우를 실행합니다."""
+    if not workflow_engine or not orchestrator or not model_router:
+        return {"error": "시스템 미초기화"}
+    result = await workflow_engine.run(
+        workflow_id, orchestrator, ws_manager, task_store, model_router,
+    )
+    return result
+
+
+# ─── Auth API (인증) ───
+
+
+@app.get("/api/auth/status")
+async def auth_status() -> dict:
+    """인증 상태 확인 (부트스트랩 모드 여부 등)."""
+    if not auth_manager:
+        return {"bootstrap_mode": True, "user_count": 0}
+    return auth_manager.get_status()
+
+
+@app.post("/api/auth/register")
+async def auth_register(body: dict) -> dict:
+    """새 사용자 등록."""
+    if not auth_manager:
+        return {"error": "시스템 미초기화"}
+    username = body.get("username", "").strip()
+    password = body.get("password", "").strip()
+    if not username or not password:
+        return {"error": "username과 password가 필요합니다"}
+    role = body.get("role", "viewer")
+    division = body.get("division", "")
+    display_name = body.get("display_name", "")
+    return auth_manager.register(username, password, role, division, display_name)
+
+
+@app.post("/api/auth/login")
+async def auth_login(body: dict) -> dict:
+    """로그인."""
+    if not auth_manager:
+        return {"error": "시스템 미초기화"}
+    username = body.get("username", "").strip()
+    password = body.get("password", "").strip()
+    if not username or not password:
+        return {"error": "username과 password가 필요합니다"}
+    return auth_manager.login(username, password)
 
 
 # ─── SNS 발행 API ───
@@ -1040,6 +1337,7 @@ async def _execute_command_for_api(
         stored.success = result.success
         stored.result_data = str(result.result_data or result.summary)
         stored.result_summary = result.summary
+        stored.correlation_id = result.correlation_id
         stored.status = TaskStatus.COMPLETED
     except Exception as e:
         stored.success = False
@@ -1137,6 +1435,7 @@ async def _run_background_task(
         stored.success = result.success
         stored.result_data = str(result.result_data or result.summary)
         stored.result_summary = result.summary
+        stored.correlation_id = result.correlation_id
         stored.status = TaskStatus.COMPLETED
     except Exception as e:
         stored.success = False
@@ -1352,14 +1651,14 @@ async def webhook_verify(platform: str, request: Request) -> Any:
     """Webhook 구독 검증 (Instagram/YouTube 용)."""
     params = dict(request.query_params)
 
-    # Instagram/Facebook Webhook 검증
-    if "hub.challenge" in params:
+    # Instagram/Facebook Webhook 검증 (hub.verify_token으로 구분)
+    if "hub.challenge" in params and "hub.verify_token" in params:
         verify_token = os.getenv("WEBHOOK_VERIFY_TOKEN", "corthex-webhook")
         if params.get("hub.verify_token") == verify_token:
             return int(params["hub.challenge"])
         return {"error": "검증 실패"}
 
-    # YouTube PubSubHubbub 검증
+    # YouTube PubSubHubbub 검증 (hub.challenge만 있고 verify_token 없음)
     if "hub.challenge" in params:
         return params["hub.challenge"]
 

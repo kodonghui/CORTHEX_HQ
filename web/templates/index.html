@@ -409,47 +409,17 @@
         <span class="text-[11px] font-mono" x-text="wsConnected ? '연결됨' : '끊김'"></span>
       </div>
 
-      <!-- View Toggle: 채팅/사무실/대시보드/더보기 -->
-      <div class="flex items-center bg-hq-surface border border-hq-border rounded-lg relative">
-        <button @click="viewMode = 'chat'; showMoreMenu = false"
+      <!-- View Toggle: 채팅/사무실/대시보드 -->
+      <div class="flex items-center bg-hq-surface border border-hq-border rounded-lg">
+        <button @click="viewMode = 'chat'"
                 :class="viewMode === 'chat' ? 'bg-hq-accent/20 text-hq-accent' : 'text-hq-muted hover:text-hq-text'"
                 class="px-3 py-1 text-xs font-semibold rounded-l-lg transition-colors">채팅</button>
-        <button @click="viewMode = 'office'; showMoreMenu = false"
+        <button @click="viewMode = 'office'"
                 :class="viewMode === 'office' ? 'bg-hq-accent/20 text-hq-accent' : 'text-hq-muted hover:text-hq-text'"
                 class="px-3 py-1 text-xs font-semibold border-x border-hq-border transition-colors">사무실</button>
-        <button @click="viewMode = 'dashboard'; showMoreMenu = false; loadDashboard()"
+        <button @click="viewMode = 'dashboard'; loadDashboard()"
                 :class="viewMode === 'dashboard' ? 'bg-hq-accent/20 text-hq-accent' : 'text-hq-muted hover:text-hq-text'"
-                class="px-3 py-1 text-xs font-semibold border-r border-hq-border transition-colors">대시보드</button>
-        <button @click="showMoreMenu = !showMoreMenu"
-                :class="['activityLog','knowledge','archive','sns'].includes(viewMode) ? 'bg-hq-accent/20 text-hq-accent' : 'text-hq-muted hover:text-hq-text'"
-                class="px-3 py-1 text-xs font-semibold rounded-r-lg transition-colors flex items-center gap-1">
-          <span x-text="viewMode === 'activityLog' ? '로그' : viewMode === 'knowledge' ? '지식' : viewMode === 'archive' ? '아카이브' : viewMode === 'sns' ? 'SNS' : '더보기'"></span>
-          <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
-        </button>
-        <!-- More dropdown -->
-        <div x-show="showMoreMenu" @click.outside="showMoreMenu = false" x-transition
-             class="absolute top-full mt-1 right-0 w-40 glass border border-hq-border rounded-xl overflow-hidden shadow-xl z-30" style="display:none;">
-          <button @click="viewMode = 'activityLog'; showMoreMenu = false"
-                  :class="viewMode === 'activityLog' ? 'bg-hq-accent/10 text-hq-accent' : 'text-hq-text hover:bg-hq-surface'"
-                  class="w-full text-left px-4 py-2.5 text-xs transition-colors flex items-center gap-2">
-            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2"/></svg>
-            활동 로그</button>
-          <button @click="viewMode = 'knowledge'; showMoreMenu = false; loadKnowledge()"
-                  :class="viewMode === 'knowledge' ? 'bg-hq-accent/10 text-hq-accent' : 'text-hq-text hover:bg-hq-surface'"
-                  class="w-full text-left px-4 py-2.5 text-xs transition-colors flex items-center gap-2 border-t border-hq-border/50">
-            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
-            지식 관리</button>
-          <button @click="viewMode = 'archive'; showMoreMenu = false; loadArchive()"
-                  :class="viewMode === 'archive' ? 'bg-hq-accent/10 text-hq-accent' : 'text-hq-text hover:bg-hq-surface'"
-                  class="w-full text-left px-4 py-2.5 text-xs transition-colors flex items-center gap-2 border-t border-hq-border/50">
-            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8"/></svg>
-            아카이브</button>
-          <button @click="viewMode = 'sns'; showMoreMenu = false; loadSNS()"
-                  :class="viewMode === 'sns' ? 'bg-hq-accent/10 text-hq-accent' : 'text-hq-text hover:bg-hq-surface'"
-                  class="w-full text-left px-4 py-2.5 text-xs transition-colors flex items-center gap-2 border-t border-hq-border/50">
-            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z"/></svg>
-            SNS 관리</button>
-        </div>
+                class="px-3 py-1 text-xs font-semibold rounded-r-lg transition-colors">대시보드</button>
       </div>
 
       <!-- Dark/Light Toggle -->
@@ -762,11 +732,158 @@
       </div>
     </aside>
 
-    <!-- ═══ Right Panel ═══ -->
+    <!-- ═══ Right Panel: Tabs + Content ═══ -->
     <main class="flex-1 flex flex-col overflow-hidden bg-hq-bg">
 
-      <!-- ═══ Chat View ═══ -->
-      <div x-show="viewMode === 'chat'" class="flex-1 flex flex-col overflow-hidden">
+      <!-- ═══ Error Alert Banner ═══ -->
+      <div x-show="errorAlert.visible" x-transition
+           class="bg-hq-red/15 border-b border-hq-red/30 px-5 py-2 flex items-center justify-between shrink-0" style="display:none;">
+        <div class="flex items-center gap-2">
+          <svg class="w-4 h-4 text-hq-red" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/></svg>
+          <span class="text-sm text-hq-red font-medium" x-text="errorAlert.message"></span>
+        </div>
+        <button @click="errorAlert.visible = false" class="text-hq-red/50 hover:text-hq-red text-lg">&times;</button>
+      </div>
+
+      <!-- ═══ Tab Navigation ═══ -->
+      <div class="flex items-center gap-0.5 px-3 pt-1.5 pb-0 border-b border-hq-border bg-hq-surface/50 shrink-0 overflow-x-auto">
+        <template x-for="tab in tabs" :key="tab.id">
+          <button @click="switchTab(tab.id)"
+                  :class="activeTab === tab.id
+                    ? 'text-white border-hq-accent bg-hq-accent/10'
+                    : 'text-hq-muted border-transparent hover:text-hq-text hover:bg-white/[0.02]'"
+                  class="flex items-center gap-1.5 px-3 py-2 text-[11px] font-semibold border-b-2 transition-all rounded-t-lg whitespace-nowrap">
+            <span x-html="tab.icon" class="w-3.5 h-3.5"></span>
+            <span x-text="tab.label"></span>
+          </button>
+        </template>
+      </div>
+
+      <!-- ═══ Tab: 홈 (Home Dashboard) ═══ -->
+      <div x-show="activeTab === 'home'" x-cloak class="flex-1 overflow-y-auto scrollbar-thin p-6 bg-grid">
+        <div class="max-w-5xl mx-auto fade-in-up">
+          <div class="mb-6">
+            <h1 class="text-2xl font-bold gradient-text mb-1">CORTHEX HQ 대시보드</h1>
+            <p class="text-sm text-hq-muted">AI 에이전트 기업 현황을 한눈에 확인하세요</p>
+          </div>
+
+          <!-- Summary Cards -->
+          <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+            <div class="glass border border-hq-border rounded-xl p-4 hover-glow">
+              <div class="flex items-center gap-3 mb-2">
+                <div class="w-9 h-9 rounded-lg bg-hq-accent/15 flex items-center justify-center">
+                  <svg class="w-4.5 h-4.5 text-hq-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
+                </div>
+                <div>
+                  <div class="text-xl font-bold text-white" x-text="dashboard.todayTasks || 0"></div>
+                  <div class="text-[10px] text-hq-muted uppercase tracking-wider">오늘 작업</div>
+                </div>
+              </div>
+              <div class="flex items-center gap-2 text-[11px]">
+                <span class="text-hq-green" x-text="'완료 ' + (dashboard.todayCompleted || 0)"></span>
+                <span class="text-hq-muted">·</span>
+                <span class="text-hq-yellow" x-text="'진행 ' + (dashboard.runningCount || 0)"></span>
+              </div>
+            </div>
+            <div class="glass border border-hq-border rounded-xl p-4 hover-glow">
+              <div class="flex items-center gap-3 mb-2">
+                <div class="w-9 h-9 rounded-lg bg-hq-green/15 flex items-center justify-center">
+                  <svg class="w-4.5 h-4.5 text-hq-green" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                </div>
+                <div>
+                  <div class="text-xl font-bold text-white" x-text="'$' + (dashboard.totalCost || 0).toFixed(4)"></div>
+                  <div class="text-[10px] text-hq-muted uppercase tracking-wider">누적 비용</div>
+                </div>
+              </div>
+              <div class="text-[11px] text-hq-muted" x-text="(dashboard.totalTokens || 0).toLocaleString() + ' 토큰'"></div>
+            </div>
+            <div class="glass border border-hq-border rounded-xl p-4 hover-glow">
+              <div class="flex items-center gap-3 mb-2">
+                <div class="w-9 h-9 rounded-lg bg-hq-purple/15 flex items-center justify-center">
+                  <svg class="w-4.5 h-4.5 text-hq-purple" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                </div>
+                <div>
+                  <div class="text-xl font-bold text-white" x-text="dashboard.agentCount || 0"></div>
+                  <div class="text-[10px] text-hq-muted uppercase tracking-wider">에이전트</div>
+                </div>
+              </div>
+              <div class="text-[11px] text-hq-muted">4개 본부 운영 중</div>
+            </div>
+            <div class="glass border border-hq-border rounded-xl p-4 hover-glow">
+              <div class="flex items-center gap-3 mb-2">
+                <div class="w-9 h-9 rounded-lg flex items-center justify-center"
+                     :class="dashboard.systemHealth === 'ok' ? 'bg-hq-green/15' : 'bg-hq-red/15'">
+                  <svg class="w-4.5 h-4.5" :class="dashboard.systemHealth === 'ok' ? 'text-hq-green' : 'text-hq-red'" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                </div>
+                <div>
+                  <div class="text-xl font-bold text-white" x-text="dashboard.systemHealth === 'ok' ? '정상' : '점검'"></div>
+                  <div class="text-[10px] text-hq-muted uppercase tracking-wider">시스템</div>
+                </div>
+              </div>
+              <div class="flex items-center gap-1.5 text-[11px]">
+                <span class="w-1.5 h-1.5 rounded-full" :class="wsConnected ? 'bg-hq-green' : 'bg-hq-red'"></span>
+                <span class="text-hq-muted" x-text="wsConnected ? '연결됨' : '끊김'"></span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Recent Completed Tasks -->
+          <div class="glass border border-hq-border rounded-xl p-5 mb-6">
+            <h2 class="text-sm font-bold text-white mb-4 flex items-center gap-2">
+              <svg class="w-4 h-4 text-hq-green" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+              최근 완료 작업
+            </h2>
+            <template x-if="dashboard.recentCompleted && dashboard.recentCompleted.length > 0">
+              <div class="space-y-2">
+                <template x-for="task in dashboard.recentCompleted" :key="task.task_id">
+                  <div class="flex items-center justify-between p-3 bg-hq-bg/50 rounded-lg hover:bg-hq-bg transition cursor-pointer"
+                       @click="switchTab('history')">
+                    <div class="flex-1 min-w-0">
+                      <div class="text-sm text-hq-text truncate" x-text="task.command"></div>
+                      <div class="text-[11px] text-hq-muted mt-0.5" x-text="new Date(task.created_at).toLocaleString('ko-KR', {timeZone:'Asia/Seoul'})"></div>
+                    </div>
+                    <div class="flex items-center gap-3 shrink-0 ml-4">
+                      <span class="text-[11px] font-mono text-hq-green" x-text="task.time_seconds + '초'"></span>
+                      <span class="text-[11px] font-mono text-hq-muted" x-text="'$' + (task.cost || 0).toFixed(4)"></span>
+                    </div>
+                  </div>
+                </template>
+              </div>
+            </template>
+            <template x-if="!dashboard.recentCompleted || dashboard.recentCompleted.length === 0">
+              <div class="text-center py-8 text-hq-muted/50 text-sm">아직 완료된 작업이 없습니다</div>
+            </template>
+          </div>
+
+          <!-- Quick Commands -->
+          <div class="glass border border-hq-border rounded-xl p-5">
+            <h2 class="text-sm font-bold text-white mb-4 flex items-center gap-2">
+              <svg class="w-4 h-4 text-hq-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+              빠른 명령
+            </h2>
+            <div class="grid grid-cols-2 lg:grid-cols-3 gap-3">
+              <template x-for="p in presets.items" :key="p.name">
+                <button @click="switchTab('command'); $nextTick(() => sendPreset(p.command))"
+                        class="text-left p-3 bg-hq-bg/50 rounded-lg hover:bg-hq-bg border border-transparent hover:border-hq-accent/20 transition group">
+                  <div class="text-sm font-medium text-hq-text group-hover:text-white" x-text="p.name"></div>
+                  <div class="text-[11px] text-hq-muted mt-1 truncate" x-text="p.command"></div>
+                </button>
+              </template>
+              <button @click="switchTab('command')"
+                      class="text-left p-3 bg-hq-bg/50 rounded-lg hover:bg-hq-bg border border-dashed border-hq-border hover:border-hq-accent/30 transition group flex items-center justify-center min-h-[60px]">
+                <span class="text-sm text-hq-muted group-hover:text-hq-accent">+ 직접 명령</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══ Tab: 명령 (Command) ═══ -->
+      <div x-show="activeTab === 'command'" x-cloak class="flex-1 flex flex-col overflow-hidden">
+
+      <!-- Chat Messages -->
+      <div class="flex-1 overflow-y-auto scrollbar-thin p-6 space-y-4 bg-grid" id="chatArea"
+           x-ref="chatArea">
 
         <!-- Chat Messages -->
         <div class="flex-1 overflow-y-auto scrollbar-thin p-6 space-y-4 bg-grid" id="chatArea" x-ref="chatArea">
@@ -1034,6 +1151,112 @@
               </button>
             </div>
           </div>
+          <button type="submit"
+                  :disabled="!inputText.trim() || systemStatus === 'working'"
+                  class="bg-gradient-to-r from-hq-accent to-hq-purple hover:from-blue-500 hover:to-violet-500
+                         disabled:from-gray-700 disabled:to-gray-700 disabled:text-hq-muted
+                         text-white rounded-xl px-6 py-3 text-sm font-semibold transition-all shrink-0
+                         hover:shadow-lg hover:shadow-hq-accent/20 disabled:shadow-none">
+            <span x-show="systemStatus !== 'working'">보내기</span>
+            <span x-show="systemStatus === 'working'" class="flex items-center gap-2">
+              <svg class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+              </svg>
+              처리중
+            </span>
+          </button>
+        </form>
+        <!-- Preset Chips -->
+        <div x-show="presets.items.length > 0" class="flex items-center gap-2 flex-wrap mt-2 max-w-4xl mx-auto">
+          <template x-for="p in presets.items" :key="p.name">
+            <button @click="sendPreset(p.command)"
+                    :disabled="systemStatus === 'working'"
+                    class="text-[11px] bg-hq-panel border border-hq-border rounded-lg px-2.5 py-1 hover:border-hq-accent/40 hover:text-hq-accent transition disabled:opacity-30 text-hq-muted">
+              <span x-text="p.name"></span>
+            </button>
+          </template>
+          <button @click="presets.showModal = true" class="text-[11px] text-hq-muted/50 hover:text-hq-accent transition px-1">
+            <svg class="w-3.5 h-3.5 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
+          </button>
+        </div>
+      </div>
+      </div><!-- /command tab -->
+
+      <!-- ═══ Tab: 성능 (Performance) ═══ -->
+      <div x-show="activeTab === 'performance'" x-cloak class="flex-1 overflow-y-auto scrollbar-thin p-6 bg-grid">
+        <div class="max-w-5xl mx-auto fade-in-up">
+          <h1 class="text-xl font-bold text-white mb-1">에이전트 성능</h1>
+          <p class="text-sm text-hq-muted mb-6">에이전트별 작업 통계를 확인하세요</p>
+
+          <!-- Performance Summary Cards -->
+          <div class="grid grid-cols-4 gap-4 mb-6">
+            <div class="glass border border-hq-border rounded-xl p-4">
+              <div class="text-xl font-bold text-white" x-text="performance.totalCalls || 0"></div>
+              <div class="text-[10px] text-hq-muted uppercase">총 LLM 호출</div>
+            </div>
+            <div class="glass border border-hq-border rounded-xl p-4">
+              <div class="text-xl font-bold text-hq-green" x-text="'$' + (performance.totalCost || 0).toFixed(4)"></div>
+              <div class="text-[10px] text-hq-muted uppercase">총 비용</div>
+            </div>
+            <div class="glass border border-hq-border rounded-xl p-4">
+              <div class="text-xl font-bold text-white" x-text="performance.totalTasks || 0"></div>
+              <div class="text-[10px] text-hq-muted uppercase">총 작업</div>
+            </div>
+            <div class="glass border border-hq-border rounded-xl p-4">
+              <div class="text-xl font-bold text-hq-cyan" x-text="(performance.avgSuccessRate || 0).toFixed(0) + '%'"></div>
+              <div class="text-[10px] text-hq-muted uppercase">평균 성공률</div>
+            </div>
+          </div>
+
+          <!-- Agent Performance Table -->
+          <div class="glass border border-hq-border rounded-xl overflow-hidden">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="border-b border-hq-border text-[11px] text-hq-muted uppercase">
+                  <th class="text-left px-4 py-3">에이전트</th>
+                  <th class="text-right px-4 py-3">호출</th>
+                  <th class="text-right px-4 py-3">비용</th>
+                  <th class="text-right px-4 py-3">작업</th>
+                  <th class="text-right px-4 py-3">성공률</th>
+                  <th class="text-right px-4 py-3">평균 시간</th>
+                  <th class="px-4 py-3 w-32">비용 비율</th>
+                  <th class="px-4 py-3">기억</th>
+                </tr>
+              </thead>
+              <tbody>
+                <template x-for="a in performance.agents" :key="a.agent_id">
+                  <tr class="border-b border-hq-border/50 hover:bg-white/[0.02]">
+                    <td class="px-4 py-2.5">
+                      <div class="text-hq-text font-medium" x-text="a.name_ko"></div>
+                      <div class="text-[10px] text-hq-muted" x-text="a.role"></div>
+                    </td>
+                    <td class="text-right px-4 py-2.5 font-mono text-hq-text" x-text="a.llm_calls"></td>
+                    <td class="text-right px-4 py-2.5 font-mono text-hq-green" x-text="'$' + (a.cost_usd || 0).toFixed(4)"></td>
+                    <td class="text-right px-4 py-2.5 font-mono text-hq-text" x-text="a.tasks_completed"></td>
+                    <td class="text-right px-4 py-2.5">
+                      <span class="font-mono" :class="(a.success_rate||0) >= 80 ? 'text-hq-green' : (a.success_rate||0) >= 50 ? 'text-hq-yellow' : 'text-hq-red'"
+                            x-text="(a.success_rate || 0).toFixed(0) + '%'"></span>
+                    </td>
+                    <td class="text-right px-4 py-2.5 font-mono text-hq-muted" x-text="(a.avg_execution_seconds || 0).toFixed(1) + '초'"></td>
+                    <td class="px-4 py-2.5">
+                      <div class="h-2 bg-hq-bg rounded-full overflow-hidden">
+                        <div class="h-full bg-gradient-to-r from-hq-accent to-hq-cyan rounded-full transition-all"
+                             :style="'width:' + (performance.maxCost > 0 ? ((a.cost_usd || 0) / performance.maxCost * 100) : 0) + '%'"></div>
+                      </div>
+                    </td>
+                    <td class="px-4 py-2.5 text-center">
+                      <button @click="openMemoryModal(a.agent_id, a.name_ko)"
+                              class="text-[10px] px-2 py-1 rounded border border-hq-purple/30 text-hq-purple hover:bg-hq-purple/10 transition">기억</button>
+                    </td>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
+            <template x-if="!performance.agents || performance.agents.length === 0">
+              <div class="text-center py-12 text-hq-muted/50 text-sm">성능 데이터가 없습니다. 작업을 실행하면 통계가 쌓입니다.</div>
+            </template>
+          </div>
         </div>
       </div>
 
@@ -1214,159 +1437,209 @@
           <div class="text-hq-muted flex items-center gap-2">
             <svg class="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
             대시보드 로딩 중...
+
+      <!-- ═══ Tab: 작업내역 (History) ═══ -->
+      <div x-show="activeTab === 'history'" x-cloak class="flex-1 flex flex-col overflow-hidden">
+        <div class="px-6 pt-4 pb-3 shrink-0 border-b border-hq-border bg-hq-surface/30">
+          <div class="flex items-center gap-3 max-w-5xl mx-auto">
+            <!-- Search -->
+            <div class="flex-1 relative">
+              <svg class="w-4 h-4 text-hq-muted absolute left-3 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+              <input type="text" x-model="taskHistory.search" @input.debounce.300ms="loadTaskHistory()"
+                     placeholder="작업 검색..."
+                     class="w-full bg-hq-bg border border-hq-border rounded-lg pl-9 pr-4 py-2 text-sm text-hq-text placeholder-hq-muted/50 focus:outline-none focus:border-hq-accent/50">
+            </div>
+            <!-- Status Filter -->
+            <select x-model="taskHistory.filterStatus" @change="loadTaskHistory()"
+                    class="bg-hq-bg border border-hq-border rounded-lg px-3 py-2 text-sm text-hq-text focus:outline-none">
+              <option value="all">전체</option>
+              <option value="completed">완료</option>
+              <option value="failed">실패</option>
+              <option value="running">진행중</option>
+            </select>
+            <!-- Bookmark Filter -->
+            <button @click="taskHistory.bookmarkOnly = !taskHistory.bookmarkOnly; loadTaskHistory()"
+                    :class="taskHistory.bookmarkOnly ? 'text-hq-yellow border-hq-yellow/30' : 'text-hq-muted border-hq-border'"
+                    class="border rounded-lg px-3 py-2 text-sm transition hover:text-hq-yellow">
+              &#9733;
+            </button>
+            <!-- Compare Button -->
+            <button x-show="taskHistory.selectedIds.length === 2"
+                    @click="openComparison()"
+                    class="bg-hq-accent/20 text-hq-accent border border-hq-accent/30 rounded-lg px-3 py-2 text-xs font-semibold hover:bg-hq-accent/30 transition">
+              비교하기
+            </button>
           </div>
         </div>
-        <div x-show="!dashboard.loading" class="max-w-6xl mx-auto space-y-6 fade-in-up">
-          <!-- Summary Cards -->
-          <div class="grid grid-cols-4 gap-4">
-            <div class="glass border border-hq-border rounded-xl p-4 hover-glow">
-              <div class="text-[10px] text-hq-muted uppercase tracking-wider mb-1">총 작업</div>
-              <div class="text-2xl font-bold text-hq-accent" x-text="dashboard.tasks?.length || 0"></div>
-            </div>
-            <div class="glass border border-hq-border rounded-xl p-4 hover-glow">
-              <div class="text-[10px] text-hq-muted uppercase tracking-wider mb-1">총 비용</div>
-              <div class="text-2xl font-bold text-hq-green" x-text="'$' + (dashboard.cost?.total_cost || 0).toFixed(4)"></div>
-            </div>
-            <div class="glass border border-hq-border rounded-xl p-4 hover-glow">
-              <div class="text-[10px] text-hq-muted uppercase tracking-wider mb-1">LLM 호출</div>
-              <div class="text-2xl font-bold text-hq-purple" x-text="dashboard.performance?.total_llm_calls || 0"></div>
-            </div>
-            <div class="glass border border-hq-border rounded-xl p-4 hover-glow">
-              <div class="text-[10px] text-hq-muted uppercase tracking-wider mb-1">CEO 만족도</div>
-              <div class="text-2xl font-bold" :class="(dashboard.feedback?.satisfaction_rate||0) >= 80 ? 'text-hq-green' : (dashboard.feedback?.satisfaction_rate||0) >= 50 ? 'text-hq-yellow' : 'text-hq-red'"
-                   x-text="(dashboard.feedback?.satisfaction_rate || 0) + '%'"></div>
-            </div>
-          </div>
-          <!-- Budget Status (예산 현황) -->
-          <div class="grid grid-cols-2 gap-4">
-            <div class="glass border border-hq-border rounded-xl p-4">
-              <h3 class="text-xs font-bold text-hq-text uppercase tracking-wider mb-3">일일 예산</h3>
-              <div class="flex items-end justify-between mb-2">
-                <span class="text-lg font-bold text-hq-accent" x-text="'$' + (budget.daily_used || 0).toFixed(2)"></span>
-                <span class="text-xs text-hq-muted" x-text="'/ $' + (budget.daily_limit || 0).toFixed(2)"></span>
-              </div>
-              <div class="h-2 bg-hq-bg rounded-full overflow-hidden">
-                <div class="h-full rounded-full transition-all progress-bar"
-                     :class="(budget.daily_used||0)/(budget.daily_limit||1)*100 > 80 ? 'bg-hq-red' : (budget.daily_used||0)/(budget.daily_limit||1)*100 > 50 ? 'bg-hq-yellow' : 'bg-hq-green'"
-                     :style="'width:' + Math.min(100, (budget.daily_used||0)/(budget.daily_limit||1)*100) + '%'"></div>
-              </div>
-            </div>
-            <div class="glass border border-hq-border rounded-xl p-4">
-              <h3 class="text-xs font-bold text-hq-text uppercase tracking-wider mb-3">월간 예산</h3>
-              <div class="flex items-end justify-between mb-2">
-                <span class="text-lg font-bold text-hq-accent" x-text="'$' + (budget.monthly_used || 0).toFixed(2)"></span>
-                <span class="text-xs text-hq-muted" x-text="'/ $' + (budget.monthly_limit || 0).toFixed(2)"></span>
-              </div>
-              <div class="h-2 bg-hq-bg rounded-full overflow-hidden">
-                <div class="h-full rounded-full transition-all progress-bar"
-                     :class="(budget.monthly_used||0)/(budget.monthly_limit||1)*100 > 80 ? 'bg-hq-red' : (budget.monthly_used||0)/(budget.monthly_limit||1)*100 > 50 ? 'bg-hq-yellow' : 'bg-hq-green'"
-                     :style="'width:' + Math.min(100, (budget.monthly_used||0)/(budget.monthly_limit||1)*100) + '%'"></div>
-              </div>
-            </div>
-          </div>
 
-          <!-- Quality Gate Statistics (품질 검수 통계) -->
-          <div class="glass border border-hq-border rounded-xl p-5">
-            <h3 class="text-sm font-bold text-hq-text mb-4">품질 검수 통계</h3>
-            <div class="grid grid-cols-4 gap-3 mb-4">
-              <div class="bg-hq-bg rounded-lg p-3 text-center">
-                <div class="text-[10px] text-hq-muted uppercase mb-1">합격률</div>
-                <div class="text-xl font-bold" :class="(quality.pass_rate||0) >= 80 ? 'text-hq-green' : (quality.pass_rate||0) >= 50 ? 'text-hq-yellow' : 'text-hq-red'"
-                     x-text="(quality.pass_rate || 0).toFixed(1) + '%'"></div>
-              </div>
-              <div class="bg-hq-bg rounded-lg p-3 text-center">
-                <div class="text-[10px] text-hq-muted uppercase mb-1">총 검수</div>
-                <div class="text-xl font-bold text-hq-accent" x-text="quality.total_reviewed || 0"></div>
-              </div>
-              <div class="bg-hq-bg rounded-lg p-3 text-center">
-                <div class="text-[10px] text-hq-muted uppercase mb-1">합격</div>
-                <div class="text-xl font-bold text-hq-green" x-text="quality.total_passed || 0"></div>
-              </div>
-              <div class="bg-hq-bg rounded-lg p-3 text-center">
-                <div class="text-[10px] text-hq-muted uppercase mb-1">불합격</div>
-                <div class="text-xl font-bold text-hq-red" x-text="quality.total_failed || 0"></div>
-              </div>
-            </div>
-            <template x-if="quality.rejections_by_agent && Object.keys(quality.rejections_by_agent).length > 0">
-              <div>
-                <h4 class="text-xs text-hq-muted mb-2">에이전트별 불합격</h4>
-                <div class="space-y-1">
-                  <template x-for="(count, agent) in quality.rejections_by_agent" :key="agent">
-                    <div class="flex items-center justify-between bg-hq-bg rounded-lg px-3 py-1.5">
-                      <span class="text-xs text-hq-text/80" x-text="getAgentName(agent)"></span>
-                      <span class="text-xs font-mono text-hq-red" x-text="count + '건'"></span>
+        <div class="flex-1 overflow-y-auto scrollbar-thin p-6 bg-grid">
+          <div class="max-w-5xl mx-auto space-y-2">
+            <template x-for="task in taskHistory.items" :key="task.task_id">
+              <div class="glass border rounded-xl p-4 hover-glow transition"
+                   :class="taskHistory.selectedIds.includes(task.task_id) ? 'border-hq-accent/40' : 'border-hq-border'">
+                <div class="flex items-start gap-3">
+                  <!-- Checkbox -->
+                  <input type="checkbox" :value="task.task_id"
+                         @change="toggleTaskSelect(task.task_id)"
+                         :checked="taskHistory.selectedIds.includes(task.task_id)"
+                         class="mt-1 rounded border-hq-border bg-hq-bg text-hq-accent focus:ring-hq-accent/50">
+                  <!-- Bookmark -->
+                  <button @click="toggleBookmark(task.task_id)"
+                          class="mt-0.5 text-lg transition"
+                          :class="task.bookmarked ? 'text-hq-yellow' : 'text-hq-muted/30 hover:text-hq-yellow/50'">
+                    &#9733;
+                  </button>
+                  <!-- Content -->
+                  <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-2 mb-1">
+                      <span class="status-badge"
+                            :class="task.status === 'completed' ? 'bg-hq-green/15 text-hq-green border border-hq-green/20' :
+                                    task.status === 'failed' ? 'bg-hq-red/15 text-hq-red border border-hq-red/20' :
+                                    task.status === 'running' ? 'bg-hq-yellow/15 text-hq-yellow border border-hq-yellow/20' :
+                                    'bg-hq-muted/15 text-hq-muted border border-hq-border'"
+                            x-text="task.status === 'completed' ? '완료' : task.status === 'failed' ? '실패' : task.status === 'running' ? '진행중' : '대기'"></span>
+                      <span class="text-[11px] text-hq-muted" x-text="new Date(task.created_at).toLocaleString('ko-KR', {timeZone:'Asia/Seoul'})"></span>
                     </div>
-                  </template>
+                    <div class="text-sm text-hq-text mb-1" x-text="task.command"></div>
+                    <div x-show="task.summary" class="text-[12px] text-hq-muted truncate" x-text="task.summary"></div>
+                    <!-- Expandable Detail -->
+                    <div x-show="taskHistory.expandedId === task.task_id" class="mt-3 pt-3 border-t border-hq-border/50">
+                      <div class="text-sm markdown-body max-h-96 overflow-y-auto" x-html="renderMarkdown(task._fullResult || '')"></div>
+                      <!-- Replay Button -->
+                      <button x-show="task.correlation_id"
+                              @click="loadReplay(task.correlation_id, task.task_id)"
+                              class="mt-3 text-xs text-hq-accent hover:text-blue-400 flex items-center gap-1">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+                        내부 대화 보기
+                      </button>
+                      <!-- Replay Tree -->
+                      <div x-show="taskHistory.replayData[task.task_id]" class="mt-3 pl-4 border-l-2 border-hq-accent/20">
+                        <div class="text-xs text-hq-muted mb-2 font-semibold">에이전트 간 대화 흐름</div>
+                        <div x-html="renderReplayTree(taskHistory.replayData[task.task_id])"></div>
+                      </div>
+                    </div>
+                  </div>
+                  <!-- Meta -->
+                  <div class="flex items-center gap-3 shrink-0">
+                    <span class="text-[11px] font-mono text-hq-muted" x-text="task.time_seconds ? task.time_seconds + '초' : ''"></span>
+                    <span class="text-[11px] font-mono text-hq-green" x-text="task.cost ? '$' + task.cost.toFixed(4) : ''"></span>
+                    <button @click="taskHistory.expandedId = taskHistory.expandedId === task.task_id ? null : task.task_id; if(taskHistory.expandedId === task.task_id) loadTaskDetail(task.task_id)"
+                            class="text-hq-muted hover:text-white transition text-xs">
+                      <span x-text="taskHistory.expandedId === task.task_id ? '접기' : '펼치기'"></span>
+                    </button>
+                  </div>
                 </div>
               </div>
             </template>
+            <template x-if="!taskHistory.items || taskHistory.items.length === 0">
+              <div class="text-center py-16 text-hq-muted/50 text-sm">작업 내역이 없습니다</div>
+            </template>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══ Tab: 예약 (Schedule) ═══ -->
+      <div x-show="activeTab === 'schedule'" x-cloak class="flex-1 overflow-y-auto scrollbar-thin p-6 bg-grid">
+        <div class="max-w-4xl mx-auto fade-in-up">
+          <div class="flex items-center justify-between mb-6">
+            <div>
+              <h1 class="text-xl font-bold text-white mb-1">작업 예약</h1>
+              <p class="text-sm text-hq-muted">반복 작업을 자동으로 실행합니다</p>
+            </div>
+            <button @click="schedules.showModal = true"
+                    class="bg-hq-accent hover:bg-blue-600 text-white rounded-lg px-4 py-2 text-sm font-semibold transition">
+              + 새 예약
+            </button>
           </div>
 
-          <!-- Cost by Model -->
-          <div class="glass border border-hq-border rounded-xl p-5">
-            <h3 class="text-sm font-bold text-hq-text mb-4">모델별 비용</h3>
-            <div class="space-y-3">
-              <template x-for="(data, model) in (dashboard.cost?.by_model || {})" :key="model">
-                <div>
-                  <div class="flex justify-between text-xs mb-1">
-                    <span class="text-hq-text/80 font-mono" x-text="model"></span>
-                    <span class="text-hq-green font-mono" x-text="'$' + data.cost_usd.toFixed(4)"></span>
+          <div class="space-y-3">
+            <template x-for="s in schedules.items" :key="s.id">
+              <div class="glass border border-hq-border rounded-xl p-4 hover-glow">
+                <div class="flex items-center justify-between">
+                  <div class="flex-1">
+                    <div class="flex items-center gap-2 mb-1">
+                      <span class="text-sm font-semibold text-white" x-text="s.name"></span>
+                      <span class="status-badge" :class="s.enabled ? 'bg-hq-green/15 text-hq-green border border-hq-green/20' : 'bg-hq-muted/15 text-hq-muted border border-hq-border'"
+                            x-text="s.enabled ? '활성' : '비활성'"></span>
+                    </div>
+                    <div class="text-[12px] text-hq-muted mb-1" x-text="s.command"></div>
+                    <div class="flex items-center gap-3 text-[11px] text-hq-muted/70">
+                      <span x-text="'주기: ' + (s.cron_label || s.cron)"></span>
+                      <span x-show="s.last_run" x-text="'마지막: ' + s.last_run"></span>
+                    </div>
                   </div>
-                  <div class="h-2 bg-hq-bg rounded-full overflow-hidden">
-                    <div class="h-full rounded-full bg-gradient-to-r from-hq-accent to-hq-purple progress-bar"
-                         :style="'width:' + Math.min(100, (data.cost_usd / Math.max(0.001, dashboard.cost?.total_cost || 0.001)) * 100) + '%'"></div>
+                  <div class="flex items-center gap-2">
+                    <button @click="toggleSchedule(s.id)"
+                            class="text-xs px-3 py-1.5 rounded-lg border transition"
+                            :class="s.enabled ? 'border-hq-yellow/30 text-hq-yellow hover:bg-hq-yellow/10' : 'border-hq-green/30 text-hq-green hover:bg-hq-green/10'"
+                            x-text="s.enabled ? '중지' : '시작'"></button>
+                    <button @click="deleteSchedule(s.id)"
+                            class="text-xs px-3 py-1.5 rounded-lg border border-hq-red/30 text-hq-red hover:bg-hq-red/10 transition">삭제</button>
                   </div>
                 </div>
-              </template>
-              <template x-if="!dashboard.cost?.by_model || Object.keys(dashboard.cost?.by_model || {}).length === 0">
-                <div class="text-sm text-hq-muted/50 text-center py-2">아직 비용 데이터가 없습니다</div>
-              </template>
-            </div>
+              </div>
+            </template>
+            <template x-if="!schedules.items || schedules.items.length === 0">
+              <div class="text-center py-16 text-hq-muted/50 text-sm">예약된 작업이 없습니다. 새 예약을 추가해보세요.</div>
+            </template>
           </div>
-          <!-- Agent Activity -->
-          <div class="glass border border-hq-border rounded-xl p-5">
-            <h3 class="text-sm font-bold text-hq-text mb-4">에이전트 활동</h3>
-            <div class="grid grid-cols-5 gap-2">
-              <template x-for="agent in (dashboard.performance?.agents || []).filter(a => a.tasks_received > 0)" :key="agent.agent_id">
-                <div class="rounded-lg p-3 text-center transition-all hover-lift"
-                     :class="agent.tasks_completed > 2 ? 'bg-hq-green/15 border border-hq-green/20' : agent.tasks_completed > 0 ? 'bg-hq-accent/10 border border-hq-accent/15' : 'bg-hq-surface border border-hq-border'">
-                  <div class="text-[10px] font-bold text-hq-text/80 truncate" x-text="agent.name_ko"></div>
-                  <div class="text-lg font-bold mt-1" :class="(agent.success_rate||0) >= 80 ? 'text-hq-green' : (agent.success_rate||0) >= 50 ? 'text-hq-yellow' : 'text-hq-red'"
-                       x-text="agent.tasks_completed"></div>
-                  <div class="text-[9px] text-hq-muted" x-text="(agent.success_rate||0) + '% 성공'"></div>
-                </div>
-              </template>
-              <template x-if="!dashboard.performance?.agents || dashboard.performance.agents.filter(a => a.tasks_received > 0).length === 0">
-                <div class="col-span-5 text-sm text-hq-muted/50 text-center py-4">아직 에이전트 활동 데이터가 없습니다</div>
-              </template>
+        </div>
+      </div>
+
+      <!-- ═══ Tab: 워크플로우 (Workflow) ═══ -->
+      <div x-show="activeTab === 'workflow'" x-cloak class="flex-1 overflow-y-auto scrollbar-thin p-6 bg-grid">
+        <div class="max-w-4xl mx-auto fade-in-up">
+          <div class="flex items-center justify-between mb-6">
+            <div>
+              <h1 class="text-xl font-bold text-white mb-1">워크플로우</h1>
+              <p class="text-sm text-hq-muted">여러 단계를 연결해서 자동화 흐름을 만드세요</p>
             </div>
+            <button @click="workflows.showEditor = true; workflows.editing = null; workflows.editSteps = [{name:'', command:''}]"
+                    class="bg-hq-accent hover:bg-blue-600 text-white rounded-lg px-4 py-2 text-sm font-semibold transition">
+              + 새 워크플로우
+            </button>
           </div>
-          <!-- Recent Tasks -->
-          <div class="glass border border-hq-border rounded-xl p-5">
-            <h3 class="text-sm font-bold text-hq-text mb-4">최근 작업</h3>
-            <div class="space-y-2">
-              <template x-for="task in (dashboard.tasks || []).slice(0, 10)" :key="task.task_id">
-                <div @click="openTaskDetail(task.task_id)" class="flex items-center gap-3 p-3 bg-hq-bg rounded-lg cursor-pointer hover:bg-hq-surface transition">
-                  <span class="w-2 h-2 rounded-full shrink-0"
-                    :class="task.success === true ? 'bg-hq-green' : task.success === false ? 'bg-hq-red' : 'bg-hq-yellow'"></span>
-                  <span class="text-sm text-hq-text/80 flex-1 truncate" x-text="task.command"></span>
-                  <span class="text-[10px] font-mono text-hq-muted" x-text="task.time_seconds ? task.time_seconds + 's' : '-'"></span>
-                  <span class="text-[10px] font-mono text-hq-green" x-text="'$' + (task.cost || task.cost_usd || 0).toFixed(4)"></span>
-                  <span class="status-badge text-[9px]"
-                    :class="task.status === 'completed' ? 'bg-hq-green/10 text-hq-green' : task.status === 'running' ? 'bg-hq-yellow/10 text-hq-yellow' : task.status === 'failed' ? 'bg-hq-red/10 text-hq-red' : 'bg-hq-muted/10 text-hq-muted'"
-                    x-text="task.status === 'completed' ? '완료' : task.status === 'running' ? '진행중' : task.status === 'failed' ? '실패' : '대기'"></span>
+
+          <div class="space-y-3">
+            <template x-for="wf in workflows.items" :key="wf.id">
+              <div class="glass border border-hq-border rounded-xl p-4 hover-glow">
+                <div class="flex items-center justify-between">
+                  <div class="flex-1">
+                    <div class="text-sm font-semibold text-white mb-1" x-text="wf.name"></div>
+                    <div class="text-[12px] text-hq-muted" x-text="wf.description || wf.steps.length + '단계'"></div>
+                    <div class="flex items-center gap-2 mt-2">
+                      <template x-for="(step, i) in wf.steps" :key="i">
+                        <div class="flex items-center gap-1">
+                          <span class="text-[10px] bg-hq-accent/10 text-hq-accent rounded px-1.5 py-0.5" x-text="step.name || ('단계 ' + (i+1))"></span>
+                          <span x-show="i < wf.steps.length - 1" class="text-hq-muted/30 text-[10px]">→</span>
+                        </div>
+                      </template>
+                    </div>
+                  </div>
+                  <div class="flex items-center gap-2">
+                    <button @click="runWorkflow(wf.id)"
+                            :disabled="workflows.runningId === wf.id"
+                            class="bg-hq-green/20 text-hq-green border border-hq-green/30 rounded-lg px-3 py-1.5 text-xs font-semibold hover:bg-hq-green/30 transition disabled:opacity-50">
+                      <span x-show="workflows.runningId !== wf.id">실행</span>
+                      <span x-show="workflows.runningId === wf.id">진행중...</span>
+                    </button>
+                    <button @click="editWorkflow(wf)"
+                            class="text-xs px-3 py-1.5 rounded-lg border border-hq-border text-hq-muted hover:text-white transition">수정</button>
+                    <button @click="deleteWorkflow(wf.id)"
+                            class="text-xs px-3 py-1.5 rounded-lg border border-hq-red/30 text-hq-red hover:bg-hq-red/10 transition">삭제</button>
+                  </div>
                 </div>
-              </template>
-              <template x-if="!dashboard.tasks?.length">
-                <div class="text-sm text-hq-muted/50 text-center py-4">아직 작업 기록이 없습니다</div>
-              </template>
-            </div>
+              </div>
+            </template>
+            <template x-if="!workflows.items || workflows.items.length === 0">
+              <div class="text-center py-16 text-hq-muted/50 text-sm">워크플로우가 없습니다. 새 워크플로우를 만들어보세요.</div>
+            </template>
           </div>
         </div>
       </div>
 
       <!-- ═══ Activity Log View (활동 로그) ═══ -->
-      <div x-show="viewMode === 'activityLog'" class="flex-1 overflow-y-auto scrollbar-thin p-6 bg-grid">
+      <div x-show="activeTab === 'activityLog'" class="flex-1 overflow-y-auto scrollbar-thin p-6 bg-grid">
         <div class="max-w-4xl mx-auto fade-in-up">
           <div class="flex items-center justify-between mb-4">
             <h2 class="text-lg font-bold text-hq-text">활동 로그</h2>
@@ -1402,7 +1675,7 @@
       </div>
 
       <!-- ═══ Knowledge View (지식 관리) ═══ -->
-      <div x-show="viewMode === 'knowledge'" class="flex-1 overflow-hidden flex bg-grid">
+      <div x-show="activeTab === 'knowledge'" class="flex-1 overflow-hidden flex bg-grid">
         <!-- Left: File Tree -->
         <div class="w-64 border-r border-hq-border overflow-y-auto scrollbar-thin p-4 bg-hq-surface/30 shrink-0">
           <div class="flex items-center justify-between mb-3">
@@ -1461,7 +1734,7 @@
       </div>
 
       <!-- ═══ Archive View (아카이브) ═══ -->
-      <div x-show="viewMode === 'archive'" class="flex-1 overflow-y-auto scrollbar-thin p-6 bg-grid">
+      <div x-show="activeTab === 'archive'" class="flex-1 overflow-y-auto scrollbar-thin p-6 bg-grid">
         <div class="max-w-5xl mx-auto fade-in-up">
           <div class="flex items-center justify-between mb-4">
             <h2 class="text-lg font-bold text-hq-text">아카이브 (보고서 저장소)</h2>
@@ -1519,7 +1792,7 @@
       </div>
 
       <!-- ═══ SNS Management View (SNS 관리) ═══ -->
-      <div x-show="viewMode === 'sns'" class="flex-1 overflow-y-auto scrollbar-thin p-6 bg-grid">
+      <div x-show="activeTab === 'sns'" class="flex-1 overflow-y-auto scrollbar-thin p-6 bg-grid">
         <div class="max-w-5xl mx-auto fade-in-up">
           <h2 class="text-lg font-bold text-hq-text mb-4">SNS 관리</h2>
           <!-- Sub Tabs -->
@@ -1653,6 +1926,199 @@
       </div>
 
     </main>
+  </div>
+
+  <!-- ═══ Schedule Add Modal (예약 추가) ═══ -->
+  <div x-show="schedules.showModal" x-transition.opacity
+       class="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
+       @click.self="schedules.showModal = false" style="display: none;">
+    <div class="bg-hq-panel border border-hq-border rounded-2xl w-[500px] p-6" @click.stop>
+      <div class="flex items-center justify-between mb-5">
+        <h2 class="text-lg font-bold text-white">새 예약 추가</h2>
+        <button @click="schedules.showModal = false" class="text-gray-400 hover:text-white text-xl">&times;</button>
+      </div>
+
+      <div class="space-y-4">
+        <div>
+          <label class="text-xs text-hq-muted font-semibold mb-1 block">예약 이름</label>
+          <input x-model="schedules.editName" placeholder="예: 일일 보고서"
+                 class="w-full bg-hq-bg border border-hq-border rounded-lg px-3 py-2 text-sm text-white focus:border-hq-accent outline-none">
+        </div>
+        <div>
+          <label class="text-xs text-hq-muted font-semibold mb-1 block">실행할 명령</label>
+          <textarea x-model="schedules.editCommand" placeholder="예: 오늘 회사 현황을 보고서로 작성해줘" rows="2"
+                    class="w-full bg-hq-bg border border-hq-border rounded-lg px-3 py-2 text-sm text-white focus:border-hq-accent outline-none resize-none"></textarea>
+        </div>
+        <div>
+          <label class="text-xs text-hq-muted font-semibold mb-1 block">실행 주기</label>
+          <div class="grid grid-cols-2 gap-2">
+            <template x-for="preset in schedules.cronPresets" :key="preset">
+              <button @click="schedules.editCronPreset = preset"
+                      class="text-xs px-3 py-2 rounded-lg border transition text-left"
+                      :class="schedules.editCronPreset === preset
+                        ? 'border-hq-accent bg-hq-accent/15 text-hq-accent'
+                        : 'border-hq-border text-hq-muted hover:border-hq-border-light'"
+                      x-text="preset"></button>
+            </template>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex justify-end gap-3 mt-6">
+        <button @click="schedules.showModal = false"
+                class="px-4 py-2 text-sm text-hq-muted hover:text-white transition">취소</button>
+        <button @click="addSchedule()"
+                class="bg-hq-accent hover:bg-blue-600 text-white rounded-lg px-5 py-2 text-sm font-semibold transition">추가</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ Agent Memory Modal (에이전트 기억) ═══ -->
+  <div x-show="memoryModal.visible" x-transition.opacity
+       class="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
+       @click.self="memoryModal.visible = false" style="display: none;">
+    <div class="bg-hq-panel border border-hq-border rounded-2xl w-[600px] max-h-[80vh] overflow-y-auto p-6" @click.stop>
+      <div class="flex items-center justify-between mb-5">
+        <h2 class="text-lg font-bold text-white">
+          <span x-text="memoryModal.agentName"></span> 기억 관리
+        </h2>
+        <button @click="memoryModal.visible = false" class="text-gray-400 hover:text-white text-xl">&times;</button>
+      </div>
+
+      <!-- 기억 추가 -->
+      <div class="bg-hq-bg rounded-xl p-4 mb-4">
+        <div class="text-xs text-hq-muted font-semibold mb-2">새 기억 추가</div>
+        <div class="flex gap-2 mb-2">
+          <input x-model="memoryModal.newKey" placeholder="제목 (예: 선호하는 보고서 형식)"
+                 class="flex-1 bg-hq-panel border border-hq-border rounded-lg px-3 py-1.5 text-sm text-white focus:border-hq-accent outline-none">
+        </div>
+        <div class="flex gap-2">
+          <input x-model="memoryModal.newValue" placeholder="내용 (예: 표와 그래프를 포함한 형식 선호)"
+                 class="flex-1 bg-hq-panel border border-hq-border rounded-lg px-3 py-1.5 text-sm text-white focus:border-hq-accent outline-none"
+                 @keydown.enter="addMemory()">
+          <button @click="addMemory()"
+                  class="bg-hq-accent hover:bg-blue-600 text-white rounded-lg px-4 py-1.5 text-xs font-semibold transition">추가</button>
+        </div>
+      </div>
+
+      <!-- 기억 목록 -->
+      <div class="space-y-2">
+        <template x-for="mem in memoryModal.items" :key="mem.memory_id">
+          <div class="flex items-start gap-3 bg-hq-bg rounded-lg p-3 group">
+            <div class="flex-1">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="text-xs font-semibold text-hq-accent" x-text="mem.key"></span>
+                <span class="text-[10px] px-1.5 py-0.5 rounded"
+                      :class="mem.source === 'auto' ? 'bg-hq-purple/15 text-hq-purple' : 'bg-hq-green/15 text-hq-green'"
+                      x-text="mem.source === 'auto' ? '자동' : '수동'"></span>
+              </div>
+              <div class="text-xs text-hq-muted" x-text="mem.value"></div>
+            </div>
+            <button @click="deleteMemory(mem.memory_id)"
+                    class="text-hq-red/50 hover:text-hq-red text-sm opacity-0 group-hover:opacity-100 transition">&times;</button>
+          </div>
+        </template>
+        <template x-if="!memoryModal.items || memoryModal.items.length === 0">
+          <div class="text-center py-8 text-hq-muted/50 text-sm">아직 저장된 기억이 없습니다.</div>
+        </template>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ Workflow Editor Modal (워크플로우 편집기) ═══ -->
+  <div x-show="workflows.showEditor" x-transition.opacity
+       class="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
+       @click.self="workflows.showEditor = false" style="display: none;">
+    <div class="bg-hq-panel border border-hq-border rounded-2xl w-[600px] max-h-[80vh] overflow-y-auto p-6" @click.stop>
+      <div class="flex items-center justify-between mb-5">
+        <h2 class="text-lg font-bold text-white" x-text="workflows.editing ? '워크플로우 수정' : '새 워크플로우'"></h2>
+        <button @click="workflows.showEditor = false" class="text-gray-400 hover:text-white text-xl">&times;</button>
+      </div>
+
+      <div class="space-y-4">
+        <div>
+          <label class="text-xs text-hq-muted font-semibold mb-1 block">이름</label>
+          <input x-model="workflows.editName" placeholder="워크플로우 이름"
+                 class="w-full bg-hq-bg border border-hq-border rounded-lg px-3 py-2 text-sm text-white focus:border-hq-accent outline-none">
+        </div>
+        <div>
+          <label class="text-xs text-hq-muted font-semibold mb-1 block">설명</label>
+          <input x-model="workflows.editDesc" placeholder="워크플로우 설명 (선택)"
+                 class="w-full bg-hq-bg border border-hq-border rounded-lg px-3 py-2 text-sm text-white focus:border-hq-accent outline-none">
+        </div>
+
+        <!-- Steps -->
+        <div>
+          <div class="flex items-center justify-between mb-2">
+            <label class="text-xs text-hq-muted font-semibold">단계 목록</label>
+            <button @click="workflows.editSteps.push({name:'', command:''})"
+                    class="text-[10px] px-2 py-1 rounded border border-hq-accent/30 text-hq-accent hover:bg-hq-accent/10 transition">+ 단계 추가</button>
+          </div>
+          <div class="space-y-2">
+            <template x-for="(step, idx) in workflows.editSteps" :key="idx">
+              <div class="flex items-start gap-2 bg-hq-bg rounded-lg p-3">
+                <div class="text-xs text-hq-muted mt-1.5 font-mono w-6 shrink-0" x-text="(idx+1) + '.'"></div>
+                <div class="flex-1 space-y-1.5">
+                  <input x-model="step.name" :placeholder="'단계 ' + (idx+1) + ' 이름'"
+                         class="w-full bg-hq-panel border border-hq-border rounded px-2 py-1 text-xs text-white focus:border-hq-accent outline-none">
+                  <textarea x-model="step.command" placeholder="실행할 명령 ({prev_result}로 이전 결과 참조)" rows="2"
+                            class="w-full bg-hq-panel border border-hq-border rounded px-2 py-1 text-xs text-white focus:border-hq-accent outline-none resize-none"></textarea>
+                </div>
+                <button @click="workflows.editSteps.splice(idx, 1)"
+                        class="text-hq-red/50 hover:text-hq-red text-sm mt-1"
+                        x-show="workflows.editSteps.length > 1">&times;</button>
+              </div>
+            </template>
+          </div>
+          <div class="text-[10px] text-hq-muted/50 mt-2">
+            TIP: 명령에 <code class="text-hq-accent">{prev_result}</code>를 넣으면 이전 단계 결과가 자동으로 들어갑니다.
+          </div>
+        </div>
+      </div>
+
+      <div class="flex justify-end gap-3 mt-6">
+        <button @click="workflows.showEditor = false"
+                class="px-4 py-2 text-sm text-hq-muted hover:text-white transition">취소</button>
+        <button @click="saveWorkflow()"
+                class="bg-hq-accent hover:bg-blue-600 text-white rounded-lg px-5 py-2 text-sm font-semibold transition">저장</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ Login Overlay (로그인 오버레이) ═══ -->
+  <div x-show="auth.showLogin" x-transition.opacity
+       class="fixed inset-0 z-[60] flex items-center justify-center bg-hq-bg/95"
+       style="display: none;">
+    <div class="bg-hq-panel border border-hq-border rounded-2xl w-[400px] p-8">
+      <div class="text-center mb-6">
+        <div class="text-2xl font-bold gradient-text mb-2">CORTHEX HQ</div>
+        <p class="text-sm text-hq-muted">CEO 관제실에 로그인하세요</p>
+      </div>
+
+      <div class="space-y-4">
+        <div>
+          <label class="text-xs text-hq-muted font-semibold mb-1 block">사용자명</label>
+          <input x-model="auth.loginUser" placeholder="사용자명"
+                 class="w-full bg-hq-bg border border-hq-border rounded-lg px-3 py-2.5 text-sm text-white focus:border-hq-accent outline-none"
+                 @keydown.enter="$refs.loginPass.focus()">
+        </div>
+        <div>
+          <label class="text-xs text-hq-muted font-semibold mb-1 block">비밀번호</label>
+          <input x-ref="loginPass" x-model="auth.loginPass" type="password" placeholder="비밀번호"
+                 class="w-full bg-hq-bg border border-hq-border rounded-lg px-3 py-2.5 text-sm text-white focus:border-hq-accent outline-none"
+                 @keydown.enter="doLogin()">
+        </div>
+      </div>
+
+      <div x-show="auth.loginError" class="mt-3 text-xs text-hq-red" x-text="auth.loginError"></div>
+
+      <div class="flex flex-col gap-2 mt-6">
+        <button @click="doLogin()"
+                class="bg-hq-accent hover:bg-blue-600 text-white rounded-lg px-5 py-2.5 text-sm font-semibold transition w-full">로그인</button>
+        <button @click="doRegister()"
+                class="border border-hq-border text-hq-muted hover:text-white rounded-lg px-5 py-2.5 text-sm transition w-full">회원가입</button>
+      </div>
+    </div>
   </div>
 
   <!-- ═══ Quality Gate Settings Modal ═══ -->
@@ -1962,7 +2428,7 @@
           <!-- Replay Tab -->
           <div x-show="taskDetailTab === 'replay'" class="bg-hq-bg rounded-xl p-4">
             <template x-if="taskReplay && taskReplay.root">
-              <div class="space-y-2" x-html="renderReplayTree(taskReplay.root, 0)"></div>
+              <div class="space-y-2" x-html="renderTaskDetailReplay(taskReplay.root, 0)"></div>
             </template>
             <template x-if="!taskReplay">
               <div class="text-sm text-hq-muted text-center py-4">리플레이 데이터를 불러오는 중...</div>
@@ -1994,6 +2460,52 @@
         ws: null,
         logExpanded: true,
 
+        // ── Tab System ──
+        activeTab: 'home',
+        tabs: [
+          { id: 'home', label: '홈', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0a1 1 0 01-1-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 01-1 1"/></svg>' },
+          { id: 'command', label: '명령', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>' },
+          { id: 'performance', label: '성능', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>' },
+          { id: 'history', label: '작업내역', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>' },
+          { id: 'schedule', label: '예약', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>' },
+          { id: 'workflow', label: '워크플로우', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z"/></svg>' },
+          { id: 'activityLog', label: '로그', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>' },
+          { id: 'knowledge', label: '지식', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>' },
+          { id: 'archive', label: '아카이브', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8"/></svg>' },
+          { id: 'sns', label: 'SNS', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z"/></svg>' },
+        ],
+
+        // ── Dashboard (홈) ──
+        dashboard: { todayTasks: 0, todayCompleted: 0, todayFailed: 0, runningCount: 0, totalCost: 0, totalTokens: 0, agentCount: 0, recentCompleted: [], systemHealth: 'ok', loaded: false },
+
+        // ── Presets (명령 템플릿) ──
+        presets: { items: [], showModal: false, editName: '', editCommand: '' },
+
+        // ── Task History (작업내역) ──
+        taskHistory: { items: [], search: '', filterStatus: 'all', filterDateFrom: '', filterDateTo: '', bookmarkOnly: false, selectedIds: [], expandedId: null, replayData: {}, compareMode: false, compareA: null, compareB: null, loaded: false },
+
+        // ── Performance (성능) ──
+        performance: { agents: [], totalCalls: 0, totalCost: 0, totalTasks: 0, avgSuccessRate: 0, maxCost: 0, loaded: false },
+
+        // ── Error Alert ──
+        errorAlert: { visible: false, message: '', severity: 'error' },
+
+        // ── Schedules (예약) ──
+        schedules: {
+          items: [], showModal: false, editName: '', editCommand: '',
+          editCronPreset: '매일 오전 9시',
+          cronPresets: ['매일 오전 9시', '매일 오후 6시', '매주 월요일 오전 10시', '매주 금요일 오후 5시', '매시간', '30분마다'],
+        },
+
+        // ── Workflows (워크플로우) ──
+        workflows: { items: [], showEditor: false, editing: null, editName: '', editDesc: '', editSteps: [{ name: '', command: '' }], runningId: null },
+
+        // ── Auth (인증) ──
+        auth: { user: null, token: null, showLogin: false, loginUser: '', loginPass: '', loginError: '', role: 'ceo', bootstrapMode: true },
+
+        // ── Memory Modal (에이전트 기억) ──
+        memoryModal: { visible: false, agentId: '', agentName: '', items: [], newKey: '', newValue: '' },
+
         // Dark/Light mode
         darkMode: true,
 
@@ -2017,11 +2529,10 @@
         presetTab: '전체',
         presetTabs: ['전체', '전략', '분석', '법무', '마케팅'],
         backendPresets: [],
-        presetsLoaded: false,
+        // presetsLoaded 제거됨 (loadPresets에 통합)
 
-        // Dashboard
+        // View mode (chat panel)
         viewMode: 'chat',
-        dashboard: { loading: false, tasks: [], cost: {}, performance: {}, feedback: {} },
 
         // Quality gate settings
         showQualitySettings: false,
@@ -2062,7 +2573,7 @@
         newPresetCommand: '',
 
         // More menu + new views
-        showMoreMenu: false,
+        // showMoreMenu 제거됨 (탭 바로 대체)
         activityLogFilter: 'all',
 
         // Knowledge management
@@ -2185,16 +2696,17 @@
           }
           // Greeting
           this.greeting = this.getGreeting();
-          // Presets
-          this.loadPresets();
+          // Notification permission
+          this.requestNotificationPermission();
+          // Auth
+          this.checkAuth();
           // Dynamic agent/tool loading
           this.loadAgentsAndTools();
           // Restore conversation
           this.loadConversation();
-          // Notification permission
-          this.requestNotificationPermission();
-          // WebSocket
           this.connectWebSocket();
+          this.loadDashboard();
+          this.loadPresets();
         },
 
         // ── Theme ──
@@ -2328,6 +2840,9 @@
               this.showToast('작업이 완료되었습니다.', 'success');
               this.sendDesktopNotification('CORTHEX HQ', '작업이 완료되었습니다.');
               this.$nextTick(() => this.scrollToBottom());
+              // Refresh dashboard/history if currently viewing
+              if (this.activeTab === 'home') this.loadDashboard();
+              if (this.activeTab === 'history') this.loadTaskHistory();
               break;
 
             case 'error':
@@ -2335,8 +2850,17 @@
               this.messages.push({ type: 'error', text: msg.data.message });
               this.systemStatus = 'error';
               this.currentTaskId = null;
+              this.errorAlert = { visible: true, message: msg.data.message || '오류가 발생했습니다', severity: 'error' };
               this.showToast(msg.data.message || '오류가 발생했습니다.', 'error');
               setTimeout(() => { this.systemStatus = 'idle'; }, 3000);
+              setTimeout(() => { this.errorAlert.visible = false; }, 10000);
+              break;
+
+            case 'error_alert':
+              this.errorAlert = { visible: true, message: msg.data.message, severity: msg.data.severity || 'error' };
+              if (msg.data.severity !== 'critical') {
+                setTimeout(() => { this.errorAlert.visible = false; }, 10000);
+              }
               break;
           }
         },
@@ -2457,14 +2981,7 @@
           return '좋은 저녁입니다, CEO님';
         },
 
-        async loadPresets() {
-          if (this.presetsLoaded) return;
-          try {
-            const res = await fetch('/api/presets');
-            if (res.ok) this.backendPresets = await res.json();
-            this.presetsLoaded = true;
-          } catch (e) { /* 프리셋 로드 실패 무시 */ }
-        },
+        // loadBackendPresets는 loadPresets()에 통합됨
 
         getFilteredPresets() {
           const defaults = [
@@ -2519,31 +3036,7 @@
           });
         },
 
-        // ── Dashboard ──
-        async loadDashboard() {
-          this.dashboard.loading = true;
-          try {
-            const [tasks, cost, perf, feedback, budgetRes, qualityRes] = await Promise.all([
-              fetch('/api/tasks').then(r => r.ok ? r.json() : []),
-              fetch('/api/cost').then(r => r.ok ? r.json() : {}),
-              fetch('/api/performance').then(r => r.ok ? r.json() : {}),
-              fetch('/api/feedback').then(r => r.ok ? r.json() : {}),
-              fetch('/api/budget').then(r => r.ok ? r.json() : {}),
-              fetch('/api/quality').then(r => r.ok ? r.json() : {}),
-            ]);
-            this.dashboard.tasks = Array.isArray(tasks) ? tasks : [];
-            this.dashboard.cost = cost;
-            this.dashboard.performance = perf;
-            this.dashboard.feedback = feedback;
-            this.budget = budgetRes;
-            this.quality = qualityRes;
-          } catch (e) {
-            this.showToast('대시보드 데이터를 불러올 수 없습니다.', 'error');
-          } finally {
-            this.dashboard.loading = false;
-          }
-        },
-
+        // ── Task Detail Modal ──
         async openTaskDetail(taskId) {
           this.taskDetailData = null;
           this.taskReplay = null;
@@ -2573,7 +3066,7 @@
           }
         },
 
-        renderReplayTree(node, depth) {
+        renderTaskDetailReplay(node, depth) {
           if (!node) return '';
           const indent = depth * 20;
           const color = depth === 0 ? 'hq-accent' : depth === 1 ? 'hq-cyan' : 'hq-purple';
@@ -2586,7 +3079,7 @@
             </div>
           </div>`;
           if (node.children && Array.isArray(node.children)) {
-            node.children.forEach(child => { html += this.renderReplayTree(child, depth + 1); });
+            node.children.forEach(child => { html += this.renderTaskDetailReplay(child, depth + 1); });
           }
           return html;
         },
@@ -2850,6 +3343,404 @@
           setTimeout(() => { this.agentConfigSaveStatus = ''; }, 2500);
         },
 
+        // ── Tab Switching ──
+
+        switchTab(tabId) {
+          this.activeTab = tabId;
+          if (tabId === 'home' && !this.dashboard.loaded) this.loadDashboard();
+          if (tabId === 'performance' && !this.performance.loaded) this.loadPerformance();
+          if (tabId === 'history' && !this.taskHistory.loaded) this.loadTaskHistory();
+          if (tabId === 'schedule') this.loadSchedules();
+          if (tabId === 'workflow') this.loadWorkflows();
+          if (tabId === 'knowledge') this.loadKnowledge();
+          if (tabId === 'archive') this.loadArchive();
+          if (tabId === 'sns') this.loadSNS();
+        },
+
+        // ── Dashboard ──
+
+        async loadDashboard() {
+          try {
+            const [data, budgetRes, qualityRes] = await Promise.all([
+              fetch('/api/dashboard').then(r => r.ok ? r.json() : {}),
+              fetch('/api/budget').then(r => r.ok ? r.json() : {}),
+              fetch('/api/quality').then(r => r.ok ? r.json() : {}),
+            ]);
+            this.dashboard = {
+              todayTasks: data.today_task_count || 0,
+              todayCompleted: data.today_completed || 0,
+              todayFailed: data.today_failed || 0,
+              runningCount: data.running_count || 0,
+              totalCost: data.total_cost || 0,
+              totalTokens: data.total_tokens || 0,
+              agentCount: data.agent_count || 0,
+              recentCompleted: data.recent_completed || [],
+              systemHealth: data.system_health || 'ok',
+              loaded: true,
+            };
+            this.budget = budgetRes;
+            this.quality = qualityRes;
+          } catch (e) { console.error('Dashboard load failed:', e); }
+        },
+
+        // ── Presets ──
+
+        async loadPresets() {
+          try {
+            const data = await fetch('/api/presets').then(r => r.json());
+            this.presets.items = data || [];
+            this.backendPresets = data || [];
+          } catch (e) { console.error('Presets load failed:', e); }
+        },
+
+        // ── Performance ──
+
+        async loadPerformance() {
+          try {
+            const data = await fetch('/api/performance').then(r => r.json());
+            const agents = data.agents || [];
+            const maxCost = Math.max(...agents.map(a => a.cost_usd || 0), 0.0001);
+            const totalTasks = agents.reduce((s, a) => s + (a.tasks_completed || 0), 0);
+            const rates = agents.filter(a => a.tasks_completed > 0).map(a => a.success_rate || 0);
+            const avgRate = rates.length > 0 ? rates.reduce((s, r) => s + r, 0) / rates.length : 0;
+            this.performance = {
+              agents,
+              totalCalls: data.total_llm_calls || 0,
+              totalCost: data.total_cost_usd || 0,
+              totalTasks,
+              avgSuccessRate: avgRate,
+              maxCost,
+              loaded: true,
+            };
+          } catch (e) { console.error('Performance load failed:', e); }
+        },
+
+        // ── Task History ──
+
+        async loadTaskHistory() {
+          try {
+            const params = new URLSearchParams();
+            if (this.taskHistory.search) params.set('keyword', this.taskHistory.search);
+            if (this.taskHistory.filterStatus !== 'all') params.set('status', this.taskHistory.filterStatus);
+            if (this.taskHistory.bookmarkOnly) params.set('bookmarked', 'true');
+            const data = await fetch('/api/tasks?' + params.toString()).then(r => r.json());
+            this.taskHistory.items = data || [];
+            this.taskHistory.loaded = true;
+          } catch (e) { console.error('Task history load failed:', e); }
+        },
+
+        async loadTaskDetail(taskId) {
+          try {
+            const data = await fetch(`/api/tasks/${taskId}`).then(r => r.json());
+            const task = this.taskHistory.items.find(t => t.task_id === taskId);
+            if (task) {
+              task._fullResult = data.result_data || '';
+              task.correlation_id = data.correlation_id || '';
+            }
+          } catch (e) { console.error('Task detail load failed:', e); }
+        },
+
+        async toggleBookmark(taskId) {
+          try {
+            const res = await fetch(`/api/tasks/${taskId}/bookmark`, { method: 'POST' }).then(r => r.json());
+            const task = this.taskHistory.items.find(t => t.task_id === taskId);
+            if (task) task.bookmarked = res.bookmarked;
+          } catch (e) { console.error('Bookmark toggle failed:', e); }
+        },
+
+        toggleTaskSelect(taskId) {
+          const idx = this.taskHistory.selectedIds.indexOf(taskId);
+          if (idx >= 0) {
+            this.taskHistory.selectedIds.splice(idx, 1);
+          } else {
+            if (this.taskHistory.selectedIds.length >= 2) this.taskHistory.selectedIds.shift();
+            this.taskHistory.selectedIds.push(taskId);
+          }
+        },
+
+        async openComparison() {
+          if (this.taskHistory.selectedIds.length !== 2) return;
+          try {
+            const [a, b] = await Promise.all(
+              this.taskHistory.selectedIds.map(id => fetch(`/api/tasks/${id}`).then(r => r.json()))
+            );
+            this.taskHistory.compareA = a;
+            this.taskHistory.compareB = b;
+            this.taskHistory.compareMode = true;
+          } catch (e) { console.error('Comparison load failed:', e); }
+        },
+
+        async loadReplay(correlationId, taskId) {
+          if (this.taskHistory.replayData[taskId]) {
+            this.taskHistory.replayData[taskId] = null;
+            return;
+          }
+          try {
+            const data = await fetch(`/api/replay/${correlationId}`).then(r => r.json());
+            this.taskHistory.replayData[taskId] = data;
+          } catch (e) { console.error('Replay load failed:', e); }
+        },
+
+        renderReplayTree(data) {
+          if (!data || !data.root) return '<div class="text-xs text-hq-muted">데이터 없음</div>';
+          const renderNode = (node, depth = 0) => {
+            const indent = depth * 16;
+            const icon = node.type === 'task_request' ? '→' : '←';
+            const color = node.success === false ? 'text-hq-red' : node.type === 'task_result' ? 'text-hq-green' : 'text-hq-cyan';
+            let html = `<div style="margin-left:${indent}px" class="py-1 text-[11px]">`;
+            html += `<span class="${color} font-semibold">${icon} ${node.sender_id || ''}</span>`;
+            html += `<span class="text-hq-muted ml-1">${(node.detail || node.summary || '').substring(0, 100)}</span>`;
+            if (node.time) html += `<span class="text-hq-muted/50 ml-1 font-mono">${node.time}s</span>`;
+            html += '</div>';
+            if (node.children) {
+              for (const child of node.children) {
+                html += renderNode(child, depth + 1);
+              }
+            }
+            return html;
+          };
+          return renderNode(data.root);
+        },
+
+        // ── Memory (에이전트 기억) ──
+
+        async openMemoryModal(agentId, agentName) {
+          this.memoryModal.agentId = agentId;
+          this.memoryModal.agentName = agentName;
+          this.memoryModal.newKey = '';
+          this.memoryModal.newValue = '';
+          this.memoryModal.visible = true;
+          await this.loadMemory(agentId);
+        },
+
+        async loadMemory(agentId) {
+          try {
+            const data = await fetch(`/api/memory/${agentId}`).then(r => r.json());
+            this.memoryModal.items = Array.isArray(data) ? data : [];
+          } catch (e) { this.memoryModal.items = []; }
+        },
+
+        async addMemory() {
+          const key = this.memoryModal.newKey.trim();
+          const value = this.memoryModal.newValue.trim();
+          if (!key || !value) return;
+          try {
+            await fetch(`/api/memory/${this.memoryModal.agentId}`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ key, value }),
+            });
+            this.memoryModal.newKey = '';
+            this.memoryModal.newValue = '';
+            await this.loadMemory(this.memoryModal.agentId);
+          } catch (e) { console.error('Add memory failed:', e); }
+        },
+
+        async deleteMemory(memoryId) {
+          try {
+            await fetch(`/api/memory/${this.memoryModal.agentId}/${memoryId}`, { method: 'DELETE' });
+            await this.loadMemory(this.memoryModal.agentId);
+          } catch (e) { console.error('Delete memory failed:', e); }
+        },
+
+        // ── Schedules ──
+
+        async loadSchedules() {
+          try {
+            const data = await fetch('/api/schedules').then(r => r.json());
+            this.schedules.items = (Array.isArray(data) ? data : data.schedules || []).map(s => ({
+              ...s, id: s.schedule_id, cron_label: s.cron_preset,
+            }));
+          } catch (e) { this.schedules.items = []; }
+        },
+
+        async addSchedule() {
+          const name = this.schedules.editName.trim();
+          const command = this.schedules.editCommand.trim();
+          const cron_preset = this.schedules.editCronPreset;
+          if (!name || !command) return;
+          try {
+            await fetch('/api/schedules', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ name, command, cron_preset }),
+            });
+            this.schedules.editName = '';
+            this.schedules.editCommand = '';
+            this.schedules.showModal = false;
+            await this.loadSchedules();
+          } catch (e) { console.error('Add schedule failed:', e); }
+        },
+
+        async toggleSchedule(id) {
+          try {
+            await fetch(`/api/schedules/${id}/toggle`, { method: 'POST' });
+            await this.loadSchedules();
+          } catch (e) { console.error('Toggle schedule failed:', e); }
+        },
+
+        async deleteSchedule(id) {
+          try {
+            await fetch(`/api/schedules/${id}`, { method: 'DELETE' });
+            await this.loadSchedules();
+          } catch (e) { console.error('Delete schedule failed:', e); }
+        },
+
+        // ── Workflows ──
+
+        async loadWorkflows() {
+          try {
+            const data = await fetch('/api/workflows').then(r => r.json());
+            this.workflows.items = (Array.isArray(data) ? data : data.workflows || []).map(w => ({
+              ...w, id: w.workflow_id,
+            }));
+          } catch (e) { this.workflows.items = []; }
+        },
+
+        editWorkflow(wf) {
+          this.workflows.editing = wf.id || wf.workflow_id;
+          this.workflows.editName = wf.name;
+          this.workflows.editDesc = wf.description || '';
+          this.workflows.editSteps = wf.steps.map(s => ({ ...s }));
+          this.workflows.showEditor = true;
+        },
+
+        async saveWorkflow() {
+          const name = this.workflows.editName.trim();
+          if (!name || this.workflows.editSteps.length === 0) return;
+          const body = {
+            name,
+            description: this.workflows.editDesc,
+            steps: this.workflows.editSteps.filter(s => s.command.trim()),
+          };
+          try {
+            if (this.workflows.editing) {
+              await fetch(`/api/workflows/${this.workflows.editing}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body),
+              });
+            } else {
+              await fetch('/api/workflows', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body),
+              });
+            }
+            this.workflows.showEditor = false;
+            await this.loadWorkflows();
+          } catch (e) { console.error('Save workflow failed:', e); }
+        },
+
+        async deleteWorkflow(id) {
+          try {
+            await fetch(`/api/workflows/${id}`, { method: 'DELETE' });
+            await this.loadWorkflows();
+          } catch (e) { console.error('Delete workflow failed:', e); }
+        },
+
+        async runWorkflow(id) {
+          this.workflows.runningId = id;
+          try {
+            await fetch(`/api/workflows/${id}/run`, { method: 'POST' });
+          } catch (e) { console.error('Run workflow failed:', e); }
+          finally { setTimeout(() => { this.workflows.runningId = null; }, 2000); }
+        },
+
+        // ── Auth (인증) ──
+
+        async checkAuth() {
+          try {
+            const data = await fetch('/api/auth/status').then(r => r.json());
+            this.auth.bootstrapMode = data.bootstrap_mode;
+            if (data.bootstrap_mode) {
+              this.auth.role = 'ceo';
+              this.auth.showLogin = false;
+              return;
+            }
+            // 토큰 확인
+            const token = localStorage.getItem('corthex_token');
+            if (token) {
+              this.auth.token = token;
+              const userJson = localStorage.getItem('corthex_user');
+              if (userJson) {
+                this.auth.user = JSON.parse(userJson);
+                this.auth.role = this.auth.user.role;
+              }
+              this.auth.showLogin = false;
+            } else {
+              this.auth.showLogin = true;
+            }
+          } catch (e) {
+            // API 오류 시 부트스트랩 모드로 간주
+            this.auth.bootstrapMode = true;
+            this.auth.role = 'ceo';
+          }
+        },
+
+        async doLogin() {
+          this.auth.loginError = '';
+          const username = this.auth.loginUser.trim();
+          const password = this.auth.loginPass.trim();
+          if (!username || !password) { this.auth.loginError = '사용자명과 비밀번호를 입력하세요'; return; }
+          try {
+            const data = await fetch('/api/auth/login', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ username, password }),
+            }).then(r => r.json());
+            if (data.success) {
+              localStorage.setItem('corthex_token', data.token);
+              localStorage.setItem('corthex_user', JSON.stringify(data.user));
+              this.auth.token = data.token;
+              this.auth.user = data.user;
+              this.auth.role = data.user.role;
+              this.auth.showLogin = false;
+              this.auth.loginUser = '';
+              this.auth.loginPass = '';
+            } else {
+              this.auth.loginError = data.error || '로그인 실패';
+            }
+          } catch (e) { this.auth.loginError = '서버 연결 오류'; }
+        },
+
+        async doRegister() {
+          this.auth.loginError = '';
+          const username = this.auth.loginUser.trim();
+          const password = this.auth.loginPass.trim();
+          if (!username || !password) { this.auth.loginError = '사용자명과 비밀번호를 입력하세요'; return; }
+          try {
+            const data = await fetch('/api/auth/register', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ username, password }),
+            }).then(r => r.json());
+            if (data.success) {
+              localStorage.setItem('corthex_token', data.token);
+              localStorage.setItem('corthex_user', JSON.stringify(data.user));
+              this.auth.token = data.token;
+              this.auth.user = data.user;
+              this.auth.role = data.user.role;
+              this.auth.showLogin = false;
+              this.auth.loginUser = '';
+              this.auth.loginPass = '';
+            } else {
+              this.auth.loginError = data.error || '회원가입 실패';
+            }
+          } catch (e) { this.auth.loginError = '서버 연결 오류'; }
+        },
+
+        doLogout() {
+          localStorage.removeItem('corthex_token');
+          localStorage.removeItem('corthex_user');
+          this.auth.token = null;
+          this.auth.user = null;
+          this.auth.role = 'viewer';
+          if (!this.auth.bootstrapMode) {
+            this.auth.showLogin = true;
+          }
+        },
+
         // ── Dynamic Loading ──
         async loadAgentsAndTools() {
           try {
@@ -2919,7 +3810,7 @@
           } catch { /* 무시 */ }
         },
 
-        // ── Preset Management ──
+        // ── Preset Management (웰컴화면용) ──
         async addPreset() {
           const name = this.newPresetName.trim();
           const command = this.newPresetCommand.trim();
@@ -2932,11 +3823,11 @@
             });
             const data = await res.json();
             if (data.success) {
-              this.backendPresets.push({ name, command });
               this.showAddPreset = false;
               this.newPresetName = '';
               this.newPresetCommand = '';
               this.showToast('프리셋이 추가되었습니다.', 'success');
+              await this.loadPresets();
             } else {
               this.showToast(data.error || '프리셋 추가 실패', 'error');
             }
@@ -2948,8 +3839,8 @@
             const res = await fetch(`/api/presets/${encodeURIComponent(name)}`, { method: 'DELETE' });
             const data = await res.json();
             if (data.success) {
-              this.backendPresets = this.backendPresets.filter(p => p.name !== name);
               this.showToast(`프리셋 '${name}'이 삭제되었습니다.`, 'success');
+              await this.loadPresets();
             } else {
               this.showToast(data.error || '프리셋 삭제 실패', 'error');
             }
