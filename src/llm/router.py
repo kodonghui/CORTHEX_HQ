@@ -20,8 +20,8 @@ class ModelRouter:
     Routes model requests to the correct provider.
 
     Model name prefix determines provider:
-      gpt-*, o3-*, o1-*, o4-*  -> OpenAI
-      claude-*                  -> Anthropic
+      gpt-*, o3-*, o1-*, o4-*, o5-*  -> OpenAI
+      claude-*                         -> Anthropic
     """
 
     def __init__(
@@ -35,9 +35,10 @@ class ModelRouter:
         if anthropic_provider:
             self._providers["anthropic"] = anthropic_provider
         self.cost_tracker = CostTracker()
+        self.batch_collector = None  # BatchCollector 주입 시 사용
 
     def _resolve_provider(self, model_name: str) -> LLMProvider:
-        if model_name.startswith(("gpt-", "o3-", "o1-", "o4-")):
+        if model_name.startswith(("gpt-", "o3-", "o1-", "o4-", "o5-")):
             provider = self._providers.get("openai")
             if not provider:
                 raise ValueError("OpenAI provider가 설정되지 않았습니다. OPENAI_API_KEY를 확인하세요.")
@@ -57,15 +58,30 @@ class ModelRouter:
         temperature: float = 0.3,
         max_tokens: int = 4096,
         agent_id: str = "",
+        reasoning_effort: str | None = None,
+        use_batch: bool = False,
     ) -> LLMResponse:
         """Route a completion request to the appropriate provider."""
-        provider = self._resolve_provider(model_name)
-        response = await provider.complete(
-            model=model_name,
-            messages=messages,
-            temperature=temperature,
-            max_tokens=max_tokens,
-        )
+        # Batch 모드: BatchCollector가 있으면 위임
+        if use_batch and self.batch_collector:
+            response = await self.batch_collector.submit(
+                model=model_name,
+                messages=messages,
+                temperature=temperature,
+                max_tokens=max_tokens,
+                reasoning_effort=reasoning_effort,
+            )
+        else:
+            # 실시간 모드
+            provider = self._resolve_provider(model_name)
+            response = await provider.complete(
+                model=model_name,
+                messages=messages,
+                temperature=temperature,
+                max_tokens=max_tokens,
+                reasoning_effort=reasoning_effort,
+                is_batch=False,
+            )
         self.cost_tracker.record(response, agent_id=agent_id)
         return response
 

@@ -28,6 +28,8 @@ class LLMProvider(ABC):
         messages: list[dict[str, str]],
         temperature: float = 0.3,
         max_tokens: int = 4096,
+        reasoning_effort: str | None = None,
+        is_batch: bool = False,
     ) -> LLMResponse:
         ...
 

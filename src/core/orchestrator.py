@@ -44,7 +44,9 @@ class Orchestrator:
         self.model_router = model_router
         self._history: list[ConversationTurn] = []
 
-    async def process_command(self, user_input: str) -> TaskResult:
+    async def process_command(
+        self, user_input: str, context: dict | None = None,
+    ) -> TaskResult:
         """Main entry: all commands go through chief_of_staff."""
         # Build conversation context from recent history
         context_data = {}
@@ -59,7 +61,7 @@ class Orchestrator:
             sender_id="ceo",
             receiver_id="chief_of_staff",
             task_description=user_input,
-            context=context_data,
+            context={**(context or {}), **context_data},
         )
 
         logger.info("CEO 명령 → 비서실장: %s", user_input[:80])

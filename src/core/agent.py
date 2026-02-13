@@ -47,6 +47,7 @@ class AgentConfig(BaseModel):
     superior_id: Optional[str] = None
     max_retries: int = 2
     temperature: float = 0.3
+    reasoning_effort: str = ""  # "", "low", "medium", "high"
 
 
 class BaseAgent(ABC):
@@ -83,6 +84,9 @@ class BaseAgent(ABC):
         self.context.log_message(request)
         logger.info("[%s] 작업 수신: %s", self.agent_id, request.task_description[:80])
 
+        # context에서 batch 모드 플래그 설정
+        self._use_batch = request.context.get("use_batch", False)
+
         try:
             result_data = await self.execute(request)
             elapsed = time.monotonic() - start
@@ -96,6 +100,7 @@ class BaseAgent(ABC):
                 success=True,
                 result_data=result_data,
                 summary=summary,
+                task_description=request.task_description,
                 execution_time_seconds=round(elapsed, 2),
             )
         except Exception as e:
@@ -109,6 +114,7 @@ class BaseAgent(ABC):
                 success=False,
                 result_data={"error": str(e)},
                 summary=f"오류: {e}",
+                task_description=request.task_description,
                 execution_time_seconds=round(elapsed, 2),
             )
 
@@ -135,11 +141,15 @@ class BaseAgent(ABC):
 
     async def think(self, messages: list[dict[str, str]]) -> str:
         """Call the LLM through the model router."""
+        # context에서 batch 모드 확인
+        use_batch = getattr(self, '_use_batch', False)
         response = await self.model_router.complete(
             model_name=self.config.model_name,
             messages=messages,
             temperature=self.config.temperature,
             agent_id=self.agent_id,
+            reasoning_effort=self.config.reasoning_effort or None,
+            use_batch=use_batch,
         )
         return response.content
 
@@ -275,6 +285,10 @@ class ManagerAgent(BaseAgent):
                 else "부하 에이전트로부터 결과를 받지 못했습니다."
             )
 
+        # 결과가 1개면 재합성 없이 그대로 반환 (중복 방지 + 토큰 절약)
+        if len(results) == 1:
+            return results[0].result_data
+
         result_text = "\n\n".join(
             f"### [{r.sender_id}]\n{r.result_data}" for r in results
         )
@@ -328,15 +342,92 @@ class ManagerAgent(BaseAgent):
 class SpecialistAgent(BaseAgent):
     """
     A specialist does focused work using domain expertise.
-    Does NOT delegate to subordinates.
+    Supports multi-step 'deep work' for complex tasks.
     """
 
     async def execute(self, request: TaskRequest) -> Any:
-        messages = [
+        max_steps = request.context.get("max_steps", 1)
+
+        if max_steps <= 1:
+            # Original single-shot behavior
+            messages = [
+                {"role": "system", "content": self.config.system_prompt},
+                {"role": "user", "content": request.task_description},
+            ]
+            return await self.think(messages)
+
+        # Deep work mode: multi-step autonomous loop
+        return await self._deep_work(request, max_steps)
+
+    async def _deep_work(self, request: TaskRequest, max_steps: int) -> str:
+        """Multi-step reasoning loop for complex tasks."""
+        from src.core.message import StatusUpdate
+
+        accumulated: list[str] = []
+
+        # Step 1: Plan
+        plan_messages = [
             {"role": "system", "content": self.config.system_prompt},
-            {"role": "user", "content": request.task_description},
+            {"role": "user", "content": (
+                f"## 업무\n{request.task_description}\n\n"
+                f"이 업무를 {max_steps - 1}단계로 나누어 실행할 계획을 세우세요.\n"
+                "JSON 배열로만 응답하세요: [\"단계1 설명\", \"단계2 설명\", ...]\n"
+                "마지막 단계는 항상 '최종 결과물 작성'이어야 합니다."
+            )},
         ]
-        return await self.think(messages)
+        plan_raw = await self.think(plan_messages)
+        steps = self._parse_steps(plan_raw, max_steps - 1)
+
+        # Broadcast: planning complete
+        self.context.log_message(StatusUpdate(
+            sender_id=self.agent_id,
+            receiver_id=request.sender_id,
+            correlation_id=request.correlation_id,
+            progress_pct=0.0,
+            current_step=f"0/{len(steps)}",
+            detail="작업 계획 수립 완료",
+        ))
+
+        # Steps 2..N: Execute each step
+        for i, step_desc in enumerate(steps):
+            context_summary = "\n---\n".join(accumulated[-3:])
+
+            step_messages = [
+                {"role": "system", "content": self.config.system_prompt},
+                {"role": "user", "content": (
+                    f"## 원래 업무\n{request.task_description}\n\n"
+                    + (f"## 지금까지의 작업 결과\n{context_summary}\n\n" if context_summary else "")
+                    + f"## 현재 단계 ({i+1}/{len(steps)})\n{step_desc}\n\n"
+                    "위 단계를 실행하고 결과를 상세히 작성하세요."
+                )},
+            ]
+            step_result = await self.think(step_messages)
+            accumulated.append(f"### 단계 {i+1}: {step_desc}\n{step_result}")
+
+            # Broadcast progress
+            self.context.log_message(StatusUpdate(
+                sender_id=self.agent_id,
+                receiver_id=request.sender_id,
+                correlation_id=request.correlation_id,
+                progress_pct=(i + 1) / len(steps),
+                current_step=f"{i+1}/{len(steps)}",
+                detail=step_desc,
+            ))
+
+        return "\n\n".join(accumulated)
+
+    @staticmethod
+    def _parse_steps(plan_raw: str, target_count: int) -> list[str]:
+        """Parse step list from LLM output."""
+        match = re.search(r'\[.*\]', plan_raw, re.DOTALL)
+        if match:
+            try:
+                steps = json.loads(match.group())
+                if isinstance(steps, list) and all(isinstance(s, str) for s in steps):
+                    return steps[:target_count]
+            except json.JSONDecodeError:
+                pass
+        return [f"단계 {i+1} 실행" for i in range(target_count)]
 
 
 class WorkerAgent(BaseAgent):
