@@ -24,18 +24,37 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           BRANCH="${GITHUB_REF_NAME}"
+          echo "🔄 브랜치: $BRANCH"
 
-          # 이미 PR이 있는지 확인
+          # 1단계: PR이 이미 있는지 확인
           EXISTING_PR=$(gh pr list --head "$BRANCH" --json number -q '.[0].number' 2>/dev/null || echo "")
 
-          if [ -z "$EXISTING_PR" ]; then
-            # PR이 없으면 새로 생성
+          if [ -n "$EXISTING_PR" ]; then
+            echo "✅ 기존 PR #$EXISTING_PR 발견"
+          else
+            echo "📝 새 PR 생성 중..."
             gh pr create \
               --base main \
               --head "$BRANCH" \
               --title "Auto-merge: ${BRANCH}" \
               --body "Claude Code 세션에서 자동 생성된 PR입니다."
+            echo "✅ PR 생성 완료"
           fi
 
-          # 바로 머지 (충돌 없을 때)
-          gh pr merge "$BRANCH" --merge --delete-branch
+          # 2단계: GitHub가 PR 상태를 계산할 시간을 줌
+          echo "⏳ 10초 대기 (GitHub 처리 시간)..."
+          sleep 10
+
+          # 3단계: 머지 시도 (최대 3회 재시도)
+          for i in 1 2 3; do
+            echo "🔀 머지 시도 ($i/3)..."
+            if gh pr merge "$BRANCH" --merge --delete-branch 2>&1; then
+              echo "🎉 머지 완료!"
+              exit 0
+            fi
+            echo "⏳ 재시도 전 10초 대기..."
+            sleep 10
+          done
+
+          echo "❌ 머지 실패 — GitHub에서 수동 머지가 필요합니다."
+          exit 1
