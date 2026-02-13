@@ -511,11 +511,14 @@
           </button>
           <div x-show="expanded.secretary" x-collapse class="ml-10 space-y-0.5 mt-1">
             <template x-for="id in ['chief_of_staff', 'report_worker', 'schedule_worker', 'relay_worker']" :key="id">
-              <div :id="'agent-' + id" @click="openAgentConfig(id)" class="flex items-center gap-2 px-2 py-1 rounded-md hover:bg-white/[0.05] transition-all duration-300 cursor-pointer">
-                <span class="w-1.5 h-1.5 rounded-full transition-colors" :class="[getAgentDotClass(id), activeAgents[id]?.status==='working' ? 'agent-working-glow' : '']"></span>
-                <span class="text-xs text-hq-muted" x-text="getAgentName(id)"></span>
+              <div :id="'agent-' + id" @click="openAgentConfig(id)" class="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-white/[0.05] transition-all duration-300 cursor-pointer">
+                <span class="w-1.5 h-1.5 rounded-full transition-colors shrink-0 mt-0.5" :class="[getAgentDotClass(id), activeAgents[id]?.status==='working' ? 'agent-working-glow' : '']"></span>
+                <div class="flex-1 min-w-0">
+                  <div class="text-xs text-hq-text" x-text="getAgentName(id)"></div>
+                  <div class="text-[9px] text-hq-muted truncate" x-show="agentRoles[id]" x-text="(agentRoles[id] || '') + (agentModels[id] ? ' · ' + agentModels[id] : '')"></div>
+                </div>
                 <span x-show="activeAgents[id]?.status === 'working'"
-                      class="ml-auto text-[9px] font-mono text-hq-yellow"
+                      class="ml-auto text-[9px] font-mono text-hq-yellow shrink-0"
                       x-text="Math.round((activeAgents[id]?.progress || 0) * 100) + '%'"></span>
               </div>
             </template>
@@ -1297,7 +1300,8 @@
                     <div class="status-light" :class="getAgentStatusLight(id)"></div>
                   </div>
                   <div class="text-xs font-semibold text-hq-text truncate" x-text="getAgentName(id)"></div>
-                  <div class="text-[10px] text-hq-muted/60 font-mono truncate" x-text="id"></div>
+                  <div class="text-[10px] text-hq-muted truncate" x-text="agentRoles[id] || id"></div>
+                  <div x-show="agentModels[id]" class="text-[9px] text-hq-muted/60 font-mono truncate" x-text="agentModels[id]"></div>
                 </div>
               </template>
             </div>
@@ -1325,6 +1329,7 @@
                         <div class="status-light" :class="getAgentStatusLight(id)"></div>
                       </div>
                       <div class="text-[11px] font-medium text-hq-text truncate" x-text="getAgentName(id)"></div>
+                      <div class="text-[9px] text-hq-muted truncate" x-show="agentRoles[id]" x-text="agentRoles[id]"></div>
                     </div>
                   </template>
                 </div>
@@ -1343,6 +1348,7 @@
                         <div class="status-light" :class="getAgentStatusLight(id)"></div>
                       </div>
                       <div class="text-[11px] font-medium text-hq-text truncate" x-text="getAgentName(id)"></div>
+                      <div class="text-[9px] text-hq-muted truncate" x-show="agentRoles[id]" x-text="agentRoles[id]"></div>
                     </div>
                   </template>
                 </div>
@@ -1361,6 +1367,7 @@
                         <div class="status-light" :class="getAgentStatusLight(id)"></div>
                       </div>
                       <div class="text-[11px] font-medium text-hq-text truncate" x-text="getAgentName(id)"></div>
+                      <div class="text-[9px] text-hq-muted truncate" x-show="agentRoles[id]" x-text="agentRoles[id]"></div>
                     </div>
                   </template>
                 </div>
@@ -1379,6 +1386,7 @@
                         <div class="status-light" :class="getAgentStatusLight(id)"></div>
                       </div>
                       <div class="text-[11px] font-medium text-hq-text truncate" x-text="getAgentName(id)"></div>
+                      <div class="text-[9px] text-hq-muted truncate" x-show="agentRoles[id]" x-text="agentRoles[id]"></div>
                     </div>
                   </template>
                 </div>
@@ -1401,6 +1409,7 @@
                     <div class="status-light" :class="getAgentStatusLight(id)"></div>
                   </div>
                   <div class="text-[11px] font-medium text-hq-text truncate" x-text="getAgentName(id)"></div>
+                  <div class="text-[9px] text-hq-muted truncate" x-show="agentRoles[id]" x-text="agentRoles[id]"></div>
                 </div>
               </template>
             </div>
@@ -2825,6 +2834,8 @@
           'marketing': 'bg-hq-cyan/20 text-hq-cyan',
           'finance': 'bg-hq-purple/20 text-hq-purple',
         },
+        agentRoles: {},
+        agentModels: {},
 
         init() {
           // Dark mode
@@ -3892,6 +3903,8 @@
                 this.agentNames[a.agent_id] = a.name_ko || a.agent_id;
                 const nameKo = a.name_ko || a.agent_id;
                 this.agentInitials[a.agent_id] = nameKo.length >= 2 ? nameKo.substring(0, 2) : nameKo.toUpperCase();
+                this.agentRoles[a.agent_id] = a.role || '';
+                this.agentModels[a.agent_id] = a.model_name || '';
                 if (a.division) {
                   const divMap = { '비서실': 'secretary', '기술개발처': 'tech', '사업기획처': 'strategy',
                                    '법무처': 'legal', '마케팅처': 'marketing', '투자분석처': 'finance' };
