@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 
 from src.llm.base import LLMResponse
 
@@ -15,6 +16,7 @@ class CostRecord:
     output_tokens: int
     cost_usd: float
     agent_id: str = ""
+    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 class CostTracker:

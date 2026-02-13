@@ -19,6 +19,7 @@ LEET 해설 관련 부정적 의견을 자동 수집·분석합니다.
 """
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import os
@@ -135,7 +136,9 @@ class LeetSurveyTool(BaseTool):
                      platform_label, keyword_label, max_pages)
 
         try:
-            result = subprocess.run(
+            # asyncio.to_thread로 비동기 실행 (이벤트 루프 블로킹 방지)
+            result = await asyncio.to_thread(
+                subprocess.run,
                 cmd,
                 cwd=SCRAPER_DIR,
                 capture_output=True,
@@ -151,6 +154,15 @@ class LeetSurveyTool(BaseTool):
         except Exception as e:
             logger.error("[LeetSurvey] 실행 실패: %s", e)
             return f"스크래퍼 실행 실패: {e}"
+
+        # 프로세스 종료 코드 확인
+        if result.returncode != 0:
+            stderr_tail = result.stderr[-1000:] if result.stderr else "(없음)"
+            logger.error("[LeetSurvey] 스크래퍼 종료 코드 %d: %s", result.returncode, stderr_tail[:200])
+            return (
+                f"스크래퍼 실행 실패 (종료 코드: {result.returncode})\n\n"
+                f"**오류 출력**:\n```\n{stderr_tail}\n```"
+            )
 
         # 결과 파일 찾기
         json_files = sorted(
