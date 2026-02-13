@@ -865,13 +865,35 @@
         </div>
       </div>
 
-      <!-- Section 2: Rubrics per Division -->
+      <!-- Section 2: Common Rubric -->
+      <div class="mb-4">
+        <h3 class="text-sm font-semibold text-gray-300 mb-2">공통 검수 기준</h3>
+        <p class="text-xs text-gray-500 mb-3">부서별 기준이 없는 부서에 기본 적용되는 검수 기준입니다.</p>
+
+        <div class="p-3 bg-hq-bg rounded-lg">
+          <div class="flex items-center justify-between">
+            <div>
+              <span class="text-sm text-gray-200 font-medium">기본 (전체 공통)</span>
+              <span x-show="qualityRules.rubrics && qualityRules.rubrics['default']"
+                    class="ml-2 text-xs text-green-400">설정됨</span>
+            </div>
+            <button @click="startEditRubric('default')"
+                    class="text-xs text-hq-accent hover:text-blue-400">편집</button>
+          </div>
+          <template x-if="qualityRules.rubrics && qualityRules.rubrics['default']">
+            <p class="text-xs text-gray-500 mt-1 truncate"
+               x-text="qualityRules.rubrics['default'].prompt.substring(0, 80) + '...'"></p>
+          </template>
+        </div>
+      </div>
+
+      <!-- Section 3: Department-Specific Rubrics -->
       <div class="mb-4">
         <h3 class="text-sm font-semibold text-gray-300 mb-2">부서별 검수 기준 (루브릭)</h3>
-        <p class="text-xs text-gray-500 mb-3">각 부서별 검수 기준을 설정하세요. 미설정 부서는 '기본' 기준이 적용됩니다.</p>
+        <p class="text-xs text-gray-500 mb-3">각 부서별 검수 기준을 설정하세요. 미설정 부서는 위 공통 기준이 적용됩니다.</p>
 
         <div class="space-y-2">
-          <template x-for="div in ['default', ...(qualityRules.known_divisions || [])]" :key="div">
+          <template x-for="div in (qualityRules.known_divisions || [])" :key="div">
             <div class="p-3 bg-hq-bg rounded-lg">
               <div class="flex items-center justify-between">
                 <div>
@@ -879,7 +901,7 @@
                   <span x-show="qualityRules.rubrics && qualityRules.rubrics[div]"
                         class="ml-2 text-xs text-green-400">설정됨</span>
                   <span x-show="!qualityRules.rubrics || !qualityRules.rubrics[div]"
-                        class="ml-2 text-xs text-gray-500">기본 적용</span>
+                        class="ml-2 text-xs text-gray-500">공통 적용</span>
                 </div>
                 <button @click="startEditRubric(div)"
                         class="text-xs text-hq-accent hover:text-blue-400">편집</button>
