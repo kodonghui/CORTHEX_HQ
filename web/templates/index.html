@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>CORTHEX HQ - CEO Command Center</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/@alpinejs/collapse@3.x.x/dist/cdn.min.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <script>
@@ -251,8 +252,8 @@
         </div>
       </div>
       <div class="flex items-center gap-2">
-        <span class="text-[10px] font-mono text-hq-muted bg-hq-surface border border-hq-border rounded-md px-2 py-0.5">v0.3.0</span>
-        <span class="text-[10px] font-mono text-hq-cyan/60 bg-hq-cyan/5 border border-hq-cyan/20 rounded-md px-2 py-0.5">CEO MODE</span>
+        <span class="text-[10px] font-mono text-hq-muted bg-hq-surface border border-hq-border rounded-md px-2 py-0.5">v0.4.0</span>
+        <span class="text-[10px] font-mono text-hq-cyan/60 bg-hq-cyan/5 border border-hq-cyan/20 rounded-md px-2 py-0.5">CEO 관제</span>
       </div>
     </div>
 
@@ -262,19 +263,19 @@
         <template x-if="systemStatus === 'idle'">
           <div class="flex items-center gap-2 bg-hq-green/10 border border-hq-green/20 rounded-lg px-3 py-1">
             <span class="w-2 h-2 rounded-full bg-hq-green"></span>
-            <span class="text-xs font-medium text-hq-green">READY</span>
+            <span class="text-xs font-medium text-hq-green">대기</span>
           </div>
         </template>
         <template x-if="systemStatus === 'working'">
           <div class="flex items-center gap-2 bg-hq-yellow/10 border border-hq-yellow/20 rounded-lg px-3 py-1">
             <span class="w-2 h-2 rounded-full bg-hq-yellow pulse-dot"></span>
-            <span class="text-xs font-medium text-hq-yellow">PROCESSING</span>
+            <span class="text-xs font-medium text-hq-yellow">처리중</span>
           </div>
         </template>
         <template x-if="systemStatus === 'error'">
           <div class="flex items-center gap-2 bg-hq-red/10 border border-hq-red/20 rounded-lg px-3 py-1">
             <span class="w-2 h-2 rounded-full bg-hq-red"></span>
-            <span class="text-xs font-medium text-hq-red">ERROR</span>
+            <span class="text-xs font-medium text-hq-red">오류</span>
           </div>
         </template>
       </div>
@@ -294,7 +295,7 @@
       <!-- Connection -->
       <div class="flex items-center gap-1.5" :class="wsConnected ? 'text-hq-green' : 'text-hq-red'">
         <span class="w-1.5 h-1.5 rounded-full" :class="wsConnected ? 'bg-hq-green' : 'bg-hq-red'"></span>
-        <span class="text-[11px] font-mono" x-text="wsConnected ? 'LIVE' : 'OFFLINE'"></span>
+        <span class="text-[11px] font-mono" x-text="wsConnected ? '연결됨' : '끊김'"></span>
       </div>
 
       <!-- Quality Settings Button -->
@@ -318,8 +319,8 @@
       <!-- Org Tree -->
       <div class="flex-1 overflow-y-auto scrollbar-thin p-3 space-y-1">
         <div class="flex items-center justify-between px-2 mb-3">
-          <div class="text-[10px] font-bold text-hq-muted uppercase tracking-[0.15em]">Organization</div>
-          <div class="text-[10px] font-mono text-hq-muted" x-text="'25 agents'"></div>
+          <div class="text-[10px] font-bold text-hq-muted uppercase tracking-[0.15em]">조직도</div>
+          <div class="text-[10px] font-mono text-hq-muted">25명</div>
         </div>
 
         <!-- CEO -->
@@ -330,7 +331,7 @@
             </div>
             <div>
               <div class="text-sm font-semibold text-white">CEO</div>
-              <div class="text-[10px] text-hq-muted">Command Center</div>
+              <div class="text-[10px] text-hq-muted">총괄 사령관</div>
             </div>
           </div>
         </div>
@@ -501,10 +502,10 @@
                     <span class="w-1.5 h-1.5 rounded-full transition-colors" :class="getAgentDotClass(id)"></span>
                     <span class="text-xs text-hq-muted" x-text="getAgentName(id)"></span>
                     <template x-if="id !== 'risk_management_specialist'">
-                      <span class="text-[9px] font-mono text-hq-cyan/40 ml-auto">PARALLEL</span>
+                      <span class="text-[9px] font-mono text-hq-cyan/40 ml-auto">병렬</span>
                     </template>
                     <template x-if="id === 'risk_management_specialist'">
-                      <span class="text-[9px] font-mono text-hq-purple/40 ml-auto">SEQ</span>
+                      <span class="text-[9px] font-mono text-hq-purple/40 ml-auto">순차</span>
                     </template>
                   </div>
                 </template>
@@ -522,15 +523,15 @@
             <div class="agent-avatar bg-hq-red/15 text-hq-red text-[10px]">
               <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
             </div>
-            <span class="text-sm text-hq-text/70">Tool Pool</span>
-            <span class="text-[10px] font-mono text-hq-muted ml-auto">5</span>
+            <span class="text-sm text-hq-text/70">도구 풀</span>
+            <span class="text-[10px] font-mono text-hq-muted ml-auto">5개</span>
           </button>
           <div x-show="expanded.tools" x-collapse class="ml-10 space-y-0.5 mt-1">
             <template x-for="t in [{n:'변리사', c:'text-amber-400'}, {n:'세무사', c:'text-emerald-400'}, {n:'디자이너', c:'text-pink-400'}, {n:'번역가', c:'text-sky-400'}, {n:'웹검색', c:'text-orange-400'}]" :key="t.n">
               <div class="flex items-center gap-2 px-2 py-1 rounded-md hover:bg-white/[0.02] transition-colors">
                 <span class="w-1.5 h-1.5 rounded-full bg-hq-muted/50"></span>
                 <span class="text-xs text-hq-muted" :class="t.c" x-text="t.n"></span>
-                <span class="text-[9px] text-hq-muted/50 ml-auto">TOOL</span>
+                <span class="text-[9px] text-hq-muted/50 ml-auto">도구</span>
               </div>
             </template>
           </div>
@@ -543,7 +544,7 @@
                 class="w-full flex items-center justify-between px-4 py-2 hover:bg-white/[0.02] transition-colors">
           <div class="flex items-center gap-2">
             <svg class="w-3.5 h-3.5 text-hq-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
-            <span class="text-[10px] font-bold text-hq-muted uppercase tracking-[0.15em]">Activity Log</span>
+            <span class="text-[10px] font-bold text-hq-muted uppercase tracking-[0.15em]">활동 로그</span>
           </div>
           <div class="flex items-center gap-2">
             <span x-show="activityLogs.length > 0"
@@ -563,7 +564,7 @@
               </div>
             </template>
             <template x-if="activityLogs.length === 0">
-              <div class="text-[11px] text-hq-muted/40 italic px-2 py-2">Waiting for activity...</div>
+              <div class="text-[11px] text-hq-muted/40 italic px-2 py-2">아직 활동이 없습니다</div>
             </template>
           </div>
         </div>
@@ -608,27 +609,27 @@
             <!-- Title -->
             <h1 class="text-4xl font-extrabold gradient-text mb-2 tracking-tight">CORTHEX HQ</h1>
             <p class="text-hq-muted text-sm mb-8 max-w-sm leading-relaxed">
-              AI Agent Corporation Command Center<br>
-              <span class="text-hq-text/50">25 agents across 5 divisions, ready for your command</span>
+              AI 에이전트 기업 관제 센터<br>
+              <span class="text-hq-text/50">4개 본부, 25명의 에이전트가 명령을 대기하고 있습니다</span>
             </p>
 
             <!-- Division Summary Cards -->
             <div class="flex gap-3 mb-8">
               <div class="glass border border-hq-border rounded-xl px-4 py-3 hover-glow cursor-default">
                 <div class="text-lg font-bold text-hq-cyan">4</div>
-                <div class="text-[10px] text-hq-muted uppercase tracking-wider">Divisions</div>
+                <div class="text-[10px] text-hq-muted uppercase tracking-wider">본부</div>
               </div>
               <div class="glass border border-hq-border rounded-xl px-4 py-3 hover-glow cursor-default">
                 <div class="text-lg font-bold text-hq-accent">25</div>
-                <div class="text-[10px] text-hq-muted uppercase tracking-wider">Agents</div>
+                <div class="text-[10px] text-hq-muted uppercase tracking-wider">에이전트</div>
               </div>
               <div class="glass border border-hq-border rounded-xl px-4 py-3 hover-glow cursor-default">
                 <div class="text-lg font-bold text-hq-purple">5</div>
-                <div class="text-[10px] text-hq-muted uppercase tracking-wider">Tools</div>
+                <div class="text-[10px] text-hq-muted uppercase tracking-wider">도구</div>
               </div>
               <div class="glass border border-hq-border rounded-xl px-4 py-3 hover-glow cursor-default">
                 <div class="text-lg font-bold text-hq-green">2</div>
-                <div class="text-[10px] text-hq-muted uppercase tracking-wider">LLMs</div>
+                <div class="text-[10px] text-hq-muted uppercase tracking-wider">AI 모델</div>
               </div>
             </div>
 
@@ -680,7 +681,7 @@
             </div>
 
             <!-- Hint -->
-            <p class="text-[11px] text-hq-muted/40 mt-6">한국어로 자유롭게 명령을 입력하세요</p>
+            <p class="text-[11px] text-hq-muted/40 mt-6">자유롭게 명령을 입력하세요</p>
           </div>
         </template>
 
@@ -697,7 +698,7 @@
                       <div class="w-5 h-5 rounded-md bg-gradient-to-br from-hq-accent to-hq-purple flex items-center justify-center">
                         <svg class="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
                       </div>
-                      <span class="text-[11px] font-bold text-hq-accent uppercase tracking-wider">CEO Command</span>
+                      <span class="text-[11px] font-bold text-hq-accent uppercase tracking-wider">CEO 명령</span>
                     </div>
                     <div class="text-hq-text text-sm leading-relaxed" x-text="msg.text"></div>
                   </div>
@@ -712,7 +713,7 @@
                   <div class="glass border border-hq-yellow/20 rounded-2xl rounded-tl-md px-5 py-4">
                     <div class="flex items-center gap-2 mb-3">
                       <span class="w-2 h-2 rounded-full bg-hq-yellow pulse-dot"></span>
-                      <span class="text-xs font-bold text-hq-yellow uppercase tracking-wider">Agents Working</span>
+                      <span class="text-xs font-bold text-hq-yellow uppercase tracking-wider">에이전트 작업중</span>
                       <div class="ml-auto flex gap-1">
                         <span class="w-1 h-1 rounded-full bg-hq-yellow/60 pulse-dot" style="animation-delay: 0s"></span>
                         <span class="w-1 h-1 rounded-full bg-hq-yellow/60 pulse-dot" style="animation-delay: 0.3s"></span>
@@ -753,7 +754,7 @@
                       <div class="flex items-center gap-2.5">
                         <div class="w-2 h-2 rounded-full bg-hq-green"></div>
                         <span class="text-xs font-bold text-hq-green uppercase tracking-wider"
-                              x-text="getAgentName(msg.sender_id) || 'Result'"></span>
+                              x-text="getAgentName(msg.sender_id) || '결과'"></span>
                       </div>
                       <div class="flex items-center gap-4 text-[11px] font-mono text-hq-muted">
                         <div class="flex items-center gap-1">
@@ -783,7 +784,7 @@
                   <div class="bg-hq-red/5 border border-hq-red/20 rounded-2xl rounded-tl-md px-5 py-4">
                     <div class="flex items-center gap-2 mb-2">
                       <svg class="w-4 h-4 text-hq-red" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/></svg>
-                      <span class="text-xs font-bold text-hq-red uppercase tracking-wider">Error</span>
+                      <span class="text-xs font-bold text-hq-red uppercase tracking-wider">오류</span>
                     </div>
                     <div class="text-sm text-hq-text/80" x-text="msg.text"></div>
                   </div>
@@ -802,7 +803,7 @@
             <input type="text"
                    x-model="inputText"
                    :disabled="systemStatus === 'working'"
-                   placeholder="Enter your command..."
+                   placeholder="명령을 입력하세요..."
                    class="w-full bg-hq-bg border border-hq-border rounded-xl px-4 py-3 pr-10 text-sm text-hq-text
                           placeholder-hq-muted/50 focus:outline-none focus:border-hq-accent/50 input-glow
                           disabled:opacity-40 disabled:cursor-not-allowed transition-all"
@@ -818,13 +819,13 @@
                          disabled:from-gray-700 disabled:to-gray-700 disabled:text-hq-muted
                          text-white rounded-xl px-6 py-3 text-sm font-semibold transition-all shrink-0
                          hover:shadow-lg hover:shadow-hq-accent/20 disabled:shadow-none">
-            <span x-show="systemStatus !== 'working'">Send</span>
+            <span x-show="systemStatus !== 'working'">보내기</span>
             <span x-show="systemStatus === 'working'" class="flex items-center gap-2">
               <svg class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
               </svg>
-              Working
+              처리중
             </span>
           </button>
         </form>
@@ -1105,6 +1106,7 @@
               break;
 
             case 'activity_log':
+              msg.data.time = new Date().toLocaleTimeString('ko-KR', { timeZone: 'Asia/Seoul', hour12: false });
               this.activityLogs.push(msg.data);
               break;
 
@@ -1220,9 +1222,9 @@
         getSectionStatusText(section) {
           const ids = this.getSectionAgentIds(section);
           const working = ids.filter(id => this.activeAgents[id]?.status === 'working').length;
-          if (working > 0) return `${working} active`;
+          if (working > 0) return `${working}명 작업중`;
           const done = ids.filter(id => this.activeAgents[id]?.status === 'done').length;
-          if (done > 0) return `${done} done`;
+          if (done > 0) return `${done}명 완료`;
           return '';
         },
 
