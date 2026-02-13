@@ -5,6 +5,243 @@
 
 ---
 
+## v0.4.0 (2026-02-12) - 보고서 자동 아카이브 & GitHub 자동 업로드
+
+> 상태: **구현 완료**
+
+### 한 줄 요약
+
+**모든 에이전트(비서실장, 처장, Specialist, Worker)가 작업을 마칠 때마다 산출물을 부서별/날짜별 폴더에 자동 저장하고, CEO 명령 처리가 완전히 끝나면 GitHub에 한 번에 자동 푸시합니다.**
+
+---
+
+### 왜 바꿨나? (문제점)
+
+v0.3.0까지 CORTHEX HQ에는 두 가지 문제가 있었습니다.
+
+**문제 1: 산출물이 사라진다**
+
+CEO가 "삼성전자 주가 분석해줘"라고 명령하면, 내부적으로 시황분석 Specialist, 종목분석 Specialist, 기술적분석 Specialist, 리스크관리 Specialist가 각각 분석을 수행하고, CIO가 종합하고, 비서실장이 최종 보고서를 만듭니다.
+
+그런데 CEO한테는 **비서실장의 최종 보고서만** CLI/웹 화면에 표시되고, 각 Specialist가 만든 **중간 산출물은 어디에도 남지 않았습니다.**
+
+```
+v0.3.0의 문제:
+
+시황분석 Specialist → 분석 결과 생성 → 메모리에만 존재 → CIO한테 전달 후 소멸 ❌
+종목분석 Specialist → 분석 결과 생성 → 메모리에만 존재 → CIO한테 전달 후 소멸 ❌
+CIO 종합 보고서      → CIO가 합성     → 메모리에만 존재 → 비서실장 전달 후 소멸 ❌
+비서실장 최종 보고서   → 화면에 표시    → 화면 닫으면 소멸 ❌
+```
+
+CEO가 나중에 "저번에 CTO가 뭐라고 했더라?", "시황분석이 구체적으로 뭐였지?"하면 **다시 처음부터 물어봐야** 했습니다.
+
+**문제 2: GitHub에 수동으로 올려야 한다**
+
+로컬에서 작업한 결과물을 팀원이나 다른 기기에서 보려면, 매번 터미널에서 `git add → git commit → git push`를 직접 해야 했습니다. 까먹으면 로컬에만 존재해서 다른 곳에서 접근할 수 없었습니다.
+
+---
+
+### 뭘 바꿨나? (변경 내역)
+
+#### 1. 모든 에이전트의 산출물 자동 아카이브
+
+**핵심: `BaseAgent.handle_task()`가 완료되는 시점에 자동으로 보고서를 파일로 저장합니다.**
+
+CORTHEX HQ의 모든 에이전트(25명)는 `BaseAgent`를 상속합니다. `handle_task()`는 모든 에이전트가 작업을 처리할 때 공통으로 거치는 메서드입니다. 여기에 `_save_to_archive()`를 추가했으므로, **어떤 에이전트든 작업이 끝나면 자동으로 보고서가 저장됩니다.**
+
+```python
+# src/core/agent.py — BaseAgent.handle_task() (변경 후)
+
+async def handle_task(self, request):
+    result = await self.execute(request)      # 기존: 작업 수행
+    self.context.log_message(result)           # 기존: 로그 기록
+    self._save_to_archive(request, result)     # 🆕 보고서 파일로 저장
+    return result
+```
+
+**저장 위치: `reports/{날짜}/{부서}/{에이전트}_{시간}.md`**
+
+각 에이전트의 `division` 설정값(agents.yaml에 정의됨)을 폴더 경로로 변환합니다:
+
+| 에이전트 | division 값 | 저장 경로 |
+|----------|------------|-----------|
+| 비서실장 | `secretary` | `reports/2026-02-12/secretary/chief_of_staff_143032.md` |
+| CTO 처장 | `leet_master.tech` | `reports/2026-02-12/leet_master/tech/cto_manager_143027.md` |
+| 프론트엔드 | `leet_master.tech` | `reports/2026-02-12/leet_master/tech/frontend_specialist_143028.md` |
+| CSO 처장 | `leet_master.strategy` | `reports/2026-02-12/leet_master/strategy/cso_manager_143030.md` |
+| CIO 처장 | `finance.investment` | `reports/2026-02-12/finance/investment/cio_manager_143031.md` |
+| 시황분석 | `finance.investment` | `reports/2026-02-12/finance/investment/market_condition_specialist_143025.md` |
+
+**전체 디렉토리 구조 예시:**
+```
+reports/
+  2026-02-12/                             ← 날짜별 폴더
+    secretary/                            ← 비서실
+      chief_of_staff_143032.md
+      report_worker_143025.md
+      schedule_worker_143026.md
+      relay_worker_143026.md
+    leet_master/                          ← LEET Master 본부
+      tech/                              ← 기술개발처
+        cto_manager_143027.md
+        frontend_specialist_143028.md
+        backend_specialist_143028.md
+        infra_specialist_143028.md
+        ai_model_specialist_143028.md
+      strategy/                          ← 사업기획처
+        cso_manager_143030.md
+        market_research_specialist_143029.md
+        business_plan_specialist_143029.md
+        financial_model_specialist_143029.md
+      legal/                             ← 법무·IP처
+        clo_manager_143030.md
+        copyright_specialist_143029.md
+        patent_specialist_143029.md
+      marketing/                         ← 마케팅·고객처
+        cmo_manager_143030.md
+        survey_specialist_143029.md
+        content_specialist_143029.md
+        community_specialist_143029.md
+    finance/                             ← 투자분석 본부
+      investment/                        ← 투자분석처
+        cio_manager_143031.md
+        market_condition_specialist_143025.md
+        stock_analysis_specialist_143026.md
+        technical_analysis_specialist_143027.md
+        risk_management_specialist_143028.md
+  2026-02-13/                            ← 다음 날은 새 폴더
+    ...
+```
+
+**각 보고서 파일 내용 예시:**
+```markdown
+# 시황분석 Specialist (market_condition_specialist) 보고서
+
+- **일시**: 2026-02-12 14:30:25 UTC
+- **부서**: finance.investment
+- **역할**: specialist
+- **지시 내용**: 삼성전자 관련 거시경제 환경 및 시장 동향을 분석하세요
+- **상태**: SUCCESS
+- **처리 시간**: 2.8초
+
+---
+
+## 거시경제 환경 분석
+
+### 1. 금리 환경
+- 한국은행 기준금리: 3.00% (동결 기조)
+- 미국 Fed 금리: 4.75% (인하 기대)
+...
+```
+
+#### 2. GitHub 자동 업로드
+
+**핵심: 에이전트들이 각자 저장 → 전부 끝나면 Orchestrator가 한 번에 push**
+
+v0.3.0까지의 방식과 비교:
+```
+v0.3.0: 저장 안 됨, push 안 됨 (화면에만 표시)
+
+v0.4.0:
+  각 에이전트 handle_task() 완료 → 보고서 파일 저장 (git 안 건드림)
+  각 에이전트 handle_task() 완료 → 보고서 파일 저장 (git 안 건드림)
+  각 에이전트 handle_task() 완료 → 보고서 파일 저장 (git 안 건드림)
+  ...전부 끝...
+  Orchestrator.process_command() 마지막 → git add reports/ → commit → push (딱 1회)
+```
+
+왜 에이전트마다 push하지 않고 마지막에 한 번만 하느냐?
+- CEO가 명령 1개를 내리면 에이전트 5~10명이 동시에 일함
+- 각각 push하면 git commit이 10개 생기고, push도 10번 → 느리고 커밋 로그가 지저분해짐
+- 그래서 **전부 저장만 해두고, 맨 마지막에 한 번에** `git add reports/ → commit → push`
+
+**push 실패 대비:**
+
+네트워크 문제로 push가 실패할 수 있으므로, exponential backoff 방식으로 최대 4회 재시도합니다:
+
+| 시도 | 대기 시간 | 누적 |
+|------|-----------|------|
+| 1회차 실패 | 2초 대기 | 2초 |
+| 2회차 실패 | 4초 대기 | 6초 |
+| 3회차 실패 | 8초 대기 | 14초 |
+| 4회차 실패 | 16초 대기 | 30초 |
+| 4회 모두 실패 | 포기 (로그에 기록) | — |
+
+---
+
+### 동작 흐름 (전체 시나리오)
+
+CEO가 "삼성전자 주가 분석해줘"라고 입력했을 때:
+
+```
+① CEO 명령 입력: "삼성전자 주가 분석해줘"
+   │
+② Orchestrator → 비서실장(chief_of_staff)에게 전달
+   │
+③ 비서실장이 명령을 분석하고 CIO에게 배분
+   │
+④ CIO(cio_manager)가 4명의 Specialist에게 병렬 배분
+   │
+   ├─ 시황분석 Specialist ──→ 분석 수행 ──→ 결과 반환
+   │   └─ 📄 저장: reports/2026-02-12/finance/investment/market_condition_specialist_143025.md
+   │
+   ├─ 종목분석 Specialist ──→ 분석 수행 ──→ 결과 반환
+   │   └─ 📄 저장: reports/2026-02-12/finance/investment/stock_analysis_specialist_143026.md
+   │
+   ├─ 기술적분석 Specialist ──→ 분석 수행 ──→ 결과 반환
+   │   └─ 📄 저장: reports/2026-02-12/finance/investment/technical_analysis_specialist_143027.md
+   │
+   └─ 리스크관리 Specialist ──→ 분석 수행 ──→ 결과 반환
+       └─ 📄 저장: reports/2026-02-12/finance/investment/risk_management_specialist_143028.md
+   │
+⑤ CIO가 4명의 결과를 종합하여 보고
+   └─ 📄 저장: reports/2026-02-12/finance/investment/cio_manager_143031.md
+   │
+⑥ 비서실장이 최종 보고서 작성
+   └─ 📄 저장: reports/2026-02-12/secretary/chief_of_staff_143032.md
+   │
+⑦ CEO 화면에 최종 결과 표시
+   │
+⑧ Orchestrator: git add reports/ → git commit → git push (1회)
+   └─ GitHub에 6개 파일 자동 업로드 완료
+```
+
+---
+
+### 수정된 파일 상세 (5개 파일)
+
+| 파일 | 상태 | 변경 내용 |
+|------|------|-----------|
+| `src/core/report_saver.py` | **신규** | `save_agent_report()` 함수. AgentConfig의 division 값을 폴더 경로로 변환하고, 날짜/시간 기반 파일명으로 마크다운 보고서를 저장 |
+| `src/core/git_sync.py` | **신규** | `auto_push_reports()` 함수. `reports/` 디렉토리 전체를 `git add → commit → push`. push 실패 시 exponential backoff 재시도 (최대 4회) |
+| `src/core/agent.py` | **수정** | `BaseAgent.handle_task()` 끝에 `_save_to_archive()` 호출 추가. 모든 에이전트(25명)가 상속하므로 한 곳만 수정하면 전체 적용 |
+| `src/core/orchestrator.py` | **수정** | `process_command()` 끝에 `auto_push_reports()` 호출 추가. 에이전트들의 개별 저장과 분리하여 마지막에 한 번만 push |
+| `.env.example` | **수정** | `CORTHEX_AUTO_UPLOAD=1` 환경변수 추가 (자동 업로드 ON/OFF 제어) |
+
+### 설정 방법
+
+`.env` 파일에서 자동 업로드를 켜고 끌 수 있습니다:
+```
+CORTHEX_AUTO_UPLOAD=1   # 켜기 (기본값 — 설정 안 하면 자동으로 ON)
+CORTHEX_AUTO_UPLOAD=0   # 끄기 (로컬 저장만 하고 GitHub push 안 함)
+```
+
+**참고:** `CORTHEX_AUTO_UPLOAD=0`으로 해도 `reports/` 폴더에 보고서 **저장은 됩니다.** GitHub push만 안 할 뿐입니다.
+
+### v0.3.0 → v0.4.0 비교
+
+| 항목 | v0.3.0 | v0.4.0 |
+|------|--------|--------|
+| 최종 보고서 저장 | 화면 표시만 | 파일 저장 + GitHub push |
+| 중간 산출물 보존 | 소멸 (접근 불가) | **전부 파일로 보존** |
+| 아카이브 구조 | 없음 | **날짜/부서별 폴더** |
+| GitHub 업로드 | 수동 | **자동 (매 명령마다)** |
+| 네트워크 실패 대응 | — | **4회 재시도 (exponential backoff)** |
+| ON/OFF 제어 | — | **환경변수로 제어 가능** |
+
+---
+
 ## v0.3.0 (2026-02-12) - 본부 라벨 분리 (LEET Master / 투자분석)
 
 > 상태: **구현 완료**
