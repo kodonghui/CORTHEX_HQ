@@ -1,0 +1,41 @@
+name: Auto-merge Claude branches
+
+# 언제 실행? → claude/ 로 시작하는 브랜치에 push될 때
+on:
+  push:
+    branches:
+      - 'claude/**'
+
+# GitHub 토큰 권한 설정
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  auto-merge:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Create PR and auto-merge
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          BRANCH="${GITHUB_REF_NAME}"
+
+          # 이미 PR이 있는지 확인
+          EXISTING_PR=$(gh pr list --head "$BRANCH" --json number -q '.[0].number' 2>/dev/null || echo "")
+
+          if [ -z "$EXISTING_PR" ]; then
+            # PR이 없으면 새로 생성
+            gh pr create \
+              --base main \
+              --head "$BRANCH" \
+              --title "Auto-merge: ${BRANCH}" \
+              --body "Claude Code 세션에서 자동 생성된 PR입니다."
+          fi
+
+          # 바로 머지 (충돌 없을 때)
+          gh pr merge "$BRANCH" --merge --delete-branch
