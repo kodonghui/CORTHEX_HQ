@@ -909,7 +909,6 @@ def _task_to_dict(t: StoredTask, include_result: bool = False) -> dict:
     if include_result:
         d["result_data"] = t.result_data
         d["tokens_used"] = t.tokens_used
-        d["correlation_id"] = getattr(t, "correlation_id", None)
     d["bookmarked"] = getattr(t, "bookmarked", False)
     d["correlation_id"] = getattr(t, "correlation_id", None)
     return d
@@ -1026,6 +1025,12 @@ async def list_archive() -> list[dict]:
 async def read_archive(division: str, filename: str) -> dict:
     """개별 아카이브 보고서 조회."""
     filepath = ARCHIVE_DIR / division / filename
+    # 경로 탈출 방지: ARCHIVE_DIR 바깥 파일 접근 차단
+    try:
+        if not str(filepath.resolve()).startswith(str(ARCHIVE_DIR.resolve())):
+            return {"error": "잘못된 경로입니다"}
+    except Exception:
+        return {"error": "잘못된 경로입니다"}
     if not filepath.exists() or not filepath.is_file():
         return {"error": "file not found"}
     content = filepath.read_text(encoding="utf-8")
