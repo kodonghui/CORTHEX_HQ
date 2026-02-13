@@ -187,6 +187,8 @@ async def startup() -> None:
                     ws_manager=ws_manager,
                     model_router=model_router,
                     registry=registry,
+                    context=context,
+                    task_store=task_store,
                 )
                 await telegram_app.initialize()
                 await telegram_app.start()
@@ -252,6 +254,8 @@ async def _handle_message_event(msg: Message) -> None:
             )
         # 중간 보고서 아카이브 저장
         _archive_agent_report(msg)
+        # SNS 발행 요청 텔레그램 알림 확인
+        await _check_sns_notifications()
 
     # 텔레그램 브릿지에도 이벤트 전달
     try:
@@ -260,6 +264,31 @@ async def _handle_message_event(msg: Message) -> None:
         if bridge:
             await bridge.on_agent_event(msg)
     except ImportError:
+        pass
+
+
+# ─── SNS 텔레그램 알림 ───
+
+_notified_sns_ids: set[str] = set()
+
+
+async def _check_sns_notifications() -> None:
+    """SNS 승인 큐에 새 요청이 있으면 텔레그램에 자동 알림."""
+    if not tool_pool_ref:
+        return
+    try:
+        from src.telegram.bot import get_notifier
+        notifier = get_notifier()
+        if not notifier:
+            return
+        result = await tool_pool_ref.invoke("sns_manager", action="queue")
+        pending = result.get("pending", [])
+        for item in pending:
+            rid = item.get("request_id", "")
+            if rid and rid not in _notified_sns_ids:
+                _notified_sns_ids.add(rid)
+                await notifier.notify_sns_approval(item)
+    except Exception:
         pass
 
 
