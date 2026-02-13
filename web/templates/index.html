@@ -411,13 +411,13 @@
 
       <!-- View Toggle: 채팅/사무실/대시보드 -->
       <div class="flex items-center bg-hq-surface border border-hq-border rounded-lg">
-        <button @click="viewMode = 'chat'"
+        <button @click="if(dashboardRefreshTimer){clearInterval(dashboardRefreshTimer);dashboardRefreshTimer=null;} viewMode = 'chat'"
                 :class="viewMode === 'chat' ? 'bg-hq-accent/20 text-hq-accent' : 'text-hq-muted hover:text-hq-text'"
                 class="px-3 py-1 text-xs font-semibold rounded-l-lg transition-colors">채팅</button>
-        <button @click="viewMode = 'office'"
+        <button @click="if(dashboardRefreshTimer){clearInterval(dashboardRefreshTimer);dashboardRefreshTimer=null;} viewMode = 'office'"
                 :class="viewMode === 'office' ? 'bg-hq-accent/20 text-hq-accent' : 'text-hq-muted hover:text-hq-text'"
                 class="px-3 py-1 text-xs font-semibold border-x border-hq-border transition-colors">사무실</button>
-        <button @click="viewMode = 'dashboard'; loadDashboard()"
+        <button @click="viewMode = 'dashboard'; loadDashboard(); if(dashboardRefreshTimer){clearInterval(dashboardRefreshTimer);} dashboardRefreshTimer = setInterval(() => loadDashboard(), 30000)"
                 :class="viewMode === 'dashboard' ? 'bg-hq-accent/20 text-hq-accent' : 'text-hq-muted hover:text-hq-text'"
                 class="px-3 py-1 text-xs font-semibold rounded-r-lg transition-colors">대시보드</button>
       </div>
@@ -479,9 +479,15 @@
 
       <!-- Org Tree -->
       <div class="flex-1 overflow-y-auto scrollbar-thin p-3 space-y-1">
-        <div class="flex items-center justify-between px-2 mb-3">
+        <div class="flex items-center justify-between px-2 mb-2">
           <div class="text-[10px] font-bold text-hq-muted uppercase tracking-[0.15em]">조직도</div>
           <div class="text-[10px] font-mono text-hq-muted">25명</div>
+        </div>
+        <!-- 에이전트 상태 요약 -->
+        <div class="flex items-center gap-3 px-2 py-1.5 mb-2 rounded-lg bg-hq-bg/50 text-[10px]">
+          <span class="flex items-center gap-1 text-hq-green"><span class="w-1.5 h-1.5 rounded-full bg-hq-green animate-pulse"></span> <span x-text="Object.values(activeAgents).filter(a => a.status === 'working').length"></span> 활동</span>
+          <span class="flex items-center gap-1 text-hq-yellow"><span class="w-1.5 h-1.5 rounded-full bg-hq-yellow"></span> <span x-text="Object.values(activeAgents).filter(a => a.status === 'idle').length"></span> 대기</span>
+          <span class="flex items-center gap-1 text-hq-muted"><span class="w-1.5 h-1.5 rounded-full bg-hq-muted/50"></span> <span x-text="25 - Object.values(activeAgents).filter(a => a.status === 'working' || a.status === 'idle').length"></span> 비활성</span>
         </div>
 
         <!-- CEO -->
@@ -2723,6 +2729,7 @@
         showHealthPopover: false,
 
         // Dashboard extras (budget, quality, task detail)
+        dashboardRefreshTimer: null,
         budget: {},
         quality: {},
         showTaskDetail: false,
