@@ -45,6 +45,28 @@ providers:
         tier: "executive"
         reasoning_levels: ["medium", "high", "xhigh"]
 
+      # ── o 시리즈 (추론 특화) ──
+      - name: "o3"
+        cost_per_1m_input: 2.00
+        cost_per_1m_output: 8.00
+        max_tokens: 100000
+        tier: "manager"
+        reasoning_levels: ["low", "medium", "high"]
+
+      - name: "o3-pro"
+        cost_per_1m_input: 20.00
+        cost_per_1m_output: 80.00
+        max_tokens: 100000
+        tier: "executive"
+        reasoning_levels: ["medium", "high", "xhigh"]
+
+      - name: "o4-mini"
+        cost_per_1m_input: 1.10
+        cost_per_1m_output: 4.40
+        max_tokens: 100000
+        tier: "specialist"
+        reasoning_levels: ["low", "medium", "high"]
+
   anthropic:
     api_key_env: "ANTHROPIC_API_KEY"
     models:

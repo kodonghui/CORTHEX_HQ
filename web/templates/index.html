@@ -347,7 +347,7 @@
         </div>
       </div>
       <div class="flex items-center gap-2">
-        <span class="text-[10px] font-mono text-hq-muted bg-hq-surface border border-hq-border rounded-md px-2 py-0.5">v0.4.0</span>
+        <span class="text-[10px] font-mono text-hq-muted bg-hq-surface border border-hq-border rounded-md px-2 py-0.5">v0.5.0</span>
         <span class="text-[10px] font-mono text-hq-cyan/85 bg-hq-cyan/5 border border-hq-cyan/20 rounded-md px-2 py-0.5">CEO 관제</span>
       </div>
     </div>
@@ -836,7 +836,7 @@
       </div>
 
       <!-- ═══ Tab Navigation (채팅 모드일 때만 표시) ═══ -->
-      <div x-show="viewMode === 'chat'" class="flex items-center gap-0.5 px-3 pt-1.5 pb-0 border-b border-hq-border bg-hq-surface/50 shrink-0 mobile-tabs-scroll">
+      <div x-show="viewMode === 'chat'" class="flex items-center gap-0.5 px-3 pt-2 pb-0 border-b border-hq-border bg-hq-surface/50 shrink-0 mobile-tabs-scroll">
         <!-- 기본 탭 5개 (#12) -->
         <template x-for="tab in getPrimaryTabs()" :key="tab.id">
           <button @click="switchTab(tab.id); showMoreTabs = false"
@@ -873,7 +873,7 @@
       </div>
 
       <!-- ═══ Tab: 홈 (Home Dashboard) ═══ -->
-      <div x-show="viewMode === 'chat' && activeTab === 'home'" x-cloak class="flex-1 overflow-y-auto scrollbar-thin p-6 bg-grid">
+      <div x-show="viewMode === 'chat' && activeTab === 'home'" x-cloak class="flex-1 overflow-y-auto scrollbar-thin px-6 pt-8 pb-6 bg-grid">
         <div class="max-w-5xl mx-auto fade-in-up">
           <div class="mb-6">
             <h1 class="text-2xl font-bold gradient-text mb-1">CORTHEX HQ 대시보드</h1>
@@ -1044,7 +1044,7 @@
       <div x-show="viewMode === 'chat' && activeTab === 'command'" x-cloak class="flex-1 flex flex-col overflow-hidden">
 
         <!-- Chat Messages -->
-        <div class="flex-1 overflow-y-auto scrollbar-thin p-6 space-y-4 bg-grid" id="chatArea" x-ref="chatArea">
+        <div class="flex-1 overflow-y-auto scrollbar-thin px-6 pt-8 pb-6 space-y-4 bg-grid" id="chatArea" x-ref="chatArea">
 
           <!-- ═══ Welcome Screen ═══ -->
           <template x-if="messages.length === 0 && viewMode === 'chat'">
@@ -1742,7 +1742,26 @@
 
       <!-- ═══ Tab: 작업내역 (History) ═══ -->
       <div x-show="viewMode === 'chat' && activeTab === 'history'" x-cloak class="flex-1 flex flex-col overflow-hidden">
-        <div class="px-6 pt-4 pb-3 shrink-0 border-b border-hq-border bg-hq-surface/50">
+        <div class="px-6 pt-5 pb-3 shrink-0 border-b border-hq-border bg-hq-surface/50">
+          <!-- 통계 카드 -->
+          <div class="grid grid-cols-4 gap-3 max-w-5xl mx-auto mb-4">
+            <div class="bg-hq-bg/60 border border-hq-border/50 rounded-lg px-3 py-2">
+              <div class="text-lg font-bold text-hq-text" x-text="taskHistory.items?.length || 0"></div>
+              <div class="text-[10px] text-hq-muted">전체 작업</div>
+            </div>
+            <div class="bg-hq-bg/60 border border-hq-border/50 rounded-lg px-3 py-2">
+              <div class="text-lg font-bold text-hq-green" x-text="(taskHistory.items || []).filter(t => t.status === 'completed').length"></div>
+              <div class="text-[10px] text-hq-muted">완료</div>
+            </div>
+            <div class="bg-hq-bg/60 border border-hq-border/50 rounded-lg px-3 py-2">
+              <div class="text-lg font-bold text-hq-red" x-text="(taskHistory.items || []).filter(t => t.status === 'failed').length"></div>
+              <div class="text-[10px] text-hq-muted">실패</div>
+            </div>
+            <div class="bg-hq-bg/60 border border-hq-border/50 rounded-lg px-3 py-2">
+              <div class="text-lg font-bold text-hq-cyan" x-text="'$' + ((taskHistory.items || []).reduce((s, t) => s + (t.cost || 0), 0)).toFixed(2)"></div>
+              <div class="text-[10px] text-hq-muted">총 비용</div>
+            </div>
+          </div>
           <div class="flex items-center gap-3 max-w-5xl mx-auto">
             <!-- Search -->
             <div class="flex-1 relative">
@@ -1846,7 +1865,12 @@
               </button>
             </div>
             <template x-if="!taskHistory.items || taskHistory.items.length === 0">
-              <div class="text-center py-16 text-hq-muted/80 text-sm">작업 내역이 없습니다</div>
+              <div class="text-center py-16">
+                <div class="text-4xl mb-3">📋</div>
+                <div class="text-sm text-hq-muted mb-1">작업 내역이 없습니다</div>
+                <div class="text-xs text-hq-muted/70">홈에서 명령을 내리면 여기에 기록됩니다</div>
+                <button @click="switchTab('command')" class="mt-4 text-xs text-hq-accent hover:text-hq-accent/80 bg-hq-accent/10 border border-hq-accent/20 rounded-lg px-4 py-2 transition">명령하러 가기</button>
+              </div>
             </template>
           </div>
         </div>
@@ -2122,6 +2146,9 @@
 
           <!-- SNS Tab 1: Connection Status -->
           <div x-show="sns.tab === 'status' && !sns.loading">
+            <div class="bg-hq-surface/50 border border-hq-border/50 rounded-lg px-4 py-3 mb-4 text-xs text-hq-muted">
+              SNS 플랫폼을 연결하려면 각 플랫폼의 API 키가 필요합니다. <code class="bg-hq-bg px-1 rounded text-hq-cyan">.env</code> 파일에 해당 플랫폼의 API 키를 설정한 뒤 "연결하기"를 누르세요.
+            </div>
             <div class="grid grid-cols-2 gap-4">
               <template x-for="platform in ['instagram','youtube','linkedin','tistory','naver_blog','naver_cafe','daum_cafe']" :key="platform">
                 <div class="glass border border-hq-border rounded-xl p-4">
@@ -2220,6 +2247,9 @@
 
           <!-- SNS Tab 4: Events -->
           <div x-show="sns.tab === 'events' && !sns.loading">
+            <div class="bg-hq-surface/50 border border-hq-border/50 rounded-lg px-4 py-3 mb-4 text-xs text-hq-muted">
+              SNS 이벤트는 연결된 플랫폼에서 발생한 활동 기록입니다. 게시물 발행, 댓글 알림, 팔로워 변동 등의 이벤트가 여기에 자동으로 기록됩니다.
+            </div>
             <div class="space-y-2">
               <template x-for="(event, i) in sns.events" :key="i">
                 <div class="glass border border-hq-border rounded-xl px-4 py-3">
@@ -3799,6 +3829,9 @@
             'gpt-5.1': 'GPT-5.1',
             'gpt-5': 'GPT-5',
             'gpt-5-mini': 'GPT-5 Mini',
+            'o3': 'o3 (추론 특화)',
+            'o3-pro': 'o3-pro (최상위 추론)',
+            'o4-mini': 'o4-mini (경량 추론)',
           };
           return names[modelName] || modelName;
         },
@@ -3812,7 +3845,7 @@
           const groups = {};
           for (const m of (this.availableModels || [])) {
             const prov = m.provider || 'other';
-            const label = prov === 'anthropic' ? 'Anthropic (Claude)' : prov === 'openai' ? 'OpenAI (GPT)' : prov;
+            const label = prov === 'anthropic' ? 'Anthropic (Claude)' : prov === 'openai' ? 'OpenAI' : prov;
             if (!groups[label]) groups[label] = [];
             groups[label].push(m);
           }
@@ -3943,6 +3976,9 @@
                 'gpt-5.1': ['none','low','medium','high'],
                 'gpt-5.2': ['none','low','medium','high','xhigh'],
                 'gpt-5.2-pro': ['medium','high','xhigh'],
+                'o3': ['low','medium','high'],
+                'o3-pro': ['medium','high','xhigh'],
+                'o4-mini': ['low','medium','high'],
               };
               this.agentReasoningOptions = defaultReasoning[mn] || [];
             }
@@ -4006,6 +4042,9 @@
                   'gpt-5.2': ['none','low','medium','high','xhigh'],
                   'gpt-5.2-codex': ['none','low','medium','high','xhigh'],
                   'gpt-5.2-pro': ['medium','high','xhigh'],
+                  'o3': ['low','medium','high'],
+                  'o3-pro': ['medium','high','xhigh'],
+                  'o4-mini': ['low','medium','high'],
                 };
                 this.agentReasoningOptions = defaultReasoning[mn] || [];
               }
@@ -4683,16 +4722,22 @@
         },
 
         async connectPlatform(platform) {
+          const platformNames = {instagram:'Instagram',youtube:'YouTube',linkedin:'LinkedIn',tistory:'Tistory',naver_blog:'네이버 블로그',naver_cafe:'네이버 카페',daum_cafe:'다음 카페'};
+          const name = platformNames[platform] || platform;
           try {
             const res = await fetch(`/api/sns/auth/${platform}`);
             if (res.ok) {
               const data = await res.json();
               if (data.auth_url) {
                 window.open(data.auth_url, '_blank', 'width=600,height=700');
-                this.showToast(`${platform} 인증 창이 열렸습니다. 인증 완료 후 이 페이지를 새로고침하세요.`, 'info');
+                this.showToast(`${name} 인증 창이 열렸습니다. 인증 완료 후 이 페이지를 새로고침하세요.`, 'info');
+              } else {
+                this.showToast(`${name} API 키가 설정되지 않았습니다. .env 파일에 해당 플랫폼의 API 키를 추가해주세요.`, 'warning');
               }
+            } else {
+              this.showToast(`${name} 연결 실패: API 키가 설정되지 않았거나 서버에서 응답이 없습니다. .env 파일을 확인해주세요.`, 'warning');
             }
-          } catch { this.showToast('연결에 실패했습니다.', 'error'); }
+          } catch { this.showToast(`${name} 연결에 실패했습니다. 서버가 실행 중인지 확인해주세요.`, 'error'); }
         },
 
         async postInstagramPhoto() {
