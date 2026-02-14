@@ -68,8 +68,8 @@ if not exist ".venv\Scripts\activate.bat" (
     call .venv\Scripts\activate.bat
 
     echo   [3/3] 필요한 프로그램 설치 중... (1-2분 걸릴 수 있어요)
-    pip install --quiet --upgrade pip setuptools
-    pip install --quiet -e .
+    python -m pip install --quiet --upgrade pip setuptools
+    python -m pip install --quiet -e .
     if %ERRORLEVEL% NEQ 0 (
         echo.
         echo   [실패] 프로그램 설치 중 오류가 발생했습니다.
@@ -109,8 +109,8 @@ if not exist ".venv\Scripts\activate.bat" (
     python -c "import uvicorn" >nul 2>&1
     if %ERRORLEVEL% NEQ 0 (
         echo   [!] 일부 프로그램이 누락되어 재설치합니다...
-        pip install --quiet --upgrade pip setuptools
-        pip install --quiet -e .
+        python -m pip install --quiet --upgrade pip setuptools
+        python -m pip install --quiet -e .
     )
 )
 
