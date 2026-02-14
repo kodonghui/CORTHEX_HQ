@@ -36,17 +36,26 @@ Oracle Cloud 서버를 사용하면 **회사 컴퓨터가 꺼져 있어도** 언
    - CORTHEX HQ 대시보드 `index.html` 배포
    - 접속 주소: http://168.107.28.100
 
+5. **경량 미니 백엔드 서버 구축**
+   - `web/mini_server.py` (경량 FastAPI 서버) 제작 및 배포
+   - Python 가상환경 + FastAPI + uvicorn + websockets 설치
+   - systemd 서비스로 자동 실행 설정 (서버 재시작해도 자동으로 켜짐)
+   - nginx를 리버스 프록시(중계 서버)로 설정 → 미니 서버와 연결
+   - WebSocket 연결 정상 → "서버 연결 끊어짐" 메시지 해결!
+   - 29개 에이전트 목록 및 기본 API 제공
+
 ### 새로 만든/수정한 파일
+- `web/mini_server.py` (경량 미니 서버) — Oracle Cloud용 백엔드
 - `docs/project-status.md` (프로젝트 현재 상태) — Oracle Cloud 서버 정보 추가
 - `docs/updates/2026-02-14_Oracle-Cloud-서버-구축.md` (이 파일) — 작업 기록
 
 ## 현재 상태
 
 - ✅ 서버 생성 완료
-- ✅ 방화벽 설정 완료
-- ✅ nginx 설치 완료
-- ✅ 대시보드 UI 표시 정상
-- ⚠️ "서버 연결이 끊어졌습니다" 메시지 표시 — Python 백엔드가 아직 서버에 설치되지 않았기 때문
+- ✅ 방화벽 설정 완료 (Oracle + iptables 2중)
+- ✅ nginx + 미니 백엔드 설치 완료
+- ✅ 대시보드 UI + WebSocket 연결 정상
+- ✅ "서버 연결 끊어짐" 메시지 해결 완료!
 
 ## 서버 접속 정보
 
@@ -60,6 +69,6 @@ Oracle Cloud 서버를 사용하면 **회사 컴퓨터가 꺼져 있어도** 언
 
 ## 다음에 할 일
 
-1. **Python 백엔드(FastAPI) 설치** — "서버 연결 끊어짐" 메시지 해결
-2. **자동 배포 설정** — GitHub에 코드 올리면 서버에 자동 반영되게 만들기
-3. **도메인 연결** — IP 주소 대신 도메인(예: corthex.com)으로 접속하게 만들기
+1. **자동 배포 설정** — GitHub에 코드 올리면 서버에 자동 반영되게 만들기
+2. **도메인 연결** — IP 주소 대신 도메인(예: corthex.com)으로 접속하게 만들기
+3. **HTTPS 설정** — Let's Encrypt 무료 인증서로 보안 연결
