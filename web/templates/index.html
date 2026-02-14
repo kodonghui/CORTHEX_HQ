@@ -14,50 +14,25 @@
       theme: {
         extend: {
           colors: {
-            'hq-bg': 'rgb(var(--hq-bg) / <alpha-value>)',
-            'hq-surface': 'rgb(var(--hq-surface) / <alpha-value>)',
-            'hq-panel': 'rgb(var(--hq-panel) / <alpha-value>)',
-            'hq-border': 'rgb(var(--hq-border) / <alpha-value>)',
-            'hq-border-light': 'rgb(var(--hq-border-light) / <alpha-value>)',
-            'hq-accent': 'rgb(var(--hq-accent) / <alpha-value>)',
-            'hq-cyan': 'rgb(var(--hq-cyan) / <alpha-value>)',
-            'hq-purple': 'rgb(var(--hq-purple) / <alpha-value>)',
-            'hq-green': 'rgb(var(--hq-green) / <alpha-value>)',
-            'hq-yellow': 'rgb(var(--hq-yellow) / <alpha-value>)',
-            'hq-red': 'rgb(var(--hq-red) / <alpha-value>)',
-            'hq-text': 'rgb(var(--hq-text) / <alpha-value>)',
-            'hq-muted': 'rgb(var(--hq-muted) / <alpha-value>)',
+            'hq-bg': '#0f1729',
+            'hq-surface': '#1a2744',
+            'hq-panel': '#243352',
+            'hq-border': '#475569',
+            'hq-border-light': '#64748b',
+            'hq-accent': '#60a5fa',
+            'hq-cyan': '#22d3ee',
+            'hq-purple': '#a78bfa',
+            'hq-green': '#34d399',
+            'hq-yellow': '#fbbf24',
+            'hq-red': '#f87171',
+            'hq-text': '#f1f5f9',
+            'hq-muted': '#cbd5e1',
           }
         }
       }
     }
   </script>
   <style>
-    /* ═══ Color System: CSS Variables ═══ */
-    :root, .dark {
-      --hq-bg: 15 23 41;
-      --hq-surface: 26 39 68;
-      --hq-panel: 36 51 82;
-      --hq-border: 71 85 105;
-      --hq-border-light: 100 116 139;
-      --hq-accent: 96 165 250;
-      --hq-cyan: 34 211 238;
-      --hq-purple: 167 139 250;
-      --hq-green: 52 211 153;
-      --hq-yellow: 251 191 36;
-      --hq-red: 248 113 113;
-      --hq-text: 241 245 249;
-      --hq-muted: 203 213 225;
-    }
-    html:not(.dark) {
-      --hq-bg: 248 250 252;
-      --hq-surface: 255 255 255;
-      --hq-panel: 241 245 249;
-      --hq-border: 226 232 240;
-      --hq-border-light: 203 213 225;
-      --hq-text: 30 41 59;
-      --hq-muted: 71 85 105;
-    }
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
     * { box-sizing: border-box; }
@@ -124,7 +99,7 @@
     /* Gradient border */
     .gradient-border {
       position: relative;
-      background: rgb(var(--hq-surface));
+      background: #1a2744;
       border: 1px solid transparent;
       background-clip: padding-box;
     }
@@ -145,7 +120,7 @@
 
     /* Glass effect */
     .glass {
-      background: rgb(var(--hq-surface) / 0.92);
+      background: rgba(26, 39, 68, 0.92);
       backdrop-filter: blur(12px);
       -webkit-backdrop-filter: blur(12px);
     }
@@ -244,10 +219,25 @@
     }
 
     /* ═══ Light mode overrides ═══ */
+    html:not(.dark) body { background-color: #f8fafc; color: #1e293b; }
+    html:not(.dark) .bg-hq-bg { background-color: #f8fafc !important; }
+    html:not(.dark) .bg-hq-surface { background-color: #ffffff !important; }
+    html:not(.dark) .bg-hq-panel { background-color: #f1f5f9 !important; }
+    html:not(.dark) .text-hq-text { color: #1e293b !important; }
+    html:not(.dark) .text-hq-muted { color: #475569 !important; }
+    html:not(.dark) .border-hq-border { border-color: #e2e8f0 !important; }
+    html:not(.dark) .border-hq-border-light { border-color: #cbd5e1 !important; }
+    html:not(.dark) .text-hq-text\/90 { color: rgba(30,41,59,0.9) !important; }
+    html:not(.dark) .text-hq-text\/80 { color: rgba(30,41,59,0.8) !important; }
+    html:not(.dark) .text-hq-text\/70 { color: rgba(30,41,59,0.7) !important; }
+    html:not(.dark) .text-hq-muted\/70 { color: rgba(71,85,105,0.7) !important; }
+    html:not(.dark) .text-hq-muted\/60 { color: rgba(71,85,105,0.6) !important; }
+    html:not(.dark) .text-hq-muted\/50 { color: rgba(71,85,105,0.5) !important; }
+    html:not(.dark) .glass { background: rgba(255,255,255,0.92) !important; border-color: #e2e8f0 !important; }
     html:not(.dark) .bg-grid {
       background-image: linear-gradient(rgba(59,130,246,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(59,130,246,0.05) 1px, transparent 1px);
     }
-    html:not(.dark) .gradient-border { background: rgb(var(--hq-panel)); }
+    html:not(.dark) .gradient-border { background: #f1f5f9; }
     html:not(.dark) .markdown-body h1 { color: #1e293b; }
     html:not(.dark) .markdown-body h2 { color: #334155; }
     html:not(.dark) .markdown-body h3 { color: #475569; }
@@ -563,7 +553,7 @@
           </button>
           <div x-show="expanded.secretary" x-collapse class="ml-10 space-y-0.5 mt-1">
             <template x-for="id in ['chief_of_staff', 'report_worker', 'schedule_worker', 'relay_worker']" :key="id">
-              <div :id="'agent-' + id" @click="openAgentConfig(id)" class="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-white/[0.10] transition-all duration-300 cursor-pointer">
+              <div :id="'agent-' + id" @click="openAgentConfig(id)" class="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-hq-accent/10 transition-all duration-300 cursor-pointer" title="클릭하면 모델·추론·소울 설정 가능">
                 <span class="w-1.5 h-1.5 rounded-full transition-colors shrink-0 mt-0.5" :class="[getAgentDotClass(id), activeAgents[id]?.status==='working' ? 'agent-working-glow' : '']"></span>
                 <div class="flex-1 min-w-0">
                   <div class="text-xs text-hq-text" x-text="getAgentName(id)"></div>
@@ -605,7 +595,7 @@
               </button>
               <div x-show="expanded.tech" x-collapse class="ml-10 space-y-0.5 mt-1">
                 <template x-for="id in ['frontend_specialist','backend_specialist','infra_specialist','ai_model_specialist']" :key="id">
-                  <div :id="'agent-' + id" @click="openAgentConfig(id)" class="flex items-center gap-2 px-2 py-1 rounded-md hover:bg-white/[0.10] transition-all duration-300 cursor-pointer">
+                  <div :id="'agent-' + id" @click="openAgentConfig(id)" class="flex items-center gap-2 px-2 py-1 rounded-md hover:bg-hq-accent/10 transition-all duration-300 cursor-pointer" title="클릭하면 모델·추론·소울 설정 가능">
                     <span class="w-1.5 h-1.5 rounded-full transition-colors" :class="[getAgentDotClass(id), activeAgents[id]?.status==='working' ? 'agent-working-glow' : '']"></span>
                     <span class="text-xs text-hq-muted" x-text="getAgentName(id)"></span>
                     <span x-show="activeAgents[id]?.status === 'working'"
@@ -628,7 +618,7 @@
               </button>
               <div x-show="expanded.strategy" x-collapse class="ml-10 space-y-0.5 mt-1">
                 <template x-for="id in ['market_research_specialist','business_plan_specialist','financial_model_specialist']" :key="id">
-                  <div :id="'agent-' + id" @click="openAgentConfig(id)" class="flex items-center gap-2 px-2 py-1 rounded-md hover:bg-white/[0.10] transition-all duration-300 cursor-pointer">
+                  <div :id="'agent-' + id" @click="openAgentConfig(id)" class="flex items-center gap-2 px-2 py-1 rounded-md hover:bg-hq-accent/10 transition-all duration-300 cursor-pointer" title="클릭하면 모델·추론·소울 설정 가능">
                     <span class="w-1.5 h-1.5 rounded-full transition-colors" :class="[getAgentDotClass(id), activeAgents[id]?.status==='working' ? 'agent-working-glow' : '']"></span>
                     <span class="text-xs text-hq-muted" x-text="getAgentName(id)"></span>
                     <span x-show="activeAgents[id]?.status === 'working'"
@@ -651,7 +641,7 @@
               </button>
               <div x-show="expanded.legal" x-collapse class="ml-10 space-y-0.5 mt-1">
                 <template x-for="id in ['copyright_specialist','patent_specialist']" :key="id">
-                  <div :id="'agent-' + id" @click="openAgentConfig(id)" class="flex items-center gap-2 px-2 py-1 rounded-md hover:bg-white/[0.10] transition-all duration-300 cursor-pointer">
+                  <div :id="'agent-' + id" @click="openAgentConfig(id)" class="flex items-center gap-2 px-2 py-1 rounded-md hover:bg-hq-accent/10 transition-all duration-300 cursor-pointer" title="클릭하면 모델·추론·소울 설정 가능">
                     <span class="w-1.5 h-1.5 rounded-full transition-colors" :class="[getAgentDotClass(id), activeAgents[id]?.status==='working' ? 'agent-working-glow' : '']"></span>
                     <span class="text-xs text-hq-muted" x-text="getAgentName(id)"></span>
                     <span x-show="activeAgents[id]?.status === 'working'"
@@ -674,7 +664,7 @@
               </button>
               <div x-show="expanded.marketing" x-collapse class="ml-10 space-y-0.5 mt-1">
                 <template x-for="id in ['survey_specialist','content_specialist','community_specialist']" :key="id">
-                  <div :id="'agent-' + id" @click="openAgentConfig(id)" class="flex items-center gap-2 px-2 py-1 rounded-md hover:bg-white/[0.10] transition-all duration-300 cursor-pointer">
+                  <div :id="'agent-' + id" @click="openAgentConfig(id)" class="flex items-center gap-2 px-2 py-1 rounded-md hover:bg-hq-accent/10 transition-all duration-300 cursor-pointer" title="클릭하면 모델·추론·소울 설정 가능">
                     <span class="w-1.5 h-1.5 rounded-full transition-colors" :class="[getAgentDotClass(id), activeAgents[id]?.status==='working' ? 'agent-working-glow' : '']"></span>
                     <span class="text-xs text-hq-muted" x-text="getAgentName(id)"></span>
                     <span x-show="activeAgents[id]?.status === 'working'"
@@ -714,14 +704,14 @@
               </button>
               <div x-show="expanded.finance" x-collapse class="ml-10 space-y-0.5 mt-1">
                 <template x-for="id in ['market_condition_specialist','stock_analysis_specialist','technical_analysis_specialist','risk_management_specialist']" :key="id">
-                  <div :id="'agent-' + id" @click="openAgentConfig(id)" class="flex items-center gap-2 px-2 py-1 rounded-md hover:bg-white/[0.10] transition-all duration-300 cursor-pointer">
+                  <div :id="'agent-' + id" @click="openAgentConfig(id)" class="flex items-center gap-2 px-2 py-1 rounded-md hover:bg-hq-accent/10 transition-all duration-300 cursor-pointer" title="클릭하면 모델·추론·소울 설정 가능">
                     <span class="w-1.5 h-1.5 rounded-full transition-colors" :class="[getAgentDotClass(id), activeAgents[id]?.status==='working' ? 'agent-working-glow' : '']"></span>
                     <span class="text-xs text-hq-muted" x-text="getAgentName(id)"></span>
                     <template x-if="id !== 'risk_management_specialist'">
-                      <span class="text-[9px] font-mono text-hq-cyan/40 ml-auto">병렬</span>
+                      <span class="text-[9px] font-mono text-hq-cyan/40 ml-auto flex items-center gap-0.5" title="다른 에이전트와 동시에 작업합니다">⚡ 동시</span>
                     </template>
                     <template x-if="id === 'risk_management_specialist'">
-                      <span class="text-[9px] font-mono text-hq-purple/40 ml-auto">순차</span>
+                      <span class="text-[9px] font-mono text-hq-purple/40 ml-auto flex items-center gap-0.5" title="앞 에이전트가 끝나면 시작합니다">📋 순서대로</span>
                     </template>
                   </div>
                 </template>
@@ -744,8 +734,8 @@
                   x-text="getSectionStatusText('publishing')"></span>
           </button>
           <div x-show="expanded.publishing" x-collapse class="ml-10 space-y-0.5 mt-1">
-            <template x-for="id in ['publishing_head']" :key="id">
-              <div :id="'agent-' + id" @click="openAgentConfig(id)" class="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-white/[0.10] transition-all duration-300 cursor-pointer">
+            <template x-for="id in ['cpo_manager', 'chronicle_specialist', 'editor_specialist', 'archive_specialist']" :key="id">
+              <div :id="'agent-' + id" @click="openAgentConfig(id)" class="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-white/[0.10] transition-all duration-300 cursor-pointer" title="클릭하면 모델·추론·소울 설정 가능">
                 <span class="w-1.5 h-1.5 rounded-full transition-colors shrink-0 mt-0.5" :class="[getAgentDotClass(id), activeAgents[id]?.status==='working' ? 'agent-working-glow' : '']"></span>
                 <div class="flex-1 min-w-0">
                   <div class="text-xs text-hq-text" x-text="getAgentName(id)"></div>
@@ -763,7 +753,7 @@
             <div class="agent-avatar bg-hq-red/15 text-hq-red text-[10px]">
               <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
             </div>
-            <span class="text-sm text-hq-text/70">도구 풀</span>
+            <span class="text-sm text-hq-text/70">도구함</span>
             <span class="text-[10px] font-mono text-hq-muted ml-auto" x-text="(toolsList || []).length + '개'"></span>
           </button>
           <div x-show="expanded.tools" x-collapse class="ml-10 space-y-0.5 mt-1 max-h-48 overflow-y-auto scrollbar-thin">
@@ -1735,7 +1725,7 @@
             </div>
             <!-- Status Filter -->
             <select x-model="taskHistory.filterStatus" @change="loadTaskHistory()"
-                    class="bg-hq-bg border border-hq-border rounded-lg px-3 py-2 text-sm text-hq-text focus:outline-none">
+                    class="bg-hq-bg border border-hq-border rounded-lg px-3 py-2 text-sm text-hq-text focus:outline-none min-w-[100px]">
               <option value="all">전체</option>
               <option value="completed">완료</option>
               <option value="failed">실패</option>
@@ -1807,6 +1797,11 @@
                   <div class="flex items-center gap-3 shrink-0">
                     <span class="text-[11px] font-mono text-hq-muted" x-text="task.time_seconds ? task.time_seconds + '초' : ''"></span>
                     <span class="text-[11px] font-mono text-hq-green" x-text="task.cost ? '$' + task.cost.toFixed(4) : ''"></span>
+                    <button x-show="task.correlation_id"
+                            @click="taskHistory.expandedId = task.task_id; loadTaskDetail(task.task_id); loadReplay(task.correlation_id, task.task_id)"
+                            class="text-hq-cyan hover:text-hq-cyan/80 transition text-xs" title="에이전트 간 대화 보기">
+                      💬
+                    </button>
                     <button @click="taskHistory.expandedId = taskHistory.expandedId === task.task_id ? null : task.task_id; if(taskHistory.expandedId === task.task_id) loadTaskDetail(task.task_id)"
                             class="text-hq-muted hover:text-hq-text transition text-xs">
                       <span x-text="taskHistory.expandedId === task.task_id ? '접기' : '펼치기'"></span>
@@ -1936,7 +1931,7 @@
             <h2 class="text-lg font-bold text-hq-text">활동 로그</h2>
             <div class="flex items-center gap-3">
               <select x-model="activityLogFilter"
-                      class="bg-hq-surface border border-hq-border rounded-lg px-3 py-1.5 text-xs text-hq-text">
+                      class="bg-hq-surface border border-hq-border rounded-lg px-3 py-1.5 text-xs text-hq-text min-w-[120px]">
                 <option value="all">전체 에이전트</option>
                 <template x-for="(name, id) in agentNames" :key="id">
                   <option :value="id" x-text="name"></option>
@@ -2433,7 +2428,7 @@
                   class="flex-1 bg-hq-panel border border-hq-border rounded-lg px-3 py-2 text-sm text-hq-text">
             <template x-for="m in availableModels" :key="m.name">
               <option :value="m.name"
-                      x-text="m.name + ' (' + m.provider + ', $' + m.cost_input + '/' + m.cost_output + ')'">
+                      x-text="getModelDisplayName(m.name) + ' ($' + (m.cost_input ?? 0) + '/' + (m.cost_output ?? 0) + ')'">
               </option>
             </template>
           </select>
@@ -2504,6 +2499,27 @@
                  class="w-full bg-hq-panel border border-hq-border rounded-lg px-3 py-2 text-sm text-hq-text"
                  placeholder="예: 기술개발처 검수 기준">
         </div>
+        <div class="grid grid-cols-2 gap-3 mb-3">
+          <div>
+            <label class="text-xs text-hq-muted mb-1 block">검수 모델 (이 부서 전용)</label>
+            <select x-model="rubricEditModel" class="w-full bg-hq-panel border border-hq-border rounded-lg px-3 py-2 text-sm text-hq-text">
+              <option value="">공통 모델 사용</option>
+              <template x-for="m in availableModels" :key="m.name">
+                <option :value="m.name" x-text="getModelDisplayName(m.name)"></option>
+              </template>
+            </select>
+          </div>
+          <div>
+            <label class="text-xs text-hq-muted mb-1 block">추론 정도</label>
+            <select x-model="rubricEditReasoning" class="w-full bg-hq-panel border border-hq-border rounded-lg px-3 py-2 text-sm text-hq-text">
+              <option value="">기본값</option>
+              <option value="low">low (빠름)</option>
+              <option value="medium">medium (균형)</option>
+              <option value="high">high (정밀)</option>
+              <option value="xhigh">xhigh (최고 정밀)</option>
+            </select>
+          </div>
+        </div>
         <div class="mb-3">
           <label class="text-xs text-hq-muted mb-1 block">검수 기준 (프롬프트)</label>
           <textarea x-model="rubricEditPrompt" rows="8"
@@ -2572,6 +2588,9 @@
           <button @click="agentConfigTab = 'soul'"
                   :class="agentConfigTab === 'soul' ? 'bg-hq-accent/20 text-hq-accent' : 'text-hq-muted hover:text-hq-text'"
                   class="flex-1 px-3 py-2 text-xs font-semibold rounded-lg transition-colors">소울</button>
+          <button @click="agentConfigTab = 'skills'"
+                  :class="agentConfigTab === 'skills' ? 'bg-hq-accent/20 text-hq-accent' : 'text-hq-muted hover:text-hq-text'"
+                  class="flex-1 px-3 py-2 text-xs font-semibold rounded-lg transition-colors">스킬</button>
         </div>
 
         <!-- Tab: Info -->
@@ -2602,7 +2621,7 @@
             <select x-model="agentModelSelection"
                     class="w-full bg-hq-panel border border-hq-border rounded-lg px-3 py-2.5 text-sm text-hq-text mb-3">
               <template x-for="m in availableModels" :key="m.name">
-                <option :value="m.name" x-text="m.name + ' (' + (m.provider || '-') + ', $' + (m.cost_input ?? 0) + '/' + (m.cost_output ?? 0) + ')'"></option>
+                <option :value="m.name" x-text="getModelDisplayName(m.name) + ' ($' + (m.cost_input ?? 0) + '/' + (m.cost_output ?? 0) + ')'"></option>
               </template>
             </select>
             <div class="flex items-center gap-2">
@@ -2677,6 +2696,34 @@
                 소울 저장 (즉시 반영)
               </button>
             </div>
+          </div>
+        </div>
+
+        <!-- Tab: Skills -->
+        <div x-show="agentConfigTab === 'skills'">
+          <div class="bg-hq-bg rounded-xl p-4">
+            <label class="text-xs text-hq-muted block mb-2">사용 가능한 도구 (스킬)</label>
+            <p class="text-[11px] text-hq-muted/70 mb-4">이 에이전트가 작업할 때 쓸 수 있는 도구 목록입니다.</p>
+            <template x-if="(agentConfigData?.allowed_tools || []).length === 0">
+              <div class="text-center py-8">
+                <div class="text-3xl mb-2">🔓</div>
+                <p class="text-sm text-hq-muted">이 에이전트는 모든 도구를 사용할 수 있습니다.</p>
+                <p class="text-[11px] text-hq-muted/60 mt-1">특정 도구만 허용하려면 설정 파일에서 allowed_tools를 지정하세요.</p>
+              </div>
+            </template>
+            <template x-if="(agentConfigData?.allowed_tools || []).length > 0">
+              <div class="grid grid-cols-2 gap-2">
+                <template x-for="tool in (agentConfigData?.allowed_tools || [])" :key="tool">
+                  <div class="bg-hq-panel border border-hq-border/50 rounded-lg p-3 flex items-center gap-2.5">
+                    <div class="w-7 h-7 rounded-md bg-hq-accent/10 flex items-center justify-center text-sm shrink-0">🔧</div>
+                    <div class="min-w-0">
+                      <div class="text-xs font-semibold text-hq-text truncate" x-text="getToolDisplayName(tool)"></div>
+                      <div class="text-[10px] text-hq-muted truncate" x-text="getToolDescription(tool)"></div>
+                    </div>
+                  </div>
+                </template>
+              </div>
+            </template>
           </div>
         </div>
 
@@ -2908,6 +2955,8 @@
         editingRubric: null,
         rubricEditName: '',
         rubricEditPrompt: '',
+        rubricEditModel: '',
+        rubricEditReasoning: '',
         qualitySaveStatus: '',
 
         // Agent config modal
@@ -2997,7 +3046,10 @@
           'stock_analysis_specialist': '종목분석',
           'technical_analysis_specialist': '기술적분석',
           'risk_management_specialist': '리스크관리',
-          'publishing_head': '출판 본부장 (CPO)',
+          'cpo_manager': '출판·기록처장 (CPO)',
+          'chronicle_specialist': '회사연대기',
+          'editor_specialist': '콘텐츠편집',
+          'archive_specialist': '아카이브',
         },
 
         // Agent initials for avatars
@@ -3027,7 +3079,10 @@
           'stock_analysis_specialist': 'SA',
           'technical_analysis_specialist': 'TA',
           'risk_management_specialist': 'RM',
-          'publishing_head': 'PB',
+          'cpo_manager': 'CPO',
+          'chronicle_specialist': 'CH',
+          'editor_specialist': 'ED',
+          'archive_specialist': 'AR',
         },
 
         // Division mapping for auto-expand
@@ -3046,7 +3101,8 @@
           'cio_manager': 'finance', 'market_condition_specialist': 'finance',
           'stock_analysis_specialist': 'finance', 'technical_analysis_specialist': 'finance',
           'risk_management_specialist': 'finance',
-          'publishing_head': 'publishing',
+          'cpo_manager': 'publishing', 'chronicle_specialist': 'publishing',
+          'editor_specialist': 'publishing', 'archive_specialist': 'publishing',
         },
 
         // Agent color mapping
@@ -3579,6 +3635,33 @@
 
         // ── Quality Gate Settings ──────────────────
 
+        sortModels(models) {
+          const tierOrder = { executive: 0, manager: 1, specialist: 2, worker: 3 };
+          return models.sort((a, b) => {
+            const ta = tierOrder[a.tier] ?? 99;
+            const tb = tierOrder[b.tier] ?? 99;
+            if (ta !== tb) return ta - tb;
+            return (b.cost_output || 0) - (a.cost_output || 0);
+          });
+        },
+
+        getModelDisplayName(modelName) {
+          const names = {
+            'claude-opus-4-6': 'Claude Opus 4.6',
+            'claude-sonnet-4-5-20250929': 'Claude Sonnet 4.5',
+            'claude-haiku-4-5-20251001': 'Claude Haiku 4.5',
+            'gpt-5.2-pro': 'GPT-5.2 Pro',
+            'gpt-5.2': 'GPT-5.2',
+            'gpt-5.2-codex': 'GPT-5.2 Codex',
+            'gpt-5.1': 'GPT-5.1',
+            'gpt-5.1-codex': 'GPT-5.1 Codex',
+            'gpt-5': 'GPT-5',
+            'gpt-5-mini': 'GPT-5 Mini',
+            'gpt-5-nano': 'GPT-5 Nano',
+          };
+          return names[modelName] || modelName;
+        },
+
         async loadQualityRules() {
           try {
             const [rulesRes, modelsRes] = await Promise.all([
@@ -3586,8 +3669,8 @@
               fetch('/api/available-models').then(r => r.json()),
             ]);
             this.qualityRules = rulesRes;
-            this.availableModels = modelsRes;
-            this.selectedReviewModel = rulesRes.rules?.review_model || (modelsRes.length ? modelsRes[0].name : '');
+            this.availableModels = this.sortModels(Array.isArray(modelsRes) ? modelsRes : []);
+            this.selectedReviewModel = rulesRes.rules?.review_model || (this.availableModels.length ? this.availableModels[0].name : '');
           } catch (e) {
             console.error('Failed to load quality rules:', e);
           }
@@ -3610,9 +3693,11 @@
 
         startEditRubric(division) {
           this.editingRubric = division;
-          const rubric = this.qualityRules.rubrics?.[division] || { name: '', prompt: '' };
+          const rubric = this.qualityRules.rubrics?.[division] || { name: '', prompt: '', model: '', reasoning_effort: '' };
           this.rubricEditName = rubric.name || '';
           this.rubricEditPrompt = rubric.prompt || '';
+          this.rubricEditModel = rubric.model || '';
+          this.rubricEditReasoning = rubric.reasoning_effort || '';
         },
 
         async saveRubric() {
@@ -3625,6 +3710,8 @@
               body: JSON.stringify({
                 name: this.rubricEditName,
                 prompt: this.rubricEditPrompt,
+                model: this.rubricEditModel || null,
+                reasoning_effort: this.rubricEditReasoning || null,
               }),
             }).then(r => r.json());
             if (res.success) {
@@ -3632,6 +3719,8 @@
               this.qualityRules.rubrics[this.editingRubric] = {
                 name: this.rubricEditName,
                 prompt: this.rubricEditPrompt,
+                model: this.rubricEditModel,
+                reasoning_effort: this.rubricEditReasoning,
               };
               this.editingRubric = null;
               this.qualitySaveStatus = 'saved';
@@ -3672,7 +3761,9 @@
               return;
             }
             this.agentConfigData = agentRes;
-            if (!this.availableModels.length && Array.isArray(modelsRes)) this.availableModels = modelsRes;
+            if (!this.availableModels.length && Array.isArray(modelsRes)) {
+              this.availableModels = this.sortModels(modelsRes);
+            }
             this.agentSoulText = agentRes.system_prompt || '';
             this.agentModelSelection = agentRes.model_name || '';
             this.agentReasoningSelection = agentRes.reasoning_effort || '';
@@ -3685,10 +3776,14 @@
               const defaultReasoning = {
                 'claude-opus-4-6': ['low','medium','high'],
                 'claude-sonnet-4-5-20250929': ['low','medium','high'],
+                'gpt-5-nano': [],
                 'gpt-5-mini': ['low','medium','high'],
-                'gpt-5': ['minimal','low','medium','high'],
-                'gpt-5-2': ['none','low','medium','high','xhigh'],
-                'gpt-5-2-pro': ['medium','high','xhigh'],
+                'gpt-5': ['none','low','medium','high'],
+                'gpt-5.1': ['none','low','medium','high'],
+                'gpt-5.1-codex': ['none','low','medium','high'],
+                'gpt-5.2': ['none','low','medium','high','xhigh'],
+                'gpt-5.2-codex': ['none','low','medium','high','xhigh'],
+                'gpt-5.2-pro': ['medium','high','xhigh'],
               };
               this.agentReasoningOptions = defaultReasoning[mn] || [];
             }
@@ -3739,6 +3834,22 @@
               // 모델 변경 시 추론 옵션도 갱신
               const newModel = this.availableModels.find(m => m.name === this.agentModelSelection);
               this.agentReasoningOptions = newModel?.reasoning_levels || [];
+              // Fallback
+              if (this.agentReasoningOptions.length === 0 && this.agentModelSelection) {
+                const mn = this.agentModelSelection;
+                const defaultReasoning = {
+                  'claude-opus-4-6': ['low','medium','high'],
+                  'claude-sonnet-4-5-20250929': ['low','medium','high'],
+                  'gpt-5-mini': ['low','medium','high'],
+                  'gpt-5': ['none','low','medium','high'],
+                  'gpt-5.1': ['none','low','medium','high'],
+                  'gpt-5.1-codex': ['none','low','medium','high'],
+                  'gpt-5.2': ['none','low','medium','high','xhigh'],
+                  'gpt-5.2-codex': ['none','low','medium','high','xhigh'],
+                  'gpt-5.2-pro': ['medium','high','xhigh'],
+                };
+                this.agentReasoningOptions = defaultReasoning[mn] || [];
+              }
               // 현재 선택된 추론 정도가 새 모델에서 지원 안 되면 초기화
               if (this.agentReasoningSelection && !this.agentReasoningOptions.includes(this.agentReasoningSelection)) {
                 this.agentReasoningSelection = '';
@@ -4644,6 +4755,16 @@
             'publishing': '출판·기록 (CPO)',
           };
           return labels[division] || division;
+        },
+
+        getToolDisplayName(toolId) {
+          const t = (this.toolsList || []).find(t => t.name === toolId);
+          return t?.name_ko || toolId;
+        },
+
+        getToolDescription(toolId) {
+          const t = (this.toolsList || []).find(t => t.name === toolId);
+          return t?.description || '';
         },
 
         // ── SNS platform name mapping (#6) ──
