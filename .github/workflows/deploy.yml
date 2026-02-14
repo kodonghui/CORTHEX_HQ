@@ -20,12 +20,15 @@ jobs:
 
       - name: 서버에 배포하기
         uses: appleboy/ssh-action@v1
+        env:
+          BUILD_NUMBER: ${{ github.run_number }}
         with:
           host: ${{ secrets.SERVER_IP }}
           username: ubuntu
           key: ${{ secrets.SERVER_SSH_KEY }}
+          envs: BUILD_NUMBER
           script: |
-            echo "🚀 배포 시작..."
+            echo "🚀 배포 시작... (빌드 #${BUILD_NUMBER})"
 
             # 1단계: GitHub에서 최신 코드 가져오기
             cd /home/ubuntu
@@ -40,11 +43,15 @@ jobs:
 
             cd /home/ubuntu/CORTHEX_HQ
 
-            # 2단계: 대시보드 HTML 파일 복사 (웹서버 폴더로)
+            # 2단계: 빌드 번호 파일 생성
+            echo "📝 빌드 번호 저장 중... (#${BUILD_NUMBER})"
+            echo "${BUILD_NUMBER}" | sudo tee /var/www/html/build.txt > /dev/null
+
+            # 3단계: 대시보드 HTML 파일 복사 (웹서버 폴더로)
             echo "📄 대시보드 파일 복사 중..."
             sudo cp web/templates/index.html /var/www/html/index.html
 
-            # 3단계: 미니 서버 파일 복사
+            # 4단계: 미니 서버 파일 복사
             echo "🐍 미니 서버 파일 복사 중..."
             mkdir -p /home/ubuntu/web/templates
             mkdir -p /home/ubuntu/config
@@ -52,22 +59,22 @@ jobs:
             cp web/templates/index.html /home/ubuntu/web/templates/index.html
             cp -r config/* /home/ubuntu/config/ 2>/dev/null || echo "⚠️ config 파일 없음 (무시)"
 
-            # 3.5단계: Python 의존성 설치 (PyYAML 등)
+            # 5단계: Python 의존성 설치 (PyYAML 등)
             echo "📦 Python 패키지 확인 중..."
             pip3 install pyyaml 2>/dev/null || pip install pyyaml 2>/dev/null || echo "⚠️ pip 설치 실패 (yaml 없이 동작 가능)"
 
-            # 4단계: 미니 서버 재시작
+            # 6단계: 미니 서버 재시작
             echo "🔁 미니 서버 재시작 중..."
             sudo systemctl restart corthex
 
-            # 5단계: 상태 확인
+            # 7단계: 상태 확인
             sleep 2
             if sudo systemctl is-active --quiet corthex; then
-              echo "✅ 배포 완료! 미니 서버 정상 실행 중"
+              echo "✅ 배포 완료! 미니 서버 정상 실행 중 (빌드 #${BUILD_NUMBER})"
             else
               echo "❌ 미니 서버 시작 실패"
               sudo journalctl -u corthex --no-pager -n 10
               exit 1
             fi
 
-            echo "🎉 배포 성공! http://168.107.28.100 에서 확인 가능"
+            echo "🎉 배포 성공! http://168.107.28.100 에서 확인 가능 (빌드 #${BUILD_NUMBER})"
