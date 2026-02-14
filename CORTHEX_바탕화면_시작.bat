@@ -79,20 +79,20 @@ if not exist ".venv\Scripts\activate.bat" (
     )
     echo         완료!
 
-    REM .env 파일 확인
-    if not exist ".env" (
+    REM .env.local 파일 확인 (.env.local 권장 - AnySign4PC가 .env를 잠글 수 있음)
+    if not exist ".env.local" (
         if exist ".env.example" (
-            copy .env.example .env >nul
+            copy .env.example .env.local >nul
             echo.
             echo   ==========================================
             echo   중요: API 키 설정이 필요합니다!
             echo.
-            echo   1. .env 파일이 메모장으로 열립니다
+            echo   1. .env.local 파일이 메모장으로 열립니다
             echo   2. OPENAI_API_KEY= 뒤에 키를 붙여넣으세요
             echo   3. 저장한 후 이 파일을 다시 실행하세요
             echo   ==========================================
             echo.
-            start notepad "%CORTHEX_DIR%\.env"
+            start notepad "%CORTHEX_DIR%\.env.local"
             pause
             exit /b 0
         )
