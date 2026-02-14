@@ -13,9 +13,8 @@ REM  2. 아래 CORTHEX_DIR 경로를 본인의 프로젝트 폴더로 바꾸세�
 REM  3. 더블클릭하면 끝!
 REM ============================================
 
-REM ★★★ 여기만 수정하세요! CORTHEX_HQ 폴더 경로 ★★★
-REM 예시: C:\Users\동희\Documents\GitHub\CORTHEX_HQ
-set "CORTHEX_DIR=C:\Users\%USERNAME%\Documents\GitHub\CORTHEX_HQ"
+REM ★★★ CORTHEX_HQ 폴더 경로 (이미 설정됨) ★★★
+set "CORTHEX_DIR=C:\Users\USER\Desktop\PJ0_CORTHEX\CORTHEX_HQ\CORTHEX_HQ"
 
 title CORTHEX HQ - CEO 관제실
 
