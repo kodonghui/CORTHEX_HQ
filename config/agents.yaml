@@ -58,9 +58,9 @@ agents:
       - "cpo_manager"
 
   - agent_id: "report_worker"
-    name: "Report Summary Worker"
-    name_ko: "보고 요약 Worker"
-    role: "worker"
+    name: "Report Specialist"
+    name_ko: "전략 보고관"
+    role: "specialist"
     division: "secretary"
     model_name: "claude-haiku-4-5-20251001"
     system_prompt: |
@@ -72,9 +72,9 @@ agents:
     superior_id: "chief_of_staff"
 
   - agent_id: "schedule_worker"
-    name: "Schedule Tracker Worker"
-    name_ko: "일정/미결 추적 Worker"
-    role: "worker"
+    name: "Schedule Specialist"
+    name_ko: "작전 일정관"
+    role: "specialist"
     division: "secretary"
     model_name: "claude-haiku-4-5-20251001"
     system_prompt: |
@@ -87,9 +87,9 @@ agents:
     superior_id: "chief_of_staff"
 
   - agent_id: "relay_worker"
-    name: "Cross-Division Relay Worker"
-    name_ko: "사업부 간 정보 중계 Worker"
-    role: "worker"
+    name: "Liaison Specialist"
+    name_ko: "부서 연락관"
+    role: "specialist"
     division: "secretary"
     model_name: "claude-haiku-4-5-20251001"
     system_prompt: |
