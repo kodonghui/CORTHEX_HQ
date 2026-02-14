@@ -71,6 +71,13 @@ class ToolPool:
             "hashtag_recommender": "src.tools.hashtag_recommender.HashtagRecommenderTool",
             "email_optimizer": "src.tools.email_optimizer.EmailOptimizerTool",
             "competitor_sns_monitor": "src.tools.competitor_sns_monitor.CompetitorSnsMonitorTool",
+            # ─── CSO 사업기획처 신규 도구 ───
+            "competitor_monitor": "src.tools.competitor_monitor.CompetitorMonitorTool",
+            "app_review_scraper": "src.tools.app_review_scraper.AppReviewScraperTool",
+            "youtube_analyzer": "src.tools.youtube_analyzer.YoutubeAnalyzerTool",
+            "subsidy_finder": "src.tools.subsidy_finder.SubsidyFinderTool",
+            "naver_place_scraper": "src.tools.naver_place_scraper.NaverPlaceScraperTool",
+            "scholar_scraper": "src.tools.scholar_scraper.ScholarScraperTool",
             # ─── CTO 기술개발처 신규 도구 ───
             "uptime_monitor": "src.tools.uptime_monitor.UptimeMonitorTool",
             "security_scanner": "src.tools.security_scanner.SecurityScannerTool",
