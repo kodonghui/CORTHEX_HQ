@@ -1,11 +1,10 @@
 @echo off
 chcp 65001 >nul 2>&1
 REM ============================================
-REM CORTHEX HQ - 회사노트북 원클릭 시작
+REM CORTHEX HQ - 원클릭 시작 (모든 컴퓨터 공용)
 REM ============================================
 
 REM 이 bat파일이 있는 폴더를 자동으로 프로젝트 폴더로 인식
-REM (어떤 컴퓨터에서든 자동으로 작동)
 set "CORTHEX_DIR=%~dp0"
 if "%CORTHEX_DIR:~-1%"=="\" set "CORTHEX_DIR=%CORTHEX_DIR:~0,-1%"
 
@@ -32,49 +31,140 @@ echo   [OK] 프로젝트 폴더 확인 완료
 echo        %CORTHEX_DIR%
 echo.
 
-REM -- 2단계: Python 확인 --
+REM -- 2단계: 호환되는 Python 찾기 (3.13 → 3.12 → 3.11 순서) --
+set "PYTHON_CMD="
+set "PY_VER="
+
+REM py 런처로 3.13 확인
+py -3.13 --version >nul 2>&1
+if %ERRORLEVEL% EQU 0 (
+    set "PYTHON_CMD=py -3.13"
+    goto :get_py_ver
+)
+
+REM py 런처로 3.12 확인
+py -3.12 --version >nul 2>&1
+if %ERRORLEVEL% EQU 0 (
+    set "PYTHON_CMD=py -3.12"
+    goto :get_py_ver
+)
+
+REM py 런처로 3.11 확인
+py -3.11 --version >nul 2>&1
+if %ERRORLEVEL% EQU 0 (
+    set "PYTHON_CMD=py -3.11"
+    goto :get_py_ver
+)
+
+REM py 런처가 없으면 기본 python 확인
 python --version >nul 2>&1
-if %ERRORLEVEL% NEQ 0 (
-    echo   [실패] Python이 설치되어 있지 않습니다!
+if %ERRORLEVEL% NEQ 0 goto :install_python
+
+REM 기본 python 버전이 호환되는지 확인 (3.11~3.13)
+python -c "import sys; exit(0 if (3,11) <= sys.version_info < (3,14) else 1)" >nul 2>&1
+if %ERRORLEVEL% EQU 0 (
+    set "PYTHON_CMD=python"
+    goto :get_py_ver
+)
+
+REM -- 호환 버전 없음: Python 3.13 자동 설치 --
+:install_python
+echo   [!] 호환되는 Python(3.11~3.13)을 찾지 못했습니다.
+echo.
+echo   Python 3.13을 자동으로 설치합니다...
+echo   (약 30MB 다운로드, 1~2분 걸릴 수 있어요)
+echo.
+
+set "PY_INSTALLER=%TEMP%\python-3.13.1-amd64.exe"
+
+REM 다운로드 시도 (curl → PowerShell 순서)
+curl -L -o "%PY_INSTALLER%" "https://www.python.org/ftp/python/3.13.1/python-3.13.1-amd64.exe" 2>nul
+if not exist "%PY_INSTALLER%" (
+    echo   curl 실패, PowerShell로 재시도...
+    powershell -Command "Invoke-WebRequest -Uri 'https://www.python.org/ftp/python/3.13.1/python-3.13.1-amd64.exe' -OutFile '%PY_INSTALLER%'" 2>nul
+)
+
+if not exist "%PY_INSTALLER%" (
+    echo   [실패] Python 다운로드에 실패했습니다.
+    echo   인터넷 연결을 확인하세요.
     echo.
-    echo   아래 링크에서 Python을 먼저 설치해주세요:
-    echo   https://www.python.org/downloads/
-    echo.
-    echo   설치할 때 "Add Python to PATH" 체크박스를 반드시 선택하세요!
+    echo   수동 설치: https://www.python.org/downloads/
     echo.
     pause
     exit /b 1
 )
 
-REM Python 버전 가져오기
-for /f "tokens=2" %%v in ('python --version 2^>^&1') do set "PY_VER=%%v"
-
-REM Python 버전 범위 확인 (3.11 이상, 3.14 미만만 지원)
-python -c "import sys; exit(0 if (3,11) <= sys.version_info < (3,14) else 1)"
+echo   다운로드 완료! 설치 중... (진행 바가 나타납니다)
+"%PY_INSTALLER%" /passive InstallAllUsers=0 PrependPath=1 Include_launcher=1
 if %ERRORLEVEL% NEQ 0 (
-    echo   [실패] Python %PY_VER% 버전은 지원하지 않습니다!
-    echo.
-    echo   이 프로젝트는 Python 3.11 ~ 3.13 버전이 필요합니다.
-    echo   현재 설치된 버전: Python %PY_VER%
-    echo.
-    echo   Python 3.13을 아래 링크에서 설치해주세요:
-    echo   https://www.python.org/downloads/
-    echo.
-    echo   설치할 때 "Add Python to PATH" 체크박스를 반드시 선택하세요!
-    echo.
+    echo   [실패] Python 설치에 실패했습니다.
+    del "%PY_INSTALLER%" >nul 2>&1
     pause
     exit /b 1
 )
+del "%PY_INSTALLER%" >nul 2>&1
+
+echo   [OK] Python 3.13 설치 완료!
+echo.
+
+REM 새로 설치된 Python 찾기
+set "PYTHON_CMD=%LOCALAPPDATA%\Programs\Python\Python313\python.exe"
+if exist "%PYTHON_CMD%" goto :get_py_ver
+
+REM py 런처로 다시 시도
+py -3.13 --version >nul 2>&1
+if %ERRORLEVEL% EQU 0 (
+    set "PYTHON_CMD=py -3.13"
+    goto :get_py_ver
+)
+
+echo   [!] Python을 설치했지만 바로 인식이 안 됩니다.
+echo   이 창을 닫고 다시 더블클릭해주세요.
+echo.
+pause
+exit /b 0
+
+:get_py_ver
+for /f "tokens=2" %%v in ('%PYTHON_CMD% --version 2^>^&1') do set "PY_VER=%%v"
+
+:python_ok
 echo   [OK] Python %PY_VER% 확인 완료
+echo.
 
-REM -- 3단계: 설치 확인 (처음이면 자동 설치) --
+REM -- 2.5단계: 호환되지 않는 Python 3.14 자동 제거 --
+py -3.14 --version >nul 2>&1
+if %ERRORLEVEL% EQU 0 (
+    echo   [!] 호환되지 않는 Python 3.14 발견 - 자동 제거 중...
+    powershell -ExecutionPolicy Bypass -Command "& { $paths = @('HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*', 'HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*', 'HKLM:\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*'); foreach($p in $paths) { Get-ItemProperty $p -EA SilentlyContinue | Where-Object {$_.DisplayName -like 'Python 3.14*'} | ForEach-Object { if($_.QuietUninstallString) { Start-Process cmd.exe -ArgumentList '/c', $_.QuietUninstallString -Wait -WindowStyle Hidden } } } }" >nul 2>&1
+    py -3.14 --version >nul 2>&1
+    if %ERRORLEVEL% EQU 0 (
+        echo   [!] 자동 제거가 안 됩니다. (관리자 권한 필요)
+        echo       Windows 설정 → 앱 → 'Python 3.14' 검색 → 제거 해주세요.
+    ) else (
+        echo   [OK] Python 3.14 제거 완료
+    )
+    echo.
+)
+
+REM -- 3단계: 가상환경 확인 --
+REM 기존 가상환경이 호환되지 않는 Python이면 삭제 후 다시 만들기
+if exist ".venv\Scripts\python.exe" (
+    .venv\Scripts\python.exe -c "import sys; exit(0 if (3,11) <= sys.version_info < (3,14) else 1)" >nul 2>&1
+    if %ERRORLEVEL% NEQ 0 (
+        echo   [!] 기존 가상환경이 호환되지 않는 Python 버전입니다.
+        echo   [!] 가상환경을 새로 만듭니다...
+        echo.
+        rmdir /s /q .venv >nul 2>&1
+    )
+)
+
 if not exist ".venv\Scripts\activate.bat" (
     echo.
     echo   * 처음 실행입니다. 자동 설치를 시작합니다...
     echo.
 
     echo   [1/3] 가상환경 만드는 중...
-    python -m venv .venv
+    %PYTHON_CMD% -m venv .venv
     if %ERRORLEVEL% NEQ 0 (
         echo   [실패] 가상환경 생성에 실패했습니다.
         pause
