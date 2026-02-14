@@ -1158,22 +1158,6 @@
               </button>
             </div>
           </div>
-          <button type="submit"
-                  :disabled="!inputText.trim() || systemStatus === 'working'"
-                  class="bg-gradient-to-r from-hq-accent to-hq-purple hover:from-blue-500 hover:to-violet-500
-                         disabled:from-gray-700 disabled:to-gray-700 disabled:text-hq-muted
-                         text-white rounded-xl px-6 py-3 text-sm font-semibold transition-all shrink-0
-                         hover:shadow-lg hover:shadow-hq-accent/20 disabled:shadow-none">
-            <span x-show="systemStatus !== 'working'">보내기</span>
-            <span x-show="systemStatus === 'working'" class="flex items-center gap-2">
-              <svg class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
-              </svg>
-              처리중
-            </span>
-          </button>
-        </form>
         <!-- Preset Chips -->
         <div x-show="presets.items.length > 0" class="flex items-center gap-2 flex-wrap mt-2 max-w-4xl mx-auto">
           <template x-for="p in presets.items" :key="p.name">
