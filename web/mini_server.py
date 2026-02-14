@@ -6,13 +6,18 @@ Oracle Cloud 무료 서버(1GB RAM)에서 대시보드를 서비스하기 위한
 """
 import asyncio
 import json
+import logging
 import os
 from datetime import datetime, timezone, timedelta
+from pathlib import Path
 
+import yaml
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.requests import Request
+
+logger = logging.getLogger("corthex.mini_server")
 
 KST = timezone(timedelta(hours=9))
 
@@ -21,6 +26,34 @@ app = FastAPI(title="CORTHEX HQ Mini Server")
 # ── HTML 서빙 ──
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 TEMPLATE_DIR = os.path.join(BASE_DIR, "templates")
+
+# ── 설정 파일에서 에이전트/도구 정보 로드 ──
+CONFIG_DIR = Path(BASE_DIR).parent / "config"
+
+def _load_agents_yaml() -> dict:
+    """agents.yaml에서 에이전트별 상세 정보(allowed_tools, capabilities 등)를 로드."""
+    try:
+        raw = yaml.safe_load((CONFIG_DIR / "agents.yaml").read_text(encoding="utf-8"))
+        lookup: dict[str, dict] = {}
+        for a in raw.get("agents", []):
+            lookup[a["agent_id"]] = a
+        return lookup
+    except Exception as e:
+        logger.warning("agents.yaml 로드 실패 (빈 설정 사용): %s", e)
+        return {}
+
+def _load_tools_yaml() -> list[dict]:
+    """tools.yaml에서 도구 목록을 로드."""
+    try:
+        raw = yaml.safe_load((CONFIG_DIR / "tools.yaml").read_text(encoding="utf-8"))
+        return raw.get("tools", [])
+    except Exception as e:
+        logger.warning("tools.yaml 로드 실패 (빈 목록 사용): %s", e)
+        return []
+
+# 서버 시작 시 1회 로드 (메모리 절약: 필요한 정보만 캐시)
+_AGENTS_DETAIL: dict[str, dict] = _load_agents_yaml()
+_TOOLS_LIST: list[dict] = _load_tools_yaml()
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -120,13 +153,24 @@ async def get_agents():
 async def get_agent(agent_id: str):
     for a in AGENTS:
         if a["agent_id"] == agent_id:
-            return {**a, "system_prompt": "", "capabilities": [], "allowed_tools": []}
+            # agents.yaml에서 상세 정보 보충 (allowed_tools, capabilities 등)
+            detail = _AGENTS_DETAIL.get(agent_id, {})
+            return {
+                **a,
+                "system_prompt": detail.get("system_prompt", ""),
+                "capabilities": detail.get("capabilities", []),
+                "allowed_tools": detail.get("allowed_tools", []),
+                "subordinate_ids": detail.get("subordinate_ids", []),
+                "superior_id": detail.get("superior_id", ""),
+                "temperature": detail.get("temperature", 0.3),
+                "reasoning_effort": detail.get("reasoning_effort", ""),
+            }
     return {"error": "not found"}
 
 
 @app.get("/api/tools")
 async def get_tools():
-    return []
+    return _TOOLS_LIST
 
 
 @app.get("/api/dashboard")
