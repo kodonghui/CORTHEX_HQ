@@ -5,9 +5,8 @@ on:
   push:
     branches:
       - main
-    paths:
-      - 'web/**'           # web 폴더 안의 파일이 바뀌었을 때만 배포
-      - 'requirements.txt'  # 패키지 목록이 바뀌었을 때도 배포
+    # paths 필터 제거 — main에 합쳐지면 무조건 배포 실행
+    # (배포 스크립트가 가볍기 때문에 매번 실행해도 문제없음)
 
 # 수동으로도 실행 가능 (GitHub에서 버튼 클릭)
   workflow_dispatch:

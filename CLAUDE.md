@@ -53,5 +53,23 @@
 - **중요한 결정이 내려졌을 때**: `docs/project-status.md`의 "중요한 결정 사항" 섹션에 즉시 기록할 것
 - 이 규칙의 목적: CEO와 대화 중에 클로드가 맥락을 잃어버리는 것을 방지하기 위함
 
+## 서버 배포 규칙 (Oracle Cloud)
+- **서버 주소**: `168.107.28.100` (Oracle Cloud 춘천 리전, 무료 서버)
+- **자동 배포 조건**: main 브랜치에 코드가 합쳐지면(push되면) **무조건** 자동 배포 실행
+  - 워크플로우 파일: `.github/workflows/deploy.yml`
+  - web/ 파일이 안 바뀌어도 매번 배포됨 (서버 코드가 항상 최신 상태 유지)
+- **배포 과정** (자동으로 실행됨):
+  1. 서버에서 `git pull origin main` (최신 코드 가져오기)
+  2. `web/templates/index.html`을 웹서버 폴더(`/var/www/html/`)에 복사
+  3. 미니 서버(FastAPI) 재시작
+- **수동 배포**: GitHub → Actions 탭 → "Deploy to Oracle Cloud Server" → "Run workflow" 버튼 클릭
+- **서버 SSH 접속 정보**:
+  - 사용자: `ubuntu`
+  - SSH 키: GitHub Secrets에 `SERVER_SSH_KEY`로 등록됨
+  - 서버 IP: GitHub Secrets에 `SERVER_IP`로 등록됨
+- **주의사항**:
+  - 서버 파일을 직접 수정하지 말 것 (GitHub에서 코드 수정 → 자동 배포가 정상 흐름)
+  - 배포 실패 시 GitHub Actions 로그를 먼저 확인할 것
+
 ## 환경 설정
 - gh CLI가 없으면 세션 시작 시 설치: `(type gh > /dev/null 2>&1) || (curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null && sudo apt update && sudo apt install gh -y)`
