@@ -55,13 +55,15 @@
 
 ## 서버 배포 규칙 (Oracle Cloud)
 - **서버 주소**: `168.107.28.100` (Oracle Cloud 춘천 리전, 무료 서버)
-- **자동 배포 조건**: main 브랜치에 코드가 합쳐지면(push되면) **무조건** 자동 배포 실행
-  - 워크플로우 파일: `.github/workflows/deploy.yml`
-  - web/ 파일이 안 바뀌어도 매번 배포됨 (서버 코드가 항상 최신 상태 유지)
-- **배포 과정** (자동으로 실행됨):
-  1. 서버에서 `git pull origin main` (최신 코드 가져오기)
-  2. `web/templates/index.html`을 웹서버 폴더(`/var/www/html/`)에 복사
-  3. 미니 서버(FastAPI) 재시작
+- **자동 배포 흐름** (전체 과정):
+  1. claude/ 브랜치에 [완료] 커밋 push
+  2. `auto-merge-claude.yml`이 PR 생성 + main에 자동 머지
+  3. 머지 성공 후 → `deploy.yml`을 **직접 실행(trigger)**시킴
+  4. 서버에서 `git pull` → 파일 복사 → 미니 서버 재시작
+  - **중요**: GitHub 보안 정책상, 워크플로우가 만든 push는 다른 워크플로우를 자동 실행시키지 않음. 그래서 auto-merge에서 `gh workflow run deploy.yml`로 직접 실행시키는 구조
+- **워크플로우 파일**:
+  - `.github/workflows/auto-merge-claude.yml` — 자동 머지 + 배포 트리거
+  - `.github/workflows/deploy.yml` — 실제 서버 배포 (SSH로 접속해서 파일 복사)
 - **수동 배포**: GitHub → Actions 탭 → "Deploy to Oracle Cloud Server" → "Run workflow" 버튼 클릭
 - **서버 SSH 접속 정보**:
   - 사용자: `ubuntu`
