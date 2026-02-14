@@ -37,35 +37,35 @@
 
     /* ═══ Theme Color Variables ═══ */
     :root, .dark {
-      --hq-bg: 17 28 48;
-      --hq-surface: 30 50 82;
-      --hq-panel: 42 65 102;
-      --hq-border: 85 115 150;
-      --hq-border-light: 122 148 176;
+      --hq-bg: 8 14 28;
+      --hq-surface: 18 32 58;
+      --hq-panel: 30 50 82;
+      --hq-border: 70 100 145;
+      --hq-border-light: 105 135 175;
       --hq-accent: 96 165 250;
       --hq-cyan: 34 211 238;
       --hq-purple: 167 139 250;
       --hq-green: 52 211 153;
       --hq-yellow: 251 191 36;
       --hq-red: 248 113 113;
-      --hq-text: 248 250 252;
-      --hq-muted: 180 196 216;
+      --hq-text: 230 238 250;
+      --hq-muted: 150 172 205;
       --hq-shadow: 0 0 0;
     }
     html:not(.dark) {
-      --hq-bg: 241 245 249;
+      --hq-bg: 238 242 248;
       --hq-surface: 255 255 255;
-      --hq-panel: 226 232 240;
-      --hq-border: 203 213 225;
-      --hq-border-light: 148 163 184;
+      --hq-panel: 220 228 240;
+      --hq-border: 185 198 215;
+      --hq-border-light: 140 158 182;
       --hq-accent: 37 99 235;
       --hq-cyan: 8 145 178;
       --hq-purple: 124 58 237;
       --hq-green: 5 150 105;
-      --hq-yellow: 217 119 6;
-      --hq-red: 220 38 38;
+      --hq-yellow: 202 110 0;
+      --hq-red: 210 35 35;
       --hq-text: 15 23 42;
-      --hq-muted: 71 85 105;
+      --hq-muted: 65 80 105;
       --hq-shadow: 0 0 0;
     }
 
@@ -152,9 +152,9 @@
     .glow-purple { box-shadow: 0 0 20px rgb(var(--hq-purple) / 0.15), 0 0 40px rgb(var(--hq-purple) / 0.05); }
     .glow-accent { box-shadow: 0 0 24px rgb(var(--hq-accent) / 0.2); }
 
-    /* Glass effect */
+    /* Glass effect — solid background for maximum contrast */
     .glass {
-      background: rgb(var(--hq-surface) / 0.95);
+      background: rgb(var(--hq-surface));
       backdrop-filter: blur(12px);
       -webkit-backdrop-filter: blur(12px);
     }
@@ -517,7 +517,7 @@
           <div class="text-[10px] font-mono text-hq-muted" x-text="Object.keys(agentNames).length + '명'"></div>
         </div>
         <!-- 에이전트 상태 요약 -->
-        <div class="flex items-center gap-3 px-2 py-2 mb-3 rounded-lg bg-hq-bg/60 border border-hq-border/30 text-[10px]">
+        <div class="flex items-center gap-3 px-2 py-2 mb-3 rounded-lg bg-hq-panel border border-hq-border/30 text-[10px]">
           <span class="flex items-center gap-1 text-hq-green"><span class="w-1.5 h-1.5 rounded-full bg-hq-green animate-pulse"></span> <span x-text="Object.values(activeAgents).filter(a => a.status === 'working').length"></span> 활동</span>
           <span class="flex items-center gap-1 text-hq-yellow"><span class="w-1.5 h-1.5 rounded-full bg-hq-yellow"></span> <span x-text="Object.values(activeAgents).filter(a => a.status === 'idle').length"></span> 대기</span>
           <span class="flex items-center gap-1 text-hq-muted"><span class="w-1.5 h-1.5 rounded-full bg-hq-muted/80"></span> <span x-text="Object.keys(agentNames).length - Object.values(activeAgents).filter(a => a.status === 'working' || a.status === 'idle').length"></span> 비활성</span>
@@ -837,7 +837,7 @@
       </div>
 
       <!-- ═══ Tab Navigation (채팅 모드일 때만 표시) ═══ -->
-      <div x-show="viewMode === 'chat'" class="flex items-center gap-0.5 px-3 pt-2 pb-0 border-b border-hq-border bg-hq-surface/50 shrink-0 mobile-tabs-scroll">
+      <div x-show="viewMode === 'chat'" class="flex items-center gap-0.5 px-3 pt-2 pb-0 border-b border-hq-border bg-hq-surface shrink-0 mobile-tabs-scroll">
         <!-- 기본 탭 5개 (#12) -->
         <template x-for="tab in getPrimaryTabs()" :key="tab.id">
           <button @click="switchTab(tab.id); showMoreTabs = false"
@@ -999,7 +999,7 @@
             <template x-if="dashboard.recentCompleted && dashboard.recentCompleted.length > 0">
               <div class="space-y-2">
                 <template x-for="task in dashboard.recentCompleted" :key="task.task_id">
-                  <div class="flex items-center justify-between p-3 bg-hq-bg/50 rounded-lg hover:bg-hq-bg transition cursor-pointer"
+                  <div class="flex items-center justify-between p-3 bg-hq-panel rounded-lg hover:bg-hq-bg transition cursor-pointer"
                        @click="switchTab('history')">
                     <div class="flex-1 min-w-0">
                       <div class="text-sm text-hq-text truncate" x-text="task.command"></div>
@@ -1027,13 +1027,13 @@
             <div class="grid grid-cols-2 lg:grid-cols-3 gap-3">
               <template x-for="p in presets.items" :key="p.name">
                 <button @click="switchTab('command'); $nextTick(() => sendPreset(p.command))"
-                        class="text-left p-3 bg-hq-bg/50 rounded-lg hover:bg-hq-bg border border-transparent hover:border-hq-accent/20 transition group">
+                        class="text-left p-3 bg-hq-panel rounded-lg hover:bg-hq-bg border border-transparent hover:border-hq-accent/20 transition group">
                   <div class="text-sm font-medium text-hq-text group-hover:text-hq-text" x-text="p.name"></div>
                   <div class="text-[11px] text-hq-muted mt-1 truncate" x-text="p.command"></div>
                 </button>
               </template>
               <button @click="switchTab('command')"
-                      class="text-left p-3 bg-hq-bg/50 rounded-lg hover:bg-hq-bg border border-dashed border-hq-border hover:border-hq-accent/30 transition group flex items-center justify-center min-h-[60px]">
+                      class="text-left p-3 bg-hq-panel rounded-lg hover:bg-hq-bg border border-dashed border-hq-border hover:border-hq-accent/30 transition group flex items-center justify-center min-h-[60px]">
                 <span class="text-sm text-hq-muted group-hover:text-hq-accent">+ 직접 명령</span>
               </button>
             </div>
@@ -1267,7 +1267,7 @@
         </div>
 
         <!-- ═══ Input Bar ═══ -->
-        <div class="border-t border-hq-border bg-hq-surface/80 backdrop-blur-sm p-4 shrink-0">
+        <div class="border-t border-hq-border bg-hq-surface backdrop-blur-sm p-4 shrink-0">
           <div class="max-w-4xl mx-auto relative">
             <!-- Export + Shortcut hint -->
             <div x-show="messages.length > 0" class="flex items-center justify-end gap-2 mb-2">
@@ -1471,7 +1471,7 @@
             </div>
             <div class="grid grid-cols-2 gap-4">
               <!-- 기술개발처 CTO -->
-              <div class="bg-hq-bg/50 border border-hq-border rounded-xl p-3">
+              <div class="bg-hq-panel border border-hq-border rounded-xl p-3">
                 <div class="flex items-center gap-2 mb-3">
                   <span class="text-sm">🔧</span>
                   <span class="text-xs font-bold text-hq-cyan">기술개발처 (CTO)</span>
@@ -1490,7 +1490,7 @@
                 </div>
               </div>
               <!-- 사업기획처 CSO -->
-              <div class="bg-hq-bg/50 border border-hq-border rounded-xl p-3">
+              <div class="bg-hq-panel border border-hq-border rounded-xl p-3">
                 <div class="flex items-center gap-2 mb-3">
                   <span class="text-sm">📊</span>
                   <span class="text-xs font-bold text-hq-cyan">사업기획처 (CSO)</span>
@@ -1509,7 +1509,7 @@
                 </div>
               </div>
               <!-- 법무 IP처 CLO -->
-              <div class="bg-hq-bg/50 border border-hq-border rounded-xl p-3">
+              <div class="bg-hq-panel border border-hq-border rounded-xl p-3">
                 <div class="flex items-center gap-2 mb-3">
                   <span class="text-sm">⚖️</span>
                   <span class="text-xs font-bold text-hq-cyan">법무 IP처 (CLO)</span>
@@ -1528,7 +1528,7 @@
                 </div>
               </div>
               <!-- 마케팅 고객처 CMO -->
-              <div class="bg-hq-bg/50 border border-hq-border rounded-xl p-3">
+              <div class="bg-hq-panel border border-hq-border rounded-xl p-3">
                 <div class="flex items-center gap-2 mb-3">
                   <span class="text-sm">📣</span>
                   <span class="text-xs font-bold text-hq-cyan">마케팅 고객처 (CMO)</span>
@@ -1724,7 +1724,7 @@
                 <h3 class="text-sm font-bold text-hq-text mb-4">최근 완료 작업</h3>
                 <div class="space-y-2">
                   <template x-for="task in dashboard.recentCompleted.slice(0, 8)" :key="task.task_id">
-                    <div class="flex items-center gap-3 p-2.5 bg-hq-bg/50 rounded-lg">
+                    <div class="flex items-center gap-3 p-2.5 bg-hq-panel rounded-lg">
                       <span class="w-2 h-2 rounded-full bg-hq-green shrink-0"></span>
                       <div class="flex-1 min-w-0">
                         <div class="text-sm text-hq-text truncate" x-text="task.command || task.task_id"></div>
@@ -1743,22 +1743,22 @@
 
       <!-- ═══ Tab: 작업내역 (History) ═══ -->
       <div x-show="viewMode === 'chat' && activeTab === 'history'" x-cloak class="flex-1 flex flex-col overflow-hidden">
-        <div class="px-6 pt-5 pb-3 shrink-0 border-b border-hq-border bg-hq-surface/50">
+        <div class="px-6 pt-5 pb-3 shrink-0 border-b border-hq-border bg-hq-surface">
           <!-- 통계 카드 -->
           <div class="grid grid-cols-4 gap-3 max-w-5xl mx-auto mb-4">
-            <div class="bg-hq-bg/60 border border-hq-border/50 rounded-lg px-3 py-2">
+            <div class="bg-hq-panel border border-hq-border/50 rounded-lg px-3 py-2">
               <div class="text-lg font-bold text-hq-text" x-text="taskHistory.items?.length || 0"></div>
               <div class="text-[10px] text-hq-muted">전체 작업</div>
             </div>
-            <div class="bg-hq-bg/60 border border-hq-border/50 rounded-lg px-3 py-2">
+            <div class="bg-hq-panel border border-hq-border/50 rounded-lg px-3 py-2">
               <div class="text-lg font-bold text-hq-green" x-text="(taskHistory.items || []).filter(t => t.status === 'completed').length"></div>
               <div class="text-[10px] text-hq-muted">완료</div>
             </div>
-            <div class="bg-hq-bg/60 border border-hq-border/50 rounded-lg px-3 py-2">
+            <div class="bg-hq-panel border border-hq-border/50 rounded-lg px-3 py-2">
               <div class="text-lg font-bold text-hq-red" x-text="(taskHistory.items || []).filter(t => t.status === 'failed').length"></div>
               <div class="text-[10px] text-hq-muted">실패</div>
             </div>
-            <div class="bg-hq-bg/60 border border-hq-border/50 rounded-lg px-3 py-2">
+            <div class="bg-hq-panel border border-hq-border/50 rounded-lg px-3 py-2">
               <div class="text-lg font-bold text-hq-cyan" x-text="'$' + ((taskHistory.items || []).reduce((s, t) => s + (t.cost || 0), 0)).toFixed(2)"></div>
               <div class="text-[10px] text-hq-muted">총 비용</div>
             </div>
@@ -1993,12 +1993,12 @@
               <span class="text-xs text-hq-muted font-mono" x-text="activityLogs.length + '건'"></span>
             </div>
           </div>
-          <div class="text-[11px] text-hq-muted/80 mb-4 bg-hq-surface/50 border border-hq-border/50 rounded-lg px-3 py-2">
+          <div class="text-[11px] text-hq-muted/80 mb-4 bg-hq-surface border border-hq-border/50 rounded-lg px-3 py-2">
             실시간 WebSocket 로그입니다. 페이지 새로고침 시 초기화됩니다.
           </div>
           <div class="space-y-1">
             <template x-for="(log, i) in activityLogs.filter(l => activityLogFilter === 'all' || l.agent_id === activityLogFilter).slice().reverse()" :key="i">
-              <div class="flex items-center gap-3 bg-hq-surface/60 border border-hq-border/30 rounded-lg px-4 py-2.5 hover:bg-hq-surface transition">
+              <div class="flex items-center gap-3 bg-hq-surface border border-hq-border/30 rounded-lg px-4 py-2.5 hover:bg-hq-surface transition">
                 <span class="text-[11px] font-mono text-hq-muted/85 shrink-0 w-16" x-text="log.time"></span>
                 <span class="w-7 h-7 rounded-md flex items-center justify-center text-[9px] font-bold shrink-0"
                       :class="getAgentAvatarClass(log.agent_id)" x-text="getAgentInitials(log.agent_id)"></span>
@@ -2016,7 +2016,7 @@
       <!-- ═══ Knowledge View (지식 관리) ═══ -->
       <div x-show="viewMode === 'chat' && activeTab === 'knowledge'" class="flex-1 overflow-hidden flex bg-grid">
         <!-- Left: File Tree -->
-        <div class="w-64 border-r border-hq-border overflow-y-auto scrollbar-thin p-4 bg-hq-surface/50 shrink-0">
+        <div class="w-64 border-r border-hq-border overflow-y-auto scrollbar-thin p-4 bg-hq-surface shrink-0">
           <div class="flex items-center justify-between mb-3">
             <h3 class="text-xs font-bold text-hq-text uppercase tracking-wider">파일 목록</h3>
             <button @click="knowledge.showCreateForm = !knowledge.showCreateForm" class="text-hq-accent text-xs hover:text-hq-accent/80">+ 새 파일</button>
@@ -2061,7 +2061,7 @@
                 <textarea x-model="knowledge.content" rows="25"
                   class="w-full bg-hq-bg border border-hq-border rounded-xl px-4 py-3 text-sm text-hq-text font-mono resize-y"></textarea>
               </div>
-              <div x-show="!knowledge.editMode" class="bg-hq-surface/50 border border-hq-border rounded-xl px-5 py-4">
+              <div x-show="!knowledge.editMode" class="bg-hq-surface border border-hq-border rounded-xl px-5 py-4">
                 <div class="text-sm leading-relaxed markdown-body" x-html="renderMarkdown(knowledge.content)"></div>
               </div>
             </div>
@@ -2147,7 +2147,7 @@
 
           <!-- SNS Tab 1: Connection Status -->
           <div x-show="sns.tab === 'status' && !sns.loading">
-            <div class="bg-hq-surface/50 border border-hq-border/50 rounded-lg px-4 py-3 mb-4 text-xs text-hq-muted">
+            <div class="bg-hq-surface border border-hq-border/50 rounded-lg px-4 py-3 mb-4 text-xs text-hq-muted">
               SNS 플랫폼을 연결하려면 각 플랫폼의 API 키가 필요합니다. <code class="bg-hq-bg px-1 rounded text-hq-cyan">.env</code> 파일에 해당 플랫폼의 API 키를 설정한 뒤 "연결하기"를 누르세요.
             </div>
             <div class="grid grid-cols-2 gap-4">
@@ -2248,7 +2248,7 @@
 
           <!-- SNS Tab 4: Events -->
           <div x-show="sns.tab === 'events' && !sns.loading">
-            <div class="bg-hq-surface/50 border border-hq-border/50 rounded-lg px-4 py-3 mb-4 text-xs text-hq-muted">
+            <div class="bg-hq-surface border border-hq-border/50 rounded-lg px-4 py-3 mb-4 text-xs text-hq-muted">
               SNS 이벤트는 연결된 플랫폼에서 발생한 활동 기록입니다. 게시물 발행, 댓글 알림, 팔로워 변동 등의 이벤트가 여기에 자동으로 기록됩니다.
             </div>
             <div class="space-y-2">
@@ -3717,7 +3717,7 @@
           if (!node) return '';
           const indent = depth * 20;
           const color = depth === 0 ? 'hq-accent' : depth === 1 ? 'hq-cyan' : 'hq-purple';
-          let html = `<div style="margin-left:${indent}px" class="flex items-start gap-2 p-2 bg-hq-surface/50 rounded-lg mb-1">
+          let html = `<div style="margin-left:${indent}px" class="flex items-start gap-2 p-2 bg-hq-surface rounded-lg mb-1">
             <span class="w-2 h-2 rounded-full bg-${color} mt-1.5 shrink-0"></span>
             <div>
               <span class="text-xs font-bold text-${color}">${this.getAgentName(node.agent_id || node.agent || '')}</span>
