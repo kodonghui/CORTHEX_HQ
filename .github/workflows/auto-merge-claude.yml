@@ -10,6 +10,7 @@ on:
 permissions:
   contents: write
   pull-requests: write
+  actions: write
 
 jobs:
   auto-merge:
@@ -59,15 +60,26 @@ jobs:
           sleep 10
 
           # 4단계: 머지 시도 (최대 3회 재시도)
+          MERGE_SUCCESS=false
           for i in 1 2 3; do
             echo "🔀 머지 시도 ($i/3)..."
             if gh pr merge "$BRANCH" --merge --delete-branch 2>&1; then
               echo "🎉 머지 완료! 브랜치도 자동 삭제됨"
-              exit 0
+              MERGE_SUCCESS=true
+              break
             fi
             echo "⏳ 재시도 전 10초 대기..."
             sleep 10
           done
 
-          echo "❌ 머지 실패 — GitHub에서 수동 머지가 필요합니다."
-          exit 1
+          if [ "$MERGE_SUCCESS" = "false" ]; then
+            echo "❌ 머지 실패 — GitHub에서 수동 머지가 필요합니다."
+            exit 1
+          fi
+
+          # 5단계: 머지 성공 후 → 서버 배포 워크플로우 직접 실행
+          # (GitHub 보안 정책: 워크플로우가 만든 push는 다른 워크플로우를 트리거하지 않음)
+          # (그래서 여기서 직접 deploy 워크플로우를 실행시켜야 함)
+          echo "🚀 서버 배포 워크플로우 실행 중..."
+          gh workflow run deploy.yml --ref main 2>&1 || echo "⚠️ 배포 워크플로우 실행 실패 (수동 실행 필요)"
+          echo "✅ 배포 트리거 완료!"

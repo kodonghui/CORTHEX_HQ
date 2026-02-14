@@ -10,7 +10,7 @@
 
 - **날짜**: 2026-02-14
 - **작업 브랜치**: claude/sync-multiple-computers-Nz8IR
-- **작업 내용**: 자동 배포 paths 필터 제거 (main에 합쳐지면 무조건 서버 배포) + CLAUDE.md에 배포 규칙 추가
+- **작업 내용**: 자동 배포 전수검사 — auto-merge 후 deploy 미실행 버그 수정 (GitHub 보안 정책 우회)
 
 ---
 
