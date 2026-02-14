@@ -473,6 +473,25 @@ async def get_budget() -> dict:
     return status.to_dict()
 
 
+@app.put("/api/budget")
+async def update_budget(body: dict) -> dict:
+    """예산 한도를 수정합니다."""
+    if not budget_manager:
+        return {"error": "시스템 미초기화"}
+    daily = body.get("daily_limit")
+    monthly = body.get("monthly_limit")
+    if daily is not None:
+        budget_manager.daily_limit = float(daily)
+    if monthly is not None:
+        budget_manager.monthly_limit = float(monthly)
+    # YAML 파일에 저장
+    budget_path = CONFIG_DIR / "budget.yaml"
+    budget_cfg = {"daily_limit": budget_manager.daily_limit, "monthly_limit": budget_manager.monthly_limit}
+    with open(budget_path, "w", encoding="utf-8") as f:
+        yaml.dump(budget_cfg, f, allow_unicode=True, default_flow_style=False)
+    return {"success": True, "daily_limit": budget_manager.daily_limit, "monthly_limit": budget_manager.monthly_limit}
+
+
 @app.get("/api/presets")
 async def get_presets() -> list[dict]:
     """Return all command presets."""
@@ -1256,6 +1275,20 @@ async def sns_status() -> dict:
     return _sns.get_status()
 
 
+@app.get("/api/sns/oauth/status")
+async def sns_oauth_status() -> dict:
+    """SNS 플랫폼별 OAuth 연결 상태 확인."""
+    platforms = {}
+    for p in ["instagram", "youtube", "linkedin", "tistory",
+              "naver_blog", "naver_cafe", "daum_cafe"]:
+        try:
+            connected = getattr(_sns, f"is_{p}_connected", lambda: False)()
+        except Exception:
+            connected = False
+        platforms[p] = {"connected": connected}
+    return {"platforms": platforms}
+
+
 class InstagramPhotoRequest(BaseModel):
     image_url: str
     caption: str = ""
@@ -1381,6 +1414,30 @@ async def websocket_endpoint(ws: WebSocket) -> None:
                     "event": "error",
                     "data": {"message": "잘못된 JSON 형식입니다."},
                 }, ensure_ascii=False))
+                continue
+
+            if msg.get("type") == "cancel":
+                task_id = msg.get("task_id", "")
+                if task_id and task_store:
+                    t = task_store.get(task_id)
+                    if t and t.status == TaskStatus.RUNNING:
+                        t.status = TaskStatus.FAILED
+                        t.success = False
+                        t.result_summary = "CEO가 작업을 취소했습니다."
+                        t.completed_at = datetime.now(timezone.utc)
+                await ws_manager.broadcast("task_completed", {
+                    "task_id": task_id,
+                    "success": False,
+                    "content": "작업이 취소되었습니다.",
+                    "summary": "CEO가 작업을 취소했습니다.",
+                    "time_seconds": 0,
+                    "cost": 0,
+                })
+                if registry:
+                    for agent in registry.list_all():
+                        await ws_manager.send_agent_status(
+                            agent.config.agent_id, "idle"
+                        )
                 continue
 
             if msg.get("type") == "command":
