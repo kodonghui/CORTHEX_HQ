@@ -9,8 +9,8 @@
 ## 마지막 업데이트
 
 - **날짜**: 2026-02-14
-- **작업 브랜치**: claude/investigate-tool-room-staff-KFMIx
-- **작업 내용**: 도구함 빈 화면 버그 수정 — mini_server.py가 tools.yaml을 안 읽고 빈 리스트를 반환하던 문제 해결
+- **작업 브랜치**: claude/debug-unexpected-issue-exeCR
+- **작업 내용**: 서버 배포 실패(Deploy #8) 수정 — PyYAML 미설치로 서버 죽는 문제 해결 + 배포 스크립트에 config 복사/PyYAML 설치 추가
 
 ---
 
