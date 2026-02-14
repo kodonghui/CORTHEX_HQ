@@ -68,9 +68,9 @@ agents:
       - "cross_agent_protocol"
 
   - agent_id: "report_worker"
-    name: "Report Summary Worker"
-    name_ko: "보고 요약 Worker"
-    role: "worker"
+    name: "Briefing Aide"
+    name_ko: "브리핑 보좌관"
+    role: "specialist"
     division: "secretary"
     model_name: "claude-haiku-4-5-20251001"
     system_prompt: |
@@ -82,9 +82,9 @@ agents:
     superior_id: "chief_of_staff"
 
   - agent_id: "schedule_worker"
-    name: "Schedule Tracker Worker"
-    name_ko: "일정/미결 추적 Worker"
-    role: "worker"
+    name: "Operations Aide"
+    name_ko: "작전 보좌관"
+    role: "specialist"
     division: "secretary"
     model_name: "claude-haiku-4-5-20251001"
     system_prompt: |
@@ -99,9 +99,9 @@ agents:
       - "calendar_tool"
 
   - agent_id: "relay_worker"
-    name: "Cross-Division Relay Worker"
-    name_ko: "사업부 간 정보 중계 Worker"
-    role: "worker"
+    name: "Division Aide"
+    name_ko: "부서 보좌관"
+    role: "specialist"
     division: "secretary"
     model_name: "claude-haiku-4-5-20251001"
     system_prompt: |
