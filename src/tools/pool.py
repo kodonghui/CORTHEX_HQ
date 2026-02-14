@@ -65,6 +65,16 @@ class ToolPool:
             "hashtag_recommender": "src.tools.hashtag_recommender.HashtagRecommenderTool",
             "email_optimizer": "src.tools.email_optimizer.EmailOptimizerTool",
             "competitor_sns_monitor": "src.tools.competitor_sns_monitor.CompetitorSnsMonitorTool",
+            # ─── CTO 기술개발처 신규 도구 ───
+            "uptime_monitor": "src.tools.uptime_monitor.UptimeMonitorTool",
+            "security_scanner": "src.tools.security_scanner.SecurityScannerTool",
+            "log_analyzer": "src.tools.log_analyzer.LogAnalyzerTool",
+            "api_benchmark": "src.tools.api_benchmark.ApiBenchmarkTool",
+            # ─── CPO 출판기록처 신규 도구 ───
+            "report_generator": "src.tools.report_generator.ReportGeneratorTool",
+            "meeting_formatter": "src.tools.meeting_formatter.MeetingFormatterTool",
+            # ─── 전사 공통 도구 ───
+            "newsletter_builder": "src.tools.newsletter_builder.NewsletterBuilderTool",
         }
         tool_classes: dict[str, type[BaseTool]] = {}
         for tool_id, import_path in _imports.items():
