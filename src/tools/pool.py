@@ -53,7 +53,13 @@ class ToolPool:
             "code_quality": "src.tools.code_quality.CodeQualityTool",
             "notion_api": "src.tools.notion_api.NotionApiTool",
             "doc_converter": "src.tools.doc_converter.DocConverterTool",
-            # CSO 사업기획처 신규 도구
+            # ─── CMO 마케팅고객처 신규 도구 ───
+            "seo_analyzer": "src.tools.seo_analyzer.SeoAnalyzerTool",
+            "sentiment_analyzer": "src.tools.sentiment_analyzer.SentimentAnalyzerTool",
+            "hashtag_recommender": "src.tools.hashtag_recommender.HashtagRecommenderTool",
+            "email_optimizer": "src.tools.email_optimizer.EmailOptimizerTool",
+            "competitor_sns_monitor": "src.tools.competitor_sns_monitor.CompetitorSnsMonitorTool",
+            # ─── CSO 사업기획처 신규 도구 ───
             "competitor_monitor": "src.tools.competitor_monitor.CompetitorMonitorTool",
             "app_review_scraper": "src.tools.app_review_scraper.AppReviewScraperTool",
             "youtube_analyzer": "src.tools.youtube_analyzer.YoutubeAnalyzerTool",
