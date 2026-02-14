@@ -53,6 +53,12 @@ class ToolPool:
             "code_quality": "src.tools.code_quality.CodeQualityTool",
             "notion_api": "src.tools.notion_api.NotionApiTool",
             "doc_converter": "src.tools.doc_converter.DocConverterTool",
+            # CLO 법무IP처 + CSO 사업기획처 도구
+            "platform_market_scraper": "src.tools.platform_market_scraper.PlatformMarketScraperTool",
+            "precedent_analyzer": "src.tools.precedent_analyzer.PrecedentAnalyzerTool",
+            "trademark_similarity": "src.tools.trademark_similarity.TrademarkSimilarityTool",
+            "contract_reviewer": "src.tools.contract_reviewer.ContractReviewerTool",
+            "law_change_monitor": "src.tools.law_change_monitor.LawChangeMonitorTool",
             # ─── CMO 마케팅고객처 신규 도구 ───
             "seo_analyzer": "src.tools.seo_analyzer.SeoAnalyzerTool",
             "sentiment_analyzer": "src.tools.sentiment_analyzer.SentimentAnalyzerTool",
