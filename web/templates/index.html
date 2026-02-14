@@ -3829,9 +3829,6 @@
             'gpt-5.1': 'GPT-5.1',
             'gpt-5': 'GPT-5',
             'gpt-5-mini': 'GPT-5 Mini',
-            'o3': 'o3 (추론 특화)',
-            'o3-pro': 'o3-pro (최상위 추론)',
-            'o4-mini': 'o4-mini (경량 추론)',
           };
           return names[modelName] || modelName;
         },
@@ -3976,9 +3973,6 @@
                 'gpt-5.1': ['none','low','medium','high'],
                 'gpt-5.2': ['none','low','medium','high','xhigh'],
                 'gpt-5.2-pro': ['medium','high','xhigh'],
-                'o3': ['low','medium','high'],
-                'o3-pro': ['medium','high','xhigh'],
-                'o4-mini': ['low','medium','high'],
               };
               this.agentReasoningOptions = defaultReasoning[mn] || [];
             }
@@ -4042,9 +4036,6 @@
                   'gpt-5.2': ['none','low','medium','high','xhigh'],
                   'gpt-5.2-codex': ['none','low','medium','high','xhigh'],
                   'gpt-5.2-pro': ['medium','high','xhigh'],
-                  'o3': ['low','medium','high'],
-                  'o3-pro': ['medium','high','xhigh'],
-                  'o4-mini': ['low','medium','high'],
                 };
                 this.agentReasoningOptions = defaultReasoning[mn] || [];
               }
