@@ -20,7 +20,7 @@ dependencies = [
     "python-telegram-bot>=21.0",
     # ─── 부서별 전문가 도구 ───
     "pykrx>=1.0.0",           # CIO: 한국거래소 주가 데이터
-    "pandas-ta>=0.3.0",       # CIO: 기술적 지표 (RSI/MACD/BB)
+    "pandas-ta>=0.4.0b0",     # CIO: 기술적 지표 (RSI/MACD/BB)
     "pandas>=2.0.0",          # CIO: 데이터프레임 처리
     "notion-client>=2.0.0",   # CPO: 노션 API 클라이언트
     # ─── Phase 1: 최우선 신규 도구 ───
