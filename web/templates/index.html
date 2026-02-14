@@ -72,24 +72,24 @@
     * { box-sizing: border-box; }
     body { font-family: 'Inter', sans-serif; }
 
-    /* ═══ 다크 모드 배경 그라데이션 ═══ */
+    /* ═══ 다크 모드 배경 그라데이션 (확실한 차이) ═══ */
     .dark body {
-      background: linear-gradient(to bottom, rgb(26, 35, 50), rgb(39, 52, 71));
+      background: linear-gradient(135deg, rgb(15, 23, 42), rgb(30, 41, 59), rgb(51, 65, 85));
     }
 
-    /* ═══ 라이트 모드 배경 그라데이션 ═══ */
+    /* ═══ 라이트 모드 배경 그라데이션 (확실한 차이) ═══ */
     html:not(.dark) body {
-      background: linear-gradient(to bottom, rgb(241, 245, 249), rgb(226, 232, 240));
+      background: linear-gradient(135deg, rgb(248, 250, 252), rgb(226, 232, 240), rgb(203, 213, 225));
     }
 
-    /* ═══ 반투명 효과 (다크 모드) ═══ */
+    /* ═══ 반투명 효과 (다크 모드) - 더 투명하게 ═══ */
     .dark .glass {
-      background: rgba(39, 52, 71, 0.7) !important;
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
+      background: rgba(30, 41, 59, 0.6) !important;
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
     }
-    .dark .bg-hq-surface { background: rgba(39, 52, 71, 0.5) !important; }
-    .dark .bg-hq-panel { background: rgba(52, 66, 86, 0.3) !important; }
+    .dark .bg-hq-surface { background: rgba(30, 41, 59, 0.4) !important; }
+    .dark .bg-hq-panel { background: rgba(51, 65, 85, 0.25) !important; }
 
     /* ═══ 반투명 효과 (라이트 모드) ═══ */
     html:not(.dark) .glass {

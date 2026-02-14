@@ -76,9 +76,9 @@ async def index():
 # ── 에이전트 목록 ──
 AGENTS = [
     {"agent_id": "chief_of_staff", "name_ko": "비서실장", "role": "manager", "division": "secretary", "status": "idle", "model_name": "claude-sonnet-4-5-20250929"},
-    {"agent_id": "report_worker", "name_ko": "보고 요약 Worker", "role": "worker", "division": "secretary", "status": "idle", "model_name": "claude-haiku-4-5-20251001"},
-    {"agent_id": "schedule_worker", "name_ko": "일정/미결 추적 Worker", "role": "worker", "division": "secretary", "status": "idle", "model_name": "claude-haiku-4-5-20251001"},
-    {"agent_id": "relay_worker", "name_ko": "사업부 간 정보 중계 Worker", "role": "worker", "division": "secretary", "status": "idle", "model_name": "claude-haiku-4-5-20251001"},
+    {"agent_id": "report_specialist", "name_ko": "총괄 스페셜리스트", "role": "specialist", "division": "secretary", "status": "idle", "model_name": "claude-haiku-4-5-20251001"},
+    {"agent_id": "schedule_specialist", "name_ko": "전략 스페셜리스트", "role": "specialist", "division": "secretary", "status": "idle", "model_name": "claude-haiku-4-5-20251001"},
+    {"agent_id": "relay_specialist", "name_ko": "소통 스페셜리스트", "role": "specialist", "division": "secretary", "status": "idle", "model_name": "claude-haiku-4-5-20251001"},
     {"agent_id": "cto_manager", "name_ko": "기술개발처장 (CTO)", "role": "manager", "division": "leet_master.tech", "status": "idle", "model_name": "claude-sonnet-4-5-20250929"},
     {"agent_id": "frontend_specialist", "name_ko": "프론트엔드 Specialist", "role": "specialist", "division": "leet_master.tech", "status": "idle", "model_name": "claude-haiku-4-5-20251001"},
     {"agent_id": "backend_specialist", "name_ko": "백엔드/API Specialist", "role": "specialist", "division": "leet_master.tech", "status": "idle", "model_name": "claude-haiku-4-5-20251001"},
