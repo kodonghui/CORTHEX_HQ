@@ -280,9 +280,64 @@ async def get_quality_rules():
 @app.get("/api/available-models")
 async def get_available_models():
     return [
-        {"id": "claude-sonnet-4-5-20250929", "name": "Claude Sonnet 4.5"},
-        {"id": "claude-haiku-4-5-20251001", "name": "Claude Haiku 4.5"},
-        {"id": "claude-opus-4-6", "name": "Claude Opus 4.6"},
+        # Anthropic (Claude) 모델들 - 임원급/매니저급
+        {
+            "name": "claude-opus-4-6",
+            "provider": "anthropic",
+            "tier": "executive",
+            "cost_input": 15.0,
+            "cost_output": 75.0,
+        },
+        {
+            "name": "claude-sonnet-4-5-20250929",
+            "provider": "anthropic",
+            "tier": "manager",
+            "cost_input": 3.0,
+            "cost_output": 15.0,
+        },
+        {
+            "name": "claude-haiku-4-5-20251001",
+            "provider": "anthropic",
+            "tier": "specialist",
+            "cost_input": 0.25,
+            "cost_output": 1.25,
+        },
+        # OpenAI (GPT) 모델들 - 임원급/매니저급/전문가급
+        {
+            "name": "gpt-5.2-pro",
+            "provider": "openai",
+            "tier": "executive",
+            "cost_input": 18.0,
+            "cost_output": 90.0,
+        },
+        {
+            "name": "gpt-5.2",
+            "provider": "openai",
+            "tier": "manager",
+            "cost_input": 5.0,
+            "cost_output": 25.0,
+        },
+        {
+            "name": "gpt-5.1",
+            "provider": "openai",
+            "tier": "manager",
+            "cost_input": 4.0,
+            "cost_output": 20.0,
+        },
+        {
+            "name": "gpt-5",
+            "provider": "openai",
+            "tier": "specialist",
+            "cost_input": 2.5,
+            "cost_output": 10.0,
+        },
+        {
+            "name": "gpt-5-mini",
+            "provider": "openai",
+            "tier": "specialist",
+            "cost_input": 0.5,
+            "cost_output": 2.0,
+        },
     ]
 
 
