@@ -47,8 +47,14 @@ jobs:
             # 3단계: 미니 서버 파일 복사
             echo "🐍 미니 서버 파일 복사 중..."
             mkdir -p /home/ubuntu/web/templates
+            mkdir -p /home/ubuntu/config
             cp web/mini_server.py /home/ubuntu/web/mini_server.py
             cp web/templates/index.html /home/ubuntu/web/templates/index.html
+            cp -r config/* /home/ubuntu/config/ 2>/dev/null || echo "⚠️ config 파일 없음 (무시)"
+
+            # 3.5단계: Python 의존성 설치 (PyYAML 등)
+            echo "📦 Python 패키지 확인 중..."
+            pip3 install pyyaml 2>/dev/null || pip install pyyaml 2>/dev/null || echo "⚠️ pip 설치 실패 (yaml 없이 동작 가능)"
 
             # 4단계: 미니 서버 재시작
             echo "🔁 미니 서버 재시작 중..."
