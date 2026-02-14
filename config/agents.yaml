@@ -56,6 +56,16 @@ agents:
       - "cmo_manager"
       - "cio_manager"
       - "cpo_manager"
+    allowed_tools:
+      - "real_web_search"
+      - "token_counter"
+      - "notification_engine"
+      - "calendar_tool"
+      - "email_sender"
+      - "vector_knowledge"
+      - "decision_tracker"
+      - "audio_transcriber"
+      - "cross_agent_protocol"
 
   - agent_id: "report_worker"
     name: "Report Summary Worker"
@@ -85,6 +95,8 @@ agents:
       - "일정 추적"
       - "미결 사항 관리"
     superior_id: "chief_of_staff"
+    allowed_tools:
+      - "calendar_tool"
 
   - agent_id: "relay_worker"
     name: "Cross-Division Relay Worker"
@@ -99,6 +111,8 @@ agents:
     capabilities:
       - "정보 중계"
     superior_id: "chief_of_staff"
+    allowed_tools:
+      - "cross_agent_protocol"
 
   # ═══════════════════════════════════════════
   #  기술개발처 (CTO) - 비서실장 직속
@@ -141,6 +155,11 @@ agents:
       - "security_scanner"
       - "log_analyzer"
       - "api_benchmark"
+      - "prompt_tester"
+      - "embedding_tool"
+      - "token_counter"
+      - "image_generator"
+      - "cross_agent_protocol"
 
   - agent_id: "frontend_specialist"
     name: "Frontend Specialist"
@@ -257,6 +276,11 @@ agents:
       - "프롬프트 엔지니어링"
       - "RAG 시스템"
     superior_id: "cto_manager"
+    allowed_tools:
+      - "prompt_tester"
+      - "embedding_tool"
+      - "token_counter"
+      - "vector_knowledge"
 
   # ─── 사업기획처 (CSO) - 비서실장 직속 ───
 
@@ -326,6 +350,13 @@ agents:
       - "subsidy_finder"
       - "naver_place_scraper"
       - "scholar_scraper"
+      - "real_web_search"
+      - "spreadsheet_tool"
+      - "financial_calculator"
+      - "chart_generator"
+      - "pdf_parser"
+      - "decision_tracker"
+      - "cross_agent_protocol"
 
   - agent_id: "market_research_specialist"
     name: "Market Research Specialist"
@@ -425,6 +456,7 @@ agents:
       - "youtube_analyzer"
       - "naver_place_scraper"
       - "scholar_scraper"
+      - "real_web_search"
 
   - agent_id: "business_plan_specialist"
     name: "Business Plan Specialist"
@@ -461,6 +493,9 @@ agents:
       - "naver_datalab"
       - "subsidy_finder"
       - "scholar_scraper"
+      - "spreadsheet_tool"
+      - "chart_generator"
+      - "pdf_parser"
 
   - agent_id: "financial_model_specialist"
     name: "Financial Modeling Specialist"
@@ -494,6 +529,9 @@ agents:
       - "tax_accountant"
       - "public_data"
       - "subsidy_finder"
+      - "spreadsheet_tool"
+      - "financial_calculator"
+      - "chart_generator"
 
   # ─── 법무·IP처 (CLO) - 비서실장 직속 ───
 
@@ -530,6 +568,8 @@ agents:
       - "trademark_similarity"
       - "contract_reviewer"
       - "law_change_monitor"
+      - "pdf_parser"
+      - "cross_agent_protocol"
 
   - agent_id: "copyright_specialist"
     name: "Copyright Specialist"
@@ -564,6 +604,7 @@ agents:
       - "trademark_similarity"
       - "contract_reviewer"
       - "law_change_monitor"
+      - "pdf_parser"
 
   - agent_id: "patent_specialist"
     name: "Patent/Terms Specialist"
@@ -600,6 +641,7 @@ agents:
       - "trademark_similarity"
       - "contract_reviewer"
       - "law_change_monitor"
+      - "pdf_parser"
 
   # ─── 마케팅·고객처 (CMO) - 비서실장 직속 ───
 
@@ -645,6 +687,9 @@ agents:
       - "hashtag_recommender"
       - "email_optimizer"
       - "competitor_sns_monitor"
+      - "email_sender"
+      - "image_generator"
+      - "cross_agent_protocol"
 
   - agent_id: "survey_specialist"
     name: "Survey/Research Specialist"
@@ -724,6 +769,7 @@ agents:
       - "email_optimizer"
       - "competitor_sns_monitor"
       - "newsletter_builder"
+      - "image_generator"
 
   - agent_id: "community_specialist"
     name: "Community Specialist"
@@ -796,6 +842,11 @@ agents:
       - "backtest_engine"
       - "insider_tracker"
       - "dividend_calendar"
+      - "global_market_tool"
+      - "financial_calculator"
+      - "chart_generator"
+      - "spreadsheet_tool"
+      - "cross_agent_protocol"
 
   - agent_id: "market_condition_specialist"
     name: "Market Condition Specialist"
@@ -829,6 +880,8 @@ agents:
       - "web_search"
       - "naver_news"
       - "ecos_macro"
+      - "real_web_search"
+      - "global_market_tool"
 
   - agent_id: "stock_analysis_specialist"
     name: "Stock Analysis Specialist"
@@ -887,6 +940,9 @@ agents:
       - "stock_screener"
       - "insider_tracker"
       - "dividend_calendar"
+      - "global_market_tool"
+      - "financial_calculator"
+      - "chart_generator"
 
   - agent_id: "technical_analysis_specialist"
     name: "Technical Analysis Specialist"
@@ -921,6 +977,7 @@ agents:
     allowed_tools:
       - "kr_stock"
       - "backtest_engine"
+      - "chart_generator"
 
   - agent_id: "risk_management_specialist"
     name: "Risk Management Specialist"
@@ -959,6 +1016,9 @@ agents:
       - "dart_api"
       - "insider_tracker"
       - "backtest_engine"
+      - "financial_calculator"
+      - "global_market_tool"
+      - "notification_engine"
 
   # ═══════════════════════════════════════════
   #  출판·기록처 (CPO) - 비서실장 직속
@@ -1026,6 +1086,14 @@ agents:
       - "report_generator"
       - "meeting_formatter"
       - "newsletter_builder"
+      - "spreadsheet_tool"
+      - "chart_generator"
+      - "pdf_parser"
+      - "vector_knowledge"
+      - "decision_tracker"
+      - "audio_transcriber"
+      - "image_generator"
+      - "cross_agent_protocol"
 
   - agent_id: "chronicle_specialist"
     name: "Company Chronicle Specialist"
@@ -1070,6 +1138,9 @@ agents:
       - "web_search"
       - "notion_api"
       - "meeting_formatter"
+      - "real_web_search"
+      - "decision_tracker"
+      - "audio_transcriber"
 
   - agent_id: "editor_specialist"
     name: "Content Editor Specialist"
@@ -1111,6 +1182,8 @@ agents:
       - "doc_converter"
       - "report_generator"
       - "newsletter_builder"
+      - "chart_generator"
+      - "pdf_parser"
 
   - agent_id: "archive_specialist"
     name: "Archive Specialist"
@@ -1156,3 +1229,4 @@ agents:
       - "notion_api"
       - "doc_converter"
       - "meeting_formatter"
+      - "vector_knowledge"
