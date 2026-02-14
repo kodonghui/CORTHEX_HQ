@@ -40,6 +40,12 @@ class ToolPool:
             "sns_manager": "src.tools.sns.sns_manager.SNSManager",
             "daum_cafe": "src.tools.daum_cafe.DaumCafeTool",
             "leet_survey": "src.tools.leet_survey.LeetSurveyTool",
+            # ─── CMO 마케팅고객처 신규 도구 ───
+            "seo_analyzer": "src.tools.seo_analyzer.SeoAnalyzerTool",
+            "sentiment_analyzer": "src.tools.sentiment_analyzer.SentimentAnalyzerTool",
+            "hashtag_recommender": "src.tools.hashtag_recommender.HashtagRecommenderTool",
+            "email_optimizer": "src.tools.email_optimizer.EmailOptimizerTool",
+            "competitor_sns_monitor": "src.tools.competitor_sns_monitor.CompetitorSnsMonitorTool",
         }
         tool_classes: dict[str, type[BaseTool]] = {}
         for tool_id, import_path in _imports.items():
