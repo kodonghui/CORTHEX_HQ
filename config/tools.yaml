@@ -54,6 +54,92 @@ tools:
     description: "Tistory/YouTube/Instagram/LinkedIn/네이버카페/네이버블로그/다음카페 통합 퍼블리싱 (CEO 승인 큐 포함)"
     model_name: "gpt-5-mini"
 
+  # ═══════════════════════════════════════════
+  #  부서별 전문가 도구 (실제 외부 API 연동)
+  # ═══════════════════════════════════════════
+
+  # ─── CIO 투자분석처 도구 ───
+
+  - tool_id: "kr_stock"
+    name: "Korean Stock Data"
+    name_ko: "한국 주식 데이터"
+    description: "한국거래소 주가/거래량 조회, 기술적 지표(RSI/MACD/BB) 자동 계산, 시가총액 순위 (pykrx)"
+    model_name: "gpt-5-mini"
+
+  - tool_id: "dart_api"
+    name: "DART Financial Statements"
+    name_ko: "DART 재무제표"
+    description: "금융감독원 DART 기업 재무제표(매출/영업이익/순이익), 기업정보, 최신 공시 조회"
+    model_name: "gpt-5-mini"
+
+  - tool_id: "naver_news"
+    name: "Naver News Search"
+    name_ko: "네이버 뉴스 검색"
+    description: "네이버 검색 API로 최신 뉴스 검색, 금융/시장 뉴스 분석"
+    model_name: "gpt-5-mini"
+
+  - tool_id: "ecos_macro"
+    name: "ECOS Macro Indicators"
+    name_ko: "한국은행 경제 지표"
+    description: "한국은행 ECOS API로 기준금리, GDP, CPI, 환율 등 거시경제 지표 조회"
+    model_name: "gpt-5-mini"
+
+  # ─── CSO 사업기획처 도구 ───
+
+  - tool_id: "naver_datalab"
+    name: "Naver DataLab Trends"
+    name_ko: "네이버 데이터랩"
+    description: "네이버 데이터랩 API로 키워드 검색량 추이(최대 5개 비교) 및 쇼핑 트렌드 분석"
+    model_name: "gpt-5-mini"
+
+  - tool_id: "public_data"
+    name: "Public Data Portal"
+    name_ko: "공공데이터"
+    description: "공공데이터포털 API로 인구, 교육, 경제 등 정부 통계 데이터 조회"
+    model_name: "gpt-5-mini"
+
+  # ─── CLO 법무IP처 도구 ───
+
+  - tool_id: "kipris"
+    name: "KIPRIS Patent/Trademark Search"
+    name_ko: "특허/상표 검색"
+    description: "KIPRIS Plus API로 특허, 상표, 디자인 검색 및 분석"
+    model_name: "gpt-5-mini"
+
+  - tool_id: "law_search"
+    name: "Law/Precedent Search"
+    name_ko: "법령/판례 검색"
+    description: "국가법령정보센터 API로 법령 조문 및 판례 검색"
+    model_name: "gpt-5-mini"
+
+  # ─── CTO 기술개발처 도구 ───
+
+  - tool_id: "github_tool"
+    name: "GitHub API"
+    name_ko: "GitHub"
+    description: "GitHub REST API로 이슈, PR, 커밋 이력, 저장소 통계 조회"
+    model_name: "gpt-5-mini"
+
+  - tool_id: "code_quality"
+    name: "Code Quality Check"
+    name_ko: "코드 품질 검사"
+    description: "bandit(보안), ruff(린팅), pytest(테스트)로 코드 품질 종합 검사"
+    model_name: "gpt-5-mini"
+
+  # ─── CPO 출판기록처 도구 ───
+
+  - tool_id: "notion_api"
+    name: "Notion Integration"
+    name_ko: "노션 연동"
+    description: "Notion API로 페이지 생성/수정, 데이터베이스 쿼리, 마크다운 자동 변환"
+    model_name: "gpt-5-mini"
+
+  - tool_id: "doc_converter"
+    name: "Document Converter"
+    name_ko: "문서 변환"
+    description: "pandoc으로 마크다운을 PDF, DOCX, ePub(전자책)으로 변환"
+    model_name: "gpt-5-mini"
+
   # ─── CSO 사업기획처 신규 도구 ───
 
   - tool_id: "competitor_monitor"
