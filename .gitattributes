@@ -1,0 +1,40 @@
+# 줄바꿈 자동 통일 설정
+# 윈도우에서 작업해도 줄바꿈이 LF(리눅스 방식)로 통일되게 만드는 파일
+# 이 파일이 있으면 "파일 296개가 바뀌었다"는 헛소리가 안 나옴
+
+# 모든 텍스트 파일: 저장할 때 자동으로 LF로 통일
+* text=auto eol=lf
+
+# Python 파일
+*.py text eol=lf
+
+# 웹 파일
+*.html text eol=lf
+*.css text eol=lf
+*.js text eol=lf
+
+# 설정/문서 파일
+*.md text eol=lf
+*.json text eol=lf
+*.yaml text eol=lf
+*.yml text eol=lf
+*.toml text eol=lf
+*.txt text eol=lf
+*.cfg text eol=lf
+*.ini text eol=lf
+
+# 쉘 스크립트
+*.sh text eol=lf
+
+# 윈도우 배치 파일은 윈도우 방식(CRLF) 유지
+*.bat text eol=crlf
+
+# 이미지/바이너리 파일은 건드리지 않음
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.zip binary
+*.tar.gz binary
