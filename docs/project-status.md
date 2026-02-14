@@ -9,8 +9,8 @@
 ## 마지막 업데이트
 
 - **날짜**: 2026-02-14
-- **작업 브랜치**: claude/fix-crlf-line-endings-W0oeF
-- **작업 내용**: 줄바꿈 문제 해결 — 윈도우에서 작업해도 "296개 파일 변경됨" 오류 안 나오게 설정 추가
+- **작업 브랜치**: claude/notion-report-storage-BZPaw
+- **작업 내용**: 에이전트 29개 Soul 파일에 노션 보고 의무 섹션 추가 + 웹 세션 환경변수 자동 설정 훅 추가
 
 ---
 
@@ -30,12 +30,15 @@
 3. **부서별 전문가 도구** - CTO, CSO, CLO, CIO, CMO 등 각 부서별 AI 도구 구현
 4. **프론트엔드 UX/UI 전수 검사 및 수정** - 디자인 시스템(hq-* 컬러 토큰) 적용
 5. **줄바꿈 자동 통일 설정** (`.gitattributes`) - 윈도우에서 작업해도 줄바꿈 충돌 안 생기게 설정
+6. **노션 보고 의무 섹션 추가** - 29개 에이전트 Soul 파일에 작업 완료 시 노션 DB에 보고서 자동 제출 규칙 추가
+7. **웹 세션 환경변수 자동 설정** (`.claude/scripts/setup-env.sh`) - GitHub Codespaces Secrets에서 API 키를 읽어 `.env.local` 자동 생성
 
 ---
 
 ## 진행 중인 작업
 
-- (현재 진행 중인 작업이 있으면 여기에 기록)
+- **노션 보고 시스템 환경 설정 필요**: `.env.local`에 실제 `NOTION_API_KEY`와 `NOTION_DEFAULT_DB_ID` 값을 입력해야 에이전트들의 노션 보고가 실제로 작동함
+- **노션 DB data_source_id**: `ee0527e4-697b-4cb6-8df0-6dca3f59ad4e`
 
 ---
 
@@ -47,7 +50,8 @@
 
 ## 다음에 할 일 (우선순위 순)
 
-- (CEO가 지시한 다음 작업이 있으면 여기에 기록)
+- GitHub Codespaces Secrets에 `NOTION_API_KEY` 등 실제 API 키 등록
+- 노션 보고 시스템 실제 작동 테스트 (에이전트가 작업 후 노션 DB에 보고서 자동 제출되는지 확인)
 
 ---
 
@@ -58,3 +62,5 @@
 - 디자인은 **hq-* 커스텀 컬러 토큰** 사용
 - Git 브랜치명은 **claude/** 로 시작
 - 작업 완료 시 커밋 메시지에 **[완료]** 포함 필수
+- 에이전트 산출물 DB data_source_id: **`ee0527e4-697b-4cb6-8df0-6dca3f59ad4e`**
+- 환경변수 파일은 **.env.local** 사용 권장 (`.env`는 AnySign4PC 등이 잠글 수 있음)
