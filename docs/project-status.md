@@ -30,19 +30,20 @@
 3. **부서별 전문가 도구** - CTO, CSO, CLO, CIO, CMO 등 각 부서별 AI 도구 구현
 4. **프론트엔드 UX/UI 전수 검사 및 수정** - 디자인 시스템(hq-* 컬러 토큰) 적용
 5. **테마(다크/라이트) 가시성 전면 수정** - CSS 변수 기반 자동 테마 전환, 하드코딩 색상 30곳+ 교체, 대비 개선
-5. **줄바꿈 자동 통일 설정** (`.gitattributes`) - 윈도우에서 작업해도 줄바꿈 충돌 안 생기게 설정
-6. **외부 접속 기능** (`CORTHEX_외부접속_시작.bat`) - Cloudflare Tunnel로 어디서든 웹 접속 가능 (회사컴 켜져 있어야 함)
-7. **Oracle Cloud 24시간 서버** - 무료 서버(VM.Standard.E2.1.Micro)에 웹사이트 배포 완료
+6. **줄바꿈 자동 통일 설정** (`.gitattributes`) - 윈도우에서 작업해도 줄바꿈 충돌 안 생기게 설정
+7. **외부 접속 기능** (`CORTHEX_외부접속_시작.bat`) - Cloudflare Tunnel로 어디서든 웹 접속 가능 (회사컴 켜져 있어야 함)
+8. **Oracle Cloud 24시간 서버** - 무료 서버(VM.Standard.E2.1.Micro)에 웹사이트 배포 완료
    - 서버 IP: `168.107.28.100`
    - 운영체제: Ubuntu 24.04
    - 웹서버: nginx + 경량 미니 백엔드(FastAPI)
    - 회사 컴퓨터 꺼져도 대시보드 화면 접속 가능
-8. **GitHub Actions 자동 배포** - main에 코드 합쳐지면 서버에 자동 반영
+9. **GitHub Actions 자동 배포** - main에 코드 합쳐지면 서버에 자동 반영
    - `.github/workflows/deploy.yml` 워크플로우
    - **main에 push되면 무조건 실행** (paths 필터 제거됨)
    - GitHub Secrets에 SSH 키, 서버 IP 등록 완료
-9. **노션 보고 의무 섹션 추가** - 29개 에이전트 Soul 파일에 작업 완료 시 노션 DB에 보고서 자동 제출 규칙 추가
-10. **웹 세션 환경변수 자동 설정** (`.claude/scripts/setup-env.sh`) - GitHub Codespaces Secrets에서 API 키를 읽어 `.env.local` 자동 생성
+10. **노션 보고 의무 섹션 추가** - 29개 에이전트 Soul 파일에 작업 완료 시 노션 DB에 보고서 자동 제출 규칙 추가
+11. **비서실 보좌관 이름 변경** - 브리핑→총괄, 작전→진행, 부서→소통으로 이름 변경 완료
+12. **웹 세션 환경변수 자동 설정** (`.claude/scripts/setup-env.sh`) - GitHub Codespaces Secrets에서 API 키를 읽어 `.env.local` 자동 생성
 
 ---
 
