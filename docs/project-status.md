@@ -9,8 +9,8 @@
 ## 마지막 업데이트
 
 - **날짜**: 2026-02-14
-- **작업 브랜치**: claude/fix-theme-visibility-B95Iq
-- **작업 내용**: 테마(다크/라이트 모드) 가시성 전면 수정 — CSS 변수 기반 자동 테마 전환 시스템 구축
+- **작업 브랜치**: claude/investigate-tool-room-staff-KFMIx
+- **작업 내용**: 도구함 빈 화면 버그 수정 — mini_server.py가 tools.yaml을 안 읽고 빈 리스트를 반환하던 문제 해결
 
 ---
 
