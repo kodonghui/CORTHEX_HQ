@@ -58,8 +58,8 @@ agents:
       - "cpo_manager"
 
   - agent_id: "report_worker"
-    name: "Report Specialist"
-    name_ko: "전략 보고관"
+    name: "Briefing Aide"
+    name_ko: "브리핑 보좌관"
     role: "specialist"
     division: "secretary"
     model_name: "claude-haiku-4-5-20251001"
@@ -72,8 +72,8 @@ agents:
     superior_id: "chief_of_staff"
 
   - agent_id: "schedule_worker"
-    name: "Schedule Specialist"
-    name_ko: "작전 일정관"
+    name: "Operations Aide"
+    name_ko: "작전 보좌관"
     role: "specialist"
     division: "secretary"
     model_name: "claude-haiku-4-5-20251001"
@@ -87,8 +87,8 @@ agents:
     superior_id: "chief_of_staff"
 
   - agent_id: "relay_worker"
-    name: "Liaison Specialist"
-    name_ko: "부서 연락관"
+    name: "Division Aide"
+    name_ko: "부서 보좌관"
     role: "specialist"
     division: "secretary"
     model_name: "claude-haiku-4-5-20251001"
