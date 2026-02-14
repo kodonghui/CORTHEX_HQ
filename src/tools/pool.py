@@ -40,6 +40,19 @@ class ToolPool:
             "sns_manager": "src.tools.sns.sns_manager.SNSManager",
             "daum_cafe": "src.tools.daum_cafe.DaumCafeTool",
             "leet_survey": "src.tools.leet_survey.LeetSurveyTool",
+            # ─── 부서별 전문가 도구 ───
+            "kr_stock": "src.tools.kr_stock.KrStockTool",
+            "dart_api": "src.tools.dart_api.DartApiTool",
+            "naver_news": "src.tools.naver_news.NaverNewsTool",
+            "ecos_macro": "src.tools.ecos_macro.EcosMacroTool",
+            "naver_datalab": "src.tools.naver_datalab.NaverDatalabTool",
+            "public_data": "src.tools.public_data.PublicDataTool",
+            "kipris": "src.tools.kipris.KiprisTool",
+            "law_search": "src.tools.law_search.LawSearchTool",
+            "github_tool": "src.tools.github_tool.GithubTool",
+            "code_quality": "src.tools.code_quality.CodeQualityTool",
+            "notion_api": "src.tools.notion_api.NotionApiTool",
+            "doc_converter": "src.tools.doc_converter.DocConverterTool",
         }
         tool_classes: dict[str, type[BaseTool]] = {}
         for tool_id, import_path in _imports.items():
