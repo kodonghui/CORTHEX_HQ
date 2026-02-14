@@ -88,6 +88,26 @@ class ToolPool:
             "meeting_formatter": "src.tools.meeting_formatter.MeetingFormatterTool",
             # ─── 전사 공통 도구 ───
             "newsletter_builder": "src.tools.newsletter_builder.NewsletterBuilderTool",
+            # ─── Phase 1: 최우선 신규 도구 ───
+            "real_web_search": "src.tools.real_web_search.RealWebSearchTool",
+            "spreadsheet_tool": "src.tools.spreadsheet_tool.SpreadsheetTool",
+            "chart_generator": "src.tools.chart_generator.ChartGeneratorTool",
+            "pdf_parser": "src.tools.pdf_parser.PdfParserTool",
+            "prompt_tester": "src.tools.prompt_tester.PromptTesterTool",
+            "embedding_tool": "src.tools.embedding_tool.EmbeddingTool",
+            "token_counter": "src.tools.token_counter.TokenCounterTool",
+            # ─── Phase 2: 중요 신규 도구 ───
+            "notification_engine": "src.tools.notification_engine.NotificationEngineTool",
+            "global_market_tool": "src.tools.global_market_tool.GlobalMarketTool",
+            "financial_calculator": "src.tools.financial_calculator.FinancialCalculatorTool",
+            "calendar_tool": "src.tools.calendar_tool.CalendarTool",
+            "email_sender": "src.tools.email_sender.EmailSenderTool",
+            # ─── Phase 3: 미래 투자 신규 도구 ───
+            "vector_knowledge": "src.tools.vector_knowledge.VectorKnowledgeTool",
+            "decision_tracker": "src.tools.decision_tracker.DecisionTrackerTool",
+            "image_generator": "src.tools.image_generator.ImageGeneratorTool",
+            "audio_transcriber": "src.tools.audio_transcriber.AudioTranscriberTool",
+            "cross_agent_protocol": "src.tools.cross_agent_protocol.CrossAgentProtocolTool",
         }
         tool_classes: dict[str, type[BaseTool]] = {}
         for tool_id, import_path in _imports.items():

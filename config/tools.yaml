@@ -319,3 +319,117 @@ tools:
     name_ko: "자동 뉴스레터 생성기"
     description: "주간/월간 뉴스레터 자동 생성 (뉴스, 트렌드, 커뮤니티, 팁 섹션 포함)"
     model_name: "gpt-5-mini"
+
+  # ═══════════════════════════════════════════
+  # Phase 1: 최우선 신규 도구
+  # ═══════════════════════════════════════════
+
+  - tool_id: "real_web_search"
+    name: "Real Web Search"
+    name_ko: "실시간 웹 검색"
+    description: "SerpAPI를 통한 실시간 구글 검색 — 웹/뉴스/이미지 검색 및 결과 분석"
+    model_name: "gpt-5-mini"
+
+  - tool_id: "spreadsheet_tool"
+    name: "Spreadsheet Tool"
+    name_ko: "스프레드시트 도구"
+    description: "엑셀(xlsx)/CSV 파일 읽기·쓰기·분석 — 데이터 필터링, 통계 요약, 피벗 테이블"
+    model_name: "gpt-5-mini"
+
+  - tool_id: "chart_generator"
+    name: "Chart Generator"
+    name_ko: "차트 생성기"
+    description: "데이터를 막대/꺾은선/원형/산점도/캔들차트로 시각화 — PNG 또는 HTML"
+    model_name: "gpt-5-mini"
+
+  - tool_id: "pdf_parser"
+    name: "PDF Parser"
+    name_ko: "PDF 파서"
+    description: "PDF 파일에서 텍스트/표 추출 — 페이지별 추출, 내용 요약, 텍스트 검색"
+    model_name: "gpt-5-mini"
+
+  - tool_id: "prompt_tester"
+    name: "Prompt Tester"
+    name_ko: "프롬프트 테스터"
+    description: "프롬프트를 여러 AI 모델로 실행·비교 — 모델별 응답 비교, A/B 테스트, 품질 평가"
+    model_name: "gpt-5-mini"
+
+  - tool_id: "embedding_tool"
+    name: "Embedding Tool"
+    name_ko: "임베딩 도구"
+    description: "텍스트를 AI 벡터로 변환 — 임베딩, 유사도 계산, 일괄 처리, 클러스터링"
+    model_name: "gpt-5-mini"
+
+  - tool_id: "token_counter"
+    name: "Token Counter"
+    name_ko: "토큰 카운터"
+    description: "AI 모델 토큰 수 계산 — 토큰 수, 예상 비용 산출, 토큰 한도 맞춤 자르기"
+    model_name: "gpt-5-mini"
+
+  # ═══════════════════════════════════════════
+  # Phase 2: 중요 신규 도구
+  # ═══════════════════════════════════════════
+
+  - tool_id: "notification_engine"
+    name: "Notification Engine"
+    name_ko: "알림 엔진"
+    description: "텔레그램·이메일로 자동 알림 발송 — 메시지/보고서 알림, 템플릿 발송, 이력 관리"
+    model_name: "gpt-5-mini"
+
+  - tool_id: "global_market_tool"
+    name: "Global Market Tool"
+    name_ko: "글로벌 시장 도구"
+    description: "글로벌 주식/지수/암호화폐/환율 조회 — 미국·일본·유럽 주식, 비트코인 시세, 환율"
+    model_name: "gpt-5-mini"
+
+  - tool_id: "financial_calculator"
+    name: "Financial Calculator"
+    name_ko: "재무 계산기"
+    description: "재무 분석 계산 — DCF 기업가치, NPV/IRR, 대출 시뮬레이션, ROI/CAGR, 손익분기점"
+    model_name: "gpt-5-mini"
+
+  - tool_id: "calendar_tool"
+    name: "Calendar Tool"
+    name_ko: "캘린더 도구"
+    description: "Google Calendar 연동 — 일정 조회·생성·수정·삭제, 검색, 빈 시간 확인"
+    model_name: "gpt-5-mini"
+
+  - tool_id: "email_sender"
+    name: "Email Sender"
+    name_ko: "이메일 발송기"
+    description: "이메일 자동 발송 — 텍스트/HTML 이메일, 초안 작성, 템플릿, 대량 발송"
+    model_name: "gpt-5-mini"
+
+  # ═══════════════════════════════════════════
+  # Phase 3: 미래 투자 신규 도구
+  # ═══════════════════════════════════════════
+
+  - tool_id: "vector_knowledge"
+    name: "Vector Knowledge Base"
+    name_ko: "벡터 지식베이스"
+    description: "의미 기반 지식 검색(RAG) — 자연어 검색, 문서 벡터 저장, 파일 일괄 추가"
+    model_name: "gpt-5-mini"
+
+  - tool_id: "decision_tracker"
+    name: "Decision Tracker"
+    name_ko: "의사결정 추적기"
+    description: "의사결정 기록·추적 — 결정 배경/선택지/이유 기록, 결과 업데이트, 패턴 분석"
+    model_name: "gpt-5-mini"
+
+  - tool_id: "image_generator"
+    name: "Image Generator"
+    name_ko: "이미지 생성기"
+    description: "AI 이미지 생성 — DALL-E 3로 이미지 생성, 기존 이미지 편집/변형"
+    model_name: "gpt-5-mini"
+
+  - tool_id: "audio_transcriber"
+    name: "Audio Transcriber"
+    name_ko: "음성 변환기"
+    description: "음성/오디오를 텍스트로 변환 — 한국어 STT, 자동 번역, 녹음 요약, 회의록 변환"
+    model_name: "gpt-5-mini"
+
+  - tool_id: "cross_agent_protocol"
+    name: "Cross Agent Protocol"
+    name_ko: "에이전트 협업 프로토콜"
+    description: "에이전트 간 횡적 협업 — 작업 요청, 정보 공유, 작업 인계, 결과 수집·종합"
+    model_name: "gpt-5-mini"

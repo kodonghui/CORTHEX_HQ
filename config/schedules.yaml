@@ -1,1 +1,42 @@
-schedules: []
+schedules:
+  # ── 스케줄 1: 아침 시장 브리핑 ──
+  - schedule_id: "morning_briefing"
+    name: "아침 시장 브리핑"
+    command: "오늘의 글로벌/한국 주식시장 현황과 주요 경제 뉴스를 브리핑해줘"
+    cron_preset: "매일 오전 9시"
+    enabled: true
+
+  # ── 스케줄 2: 저녁 마감 보고 ──
+  - schedule_id: "evening_wrap"
+    name: "저녁 마감 보고"
+    command: "오늘 하루 시장 마감 현황, 주요 공시, 특이사항을 정리해줘"
+    cron_preset: "매일 오후 6시"
+    enabled: true
+
+  # ── 스케줄 3: 주간 종합 보고서 ──
+  - schedule_id: "weekly_report"
+    name: "주간 종합 보고서"
+    command: "이번 주 CORTHEX HQ 주간 보고서를 자동 생성해줘"
+    cron_preset: "매주 금요일 오후 5시"
+    enabled: true
+
+  # ── 스케줄 4: 경쟁사 모니터링 ──
+  - schedule_id: "competitor_check"
+    name: "경쟁사 웹사이트 점검"
+    command: "등록된 경쟁사 웹사이트의 변경사항을 확인하고 보고해줘"
+    cron_preset: "매주 월요일 오전 10시"
+    enabled: true
+
+  # ── 스케줄 5: 법령 변경 알리미 ──
+  - schedule_id: "law_change_alert"
+    name: "법령 변경 확인"
+    command: "저작권법, 개인정보보호법, 교육관련법의 최근 변경사항을 확인해줘"
+    cron_preset: "매주 월요일 오전 10시"
+    enabled: true
+
+  # ── 스케줄 6: 관심 기업 공시 체크 ──
+  - schedule_id: "dart_disclosure_check"
+    name: "관심 기업 공시 확인"
+    command: "감시 중인 기업들의 새 DART 공시를 확인하고 영향을 분석해줘"
+    cron_preset: "매일 오전 9시"
+    enabled: true
