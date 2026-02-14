@@ -8,7 +8,9 @@ import asyncio
 import json
 import os
 from datetime import datetime, timezone, timedelta
+from pathlib import Path
 
+import yaml
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -126,7 +128,13 @@ async def get_agent(agent_id: str):
 
 @app.get("/api/tools")
 async def get_tools():
-    return []
+    """tools.yaml에서 도구 목록을 읽어 반환."""
+    try:
+        config_path = Path(BASE_DIR).parent / "config" / "tools.yaml"
+        tools_cfg = yaml.safe_load(config_path.read_text(encoding="utf-8"))
+        return tools_cfg.get("tools", [])
+    except Exception:
+        return []
 
 
 @app.get("/api/dashboard")
