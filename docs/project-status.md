@@ -9,8 +9,8 @@
 ## 마지막 업데이트
 
 - **날짜**: 2026-02-15
-- **작업 브랜치**: claude/fix-theme-balance-K8mXp
-- **작업 내용**: 다크/라이트 모드 색상 밸런스 조정 — 다크 모드 배경을 15% 밝게, 라이트 모드 대비를 높여서 가시성 개선
+- **작업 브랜치**: claude/ai-model-settings-update-d1516f
+- **작업 내용**: AI 모델 설정 개선 — Claude 4.5/4.6 + GPT-5 이상만 사용 가능하도록 변경, Codex 제거, Provider별 그룹화
 
 ---
 
@@ -44,6 +44,7 @@
 10. **노션 보고 의무 섹션 추가** - 29개 에이전트 Soul 파일에 작업 완료 시 노션 DB에 보고서 자동 제출 규칙 추가
 11. **비서실 보좌관 이름 변경** - 브리핑→총괄, 작전→진행, 부서→소통으로 이름 변경 완료
 12. **웹 세션 환경변수 자동 설정** (`.claude/scripts/setup-env.sh`) - GitHub Codespaces Secrets에서 API 키를 읽어 `.env.local` 자동 생성
+13. **AI 모델 설정 개선** (2026-02-15) - Claude 4.5/4.6 + GPT-5 이상 8개 모델 제공, Codex 제거, Provider별 그룹화(Anthropic/OpenAI)로 UI 가독성 향상
 
 ---
 
