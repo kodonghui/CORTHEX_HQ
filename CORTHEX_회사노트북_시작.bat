@@ -47,7 +47,27 @@ if %ERRORLEVEL% NEQ 0 (
     pause
     exit /b 1
 )
-echo   [OK] Python 확인 완료
+
+REM Python 버전 가져오기
+for /f "tokens=2" %%v in ('python --version 2^>^&1') do set "PY_VER=%%v"
+
+REM Python 버전 범위 확인 (3.11 이상, 3.14 미만만 지원)
+python -c "import sys; exit(0 if (3,11) <= sys.version_info < (3,14) else 1)"
+if %ERRORLEVEL% NEQ 0 (
+    echo   [실패] Python %PY_VER% 버전은 지원하지 않습니다!
+    echo.
+    echo   이 프로젝트는 Python 3.11 ~ 3.13 버전이 필요합니다.
+    echo   현재 설치된 버전: Python %PY_VER%
+    echo.
+    echo   Python 3.13을 아래 링크에서 설치해주세요:
+    echo   https://www.python.org/downloads/
+    echo.
+    echo   설치할 때 "Add Python to PATH" 체크박스를 반드시 선택하세요!
+    echo.
+    pause
+    exit /b 1
+)
+echo   [OK] Python %PY_VER% 확인 완료
 
 REM -- 3단계: 설치 확인 (처음이면 자동 설치) --
 if not exist ".venv\Scripts\activate.bat" (
