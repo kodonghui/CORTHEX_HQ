@@ -59,6 +59,12 @@ class ToolPool:
             "trademark_similarity": "src.tools.trademark_similarity.TrademarkSimilarityTool",
             "contract_reviewer": "src.tools.contract_reviewer.ContractReviewerTool",
             "law_change_monitor": "src.tools.law_change_monitor.LawChangeMonitorTool",
+            # ─── CIO 투자분석처 신규 도구 ───
+            "dart_monitor": "src.tools.dart_monitor.DartMonitorTool",
+            "stock_screener": "src.tools.stock_screener.StockScreenerTool",
+            "backtest_engine": "src.tools.backtest_engine.BacktestEngineTool",
+            "insider_tracker": "src.tools.insider_tracker.InsiderTrackerTool",
+            "dividend_calendar": "src.tools.dividend_calendar.DividendCalendarTool",
             # ─── CMO 마케팅고객처 신규 도구 ───
             "seo_analyzer": "src.tools.seo_analyzer.SeoAnalyzerTool",
             "sentiment_analyzer": "src.tools.sentiment_analyzer.SentimentAnalyzerTool",
