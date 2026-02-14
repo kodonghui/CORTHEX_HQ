@@ -278,6 +278,44 @@
     .status-light-off { background: #475569; }
     html:not(.dark) .desk-card:hover { box-shadow: 0 6px 20px rgba(0,0,0,0.08); }
     html:not(.dark) .office-room { border-color: #e2e8f0; }
+
+    /* ═══ #18: Light mode extra fixes ═══ */
+    html:not(.dark) .bg-hq-bg\/50 { background-color: rgba(248,250,252,0.5); }
+    html:not(.dark) .bg-hq-surface\/50 { background-color: rgba(255,255,255,0.5); }
+    html:not(.dark) .bg-hq-panel\/50 { background-color: rgba(241,245,249,0.5); }
+    html:not(.dark) .border-hq-border\/50 { border-color: rgba(226,232,240,0.5); }
+    html:not(.dark) .text-hq-text\/60 { color: rgba(30,41,59,0.6); }
+    html:not(.dark) .text-hq-text\/70 { color: rgba(30,41,59,0.7); }
+    html:not(.dark) .text-hq-text\/80 { color: rgba(30,41,59,0.8); }
+    html:not(.dark) .text-hq-text\/90 { color: rgba(30,41,59,0.9); }
+    html:not(.dark) .text-hq-muted\/30 { color: rgba(71,85,105,0.3); }
+    html:not(.dark) .text-hq-muted\/40 { color: rgba(71,85,105,0.4); }
+    html:not(.dark) .text-hq-muted\/50 { color: rgba(71,85,105,0.5); }
+    html:not(.dark) input, html:not(.dark) textarea, html:not(.dark) select {
+      background-color: #ffffff !important;
+      border-color: #e2e8f0 !important;
+      color: #1e293b !important;
+    }
+    html:not(.dark) .log-item:hover { background: rgba(59,130,246,0.03); }
+
+    /* ═══ #11: Mobile responsive ═══ */
+    @media (max-width: 768px) {
+      /* 사이드바 숨김 (모바일) */
+      .mobile-sidebar-hidden { display: none !important; }
+      /* 탭 바 가로 스크롤 */
+      .mobile-tabs-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+      .mobile-tabs-scroll::-webkit-scrollbar { display: none; }
+      /* 카드 1열 */
+      .mobile-grid-1 { grid-template-columns: 1fr !important; }
+      /* 대시보드 카드 2열 → 1열 */
+      .grid-cols-2 { grid-template-columns: 1fr !important; }
+      .lg\:grid-cols-4 { grid-template-columns: repeat(2, 1fr) !important; }
+      /* 비교 모달 1열 */
+      .grid-cols-2.gap-6 { grid-template-columns: 1fr !important; }
+    }
+    @media (max-width: 480px) {
+      .lg\:grid-cols-4, .grid-cols-4 { grid-template-columns: 1fr !important; }
+    }
   </style>
 </head>
 
@@ -477,7 +515,7 @@
   <div class="flex flex-1 overflow-hidden">
 
     <!-- ═══ Left Panel: Organization ═══ -->
-    <aside class="w-[280px] bg-hq-surface border-r border-hq-border flex flex-col shrink-0">
+    <aside class="w-[280px] bg-hq-surface border-r border-hq-border flex flex-col shrink-0 mobile-sidebar-hidden">
 
       <!-- Org Tree -->
       <div class="flex-1 overflow-y-auto scrollbar-thin p-3 space-y-1">
@@ -687,6 +725,30 @@
           </div>
         </div>
 
+        <!-- 출판·기록 본부 -->
+        <div class="mb-1">
+          <button @click="toggleSection('publishing')"
+                  class="flex items-center gap-2.5 px-2 py-1.5 rounded-lg hover:bg-white/[0.12] w-full text-left transition-colors group">
+            <span class="text-[10px] text-hq-muted transition-transform duration-200" :class="expanded.publishing ? 'rotate-90' : ''">&#9654;</span>
+            <div class="agent-avatar bg-hq-green/20 text-hq-green text-[10px]">PB</div>
+            <div class="flex-1">
+              <span class="text-sm font-semibold text-hq-green">출판·기록</span>
+            </div>
+            <span class="status-badge" :class="getSectionBadgeClass('publishing')"
+                  x-text="getSectionStatusText('publishing')"></span>
+          </button>
+          <div x-show="expanded.publishing" x-collapse class="ml-10 space-y-0.5 mt-1">
+            <template x-for="id in ['publishing_head']" :key="id">
+              <div :id="'agent-' + id" @click="openAgentConfig(id)" class="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-white/[0.10] transition-all duration-300 cursor-pointer">
+                <span class="w-1.5 h-1.5 rounded-full transition-colors shrink-0 mt-0.5" :class="[getAgentDotClass(id), activeAgents[id]?.status==='working' ? 'agent-working-glow' : '']"></span>
+                <div class="flex-1 min-w-0">
+                  <div class="text-xs text-hq-text" x-text="getAgentName(id)"></div>
+                </div>
+              </div>
+            </template>
+          </div>
+        </div>
+
         <!-- Tool Pool -->
         <div class="mb-1">
           <button @click="toggleSection('tools')"
@@ -696,13 +758,13 @@
               <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
             </div>
             <span class="text-sm text-hq-text/70">도구 풀</span>
-            <span class="text-[10px] font-mono text-hq-muted ml-auto">5개</span>
+            <span class="text-[10px] font-mono text-hq-muted ml-auto" x-text="(toolsList || []).length + '개'"></span>
           </button>
-          <div x-show="expanded.tools" x-collapse class="ml-10 space-y-0.5 mt-1">
-            <template x-for="t in [{n:'변리사', c:'text-hq-yellow'}, {n:'세무사', c:'text-hq-green'}, {n:'디자이너', c:'text-hq-purple'}, {n:'번역가', c:'text-hq-cyan'}, {n:'웹검색', c:'text-hq-red'}]" :key="t.n">
+          <div x-show="expanded.tools" x-collapse class="ml-10 space-y-0.5 mt-1 max-h-48 overflow-y-auto scrollbar-thin">
+            <template x-for="t in (toolsList || [])" :key="t.name">
               <div class="flex items-center gap-2 px-2 py-1 rounded-md hover:bg-white/[0.10] transition-colors">
                 <span class="w-1.5 h-1.5 rounded-full bg-hq-muted/50"></span>
-                <span class="text-xs text-hq-muted" :class="t.c" x-text="t.n"></span>
+                <span class="text-xs text-hq-muted" x-text="t.name_ko || t.name"></span>
                 <span class="text-[9px] text-hq-muted/50 ml-auto">도구</span>
               </div>
             </template>
@@ -757,9 +819,10 @@
       </div>
 
       <!-- ═══ Tab Navigation (채팅 모드일 때만 표시) ═══ -->
-      <div x-show="viewMode === 'chat'" class="flex items-center gap-0.5 px-3 pt-1.5 pb-0 border-b border-hq-border bg-hq-surface/50 shrink-0 overflow-x-auto">
-        <template x-for="tab in tabs" :key="tab.id">
-          <button @click="switchTab(tab.id)"
+      <div x-show="viewMode === 'chat'" class="flex items-center gap-0.5 px-3 pt-1.5 pb-0 border-b border-hq-border bg-hq-surface/50 shrink-0 mobile-tabs-scroll">
+        <!-- 기본 탭 5개 (#12) -->
+        <template x-for="tab in getPrimaryTabs()" :key="tab.id">
+          <button @click="switchTab(tab.id); showMoreTabs = false"
                   :class="activeTab === tab.id
                     ? 'text-white border-hq-accent bg-hq-accent/10'
                     : 'text-hq-muted border-transparent hover:text-hq-text hover:bg-white/[0.10]'"
@@ -768,6 +831,28 @@
             <span x-text="tab.label"></span>
           </button>
         </template>
+        <!-- 더보기 드롭다운 -->
+        <div class="relative">
+          <button @click="showMoreTabs = !showMoreTabs"
+                  :class="getSecondaryTabs().some(t => t.id === activeTab)
+                    ? 'text-white border-hq-accent bg-hq-accent/10'
+                    : 'text-hq-muted border-transparent hover:text-hq-text hover:bg-white/[0.10]'"
+                  class="flex items-center gap-1 px-3 py-2 text-[11px] font-semibold border-b-2 transition-all rounded-t-lg whitespace-nowrap">
+            <span x-text="getSecondaryTabs().find(t => t.id === activeTab)?.label || '더보기'"></span>
+            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+          </button>
+          <div x-show="showMoreTabs" @click.outside="showMoreTabs = false" x-transition
+               class="absolute top-full left-0 mt-1 glass border border-hq-border rounded-xl py-1 shadow-xl z-30 min-w-[140px]" style="display:none;">
+            <template x-for="tab in getSecondaryTabs()" :key="tab.id">
+              <button @click="switchTab(tab.id); showMoreTabs = false"
+                      :class="activeTab === tab.id ? 'bg-hq-accent/10 text-hq-accent' : 'text-hq-muted hover:text-hq-text hover:bg-white/[0.10]'"
+                      class="flex items-center gap-2 w-full px-3 py-2 text-xs transition">
+                <span x-html="tab.icon" class="w-3.5 h-3.5"></span>
+                <span x-text="tab.label"></span>
+              </button>
+            </template>
+          </div>
+        </div>
       </div>
 
       <!-- ═══ Tab: 홈 (Home Dashboard) ═══ -->
@@ -835,6 +920,48 @@
                 <span class="w-1.5 h-1.5 rounded-full" :class="wsConnected ? 'bg-hq-green' : 'bg-hq-red'"></span>
                 <span class="text-hq-muted" x-text="wsConnected ? '연결됨' : '끊김'"></span>
               </div>
+            </div>
+          </div>
+
+          <!-- Feedback + Budget Row -->
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-8">
+            <!-- CEO 만족도 카드 (#7) -->
+            <div class="glass border border-hq-border rounded-xl p-4 hover-glow">
+              <div class="flex items-center gap-3 mb-2">
+                <div class="w-9 h-9 rounded-lg bg-hq-yellow/15 flex items-center justify-center">
+                  <svg class="w-4.5 h-4.5 text-hq-yellow" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                </div>
+                <div class="flex-1">
+                  <div class="text-xl font-bold text-hq-text" x-text="(feedbackStats.satisfaction_rate || 0) + '%'"></div>
+                  <div class="text-[10px] text-hq-muted uppercase tracking-wider">CEO 만족도</div>
+                </div>
+              </div>
+              <div class="flex items-center gap-3 text-[11px]">
+                <span class="text-hq-green" x-text="'좋아요 ' + (feedbackStats.good || 0)"></span>
+                <span class="text-hq-muted">·</span>
+                <span class="text-hq-red" x-text="'아쉬워요 ' + (feedbackStats.bad || 0)"></span>
+                <span class="text-hq-muted">·</span>
+                <span class="text-hq-muted" x-text="'총 ' + (feedbackStats.total || 0) + '건'"></span>
+              </div>
+            </div>
+            <!-- 예산 현황 + 수정 카드 (#8) -->
+            <div class="glass border border-hq-border rounded-xl p-4 hover-glow">
+              <div class="flex items-center gap-3 mb-2">
+                <div class="w-9 h-9 rounded-lg bg-hq-cyan/15 flex items-center justify-center">
+                  <svg class="w-4.5 h-4.5 text-hq-cyan" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+                </div>
+                <div class="flex-1">
+                  <div class="text-sm font-bold text-hq-text">예산</div>
+                  <div class="text-[10px] text-hq-muted">일일 $<span x-text="(budget.daily_limit || 0).toFixed(2)"></span> / 월 $<span x-text="(budget.monthly_limit || 0).toFixed(2)"></span></div>
+                </div>
+                <button @click="showBudgetEdit = true; budgetEditDaily = budget.daily_limit || 0; budgetEditMonthly = budget.monthly_limit || 0"
+                        class="text-xs text-hq-accent hover:text-hq-accent/80 px-2 py-1 border border-hq-accent/20 rounded-lg">수정</button>
+              </div>
+              <div class="w-full bg-hq-bg rounded-full h-2 mt-1">
+                <div class="bg-gradient-to-r from-hq-green to-hq-yellow h-2 rounded-full transition-all"
+                     :style="'width:' + Math.min(100, ((budget.today_spent || 0) / Math.max(budget.daily_limit || 1, 0.01)) * 100) + '%'"></div>
+              </div>
+              <div class="text-[10px] text-hq-muted mt-1">오늘 사용: $<span x-text="(budget.today_spent || 0).toFixed(4)"></span></div>
             </div>
           </div>
 
@@ -1117,6 +1244,15 @@
         <!-- ═══ Input Bar ═══ -->
         <div class="border-t border-hq-border bg-hq-surface/80 backdrop-blur-sm p-4 shrink-0">
           <div class="max-w-4xl mx-auto relative">
+            <!-- Export + Shortcut hint -->
+            <div x-show="messages.length > 0" class="flex items-center justify-end gap-2 mb-2">
+              <button @click="exportConversation()"
+                      class="text-[10px] text-hq-muted/60 hover:text-hq-accent flex items-center gap-1 transition">
+                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                대화 내보내기
+              </button>
+              <span class="text-[9px] text-hq-muted/30 font-mono">Ctrl+K: 명령창</span>
+            </div>
             <!-- @mention dropdown -->
             <div x-show="showMentionDropdown" x-transition
                  class="absolute bottom-full mb-2 left-0 w-64 glass border border-hq-border rounded-xl overflow-hidden shadow-xl z-10">
@@ -1610,7 +1746,7 @@
 
         <div class="flex-1 overflow-y-auto scrollbar-thin p-6 bg-grid">
           <div class="max-w-5xl mx-auto space-y-2">
-            <template x-for="task in taskHistory.items" :key="task.task_id">
+            <template x-for="task in getPagedTaskHistory()" :key="task.task_id">
               <div class="glass border rounded-xl p-4 hover-glow transition"
                    :class="taskHistory.selectedIds.includes(task.task_id) ? 'border-hq-accent/40' : 'border-hq-border'">
                 <div class="flex items-start gap-3">
@@ -1667,6 +1803,13 @@
                 </div>
               </div>
             </template>
+            <!-- 더 보기 버튼 (#14) -->
+            <div x-show="hasMoreTasks()" class="text-center py-4">
+              <button @click="loadMoreTasks()"
+                      class="text-xs text-hq-accent hover:text-hq-accent/80 bg-hq-accent/10 border border-hq-accent/20 rounded-lg px-6 py-2 transition">
+                더 보기 (<span x-text="taskHistory.items.length - taskHistoryPage * taskHistoryPageSize"></span>건 남음)
+              </button>
+            </div>
             <template x-if="!taskHistory.items || taskHistory.items.length === 0">
               <div class="text-center py-16 text-hq-muted/50 text-sm">작업 내역이 없습니다</div>
             </template>
@@ -1945,10 +2088,10 @@
           <!-- SNS Tab 1: Connection Status -->
           <div x-show="sns.tab === 'status' && !sns.loading">
             <div class="grid grid-cols-2 gap-4">
-              <template x-for="platform in ['instagram','youtube','linkedin','tistory']" :key="platform">
+              <template x-for="platform in ['instagram','youtube','linkedin','tistory','naver_blog','naver_cafe','daum_cafe']" :key="platform">
                 <div class="glass border border-hq-border rounded-xl p-4">
                   <div class="flex items-center justify-between mb-3">
-                    <span class="text-sm font-bold text-hq-text capitalize" x-text="platform"></span>
+                    <span class="text-sm font-bold text-hq-text" x-text="getSNSPlatformName(platform)"></span>
                     <span class="status-badge text-[9px]"
                       :class="(sns.oauthStatus?.platforms || {})[platform]?.connected ? 'bg-hq-green/10 text-hq-green' : 'bg-hq-muted/10 text-hq-muted'"
                       x-text="(sns.oauthStatus?.platforms || {})[platform]?.connected ? '연결됨' : '미연결'"></span>
@@ -2595,6 +2738,67 @@
     </div>
   </div>
 
+  <!-- ═══ Task Comparison Modal (#9) ═══ -->
+  <div x-show="taskHistory.compareMode" x-transition class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" style="display:none;" @click.self="taskHistory.compareMode = false">
+    <div class="glass border border-hq-border rounded-2xl w-full max-w-6xl max-h-[85vh] overflow-hidden flex flex-col">
+      <div class="flex items-center justify-between px-6 py-4 border-b border-hq-border">
+        <h3 class="text-lg font-bold text-hq-text">작업 비교</h3>
+        <button @click="taskHistory.compareMode = false" class="text-hq-muted hover:text-hq-text text-xl">&times;</button>
+      </div>
+      <div class="flex-1 overflow-auto p-6">
+        <div class="grid grid-cols-2 gap-6">
+          <!-- Left -->
+          <div class="space-y-3">
+            <div class="bg-hq-surface border border-hq-border rounded-xl p-4">
+              <div class="text-xs text-hq-muted mb-1">명령</div>
+              <div class="text-sm text-hq-text font-medium" x-text="taskHistory.compareA?.command || '-'"></div>
+              <div class="flex items-center gap-3 mt-2 text-[10px] text-hq-muted">
+                <span x-text="taskHistory.compareA?.created_at ? new Date(taskHistory.compareA.created_at).toLocaleString('ko-KR') : ''"></span>
+                <span :class="taskHistory.compareA?.success ? 'text-hq-green' : 'text-hq-red'" x-text="taskHistory.compareA?.success ? '성공' : '실패'"></span>
+              </div>
+            </div>
+            <div class="bg-hq-bg rounded-xl p-4 text-sm markdown-body max-h-96 overflow-auto" x-html="renderMarkdown(taskHistory.compareA?.result_data || taskHistory.compareA?.result_summary || '결과 없음')"></div>
+          </div>
+          <!-- Right -->
+          <div class="space-y-3">
+            <div class="bg-hq-surface border border-hq-border rounded-xl p-4">
+              <div class="text-xs text-hq-muted mb-1">명령</div>
+              <div class="text-sm text-hq-text font-medium" x-text="taskHistory.compareB?.command || '-'"></div>
+              <div class="flex items-center gap-3 mt-2 text-[10px] text-hq-muted">
+                <span x-text="taskHistory.compareB?.created_at ? new Date(taskHistory.compareB.created_at).toLocaleString('ko-KR') : ''"></span>
+                <span :class="taskHistory.compareB?.success ? 'text-hq-green' : 'text-hq-red'" x-text="taskHistory.compareB?.success ? '성공' : '실패'"></span>
+              </div>
+            </div>
+            <div class="bg-hq-bg rounded-xl p-4 text-sm markdown-body max-h-96 overflow-auto" x-html="renderMarkdown(taskHistory.compareB?.result_data || taskHistory.compareB?.result_summary || '결과 없음')"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ Budget Edit Modal (#8) ═══ -->
+  <div x-show="showBudgetEdit" x-transition class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" style="display:none;" @click.self="showBudgetEdit = false">
+    <div class="glass border border-hq-border rounded-2xl w-full max-w-md p-6">
+      <h3 class="text-lg font-bold text-hq-text mb-4">예산 한도 수정</h3>
+      <div class="space-y-4">
+        <div>
+          <label class="block text-xs text-hq-muted mb-1">일일 한도 ($)</label>
+          <input x-model.number="budgetEditDaily" type="number" step="0.1" min="0"
+                 class="w-full bg-hq-bg border border-hq-border rounded-lg px-3 py-2 text-sm text-hq-text">
+        </div>
+        <div>
+          <label class="block text-xs text-hq-muted mb-1">월간 한도 ($)</label>
+          <input x-model.number="budgetEditMonthly" type="number" step="1" min="0"
+                 class="w-full bg-hq-bg border border-hq-border rounded-lg px-3 py-2 text-sm text-hq-text">
+        </div>
+        <div class="flex gap-3">
+          <button @click="saveBudget()" class="flex-1 bg-hq-accent hover:bg-hq-accent/80 text-white rounded-lg py-2 text-sm font-semibold transition">저장</button>
+          <button @click="showBudgetEdit = false" class="px-4 text-hq-muted hover:text-hq-text border border-hq-border rounded-lg py-2 text-sm transition">취소</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script>
     function corthexApp() {
       return {
@@ -2750,6 +2954,7 @@
           marketing: false,
           investment: true,
           finance: false,
+          publishing: false,
           tools: false,
         },
 
@@ -2780,6 +2985,7 @@
           'stock_analysis_specialist': '종목분석',
           'technical_analysis_specialist': '기술적분석',
           'risk_management_specialist': '리스크관리',
+          'publishing_head': '출판 본부장 (CPO)',
         },
 
         // Agent initials for avatars
@@ -2809,6 +3015,7 @@
           'stock_analysis_specialist': 'SA',
           'technical_analysis_specialist': 'TA',
           'risk_management_specialist': 'RM',
+          'publishing_head': 'PB',
         },
 
         // Division mapping for auto-expand
@@ -2827,6 +3034,7 @@
           'cio_manager': 'finance', 'market_condition_specialist': 'finance',
           'stock_analysis_specialist': 'finance', 'technical_analysis_specialist': 'finance',
           'risk_management_specialist': 'finance',
+          'publishing_head': 'publishing',
         },
 
         // Agent color mapping
@@ -2837,9 +3045,28 @@
           'legal': 'bg-hq-cyan/20 text-hq-cyan',
           'marketing': 'bg-hq-cyan/20 text-hq-cyan',
           'finance': 'bg-hq-purple/20 text-hq-purple',
+          'publishing': 'bg-hq-green/20 text-hq-green',
         },
         agentRoles: {},
         agentModels: {},
+
+        // Dynamic tools list (#5)
+        toolsList: [],
+
+        // Feedback stats (#7)
+        feedbackStats: { good: 0, bad: 0, total: 0, satisfaction_rate: 0 },
+
+        // Budget edit (#8)
+        showBudgetEdit: false,
+        budgetEditDaily: 0,
+        budgetEditMonthly: 0,
+
+        // Tab grouping (#12)
+        showMoreTabs: false,
+
+        // Task history pagination (#14)
+        taskHistoryPage: 1,
+        taskHistoryPageSize: 20,
 
         init() {
           // Dark mode
@@ -2856,11 +3083,19 @@
           this.checkAuth();
           // Dynamic agent/tool loading
           this.loadAgentsAndTools();
+          // Load tools list (#5)
+          this.loadToolsList();
+          // Load feedback stats (#7)
+          this.loadFeedbackStats();
+          // Restore activity logs from localStorage (#13)
+          this.restoreActivityLogs();
           // Restore conversation
           this.loadConversation();
           this.connectWebSocket();
           this.loadDashboard();
           this.loadPresets();
+          // Keyboard shortcuts (#16)
+          this.initKeyboardShortcuts();
         },
 
         // ── Theme ──
@@ -2966,6 +3201,8 @@
             case 'activity_log':
               msg.data.time = new Date().toLocaleTimeString('ko-KR', { timeZone: 'Asia/Seoul', hour12: false });
               this.activityLogs.push(msg.data);
+              if (this.activityLogs.length > 200) this.activityLogs = this.activityLogs.slice(-100);
+              this.saveActivityLogs();
               break;
 
             case 'cost_update':
@@ -2994,8 +3231,18 @@
               this.showToast('작업이 완료되었습니다.', 'success');
               this.sendDesktopNotification('CORTHEX HQ', '작업이 완료되었습니다.');
               this.$nextTick(() => this.scrollToBottom());
-              // Refresh dashboard/history if currently viewing
-              if (this.activeTab === 'home') this.loadDashboard();
+              // (#17) 에이전트 완료 상태 5초 유지 후 idle로
+              Object.keys(this.activeAgents).forEach(id => {
+                if (this.activeAgents[id]?.status === 'done') {
+                  setTimeout(() => {
+                    if (this.activeAgents[id]?.status === 'done') {
+                      delete this.activeAgents[id];
+                    }
+                  }, 5000);
+                }
+              });
+              // Refresh dashboard/history/feedback if currently viewing
+              if (this.activeTab === 'home') { this.loadDashboard(); this.loadFeedbackStats(); }
               if (this.activeTab === 'history') this.loadTaskHistory();
               break;
 
@@ -3380,19 +3627,6 @@
             this.qualitySaveStatus = 'error';
           }
           setTimeout(() => { this.qualitySaveStatus = ''; }, 2500);
-        },
-
-        getDivisionLabel(division) {
-          const labels = {
-            'default': '기본 (전체 공통)',
-            'secretary': '비서실',
-            'leet_master.tech': '기술개발처 (CTO)',
-            'leet_master.strategy': '사업기획처 (CSO)',
-            'leet_master.legal': '법무처 (CLO)',
-            'leet_master.marketing': '마케팅처 (CMO)',
-            'finance.investment': '투자분석처 (CIO)',
-          };
-          return labels[division] || division;
         },
 
         // ── Office & Agent Config ──
@@ -3928,7 +4162,8 @@
                 this.agentModels[a.agent_id] = a.model_name || '';
                 if (a.division) {
                   const divMap = { '비서실': 'secretary', '기술개발처': 'tech', '사업기획처': 'strategy',
-                                   '법무처': 'legal', '마케팅처': 'marketing', '투자분석처': 'finance' };
+                                   '법무처': 'legal', '마케팅처': 'marketing', '투자분석처': 'finance',
+                                   '출판기록처': 'publishing', '출판처': 'publishing' };
                   this.agentDivision[a.agent_id] = divMap[a.division] || a.division;
                 }
               });
@@ -4246,6 +4481,155 @@
             }
           } catch { /* 무시 */ }
           finally { this.sns.loading = false; }
+        },
+
+        // ── #5: Dynamic Tools Loading ──
+        async loadToolsList() {
+          try {
+            const data = await fetch('/api/tools').then(r => r.ok ? r.json() : []);
+            this.toolsList = Array.isArray(data) ? data : [];
+          } catch { this.toolsList = []; }
+        },
+
+        // ── #7: Feedback Stats ──
+        async loadFeedbackStats() {
+          try {
+            const data = await fetch('/api/feedback').then(r => r.ok ? r.json() : {});
+            this.feedbackStats = {
+              good: data.good || 0,
+              bad: data.bad || 0,
+              total: data.total || 0,
+              satisfaction_rate: data.total > 0 ? Math.round((data.good / data.total) * 100) : 0,
+            };
+          } catch { /* 무시 */ }
+        },
+
+        // ── #8: Budget Edit ──
+        async saveBudget() {
+          try {
+            const res = await fetch('/api/budget', {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ daily_limit: this.budgetEditDaily, monthly_limit: this.budgetEditMonthly }),
+            }).then(r => r.json());
+            if (res.success) {
+              this.budget.daily_limit = res.daily_limit;
+              this.budget.monthly_limit = res.monthly_limit;
+              this.showBudgetEdit = false;
+              this.showToast('예산 한도가 수정되었습니다.', 'success');
+            } else {
+              this.showToast(res.error || '예산 수정 실패', 'error');
+            }
+          } catch { this.showToast('예산 수정에 실패했습니다.', 'error'); }
+        },
+
+        // ── #13: Activity Log Persistence ──
+        restoreActivityLogs() {
+          try {
+            const saved = localStorage.getItem('corthex-activity-logs');
+            if (saved) this.activityLogs = JSON.parse(saved).slice(-100);
+          } catch { /* 무시 */ }
+        },
+        saveActivityLogs() {
+          try {
+            localStorage.setItem('corthex-activity-logs', JSON.stringify(this.activityLogs.slice(-100)));
+          } catch { /* 무시 */ }
+        },
+
+        // ── #14: Task History Pagination ──
+        getPagedTaskHistory() {
+          const end = this.taskHistoryPage * this.taskHistoryPageSize;
+          return this.taskHistory.items.slice(0, end);
+        },
+        loadMoreTasks() {
+          this.taskHistoryPage++;
+        },
+        hasMoreTasks() {
+          return this.taskHistoryPage * this.taskHistoryPageSize < this.taskHistory.items.length;
+        },
+
+        // ── #15: Conversation Export ──
+        exportConversation() {
+          let md = '# CORTHEX HQ 대화 기록\n\n';
+          md += `날짜: ${new Date().toLocaleDateString('ko-KR')}\n\n---\n\n`;
+          this.messages.forEach(msg => {
+            if (msg.type === 'user') {
+              md += `## CEO 명령\n\n${msg.text}\n\n`;
+            } else if (msg.type === 'result') {
+              md += `## 결과 (${msg.sender_id || 'system'})\n\n${msg.content || ''}\n\n---\n\n`;
+            } else if (msg.type === 'error') {
+              md += `## 오류\n\n${msg.text}\n\n`;
+            }
+          });
+          const blob = new Blob([md], { type: 'text/markdown' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `corthex-대화-${new Date().toISOString().slice(0, 10)}.md`;
+          a.click();
+          URL.revokeObjectURL(url);
+          this.showToast('대화 기록이 다운로드되었습니다.', 'success');
+        },
+
+        // ── #16: Keyboard Shortcuts ──
+        initKeyboardShortcuts() {
+          document.addEventListener('keydown', (e) => {
+            // Ctrl/Cmd + K → 명령 입력창으로 포커스
+            if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+              e.preventDefault();
+              this.activeTab = 'command';
+              this.viewMode = 'chat';
+              this.$nextTick(() => {
+                if (this.$refs.inputArea) this.$refs.inputArea.focus();
+              });
+            }
+            // Esc → 모달 닫기
+            if (e.key === 'Escape') {
+              if (this.showAgentConfig) { this.showAgentConfig = false; return; }
+              if (this.showQualitySettings) { this.showQualitySettings = false; return; }
+              if (this.showTaskDetail) { this.showTaskDetail = false; return; }
+              if (this.showBudgetEdit) { this.showBudgetEdit = false; return; }
+              if (this.taskHistory.compareMode) { this.taskHistory.compareMode = false; return; }
+              if (this.memoryModal.visible) { this.memoryModal.visible = false; return; }
+            }
+          });
+        },
+
+        // ── #12: Tab grouping helpers ──
+        getPrimaryTabs() {
+          return this.tabs.filter(t => ['home', 'command', 'performance', 'history', 'sns'].includes(t.id));
+        },
+        getSecondaryTabs() {
+          return this.tabs.filter(t => !['home', 'command', 'performance', 'history', 'sns'].includes(t.id));
+        },
+
+        // ── #4: Publishing division support ──
+        getDivisionLabel(division) {
+          const labels = {
+            'default': '기본 (전체 공통)',
+            'secretary': '비서실',
+            'leet_master.tech': '기술개발처 (CTO)',
+            'leet_master.strategy': '사업기획처 (CSO)',
+            'leet_master.legal': '법무처 (CLO)',
+            'leet_master.marketing': '마케팅처 (CMO)',
+            'finance.investment': '투자분석처 (CIO)',
+            'publishing': '출판·기록 (CPO)',
+          };
+          return labels[division] || division;
+        },
+
+        // ── SNS platform name mapping (#6) ──
+        getSNSPlatformName(platform) {
+          const names = {
+            'instagram': 'Instagram',
+            'youtube': 'YouTube',
+            'linkedin': 'LinkedIn',
+            'tistory': 'Tistory',
+            'naver_blog': '네이버 블로그',
+            'naver_cafe': '네이버 카페',
+            'daum_cafe': '다음 카페',
+          };
+          return names[platform] || platform;
         },
 
         scrollToBottom() {
