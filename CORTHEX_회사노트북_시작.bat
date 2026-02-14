@@ -1,17 +1,17 @@
 @echo off
 chcp 65001 >nul 2>&1
 REM ============================================
-REM CORTHEX HQ - 회사 데스크탑 원클릭 시작
+REM CORTHEX HQ - 회사노트북 원클릭 시작
 REM ============================================
 
-REM CORTHEX_HQ 폴더 경로 (회사 데스크탑용)
+REM CORTHEX_HQ 폴더 경로 (회사노트북용)
 set "CORTHEX_DIR=C:\Users\USER\Desktop\PJ0_CORTHEX\CORTHEX_HQ\CORTHEX_HQ"
 
 title CORTHEX HQ
 
 echo.
 echo   ==========================================
-echo     CORTHEX HQ - 원클릭 시작 (회사 데스크탑)
+echo     CORTHEX HQ - 원클릭 시작 (회사노트북)
 echo   ==========================================
 echo.
 
