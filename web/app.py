@@ -479,6 +479,10 @@ async def get_dashboard() -> dict:
         "agent_count": agent_count,
         "recent_completed": [_task_to_dict(t) for t in recent],
         "system_health": "ok" if orchestrator else "not_initialized",
+        "api_keys": {
+            "openai": bool(os.getenv("OPENAI_API_KEY", "")),
+            "anthropic": bool(os.getenv("ANTHROPIC_API_KEY", "")),
+        },
     }
 
 

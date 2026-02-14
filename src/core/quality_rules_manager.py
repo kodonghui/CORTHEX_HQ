@@ -22,16 +22,18 @@ KNOWN_DIVISIONS = [
     "leet_master.legal",
     "leet_master.marketing",
     "finance.investment",
+    "publishing",
 ]
 
 DIVISION_LABELS = {
     "default": "기본 (전체 공통)",
     "secretary": "비서실",
-    "leet_master.tech": "기술개발처 (CTO)",
-    "leet_master.strategy": "사업기획처 (CSO)",
-    "leet_master.legal": "법무처 (CLO)",
-    "leet_master.marketing": "마케팅처 (CMO)",
-    "finance.investment": "투자분석처 (CIO)",
+    "leet_master.tech": "기술개발팀 (CTO)",
+    "leet_master.strategy": "전략기획팀 (CSO)",
+    "leet_master.legal": "법무팀 (CLO)",
+    "leet_master.marketing": "마케팅팀 (CMO)",
+    "finance.investment": "금융분석팀 (CIO)",
+    "publishing": "콘텐츠팀 (CPO)",
 }
 
 DEFAULT_RUBRIC_PROMPT = (
