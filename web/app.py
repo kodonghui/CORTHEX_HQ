@@ -200,6 +200,10 @@ async def startup() -> None:
         else:
             logger.info("텔레그램 봇 비활성화 (TELEGRAM_ENABLED=0)")
 
+        # 주기적 pending 체크 타이머 시작 (30분마다 미승인 작업 확인)
+        asyncio.create_task(_periodic_pending_checker())
+        logger.info("주기적 pending 체크 타이머 시작 (30분 간격)")
+
     except Exception as e:
         logger.error("시스템 초기화 실패: %s", e, exc_info=True)
         # Knowledge manager at minimum — so file management works without LLM
@@ -290,6 +294,20 @@ async def _check_sns_notifications() -> None:
                 await notifier.notify_sns_approval(item)
     except Exception:
         pass
+
+
+_PENDING_CHECK_INTERVAL = 1800  # 30분 (초 단위)
+
+
+async def _periodic_pending_checker() -> None:
+    """30분마다 SNS 승인 대기 항목을 확인하고 텔레그램으로 알림."""
+    while True:
+        await asyncio.sleep(_PENDING_CHECK_INTERVAL)
+        try:
+            await _check_sns_notifications()
+            logger.debug("주기적 pending 체크 완료")
+        except Exception as e:
+            logger.warning("주기적 pending 체크 중 오류 (무시): %s", e)
 
 
 # ─── Archive ───
