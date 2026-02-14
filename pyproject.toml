@@ -23,6 +23,23 @@ dependencies = [
     "pandas-ta>=0.3.0",       # CIO: 기술적 지표 (RSI/MACD/BB)
     "pandas>=2.0.0",          # CIO: 데이터프레임 처리
     "notion-client>=2.0.0",   # CPO: 노션 API 클라이언트
+    # ─── Phase 1: 최우선 신규 도구 ───
+    "google-search-results>=2.4.0",  # 실시간 웹 검색 (SerpAPI)
+    "PyMuPDF>=1.23.0",               # PDF 텍스트 추출
+    "pdfplumber>=0.10.0",            # PDF 표 추출
+    "tiktoken>=0.7.0",               # 토큰 카운터
+    "openpyxl>=3.1.0",               # 엑셀 읽기/쓰기
+    "matplotlib>=3.8.0",             # 차트 PNG 생성
+    "plotly>=5.18.0",                # 인터랙티브 HTML 차트
+    "numpy-financial>=1.0.0",        # 재무 계산 (DCF/NPV/IRR)
+    # ─── Phase 2: 중요 신규 도구 ───
+    "aiosmtplib>=3.0.0",             # 이메일 비동기 발송
+    "yfinance>=0.2.30",              # 글로벌 주식/환율
+    "google-api-python-client>=2.100.0",  # Google Calendar
+    "google-auth-oauthlib>=1.2.0",   # Google OAuth2
+    # ─── Phase 3: 미래 투자 도구 ───
+    "chromadb>=0.4.0",               # 벡터 지식 검색 DB
+    "pydub>=0.25.0",                 # 오디오 파일 분할
 ]
 
 [project.scripts]
