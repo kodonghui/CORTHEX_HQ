@@ -70,13 +70,35 @@
     }
 
     * { box-sizing: border-box; }
-    body { font-family: 'Inter', sans-serif; background: transparent; }
+    body { font-family: 'Inter', sans-serif; }
 
-    /* ═══ 모든 배경 제거 ═══ */
-    .glass { background: transparent !important; }
-    .bg-hq-bg { background: transparent !important; }
-    .bg-hq-surface { background: transparent !important; }
-    .bg-hq-panel { background: transparent !important; }
+    /* ═══ 다크 모드 배경 그라데이션 ═══ */
+    .dark body {
+      background: linear-gradient(to bottom, rgb(26, 35, 50), rgb(39, 52, 71));
+    }
+
+    /* ═══ 라이트 모드 배경 그라데이션 ═══ */
+    html:not(.dark) body {
+      background: linear-gradient(to bottom, rgb(241, 245, 249), rgb(226, 232, 240));
+    }
+
+    /* ═══ 반투명 효과 (다크 모드) ═══ */
+    .dark .glass {
+      background: rgba(39, 52, 71, 0.7) !important;
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+    }
+    .dark .bg-hq-surface { background: rgba(39, 52, 71, 0.5) !important; }
+    .dark .bg-hq-panel { background: rgba(52, 66, 86, 0.3) !important; }
+
+    /* ═══ 반투명 효과 (라이트 모드) ═══ */
+    html:not(.dark) .glass {
+      background: rgba(255, 255, 255, 0.7) !important;
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+    }
+    html:not(.dark) .bg-hq-surface { background: rgba(255, 255, 255, 0.6) !important; }
+    html:not(.dark) .bg-hq-panel { background: rgba(226, 232, 240, 0.4) !important; }
     .font-mono { font-family: 'JetBrains Mono', monospace; }
 
     /* Scrollbar */
