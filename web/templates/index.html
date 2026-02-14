@@ -514,50 +514,54 @@
     <aside class="w-[280px] bg-hq-surface border-r border-hq-border flex flex-col shrink-0 mobile-sidebar-hidden">
 
       <!-- Org Tree -->
-      <div class="flex-1 overflow-y-auto scrollbar-thin p-3 space-y-1">
-        <div class="flex items-center justify-between px-2 mb-2">
+      <div class="flex-1 overflow-y-auto scrollbar-thin p-4 space-y-1.5">
+        <div class="flex items-center justify-between px-2 mb-3">
           <div class="text-[10px] font-bold text-hq-muted uppercase tracking-[0.15em]">조직도</div>
-          <div class="text-[10px] font-mono text-hq-muted">25명</div>
+          <div class="text-[10px] font-mono text-hq-muted" x-text="Object.keys(agentNames).length + '명'"></div>
         </div>
         <!-- 에이전트 상태 요약 -->
-        <div class="flex items-center gap-3 px-2 py-1.5 mb-2 rounded-lg bg-hq-bg/50 text-[10px]">
+        <div class="flex items-center gap-3 px-2 py-2 mb-3 rounded-lg bg-hq-bg/60 border border-hq-border/30 text-[10px]">
           <span class="flex items-center gap-1 text-hq-green"><span class="w-1.5 h-1.5 rounded-full bg-hq-green animate-pulse"></span> <span x-text="Object.values(activeAgents).filter(a => a.status === 'working').length"></span> 활동</span>
           <span class="flex items-center gap-1 text-hq-yellow"><span class="w-1.5 h-1.5 rounded-full bg-hq-yellow"></span> <span x-text="Object.values(activeAgents).filter(a => a.status === 'idle').length"></span> 대기</span>
-          <span class="flex items-center gap-1 text-hq-muted"><span class="w-1.5 h-1.5 rounded-full bg-hq-muted/50"></span> <span x-text="25 - Object.values(activeAgents).filter(a => a.status === 'working' || a.status === 'idle').length"></span> 비활성</span>
+          <span class="flex items-center gap-1 text-hq-muted"><span class="w-1.5 h-1.5 rounded-full bg-hq-muted/80"></span> <span x-text="Object.keys(agentNames).length - Object.values(activeAgents).filter(a => a.status === 'working' || a.status === 'idle').length"></span> 비활성</span>
         </div>
 
         <!-- CEO -->
-        <div class="mb-2">
-          <div class="flex items-center gap-2.5 px-2 py-2 rounded-lg bg-gradient-to-r from-hq-accent/10 to-hq-purple/10 border border-hq-accent/20">
+        <div class="mb-3">
+          <div @click="showCeoProfile = true" class="flex items-center gap-2.5 px-3 py-2.5 rounded-xl bg-gradient-to-r from-hq-accent/10 to-hq-purple/10 border border-hq-accent/20 cursor-pointer hover:border-hq-accent/40 hover:from-hq-accent/15 hover:to-hq-purple/15 transition-all">
             <div class="agent-avatar bg-gradient-to-br from-hq-accent to-hq-purple text-white">
               CEO
             </div>
-            <div>
+            <div class="flex-1">
               <div class="text-sm font-semibold text-hq-text">CEO</div>
               <div class="text-[10px] text-hq-muted">총괄 사령관</div>
             </div>
+            <svg class="w-3.5 h-3.5 text-hq-muted/80" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
           </div>
         </div>
 
         <!-- 비서실 -->
-        <div class="mb-1">
+        <div class="mb-1.5">
           <button @click="toggleSection('secretary')"
-                  class="flex items-center gap-2.5 px-2 py-1.5 rounded-lg hover:bg-white/[0.12] w-full text-left transition-colors group">
-            <span class="text-[10px] text-hq-muted transition-transform duration-200" :class="expanded.secretary ? 'rotate-90' : ''" >&#9654;</span>
-            <div class="agent-avatar bg-hq-yellow/20 text-hq-yellow text-[10px]">BS</div>
-            <div class="flex-1">
-              <span class="text-sm text-hq-text/90">비서실</span>
+                  class="w-full text-left px-3 py-2.5 rounded-xl border transition-all duration-200"
+                  :class="expanded.secretary ? 'bg-hq-yellow/10 border-hq-yellow/30' : 'bg-white/[0.04] border-transparent hover:bg-white/[0.08] hover:border-hq-border'">
+            <div class="flex items-center gap-2.5">
+              <div class="w-8 h-8 rounded-lg bg-hq-yellow/20 flex items-center justify-center text-hq-yellow text-[10px] font-bold shrink-0">BS</div>
+              <div class="flex-1 min-w-0">
+                <div class="text-xs font-semibold text-hq-text">비서실</div>
+                <div class="text-[10px] text-hq-muted">AI 에이전트 4명</div>
+              </div>
+              <span class="status-badge" :class="getSectionBadgeClass('secretary')"
+                    x-text="getSectionStatusText('secretary')"></span>
+              <span class="text-[10px] text-hq-muted/85 transition-transform duration-200" :class="expanded.secretary ? 'rotate-90' : ''">&#9654;</span>
             </div>
-            <span class="status-badge" :class="getSectionBadgeClass('secretary')"
-                  x-text="getSectionStatusText('secretary')"></span>
           </button>
-          <div x-show="expanded.secretary" x-collapse class="ml-10 space-y-0.5 mt-1">
+          <div x-show="expanded.secretary" x-collapse class="ml-3 mt-1 pl-8 border-l border-hq-yellow/20 space-y-0.5">
             <template x-for="id in ['chief_of_staff', 'report_worker', 'schedule_worker', 'relay_worker']" :key="id">
-              <div :id="'agent-' + id" @click="openAgentConfig(id)" class="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-hq-accent/10 transition-all duration-300 cursor-pointer" title="클릭하면 모델·추론·소울 설정 가능">
+              <div :id="'agent-' + id" @click="openAgentConfig(id)" class="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-hq-yellow/10 transition-all duration-300 cursor-pointer" title="클릭하면 모델·추론·소울 설정 가능">
                 <span class="w-1.5 h-1.5 rounded-full transition-colors shrink-0 mt-0.5" :class="[getAgentDotClass(id), activeAgents[id]?.status==='working' ? 'agent-working-glow' : '']"></span>
                 <div class="flex-1 min-w-0">
                   <div class="text-xs text-hq-text" x-text="getAgentName(id)"></div>
-                  <div class="text-[9px] text-hq-muted truncate" x-show="agentRoles[id]" x-text="agentRoles[id] || ''"></div>
                 </div>
                 <span x-show="activeAgents[id]?.status === 'working'"
                       class="ml-auto text-[9px] font-mono text-hq-yellow shrink-0"
@@ -591,14 +595,14 @@
                        :class="getAgentDotClass('cto_manager').includes('pulse') ? 'ring-1 ring-hq-green ring-offset-1 ring-offset-hq-bg' : ''">CTO</div>
                   <div class="flex-1 min-w-0">
                     <div class="text-xs font-semibold text-hq-text">기술개발팀</div>
-                    <div class="text-[10px] text-hq-muted">AI 에이전트 4명</div>
+                    <div class="text-[10px] text-hq-muted">AI 에이전트 5명</div>
                   </div>
                   <span class="status-badge" :class="getSectionBadgeClass('tech')" x-text="getSectionStatusText('tech')"></span>
                   <span class="text-[10px] text-hq-muted/85 transition-transform duration-200" :class="expanded.tech ? 'rotate-90' : ''">&#9654;</span>
                 </div>
               </button>
               <div x-show="expanded.tech" x-collapse class="ml-3 mt-1 pl-8 border-l border-hq-cyan/20 space-y-0.5">
-                <template x-for="id in ['frontend_specialist','backend_specialist','infra_specialist','ai_model_specialist']" :key="id">
+                <template x-for="id in ['cto_manager','frontend_specialist','backend_specialist','infra_specialist','ai_model_specialist']" :key="id">
                   <div :id="'agent-' + id" @click="openAgentConfig(id)" class="flex items-center gap-2 px-2 py-1 rounded-md hover:bg-hq-cyan/10 transition-all duration-300 cursor-pointer" title="클릭하면 모델·추론·소울 설정 가능">
                     <span class="w-1.5 h-1.5 rounded-full transition-colors" :class="[getAgentDotClass(id), activeAgents[id]?.status==='working' ? 'agent-working-glow' : '']"></span>
                     <span class="text-xs text-hq-muted" x-text="getAgentName(id)"></span>
@@ -619,14 +623,14 @@
                   <div class="w-8 h-8 rounded-lg bg-hq-purple/20 flex items-center justify-center text-hq-purple text-[10px] font-bold shrink-0">CSO</div>
                   <div class="flex-1 min-w-0">
                     <div class="text-xs font-semibold text-hq-text">전략기획팀</div>
-                    <div class="text-[10px] text-hq-muted">AI 에이전트 3명</div>
+                    <div class="text-[10px] text-hq-muted">AI 에이전트 4명</div>
                   </div>
                   <span class="status-badge" :class="getSectionBadgeClass('strategy')" x-text="getSectionStatusText('strategy')"></span>
                   <span class="text-[10px] text-hq-muted/85 transition-transform duration-200" :class="expanded.strategy ? 'rotate-90' : ''">&#9654;</span>
                 </div>
               </button>
               <div x-show="expanded.strategy" x-collapse class="ml-3 mt-1 pl-8 border-l border-hq-purple/20 space-y-0.5">
-                <template x-for="id in ['market_research_specialist','business_plan_specialist','financial_model_specialist']" :key="id">
+                <template x-for="id in ['cso_manager','market_research_specialist','business_plan_specialist','financial_model_specialist']" :key="id">
                   <div :id="'agent-' + id" @click="openAgentConfig(id)" class="flex items-center gap-2 px-2 py-1 rounded-md hover:bg-hq-purple/10 transition-all duration-300 cursor-pointer" title="클릭하면 모델·추론·소울 설정 가능">
                     <span class="w-1.5 h-1.5 rounded-full transition-colors" :class="[getAgentDotClass(id), activeAgents[id]?.status==='working' ? 'agent-working-glow' : '']"></span>
                     <span class="text-xs text-hq-muted" x-text="getAgentName(id)"></span>
@@ -647,14 +651,14 @@
                   <div class="w-8 h-8 rounded-lg bg-hq-green/20 flex items-center justify-center text-hq-green text-[10px] font-bold shrink-0">CLO</div>
                   <div class="flex-1 min-w-0">
                     <div class="text-xs font-semibold text-hq-text">법무팀</div>
-                    <div class="text-[10px] text-hq-muted">AI 에이전트 2명</div>
+                    <div class="text-[10px] text-hq-muted">AI 에이전트 3명</div>
                   </div>
                   <span class="status-badge" :class="getSectionBadgeClass('legal')" x-text="getSectionStatusText('legal')"></span>
                   <span class="text-[10px] text-hq-muted/85 transition-transform duration-200" :class="expanded.legal ? 'rotate-90' : ''">&#9654;</span>
                 </div>
               </button>
               <div x-show="expanded.legal" x-collapse class="ml-3 mt-1 pl-8 border-l border-hq-green/20 space-y-0.5">
-                <template x-for="id in ['copyright_specialist','patent_specialist']" :key="id">
+                <template x-for="id in ['clo_manager','copyright_specialist','patent_specialist']" :key="id">
                   <div :id="'agent-' + id" @click="openAgentConfig(id)" class="flex items-center gap-2 px-2 py-1 rounded-md hover:bg-hq-green/10 transition-all duration-300 cursor-pointer" title="클릭하면 모델·추론·소울 설정 가능">
                     <span class="w-1.5 h-1.5 rounded-full transition-colors" :class="[getAgentDotClass(id), activeAgents[id]?.status==='working' ? 'agent-working-glow' : '']"></span>
                     <span class="text-xs text-hq-muted" x-text="getAgentName(id)"></span>
@@ -675,14 +679,14 @@
                   <div class="w-8 h-8 rounded-lg bg-hq-yellow/20 flex items-center justify-center text-hq-yellow text-[10px] font-bold shrink-0">CMO</div>
                   <div class="flex-1 min-w-0">
                     <div class="text-xs font-semibold text-hq-text">마케팅팀</div>
-                    <div class="text-[10px] text-hq-muted">AI 에이전트 3명</div>
+                    <div class="text-[10px] text-hq-muted">AI 에이전트 4명</div>
                   </div>
                   <span class="status-badge" :class="getSectionBadgeClass('marketing')" x-text="getSectionStatusText('marketing')"></span>
                   <span class="text-[10px] text-hq-muted/85 transition-transform duration-200" :class="expanded.marketing ? 'rotate-90' : ''">&#9654;</span>
                 </div>
               </button>
               <div x-show="expanded.marketing" x-collapse class="ml-3 mt-1 pl-8 border-l border-hq-yellow/20 space-y-0.5">
-                <template x-for="id in ['survey_specialist','content_specialist','community_specialist']" :key="id">
+                <template x-for="id in ['cmo_manager','survey_specialist','content_specialist','community_specialist']" :key="id">
                   <div :id="'agent-' + id" @click="openAgentConfig(id)" class="flex items-center gap-2 px-2 py-1 rounded-md hover:bg-hq-yellow/10 transition-all duration-300 cursor-pointer" title="클릭하면 모델·추론·소울 설정 가능">
                     <span class="w-1.5 h-1.5 rounded-full transition-colors" :class="[getAgentDotClass(id), activeAgents[id]?.status==='working' ? 'agent-working-glow' : '']"></span>
                     <span class="text-xs text-hq-muted" x-text="getAgentName(id)"></span>
@@ -706,14 +710,14 @@
               <div class="w-8 h-8 rounded-lg bg-hq-red/20 flex items-center justify-center text-hq-red text-[10px] font-bold shrink-0">CIO</div>
               <div class="flex-1 min-w-0">
                 <div class="text-xs font-semibold text-hq-text">금융분석팀</div>
-                <div class="text-[10px] text-hq-muted">AI 에이전트 4명</div>
+                <div class="text-[10px] text-hq-muted">AI 에이전트 5명</div>
               </div>
               <span class="status-badge" :class="getSectionBadgeClass('finance')" x-text="getSectionStatusText('finance')"></span>
               <span class="text-[10px] text-hq-muted/85 transition-transform duration-200" :class="expanded.finance ? 'rotate-90' : ''">&#9654;</span>
             </div>
           </button>
           <div x-show="expanded.finance" x-collapse class="ml-3 mt-1 pl-8 border-l border-hq-red/20 space-y-0.5">
-            <template x-for="id in ['market_condition_specialist','stock_analysis_specialist','technical_analysis_specialist','risk_management_specialist']" :key="id">
+            <template x-for="id in ['cio_manager','market_condition_specialist','stock_analysis_specialist','technical_analysis_specialist','risk_management_specialist']" :key="id">
               <div :id="'agent-' + id" @click="openAgentConfig(id)" class="flex items-center gap-2 px-2 py-1 rounded-md hover:bg-hq-red/10 transition-all duration-300 cursor-pointer" title="클릭하면 모델·추론·소울 설정 가능">
                 <span class="w-1.5 h-1.5 rounded-full transition-colors" :class="[getAgentDotClass(id), activeAgents[id]?.status==='working' ? 'agent-working-glow' : '']"></span>
                 <span class="text-xs text-hq-muted" x-text="getAgentName(id)"></span>
@@ -756,30 +760,37 @@
         </div>
 
         <!-- Tool Pool -->
-        <div class="mb-1">
+        <div class="mb-1.5">
           <button @click="toggleSection('tools')"
-                  class="flex items-center gap-2.5 px-2 py-1.5 rounded-lg hover:bg-white/[0.12] w-full text-left transition-colors group">
-            <span class="text-[10px] text-hq-muted transition-transform duration-200" :class="expanded.tools ? 'rotate-90' : ''">&#9654;</span>
-            <div class="agent-avatar bg-hq-red/15 text-hq-red text-[10px]">
-              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-            </div>
-            <span class="text-sm text-hq-text/90">도구함</span>
-            <span class="text-[10px] font-mono text-hq-muted ml-auto" x-text="(toolsList || []).length + '개'"></span>
-          </button>
-          <div x-show="expanded.tools" x-collapse class="ml-10 space-y-0.5 mt-1 max-h-48 overflow-y-auto scrollbar-thin">
-            <template x-for="t in (toolsList || [])" :key="t.name">
-              <div class="flex items-center gap-2 px-2 py-1 rounded-md hover:bg-white/[0.10] transition-colors">
-                <span class="w-1.5 h-1.5 rounded-full bg-hq-muted/50"></span>
-                <span class="text-xs text-hq-muted" x-text="t.name_ko || t.name"></span>
-                <span class="text-[9px] text-hq-muted/80 ml-auto">도구</span>
+                  class="w-full text-left px-3 py-2.5 rounded-xl border transition-all duration-200"
+                  :class="expanded.tools ? 'bg-hq-red/10 border-hq-red/30' : 'bg-white/[0.04] border-transparent hover:bg-white/[0.08] hover:border-hq-border'">
+            <div class="flex items-center gap-2.5">
+              <div class="w-8 h-8 rounded-lg bg-hq-red/15 flex items-center justify-center text-hq-red shrink-0">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
               </div>
+              <div class="flex-1 min-w-0">
+                <div class="text-xs font-semibold text-hq-text">도구함</div>
+                <div class="text-[10px] text-hq-muted" x-text="(toolsList || []).length + '개 도구'"></div>
+              </div>
+              <span class="text-[10px] text-hq-muted/85 transition-transform duration-200" :class="expanded.tools ? 'rotate-90' : ''">&#9654;</span>
+            </div>
+          </button>
+          <div x-show="expanded.tools" x-collapse class="ml-3 mt-1 pl-8 border-l border-hq-red/20 space-y-0.5 max-h-48 overflow-y-auto scrollbar-thin">
+            <template x-for="t in (toolsList || [])" :key="t.name">
+              <div @click="showToolDetail(t)" class="flex items-center gap-2 px-2 py-1 rounded-md hover:bg-hq-red/10 transition-colors cursor-pointer">
+                <span class="w-1.5 h-1.5 rounded-full bg-hq-red/40"></span>
+                <span class="text-xs text-hq-text/90" x-text="t.name_ko || t.name"></span>
+              </div>
+            </template>
+            <template x-if="!toolsList || toolsList.length === 0">
+              <div class="text-[10px] text-hq-muted/80 px-2 py-2">서버 연결 후 표시됩니다</div>
             </template>
           </div>
         </div>
       </div>
 
       <!-- Activity Log -->
-      <div class="border-t border-hq-border shrink-0">
+      <div class="border-t border-hq-border shrink-0 mt-2">
         <button @click="logExpanded = !logExpanded"
                 class="w-full flex items-center justify-between px-4 py-2 hover:bg-white/[0.10] transition-colors">
           <div class="flex items-center gap-2">
@@ -2648,6 +2659,26 @@
                 </template>
               </div>
             </div>
+            <!-- 상관 -->
+            <div x-show="agentConfigData?.superior_id">
+              <span class="text-xs text-hq-muted block mb-1">상관 (보고 대상)</span>
+              <div @click="openAgentConfig(agentConfigData?.superior_id)" class="inline-flex items-center gap-2 bg-hq-purple/10 border border-hq-purple/20 rounded-lg px-3 py-1.5 cursor-pointer hover:bg-hq-purple/20 transition">
+                <div class="w-5 h-5 rounded-md flex items-center justify-center text-[8px] font-bold" :class="getAgentAvatarClass(agentConfigData?.superior_id)" x-text="getAgentInitials(agentConfigData?.superior_id)"></div>
+                <span class="text-xs text-hq-text" x-text="getAgentName(agentConfigData?.superior_id)"></span>
+              </div>
+            </div>
+            <!-- 부하직원 -->
+            <div x-show="agentConfigData?.subordinate_ids?.length > 0">
+              <span class="text-xs text-hq-muted block mb-1">부하직원</span>
+              <div class="flex flex-wrap gap-1.5">
+                <template x-for="subId in (agentConfigData?.subordinate_ids || [])" :key="subId">
+                  <div @click="openAgentConfig(subId)" class="inline-flex items-center gap-1.5 bg-hq-cyan/10 border border-hq-cyan/20 rounded-lg px-2.5 py-1 cursor-pointer hover:bg-hq-cyan/20 transition">
+                    <div class="w-4 h-4 rounded flex items-center justify-center text-[7px] font-bold" :class="getAgentAvatarClass(subId)" x-text="getAgentInitials(subId)"></div>
+                    <span class="text-[10px] text-hq-text" x-text="getAgentName(subId)"></span>
+                  </div>
+                </template>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -2900,6 +2931,70 @@
     </div>
   </div>
 
+  <!-- ═══ CEO Profile Modal ═══ -->
+  <div x-show="showCeoProfile" x-transition.opacity
+       class="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
+       @click.self="showCeoProfile = false" style="display: none;">
+    <div class="bg-hq-panel border border-hq-border rounded-2xl w-full max-w-[500px] mx-4 p-6" @click.stop>
+      <div class="flex items-center justify-between mb-5">
+        <div class="flex items-center gap-3">
+          <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-hq-accent to-hq-purple flex items-center justify-center text-white font-bold text-sm">CEO</div>
+          <div>
+            <h2 class="text-lg font-bold text-hq-text">CEO</h2>
+            <div class="text-xs text-hq-muted">총괄 사령관 · CORTHEX HQ</div>
+          </div>
+        </div>
+        <button @click="showCeoProfile = false" class="text-hq-muted hover:text-hq-text text-xl">&times;</button>
+      </div>
+      <div class="bg-hq-bg rounded-xl p-4 space-y-3 mb-4">
+        <div class="flex justify-between"><span class="text-xs text-hq-muted">직책</span><span class="text-xs text-hq-text">총괄 사령관 (CEO)</span></div>
+        <div class="flex justify-between"><span class="text-xs text-hq-muted">직속 보고</span><span class="text-xs text-hq-cyan cursor-pointer hover:underline" @click="showCeoProfile = false; openAgentConfig('chief_of_staff')">비서실장 → CEO</span></div>
+        <div class="flex justify-between"><span class="text-xs text-hq-muted">관리 부서</span><span class="text-xs text-hq-text">전체 (7개 부서)</span></div>
+        <div class="flex justify-between"><span class="text-xs text-hq-muted">총 에이전트</span><span class="text-xs text-hq-text" x-text="Object.keys(agentNames).length + '명'"></span></div>
+      </div>
+      <div class="bg-hq-bg rounded-xl p-4">
+        <div class="text-xs text-hq-muted font-semibold mb-3">오늘 현황</div>
+        <div class="grid grid-cols-3 gap-3">
+          <div class="text-center">
+            <div class="text-lg font-bold text-hq-accent" x-text="dashboard.todayTasks || 0"></div>
+            <div class="text-[10px] text-hq-muted">명령</div>
+          </div>
+          <div class="text-center">
+            <div class="text-lg font-bold text-hq-green" x-text="dashboard.todayCompleted || 0"></div>
+            <div class="text-[10px] text-hq-muted">완료</div>
+          </div>
+          <div class="text-center">
+            <div class="text-lg font-bold text-hq-yellow">$<span x-text="(totalCost || 0).toFixed(2)"></span></div>
+            <div class="text-[10px] text-hq-muted">비용</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ Tool Detail Modal ═══ -->
+  <div x-show="toolDetailVisible" x-transition.opacity
+       class="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
+       @click.self="toolDetailVisible = false" style="display: none;">
+    <div class="bg-hq-panel border border-hq-border rounded-2xl w-full max-w-[400px] mx-4 p-6" @click.stop>
+      <div class="flex items-center justify-between mb-4">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-hq-red/15 flex items-center justify-center text-hq-red text-lg">🔧</div>
+          <div>
+            <h2 class="text-base font-bold text-hq-text" x-text="toolDetailData?.name_ko || toolDetailData?.name || ''"></h2>
+            <div class="text-[10px] text-hq-muted">외부 도구</div>
+          </div>
+        </div>
+        <button @click="toolDetailVisible = false" class="text-hq-muted hover:text-hq-text text-xl">&times;</button>
+      </div>
+      <div class="bg-hq-bg rounded-xl p-4 space-y-3">
+        <div class="flex justify-between"><span class="text-xs text-hq-muted">도구 ID</span><span class="text-xs font-mono text-hq-text" x-text="toolDetailData?.name || '-'"></span></div>
+        <div x-show="toolDetailData?.description"><span class="text-xs text-hq-muted block mb-1">설명</span><span class="text-xs text-hq-text" x-text="toolDetailData?.description || ''"></span></div>
+        <div x-show="toolDetailData?.category"><div class="flex justify-between"><span class="text-xs text-hq-muted">분류</span><span class="text-xs text-hq-text" x-text="toolDetailData?.category || '-'"></span></div></div>
+      </div>
+    </div>
+  </div>
+
   <script>
     function corthexApp() {
       return {
@@ -3000,6 +3095,13 @@
         rubricEditModel: '',
         rubricEditReasoning: '',
         qualitySaveStatus: '',
+
+        // CEO profile modal
+        showCeoProfile: false,
+
+        // Tool detail modal
+        toolDetailVisible: false,
+        toolDetailData: null,
 
         // Agent config modal
         showAgentConfig: false,
@@ -3795,6 +3897,11 @@
           if (agent.status === 'working') return 'status-light-working';
           if (agent.status === 'done') return 'status-light-done';
           return 'status-light-idle';
+        },
+
+        showToolDetail(tool) {
+          this.toolDetailData = tool;
+          this.toolDetailVisible = true;
         },
 
         async openAgentConfig(agentId) {
