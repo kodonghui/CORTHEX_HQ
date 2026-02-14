@@ -69,7 +69,7 @@ agents:
 
   - agent_id: "report_specialist"
     name: "General Specialist"
-    name_ko: "총괄 스페셜리스트"
+    name_ko: "총괄 보좌관"
     role: "specialist"
     division: "secretary"
     model_name: "claude-haiku-4-5-20251001"
@@ -83,7 +83,7 @@ agents:
 
   - agent_id: "schedule_specialist"
     name: "Strategy Specialist"
-    name_ko: "전략 스페셜리스트"
+    name_ko: "전략 보좌관"
     role: "specialist"
     division: "secretary"
     model_name: "claude-haiku-4-5-20251001"
@@ -100,7 +100,7 @@ agents:
 
   - agent_id: "relay_specialist"
     name: "Communications Specialist"
-    name_ko: "소통 스페셜리스트"
+    name_ko: "소통 보좌관"
     role: "specialist"
     division: "secretary"
     model_name: "claude-haiku-4-5-20251001"

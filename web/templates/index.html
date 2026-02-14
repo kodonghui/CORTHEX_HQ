@@ -82,23 +82,6 @@
       background: linear-gradient(to bottom, rgb(241, 245, 249), rgb(226, 232, 240));
     }
 
-    /* ═══ 반투명 효과 (다크 모드) ═══ */
-    .dark .glass {
-      background: rgba(39, 52, 71, 0.7) !important;
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
-    }
-    .dark .bg-hq-surface { background: rgba(39, 52, 71, 0.5) !important; }
-    .dark .bg-hq-panel { background: rgba(52, 66, 86, 0.3) !important; }
-
-    /* ═══ 반투명 효과 (라이트 모드) ═══ */
-    html:not(.dark) .glass {
-      background: rgba(255, 255, 255, 0.7) !important;
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
-    }
-    html:not(.dark) .bg-hq-surface { background: rgba(255, 255, 255, 0.6) !important; }
-    html:not(.dark) .bg-hq-panel { background: rgba(226, 232, 240, 0.4) !important; }
     .font-mono { font-family: 'JetBrains Mono', monospace; }
 
     /* Scrollbar */
@@ -3225,9 +3208,9 @@
         // Agent name mapping
         agentNames: {
           'chief_of_staff': '비서실장',
-          'report_specialist': '총괄 스페셜리스트',
-          'schedule_specialist': '전략 스페셜리스트',
-          'relay_specialist': '소통 스페셜리스트',
+          'report_specialist': '총괄 보좌관',
+          'schedule_specialist': '전략 보좌관',
+          'relay_specialist': '소통 보좌관',
           'cto_manager': 'CTO 기술개발처장',
           'frontend_specialist': '프론트엔드',
           'backend_specialist': '백엔드/API',
