@@ -10,7 +10,7 @@
 
 - **날짜**: 2026-02-14
 - **작업 브랜치**: claude/sync-multiple-computers-Nz8IR
-- **작업 내용**: 외부 접속 기능 추가 (Cloudflare Tunnel)
+- **작업 내용**: Oracle Cloud 무료 서버 구축 및 웹사이트 배포
 
 ---
 
@@ -30,26 +30,48 @@
 3. **부서별 전문가 도구** - CTO, CSO, CLO, CIO, CMO 등 각 부서별 AI 도구 구현
 4. **프론트엔드 UX/UI 전수 검사 및 수정** - 디자인 시스템(hq-* 컬러 토큰) 적용
 5. **외부 접속 기능** (`CORTHEX_외부접속_시작.bat`) - Cloudflare Tunnel로 어디서든 웹 접속 가능 (회사컴 켜져 있어야 함)
+6. **Oracle Cloud 24시간 서버** - 무료 서버(VM.Standard.E2.1.Micro)에 웹사이트 배포 완료
+   - 서버 IP: `168.107.28.100`
+   - 운영체제: Ubuntu 24.04
+   - 웹서버: nginx
+   - 회사 컴퓨터 꺼져도 대시보드 화면 접속 가능
 
 ---
 
 ## 진행 중인 작업
 
-- 회사컴에서 cloudflared 설치 후 외부접속 테스트 필요
+- Oracle Cloud 서버에 Python 백엔드 설치 (AI 에이전트 실시간 데이터 연동)
+- 현재 대시보드 UI는 보이지만, 백엔드(Python)가 안 돌아가서 "서버 연결 끊어짐" 표시됨
 
 ---
 
 ## 알려진 문제점
 
-- (발견된 버그나 문제가 있으면 여기에 기록)
+- 대시보드 UI는 정상 표시되지만 "서버 연결이 끊어졌습니다" 메시지 표시 (Python 백엔드 미설치)
 
 ---
 
 ## 다음에 할 일 (우선순위 순)
 
-- (CEO가 지시한 다음 작업이 있으면 여기에 기록)
+1. Oracle Cloud 서버에 Python 백엔드(FastAPI) 설치 → "서버 연결 끊어짐" 해결
+2. GitHub Actions 자동 배포 설정 → 코드 올리면 서버에 자동 반영
+3. 도메인(corthex.com 등) 연결 → IP 주소 대신 이름으로 접속
 
 ---
+
+## Oracle Cloud 서버 정보
+
+| 항목 | 값 |
+|------|-----|
+| 서버 IP | `168.107.28.100` |
+| 서버 타입 | VM.Standard.E2.1.Micro (무료) |
+| 리전 | ap-chuncheon-1 (춘천) |
+| 운영체제 | Ubuntu 24.04 LTS |
+| SSH 키 | Cloud Shell의 `~/.ssh/corthex_key` |
+| SSH 접속 | `ssh -i ~/.ssh/corthex_key ubuntu@168.107.28.100` |
+| 웹서버 | nginx |
+| 웹사이트 경로 | `/var/www/html/` |
+| 인스턴스 OCID | `ocid1.instance.oc1.ap-chuncheon-1.an4w4ljrg3nos2achny2lnq7cpozjvdgay7k4abi44e5alnnmuvh2qf43deq` |
 
 ## 중요한 결정 사항 (변경하면 안 되는 것들)
 
