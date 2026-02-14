@@ -98,9 +98,14 @@ def _verify_token(token: str) -> Optional[dict]:
     if not hmac.compare_digest(sig, expected_sig):
         return None
     fields = payload.split(":")
-    if len(fields) != 4:
+    if len(fields) < 4:
         return None
-    user_id, username, role, exp_str = fields
+    # user_id가 첫 번째, exp_str이 마지막, role이 뒤에서 두 번째
+    # username에 ':'이 포함될 수 있으므로 나머지를 username으로 합침
+    user_id = fields[0]
+    exp_str = fields[-1]
+    role = fields[-2]
+    username = ":".join(fields[1:-2])
     try:
         if int(exp_str) < int(time.time()):
             return None  # 토큰 만료

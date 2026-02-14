@@ -74,6 +74,14 @@ class KnowledgeManager:
 
         return "\n\n---\n[공유 지식]\n" + "\n".join(parts)
 
+    def _is_safe_path(self, fp: Path) -> bool:
+        """경로 탈출(../ 등)을 방지합니다. knowledge 폴더 바깥이면 False."""
+        try:
+            resolved = fp.resolve()
+            return str(resolved).startswith(str(self.knowledge_dir.resolve()))
+        except Exception:
+            return False
+
     # ─── CRUD Operations ───
 
     def list_files(self) -> list[dict]:
@@ -94,6 +102,9 @@ class KnowledgeManager:
     def read_file(self, rel_path: str) -> str | None:
         """Read a single knowledge file by relative path."""
         fp = self.knowledge_dir / rel_path
+        if not self._is_safe_path(fp):
+            logger.warning("경로 탈출 시도 차단 (읽기): %s", rel_path)
+            return None
         if not fp.exists() or not fp.is_file():
             return None
         return fp.read_text(encoding="utf-8")
@@ -103,8 +114,11 @@ class KnowledgeManager:
         if not filename.endswith(".md"):
             filename += ".md"
         target_dir = self.knowledge_dir / folder
-        target_dir.mkdir(parents=True, exist_ok=True)
         fp = target_dir / filename
+        if not self._is_safe_path(fp):
+            logger.warning("경로 탈출 시도 차단 (저장): %s/%s", folder, filename)
+            raise ValueError("잘못된 파일 경로입니다")
+        target_dir.mkdir(parents=True, exist_ok=True)
         fp.write_text(content, encoding="utf-8")
         self.load_all()  # reload cache
         rel = str(fp.relative_to(self.knowledge_dir))
@@ -114,6 +128,9 @@ class KnowledgeManager:
     def delete_file(self, rel_path: str) -> bool:
         """Delete a knowledge file. Returns True on success."""
         fp = self.knowledge_dir / rel_path
+        if not self._is_safe_path(fp):
+            logger.warning("경로 탈출 시도 차단 (삭제): %s", rel_path)
+            return False
         if not fp.exists():
             return False
         fp.unlink()

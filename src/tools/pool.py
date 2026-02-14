@@ -30,57 +30,48 @@ class ToolPool:
 
     def build_from_config(self, tools_config: dict) -> None:
         """Parse tools.yaml and instantiate all tools."""
-        from src.tools.patent_attorney import PatentAttorneyTool
-        from src.tools.tax_accountant import TaxAccountantTool
-        from src.tools.designer import DesignerTool
-        from src.tools.translator import TranslatorTool
-        from src.tools.web_search import WebSearchTool
-        from src.tools.sns.sns_manager import SNSManager
-        from src.tools.daum_cafe import DaumCafeTool
-        from src.tools.leet_survey import LeetSurveyTool
-        # ─── 부서별 전문가 도구 ───
-        from src.tools.kr_stock import KrStockTool
-        from src.tools.dart_api import DartApiTool
-        from src.tools.naver_news import NaverNewsTool
-        from src.tools.ecos_macro import EcosMacroTool
-        from src.tools.naver_datalab import NaverDatalabTool
-        from src.tools.public_data import PublicDataTool
-        from src.tools.kipris import KiprisTool
-        from src.tools.law_search import LawSearchTool
-        from src.tools.github_tool import GithubTool
-        from src.tools.code_quality import CodeQualityTool
-        from src.tools.notion_api import NotionApiTool
-        from src.tools.doc_converter import DocConverterTool
-
-        tool_classes: dict[str, type[BaseTool]] = {
-            "patent_attorney": PatentAttorneyTool,
-            "tax_accountant": TaxAccountantTool,
-            "designer": DesignerTool,
-            "translator": TranslatorTool,
-            "web_search": WebSearchTool,
-            "sns_manager": SNSManager,
-            "daum_cafe": DaumCafeTool,
-            "leet_survey": LeetSurveyTool,
+        # 각 도구를 개별적으로 import (하나 실패해도 나머지는 동작)
+        _imports: dict[str, str] = {
+            "patent_attorney": "src.tools.patent_attorney.PatentAttorneyTool",
+            "tax_accountant": "src.tools.tax_accountant.TaxAccountantTool",
+            "designer": "src.tools.designer.DesignerTool",
+            "translator": "src.tools.translator.TranslatorTool",
+            "web_search": "src.tools.web_search.WebSearchTool",
+            "sns_manager": "src.tools.sns.sns_manager.SNSManager",
+            "daum_cafe": "src.tools.daum_cafe.DaumCafeTool",
+            "leet_survey": "src.tools.leet_survey.LeetSurveyTool",
             # ─── 부서별 전문가 도구 ───
-            "kr_stock": KrStockTool,
-            "dart_api": DartApiTool,
-            "naver_news": NaverNewsTool,
-            "ecos_macro": EcosMacroTool,
-            "naver_datalab": NaverDatalabTool,
-            "public_data": PublicDataTool,
-            "kipris": KiprisTool,
-            "law_search": LawSearchTool,
-            "github_tool": GithubTool,
-            "code_quality": CodeQualityTool,
-            "notion_api": NotionApiTool,
-            "doc_converter": DocConverterTool,
+            "kr_stock": "src.tools.kr_stock.KrStockTool",
+            "dart_api": "src.tools.dart_api.DartApiTool",
+            "naver_news": "src.tools.naver_news.NaverNewsTool",
+            "ecos_macro": "src.tools.ecos_macro.EcosMacroTool",
+            "naver_datalab": "src.tools.naver_datalab.NaverDatalabTool",
+            "public_data": "src.tools.public_data.PublicDataTool",
+            "kipris": "src.tools.kipris.KiprisTool",
+            "law_search": "src.tools.law_search.LawSearchTool",
+            "github_tool": "src.tools.github_tool.GithubTool",
+            "code_quality": "src.tools.code_quality.CodeQualityTool",
+            "notion_api": "src.tools.notion_api.NotionApiTool",
+            "doc_converter": "src.tools.doc_converter.DocConverterTool",
         }
+        tool_classes: dict[str, type[BaseTool]] = {}
+        for tool_id, import_path in _imports.items():
+            module_path, class_name = import_path.rsplit(".", 1)
+            try:
+                import importlib
+                mod = importlib.import_module(module_path)
+                tool_classes[tool_id] = getattr(mod, class_name)
+            except Exception as e:
+                logger.warning("도구 '%s' 로드 실패 (건너뜀): %s", tool_id, e)
 
         for tool_def in tools_config.get("tools", []):
             config = ToolConfig(**tool_def)
             cls = tool_classes.get(config.tool_id)
             if cls:
-                self.register(cls(config=config, model_router=self._model_router))
+                try:
+                    self.register(cls(config=config, model_router=self._model_router))
+                except Exception as e:
+                    logger.warning("도구 '%s' 등록 실패 (건너뜀): %s", config.tool_id, e)
 
         logger.info("총 %d개 도구 등록 완료", len(self._tools))
 
