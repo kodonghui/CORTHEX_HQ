@@ -582,7 +582,7 @@
             </div>
           </button>
           <div x-show="expanded.secretary" x-collapse class="ml-3 mt-1 pl-8 border-l border-hq-yellow/20 space-y-0.5">
-            <template x-for="id in ['chief_of_staff', 'report_worker', 'schedule_worker', 'relay_worker']" :key="id">
+            <template x-for="id in ['chief_of_staff', 'report_specialist', 'schedule_specialist', 'relay_specialist']" :key="id">
               <div :id="'agent-' + id" @click="openAgentConfig(id)" class="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-hq-yellow/10 transition-all duration-300 cursor-pointer" title="클릭하면 모델·추론·소울 설정 가능">
                 <span class="w-1.5 h-1.5 rounded-full transition-colors shrink-0 mt-0.5" :class="[getAgentDotClass(id), activeAgents[id]?.status==='working' ? 'agent-working-glow' : '']"></span>
                 <div class="flex-1 min-w-0">
@@ -1476,7 +1476,7 @@
               <span class="text-[10px] text-hq-muted ml-auto">4명</span>
             </div>
             <div class="grid grid-cols-4 gap-3">
-              <template x-for="id in ['chief_of_staff', 'report_worker', 'schedule_worker', 'relay_worker']" :key="id">
+              <template x-for="id in ['chief_of_staff', 'report_specialist', 'schedule_specialist', 'relay_specialist']" :key="id">
                 <div class="desk-card glass border border-hq-border hover:border-hq-yellow/30" @click="openAgentConfig(id)">
                   <div class="flex items-center justify-between mb-2">
                     <div class="agent-avatar bg-hq-yellow/20 text-hq-yellow text-[9px]" x-text="getAgentInitials(id)"></div>
@@ -3225,9 +3225,9 @@
         // Agent name mapping
         agentNames: {
           'chief_of_staff': '비서실장',
-          'report_worker': '총괄 보좌관',
-          'schedule_worker': '진행 보좌관',
-          'relay_worker': '소통 보좌관',
+          'report_specialist': '총괄 스페셜리스트',
+          'schedule_specialist': '전략 스페셜리스트',
+          'relay_specialist': '소통 스페셜리스트',
           'cto_manager': 'CTO 기술개발처장',
           'frontend_specialist': '프론트엔드',
           'backend_specialist': '백엔드/API',
@@ -3258,9 +3258,9 @@
         // Agent initials for avatars
         agentInitials: {
           'chief_of_staff': 'CS',
-          'report_worker': 'RP',
-          'schedule_worker': 'SC',
-          'relay_worker': 'RL',
+          'report_specialist': '총괄',
+          'schedule_specialist': '전략',
+          'relay_specialist': '소통',
           'cto_manager': 'CTO',
           'frontend_specialist': 'FE',
           'backend_specialist': 'BE',
@@ -3290,8 +3290,8 @@
 
         // Division mapping for auto-expand
         agentDivision: {
-          'chief_of_staff': 'secretary', 'report_worker': 'secretary',
-          'schedule_worker': 'secretary', 'relay_worker': 'secretary',
+          'chief_of_staff': 'secretary', 'report_specialist': 'secretary',
+          'schedule_specialist': 'secretary', 'relay_specialist': 'secretary',
           'cto_manager': 'tech',
           'frontend_specialist': 'tech', 'backend_specialist': 'tech',
           'infra_specialist': 'tech', 'ai_model_specialist': 'tech',
