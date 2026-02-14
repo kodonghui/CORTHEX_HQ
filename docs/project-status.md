@@ -10,7 +10,7 @@
 
 - **날짜**: 2026-02-14
 - **작업 브랜치**: claude/sync-multiple-computers-Nz8IR
-- **작업 내용**: Oracle Cloud 무료 서버 구축 및 웹사이트 배포
+- **작업 내용**: Oracle Cloud 서버 구축 + 미니 백엔드 배포 + GitHub Actions 자동 배포 설정
 
 ---
 
@@ -33,8 +33,12 @@
 6. **Oracle Cloud 24시간 서버** - 무료 서버(VM.Standard.E2.1.Micro)에 웹사이트 배포 완료
    - 서버 IP: `168.107.28.100`
    - 운영체제: Ubuntu 24.04
-   - 웹서버: nginx
+   - 웹서버: nginx + 경량 미니 백엔드(FastAPI)
    - 회사 컴퓨터 꺼져도 대시보드 화면 접속 가능
+7. **GitHub Actions 자동 배포** - main에 코드 합쳐지면 서버에 자동 반영
+   - `.github/workflows/deploy.yml` 워크플로우
+   - web/ 폴더 변경 시에만 실행
+   - GitHub Secrets에 SSH 키, 서버 IP 등록 완료
 
 ---
 
@@ -52,9 +56,8 @@
 
 ## 다음에 할 일 (우선순위 순)
 
-1. GitHub Actions 자동 배포 설정 → 코드 올리면 서버에 자동 반영
-2. 도메인(corthex.com 등) 연결 → IP 주소 대신 이름으로 접속
-3. HTTPS(보안 연결) 설정 → Let's Encrypt 무료 인증서
+1. 도메인(corthex.com 등) 연결 → IP 주소 대신 이름으로 접속
+2. HTTPS(보안 연결) 설정 → Let's Encrypt 무료 인증서
 
 ---
 
