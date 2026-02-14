@@ -147,10 +147,10 @@
     }
 
     /* Glow effects */
-    .glow-cyan { box-shadow: 0 0 20px rgba(6, 182, 212, 0.15), 0 0 40px rgba(6, 182, 212, 0.05); }
-    .glow-blue { box-shadow: 0 0 20px rgba(59, 130, 246, 0.15), 0 0 40px rgba(59, 130, 246, 0.05); }
-    .glow-purple { box-shadow: 0 0 20px rgba(139, 92, 246, 0.15), 0 0 40px rgba(139, 92, 246, 0.05); }
-    .glow-accent { box-shadow: 0 0 24px rgba(59, 130, 246, 0.2); }
+    .glow-cyan { box-shadow: 0 0 20px rgb(var(--hq-cyan) / 0.15), 0 0 40px rgb(var(--hq-cyan) / 0.05); }
+    .glow-blue { box-shadow: 0 0 20px rgb(var(--hq-accent) / 0.15), 0 0 40px rgb(var(--hq-accent) / 0.05); }
+    .glow-purple { box-shadow: 0 0 20px rgb(var(--hq-purple) / 0.15), 0 0 40px rgb(var(--hq-purple) / 0.05); }
+    .glow-accent { box-shadow: 0 0 24px rgb(var(--hq-accent) / 0.2); }
 
     /* Glass effect */
     .glass {
@@ -252,11 +252,11 @@
       background: rgb(var(--hq-accent) / 0.05);
     }
 
-    /* ═══ Light mode overrides (CSS variables handle most; these cover edge cases) ═══ */
-    html:not(.dark) .glow-cyan { box-shadow: 0 0 16px rgb(var(--hq-cyan) / 0.1); }
-    html:not(.dark) .glow-blue { box-shadow: 0 0 16px rgb(var(--hq-accent) / 0.1); }
-    html:not(.dark) .glow-purple { box-shadow: 0 0 16px rgb(var(--hq-purple) / 0.1); }
-    html:not(.dark) .glow-accent { box-shadow: 0 0 20px rgb(var(--hq-accent) / 0.12); }
+    /* Light mode: reduced glow intensity */
+    html:not(.dark) .glow-cyan,
+    html:not(.dark) .glow-blue,
+    html:not(.dark) .glow-purple,
+    html:not(.dark) .glow-accent { box-shadow: 0 0 16px rgb(var(--hq-accent) / 0.08); }
 
     /* ═══ Toast animations ═══ */
     @keyframes toastIn {
