@@ -354,8 +354,8 @@
           <div class="text-base font-bold tracking-wide gradient-text">CORTHEX</div>
         </div>
       </div>
-      <div class="flex items-center gap-2" x-data="{ buildNumber: '...' }" x-init="fetch('/build.txt').then(r => r.text()).then(n => buildNumber = n.trim()).catch(() => buildNumber = '?')">
-        <span class="text-[10px] font-mono text-hq-muted bg-hq-surface border border-hq-border rounded-md px-2 py-0.5" x-text="'빌드 #' + buildNumber"></span>
+      <div class="flex items-center gap-2">
+        <span class="text-[10px] font-mono text-hq-muted bg-hq-surface border border-hq-border rounded-md px-2 py-0.5">빌드 #BUILD_NUMBER_PLACEHOLDER</span>
         <span class="text-[10px] font-mono text-hq-cyan/85 bg-hq-cyan/5 border border-hq-cyan/20 rounded-md px-2 py-0.5">CEO 관제</span>
       </div>
     </div>

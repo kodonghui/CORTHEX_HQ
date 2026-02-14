@@ -43,20 +43,20 @@ jobs:
 
             cd /home/ubuntu/CORTHEX_HQ
 
-            # 2단계: 빌드 번호 파일 생성
-            echo "📝 빌드 번호 저장 중... (#${BUILD_NUMBER})"
-            echo "${BUILD_NUMBER}" | sudo tee /var/www/html/build.txt > /dev/null
+            # 2단계: 빌드 번호를 HTML에 주입
+            echo "📝 빌드 번호 주입 중... (#${BUILD_NUMBER})"
+            sed "s/BUILD_NUMBER_PLACEHOLDER/${BUILD_NUMBER}/g" web/templates/index.html > /tmp/index.html
 
             # 3단계: 대시보드 HTML 파일 복사 (웹서버 폴더로)
             echo "📄 대시보드 파일 복사 중..."
-            sudo cp web/templates/index.html /var/www/html/index.html
+            sudo cp /tmp/index.html /var/www/html/index.html
 
             # 4단계: 미니 서버 파일 복사
             echo "🐍 미니 서버 파일 복사 중..."
             mkdir -p /home/ubuntu/web/templates
             mkdir -p /home/ubuntu/config
             cp web/mini_server.py /home/ubuntu/web/mini_server.py
-            cp web/templates/index.html /home/ubuntu/web/templates/index.html
+            cp /tmp/index.html /home/ubuntu/web/templates/index.html
             cp -r config/* /home/ubuntu/config/ 2>/dev/null || echo "⚠️ config 파일 없음 (무시)"
 
             # 5단계: Python 의존성 설치 (PyYAML 등)
