@@ -82,23 +82,6 @@
       background: linear-gradient(135deg, rgb(248, 250, 252), rgb(226, 232, 240), rgb(203, 213, 225));
     }
 
-    /* ═══ 반투명 효과 (다크 모드) - 더 투명하게 ═══ */
-    .dark .glass {
-      background: rgba(30, 41, 59, 0.6) !important;
-      backdrop-filter: blur(16px);
-      -webkit-backdrop-filter: blur(16px);
-    }
-    .dark .bg-hq-surface { background: rgba(30, 41, 59, 0.4) !important; }
-    .dark .bg-hq-panel { background: rgba(51, 65, 85, 0.25) !important; }
-
-    /* ═══ 반투명 효과 (라이트 모드) ═══ */
-    html:not(.dark) .glass {
-      background: rgba(255, 255, 255, 0.7) !important;
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
-    }
-    html:not(.dark) .bg-hq-surface { background: rgba(255, 255, 255, 0.6) !important; }
-    html:not(.dark) .bg-hq-panel { background: rgba(226, 232, 240, 0.4) !important; }
     .font-mono { font-family: 'JetBrains Mono', monospace; }
 
     /* Scrollbar */

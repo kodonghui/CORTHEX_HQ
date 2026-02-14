@@ -9,8 +9,9 @@
 ## 마지막 업데이트
 
 - **날짜**: 2026-02-15
-- **작업 브랜치**: claude/ai-model-settings-update-d1516f
-- **작업 내용**: AI 모델 설정 개선 — Claude 4.5/4.6 + GPT-5 이상만 사용 가능하도록 변경, Codex 제거, Provider별 그룹화
+- **작업 브랜치**: main (직접 커밋)
+- **작업 내용**: 빌드 번호 시스템 추가 — 배포 확인 간편화
+- **빌드 번호**: #22
 
 ---
 
@@ -45,6 +46,7 @@
 11. **비서실 보좌관 이름 변경** - 브리핑→총괄, 작전→진행, 부서→소통으로 이름 변경 완료
 12. **웹 세션 환경변수 자동 설정** (`.claude/scripts/setup-env.sh`) - GitHub Codespaces Secrets에서 API 키를 읽어 `.env.local` 자동 생성
 13. **AI 모델 설정 개선** (2026-02-15) - Claude 4.5/4.6 + GPT-5 이상 8개 모델 제공, Codex 제거, Provider별 그룹화(Anthropic/OpenAI)로 UI 가독성 향상
+14. **빌드 번호 시스템** (2026-02-15) - GitHub Actions run number를 빌드 번호로 사용, 웹 화면에 자동 표시, 배포 확인 즉시 가능
 
 ---
 
