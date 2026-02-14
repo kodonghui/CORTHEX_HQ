@@ -40,6 +40,12 @@ class ToolPool:
             "sns_manager": "src.tools.sns.sns_manager.SNSManager",
             "daum_cafe": "src.tools.daum_cafe.DaumCafeTool",
             "leet_survey": "src.tools.leet_survey.LeetSurveyTool",
+            # CLO 법무IP처 + CSO 사업기획처 도구
+            "platform_market_scraper": "src.tools.platform_market_scraper.PlatformMarketScraperTool",
+            "precedent_analyzer": "src.tools.precedent_analyzer.PrecedentAnalyzerTool",
+            "trademark_similarity": "src.tools.trademark_similarity.TrademarkSimilarityTool",
+            "contract_reviewer": "src.tools.contract_reviewer.ContractReviewerTool",
+            "law_change_monitor": "src.tools.law_change_monitor.LawChangeMonitorTool",
         }
         tool_classes: dict[str, type[BaseTool]] = {}
         for tool_id, import_path in _imports.items():

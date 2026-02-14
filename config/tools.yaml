@@ -53,3 +53,37 @@ tools:
     name_ko: "SNS 매니저"
     description: "Tistory/YouTube/Instagram/LinkedIn/네이버카페/네이버블로그/다음카페 통합 퍼블리싱 (CEO 승인 큐 포함)"
     model_name: "gpt-5-mini"
+
+  # ─── CSO 사업기획처 도구 ───
+
+  - tool_id: "platform_market_scraper"
+    name: "Platform Market Scraper"
+    name_ko: "플랫폼 시장 조사기"
+    description: "크몽/탈잉/클래스101 플랫폼에서 서비스 가격·리뷰·판매량 수집 및 시장 분석"
+    model_name: "gpt-5-mini"
+
+  # ─── CLO 법무IP처 도구 ───
+
+  - tool_id: "precedent_analyzer"
+    name: "Precedent Analyzer"
+    name_ko: "판례 트렌드 분석기"
+    description: "특정 법률 분야의 판례를 대량 수집하여 판결 경향(연도별 건수, 승소율, 키워드) 분석"
+    model_name: "gpt-5-mini"
+
+  - tool_id: "trademark_similarity"
+    name: "Trademark Similarity Checker"
+    name_ko: "상표 유사도 검사기"
+    description: "브랜드명/상표명의 기존 등록 상표 대비 유사도(글자·발음·외관) 자동 판별"
+    model_name: "gpt-5-mini"
+
+  - tool_id: "contract_reviewer"
+    name: "Contract Reviewer"
+    name_ko: "계약서 자동 검토기"
+    description: "계약서 텍스트에서 위험/불리 조항 자동 탐지 및 필수 조항 누락 체크"
+    model_name: "gpt-5-mini"
+
+  - tool_id: "law_change_monitor"
+    name: "Law Change Monitor"
+    name_ko: "법령 변경 알리미"
+    description: "관련 법령의 개정/신설/폐지 자동 감지 및 사업 영향 분석"
+    model_name: "gpt-5-mini"

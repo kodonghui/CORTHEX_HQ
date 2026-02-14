@@ -275,6 +275,7 @@ agents:
     superior_id: "chief_of_staff"
     allowed_tools:
       - "leet_survey"
+      - "platform_market_scraper"
 
   - agent_id: "market_research_specialist"
     name: "Market Research Specialist"
@@ -343,6 +344,7 @@ agents:
       - "leet_survey"
       - "naver_datalab"
       - "public_data"
+      - "platform_market_scraper"
 
   - agent_id: "business_plan_specialist"
     name: "Business Plan Specialist"
@@ -426,6 +428,10 @@ agents:
     allowed_tools:
       - "patent_attorney"
       - "law_search"
+      - "precedent_analyzer"
+      - "trademark_similarity"
+      - "contract_reviewer"
+      - "law_change_monitor"
 
   - agent_id: "copyright_specialist"
     name: "Copyright Specialist"
@@ -456,6 +462,10 @@ agents:
     allowed_tools:
       - "kipris"
       - "law_search"
+      - "precedent_analyzer"
+      - "trademark_similarity"
+      - "contract_reviewer"
+      - "law_change_monitor"
 
   - agent_id: "patent_specialist"
     name: "Patent/Terms Specialist"
@@ -488,6 +498,10 @@ agents:
       - "patent_attorney"
       - "kipris"
       - "law_search"
+      - "precedent_analyzer"
+      - "trademark_similarity"
+      - "contract_reviewer"
+      - "law_change_monitor"
 
   # ─── 마케팅·고객처 (CMO) - 비서실장 직속 ───
 
