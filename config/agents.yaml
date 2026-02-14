@@ -528,6 +528,11 @@ agents:
     superior_id: "chief_of_staff"
     allowed_tools:
       - "sns_manager"
+      - "seo_analyzer"
+      - "sentiment_analyzer"
+      - "hashtag_recommender"
+      - "email_optimizer"
+      - "competitor_sns_monitor"
 
   - agent_id: "survey_specialist"
     name: "Survey/Research Specialist"
@@ -561,6 +566,7 @@ agents:
     superior_id: "cmo_manager"
     allowed_tools:
       - "leet_survey"
+      - "sentiment_analyzer"
 
   - agent_id: "content_specialist"
     name: "Content Specialist"
@@ -596,6 +602,10 @@ agents:
       - "translator"
       - "designer"
       - "sns_manager"
+      - "seo_analyzer"
+      - "hashtag_recommender"
+      - "email_optimizer"
+      - "competitor_sns_monitor"
 
   - agent_id: "community_specialist"
     name: "Community Specialist"
@@ -615,6 +625,9 @@ agents:
     superior_id: "cmo_manager"
     allowed_tools:
       - "sns_manager"
+      - "seo_analyzer"
+      - "sentiment_analyzer"
+      - "competitor_sns_monitor"
 
   # ═══════════════════════════════════════════
   #  투자분석처 (CIO) - 비서실장 직속

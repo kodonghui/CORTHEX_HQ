@@ -59,6 +59,12 @@ class ToolPool:
             "backtest_engine": "src.tools.backtest_engine.BacktestEngineTool",
             "insider_tracker": "src.tools.insider_tracker.InsiderTrackerTool",
             "dividend_calendar": "src.tools.dividend_calendar.DividendCalendarTool",
+            # ─── CMO 마케팅고객처 신규 도구 ───
+            "seo_analyzer": "src.tools.seo_analyzer.SeoAnalyzerTool",
+            "sentiment_analyzer": "src.tools.sentiment_analyzer.SentimentAnalyzerTool",
+            "hashtag_recommender": "src.tools.hashtag_recommender.HashtagRecommenderTool",
+            "email_optimizer": "src.tools.email_optimizer.EmailOptimizerTool",
+            "competitor_sns_monitor": "src.tools.competitor_sns_monitor.CompetitorSnsMonitorTool",
         }
         tool_classes: dict[str, type[BaseTool]] = {}
         for tool_id, import_path in _imports.items():
