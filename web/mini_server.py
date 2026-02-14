@@ -11,7 +11,11 @@ import os
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
-import yaml
+try:
+    import yaml
+except ImportError:
+    yaml = None  # PyYAML 미설치 시 graceful fallback
+
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -32,6 +36,9 @@ CONFIG_DIR = Path(BASE_DIR).parent / "config"
 
 def _load_agents_yaml() -> dict:
     """agents.yaml에서 에이전트별 상세 정보(allowed_tools, capabilities 등)를 로드."""
+    if yaml is None:
+        logger.warning("PyYAML 미설치 — agents.yaml 로드 건너뜀")
+        return {}
     try:
         raw = yaml.safe_load((CONFIG_DIR / "agents.yaml").read_text(encoding="utf-8"))
         lookup: dict[str, dict] = {}
@@ -44,6 +51,9 @@ def _load_agents_yaml() -> dict:
 
 def _load_tools_yaml() -> list[dict]:
     """tools.yaml에서 도구 목록을 로드."""
+    if yaml is None:
+        logger.warning("PyYAML 미설치 — tools.yaml 로드 건너뜀")
+        return []
     try:
         raw = yaml.safe_load((CONFIG_DIR / "tools.yaml").read_text(encoding="utf-8"))
         return raw.get("tools", [])
