@@ -9,8 +9,8 @@
 ## 마지막 업데이트
 
 - **날짜**: 2026-02-14
-- **작업 브랜치**: claude/sync-multiple-computers-Nz8IR
-- **작업 내용**: 자동 배포 전수검사 — auto-merge 후 deploy 미실행 버그 수정 (GitHub 보안 정책 우회)
+- **작업 브랜치**: claude/secretary-names-brainstorm-VXANr
+- **작업 내용**: 비서실 보좌관 이름 변경 — 브리핑/작전/부서 → 총괄/진행/소통
 
 ---
 
