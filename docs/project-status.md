@@ -9,8 +9,8 @@
 ## 마지막 업데이트
 
 - **날짜**: 2026-02-14
-- **작업 브랜치**: claude/notion-report-storage-BZPaw
-- **작업 내용**: 에이전트 29개 Soul 파일에 노션 보고 의무 섹션 추가 + 웹 세션 환경변수 자동 설정 훅 추가
+- **작업 브랜치**: claude/sync-multiple-computers-Nz8IR
+- **작업 내용**: 자동 배포 paths 필터 제거 (main에 합쳐지면 무조건 서버 배포) + CLAUDE.md에 배포 규칙 추가
 
 ---
 
@@ -38,7 +38,7 @@
    - 회사 컴퓨터 꺼져도 대시보드 화면 접속 가능
 8. **GitHub Actions 자동 배포** - main에 코드 합쳐지면 서버에 자동 반영
    - `.github/workflows/deploy.yml` 워크플로우
-   - web/ 폴더 변경 시에만 실행
+   - **main에 push되면 무조건 실행** (paths 필터 제거됨)
    - GitHub Secrets에 SSH 키, 서버 IP 등록 완료
 9. **노션 보고 의무 섹션 추가** - 29개 에이전트 Soul 파일에 작업 완료 시 노션 DB에 보고서 자동 제출 규칙 추가
 10. **웹 세션 환경변수 자동 설정** (`.claude/scripts/setup-env.sh`) - GitHub Codespaces Secrets에서 API 키를 읽어 `.env.local` 자동 생성
