@@ -8,6 +8,13 @@ providers:
     api_key_env: "OPENAI_API_KEY"
     models:
       # ── GPT-5 시리즈 ──
+      - name: "gpt-5-nano"
+        cost_per_1m_input: 0.05
+        cost_per_1m_output: 0.40
+        max_tokens: 16384
+        tier: "worker"
+        reasoning_levels: []
+
       - name: "gpt-5-mini"
         cost_per_1m_input: 0.25
         cost_per_1m_output: 2.00
@@ -20,16 +27,39 @@ providers:
         cost_per_1m_output: 10.00
         max_tokens: 32768
         tier: "manager"
-        reasoning_levels: ["minimal", "low", "medium", "high"]
+        reasoning_levels: ["none", "low", "medium", "high"]
 
-      - name: "gpt-5-2"
+      # ── GPT-5.1 시리즈 ──
+      - name: "gpt-5.1"
+        cost_per_1m_input: 1.25
+        cost_per_1m_output: 10.00
+        max_tokens: 32768
+        tier: "manager"
+        reasoning_levels: ["none", "low", "medium", "high"]
+
+      - name: "gpt-5.1-codex"
+        cost_per_1m_input: 1.25
+        cost_per_1m_output: 10.00
+        max_tokens: 32768
+        tier: "manager"
+        reasoning_levels: ["none", "low", "medium", "high"]
+
+      # ── GPT-5.2 시리즈 (최신) ──
+      - name: "gpt-5.2"
         cost_per_1m_input: 1.75
         cost_per_1m_output: 14.00
         max_tokens: 32768
         tier: "manager"
         reasoning_levels: ["none", "low", "medium", "high", "xhigh"]
 
-      - name: "gpt-5-2-pro"
+      - name: "gpt-5.2-codex"
+        cost_per_1m_input: 1.75
+        cost_per_1m_output: 14.00
+        max_tokens: 32768
+        tier: "manager"
+        reasoning_levels: ["none", "low", "medium", "high", "xhigh"]
+
+      - name: "gpt-5.2-pro"
         cost_per_1m_input: 21.00
         cost_per_1m_output: 168.00
         max_tokens: 32768

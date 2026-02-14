@@ -2423,7 +2423,7 @@
                   class="flex-1 bg-hq-panel border border-hq-border rounded-lg px-3 py-2 text-sm text-hq-text">
             <template x-for="m in availableModels" :key="m.name">
               <option :value="m.name"
-                      x-text="m.name + ' (' + m.provider + ', $' + m.cost_input + '/' + m.cost_output + ')'">
+                      x-text="getModelDisplayName(m.name) + ' ($' + (m.cost_input ?? 0) + '/' + (m.cost_output ?? 0) + ')'">
               </option>
             </template>
           </select>
@@ -2493,6 +2493,27 @@
           <input x-model="rubricEditName"
                  class="w-full bg-hq-panel border border-hq-border rounded-lg px-3 py-2 text-sm text-hq-text"
                  placeholder="예: 기술개발처 검수 기준">
+        </div>
+        <div class="grid grid-cols-2 gap-3 mb-3">
+          <div>
+            <label class="text-xs text-hq-muted mb-1 block">검수 모델 (이 부서 전용)</label>
+            <select x-model="rubricEditModel" class="w-full bg-hq-panel border border-hq-border rounded-lg px-3 py-2 text-sm text-hq-text">
+              <option value="">공통 모델 사용</option>
+              <template x-for="m in availableModels" :key="m.name">
+                <option :value="m.name" x-text="getModelDisplayName(m.name)"></option>
+              </template>
+            </select>
+          </div>
+          <div>
+            <label class="text-xs text-hq-muted mb-1 block">추론 정도</label>
+            <select x-model="rubricEditReasoning" class="w-full bg-hq-panel border border-hq-border rounded-lg px-3 py-2 text-sm text-hq-text">
+              <option value="">기본값</option>
+              <option value="low">low (빠름)</option>
+              <option value="medium">medium (균형)</option>
+              <option value="high">high (정밀)</option>
+              <option value="xhigh">xhigh (최고 정밀)</option>
+            </select>
+          </div>
         </div>
         <div class="mb-3">
           <label class="text-xs text-hq-muted mb-1 block">검수 기준 (프롬프트)</label>
@@ -2592,7 +2613,7 @@
             <select x-model="agentModelSelection"
                     class="w-full bg-hq-panel border border-hq-border rounded-lg px-3 py-2.5 text-sm text-hq-text mb-3">
               <template x-for="m in availableModels" :key="m.name">
-                <option :value="m.name" x-text="m.name + ' (' + (m.provider || '-') + ', $' + (m.cost_input ?? 0) + '/' + (m.cost_output ?? 0) + ')'"></option>
+                <option :value="m.name" x-text="getModelDisplayName(m.name) + ' ($' + (m.cost_input ?? 0) + '/' + (m.cost_output ?? 0) + ')'"></option>
               </template>
             </select>
             <div class="flex items-center gap-2">
@@ -2898,6 +2919,8 @@
         editingRubric: null,
         rubricEditName: '',
         rubricEditPrompt: '',
+        rubricEditModel: '',
+        rubricEditReasoning: '',
         qualitySaveStatus: '',
 
         // Agent config modal
@@ -3569,6 +3592,33 @@
 
         // ── Quality Gate Settings ──────────────────
 
+        sortModels(models) {
+          const tierOrder = { executive: 0, manager: 1, specialist: 2, worker: 3 };
+          return models.sort((a, b) => {
+            const ta = tierOrder[a.tier] ?? 99;
+            const tb = tierOrder[b.tier] ?? 99;
+            if (ta !== tb) return ta - tb;
+            return (b.cost_output || 0) - (a.cost_output || 0);
+          });
+        },
+
+        getModelDisplayName(modelName) {
+          const names = {
+            'claude-opus-4-6': 'Claude Opus 4.6',
+            'claude-sonnet-4-5-20250929': 'Claude Sonnet 4.5',
+            'claude-haiku-4-5-20251001': 'Claude Haiku 4.5',
+            'gpt-5.2-pro': 'GPT-5.2 Pro',
+            'gpt-5.2': 'GPT-5.2',
+            'gpt-5.2-codex': 'GPT-5.2 Codex',
+            'gpt-5.1': 'GPT-5.1',
+            'gpt-5.1-codex': 'GPT-5.1 Codex',
+            'gpt-5': 'GPT-5',
+            'gpt-5-mini': 'GPT-5 Mini',
+            'gpt-5-nano': 'GPT-5 Nano',
+          };
+          return names[modelName] || modelName;
+        },
+
         async loadQualityRules() {
           try {
             const [rulesRes, modelsRes] = await Promise.all([
@@ -3576,8 +3626,8 @@
               fetch('/api/available-models').then(r => r.json()),
             ]);
             this.qualityRules = rulesRes;
-            this.availableModels = modelsRes;
-            this.selectedReviewModel = rulesRes.rules?.review_model || (modelsRes.length ? modelsRes[0].name : '');
+            this.availableModels = this.sortModels(Array.isArray(modelsRes) ? modelsRes : []);
+            this.selectedReviewModel = rulesRes.rules?.review_model || (this.availableModels.length ? this.availableModels[0].name : '');
           } catch (e) {
             console.error('Failed to load quality rules:', e);
           }
@@ -3600,9 +3650,11 @@
 
         startEditRubric(division) {
           this.editingRubric = division;
-          const rubric = this.qualityRules.rubrics?.[division] || { name: '', prompt: '' };
+          const rubric = this.qualityRules.rubrics?.[division] || { name: '', prompt: '', model: '', reasoning_effort: '' };
           this.rubricEditName = rubric.name || '';
           this.rubricEditPrompt = rubric.prompt || '';
+          this.rubricEditModel = rubric.model || '';
+          this.rubricEditReasoning = rubric.reasoning_effort || '';
         },
 
         async saveRubric() {
@@ -3615,6 +3667,8 @@
               body: JSON.stringify({
                 name: this.rubricEditName,
                 prompt: this.rubricEditPrompt,
+                model: this.rubricEditModel || null,
+                reasoning_effort: this.rubricEditReasoning || null,
               }),
             }).then(r => r.json());
             if (res.success) {
@@ -3622,6 +3676,8 @@
               this.qualityRules.rubrics[this.editingRubric] = {
                 name: this.rubricEditName,
                 prompt: this.rubricEditPrompt,
+                model: this.rubricEditModel,
+                reasoning_effort: this.rubricEditReasoning,
               };
               this.editingRubric = null;
               this.qualitySaveStatus = 'saved';
@@ -3662,7 +3718,9 @@
               return;
             }
             this.agentConfigData = agentRes;
-            if (!this.availableModels.length && Array.isArray(modelsRes)) this.availableModels = modelsRes;
+            if (!this.availableModels.length && Array.isArray(modelsRes)) {
+              this.availableModels = this.sortModels(modelsRes);
+            }
             this.agentSoulText = agentRes.system_prompt || '';
             this.agentModelSelection = agentRes.model_name || '';
             this.agentReasoningSelection = agentRes.reasoning_effort || '';
@@ -3675,10 +3733,14 @@
               const defaultReasoning = {
                 'claude-opus-4-6': ['low','medium','high'],
                 'claude-sonnet-4-5-20250929': ['low','medium','high'],
+                'gpt-5-nano': [],
                 'gpt-5-mini': ['low','medium','high'],
-                'gpt-5': ['minimal','low','medium','high'],
-                'gpt-5-2': ['none','low','medium','high','xhigh'],
-                'gpt-5-2-pro': ['medium','high','xhigh'],
+                'gpt-5': ['none','low','medium','high'],
+                'gpt-5.1': ['none','low','medium','high'],
+                'gpt-5.1-codex': ['none','low','medium','high'],
+                'gpt-5.2': ['none','low','medium','high','xhigh'],
+                'gpt-5.2-codex': ['none','low','medium','high','xhigh'],
+                'gpt-5.2-pro': ['medium','high','xhigh'],
               };
               this.agentReasoningOptions = defaultReasoning[mn] || [];
             }
@@ -3729,6 +3791,22 @@
               // 모델 변경 시 추론 옵션도 갱신
               const newModel = this.availableModels.find(m => m.name === this.agentModelSelection);
               this.agentReasoningOptions = newModel?.reasoning_levels || [];
+              // Fallback
+              if (this.agentReasoningOptions.length === 0 && this.agentModelSelection) {
+                const mn = this.agentModelSelection;
+                const defaultReasoning = {
+                  'claude-opus-4-6': ['low','medium','high'],
+                  'claude-sonnet-4-5-20250929': ['low','medium','high'],
+                  'gpt-5-mini': ['low','medium','high'],
+                  'gpt-5': ['none','low','medium','high'],
+                  'gpt-5.1': ['none','low','medium','high'],
+                  'gpt-5.1-codex': ['none','low','medium','high'],
+                  'gpt-5.2': ['none','low','medium','high','xhigh'],
+                  'gpt-5.2-codex': ['none','low','medium','high','xhigh'],
+                  'gpt-5.2-pro': ['medium','high','xhigh'],
+                };
+                this.agentReasoningOptions = defaultReasoning[mn] || [];
+              }
               // 현재 선택된 추론 정도가 새 모델에서 지원 안 되면 초기화
               if (this.agentReasoningSelection && !this.agentReasoningOptions.includes(this.agentReasoningSelection)) {
                 this.agentReasoningSelection = '';
