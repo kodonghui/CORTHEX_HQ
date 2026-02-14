@@ -53,3 +53,35 @@ tools:
     name_ko: "SNS 매니저"
     description: "Tistory/YouTube/Instagram/LinkedIn/네이버카페/네이버블로그/다음카페 통합 퍼블리싱 (CEO 승인 큐 포함)"
     model_name: "gpt-5-mini"
+
+  # ─── CIO 투자분석처 신규 도구 ───
+
+  - tool_id: "dart_monitor"
+    name: "DART Monitor"
+    name_ko: "공시 알리미"
+    description: "DART 공시 자동 감시 — 관심 기업의 새 공시를 자동 감지하고 주가 영향 분석"
+    model_name: "gpt-5-mini"
+
+  - tool_id: "stock_screener"
+    name: "Stock Screener"
+    name_ko: "종목 스크리너"
+    description: "한국 상장사 조건 필터링 — PER/PBR/시가총액/거래량 기반 스크리닝 + 프리셋 전략(가치주/성장주/배당주/모멘텀)"
+    model_name: "gpt-5-mini"
+
+  - tool_id: "backtest_engine"
+    name: "Backtest Engine"
+    name_ko: "포트폴리오 백테스터"
+    description: "투자 전략 백테스트 — 골든크로스/RSI/MACD/바이앤홀드 전략을 과거 데이터로 시뮬레이션 (수익률/MDD/샤프비율)"
+    model_name: "gpt-5-mini"
+
+  - tool_id: "insider_tracker"
+    name: "Insider Tracker"
+    name_ko: "내부자 거래 추적기"
+    description: "대주주/임원 자사주 매매 감지 — DART 임원·주요주주 소유보고 분석, 시장 전체 지분 변동 스캔"
+    model_name: "gpt-5-mini"
+
+  - tool_id: "dividend_calendar"
+    name: "Dividend Calendar"
+    name_ko: "배당 캘린더"
+    description: "배당 일정/이력/상위 종목 — 월별 배당 종목, 기업별 배당 이력, 배당수익률 TOP 종목 조회"
+    model_name: "gpt-5-mini"

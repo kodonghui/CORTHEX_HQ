@@ -40,6 +40,12 @@ class ToolPool:
             "sns_manager": "src.tools.sns.sns_manager.SNSManager",
             "daum_cafe": "src.tools.daum_cafe.DaumCafeTool",
             "leet_survey": "src.tools.leet_survey.LeetSurveyTool",
+            # ─── CIO 투자분석처 신규 도구 ───
+            "dart_monitor": "src.tools.dart_monitor.DartMonitorTool",
+            "stock_screener": "src.tools.stock_screener.StockScreenerTool",
+            "backtest_engine": "src.tools.backtest_engine.BacktestEngineTool",
+            "insider_tracker": "src.tools.insider_tracker.InsiderTrackerTool",
+            "dividend_calendar": "src.tools.dividend_calendar.DividendCalendarTool",
         }
         tool_classes: dict[str, type[BaseTool]] = {}
         for tool_id, import_path in _imports.items():
