@@ -14,19 +14,19 @@
       theme: {
         extend: {
           colors: {
-            'hq-bg': '#0f1729',
-            'hq-surface': '#1e2d4a',
-            'hq-panel': '#2a3d5e',
-            'hq-border': '#4a6080',
-            'hq-border-light': '#6b82a0',
+            'hq-bg': '#111c30',
+            'hq-surface': '#1a2d4d',
+            'hq-panel': '#243a5c',
+            'hq-border': '#506a8a',
+            'hq-border-light': '#7a94b0',
             'hq-accent': '#60a5fa',
             'hq-cyan': '#22d3ee',
             'hq-purple': '#a78bfa',
             'hq-green': '#34d399',
             'hq-yellow': '#fbbf24',
             'hq-red': '#f87171',
-            'hq-text': '#f1f5f9',
-            'hq-muted': '#cbd5e1',
+            'hq-text': '#f8fafc',
+            'hq-muted': '#d4dce8',
           }
         }
       }
@@ -348,7 +348,7 @@
       </div>
       <div class="flex items-center gap-2">
         <span class="text-[10px] font-mono text-hq-muted bg-hq-surface border border-hq-border rounded-md px-2 py-0.5">v0.4.0</span>
-        <span class="text-[10px] font-mono text-hq-cyan/60 bg-hq-cyan/5 border border-hq-cyan/20 rounded-md px-2 py-0.5">CEO 관제</span>
+        <span class="text-[10px] font-mono text-hq-cyan/85 bg-hq-cyan/5 border border-hq-cyan/20 rounded-md px-2 py-0.5">CEO 관제</span>
       </div>
     </div>
 
@@ -434,7 +434,7 @@
         </div>
         <div class="flex items-center gap-1.5">
           <svg class="w-3.5 h-3.5 text-hq-purple/60" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/></svg>
-          <span class="text-xs font-mono text-hq-text/70" x-text="totalTokens.toLocaleString()"></span>
+          <span class="text-xs font-mono text-hq-text/90" x-text="totalTokens.toLocaleString()"></span>
         </div>
       </div>
 
@@ -594,7 +594,7 @@
                     <div class="text-[10px] text-hq-muted">AI 에이전트 4명</div>
                   </div>
                   <span class="status-badge" :class="getSectionBadgeClass('tech')" x-text="getSectionStatusText('tech')"></span>
-                  <span class="text-[10px] text-hq-muted/60 transition-transform duration-200" :class="expanded.tech ? 'rotate-90' : ''">&#9654;</span>
+                  <span class="text-[10px] text-hq-muted/85 transition-transform duration-200" :class="expanded.tech ? 'rotate-90' : ''">&#9654;</span>
                 </div>
               </button>
               <div x-show="expanded.tech" x-collapse class="ml-3 mt-1 pl-8 border-l border-hq-cyan/20 space-y-0.5">
@@ -622,7 +622,7 @@
                     <div class="text-[10px] text-hq-muted">AI 에이전트 3명</div>
                   </div>
                   <span class="status-badge" :class="getSectionBadgeClass('strategy')" x-text="getSectionStatusText('strategy')"></span>
-                  <span class="text-[10px] text-hq-muted/60 transition-transform duration-200" :class="expanded.strategy ? 'rotate-90' : ''">&#9654;</span>
+                  <span class="text-[10px] text-hq-muted/85 transition-transform duration-200" :class="expanded.strategy ? 'rotate-90' : ''">&#9654;</span>
                 </div>
               </button>
               <div x-show="expanded.strategy" x-collapse class="ml-3 mt-1 pl-8 border-l border-hq-purple/20 space-y-0.5">
@@ -650,7 +650,7 @@
                     <div class="text-[10px] text-hq-muted">AI 에이전트 2명</div>
                   </div>
                   <span class="status-badge" :class="getSectionBadgeClass('legal')" x-text="getSectionStatusText('legal')"></span>
-                  <span class="text-[10px] text-hq-muted/60 transition-transform duration-200" :class="expanded.legal ? 'rotate-90' : ''">&#9654;</span>
+                  <span class="text-[10px] text-hq-muted/85 transition-transform duration-200" :class="expanded.legal ? 'rotate-90' : ''">&#9654;</span>
                 </div>
               </button>
               <div x-show="expanded.legal" x-collapse class="ml-3 mt-1 pl-8 border-l border-hq-green/20 space-y-0.5">
@@ -678,7 +678,7 @@
                     <div class="text-[10px] text-hq-muted">AI 에이전트 3명</div>
                   </div>
                   <span class="status-badge" :class="getSectionBadgeClass('marketing')" x-text="getSectionStatusText('marketing')"></span>
-                  <span class="text-[10px] text-hq-muted/60 transition-transform duration-200" :class="expanded.marketing ? 'rotate-90' : ''">&#9654;</span>
+                  <span class="text-[10px] text-hq-muted/85 transition-transform duration-200" :class="expanded.marketing ? 'rotate-90' : ''">&#9654;</span>
                 </div>
               </button>
               <div x-show="expanded.marketing" x-collapse class="ml-3 mt-1 pl-8 border-l border-hq-yellow/20 space-y-0.5">
@@ -709,7 +709,7 @@
                 <div class="text-[10px] text-hq-muted">AI 에이전트 4명</div>
               </div>
               <span class="status-badge" :class="getSectionBadgeClass('finance')" x-text="getSectionStatusText('finance')"></span>
-              <span class="text-[10px] text-hq-muted/60 transition-transform duration-200" :class="expanded.finance ? 'rotate-90' : ''">&#9654;</span>
+              <span class="text-[10px] text-hq-muted/85 transition-transform duration-200" :class="expanded.finance ? 'rotate-90' : ''">&#9654;</span>
             </div>
           </button>
           <div x-show="expanded.finance" x-collapse class="ml-3 mt-1 pl-8 border-l border-hq-red/20 space-y-0.5">
@@ -740,7 +740,7 @@
                 <div class="text-[10px] text-hq-muted">AI 에이전트 4명</div>
               </div>
               <span class="status-badge" :class="getSectionBadgeClass('publishing')" x-text="getSectionStatusText('publishing')"></span>
-              <span class="text-[10px] text-hq-muted/60 transition-transform duration-200" :class="expanded.publishing ? 'rotate-90' : ''">&#9654;</span>
+              <span class="text-[10px] text-hq-muted/85 transition-transform duration-200" :class="expanded.publishing ? 'rotate-90' : ''">&#9654;</span>
             </div>
           </button>
           <div x-show="expanded.publishing" x-collapse class="ml-3 mt-1 pl-8 border-l border-hq-accent/20 space-y-0.5">
@@ -763,7 +763,7 @@
             <div class="agent-avatar bg-hq-red/15 text-hq-red text-[10px]">
               <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
             </div>
-            <span class="text-sm text-hq-text/70">도구함</span>
+            <span class="text-sm text-hq-text/90">도구함</span>
             <span class="text-[10px] font-mono text-hq-muted ml-auto" x-text="(toolsList || []).length + '개'"></span>
           </button>
           <div x-show="expanded.tools" x-collapse class="ml-10 space-y-0.5 mt-1 max-h-48 overflow-y-auto scrollbar-thin">
@@ -771,7 +771,7 @@
               <div class="flex items-center gap-2 px-2 py-1 rounded-md hover:bg-white/[0.10] transition-colors">
                 <span class="w-1.5 h-1.5 rounded-full bg-hq-muted/50"></span>
                 <span class="text-xs text-hq-muted" x-text="t.name_ko || t.name"></span>
-                <span class="text-[9px] text-hq-muted/50 ml-auto">도구</span>
+                <span class="text-[9px] text-hq-muted/80 ml-auto">도구</span>
               </div>
             </template>
           </div>
@@ -798,13 +798,13 @@
           <div class="overflow-y-auto scrollbar-thin max-h-52 px-3 pb-3 space-y-0.5">
             <template x-for="(log, i) in activityLogs.slice(-30).reverse()" :key="i">
               <div class="log-item text-[11px] text-hq-muted fade-in">
-                <span class="font-mono text-hq-muted/50" x-text="log.time"></span>
+                <span class="font-mono text-hq-muted/80" x-text="log.time"></span>
                 <span class="text-hq-cyan/70 font-medium" x-text="log.agent_id"></span>
                 <span x-text="log.action"></span>
               </div>
             </template>
             <template x-if="activityLogs.length === 0">
-              <div class="text-[11px] text-hq-muted/40 italic px-2 py-2">아직 활동이 없습니다</div>
+              <div class="text-[11px] text-hq-muted/80 italic px-2 py-2">아직 활동이 없습니다</div>
             </template>
           </div>
         </div>
@@ -1002,7 +1002,7 @@
               </div>
             </template>
             <template x-if="!dashboard.recentCompleted || dashboard.recentCompleted.length === 0">
-              <div class="text-center py-8 text-hq-muted/50 text-sm">아직 완료된 작업이 없습니다</div>
+              <div class="text-center py-8 text-hq-muted/80 text-sm">아직 완료된 작업이 없습니다</div>
             </template>
           </div>
 
@@ -1098,7 +1098,7 @@
                       <p class="text-[11px] text-hq-muted leading-relaxed" x-text="preset.desc"></p>
                     </div>
                     <button x-show="preset.isServer" @click.stop="deletePreset(preset.name)"
-                      class="absolute top-2 right-2 text-hq-muted/30 hover:text-hq-red text-xs transition opacity-0 group-hover:opacity-100" title="삭제">&times;</button>
+                      class="absolute top-2 right-2 text-hq-muted/70 hover:text-hq-red text-xs transition opacity-0 group-hover:opacity-100" title="삭제">&times;</button>
                   </div>
                 </template>
               </div>
@@ -1107,15 +1107,15 @@
                 <button x-show="!showAddPreset" @click="showAddPreset = true"
                   class="text-xs text-hq-accent hover:text-hq-accent/80 transition">+ 새 프리셋 추가</button>
                 <div x-show="showAddPreset" x-transition class="glass border border-hq-border rounded-xl p-3 space-y-2">
-                  <input x-model="newPresetName" placeholder="프리셋 이름" class="w-full bg-hq-bg border border-hq-border rounded-lg px-3 py-1.5 text-sm text-hq-text placeholder-hq-muted/40">
-                  <input x-model="newPresetCommand" placeholder="명령어" class="w-full bg-hq-bg border border-hq-border rounded-lg px-3 py-1.5 text-sm text-hq-text placeholder-hq-muted/40">
+                  <input x-model="newPresetName" placeholder="프리셋 이름" class="w-full bg-hq-bg border border-hq-border rounded-lg px-3 py-1.5 text-sm text-hq-text placeholder-hq-muted/70">
+                  <input x-model="newPresetCommand" placeholder="명령어" class="w-full bg-hq-bg border border-hq-border rounded-lg px-3 py-1.5 text-sm text-hq-text placeholder-hq-muted/70">
                   <div class="flex gap-2">
                     <button @click="addPreset()" class="bg-hq-accent hover:bg-blue-600 text-white rounded-lg px-3 py-1 text-xs">추가</button>
                     <button @click="showAddPreset = false; newPresetName = ''; newPresetCommand = ''" class="bg-hq-surface hover:bg-hq-panel text-hq-text rounded-lg px-3 py-1 text-xs">취소</button>
                   </div>
                 </div>
               </div>
-              <p class="text-[11px] text-hq-muted/40 mt-4">자유롭게 명령을 입력하세요 (Shift+Enter: 줄바꿈)</p>
+              <p class="text-[11px] text-hq-muted/80 mt-4">자유롭게 명령을 입력하세요 (Shift+Enter: 줄바꿈)</p>
             </div>
           </template>
 
@@ -1260,17 +1260,17 @@
             <!-- Export + Shortcut hint -->
             <div x-show="messages.length > 0" class="flex items-center justify-end gap-2 mb-2">
               <button @click="exportConversation()"
-                      class="text-[10px] text-hq-muted/60 hover:text-hq-accent flex items-center gap-1 transition">
+                      class="text-[10px] text-hq-muted/85 hover:text-hq-accent flex items-center gap-1 transition">
                 <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
                 대화 내보내기
               </button>
               <!-- Batch/실시간 토글 -->
               <button @click="useBatch = !useBatch"
-                      :class="useBatch ? 'bg-hq-purple/20 text-hq-purple border-hq-purple/30' : 'text-hq-muted/60 border-hq-border/30'"
+                      :class="useBatch ? 'bg-hq-purple/20 text-hq-purple border-hq-purple/30' : 'text-hq-muted/85 border-hq-border/30'"
                       class="text-[10px] flex items-center gap-1 px-2 py-0.5 border rounded-md transition">
                 <span x-text="useBatch ? 'Batch (저렴)' : '실시간'"></span>
               </button>
-              <span class="text-[9px] text-hq-muted/30 font-mono">Ctrl+K</span>
+              <span class="text-[9px] text-hq-muted/70 font-mono">Ctrl+K</span>
             </div>
             <!-- @mention dropdown -->
             <div x-show="showMentionDropdown" x-transition
@@ -1293,10 +1293,10 @@
                   placeholder="명령을 입력하세요... (Shift+Enter: 줄바꿈)"
                   rows="1"
                   class="w-full bg-hq-bg border border-hq-border rounded-xl px-4 py-3 pr-10 text-sm text-hq-text
-                         placeholder-hq-muted/50 focus:outline-none focus:border-hq-accent/50 input-glow
+                         placeholder-hq-muted/70 focus:outline-none focus:border-hq-accent/50 input-glow
                          disabled:opacity-40 disabled:cursor-not-allowed transition-all resize-none overflow-hidden"
                   style="min-height:44px; max-height:200px;" autofocus></textarea>
-                <div class="absolute right-3 bottom-3 text-[10px] font-mono text-hq-muted/30"
+                <div class="absolute right-3 bottom-3 text-[10px] font-mono text-hq-muted/70"
                      x-show="!inputText.trim() && systemStatus !== 'working'">Enter &#9166;</div>
               </div>
               <button x-show="systemStatus !== 'working'" @click="sendMessage()"
@@ -1322,7 +1322,7 @@
               <span x-text="p.name"></span>
             </button>
           </template>
-          <button @click="presets.showModal = true" class="text-[11px] text-hq-muted/50 hover:text-hq-accent transition px-1">
+          <button @click="presets.showModal = true" class="text-[11px] text-hq-muted/80 hover:text-hq-accent transition px-1">
             <svg class="w-3.5 h-3.5 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
           </button>
         </div>
@@ -1400,7 +1400,7 @@
               </tbody>
             </table>
             <template x-if="!performance.agents || performance.agents.length === 0">
-              <div class="text-center py-12 text-hq-muted/50 text-sm">성능 데이터가 없습니다. 작업을 실행하면 통계가 쌓입니다.</div>
+              <div class="text-center py-12 text-hq-muted/80 text-sm">성능 데이터가 없습니다. 작업을 실행하면 통계가 쌓입니다.</div>
             </template>
           </div>
         </div>
@@ -1444,7 +1444,7 @@
                   </div>
                   <div class="text-xs font-semibold text-hq-text truncate" x-text="getAgentName(id)"></div>
                   <div class="text-[10px] text-hq-muted truncate" x-text="agentRoles[id] || id"></div>
-                  <div x-show="agentModels[id]" class="text-[9px] text-hq-muted/60 font-mono truncate" x-text="agentModels[id]"></div>
+                  <div x-show="agentModels[id]" class="text-[9px] text-hq-muted/85 font-mono truncate" x-text="agentModels[id]"></div>
                 </div>
               </template>
             </div>
@@ -1573,13 +1573,13 @@
                     <div class="status-light status-light-off"></div>
                   </div>
                   <div class="text-[11px] font-medium text-hq-muted" x-text="tool.n"></div>
-                  <div class="text-[9px] text-hq-muted/50">외부 도구</div>
+                  <div class="text-[9px] text-hq-muted/80">외부 도구</div>
                 </div>
               </template>
             </div>
           </div>
 
-          <p class="text-center text-[11px] text-hq-muted/40 mt-4">에이전트를 클릭하면 모델, 추론 정도, 소울(성격)을 설정할 수 있습니다</p>
+          <p class="text-center text-[11px] text-hq-muted/80 mt-4">에이전트를 클릭하면 모델, 추론 정도, 소울(성격)을 설정할 수 있습니다</p>
         </div>
       </div>
 
@@ -1731,14 +1731,14 @@
 
       <!-- ═══ Tab: 작업내역 (History) ═══ -->
       <div x-show="viewMode === 'chat' && activeTab === 'history'" x-cloak class="flex-1 flex flex-col overflow-hidden">
-        <div class="px-6 pt-4 pb-3 shrink-0 border-b border-hq-border bg-hq-surface/30">
+        <div class="px-6 pt-4 pb-3 shrink-0 border-b border-hq-border bg-hq-surface/50">
           <div class="flex items-center gap-3 max-w-5xl mx-auto">
             <!-- Search -->
             <div class="flex-1 relative">
               <svg class="w-4 h-4 text-hq-muted absolute left-3 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
               <input type="text" x-model="taskHistory.search" @input.debounce.300ms="loadTaskHistory()"
                      placeholder="작업 검색..."
-                     class="w-full bg-hq-bg border border-hq-border rounded-lg pl-9 pr-4 py-2 text-sm text-hq-text placeholder-hq-muted/50 focus:outline-none focus:border-hq-accent/50">
+                     class="w-full bg-hq-bg border border-hq-border rounded-lg pl-9 pr-4 py-2 text-sm text-hq-text placeholder-hq-muted/70 focus:outline-none focus:border-hq-accent/50">
             </div>
             <!-- Status Filter -->
             <select x-model="taskHistory.filterStatus" @change="loadTaskHistory()"
@@ -1777,7 +1777,7 @@
                   <!-- Bookmark -->
                   <button @click="toggleBookmark(task.task_id)"
                           class="mt-0.5 text-lg transition"
-                          :class="task.bookmarked ? 'text-hq-yellow' : 'text-hq-muted/30 hover:text-hq-yellow/50'">
+                          :class="task.bookmarked ? 'text-hq-yellow' : 'text-hq-muted/70 hover:text-hq-yellow/50'">
                     &#9733;
                   </button>
                   <!-- Content -->
@@ -1835,7 +1835,7 @@
               </button>
             </div>
             <template x-if="!taskHistory.items || taskHistory.items.length === 0">
-              <div class="text-center py-16 text-hq-muted/50 text-sm">작업 내역이 없습니다</div>
+              <div class="text-center py-16 text-hq-muted/80 text-sm">작업 내역이 없습니다</div>
             </template>
           </div>
         </div>
@@ -1883,7 +1883,7 @@
               </div>
             </template>
             <template x-if="!schedules.items || schedules.items.length === 0">
-              <div class="text-center py-16 text-hq-muted/50 text-sm">예약된 작업이 없습니다. 새 예약을 추가해보세요.</div>
+              <div class="text-center py-16 text-hq-muted/80 text-sm">예약된 작업이 없습니다. 새 예약을 추가해보세요.</div>
             </template>
           </div>
         </div>
@@ -1914,7 +1914,7 @@
                       <template x-for="(step, i) in wf.steps" :key="i">
                         <div class="flex items-center gap-1">
                           <span class="text-[10px] bg-hq-accent/10 text-hq-accent rounded px-1.5 py-0.5" x-text="step.name || ('단계 ' + (i+1))"></span>
-                          <span x-show="i < wf.steps.length - 1" class="text-hq-muted/30 text-[10px]">→</span>
+                          <span x-show="i < wf.steps.length - 1" class="text-hq-muted/70 text-[10px]">→</span>
                         </div>
                       </template>
                     </div>
@@ -1935,7 +1935,7 @@
               </div>
             </template>
             <template x-if="!workflows.items || workflows.items.length === 0">
-              <div class="text-center py-16 text-hq-muted/50 text-sm">워크플로우가 없습니다. 새 워크플로우를 만들어보세요.</div>
+              <div class="text-center py-16 text-hq-muted/80 text-sm">워크플로우가 없습니다. 새 워크플로우를 만들어보세요.</div>
             </template>
           </div>
         </div>
@@ -1957,21 +1957,21 @@
               <span class="text-xs text-hq-muted font-mono" x-text="activityLogs.length + '건'"></span>
             </div>
           </div>
-          <div class="text-[11px] text-hq-muted/50 mb-4 bg-hq-surface/50 border border-hq-border/50 rounded-lg px-3 py-2">
+          <div class="text-[11px] text-hq-muted/80 mb-4 bg-hq-surface/50 border border-hq-border/50 rounded-lg px-3 py-2">
             실시간 WebSocket 로그입니다. 페이지 새로고침 시 초기화됩니다.
           </div>
           <div class="space-y-1">
             <template x-for="(log, i) in activityLogs.filter(l => activityLogFilter === 'all' || l.agent_id === activityLogFilter).slice().reverse()" :key="i">
               <div class="flex items-center gap-3 bg-hq-surface/60 border border-hq-border/30 rounded-lg px-4 py-2.5 hover:bg-hq-surface transition">
-                <span class="text-[11px] font-mono text-hq-muted/60 shrink-0 w-16" x-text="log.time"></span>
+                <span class="text-[11px] font-mono text-hq-muted/85 shrink-0 w-16" x-text="log.time"></span>
                 <span class="w-7 h-7 rounded-md flex items-center justify-center text-[9px] font-bold shrink-0"
                       :class="getAgentAvatarClass(log.agent_id)" x-text="getAgentInitials(log.agent_id)"></span>
                 <span class="text-xs font-medium text-hq-cyan/80 shrink-0 w-24 truncate" x-text="getAgentName(log.agent_id)"></span>
-                <span class="text-xs text-hq-text/70 flex-1" x-text="log.action"></span>
+                <span class="text-xs text-hq-text/90 flex-1" x-text="log.action"></span>
               </div>
             </template>
             <template x-if="activityLogs.length === 0">
-              <div class="text-center text-hq-muted/50 py-12">아직 활동 로그가 없습니다. 에이전트에 작업을 지시하면 여기에 표시됩니다.</div>
+              <div class="text-center text-hq-muted/80 py-12">아직 활동 로그가 없습니다. 에이전트에 작업을 지시하면 여기에 표시됩니다.</div>
             </template>
           </div>
         </div>
@@ -1980,7 +1980,7 @@
       <!-- ═══ Knowledge View (지식 관리) ═══ -->
       <div x-show="viewMode === 'chat' && activeTab === 'knowledge'" class="flex-1 overflow-hidden flex bg-grid">
         <!-- Left: File Tree -->
-        <div class="w-64 border-r border-hq-border overflow-y-auto scrollbar-thin p-4 bg-hq-surface/30 shrink-0">
+        <div class="w-64 border-r border-hq-border overflow-y-auto scrollbar-thin p-4 bg-hq-surface/50 shrink-0">
           <div class="flex items-center justify-between mb-3">
             <h3 class="text-xs font-bold text-hq-text uppercase tracking-wider">파일 목록</h3>
             <button @click="knowledge.showCreateForm = !knowledge.showCreateForm" class="text-hq-accent text-xs hover:text-hq-accent/80">+ 새 파일</button>
@@ -1996,14 +1996,14 @@
           <div class="space-y-0.5">
             <template x-for="file in knowledge.files" :key="file.folder + '/' + file.filename">
               <button @click="selectKnowledgeFile(file)"
-                :class="knowledge.selectedFile && knowledge.selectedFile.folder === file.folder && knowledge.selectedFile.filename === file.filename ? 'bg-hq-accent/15 text-hq-accent' : 'text-hq-text/70 hover:bg-hq-surface'"
+                :class="knowledge.selectedFile && knowledge.selectedFile.folder === file.folder && knowledge.selectedFile.filename === file.filename ? 'bg-hq-accent/15 text-hq-accent' : 'text-hq-text/90 hover:bg-hq-surface'"
                 class="w-full text-left px-2 py-1.5 rounded-lg text-xs transition truncate">
-                <span class="text-hq-muted/50" x-text="file.folder + '/'"></span><span x-text="file.filename"></span>
+                <span class="text-hq-muted/80" x-text="file.folder + '/'"></span><span x-text="file.filename"></span>
               </button>
             </template>
           </div>
           <template x-if="!knowledge.loading && knowledge.files.length === 0">
-            <div class="text-xs text-hq-muted/40 text-center py-4">파일이 없습니다</div>
+            <div class="text-xs text-hq-muted/80 text-center py-4">파일이 없습니다</div>
           </template>
         </div>
         <!-- Right: Editor/Viewer -->
@@ -2031,7 +2031,7 @@
             </div>
           </template>
           <template x-if="!knowledge.selectedFile">
-            <div class="flex items-center justify-center h-full text-hq-muted/40 text-sm">왼쪽에서 파일을 선택하세요</div>
+            <div class="flex items-center justify-center h-full text-hq-muted/80 text-sm">왼쪽에서 파일을 선택하세요</div>
           </template>
         </div>
       </div>
@@ -2080,7 +2080,7 @@
               </div>
             </template>
             <template x-if="archive.files.length === 0">
-              <div class="text-center text-hq-muted/50 py-8">아카이브에 보고서가 없습니다</div>
+              <div class="text-center text-hq-muted/80 py-8">아카이브에 보고서가 없습니다</div>
             </template>
           </div>
           <!-- Report Content -->
@@ -2202,7 +2202,7 @@
                 </div>
               </template>
               <template x-if="(Array.isArray(sns.queue) ? sns.queue : sns.queue?.pending_requests || []).length === 0">
-                <div class="text-center text-hq-muted/50 py-8">대기열이 비어있습니다</div>
+                <div class="text-center text-hq-muted/80 py-8">대기열이 비어있습니다</div>
               </template>
             </div>
           </div>
@@ -2213,15 +2213,15 @@
               <template x-for="(event, i) in sns.events" :key="i">
                 <div class="glass border border-hq-border rounded-xl px-4 py-3">
                   <div class="flex items-center gap-3">
-                    <span class="text-[10px] font-mono text-hq-muted/60 shrink-0" x-text="event.time || event.timestamp || '-'"></span>
+                    <span class="text-[10px] font-mono text-hq-muted/85 shrink-0" x-text="event.time || event.timestamp || '-'"></span>
                     <span class="text-xs font-bold text-hq-cyan capitalize" x-text="event.platform || '-'"></span>
-                    <span class="text-xs text-hq-text/70" x-text="event.type || event.event || '-'"></span>
+                    <span class="text-xs text-hq-text/90" x-text="event.type || event.event || '-'"></span>
                   </div>
                   <div x-show="event.data" class="text-[11px] text-hq-muted mt-1 truncate" x-text="typeof event.data === 'string' ? event.data : JSON.stringify(event.data || '').substring(0, 150)"></div>
                 </div>
               </template>
               <template x-if="sns.events.length === 0">
-                <div class="text-center text-hq-muted/50 py-8">이벤트가 없습니다</div>
+                <div class="text-center text-hq-muted/80 py-8">이벤트가 없습니다</div>
               </template>
             </div>
           </div>
@@ -2322,7 +2322,7 @@
           </div>
         </template>
         <template x-if="!memoryModal.items || memoryModal.items.length === 0">
-          <div class="text-center py-8 text-hq-muted/50 text-sm">아직 저장된 기억이 없습니다.</div>
+          <div class="text-center py-8 text-hq-muted/80 text-sm">아직 저장된 기억이 없습니다.</div>
         </template>
       </div>
     </div>
@@ -2373,7 +2373,7 @@
               </div>
             </template>
           </div>
-          <div class="text-[10px] text-hq-muted/50 mt-2">
+          <div class="text-[10px] text-hq-muted/80 mt-2">
             TIP: 명령에 <code class="text-hq-accent">{prev_result}</code>를 넣으면 이전 단계 결과가 자동으로 들어갑니다.
           </div>
         </div>
@@ -2687,7 +2687,7 @@
               <div class="text-center py-6">
                 <div class="text-3xl mb-2">🚫</div>
                 <p class="text-sm text-hq-muted">이 모델은 추론 정도 설정을 지원하지 않습니다.</p>
-                <p class="text-[11px] text-hq-muted/60 mt-1">추론을 지원하는 모델로 변경하면 설정할 수 있습니다.</p>
+                <p class="text-[11px] text-hq-muted/85 mt-1">추론을 지원하는 모델로 변경하면 설정할 수 있습니다.</p>
               </div>
             </template>
 
@@ -2750,7 +2750,7 @@
               <div class="text-center py-8">
                 <div class="text-3xl mb-2">🔓</div>
                 <p class="text-sm text-hq-muted">이 에이전트는 모든 도구를 사용할 수 있습니다.</p>
-                <p class="text-[11px] text-hq-muted/60 mt-1">특정 도구만 허용하려면 설정 파일에서 allowed_tools를 지정하세요.</p>
+                <p class="text-[11px] text-hq-muted/85 mt-1">특정 도구만 허용하려면 설정 파일에서 allowed_tools를 지정하세요.</p>
               </div>
             </template>
             <template x-if="(agentConfigData?.allowed_tools || []).length > 0">
@@ -3642,7 +3642,7 @@
           if (hasWorking) return 'text-hq-yellow';
           const hasDone = ids.some(id => this.activeAgents[id]?.status === 'done');
           if (hasDone) return 'text-hq-green';
-          return 'text-hq-muted/30';
+          return 'text-hq-muted/70';
         },
 
         getSectionStatusText(section) {
@@ -4087,7 +4087,7 @@
             let html = `<div style="margin-left:${indent}px" class="py-1 text-[11px]">`;
             html += `<span class="${color} font-semibold">${icon} ${node.sender_id || ''}</span>`;
             html += `<span class="text-hq-muted ml-1">${(node.detail || node.summary || '').substring(0, 100)}</span>`;
-            if (node.time) html += `<span class="text-hq-muted/50 ml-1 font-mono">${node.time}s</span>`;
+            if (node.time) html += `<span class="text-hq-muted/80 ml-1 font-mono">${node.time}s</span>`;
             html += '</div>';
             if (node.children) {
               for (const child of node.children) {
