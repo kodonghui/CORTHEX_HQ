@@ -137,6 +137,10 @@ agents:
     allowed_tools:
       - "designer"
       - "github_tool"
+      - "uptime_monitor"
+      - "security_scanner"
+      - "log_analyzer"
+      - "api_benchmark"
 
   - agent_id: "frontend_specialist"
     name: "Frontend Specialist"
@@ -193,6 +197,9 @@ agents:
     allowed_tools:
       - "github_tool"
       - "code_quality"
+      - "security_scanner"
+      - "log_analyzer"
+      - "api_benchmark"
 
   - agent_id: "infra_specialist"
     name: "DB/Infrastructure Specialist"
@@ -229,6 +236,10 @@ agents:
     allowed_tools:
       - "github_tool"
       - "code_quality"
+      - "uptime_monitor"
+      - "security_scanner"
+      - "log_analyzer"
+      - "api_benchmark"
 
   - agent_id: "ai_model_specialist"
     name: "AI Model Specialist"
@@ -587,6 +598,11 @@ agents:
       - naver_blog: NAVER_ID/PW 환경변수 필요 (Selenium 자동화)
       - daum_cafe: extra에 cafe_id, board_id 지정. KAKAO_ID/PW 환경변수 필요 (Selenium 자동화)
       - Selenium 기반 플랫폼(naver_blog, daum_cafe)은 CAPTCHA 발생 시 실패할 수 있음
+
+      ## newsletter_builder — 뉴스레터 자동 생성
+      - action=build: 주간/월간 뉴스레터 생성
+      - action=preview: 미리보기
+      뉴스레터 콘텐츠 작성 시 활용하세요.
     capabilities:
       - "콘텐츠 작성"
       - "카피라이팅"
@@ -596,6 +612,7 @@ agents:
       - "translator"
       - "designer"
       - "sns_manager"
+      - "newsletter_builder"
 
   - agent_id: "community_specialist"
     name: "Community Specialist"
@@ -816,6 +833,21 @@ agents:
       - action=query_db: 데이터베이스 조회
       - action=list_pages, count=10: 최근 페이지 목록
       기록물 관리, 출판물 정리에 노션을 적극 활용하세요.
+
+      ### report_generator — 보고서 자동 생성
+      - action=generate: 투자/시장/주간 등 전문 보고서 생성
+      - action=weekly: 주간 종합 보고서 자동 생성
+      - action=templates: 사용 가능한 템플릿 목록
+
+      ### meeting_formatter — 회의록 자동 정리
+      - action=format: 회의 내용을 구조화된 회의록으로 정리
+      - action=action_items: 할일 목록만 추출
+      - action=template: 회의록 양식 제공
+
+      ### newsletter_builder — 뉴스레터 자동 생성
+      - action=build: 주간/월간 뉴스레터 생성
+      - action=preview: 미리보기
+      - action=templates: 템플릿 목록
     capabilities:
       - "출판 기획"
       - "콘텐츠 큐레이션"
@@ -828,6 +860,9 @@ agents:
     allowed_tools:
       - "translator"
       - "notion_api"
+      - "report_generator"
+      - "meeting_formatter"
+      - "newsletter_builder"
 
   - agent_id: "chronicle_specialist"
     name: "Company Chronicle Specialist"
@@ -859,6 +894,10 @@ agents:
       - action=update_page, page_id="ID", content="추가 내용": 기존 페이지 수정
       - action=list_pages, count=10: 최근 기록 목록 조회
       작성한 연대기/빌딩로그를 노션에 저장하여 영구 보관하세요.
+
+      ### meeting_formatter — 회의록 자동 정리
+      - action=format: 회의 내용을 구조화된 회의록으로 정리
+      - action=action_items: 할일 목록만 추출
     capabilities:
       - "빌딩 로그 작성"
       - "의사결정 기록"
@@ -867,6 +906,7 @@ agents:
     allowed_tools:
       - "web_search"
       - "notion_api"
+      - "meeting_formatter"
 
   - agent_id: "editor_specialist"
     name: "Content Editor Specialist"
@@ -906,6 +946,8 @@ agents:
     allowed_tools:
       - "translator"
       - "doc_converter"
+      - "report_generator"
+      - "newsletter_builder"
 
   - agent_id: "archive_specialist"
     name: "Archive Specialist"
@@ -950,3 +992,4 @@ agents:
     allowed_tools:
       - "notion_api"
       - "doc_converter"
+      - "meeting_formatter"

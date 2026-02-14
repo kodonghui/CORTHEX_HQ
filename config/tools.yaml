@@ -53,3 +53,51 @@ tools:
     name_ko: "SNS 매니저"
     description: "Tistory/YouTube/Instagram/LinkedIn/네이버카페/네이버블로그/다음카페 통합 퍼블리싱 (CEO 승인 큐 포함)"
     model_name: "gpt-5-mini"
+
+  # ─── CTO 기술개발처 신규 도구 ───
+
+  - tool_id: "uptime_monitor"
+    name: "Uptime Monitor"
+    name_ko: "웹사이트 상태 모니터"
+    description: "웹사이트 가동 상태 확인, 응답 속도 측정, 다운 감지 및 이력 관리"
+    model_name: "gpt-5-mini"
+
+  - tool_id: "security_scanner"
+    name: "Security Scanner"
+    name_ko: "보안 취약점 스캐너"
+    description: "프로젝트 의존성 패키지의 알려진 보안 취약점(CVE) 검사 (pip-audit / OSV API)"
+    model_name: "gpt-5-mini"
+
+  - tool_id: "log_analyzer"
+    name: "Log Analyzer"
+    name_ko: "에러 로그 분석기"
+    description: "로그 파일 분석 — 에러 유형/빈도/패턴 자동 통계, 시간대별 분포 시각화"
+    model_name: "gpt-5-mini"
+
+  - tool_id: "api_benchmark"
+    name: "API Benchmark"
+    name_ko: "API 성능 측정기"
+    description: "도구/API 응답 속도(P50/P95/P99) 및 성공률 측정, 성능 보고서 생성"
+    model_name: "gpt-5-mini"
+
+  # ─── CPO 출판기록처 신규 도구 ───
+
+  - tool_id: "report_generator"
+    name: "Report Generator"
+    name_ko: "보고서 자동 생성기"
+    description: "투자보고서/시장분석/주간보고 등 전문 마크다운·HTML 보고서 자동 생성"
+    model_name: "gpt-5-mini"
+
+  - tool_id: "meeting_formatter"
+    name: "Meeting Formatter"
+    name_ko: "회의록 자동 정리기"
+    description: "회의 내용에서 결정사항/할일/담당자 자동 추출, 구조화된 회의록 생성"
+    model_name: "gpt-5-mini"
+
+  # ─── 전사 공통 도구 ───
+
+  - tool_id: "newsletter_builder"
+    name: "Newsletter Builder"
+    name_ko: "자동 뉴스레터 생성기"
+    description: "주간/월간 뉴스레터 자동 생성 (뉴스, 트렌드, 커뮤니티, 팁 섹션 포함)"
+    model_name: "gpt-5-mini"
