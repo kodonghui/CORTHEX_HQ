@@ -169,3 +169,35 @@ tools:
     name_ko: "문서 변환"
     description: "pandoc으로 마크다운을 PDF, DOCX, ePub(전자책)으로 변환"
     model_name: "gpt-5-mini"
+
+  # ─── CMO 마케팅고객처 신규 도구 ───
+
+  - tool_id: "seo_analyzer"
+    name: "SEO Analyzer"
+    name_ko: "SEO 분석기"
+    description: "웹사이트 SEO(검색엔진 최적화) 종합 감사 — 메타태그, 콘텐츠, 기술, 성능 14개 항목 100점 만점 점검 및 개선안 제시"
+    model_name: "gpt-5-mini"
+
+  - tool_id: "sentiment_analyzer"
+    name: "Sentiment Analyzer"
+    name_ko: "SNS 감정 분석기"
+    description: "네이버 뉴스/블로그 기반 키워드 여론 분석 — 긍정/부정/중립 비율, 감정 추이, 종합 여론 보고서 생성"
+    model_name: "gpt-5-mini"
+
+  - tool_id: "hashtag_recommender"
+    name: "Hashtag Recommender"
+    name_ko: "해시태그 추천기"
+    description: "SNS 게시물용 해시태그 자동 추천 — 대형/중형/소형 최적 조합, 인스타그램/유튜브/틱톡 플랫폼별 전략"
+    model_name: "gpt-5-mini"
+
+  - tool_id: "email_optimizer"
+    name: "Email Optimizer"
+    name_ko: "이메일 마케팅 최적화기"
+    description: "마케팅 이메일 제목 효과 예측 및 개선 — 8개 규칙 100점 만점 점수 산정, 제목 개선안, A/B 테스트 쌍 생성"
+    model_name: "gpt-5-mini"
+
+  - tool_id: "competitor_sns_monitor"
+    name: "Competitor SNS Monitor"
+    name_ko: "경쟁사 SNS 모니터"
+    description: "경쟁사 SNS 활동 자동 수집·분석 — 네이버블로그/인스타그램/유튜브 감시 목록 관리 및 전략 보고서 생성"
+    model_name: "gpt-5-mini"
