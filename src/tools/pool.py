@@ -59,12 +59,35 @@ class ToolPool:
             "trademark_similarity": "src.tools.trademark_similarity.TrademarkSimilarityTool",
             "contract_reviewer": "src.tools.contract_reviewer.ContractReviewerTool",
             "law_change_monitor": "src.tools.law_change_monitor.LawChangeMonitorTool",
+            # ─── CIO 투자분석처 신규 도구 ───
+            "dart_monitor": "src.tools.dart_monitor.DartMonitorTool",
+            "stock_screener": "src.tools.stock_screener.StockScreenerTool",
+            "backtest_engine": "src.tools.backtest_engine.BacktestEngineTool",
+            "insider_tracker": "src.tools.insider_tracker.InsiderTrackerTool",
+            "dividend_calendar": "src.tools.dividend_calendar.DividendCalendarTool",
             # ─── CMO 마케팅고객처 신규 도구 ───
             "seo_analyzer": "src.tools.seo_analyzer.SeoAnalyzerTool",
             "sentiment_analyzer": "src.tools.sentiment_analyzer.SentimentAnalyzerTool",
             "hashtag_recommender": "src.tools.hashtag_recommender.HashtagRecommenderTool",
             "email_optimizer": "src.tools.email_optimizer.EmailOptimizerTool",
             "competitor_sns_monitor": "src.tools.competitor_sns_monitor.CompetitorSnsMonitorTool",
+            # ─── CSO 사업기획처 신규 도구 ───
+            "competitor_monitor": "src.tools.competitor_monitor.CompetitorMonitorTool",
+            "app_review_scraper": "src.tools.app_review_scraper.AppReviewScraperTool",
+            "youtube_analyzer": "src.tools.youtube_analyzer.YoutubeAnalyzerTool",
+            "subsidy_finder": "src.tools.subsidy_finder.SubsidyFinderTool",
+            "naver_place_scraper": "src.tools.naver_place_scraper.NaverPlaceScraperTool",
+            "scholar_scraper": "src.tools.scholar_scraper.ScholarScraperTool",
+            # ─── CTO 기술개발처 신규 도구 ───
+            "uptime_monitor": "src.tools.uptime_monitor.UptimeMonitorTool",
+            "security_scanner": "src.tools.security_scanner.SecurityScannerTool",
+            "log_analyzer": "src.tools.log_analyzer.LogAnalyzerTool",
+            "api_benchmark": "src.tools.api_benchmark.ApiBenchmarkTool",
+            # ─── CPO 출판기록처 신규 도구 ───
+            "report_generator": "src.tools.report_generator.ReportGeneratorTool",
+            "meeting_formatter": "src.tools.meeting_formatter.MeetingFormatterTool",
+            # ─── 전사 공통 도구 ───
+            "newsletter_builder": "src.tools.newsletter_builder.NewsletterBuilderTool",
         }
         tool_classes: dict[str, type[BaseTool]] = {}
         for tool_id, import_path in _imports.items():
