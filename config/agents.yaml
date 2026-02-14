@@ -80,6 +80,7 @@ agents:
     capabilities:
       - "보고서 요약"
     superior_id: "chief_of_staff"
+    allowed_tools: []  # 도구 사용 안 함 (순수 텍스트 분석·요약 전문)
 
   - agent_id: "schedule_specialist"
     name: "Strategy Specialist"

@@ -72,14 +72,14 @@
     * { box-sizing: border-box; }
     body { font-family: 'Inter', sans-serif; }
 
-    /* ═══ 다크 모드 배경 그라데이션 (확실한 차이) ═══ */
+    /* ═══ 다크 모드 배경 (단색) ═══ */
     .dark body {
-      background: linear-gradient(135deg, rgb(15, 23, 42), rgb(30, 41, 59), rgb(51, 65, 85));
+      background: rgb(15, 23, 42);
     }
 
-    /* ═══ 라이트 모드 배경 그라데이션 (확실한 차이) ═══ */
+    /* ═══ 라이트 모드 배경 (단색) ═══ */
     html:not(.dark) body {
-      background: linear-gradient(135deg, rgb(248, 250, 252), rgb(226, 232, 240), rgb(203, 213, 225));
+      background: rgb(248, 250, 252);
     }
 
     .font-mono { font-family: 'JetBrains Mono', monospace; }
@@ -2821,9 +2821,9 @@
             <p class="text-[11px] text-hq-muted/70 mb-4">이 에이전트가 작업할 때 쓸 수 있는 도구 목록입니다.</p>
             <template x-if="(agentConfigData?.allowed_tools || []).length === 0">
               <div class="text-center py-8">
-                <div class="text-3xl mb-2">🔓</div>
-                <p class="text-sm text-hq-muted">이 에이전트는 모든 도구를 사용할 수 있습니다.</p>
-                <p class="text-[11px] text-hq-muted/85 mt-1">특정 도구만 허용하려면 설정 파일에서 allowed_tools를 지정하세요.</p>
+                <div class="text-3xl mb-2">🚫</div>
+                <p class="text-sm text-hq-muted">이 에이전트는 도구를 사용하지 않습니다.</p>
+                <p class="text-[11px] text-hq-muted/85 mt-1">순수 분석·요약 전문 에이전트입니다.</p>
               </div>
             </template>
             <template x-if="(agentConfigData?.allowed_tools || []).length > 0">

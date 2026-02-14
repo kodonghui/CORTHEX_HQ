@@ -8,6 +8,7 @@ import asyncio
 import json
 import logging
 import os
+import subprocess
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
@@ -30,6 +31,22 @@ app = FastAPI(title="CORTHEX HQ Mini Server")
 # ── HTML 서빙 ──
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 TEMPLATE_DIR = os.path.join(BASE_DIR, "templates")
+
+def get_build_number() -> str:
+    """Git 커밋 개수로 빌드 번호 생성 (저장한 횟수 = 빌드 번호)"""
+    try:
+        result = subprocess.run(
+            ["git", "rev-list", "--count", "HEAD"],
+            capture_output=True,
+            text=True,
+            cwd=Path(BASE_DIR).parent,  # 프로젝트 루트 디렉토리
+            timeout=5
+        )
+        if result.returncode == 0:
+            return result.stdout.strip()
+        return "dev"
+    except Exception:
+        return "dev"
 
 # ── 설정 파일에서 에이전트/도구 정보 로드 ──
 CONFIG_DIR = Path(BASE_DIR).parent / "config"
@@ -70,7 +87,13 @@ _TOOLS_LIST: list[dict] = _load_tools_yaml()
 async def index():
     html_path = os.path.join(TEMPLATE_DIR, "index.html")
     with open(html_path, "r", encoding="utf-8") as f:
-        return HTMLResponse(content=f.read())
+        html_content = f.read()
+
+    # BUILD_NUMBER_PLACEHOLDER를 실제 빌드 번호로 치환
+    build_number = get_build_number()
+    html_content = html_content.replace("BUILD_NUMBER_PLACEHOLDER", build_number)
+
+    return HTMLResponse(content=html_content)
 
 
 # ── 에이전트 목록 ──
