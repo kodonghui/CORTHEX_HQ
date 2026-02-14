@@ -479,6 +479,10 @@ async def get_dashboard() -> dict:
         "agent_count": agent_count,
         "recent_completed": [_task_to_dict(t) for t in recent],
         "system_health": "ok" if orchestrator else "not_initialized",
+        "api_keys": {
+            "openai": bool(os.getenv("OPENAI_API_KEY", "")),
+            "anthropic": bool(os.getenv("ANTHROPIC_API_KEY", "")),
+        },
     }
 
 
@@ -551,14 +555,14 @@ async def get_conversation() -> list[dict]:
 
 @app.get("/api/tools")
 async def get_tools() -> list[dict]:
-    """Return available tools."""
-    if not orchestrator:
+    """Return available tools (orchestrator 없어도 tools.yaml에서 직접 로드)."""
+    try:
+        tools_cfg = yaml.safe_load(
+            (CONFIG_DIR / "tools.yaml").read_text(encoding="utf-8")
+        )
+        return tools_cfg.get("tools", [])
+    except Exception:
         return []
-    # Access tool pool through any agent... or rebuild from config
-    tools_cfg = yaml.safe_load(
-        (CONFIG_DIR / "tools.yaml").read_text(encoding="utf-8")
-    )
-    return tools_cfg.get("tools", [])
 
 
 @app.get("/api/quality")
