@@ -264,6 +264,39 @@ agents:
       ## LEET 해설 서베이
       leet_survey 도구 또는 시장조사 Specialist를 통해
       6개 커뮤니티에서 LEET 해설 부정의견을 수집·분석할 수 있습니다.
+
+      ## CSO 전용 도구
+
+      ### competitor_monitor — 경쟁사 웹사이트 변화 감지
+      - action=add, url="URL", name="경쟁사명": 감시 대상 추가
+      - action=check: 등록된 모든 사이트 변경사항 확인
+      - action=diff, url="URL": 특정 사이트 변경 상세 비교
+      - action=list: 감시 중인 사이트 목록
+
+      ### app_review_scraper — 앱 리뷰 수집/분석
+      - action=reviews, app_id="com.app.id": 구글 플레이 리뷰 수집
+      - action=analyze, app_id="com.app.id": 리뷰 분석 (불만/칭찬/개선 우선순위)
+      - action=compare, app_ids="com.app1,com.app2": 앱 간 비교
+
+      ### youtube_analyzer — 유튜브 채널/검색 분석
+      - action=channel, channel_url="URL": 채널 영상 분석
+      - action=search, query="키워드": 유튜브 검색 결과 분석
+      - action=trending: 인기 동영상 트렌드
+
+      ### subsidy_finder — 정부 지원금/보조금 검색
+      - action=search, keyword="AI 교육": 지원사업 검색
+      - action=detail, url="URL": 지원사업 상세 정보
+      - action=match, company_type="창업3년이내", industry="교육": 우리 회사 맞춤 추천
+
+      ### naver_place_scraper — 네이버 플레이스 리뷰
+      - action=search, query="LEET 학원 서울": 장소 검색
+      - action=reviews, place_id="ID": 리뷰 수집
+      - action=analyze, place_id="ID": 리뷰 분석
+
+      ### scholar_scraper — 학술 논문 검색
+      - action=search, query="법학적성시험": 논문 검색
+      - action=cite, title="논문 제목": 인용 정보
+      - action=trend, query="키워드": 연도별 논문 발표 추이
     capabilities:
       - "사업 전략"
       - "시장 분석"
@@ -275,6 +308,12 @@ agents:
     superior_id: "chief_of_staff"
     allowed_tools:
       - "leet_survey"
+      - "competitor_monitor"
+      - "app_review_scraper"
+      - "youtube_analyzer"
+      - "subsidy_finder"
+      - "naver_place_scraper"
+      - "scholar_scraper"
 
   - agent_id: "market_research_specialist"
     name: "Market Research Specialist"
@@ -330,6 +369,31 @@ agents:
       - action=search, query="인구 통계": 데이터셋 검색
       - action=stats, category="인구": 미리 정의된 주요 통계 조회
       시장 규모 추정, TAM/SAM/SOM 분석 시 공공 통계를 활용하세요.
+
+      ## 경쟁사/시장 분석 도구
+
+      ### competitor_monitor — 경쟁사 웹사이트 변화 감지
+      - action=add, url="URL", name="경쟁사명": 감시 대상 추가
+      - action=check: 모든 사이트 변경사항 확인
+      - action=diff, url="URL": 변경 상세 비교
+
+      ### app_review_scraper — 앱 리뷰 수집/분석
+      - action=reviews, app_id="com.app.id": 구글 플레이 리뷰 수집
+      - action=analyze, app_id="com.app.id": 리뷰 분석
+      - action=compare, app_ids="com.app1,com.app2": 앱 간 비교
+
+      ### youtube_analyzer — 유튜브 분석
+      - action=channel, channel_url="URL": 채널 영상 분석
+      - action=search, query="키워드": 검색 결과 분석
+
+      ### naver_place_scraper — 네이버 플레이스 리뷰
+      - action=search, query="LEET 학원": 장소 검색
+      - action=reviews, place_id="ID": 리뷰 수집
+      - action=analyze, place_id="ID": 리뷰 분석
+
+      ### scholar_scraper — 학술 논문 검색
+      - action=search, query="키워드": 논문 검색
+      - action=trend, query="키워드": 연도별 트렌드
     capabilities:
       - "시장 조사"
       - "경쟁 분석"
@@ -343,6 +407,11 @@ agents:
       - "leet_survey"
       - "naver_datalab"
       - "public_data"
+      - "competitor_monitor"
+      - "app_review_scraper"
+      - "youtube_analyzer"
+      - "naver_place_scraper"
+      - "scholar_scraper"
 
   - agent_id: "business_plan_specialist"
     name: "Business Plan Specialist"
@@ -361,12 +430,24 @@ agents:
       - action=trend, keywords="키워드1,키워드2": 검색량 추이 비교 (최대 5개)
       - action=shopping, keywords="키워드": 쇼핑 카테고리 트렌드
       사업계획서 작성 시 시장 관심도 데이터를 근거로 활용하세요.
+
+      ### subsidy_finder — 정부 지원금/보조금 검색
+      - action=search, keyword="AI 교육": 지원사업 검색
+      - action=match, company_type="창업3년이내", industry="교육": 맞춤 추천
+      사업계획서에 정부 지원 활용 전략을 포함하세요.
+
+      ### scholar_scraper — 학술 논문 검색
+      - action=search, query="키워드": 논문 검색
+      - action=trend, query="키워드": 연도별 트렌드
+      사업계획서의 시장 근거로 학술 논문을 활용하세요.
     capabilities:
       - "사업계획서 작성"
       - "비즈니스 모델"
     superior_id: "cso_manager"
     allowed_tools:
       - "naver_datalab"
+      - "subsidy_finder"
+      - "scholar_scraper"
 
   - agent_id: "financial_model_specialist"
     name: "Financial Modeling Specialist"
@@ -386,6 +467,11 @@ agents:
       - action=search, query="인구 통계": 데이터셋 검색
       - action=stats, category="인구": 주요 통계 (인구, 고용, 물가, 교육)
       재무모델 수립 시 시장 규모, 인구 통계 등 공공 데이터를 근거로 활용하세요.
+
+      ### subsidy_finder — 정부 지원금/보조금 검색
+      - action=search, keyword="AI 교육": 지원사업 검색
+      - action=match, company_type="창업3년이내", industry="교육": 맞춤 추천
+      재무모델에 정부 지원금/보조금 수입을 반영하세요.
     capabilities:
       - "재무 모델링"
       - "매출 예측"
@@ -394,6 +480,7 @@ agents:
     allowed_tools:
       - "tax_accountant"
       - "public_data"
+      - "subsidy_finder"
 
   # ─── 법무·IP처 (CLO) - 비서실장 직속 ───
 

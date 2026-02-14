@@ -40,6 +40,13 @@ class ToolPool:
             "sns_manager": "src.tools.sns.sns_manager.SNSManager",
             "daum_cafe": "src.tools.daum_cafe.DaumCafeTool",
             "leet_survey": "src.tools.leet_survey.LeetSurveyTool",
+            # CSO 사업기획처 신규 도구
+            "competitor_monitor": "src.tools.competitor_monitor.CompetitorMonitorTool",
+            "app_review_scraper": "src.tools.app_review_scraper.AppReviewScraperTool",
+            "youtube_analyzer": "src.tools.youtube_analyzer.YoutubeAnalyzerTool",
+            "subsidy_finder": "src.tools.subsidy_finder.SubsidyFinderTool",
+            "naver_place_scraper": "src.tools.naver_place_scraper.NaverPlaceScraperTool",
+            "scholar_scraper": "src.tools.scholar_scraper.ScholarScraperTool",
         }
         tool_classes: dict[str, type[BaseTool]] = {}
         for tool_id, import_path in _imports.items():

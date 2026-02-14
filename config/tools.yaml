@@ -53,3 +53,41 @@ tools:
     name_ko: "SNS 매니저"
     description: "Tistory/YouTube/Instagram/LinkedIn/네이버카페/네이버블로그/다음카페 통합 퍼블리싱 (CEO 승인 큐 포함)"
     model_name: "gpt-5-mini"
+
+  # ─── CSO 사업기획처 신규 도구 ───
+
+  - tool_id: "competitor_monitor"
+    name: "Competitor Monitor"
+    name_ko: "경쟁사 웹사이트 감지기"
+    description: "경쟁사 웹사이트 변경사항 자동 감지 (URL 등록 → 스냅샷 비교 → 변경 분석)"
+    model_name: "gpt-5-mini"
+
+  - tool_id: "app_review_scraper"
+    name: "App Review Scraper"
+    name_ko: "앱 리뷰 수집기"
+    description: "구글 플레이스토어 앱 리뷰 대량 수집 + 별점 분포·키워드·추이 분석"
+    model_name: "gpt-5-mini"
+
+  - tool_id: "youtube_analyzer"
+    name: "YouTube Analyzer"
+    name_ko: "유튜브 분석기"
+    description: "유튜브 채널 영상 데이터 수집 + 콘텐츠 전략·벤치마킹 분석"
+    model_name: "gpt-5-mini"
+
+  - tool_id: "subsidy_finder"
+    name: "Subsidy Finder"
+    name_ko: "정부 지원금 찾기"
+    description: "기업마당/K-Startup 정부 지원사업 검색 + 우리 회사 조건 매칭·신청 전략"
+    model_name: "gpt-5-mini"
+
+  - tool_id: "naver_place_scraper"
+    name: "Naver Place Scraper"
+    name_ko: "네이버 플레이스 리뷰 수집기"
+    description: "네이버 플레이스(지도) 매장/학원 리뷰 수집 + 만족·불만 요인 분석"
+    model_name: "gpt-5-mini"
+
+  - tool_id: "scholar_scraper"
+    name: "Scholar Scraper"
+    name_ko: "학술 논문 검색기"
+    description: "Google Scholar 논문 검색 + 연도별 트렌드·인용 분석, 사업 활용 학술 근거 제공"
+    model_name: "gpt-5-mini"
