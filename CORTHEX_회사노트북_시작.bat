@@ -4,32 +4,30 @@ REM ============================================
 REM CORTHEX HQ - 회사노트북 원클릭 시작
 REM ============================================
 
-REM CORTHEX_HQ 폴더 경로 (회사노트북용)
-set "CORTHEX_DIR=C:\Users\USER\Desktop\PJ0_CORTHEX\CORTHEX_HQ\CORTHEX_HQ"
+REM 이 bat파일이 있는 폴더를 자동으로 프로젝트 폴더로 인식
+REM (어떤 컴퓨터에서든 자동으로 작동)
+set "CORTHEX_DIR=%~dp0"
+if "%CORTHEX_DIR:~-1%"=="\" set "CORTHEX_DIR=%CORTHEX_DIR:~0,-1%"
 
 title CORTHEX HQ
 
 echo.
 echo   ==========================================
-echo     CORTHEX HQ - 원클릭 시작 (회사노트북)
+echo     CORTHEX HQ - 원클릭 시작
 echo   ==========================================
 echo.
 
 REM -- 1단계: 프로젝트 폴더 확인 --
-if not exist "%CORTHEX_DIR%" (
+cd /d "%CORTHEX_DIR%"
+if not exist "pyproject.toml" (
     echo   [실패] 프로젝트 폴더를 찾을 수 없습니다!
     echo.
-    echo   현재 설정된 경로:
-    echo   %CORTHEX_DIR%
-    echo.
-    echo   이 파일을 메모장으로 열어서
-    echo   CORTHEX_DIR= 뒤의 경로를 수정하세요.
+    echo   이 bat 파일을 CORTHEX_HQ 폴더 안에 넣어주세요.
+    echo   (pyproject.toml 파일이 있는 폴더)
     echo.
     pause
     exit /b 1
 )
-
-cd /d "%CORTHEX_DIR%"
 echo   [OK] 프로젝트 폴더 확인 완료
 echo        %CORTHEX_DIR%
 echo.
