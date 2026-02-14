@@ -29,13 +29,14 @@
 2. **텔레그램 모바일 지휘 시스템** - 텔레그램으로 AI 에이전트를 제어하는 기능
 3. **부서별 전문가 도구** - CTO, CSO, CLO, CIO, CMO 등 각 부서별 AI 도구 구현
 4. **프론트엔드 UX/UI 전수 검사 및 수정** - 디자인 시스템(hq-* 컬러 토큰) 적용
-5. **외부 접속 기능** (`CORTHEX_외부접속_시작.bat`) - Cloudflare Tunnel로 어디서든 웹 접속 가능 (회사컴 켜져 있어야 함)
-6. **Oracle Cloud 24시간 서버** - 무료 서버(VM.Standard.E2.1.Micro)에 웹사이트 배포 완료
+5. **줄바꿈 자동 통일 설정** (`.gitattributes`) - 윈도우에서 작업해도 줄바꿈 충돌 안 생기게 설정
+6. **외부 접속 기능** (`CORTHEX_외부접속_시작.bat`) - Cloudflare Tunnel로 어디서든 웹 접속 가능 (회사컴 켜져 있어야 함)
+7. **Oracle Cloud 24시간 서버** - 무료 서버(VM.Standard.E2.1.Micro)에 웹사이트 배포 완료
    - 서버 IP: `168.107.28.100`
    - 운영체제: Ubuntu 24.04
    - 웹서버: nginx + 경량 미니 백엔드(FastAPI)
    - 회사 컴퓨터 꺼져도 대시보드 화면 접속 가능
-7. **GitHub Actions 자동 배포** - main에 코드 합쳐지면 서버에 자동 반영
+8. **GitHub Actions 자동 배포** - main에 코드 합쳐지면 서버에 자동 반영
    - `.github/workflows/deploy.yml` 워크플로우
    - web/ 폴더 변경 시에만 실행
    - GitHub Secrets에 SSH 키, 서버 IP 등록 완료
