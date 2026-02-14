@@ -4955,12 +4955,12 @@
         },
 
         getToolDisplayName(toolId) {
-          const t = (this.toolsList || []).find(t => t.name === toolId);
+          const t = (this.toolsList || []).find(t => t.tool_id === toolId || t.name === toolId);
           return t?.name_ko || toolId;
         },
 
         getToolDescription(toolId) {
-          const t = (this.toolsList || []).find(t => t.name === toolId);
+          const t = (this.toolsList || []).find(t => t.tool_id === toolId || t.name === toolId);
           return t?.description || '';
         },
 
