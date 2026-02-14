@@ -1,12 +1,14 @@
 @echo off
-chcp 65001 >nul 2>&1
 REM ============================================
 REM CORTHEX HQ - 원클릭 시작 (모든 컴퓨터 공용)
 REM ============================================
 
-REM 이 bat파일이 있는 폴더를 자동으로 프로젝트 폴더로 인식
-set "CORTHEX_DIR=%~dp0"
-if "%CORTHEX_DIR:~-1%"=="\" set "CORTHEX_DIR=%CORTHEX_DIR:~0,-1%"
+REM 이 bat파일이 있는 폴더로 이동 (pushd가 가장 안정적)
+pushd "%~dp0"
+set "CORTHEX_DIR=%CD%"
+
+REM 한글 표시를 위한 UTF-8 설정 (폴더 이동 후에 해야 안전)
+chcp 65001 >nul 2>&1
 
 title CORTHEX HQ
 
@@ -17,14 +19,14 @@ echo   ==========================================
 echo.
 
 REM -- 1단계: 프로젝트 폴더 확인 --
-cd /d "%CORTHEX_DIR%"
-if not exist "pyproject.toml" (
+if not exist "%CORTHEX_DIR%\pyproject.toml" (
     echo   [실패] 프로젝트 폴더를 찾을 수 없습니다!
     echo.
     echo   이 bat 파일을 CORTHEX_HQ 폴더 안에 넣어주세요.
-    echo   (pyproject.toml 파일이 있는 폴더)
+    echo   ^(pyproject.toml 파일이 있는 폴더^)
     echo.
     pause
+    popd
     exit /b 1
 )
 echo   [OK] 프로젝트 폴더 확인 완료
@@ -234,4 +236,5 @@ echo.
 
 python run_web.py
 
+popd
 pause
