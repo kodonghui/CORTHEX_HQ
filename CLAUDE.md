@@ -45,5 +45,13 @@
 - 전문 용어는 절대 그냥 쓰지 말고, 반드시 괄호 안에 쉬운 설명을 붙일 것
 - CEO가 읽고 바로 이해할 수 있는 수준으로 작성할 것. 이해 못 하면 의미 없음
 
+## 기억력 보완 규칙 (대화 맥락 유지)
+- **세션 시작 시**: 반드시 `docs/project-status.md` 파일을 먼저 읽을 것. 이 파일에 프로젝트의 현재 상태가 적혀 있음
+- **작업 완료 시**: `docs/project-status.md` 파일을 최신 상태로 업데이트할 것
+  - "현재 완료된 주요 기능", "진행 중인 작업", "다음에 할 일" 섹션을 갱신
+- **대화가 길어질 때**: 중간중간 핵심 내용을 요약해서 대화에 다시 언급할 것
+- **중요한 결정이 내려졌을 때**: `docs/project-status.md`의 "중요한 결정 사항" 섹션에 즉시 기록할 것
+- 이 규칙의 목적: CEO와 대화 중에 클로드가 맥락을 잃어버리는 것을 방지하기 위함
+
 ## 환경 설정
 - gh CLI가 없으면 세션 시작 시 설치: `(type gh > /dev/null 2>&1) || (curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null && sudo apt update && sudo apt install gh -y)`
