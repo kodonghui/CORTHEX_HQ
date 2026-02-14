@@ -42,8 +42,8 @@
     /* Scrollbar */
     .scrollbar-thin::-webkit-scrollbar { width: 5px; }
     .scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
-    .scrollbar-thin::-webkit-scrollbar-thumb { background: #2a3a5c; border-radius: 10px; }
-    .scrollbar-thin::-webkit-scrollbar-thumb:hover { background: #3b4f7a; }
+    .scrollbar-thin::-webkit-scrollbar-thumb { background: #475569; border-radius: 10px; }
+    .scrollbar-thin::-webkit-scrollbar-thumb:hover { background: #64748b; }
 
     /* Animations */
     @keyframes fadeInUp {
@@ -268,8 +268,9 @@
     .desk-card {
       border-radius: 12px; padding: 12px; cursor: pointer;
       transition: all 0.2s ease; position: relative; min-width: 100px;
+      border: 1px solid rgba(71, 85, 105, 0.5);
     }
-    .desk-card:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,0.25); }
+    .desk-card:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,0.25); border-color: rgba(96, 165, 250, 0.4); }
     .status-light { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
     .status-light-working { background: #10b981; box-shadow: 0 0 10px rgba(16,185,129,0.6); animation: pulseDot 1.5s ease-in-out infinite; }
     .status-light-idle { background: #f59e0b; box-shadow: 0 0 6px rgba(245,158,11,0.4); }
@@ -498,7 +499,7 @@
               CEO
             </div>
             <div>
-              <div class="text-sm font-semibold text-white">CEO</div>
+              <div class="text-sm font-semibold text-hq-text">CEO</div>
               <div class="text-[10px] text-hq-muted">총괄 사령관</div>
             </div>
           </div>
@@ -698,7 +699,7 @@
             <span class="text-[10px] font-mono text-hq-muted ml-auto">5개</span>
           </button>
           <div x-show="expanded.tools" x-collapse class="ml-10 space-y-0.5 mt-1">
-            <template x-for="t in [{n:'변리사', c:'text-amber-400'}, {n:'세무사', c:'text-emerald-400'}, {n:'디자이너', c:'text-pink-400'}, {n:'번역가', c:'text-sky-400'}, {n:'웹검색', c:'text-orange-400'}]" :key="t.n">
+            <template x-for="t in [{n:'변리사', c:'text-hq-yellow'}, {n:'세무사', c:'text-hq-green'}, {n:'디자이너', c:'text-hq-purple'}, {n:'번역가', c:'text-hq-cyan'}, {n:'웹검색', c:'text-hq-red'}]" :key="t.n">
               <div class="flex items-center gap-2 px-2 py-1 rounded-md hover:bg-white/[0.10] transition-colors">
                 <span class="w-1.5 h-1.5 rounded-full bg-hq-muted/50"></span>
                 <span class="text-xs text-hq-muted" :class="t.c" x-text="t.n"></span>
@@ -785,7 +786,7 @@
                   <svg class="w-4.5 h-4.5 text-hq-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
                 </div>
                 <div>
-                  <div class="text-xl font-bold text-white" x-text="dashboard.todayTasks || 0"></div>
+                  <div class="text-xl font-bold text-hq-text" x-text="dashboard.todayTasks || 0"></div>
                   <div class="text-[10px] text-hq-muted uppercase tracking-wider">오늘 작업</div>
                 </div>
               </div>
@@ -801,7 +802,7 @@
                   <svg class="w-4.5 h-4.5 text-hq-green" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                 </div>
                 <div>
-                  <div class="text-xl font-bold text-white" x-text="'$' + (dashboard.totalCost || 0).toFixed(4)"></div>
+                  <div class="text-xl font-bold text-hq-text" x-text="'$' + (dashboard.totalCost || 0).toFixed(4)"></div>
                   <div class="text-[10px] text-hq-muted uppercase tracking-wider">누적 비용</div>
                 </div>
               </div>
@@ -813,7 +814,7 @@
                   <svg class="w-4.5 h-4.5 text-hq-purple" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
                 </div>
                 <div>
-                  <div class="text-xl font-bold text-white" x-text="dashboard.agentCount || 0"></div>
+                  <div class="text-xl font-bold text-hq-text" x-text="dashboard.agentCount || 0"></div>
                   <div class="text-[10px] text-hq-muted uppercase tracking-wider">에이전트</div>
                 </div>
               </div>
@@ -826,7 +827,7 @@
                   <svg class="w-4.5 h-4.5" :class="dashboard.systemHealth === 'ok' ? 'text-hq-green' : 'text-hq-red'" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                 </div>
                 <div>
-                  <div class="text-xl font-bold text-white" x-text="dashboard.systemHealth === 'ok' ? '정상' : '점검'"></div>
+                  <div class="text-xl font-bold text-hq-text" x-text="dashboard.systemHealth === 'ok' ? '정상' : '점검'"></div>
                   <div class="text-[10px] text-hq-muted uppercase tracking-wider">시스템</div>
                 </div>
               </div>
@@ -839,7 +840,7 @@
 
           <!-- Recent Completed Tasks -->
           <div class="glass border border-hq-border rounded-xl p-5 mb-6">
-            <h2 class="text-sm font-bold text-white mb-4 flex items-center gap-2">
+            <h2 class="text-sm font-bold text-hq-text mb-4 flex items-center gap-2">
               <svg class="w-4 h-4 text-hq-green" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
               최근 완료 작업
             </h2>
@@ -867,7 +868,7 @@
 
           <!-- Quick Commands -->
           <div class="glass border border-hq-border rounded-xl p-5">
-            <h2 class="text-sm font-bold text-white mb-4 flex items-center gap-2">
+            <h2 class="text-sm font-bold text-hq-text mb-4 flex items-center gap-2">
               <svg class="w-4 h-4 text-hq-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
               빠른 명령
             </h2>
@@ -875,7 +876,7 @@
               <template x-for="p in presets.items" :key="p.name">
                 <button @click="switchTab('command'); $nextTick(() => sendPreset(p.command))"
                         class="text-left p-3 bg-hq-bg/50 rounded-lg hover:bg-hq-bg border border-transparent hover:border-hq-accent/20 transition group">
-                  <div class="text-sm font-medium text-hq-text group-hover:text-white" x-text="p.name"></div>
+                  <div class="text-sm font-medium text-hq-text group-hover:text-hq-text" x-text="p.name"></div>
                   <div class="text-[11px] text-hq-muted mt-1 truncate" x-text="p.command"></div>
                 </button>
               </template>
@@ -952,7 +953,7 @@
                         <div class="w-7 h-7 rounded-lg flex items-center justify-center" :class="'bg-' + preset.color + '/15'">
                           <span class="w-3 h-3 rounded-full" :class="'bg-' + preset.color"></span>
                         </div>
-                        <span class="text-sm font-semibold text-hq-text group-hover:text-white transition-colors" x-text="preset.name"></span>
+                        <span class="text-sm font-semibold text-hq-text group-hover:text-hq-text transition-colors" x-text="preset.name"></span>
                       </div>
                       <p class="text-[11px] text-hq-muted leading-relaxed" x-text="preset.desc"></p>
                     </div>
@@ -964,13 +965,13 @@
               <!-- Add Preset Button & Form -->
               <div class="mt-3 max-w-lg w-full">
                 <button x-show="!showAddPreset" @click="showAddPreset = true"
-                  class="text-xs text-hq-accent hover:text-blue-400 transition">+ 새 프리셋 추가</button>
+                  class="text-xs text-hq-accent hover:text-hq-accent/80 transition">+ 새 프리셋 추가</button>
                 <div x-show="showAddPreset" x-transition class="glass border border-hq-border rounded-xl p-3 space-y-2">
                   <input x-model="newPresetName" placeholder="프리셋 이름" class="w-full bg-hq-bg border border-hq-border rounded-lg px-3 py-1.5 text-sm text-hq-text placeholder-hq-muted/40">
                   <input x-model="newPresetCommand" placeholder="명령어" class="w-full bg-hq-bg border border-hq-border rounded-lg px-3 py-1.5 text-sm text-hq-text placeholder-hq-muted/40">
                   <div class="flex gap-2">
                     <button @click="addPreset()" class="bg-hq-accent hover:bg-blue-600 text-white rounded-lg px-3 py-1 text-xs">추가</button>
-                    <button @click="showAddPreset = false; newPresetName = ''; newPresetCommand = ''" class="bg-gray-700 hover:bg-gray-600 text-gray-300 rounded-lg px-3 py-1 text-xs">취소</button>
+                    <button @click="showAddPreset = false; newPresetName = ''; newPresetCommand = ''" class="bg-hq-surface hover:bg-hq-panel text-hq-text rounded-lg px-3 py-1 text-xs">취소</button>
                   </div>
                 </div>
               </div>
@@ -1078,7 +1079,7 @@
                             </button>
                           </div>
                           <button x-show="isLongContent(msg.content)" @click="msg.collapsed = !msg.collapsed"
-                            class="text-hq-muted hover:text-white transition p-1" title="접기/펼치기">
+                            class="text-hq-muted hover:text-hq-text transition p-1" title="접기/펼치기">
                             <svg class="w-4 h-4 transition-transform" :class="msg.collapsed ? '' : 'rotate-180'" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"/></svg>
                           </button>
                         </div>
@@ -1192,13 +1193,13 @@
       <!-- ═══ Tab: 성능 (Performance) ═══ -->
       <div x-show="viewMode === 'chat' && activeTab === 'performance'" x-cloak class="flex-1 overflow-y-auto scrollbar-thin p-6 bg-grid">
         <div class="max-w-5xl mx-auto fade-in-up">
-          <h1 class="text-xl font-bold text-white mb-1">에이전트 성능</h1>
+          <h1 class="text-xl font-bold text-hq-text mb-1">에이전트 성능</h1>
           <p class="text-sm text-hq-muted mb-6">에이전트별 작업 통계를 확인하세요</p>
 
           <!-- Performance Summary Cards -->
           <div class="grid grid-cols-4 gap-4 mb-6">
             <div class="glass border border-hq-border rounded-xl p-4">
-              <div class="text-xl font-bold text-white" x-text="performance.totalCalls || 0"></div>
+              <div class="text-xl font-bold text-hq-text" x-text="performance.totalCalls || 0"></div>
               <div class="text-[10px] text-hq-muted uppercase">총 LLM 호출</div>
             </div>
             <div class="glass border border-hq-border rounded-xl p-4">
@@ -1206,7 +1207,7 @@
               <div class="text-[10px] text-hq-muted uppercase">총 비용</div>
             </div>
             <div class="glass border border-hq-border rounded-xl p-4">
-              <div class="text-xl font-bold text-white" x-text="performance.totalTasks || 0"></div>
+              <div class="text-xl font-bold text-hq-text" x-text="performance.totalTasks || 0"></div>
               <div class="text-[10px] text-hq-muted uppercase">총 작업</div>
             </div>
             <div class="glass border border-hq-border rounded-xl p-4">
@@ -1450,7 +1451,7 @@
           <!-- Header -->
           <div class="flex items-center justify-between mb-6">
             <div>
-              <h1 class="text-xl font-bold text-white mb-1">대시보드</h1>
+              <h1 class="text-xl font-bold text-hq-text mb-1">대시보드</h1>
               <p class="text-sm text-hq-muted">실시간 운영 현황</p>
             </div>
             <button @click="loadDashboard()" class="bg-hq-surface border border-hq-border rounded-lg px-3 py-1.5 text-xs text-hq-muted hover:text-hq-text transition flex items-center gap-1.5">
@@ -1477,7 +1478,7 @@
               <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 <div class="glass border border-hq-border rounded-xl p-4">
                   <div class="text-xs text-hq-muted mb-1">오늘 작업</div>
-                  <div class="text-2xl font-bold text-white" x-text="dashboard.todayTasks"></div>
+                  <div class="text-2xl font-bold text-hq-text" x-text="dashboard.todayTasks"></div>
                 </div>
                 <div class="glass border border-hq-border rounded-xl p-4">
                   <div class="text-xs text-hq-muted mb-1">완료</div>
@@ -1515,7 +1516,7 @@
 
               <!-- Budget Section -->
               <div class="glass border border-hq-border rounded-xl p-5" x-show="budget && (budget.daily_limit || budget.monthly_limit)">
-                <h3 class="text-sm font-bold text-white mb-4 flex items-center gap-2">
+                <h3 class="text-sm font-bold text-hq-text mb-4 flex items-center gap-2">
                   <span class="text-hq-yellow">$</span> 예산 현황
                 </h3>
                 <div class="space-y-4">
@@ -1548,7 +1549,7 @@
 
               <!-- Quality Section -->
               <div class="glass border border-hq-border rounded-xl p-5" x-show="quality && quality.total_reviews">
-                <h3 class="text-sm font-bold text-white mb-4 flex items-center gap-2">
+                <h3 class="text-sm font-bold text-hq-text mb-4 flex items-center gap-2">
                   <span class="text-hq-green">&#10003;</span> 품질 검수
                 </h3>
                 <div class="grid grid-cols-3 gap-4">
@@ -1569,7 +1570,7 @@
 
               <!-- Recent Completed -->
               <div class="glass border border-hq-border rounded-xl p-5" x-show="dashboard.recentCompleted && dashboard.recentCompleted.length > 0">
-                <h3 class="text-sm font-bold text-white mb-4">최근 완료 작업</h3>
+                <h3 class="text-sm font-bold text-hq-text mb-4">최근 완료 작업</h3>
                 <div class="space-y-2">
                   <template x-for="task in dashboard.recentCompleted.slice(0, 8)" :key="task.task_id">
                     <div class="flex items-center gap-3 p-2.5 bg-hq-bg/50 rounded-lg">
@@ -1659,7 +1660,7 @@
                       <!-- Replay Button -->
                       <button x-show="task.correlation_id"
                               @click="loadReplay(task.correlation_id, task.task_id)"
-                              class="mt-3 text-xs text-hq-accent hover:text-blue-400 flex items-center gap-1">
+                              class="mt-3 text-xs text-hq-accent hover:text-hq-accent/80 flex items-center gap-1">
                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
                         내부 대화 보기
                       </button>
@@ -1675,7 +1676,7 @@
                     <span class="text-[11px] font-mono text-hq-muted" x-text="task.time_seconds ? task.time_seconds + '초' : ''"></span>
                     <span class="text-[11px] font-mono text-hq-green" x-text="task.cost ? '$' + task.cost.toFixed(4) : ''"></span>
                     <button @click="taskHistory.expandedId = taskHistory.expandedId === task.task_id ? null : task.task_id; if(taskHistory.expandedId === task.task_id) loadTaskDetail(task.task_id)"
-                            class="text-hq-muted hover:text-white transition text-xs">
+                            class="text-hq-muted hover:text-hq-text transition text-xs">
                       <span x-text="taskHistory.expandedId === task.task_id ? '접기' : '펼치기'"></span>
                     </button>
                   </div>
@@ -1694,7 +1695,7 @@
         <div class="max-w-4xl mx-auto fade-in-up">
           <div class="flex items-center justify-between mb-6">
             <div>
-              <h1 class="text-xl font-bold text-white mb-1">작업 예약</h1>
+              <h1 class="text-xl font-bold text-hq-text mb-1">작업 예약</h1>
               <p class="text-sm text-hq-muted">반복 작업을 자동으로 실행합니다</p>
             </div>
             <button @click="schedules.showModal = true"
@@ -1709,7 +1710,7 @@
                 <div class="flex items-center justify-between">
                   <div class="flex-1">
                     <div class="flex items-center gap-2 mb-1">
-                      <span class="text-sm font-semibold text-white" x-text="s.name"></span>
+                      <span class="text-sm font-semibold text-hq-text" x-text="s.name"></span>
                       <span class="status-badge" :class="s.enabled ? 'bg-hq-green/15 text-hq-green border border-hq-green/20' : 'bg-hq-muted/15 text-hq-muted border border-hq-border'"
                             x-text="s.enabled ? '활성' : '비활성'"></span>
                     </div>
@@ -1742,7 +1743,7 @@
         <div class="max-w-4xl mx-auto fade-in-up">
           <div class="flex items-center justify-between mb-6">
             <div>
-              <h1 class="text-xl font-bold text-white mb-1">워크플로우</h1>
+              <h1 class="text-xl font-bold text-hq-text mb-1">워크플로우</h1>
               <p class="text-sm text-hq-muted">여러 단계를 연결해서 자동화 흐름을 만드세요</p>
             </div>
             <button @click="workflows.showEditor = true; workflows.editing = null; workflows.editSteps = [{name:'', command:''}]"
@@ -1756,7 +1757,7 @@
               <div class="glass border border-hq-border rounded-xl p-4 hover-glow">
                 <div class="flex items-center justify-between">
                   <div class="flex-1">
-                    <div class="text-sm font-semibold text-white mb-1" x-text="wf.name"></div>
+                    <div class="text-sm font-semibold text-hq-text mb-1" x-text="wf.name"></div>
                     <div class="text-[12px] text-hq-muted" x-text="wf.description || wf.steps.length + '단계'"></div>
                     <div class="flex items-center gap-2 mt-2">
                       <template x-for="(step, i) in wf.steps" :key="i">
@@ -1775,7 +1776,7 @@
                       <span x-show="workflows.runningId === wf.id">진행중...</span>
                     </button>
                     <button @click="editWorkflow(wf)"
-                            class="text-xs px-3 py-1.5 rounded-lg border border-hq-border text-hq-muted hover:text-white transition">수정</button>
+                            class="text-xs px-3 py-1.5 rounded-lg border border-hq-border text-hq-muted hover:text-hq-text transition">수정</button>
                     <button @click="deleteWorkflow(wf.id)"
                             class="text-xs px-3 py-1.5 rounded-lg border border-hq-red/30 text-hq-red hover:bg-hq-red/10 transition">삭제</button>
                   </div>
@@ -1831,7 +1832,7 @@
         <div class="w-64 border-r border-hq-border overflow-y-auto scrollbar-thin p-4 bg-hq-surface/30 shrink-0">
           <div class="flex items-center justify-between mb-3">
             <h3 class="text-xs font-bold text-hq-text uppercase tracking-wider">파일 목록</h3>
-            <button @click="knowledge.showCreateForm = !knowledge.showCreateForm" class="text-hq-accent text-xs hover:text-blue-400">+ 새 파일</button>
+            <button @click="knowledge.showCreateForm = !knowledge.showCreateForm" class="text-hq-accent text-xs hover:text-hq-accent/80">+ 새 파일</button>
           </div>
           <div x-show="knowledge.showCreateForm" x-transition class="mb-3 space-y-1">
             <input x-model="knowledge.newFolder" placeholder="폴더명" class="w-full bg-hq-bg border border-hq-border rounded-lg px-2 py-1 text-xs text-hq-text">
@@ -2083,22 +2084,22 @@
   <div x-show="schedules.showModal" x-transition.opacity
        class="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
        @click.self="schedules.showModal = false" style="display: none;">
-    <div class="bg-hq-panel border border-hq-border rounded-2xl w-[500px] p-6" @click.stop>
+    <div class="bg-hq-panel border border-hq-border rounded-2xl w-full max-w-[500px] mx-4 p-6" @click.stop>
       <div class="flex items-center justify-between mb-5">
-        <h2 class="text-lg font-bold text-white">새 예약 추가</h2>
-        <button @click="schedules.showModal = false" class="text-gray-400 hover:text-white text-xl">&times;</button>
+        <h2 class="text-lg font-bold text-hq-text">새 예약 추가</h2>
+        <button @click="schedules.showModal = false" class="text-hq-muted hover:text-hq-text text-xl">&times;</button>
       </div>
 
       <div class="space-y-4">
         <div>
           <label class="text-xs text-hq-muted font-semibold mb-1 block">예약 이름</label>
           <input x-model="schedules.editName" placeholder="예: 일일 보고서"
-                 class="w-full bg-hq-bg border border-hq-border rounded-lg px-3 py-2 text-sm text-white focus:border-hq-accent outline-none">
+                 class="w-full bg-hq-bg border border-hq-border rounded-lg px-3 py-2 text-sm text-hq-text focus:border-hq-accent outline-none">
         </div>
         <div>
           <label class="text-xs text-hq-muted font-semibold mb-1 block">실행할 명령</label>
           <textarea x-model="schedules.editCommand" placeholder="예: 오늘 회사 현황을 보고서로 작성해줘" rows="2"
-                    class="w-full bg-hq-bg border border-hq-border rounded-lg px-3 py-2 text-sm text-white focus:border-hq-accent outline-none resize-none"></textarea>
+                    class="w-full bg-hq-bg border border-hq-border rounded-lg px-3 py-2 text-sm text-hq-text focus:border-hq-accent outline-none resize-none"></textarea>
         </div>
         <div>
           <label class="text-xs text-hq-muted font-semibold mb-1 block">실행 주기</label>
@@ -2117,7 +2118,7 @@
 
       <div class="flex justify-end gap-3 mt-6">
         <button @click="schedules.showModal = false"
-                class="px-4 py-2 text-sm text-hq-muted hover:text-white transition">취소</button>
+                class="px-4 py-2 text-sm text-hq-muted hover:text-hq-text transition">취소</button>
         <button @click="addSchedule()"
                 class="bg-hq-accent hover:bg-blue-600 text-white rounded-lg px-5 py-2 text-sm font-semibold transition">추가</button>
       </div>
@@ -2128,12 +2129,12 @@
   <div x-show="memoryModal.visible" x-transition.opacity
        class="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
        @click.self="memoryModal.visible = false" style="display: none;">
-    <div class="bg-hq-panel border border-hq-border rounded-2xl w-[600px] max-h-[80vh] overflow-y-auto p-6" @click.stop>
+    <div class="bg-hq-panel border border-hq-border rounded-2xl w-full max-w-[600px] mx-4 max-h-[80vh] overflow-y-auto p-6" @click.stop>
       <div class="flex items-center justify-between mb-5">
-        <h2 class="text-lg font-bold text-white">
+        <h2 class="text-lg font-bold text-hq-text">
           <span x-text="memoryModal.agentName"></span> 기억 관리
         </h2>
-        <button @click="memoryModal.visible = false" class="text-gray-400 hover:text-white text-xl">&times;</button>
+        <button @click="memoryModal.visible = false" class="text-hq-muted hover:text-hq-text text-xl">&times;</button>
       </div>
 
       <!-- 기억 추가 -->
@@ -2141,11 +2142,11 @@
         <div class="text-xs text-hq-muted font-semibold mb-2">새 기억 추가</div>
         <div class="flex gap-2 mb-2">
           <input x-model="memoryModal.newKey" placeholder="제목 (예: 선호하는 보고서 형식)"
-                 class="flex-1 bg-hq-panel border border-hq-border rounded-lg px-3 py-1.5 text-sm text-white focus:border-hq-accent outline-none">
+                 class="flex-1 bg-hq-panel border border-hq-border rounded-lg px-3 py-1.5 text-sm text-hq-text focus:border-hq-accent outline-none">
         </div>
         <div class="flex gap-2">
           <input x-model="memoryModal.newValue" placeholder="내용 (예: 표와 그래프를 포함한 형식 선호)"
-                 class="flex-1 bg-hq-panel border border-hq-border rounded-lg px-3 py-1.5 text-sm text-white focus:border-hq-accent outline-none"
+                 class="flex-1 bg-hq-panel border border-hq-border rounded-lg px-3 py-1.5 text-sm text-hq-text focus:border-hq-accent outline-none"
                  @keydown.enter="addMemory()">
           <button @click="addMemory()"
                   class="bg-hq-accent hover:bg-blue-600 text-white rounded-lg px-4 py-1.5 text-xs font-semibold transition">추가</button>
@@ -2180,22 +2181,22 @@
   <div x-show="workflows.showEditor" x-transition.opacity
        class="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
        @click.self="workflows.showEditor = false" style="display: none;">
-    <div class="bg-hq-panel border border-hq-border rounded-2xl w-[600px] max-h-[80vh] overflow-y-auto p-6" @click.stop>
+    <div class="bg-hq-panel border border-hq-border rounded-2xl w-full max-w-[600px] mx-4 max-h-[80vh] overflow-y-auto p-6" @click.stop>
       <div class="flex items-center justify-between mb-5">
-        <h2 class="text-lg font-bold text-white" x-text="workflows.editing ? '워크플로우 수정' : '새 워크플로우'"></h2>
-        <button @click="workflows.showEditor = false" class="text-gray-400 hover:text-white text-xl">&times;</button>
+        <h2 class="text-lg font-bold text-hq-text" x-text="workflows.editing ? '워크플로우 수정' : '새 워크플로우'"></h2>
+        <button @click="workflows.showEditor = false" class="text-hq-muted hover:text-hq-text text-xl">&times;</button>
       </div>
 
       <div class="space-y-4">
         <div>
           <label class="text-xs text-hq-muted font-semibold mb-1 block">이름</label>
           <input x-model="workflows.editName" placeholder="워크플로우 이름"
-                 class="w-full bg-hq-bg border border-hq-border rounded-lg px-3 py-2 text-sm text-white focus:border-hq-accent outline-none">
+                 class="w-full bg-hq-bg border border-hq-border rounded-lg px-3 py-2 text-sm text-hq-text focus:border-hq-accent outline-none">
         </div>
         <div>
           <label class="text-xs text-hq-muted font-semibold mb-1 block">설명</label>
           <input x-model="workflows.editDesc" placeholder="워크플로우 설명 (선택)"
-                 class="w-full bg-hq-bg border border-hq-border rounded-lg px-3 py-2 text-sm text-white focus:border-hq-accent outline-none">
+                 class="w-full bg-hq-bg border border-hq-border rounded-lg px-3 py-2 text-sm text-hq-text focus:border-hq-accent outline-none">
         </div>
 
         <!-- Steps -->
@@ -2211,9 +2212,9 @@
                 <div class="text-xs text-hq-muted mt-1.5 font-mono w-6 shrink-0" x-text="(idx+1) + '.'"></div>
                 <div class="flex-1 space-y-1.5">
                   <input x-model="step.name" :placeholder="'단계 ' + (idx+1) + ' 이름'"
-                         class="w-full bg-hq-panel border border-hq-border rounded px-2 py-1 text-xs text-white focus:border-hq-accent outline-none">
+                         class="w-full bg-hq-panel border border-hq-border rounded px-2 py-1 text-xs text-hq-text focus:border-hq-accent outline-none">
                   <textarea x-model="step.command" placeholder="실행할 명령 ({prev_result}로 이전 결과 참조)" rows="2"
-                            class="w-full bg-hq-panel border border-hq-border rounded px-2 py-1 text-xs text-white focus:border-hq-accent outline-none resize-none"></textarea>
+                            class="w-full bg-hq-panel border border-hq-border rounded px-2 py-1 text-xs text-hq-text focus:border-hq-accent outline-none resize-none"></textarea>
                 </div>
                 <button @click="workflows.editSteps.splice(idx, 1)"
                         class="text-hq-red/50 hover:text-hq-red text-sm mt-1"
@@ -2229,7 +2230,7 @@
 
       <div class="flex justify-end gap-3 mt-6">
         <button @click="workflows.showEditor = false"
-                class="px-4 py-2 text-sm text-hq-muted hover:text-white transition">취소</button>
+                class="px-4 py-2 text-sm text-hq-muted hover:text-hq-text transition">취소</button>
         <button @click="saveWorkflow()"
                 class="bg-hq-accent hover:bg-blue-600 text-white rounded-lg px-5 py-2 text-sm font-semibold transition">저장</button>
       </div>
@@ -2240,7 +2241,7 @@
   <div x-show="auth.showLogin" x-transition.opacity
        class="fixed inset-0 z-[60] flex items-center justify-center bg-hq-bg/95"
        style="display: none;">
-    <div class="bg-hq-panel border border-hq-border rounded-2xl w-[400px] p-8">
+    <div class="bg-hq-panel border border-hq-border rounded-2xl w-full max-w-[400px] mx-4 p-8">
       <div class="text-center mb-6">
         <div class="text-2xl font-bold gradient-text mb-2">CORTHEX HQ</div>
         <p class="text-sm text-hq-muted">CEO 관제실에 로그인하세요</p>
@@ -2250,13 +2251,13 @@
         <div>
           <label class="text-xs text-hq-muted font-semibold mb-1 block">사용자명</label>
           <input x-model="auth.loginUser" placeholder="사용자명"
-                 class="w-full bg-hq-bg border border-hq-border rounded-lg px-3 py-2.5 text-sm text-white focus:border-hq-accent outline-none"
+                 class="w-full bg-hq-bg border border-hq-border rounded-lg px-3 py-2.5 text-sm text-hq-text focus:border-hq-accent outline-none"
                  @keydown.enter="$refs.loginPass.focus()">
         </div>
         <div>
           <label class="text-xs text-hq-muted font-semibold mb-1 block">비밀번호</label>
           <input x-ref="loginPass" x-model="auth.loginPass" type="password" placeholder="비밀번호"
-                 class="w-full bg-hq-bg border border-hq-border rounded-lg px-3 py-2.5 text-sm text-white focus:border-hq-accent outline-none"
+                 class="w-full bg-hq-bg border border-hq-border rounded-lg px-3 py-2.5 text-sm text-hq-text focus:border-hq-accent outline-none"
                  @keydown.enter="doLogin()">
         </div>
       </div>
@@ -2267,7 +2268,7 @@
         <button @click="doLogin()"
                 class="bg-hq-accent hover:bg-blue-600 text-white rounded-lg px-5 py-2.5 text-sm font-semibold transition w-full">로그인</button>
         <button @click="doRegister()"
-                class="border border-hq-border text-hq-muted hover:text-white rounded-lg px-5 py-2.5 text-sm transition w-full">회원가입</button>
+                class="border border-hq-border text-hq-muted hover:text-hq-text rounded-lg px-5 py-2.5 text-sm transition w-full">회원가입</button>
       </div>
     </div>
   </div>
@@ -2276,21 +2277,21 @@
   <div x-show="showQualitySettings" x-transition.opacity
        class="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
        @click.self="showQualitySettings = false" style="display: none;">
-    <div class="bg-hq-panel border border-hq-border rounded-2xl w-[700px] max-h-[80vh] overflow-y-auto p-6"
+    <div class="bg-hq-panel border border-hq-border rounded-2xl w-full max-w-[700px] mx-4 max-h-[80vh] overflow-y-auto p-6"
          @click.stop>
 
       <div class="flex items-center justify-between mb-6">
-        <h2 class="text-lg font-bold text-white">품질 검수 설정</h2>
-        <button @click="showQualitySettings = false" class="text-gray-400 hover:text-white text-xl">&times;</button>
+        <h2 class="text-lg font-bold text-hq-text">품질 검수 설정</h2>
+        <button @click="showQualitySettings = false" class="text-hq-muted hover:text-hq-text text-xl">&times;</button>
       </div>
 
       <!-- Section 1: Review Model Selection -->
       <div class="mb-6 p-4 bg-hq-bg rounded-xl">
-        <h3 class="text-sm font-semibold text-gray-300 mb-2">검수 모델</h3>
-        <p class="text-xs text-gray-500 mb-3">모든 품질 검수에 사용할 AI 모델을 선택하세요.</p>
+        <h3 class="text-sm font-semibold text-hq-text mb-2">검수 모델</h3>
+        <p class="text-xs text-hq-muted/70 mb-3">모든 품질 검수에 사용할 AI 모델을 선택하세요.</p>
         <div class="flex items-center gap-3">
           <select x-model="selectedReviewModel"
-                  class="flex-1 bg-hq-panel border border-hq-border rounded-lg px-3 py-2 text-sm text-gray-200">
+                  class="flex-1 bg-hq-panel border border-hq-border rounded-lg px-3 py-2 text-sm text-hq-text">
             <template x-for="m in availableModels" :key="m.name">
               <option :value="m.name"
                       x-text="m.name + ' (' + m.provider + ', $' + m.cost_input + '/' + m.cost_output + ')'">
@@ -2306,21 +2307,21 @@
 
       <!-- Section 2: Common Rubric -->
       <div class="mb-4">
-        <h3 class="text-sm font-semibold text-gray-300 mb-2">공통 검수 기준</h3>
-        <p class="text-xs text-gray-500 mb-3">부서별 기준이 없는 부서에 기본 적용되는 검수 기준입니다.</p>
+        <h3 class="text-sm font-semibold text-hq-text mb-2">공통 검수 기준</h3>
+        <p class="text-xs text-hq-muted/70 mb-3">부서별 기준이 없는 부서에 기본 적용되는 검수 기준입니다.</p>
 
         <div class="p-3 bg-hq-bg rounded-lg">
           <div class="flex items-center justify-between">
             <div>
-              <span class="text-sm text-gray-200 font-medium">기본 (전체 공통)</span>
+              <span class="text-sm text-hq-text font-medium">기본 (전체 공통)</span>
               <span x-show="qualityRules.rubrics && qualityRules.rubrics['default']"
-                    class="ml-2 text-xs text-green-400">설정됨</span>
+                    class="ml-2 text-xs text-hq-green">설정됨</span>
             </div>
             <button @click="startEditRubric('default')"
-                    class="text-xs text-hq-accent hover:text-blue-400">편집</button>
+                    class="text-xs text-hq-accent hover:text-hq-accent/80">편집</button>
           </div>
           <template x-if="qualityRules.rubrics && qualityRules.rubrics['default']">
-            <p class="text-xs text-gray-500 mt-1 truncate"
+            <p class="text-xs text-hq-muted/70 mt-1 truncate"
                x-text="qualityRules.rubrics['default'].prompt.substring(0, 80) + '...'"></p>
           </template>
         </div>
@@ -2328,25 +2329,25 @@
 
       <!-- Section 3: Department-Specific Rubrics -->
       <div class="mb-4">
-        <h3 class="text-sm font-semibold text-gray-300 mb-2">부서별 검수 기준 (루브릭)</h3>
-        <p class="text-xs text-gray-500 mb-3">각 부서별 검수 기준을 설정하세요. 미설정 부서는 위 공통 기준이 적용됩니다.</p>
+        <h3 class="text-sm font-semibold text-hq-text mb-2">부서별 검수 기준 (루브릭)</h3>
+        <p class="text-xs text-hq-muted/70 mb-3">각 부서별 검수 기준을 설정하세요. 미설정 부서는 위 공통 기준이 적용됩니다.</p>
 
         <div class="space-y-2">
           <template x-for="div in (qualityRules.known_divisions || [])" :key="div">
             <div class="p-3 bg-hq-bg rounded-lg">
               <div class="flex items-center justify-between">
                 <div>
-                  <span class="text-sm text-gray-200 font-medium" x-text="getDivisionLabel(div)"></span>
+                  <span class="text-sm text-hq-text font-medium" x-text="getDivisionLabel(div)"></span>
                   <span x-show="qualityRules.rubrics && qualityRules.rubrics[div]"
-                        class="ml-2 text-xs text-green-400">설정됨</span>
+                        class="ml-2 text-xs text-hq-green">설정됨</span>
                   <span x-show="!qualityRules.rubrics || !qualityRules.rubrics[div]"
-                        class="ml-2 text-xs text-gray-500">공통 적용</span>
+                        class="ml-2 text-xs text-hq-muted/70">공통 적용</span>
                 </div>
                 <button @click="startEditRubric(div)"
-                        class="text-xs text-hq-accent hover:text-blue-400">편집</button>
+                        class="text-xs text-hq-accent hover:text-hq-accent/80">편집</button>
               </div>
               <template x-if="qualityRules.rubrics && qualityRules.rubrics[div]">
-                <p class="text-xs text-gray-500 mt-1 truncate"
+                <p class="text-xs text-hq-muted/70 mt-1 truncate"
                    x-text="qualityRules.rubrics[div].prompt.substring(0, 80) + '...'"></p>
               </template>
             </div>
@@ -2359,30 +2360,30 @@
         <h4 class="text-sm font-semibold text-hq-accent mb-3"
             x-text="getDivisionLabel(editingRubric) + ' 검수 기준 편집'"></h4>
         <div class="mb-3">
-          <label class="text-xs text-gray-400 mb-1 block">기준 이름</label>
+          <label class="text-xs text-hq-muted mb-1 block">기준 이름</label>
           <input x-model="rubricEditName"
-                 class="w-full bg-hq-panel border border-hq-border rounded-lg px-3 py-2 text-sm text-gray-200"
+                 class="w-full bg-hq-panel border border-hq-border rounded-lg px-3 py-2 text-sm text-hq-text"
                  placeholder="예: 기술개발처 검수 기준">
         </div>
         <div class="mb-3">
-          <label class="text-xs text-gray-400 mb-1 block">검수 기준 (프롬프트)</label>
+          <label class="text-xs text-hq-muted mb-1 block">검수 기준 (프롬프트)</label>
           <textarea x-model="rubricEditPrompt" rows="8"
-                    class="w-full bg-hq-panel border border-hq-border rounded-lg px-3 py-2 text-sm text-gray-200 resize-y font-mono"
+                    class="w-full bg-hq-panel border border-hq-border rounded-lg px-3 py-2 text-sm text-hq-text resize-y font-mono"
                     placeholder="다음 기준으로 검수하세요:&#10;1. ...&#10;2. ...&#10;3. ..."></textarea>
         </div>
         <div class="flex items-center gap-2">
           <button @click="saveRubric()"
                   class="bg-hq-accent hover:bg-blue-600 text-white rounded-lg px-4 py-2 text-sm">저장</button>
           <button @click="editingRubric = null"
-                  class="bg-gray-700 hover:bg-gray-600 text-gray-300 rounded-lg px-4 py-2 text-sm">취소</button>
+                  class="bg-hq-surface hover:bg-hq-panel text-hq-text rounded-lg px-4 py-2 text-sm">취소</button>
         </div>
       </div>
 
       <!-- Save status -->
       <div class="mt-4 text-center h-5">
-        <span x-show="qualitySaveStatus === 'saving'" class="text-xs text-yellow-400">저장 중...</span>
-        <span x-show="qualitySaveStatus === 'saved'" class="text-xs text-green-400">저장 완료 (Git 동기화됨)</span>
-        <span x-show="qualitySaveStatus === 'error'" class="text-xs text-red-400">저장 실패</span>
+        <span x-show="qualitySaveStatus === 'saving'" class="text-xs text-hq-yellow">저장 중...</span>
+        <span x-show="qualitySaveStatus === 'saved'" class="text-xs text-hq-green">저장 완료 (Git 동기화됨)</span>
+        <span x-show="qualitySaveStatus === 'error'" class="text-xs text-hq-red">저장 실패</span>
       </div>
     </div>
   </div>
@@ -2391,7 +2392,7 @@
   <div x-show="showAgentConfig" x-transition.opacity
        class="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
        @click.self="showAgentConfig = false" style="display: none;">
-    <div class="bg-hq-panel border border-hq-border rounded-2xl w-[600px] max-h-[85vh] overflow-y-auto p-6"
+    <div class="bg-hq-panel border border-hq-border rounded-2xl w-full max-w-[600px] mx-4 max-h-[85vh] overflow-y-auto p-6"
          @click.stop>
 
       <!-- Loading -->
@@ -2411,11 +2412,11 @@
                  :class="getAgentAvatarClass(agentConfigId)"
                  x-text="getAgentInitials(agentConfigId)"></div>
             <div>
-              <h2 class="text-lg font-bold text-white" x-text="agentConfigData?.name_ko || agentConfigData?.name || agentConfigId"></h2>
+              <h2 class="text-lg font-bold text-hq-text" x-text="agentConfigData?.name_ko || agentConfigData?.name || agentConfigId"></h2>
               <div class="text-xs text-hq-muted" x-text="(agentConfigData?.role || '') + ' · ' + (agentConfigData?.division || '')"></div>
             </div>
           </div>
-          <button @click="showAgentConfig = false" class="text-hq-muted hover:text-white text-xl">&times;</button>
+          <button @click="showAgentConfig = false" class="text-hq-muted hover:text-hq-text text-xl">&times;</button>
         </div>
 
         <!-- Tabs -->
@@ -2497,12 +2498,12 @@
                   <template x-for="level in agentReasoningOptions" :key="level">
                     <button @click="agentReasoningSelection = level"
                             :class="agentReasoningSelection === level
-                              ? (level === 'none' ? 'border-gray-400 bg-gray-400/10 text-gray-300'
-                                : level === 'minimal' ? 'border-teal-400 bg-teal-400/10 text-teal-300'
+                              ? (level === 'none' ? 'border-hq-muted bg-hq-muted/10 text-hq-muted'
+                                : level === 'minimal' ? 'border-hq-cyan bg-hq-cyan/10 text-hq-cyan'
                                 : level === 'low' ? 'border-hq-green bg-hq-green/10 text-hq-green'
                                 : level === 'medium' ? 'border-hq-yellow bg-hq-yellow/10 text-hq-yellow'
                                 : level === 'high' ? 'border-hq-purple bg-hq-purple/10 text-hq-purple'
-                                : 'border-red-400 bg-red-400/10 text-red-300')
+                                : 'border-hq-red bg-hq-red/10 text-hq-red')
                               : 'border-hq-border text-hq-muted hover:text-hq-text'"
                             class="border-2 rounded-xl p-4 text-center transition-all">
                       <div class="text-2xl mb-1" x-text="({none:'⛔',minimal:'💨',low:'⚡',medium:'🧠',high:'🔬',xhigh:'🔥'})[level] || '❓'"></div>
@@ -2554,10 +2555,10 @@
   <div x-show="showTaskDetail" x-transition.opacity
        class="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
        @click.self="showTaskDetail = false" style="display: none;">
-    <div class="bg-hq-panel border border-hq-border rounded-2xl w-[800px] max-h-[85vh] overflow-y-auto p-6" @click.stop>
+    <div class="bg-hq-panel border border-hq-border rounded-2xl w-full max-w-[800px] mx-4 max-h-[85vh] overflow-y-auto p-6" @click.stop>
       <div class="flex items-center justify-between mb-4">
-        <h2 class="text-lg font-bold text-white">작업 상세</h2>
-        <button @click="showTaskDetail = false" class="text-gray-400 hover:text-white text-xl">&times;</button>
+        <h2 class="text-lg font-bold text-hq-text">작업 상세</h2>
+        <button @click="showTaskDetail = false" class="text-hq-muted hover:text-hq-text text-xl">&times;</button>
       </div>
       <template x-if="taskDetailData">
         <div>
