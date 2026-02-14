@@ -53,6 +53,12 @@ class ToolPool:
             "code_quality": "src.tools.code_quality.CodeQualityTool",
             "notion_api": "src.tools.notion_api.NotionApiTool",
             "doc_converter": "src.tools.doc_converter.DocConverterTool",
+            # ─── CMO 마케팅고객처 신규 도구 ───
+            "seo_analyzer": "src.tools.seo_analyzer.SeoAnalyzerTool",
+            "sentiment_analyzer": "src.tools.sentiment_analyzer.SentimentAnalyzerTool",
+            "hashtag_recommender": "src.tools.hashtag_recommender.HashtagRecommenderTool",
+            "email_optimizer": "src.tools.email_optimizer.EmailOptimizerTool",
+            "competitor_sns_monitor": "src.tools.competitor_sns_monitor.CompetitorSnsMonitorTool",
         }
         tool_classes: dict[str, type[BaseTool]] = {}
         for tool_id, import_path in _imports.items():
