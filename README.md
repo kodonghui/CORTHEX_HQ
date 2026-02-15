@@ -1,9 +1,17 @@
 # CORTHEX HQ
 
-**AI Agent Corporation** — 25명의 AI 에이전트가 회사처럼 운영되는 멀티 에이전트 자동화 시스템
+**AI Agent Corporation** — 29명의 AI 에이전트가 회사처럼 운영되는 멀티 에이전트 자동화 시스템
 
 > CEO(사용자)가 한국어로 명령을 내리면, 비서실장이 판단해서 적절한 부서에 배분하고,
 > 전문가들이 병렬로 작업한 뒤, 결과를 종합 보고서로 합쳐서 돌려줍니다.
+
+**라이브 데모**: http://168.107.28.100
+
+---
+
+## 한 줄 요약
+
+**"비개발자 CEO가 AI와 대화만으로 8일 만에 29명의 AI 직원이 일하는 회사를 만들었다"**
 
 ---
 
@@ -11,12 +19,15 @@
 
 | 특징 | 설명 |
 |------|------|
-| **29명 AI 에이전트** | 실제 회사 조직도처럼 비서실장 → 처장(Manager) → 전문가(Specialist) → 워커(Worker) 계층 |
-| **자동 업무 배분** | "삼성전자 주가 분석해줘" → 비서실장이 CIO에게 배분 → 4명 전문가가 병렬 분석 → 종합 보고 |
-| **멀티스텝 딥워크** | 전문가가 1회 답변이 아니라 계획→조사→초안→정리→보고까지 자율적으로 수행 |
-| **실시간 웹 대시보드** | 에이전트 상태, 작업 진행률, 비용을 브라우저에서 실시간 모니터링 |
-| **멀티 LLM** | OpenAI(GPT)와 Anthropic(Claude)을 혼합 사용, 에이전트별 모델 개별 설정 가능 |
-| **백그라운드 작업** | 브라우저를 닫아도 작업 계속 진행, 결과는 마크다운 파일로 자동 저장 |
+| **29명 AI 에이전트** | 비서실장 -> 처장(Manager) -> 전문가(Specialist) -> 워커(Worker) 실제 회사 계층 |
+| **자동 업무 배분** | "삼성전자 분석해줘" -> 비서실장이 CIO에게 배분 -> 4명 전문가가 병렬 분석 -> 종합 보고 |
+| **자율 딥워크** | 에이전트가 계획->조사->초안->정리->보고까지 자율적으로 수행 (1회 답변이 아님) |
+| **Glass + Aurora 디자인** | 유리 반투명 효과 + 오로라 그라데이션의 현대적 대시보드 |
+| **실시간 대시보드** | 에이전트 상태, 작업 진행률, 비용을 브라우저에서 실시간 모니터링 |
+| **멀티 LLM** | Claude (Anthropic) + GPT (OpenAI) 8종 모델, 에이전트별 개별 설정 |
+| **텔레그램 지휘** | 텔레그램으로 어디서든 AI 에이전트에게 명령. 부서별 보고서 실시간 수신 |
+| **24시간 무료 서버** | Oracle Cloud 무료 서버, GitHub Actions 완전 자동 배포 |
+| **월 서버비 0원** | Oracle Cloud 무료 티어 활용 |
 
 ---
 
@@ -24,63 +35,39 @@
 
 ```
 CEO (사용자)
-│
-└─ 비서실장 (Chief of Staff) ← 모든 명령의 총괄 관리자
-    │
-    ├─ 보고 요약 Worker
-    ├─ 일정/미결 추적 Worker
-    ├─ 사업부 간 정보 중계 Worker
-    │
-    ├─── [LEET MASTER 본부] ──────────────────
-    │  │
-    │  ├─ CTO 기술개발처장 (Manager)
-    │  │   ├─ 프론트엔드 Specialist
-    │  │   ├─ 백엔드/API Specialist
-    │  │   ├─ DB/인프라 Specialist
-    │  │   └─ AI 모델 Specialist
-    │  │
-    │  ├─ CSO 사업기획처장 (Manager)
-    │  │   ├─ 시장조사 Specialist
-    │  │   ├─ 사업계획서 Specialist
-    │  │   └─ 재무모델링 Specialist
-    │  │
-    │  ├─ CLO 법무·IP처장 (Manager)
-    │  │   ├─ 저작권 Specialist
-    │  │   └─ 특허·약관 Specialist
-    │  │
-    │  └─ CMO 마케팅·고객처장 (Manager)
-    │      ├─ 설문·리서치 Specialist
-    │      ├─ 콘텐츠 Specialist
-    │      └─ 커뮤니티 Specialist
-    │
-    ├─── [투자분석 본부] ─────────────────────
-    │  │
-    │  └─ CIO 투자분석처장 (Manager)
-    │      ├─ 시황분석 Specialist  ──┐
-    │      ├─ 종목분석 Specialist  ──┼── 병렬 실행
-    │      ├─ 기술적분석 Specialist ─┘
-    │      └─ 리스크관리 Specialist ← 순차 실행
-    │
-    └─── [출판·기록 본부] ─────────────────────
-       │
-       └─ CPO 출판·기록처장 (Manager)
-           ├─ 회사연대기 Specialist
-           ├─ 콘텐츠편집 Specialist
-           └─ 아카이브 Specialist
+|
+|-- 비서실장 (Chief of Staff) <-- 모든 명령의 총괄 관리자
+    |
+    |-- 총괄 보좌관 (보고서 정리/가공)
+    |-- 진행 보좌관 (일정/미결 추적)
+    |-- 소통 보좌관 (부서 간 정보 중계)
+    |
+    |--- [LEET MASTER 본부] ----- 제품 개발
+    |  |-- CTO 기술개발처 (5명) -- 프론트엔드, 백엔드, 인프라, AI모델
+    |  |-- CSO 사업기획처 (3명) -- 시장조사, 사업계획서, 재무모델링
+    |  |-- CLO 법무 IP처 (2명)  -- 저작권, 특허/약관
+    |  |-- CMO 마케팅처 (3명)   -- 설문/리서치, 콘텐츠, 커뮤니티
+    |
+    |--- [투자분석 본부] --------- 금융 분석
+    |  |-- CIO 투자분석처 (5명) -- 시황분석, 종목분석, 기술적분석, 리스크관리
+    |
+    |--- [출판 기록 본부] --------- 기록/콘텐츠
+       |-- CPO 출판기록처 (3명) -- 회사연대기, 콘텐츠편집, 아카이브
 
-[AgentTool Pool] 변리사 / 세무사 / 디자이너 / 번역가 / 웹검색
+[도구 풀] 변리사 / 세무사 / 디자이너 / 번역가 / 웹검색
 ```
 
 ---
 
 ## 빠른 시작
 
-### 필요한 것
+### 방법 1: 라이브 데모 접속 (설치 불필요)
 
-- **Python 3.11 이상**
-- **API 키**: OpenAI 또는 Anthropic (둘 중 하나 이상)
+브라우저에서 http://168.107.28.100 접속
 
-### 설치
+### 방법 2: 로컬 설치
+
+**필요한 것**: Python 3.11 이상, OpenAI 또는 Anthropic API 키
 
 ```bash
 # 1. 저장소 클론
@@ -88,31 +75,15 @@ git clone https://github.com/kodonghui/CORTHEX_HQ.git
 cd CORTHEX_HQ
 
 # 2. 환경 설정
-cp .env.example .env
-# .env 파일을 열어 API 키 입력:
-#   OPENAI_API_KEY=sk-...
-#   ANTHROPIC_API_KEY=sk-ant-...
+cp .env.example .env.local
+# .env.local 파일을 열어 API 키 입력
 
-# 3. 의존성 설치 (자동 가상환경)
-# Linux/Mac:
-bash setup.sh
+# 3. 의존성 설치
+pip install -e .
 
-# Windows:
-setup.bat
-```
-
-### 실행
-
-```bash
-# 웹 대시보드 (권장)
+# 4. 웹 대시보드 실행
 python run_web.py
-# → 브라우저에서 http://localhost:8000 자동 오픈
-
-# Windows 원클릭 실행
-run.bat
-
-# CLI 모드 (터미널)
-python main.py
+# -> 브라우저에서 http://localhost:8000 자동 오픈
 ```
 
 ---
@@ -121,7 +92,7 @@ python main.py
 
 ### 웹 대시보드 (CEO 관제실)
 
-브라우저에서 `http://localhost:8000` 접속 후 한국어로 명령을 입력합니다.
+브라우저에서 접속 후 한국어로 명령을 입력합니다.
 
 **명령 예시:**
 ```
@@ -131,7 +102,7 @@ LEET MASTER 서비스의 기술 스택을 제안해줘
 인스타그램 마케팅 전략을 수립해줘
 ```
 
-**작업 깊이 선택** (입력창 옆 드롭다운):
+**작업 깊이 선택** (입력창 옆):
 
 | 옵션 | 단계 수 | 용도 |
 |------|---------|------|
@@ -139,55 +110,21 @@ LEET MASTER 서비스의 기술 스택을 제안해줘
 | 보통 | 3단계 | 일반 업무 (기본값) |
 | 심화 | 5단계 | 전략 수립, 상세 보고서 |
 
-### 4개 탭
+### 11개 탭
 
 | 탭 | 기능 |
 |----|------|
-| **명령** | 명령 입력 + 실시간 활동 로그 + 에이전트 상태 트리 + 비용 모니터 |
-| **사무실** | 25명 에이전트 카드 그리드 + 클릭해서 상세 보기 + Soul(시스템 프롬프트) 편집 + 모델 변경 |
-| **지식관리** | knowledge/ 폴더의 마크다운 지식파일 생성/수정/삭제 (에이전트 프롬프트에 자동 주입) |
-| **작업내역** | 과거 작업 결과 열람 + 마크다운 렌더링 + 파일 다운로드 |
-
-### CLI 모드
-
-```
-CEO> 삼성전자 주가를 분석해줘
-CEO> 조직도
-CEO> 비용
-CEO> 종료
-```
-
----
-
-## 명령 처리 흐름
-
-사용자가 명령을 입력하면 내부에서 이런 일이 벌어집니다:
-
-```
-1. CEO: "인스타 마케팅 전략 만들어줘" (심화 모드)
-         │
-2. 비서실장: "이건 마케팅이니 CMO에게 보내자" (LLM 판단)
-         │
-3. CMO(처장): "3명 전문가에게 나눠서 시키자" (업무 분해 → 병렬 배분)
-         │
-         ├─ 설문/리서치 전문가 (5단계 자율 딥워크)
-         │   ├─ 1단계: 타겟 고객 분석 계획
-         │   ├─ 2단계: 경쟁사 벤치마킹
-         │   ├─ 3단계: 인사이트 정리
-         │   └─ 4단계: 최종 리서치 보고서
-         │
-         ├─ 콘텐츠 전문가 (5단계 자율 딥워크)   ← 병렬 실행
-         │   └─ ...
-         │
-         └─ 커뮤니티 전문가 (5단계 자율 딥워크)
-             └─ ...
-         │
-4. CMO: 3명 결과 취합 → 종합 보고서 작성
-         │
-5. 비서실장: CEO에게 최종 보고
-         │
-6. 결과가 output/ 폴더에 마크다운으로 자동 저장
-```
+| **홈** | 대시보드 — 오늘의 작업 현황, 에이전트 상태, 비용 모니터 |
+| **명령** | 명령 입력 + 실시간 에이전트 활동 로그 |
+| **성능** | 에이전트별 성공률, 비용, 호출 횟수 분석 |
+| **작업내역** | 과거 작업 결과 열람 + 태그 필터 + 비교 |
+| **예약** | 반복 작업 예약 (매일/매주 자동 실행) |
+| **워크플로우** | 여러 명령을 순서대로 자동 실행 |
+| **로그** | 전체 활동 로그 + 삭제/자동정리 |
+| **지식** | 에이전트 지식파일 관리 |
+| **아카이브** | 작업 결과 장기 보관 |
+| **SNS** | SNS 연동 상태 (인스타그램, X, YouTube, Threads 등) |
+| **사무실** | 가상 사무실 — 부서별 에이전트 배치도 |
 
 ---
 
@@ -195,63 +132,39 @@ CEO> 종료
 
 ```
 CORTHEX_HQ/
-│
-├── main.py                 # CLI 진입점
-├── run_web.py              # 웹 서버 진입점
-├── run.bat                 # Windows 원클릭 실행
-├── setup.sh / setup.bat    # 설치 스크립트
-├── pyproject.toml          # Python 패키지 설정
-├── .env.example            # API 키 템플릿
-│
-├── config/                 # YAML 설정 (비개발자도 수정 가능)
-│   ├── agents.yaml         # 29개 에이전트 정의 (역할, 모델, 프롬프트, 계층)
-│   ├── models.yaml         # AI 모델 목록 및 가격
-│   └── tools.yaml          # 도구(변리사/세무사 등) 설정
-│
-├── src/
-│   ├── core/               # 코어 프레임워크
-│   │   ├── orchestrator.py # CEO 명령 → 비서실장 라우팅
-│   │   ├── agent.py        # BaseAgent, ManagerAgent, SpecialistAgent, WorkerAgent
-│   │   ├── registry.py     # 에이전트 팩토리 (YAML → 인스턴스 생성)
-│   │   ├── context.py      # 공유 상태 (대화 기록, 게시판, 상태 콜백)
-│   │   ├── message.py      # 메시지 타입 (TaskRequest, TaskResult, StatusUpdate 등)
-│   │   ├── knowledge.py    # 지식파일 로더 (마크다운 → 프롬프트 주입)
-│   │   ├── task_store.py   # 백그라운드 작업 저장소
-│   │   └── errors.py       # 커스텀 예외
-│   │
-│   ├── llm/                # LLM 프로바이더
-│   │   ├── router.py       # 모델명으로 OpenAI/Anthropic 자동 분기
-│   │   ├── openai_provider.py
-│   │   ├── anthropic_provider.py
-│   │   ├── cost_tracker.py # 비용 추적 (모델별/에이전트별/프로바이더별)
-│   │   └── base.py         # LLMProvider 추상 클래스
-│   │
-│   ├── divisions/          # 부서별 에이전트 모듈
-│   │   ├── secretary/      # 비서실 (비서실장 + 워커 3명)
-│   │   ├── leet_master/    # LEET Master 본부 (CTO/CSO/CLO/CMO + 전문가 12명)
-│   │   ├── finance/        # 투자분석 본부 (CIO + 전문가 4명)
-│   │   └── publishing/     # 출판·기록 본부 (CPO + 전문가 3명)
-│   │
-│   ├── tools/              # 도구 풀 (변리사, 세무사, 디자이너, 번역가, 웹검색)
-│   └── cli/                # Rich 터미널 CLI
-│
-├── web/                    # 웹 대시보드
-│   ├── app.py              # FastAPI 서버 (REST API + WebSocket)
-│   ├── ws_manager.py       # WebSocket 연결 관리 + 브로드캐스트
-│   ├── templates/
-│   │   └── index.html      # CEO 관제실 SPA (Tailwind + Alpine.js)
-│   └── static/             # 정적 파일
-│
-├── knowledge/              # 에이전트 지식 파일 (.md)
-│   ├── shared/             # 전체 에이전트 공유 지식
-│   ├── leet_master/        # LEET Master 본부 전용
-│   ├── finance/            # 투자분석 본부 전용
-│   └── publishing/         # 출판·기록 본부 전용
-│
-├── output/                 # 작업 결과 자동 저장 (마크다운)
-└── docs/                   # 프로젝트 문서
-    ├── CHANGELOG.md        # 버전별 변경 이력
-    └── IMPLEMENTATION_PLAN.md
+|
+|-- main.py                 # CLI 진입점
+|-- run_web.py              # 웹 서버 진입점
+|-- pyproject.toml          # Python 패키지 설정
+|-- .env.example            # API 키 템플릿
+|
+|-- config/                 # YAML 설정 (에이전트, 모델, 도구)
+|   |-- agents.yaml         # 29개 에이전트 정의
+|   |-- models.yaml         # AI 모델 목록 및 가격
+|   |-- tools.yaml          # 도구(변리사/세무사 등) 설정
+|
+|-- src/
+|   |-- core/               # 코어 프레임워크
+|   |   |-- orchestrator.py # CEO 명령 -> 비서실장 라우팅
+|   |   |-- agent.py        # Manager/Specialist/Worker 에이전트
+|   |   |-- context.py      # 에이전트 간 공유 상태
+|   |   |-- message.py      # 메시지 타입 (TaskRequest, TaskResult)
+|   |   |-- replay.py       # 작업 추적 트리
+|   |
+|   |-- llm/                # LLM 프로바이더 (OpenAI, Anthropic)
+|   |-- divisions/          # 부서별 에이전트 모듈
+|   |-- tools/              # 도구 풀 + 에이전트 간 협업 프로토콜
+|
+|-- web/
+|   |-- app.py              # FastAPI 서버
+|   |-- mini_server.py      # 경량 서버 (Oracle Cloud용)
+|   |-- templates/
+|       |-- index.html      # CEO 관제실 SPA (5,600줄+)
+|
+|-- knowledge/              # 에이전트 지식 파일 (.md)
+|-- souls/                  # 에이전트 소울(성격) 파일
+|-- docs/                   # 프로젝트 문서 + 작업 기록 (68개+)
+|-- tools/                  # 외부 도구 모듈
 ```
 
 ---
@@ -263,34 +176,39 @@ CORTHEX_HQ/
 | **언어** | Python 3.11+ | 비동기 타입 힌트 활용 |
 | **웹 프레임워크** | FastAPI | REST API + WebSocket 서버 |
 | **실시간 통신** | WebSocket | 에이전트 상태/진행률 실시간 푸시 |
-| **프론트엔드** | Tailwind CSS + Alpine.js | 반응형 SPA (빌드 도구 불필요) |
-| **CLI** | Rich | 터미널 마크다운 렌더링 + 테이블 |
-| **비동기 실행** | asyncio | 에이전트 병렬 작업 (asyncio.gather) |
-| **LLM** | OpenAI + Anthropic SDK | 멀티 프로바이더 지원 |
-| **설정** | YAML + Pydantic v2 | 비개발자도 수정 가능한 에이전트 설정 |
-| **서버** | Uvicorn | ASGI 서버 |
+| **프론트엔드** | Tailwind CSS + Alpine.js (CDN) | 반응형 SPA, 빌드 도구 불필요 |
+| **디자인** | Glass + Aurora Mix | 유리 반투명 + 오로라 그라데이션 |
+| **색상 시스템** | 순수 CSS hq-* 토큰 194개+ | Tailwind 독립, 다크/라이트 자동 전환 |
+| **AI 모델** | Claude 4.5/4.6 + GPT-5 | 멀티 프로바이더 8종 지원 |
+| **서버** | Oracle Cloud (무료) + nginx | 24시간 운영, 춘천 리전 |
+| **배포** | GitHub Actions | main 푸시 -> 자동 배포 |
+| **설정** | YAML + Pydantic v2 | 비개발자도 수정 가능 |
 
 ---
 
-## API 엔드포인트
+## 개발 타임라인
 
-| 메서드 | 경로 | 설명 |
-|--------|------|------|
-| GET | `/` | CEO 관제실 대시보드 |
-| GET | `/api/health` | 시스템 상태 확인 |
-| GET | `/api/agents` | 전체 에이전트 목록 + 계층 |
-| GET | `/api/agents/{id}` | 에이전트 상세 정보 |
-| PUT | `/api/agents/{id}/soul` | 에이전트 시스템 프롬프트 수정 |
-| PUT | `/api/agents/{id}/model` | 에이전트 모델 변경 |
-| GET | `/api/cost` | 비용 요약 (모델별/에이전트별/프로바이더별) |
-| GET | `/api/models` | 사용 가능한 AI 모델 목록 |
-| GET | `/api/tools` | 사용 가능한 도구 목록 |
-| GET | `/api/tasks` | 전체 작업 내역 |
-| GET | `/api/tasks/{id}` | 작업 상세 + 결과 |
-| GET | `/api/knowledge` | 지식파일 목록 |
-| POST | `/api/knowledge` | 지식파일 생성/수정 |
-| DELETE | `/api/knowledge/{folder}/{filename}` | 지식파일 삭제 |
-| WS | `/ws` | 실시간 명령 실행 + 상태 스트리밍 |
+| 날짜 | 핵심 변경 | 작업 기록 수 |
+|------|----------|------------|
+| 2026-02-08 | 초기 시스템 아키텍처 설계 | 1개 |
+| 2026-02-12 | v0.1~v0.6 (6번 메이저 업데이트) | 4개 |
+| 2026-02-13 | 텔레그램 지휘 + 도구 12개 + UX 개선 | 13개 |
+| 2026-02-14 | Oracle Cloud 서버 + 자동 배포 + 도구 30개+ | 32개 |
+| 2026-02-15 | Glass+Aurora 디자인 + 22가지 UX 개선 | 12개+ |
+
+총 **68개+** 작업 기록. 8일간 하루 평균 **8-10개 개선**.
+
+---
+
+## 문서 안내
+
+| 파일 | 용도 | SNS 활용 |
+|------|------|----------|
+| [CONTEXT.md](CONTEXT.md) | 프로젝트 전체 스토리 + 빌딩 로그 | 블로그/인스타그램 콘텐츠 소재 |
+| [docs/project-status.md](docs/project-status.md) | 현재 프로젝트 상태 | 진행 상황 공유 |
+| [docs/updates/](docs/updates/) | 날짜별 작업 기록 68개+ | 빌딩 로그 시리즈 |
+| [docs/TODO-에이전트-설정.md](docs/TODO-에이전트-설정.md) | 에이전트 소울 설정 가이드 | - |
+| [CLAUDE.md](CLAUDE.md) | Claude 작업 규칙 (개발용) | - |
 
 ---
 
@@ -303,14 +221,13 @@ ANTHROPIC_API_KEY=sk-ant-...
 
 # 선택 (기본값 있음)
 DEFAULT_MODEL=claude-sonnet-4-5-20250929
-MANAGER_MODEL=claude-sonnet-4-5-20250929
-SPECIALIST_MODEL=claude-haiku-4-5-20251001
-WORKER_MODEL=claude-haiku-4-5-20251001
 LOG_LEVEL=INFO
 ```
 
 ---
 
-## 라이선스
+## 만든 사람
 
-이 프로젝트는 개인 프로젝트입니다.
+- **CEO / 기획**: 고동희
+- **개발**: Claude Code (Anthropic AI)
+- **라이선스**: 개인 프로젝트
