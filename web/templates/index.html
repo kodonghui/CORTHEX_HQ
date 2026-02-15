@@ -2233,7 +2233,7 @@
                     <template x-for="[provLabel, models] of Object.entries(getModelsByProvider())" :key="provLabel">
                       <optgroup :label="provLabel">
                         <template x-for="m in models" :key="m.name">
-                          <option :value="m.name" x-text="getModelDisplayName(m.name) + ' (' + getModelTierLabel(m.tier) + ')'"></option>
+                          <option :value="m.name" x-text="getModelDisplayName(m.name)"></option>
                         </template>
                       </optgroup>
                     </template>
