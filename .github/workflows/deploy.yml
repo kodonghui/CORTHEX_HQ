@@ -77,4 +77,13 @@ jobs:
               exit 1
             fi
 
+            # 8단계: 배포 상태 JSON 저장 (프론트엔드에서 읽을 수 있도록)
+            echo "{\"build\":${BUILD_NUMBER},\"time\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\",\"status\":\"success\",\"commit\":\"$(cd /home/ubuntu/CORTHEX_HQ && git rev-parse --short HEAD)\"}" | sudo tee /var/www/html/deploy-status.json > /dev/null
+
+            # 9단계: nginx 캐시 방지 설정 (HTML 파일이 항상 최신 버전으로 보이도록)
+            if ! grep -q "no-cache" /etc/nginx/sites-available/default 2>/dev/null; then
+              sudo sed -i '/location \/ {/a\\t\tadd_header Cache-Control "no-cache, no-store, must-revalidate";\n\t\tadd_header Pragma "no-cache";\n\t\tadd_header Expires "0";' /etc/nginx/sites-available/default 2>/dev/null || echo "⚠️ nginx 캐시 설정 건너뜀"
+              sudo nginx -t 2>/dev/null && sudo systemctl reload nginx 2>/dev/null || echo "⚠️ nginx 리로드 건너뜀"
+            fi
+
             echo "🎉 배포 성공! http://168.107.28.100 에서 확인 가능 (빌드 #${BUILD_NUMBER})"

@@ -94,5 +94,35 @@
   - 서버 파일을 직접 수정하지 말 것 (GitHub에서 코드 수정 → 자동 배포가 정상 흐름)
   - 배포 실패 시 GitHub Actions 로그를 먼저 확인할 것
 
+## 배포 트러블슈팅 (문제 해결 가이드)
+
+### 배포 안 되는 흔한 원인들
+
+| 증상 | 원인 | 해결 |
+|------|------|------|
+| 배포 성공인데 화면이 안 바뀜 | **브라우저 캐시** — 브라우저가 옛날 파일을 기억 | `Ctrl+Shift+R` (강력 새로고침) 또는 주소 뒤에 `?v=2` 붙이기 |
+| 배포 성공인데 화면이 안 바뀜 (2) | **nginx 캐시** — 서버가 브라우저에 캐시 허용 | deploy.yml이 자동으로 nginx에 `no-cache` 헤더 설정 (2026-02-15 추가) |
+| GitHub Actions "success"인데 서버 접속 안됨 | **서버 다운** 또는 **방화벽 차단** | Oracle Cloud 콘솔에서 인스턴스 상태 확인 → Security List에서 포트 80 열려있는지 확인 |
+| `pip 설치 실패` 경고 | PyYAML 패키지 설치 실패 | 무시 가능 (yaml 없이도 미니 서버 동작함) |
+| 빌드 번호가 `BUILD_NUMBER_PLACEHOLDER`로 표시 | HTML을 로컬에서 직접 열었음 (서버 아님) | 반드시 `http://168.107.28.100`으로 접속해야 함. 로컬 파일을 브라우저로 열면 빌드 번호가 주입 안됨 |
+
+### 배포 확인하는 3가지 방법
+1. **웹 화면**: `http://168.107.28.100` 접속 → 좌측 상단 "빌드 #XX" 확인
+2. **배포 상태 JSON**: `http://168.107.28.100/deploy-status.json` 직접 접속 → 빌드 번호와 시간 확인
+3. **GitHub Actions**: https://github.com/kodonghui/CORTHEX_HQ/actions → "Deploy to Oracle Cloud Server" 워크플로우 확인
+
+### 배포 흐름 상세 (디버깅용)
+```
+[코드 수정] → [git push] → [auto-merge.yml] → [PR 생성 + main 머지]
+    → [deploy.yml 직접 실행] → [서버 SSH 접속] → [git pull]
+    → [sed로 빌드번호 주입] → [/var/www/html/index.html 복사]
+    → [corthex 서비스 재시작] → [deploy-status.json 생성]
+```
+
+### nginx 캐시 방지 (2026-02-15 추가)
+- deploy.yml이 첫 배포 시 nginx 설정에 `Cache-Control: no-cache` 헤더를 자동 추가
+- 이후 배포부터는 브라우저가 항상 최신 파일을 받아감
+- 수동으로 확인: `curl -I http://168.107.28.100` → `Cache-Control: no-cache` 헤더 있으면 정상
+
 ## 환경 설정
 - gh CLI가 없으면 세션 시작 시 설치: `(type gh > /dev/null 2>&1) || (curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null && sudo apt update && sudo apt install gh -y)`
