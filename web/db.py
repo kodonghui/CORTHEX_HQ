@@ -483,6 +483,9 @@ def save_setting(key: str, value) -> None:
             (key, json_value, _now_iso()),
         )
         conn.commit()
+    except sqlite3.OperationalError:
+        # settings 테이블이 아직 생성되지 않은 경우 — init_db() 후 재시도됨
+        pass
     finally:
         conn.close()
 
@@ -496,6 +499,9 @@ def load_setting(key: str, default=None):
         ).fetchone()
         if row:
             return json.loads(row[0])
+        return default
+    except sqlite3.OperationalError:
+        # settings 테이블이 아직 생성되지 않은 경우 (init_db 호출 전)
         return default
     finally:
         conn.close()
