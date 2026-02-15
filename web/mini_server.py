@@ -12,6 +12,41 @@ import os
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
+
+def _load_env_file() -> None:
+    """환경변수 파일을 직접 읽어서 os.environ에 설정.
+    systemd EnvironmentFile이 안 먹힐 수 있으므로 직접 로드하는 안전장치."""
+    env_paths = [
+        Path("/home/ubuntu/corthex.env"),        # 서버 배포 환경
+        Path(__file__).parent.parent / ".env.local",  # 로컬 개발 환경
+        Path(__file__).parent.parent / ".env",        # 로컬 폴백
+    ]
+    for env_path in env_paths:
+        if env_path.exists():
+            try:
+                for line in env_path.read_text(encoding="utf-8").splitlines():
+                    line = line.strip()
+                    if not line or line.startswith("#"):
+                        continue
+                    if "=" in line:
+                        key, _, value = line.partition("=")
+                        key = key.strip()
+                        value = value.strip()
+                        # 이미 설정된 환경변수는 덮어쓰지 않음
+                        if key and key not in os.environ:
+                            os.environ[key] = value
+                logging.getLogger("corthex.mini_server").info(
+                    "환경변수 파일 로드: %s", env_path
+                )
+            except Exception as e:
+                logging.getLogger("corthex.mini_server").warning(
+                    "환경변수 파일 읽기 실패 (%s): %s", env_path, e
+                )
+            break  # 첫 번째로 찾은 파일만 사용
+
+
+_load_env_file()
+
 try:
     import yaml
 except ImportError:
