@@ -60,8 +60,23 @@ jobs:
             cp -r config/* /home/ubuntu/config/ 2>/dev/null || echo "⚠️ config 파일 없음 (무시)"
 
             # 5단계: Python 의존성 설치 (PyYAML 등)
-            echo "📦 Python 패키지 확인 중..."
-            pip3 install pyyaml 2>/dev/null || pip install pyyaml 2>/dev/null || echo "⚠️ pip 설치 실패 (yaml 없이 동작 가능)"
+            echo "📦 Python 패키지 설치 중..."
+            sudo apt-get install -y python3-yaml 2>/dev/null || echo "⚠️ python3-yaml 설치 실패"
+
+            # 5.5단계: YAML → JSON 변환 (PyYAML 없이도 동작하도록 백업)
+            echo "🔄 설정 파일 JSON 변환 중..."
+            python3 -c "
+import yaml, json, pathlib
+for name in ['agents', 'tools']:
+    src = pathlib.Path('/home/ubuntu/config') / f'{name}.yaml'
+    dst = pathlib.Path('/home/ubuntu/config') / f'{name}.json'
+    if src.exists():
+        data = yaml.safe_load(src.read_text(encoding='utf-8'))
+        dst.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding='utf-8')
+        print(f'  ✅ {name}.yaml → {name}.json 변환 완료')
+    else:
+        print(f'  ⚠️ {name}.yaml 없음')
+" 2>/dev/null || echo "⚠️ JSON 변환 건너뜀 (YAML 직접 로드로 동작)"
 
             # 6단계: 미니 서버 재시작
             echo "🔁 미니 서버 재시작 중..."

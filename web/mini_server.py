@@ -40,36 +40,49 @@ def get_build_number() -> str:
 # ── 설정 파일에서 에이전트/도구 정보 로드 ──
 CONFIG_DIR = Path(BASE_DIR).parent / "config"
 
-def _load_agents_yaml() -> dict:
-    """agents.yaml에서 에이전트별 상세 정보(allowed_tools, capabilities 등)를 로드."""
-    if yaml is None:
-        logger.warning("PyYAML 미설치 — agents.yaml 로드 건너뜀")
-        return {}
-    try:
-        raw = yaml.safe_load((CONFIG_DIR / "agents.yaml").read_text(encoding="utf-8"))
-        lookup: dict[str, dict] = {}
-        for a in raw.get("agents", []):
-            lookup[a["agent_id"]] = a
-        return lookup
-    except Exception as e:
-        logger.warning("agents.yaml 로드 실패 (빈 설정 사용): %s", e)
-        return {}
+def _load_config(name: str) -> dict:
+    """설정 파일 로드. JSON을 먼저 시도하고, 없으면 YAML로 시도."""
+    # 1순위: JSON 파일 (deploy.yml이 배포 시 YAML → JSON으로 변환해둠)
+    json_path = CONFIG_DIR / f"{name}.json"
+    if json_path.exists():
+        try:
+            raw = json.loads(json_path.read_text(encoding="utf-8"))
+            logger.info("%s.json 로드 성공", name)
+            return raw
+        except Exception as e:
+            logger.warning("%s.json 로드 실패: %s", name, e)
 
-def _load_tools_yaml() -> list[dict]:
-    """tools.yaml에서 도구 목록을 로드."""
-    if yaml is None:
-        logger.warning("PyYAML 미설치 — tools.yaml 로드 건너뜀")
-        return []
-    try:
-        raw = yaml.safe_load((CONFIG_DIR / "tools.yaml").read_text(encoding="utf-8"))
-        return raw.get("tools", [])
-    except Exception as e:
-        logger.warning("tools.yaml 로드 실패 (빈 목록 사용): %s", e)
-        return []
+    # 2순위: YAML 파일 (PyYAML 필요)
+    yaml_path = CONFIG_DIR / f"{name}.yaml"
+    if yaml is not None and yaml_path.exists():
+        try:
+            raw = yaml.safe_load(yaml_path.read_text(encoding="utf-8"))
+            logger.info("%s.yaml 로드 성공", name)
+            return raw
+        except Exception as e:
+            logger.warning("%s.yaml 로드 실패: %s", name, e)
+
+    logger.warning("%s 설정 파일 로드 실패 (빈 설정 사용)", name)
+    return {}
+
+
+def _load_agents() -> dict:
+    """에이전트별 상세 정보(allowed_tools, capabilities 등)를 로드."""
+    raw = _load_config("agents")
+    lookup: dict[str, dict] = {}
+    for a in raw.get("agents", []):
+        lookup[a["agent_id"]] = a
+    return lookup
+
+
+def _load_tools() -> list[dict]:
+    """도구 목록을 로드."""
+    raw = _load_config("tools")
+    return raw.get("tools", [])
 
 # 서버 시작 시 1회 로드 (메모리 절약: 필요한 정보만 캐시)
-_AGENTS_DETAIL: dict[str, dict] = _load_agents_yaml()
-_TOOLS_LIST: list[dict] = _load_tools_yaml()
+_AGENTS_DETAIL: dict[str, dict] = _load_agents()
+_TOOLS_LIST: list[dict] = _load_tools()
 
 
 @app.get("/", response_class=HTMLResponse)
