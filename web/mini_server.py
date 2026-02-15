@@ -25,7 +25,7 @@ from db import (
     save_setting, load_setting, get_today_cost,
 )
 try:
-    from ai_handler import init_ai_client, is_ai_ready, ask_ai, select_model, classify_task
+    from ai_handler import init_ai_client, is_ai_ready, ask_ai, select_model, classify_task, _is_provider_ready
 except ImportError:
     def init_ai_client(): return False
     def is_ai_ready(): return False
@@ -442,8 +442,9 @@ async def get_dashboard():
         "recent_completed": stats["recent_completed"],
         # API 키 연결 상태 — 환경변수 + AI 클라이언트 확인
         "api_keys": {
-            "openai": bool(os.getenv("OPENAI_API_KEY", "")),
-            "anthropic": is_ai_ready(),  # AI 클라이언트가 정상 초기화되었는지
+            "anthropic": _is_provider_ready("anthropic"),
+            "google": _is_provider_ready("google"),
+            "openai": _is_provider_ready("openai"),
             "notion": bool(os.getenv("NOTION_API_KEY", "")),
             "telegram": bool(os.getenv("TELEGRAM_BOT_TOKEN", "")),
         },
