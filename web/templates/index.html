@@ -2548,9 +2548,7 @@
               <div class="glass border border-hq-border rounded-xl p-4 hover-glow">
                 <div class="flex items-center justify-between">
                   <div class="flex-1">
-                    <div style="margin-bottom:6px;">
-                      <span :style="'display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:6px; vertical-align:middle; background:' + (s.enabled ? 'rgb(52,211,153)' : 'rgb(100,100,120)')"></span><span style="font-size:14px; font-weight:600; vertical-align:middle;" class="text-hq-text" x-text="s.name"></span>
-                    </div>
+                    <div class="mb-1.5"><span class="inline-block w-2 h-2 rounded-full mr-1.5 align-middle" :class="s.enabled ? 'bg-emerald-400' : 'bg-gray-500'"></span><span class="text-sm font-semibold align-middle text-hq-text" x-text="s.name"></span></div>
                     <div class="text-[12px] text-hq-muted mb-1" x-text="s.command"></div>
                     <div class="flex items-center gap-3 text-[11px] text-hq-muted/70">
                       <span x-text="'주기: ' + (s.cron_label || s.cron)"></span>
