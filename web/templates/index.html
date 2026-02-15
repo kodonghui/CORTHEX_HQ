@@ -2560,7 +2560,7 @@
                             class="text-xs px-3 py-1.5 rounded-lg border transition"
                             :class="s.enabled ? 'border-hq-yellow/30 text-hq-yellow hover:bg-hq-yellow/10' : 'border-hq-green/30 text-hq-green hover:bg-hq-green/10'"
                             x-text="s.enabled ? '중지' : '시작'"></button>
-                    <button @click="schedules.confirmDelete = s"
+                    <button @click="confirmDelete = {type:'schedule', id:s.id, name:s.name||s.command||'이름 없음'}"
                             class="text-xs px-3 py-1.5 rounded-lg border border-hq-red/30 text-hq-red hover:bg-hq-red/10 transition">삭제</button>
                   </div>
                 </div>
@@ -2617,7 +2617,7 @@
                     </button>
                     <button @click="editWorkflow(wf)"
                             class="text-xs px-3 py-1.5 rounded-lg border border-hq-border text-hq-muted hover:text-hq-text transition">수정</button>
-                    <button @click="deleteWorkflow(wf.id)"
+                    <button @click="confirmDelete = {type:'workflow', id:wf.id, name:wf.name||'이름 없음'}"
                             class="text-xs px-3 py-1.5 rounded-lg border border-hq-red/30 text-hq-red hover:bg-hq-red/10 transition">삭제</button>
                   </div>
                 </div>
@@ -2999,37 +2999,47 @@
     </div>
   </div>
 
-  <!-- ═══ Schedule Delete Confirm Modal (예약 삭제 확인) ═══ -->
-  <div x-show="schedules.confirmDelete" x-transition.opacity
-       class="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-md"
-       @click.self="schedules.confirmDelete = null" style="display: none;">
-    <div class="relative overflow-hidden rounded-2xl w-full max-w-[380px] mx-4 text-center" @click.stop
-         style="background: rgba(30,20,50,0.85); border: 1px solid rgba(255,255,255,0.08); box-shadow: 0 0 40px rgba(139,92,246,0.15), 0 0 80px rgba(236,72,153,0.08);"
+  <!-- ═══ Universal Delete Confirm Modal (범용 삭제 확인) ═══ -->
+  <div x-show="confirmDelete.type" x-transition.opacity
+       class="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-lg"
+       @click.self="confirmDelete = {type:null, id:null, name:null}" style="display: none;">
+    <div class="relative overflow-hidden rounded-3xl w-full max-w-[400px] mx-4 text-center" @click.stop
+         style="background: rgba(18,10,36,0.92); border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 0 60px rgba(239,68,68,0.12), 0 0 120px rgba(139,92,246,0.08), 0 8px 32px rgba(0,0,0,0.4);"
          x-transition:enter="transition ease-out duration-300"
          x-transition:enter-start="opacity-0 scale-90 translate-y-4"
          x-transition:enter-end="opacity-100 scale-100 translate-y-0">
-      <!-- 오로라 배경 -->
-      <div style="position:absolute; inset:0; background: linear-gradient(135deg, rgba(139,92,246,0.12) 0%, rgba(236,72,153,0.08) 50%, rgba(139,92,246,0.06) 100%); pointer-events:none;"></div>
-      <div class="relative p-7">
-        <!-- 아이콘 -->
-        <div class="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-5"
-             style="background: linear-gradient(135deg, rgba(239,68,68,0.2), rgba(236,72,153,0.15)); border: 1px solid rgba(239,68,68,0.25); box-shadow: 0 0 20px rgba(239,68,68,0.2);">
-          <svg class="w-7 h-7" style="color: rgb(248,113,113);" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+      <!-- 오로라 배경 그라데이션 -->
+      <div style="position:absolute; inset:0; background: linear-gradient(135deg, rgba(239,68,68,0.06) 0%, rgba(139,92,246,0.08) 40%, rgba(236,72,153,0.06) 70%, rgba(239,68,68,0.04) 100%); pointer-events:none;"></div>
+      <!-- 상단 빨간 라인 -->
+      <div style="position:absolute; top:0; left:0; right:0; height:2px; background: linear-gradient(90deg, transparent, rgba(239,68,68,0.6), rgba(236,72,153,0.4), transparent);"></div>
+      <div class="relative px-8 pt-8 pb-7">
+        <!-- 큰 아이콘 + 빨간 글로우 -->
+        <div class="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6"
+             style="background: radial-gradient(circle, rgba(239,68,68,0.2) 0%, rgba(239,68,68,0.05) 70%); border: 1.5px solid rgba(239,68,68,0.3); box-shadow: 0 0 30px rgba(239,68,68,0.25), 0 0 60px rgba(239,68,68,0.1);">
+          <svg class="w-9 h-9" style="color: rgb(252,129,129); filter: drop-shadow(0 0 8px rgba(239,68,68,0.4));" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
         </div>
-        <!-- 텍스트 -->
-        <h3 class="text-lg font-bold text-hq-text mb-2">예약을 삭제하시겠습니까?</h3>
-        <p class="text-sm mb-6" style="color: rgba(200,195,220,0.7);"
-           x-text="schedules.confirmDelete ? ('\"' + (schedules.confirmDelete.name || schedules.confirmDelete.command || '이름 없음') + '\" 예약이 영구 삭제됩니다.') : ''"></p>
-        <!-- 버튼 -->
-        <div class="flex gap-3">
-          <button @click="schedules.confirmDelete = null"
-                  class="flex-1 py-2.5 text-sm rounded-xl transition font-medium"
-                  style="color: rgba(200,195,220,0.8); border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.05);"
-                  onmouseover="this.style.background='rgba(255,255,255,0.1)'" onmouseout="this.style.background='rgba(255,255,255,0.05)'">취소</button>
-          <button @click="deleteSchedule(schedules.confirmDelete.id); schedules.confirmDelete = null"
-                  class="flex-1 py-2.5 text-sm text-white rounded-xl font-semibold transition"
-                  style="background: linear-gradient(135deg, rgb(220,50,50), rgb(200,40,80)); box-shadow: 0 0 20px rgba(239,68,68,0.3);"
-                  onmouseover="this.style.boxShadow='0 0 30px rgba(239,68,68,0.5)'" onmouseout="this.style.boxShadow='0 0 20px rgba(239,68,68,0.3)'">삭제</button>
+        <!-- 제목 (타입에 따라 다르게) -->
+        <h3 class="text-lg font-bold text-hq-text mb-3" x-text="confirmDelete.type === 'workflow' ? '워크플로우를 삭제하시겠습니까?' : '예약을 삭제하시겠습니까?'"></h3>
+        <!-- 이름 하이라이트 -->
+        <div class="mb-6">
+          <div class="inline-block rounded-lg px-4 py-2"
+               style="background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.15);">
+            <span class="text-sm font-semibold" style="color: rgb(252,165,165);" x-text="confirmDelete.name || '이름 없음'"></span>
+          </div>
+          <p class="text-[13px] mt-3" style="color: rgba(200,195,220,0.6);">이 항목은 영구적으로 삭제되며 복구할 수 없습니다.</p>
+        </div>
+        <!-- 버튼 (전체 너비, 세로 배치) -->
+        <div class="space-y-2.5">
+          <button @click="if(confirmDelete.type==='schedule') deleteSchedule(confirmDelete.id); else if(confirmDelete.type==='workflow') deleteWorkflow(confirmDelete.id); confirmDelete={type:null,id:null,name:null};"
+                  class="w-full py-3 text-sm text-white rounded-2xl font-semibold transition-all duration-200"
+                  style="background: linear-gradient(135deg, rgb(220,50,50), rgb(180,30,80)); box-shadow: 0 0 20px rgba(239,68,68,0.3), 0 4px 12px rgba(0,0,0,0.3);"
+                  onmouseover="this.style.boxShadow='0 0 35px rgba(239,68,68,0.5), 0 4px 16px rgba(0,0,0,0.4)'; this.style.transform='translateY(-1px)'"
+                  onmouseout="this.style.boxShadow='0 0 20px rgba(239,68,68,0.3), 0 4px 12px rgba(0,0,0,0.3)'; this.style.transform='translateY(0)'">삭제하기</button>
+          <button @click="confirmDelete = {type:null, id:null, name:null}"
+                  class="w-full py-3 text-sm rounded-2xl transition-all duration-200 font-medium"
+                  style="color: rgba(200,195,220,0.8); border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.04);"
+                  onmouseover="this.style.background='rgba(255,255,255,0.08)'; this.style.borderColor='rgba(255,255,255,0.15)'"
+                  onmouseout="this.style.background='rgba(255,255,255,0.04)'; this.style.borderColor='rgba(255,255,255,0.08)'">취소</button>
         </div>
       </div>
     </div>
@@ -3799,7 +3809,7 @@
 
         // ── Schedules (예약) ──
         schedules: {
-          items: [], showModal: false, confirmDelete: null, editName: '', editCommand: '',
+          items: [], showModal: false, editName: '', editCommand: '',
           editCronPreset: '매일 오전 9시',
           cronPresets: ['매일 오전 9시', '매일 오후 6시', '매주 월요일 오전 10시', '매주 금요일 오후 5시', '매시간', '30분마다'],
         },
@@ -3815,6 +3825,9 @@
 
         // Dark/Light mode
         darkMode: true,
+
+        // ── Universal Delete Confirm (범용 삭제 확인) ──
+        confirmDelete: { type: null, id: null, name: null },
 
         // Toast/Notification
         toasts: [],
