@@ -144,12 +144,10 @@ jobs:
 
             # 6단계: 미니 서버 재시작
             echo "🔁 미니 서버 재시작 중..."
-            # corthex.service가 mini_server.py를 실행하도록 확인
-            if grep -q "app:app" /etc/systemd/system/corthex.service 2>/dev/null; then
-              echo "♻️ corthex.service를 mini_server로 되돌리는 중..."
-              sudo sed -i 's|ExecStart=.*|ExecStart=/usr/bin/python3 -m uvicorn mini_server:app --host 0.0.0.0 --port 8000|' /etc/systemd/system/corthex.service
-              sudo sed -i 's|WorkingDirectory=.*|WorkingDirectory=/home/ubuntu/CORTHEX_HQ/web|' /etc/systemd/system/corthex.service
-            fi
+            # corthex.service가 올바른 경로로 mini_server.py를 실행하도록 강제 설정
+            echo "♻️ corthex.service ExecStart 복원 중..."
+            sudo sed -i 's|ExecStart=.*|ExecStart=/home/ubuntu/venv/bin/uvicorn mini_server:app --host 0.0.0.0 --port 8000|' /etc/systemd/system/corthex.service
+            sudo sed -i 's|WorkingDirectory=.*|WorkingDirectory=/home/ubuntu/CORTHEX_HQ/web|' /etc/systemd/system/corthex.service
             sudo systemctl daemon-reload
             sudo systemctl restart corthex
 
