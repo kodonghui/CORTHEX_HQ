@@ -2594,9 +2594,9 @@
           <div class="space-y-3">
             <template x-for="wf in workflows.items" :key="wf.id">
               <div class="glass border border-hq-border rounded-xl p-4 hover-glow">
-                <div class="flex items-center justify-between">
-                  <div class="flex-1">
-                    <div class="text-sm font-semibold text-hq-text mb-0.5" x-text="wf.name"></div>
+                <div class="flex items-start justify-between gap-3">
+                  <div class="flex-1 min-w-0">
+                    <div class="mb-1"><span class="inline-block w-2 h-2 rounded-full bg-violet-400 mr-1.5 align-middle"></span><span class="text-sm font-semibold text-hq-text align-middle" x-text="wf.name"></span></div>
                     <div class="text-[12px] text-hq-muted mb-2" x-text="wf.description || wf.steps.length + '단계'"></div>
                     <div class="flex items-center gap-1.5 flex-wrap">
                       <template x-for="(step, i) in wf.steps" :key="i">
@@ -2607,7 +2607,7 @@
                       </template>
                     </div>
                   </div>
-                  <div class="flex items-center gap-2">
+                  <div class="flex items-center gap-2 shrink-0">
                     <button @click="runWorkflow(wf.id)"
                             :disabled="workflows.runningId === wf.id"
                             class="bg-hq-green/20 text-hq-green border border-hq-green/30 rounded-lg px-3 py-1.5 text-xs font-semibold hover:bg-hq-green/30 transition disabled:opacity-50">
