@@ -35,52 +35,78 @@
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
-    /* ═══ 뉴트럴 다크 팔레트 (남색 제거, 무채색 기반) ═══ */
+    /* ═══ Glass + Aurora Mix 팔레트 (따뜻한 보라빛 다크) ═══ */
     :root, .dark {
-      --hq-bg: 13 17 23;
-      --hq-surface: 22 27 34;
-      --hq-panel: 33 38 48;
-      --hq-border: 48 54 65;
-      --hq-border-light: 68 76 90;
-      --hq-accent: 96 165 250;
-      --hq-cyan: 34 211 238;
-      --hq-purple: 167 139 250;
+      --hq-bg: 15 14 22;
+      --hq-surface: 26 24 36;
+      --hq-panel: 36 34 48;
+      --hq-border: 58 55 75;
+      --hq-border-light: 78 75 98;
+      --hq-accent: 100 160 255;
+      --hq-cyan: 40 215 240;
+      --hq-purple: 170 140 255;
       --hq-green: 52 211 153;
       --hq-yellow: 251 191 36;
       --hq-red: 248 113 113;
-      --hq-text: 237 242 247;
-      --hq-muted: 148 163 184;
+      --hq-text: 235 232 245;
+      --hq-muted: 150 145 172;
       --hq-shadow: 0 0 0;
     }
-    /* ═══ 라이트모드 팔레트 (깨끗한 흰색 기반) ═══ */
+    /* ═══ 라이트모드 팔레트 (따뜻한 연보라 기반) ═══ */
     html:not(.dark) {
-      --hq-bg: 249 250 251;
-      --hq-surface: 255 255 255;
-      --hq-panel: 243 244 246;
-      --hq-border: 229 231 235;
-      --hq-border-light: 209 213 219;
-      --hq-accent: 59 130 246;
+      --hq-bg: 240 238 245;
+      --hq-surface: 248 246 252;
+      --hq-panel: 235 232 242;
+      --hq-border: 210 206 220;
+      --hq-border-light: 190 185 205;
+      --hq-accent: 80 130 240;
       --hq-cyan: 6 182 212;
       --hq-purple: 124 58 237;
       --hq-green: 16 185 129;
       --hq-yellow: 217 119 6;
       --hq-red: 220 38 38;
-      --hq-text: 17 24 39;
-      --hq-muted: 107 114 128;
+      --hq-text: 25 22 40;
+      --hq-muted: 100 95 120;
       --hq-shadow: 0 0 0;
     }
 
     * { box-sizing: border-box; }
     body { font-family: 'Inter', sans-serif; }
 
-    /* ═══ 다크 모드 배경 (단색) ═══ */
+    /* ═══ 다크 모드 배경 (오로라 그라데이션) ═══ */
     .dark body {
-      background: rgb(10 12 18);
+      background: linear-gradient(135deg, #0F0E16 0%, #1A1428 35%, #0E1520 65%, #12101E 100%);
+      background-attachment: fixed;
+    }
+    /* 오로라 글로우 — 보라색 (왼쪽 위) */
+    .dark body::before {
+      content: '';
+      position: fixed;
+      top: -20%;
+      left: -10%;
+      width: 60%;
+      height: 60%;
+      background: radial-gradient(ellipse at center, rgba(170,140,255,0.06) 0%, transparent 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
+    /* 오로라 글로우 — 청록색 (오른쪽 아래) */
+    .dark body::after {
+      content: '';
+      position: fixed;
+      bottom: -20%;
+      right: -10%;
+      width: 60%;
+      height: 60%;
+      background: radial-gradient(ellipse at center, rgba(40,215,240,0.04) 0%, transparent 70%);
+      pointer-events: none;
+      z-index: 0;
     }
 
-    /* ═══ 라이트 모드 배경 (단색) ═══ */
+    /* ═══ 라이트 모드 배경 (따뜻한 연보라 그라데이션) ═══ */
     html:not(.dark) body {
-      background: rgb(245 246 250);
+      background: linear-gradient(135deg, #F0EEF5 0%, #E8E4F0 35%, #EDE9F3 65%, #F5F3F8 100%);
+      background-attachment: fixed;
     }
 
     .font-mono { font-family: 'JetBrains Mono', monospace; }
@@ -164,11 +190,12 @@
     .glow-purple { box-shadow: 0 0 20px rgb(var(--hq-purple) / 0.25), 0 0 40px rgb(var(--hq-purple) / 0.1); }
     .glow-accent { box-shadow: 0 0 24px rgb(var(--hq-accent) / 0.3); }
 
-    /* Glass effect — solid background for maximum contrast */
+    /* Glass effect — 반투명 유리 효과 (Glassmorphism) */
     .glass {
-      background: rgb(var(--hq-surface));
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
+      background: rgb(var(--hq-surface) / 0.55);
+      backdrop-filter: blur(20px) saturate(1.4);
+      -webkit-backdrop-filter: blur(20px) saturate(1.4);
+      border-color: rgb(255 255 255 / 0.06);
     }
 
     /* Background grid pattern — 격자 무늬는 ::before 가상 요소로만 표시 */
@@ -203,13 +230,13 @@
       box-shadow: 0 8px 24px rgb(var(--hq-shadow) / 0.15);
     }
 
-    /* Card hover glow — 유리 위 은은한 빛 */
+    /* Card hover glow — 유리 위 보라빛 글로우 */
     .hover-glow {
       transition: box-shadow 0.3s ease, border-color 0.3s ease, background-color 0.3s ease;
     }
     .hover-glow:hover {
-      box-shadow: 0 0 24px rgb(var(--hq-accent) / 0.12), 0 4px 16px rgb(var(--hq-purple) / 0.08);
-      border-color: rgb(255 255 255 / 0.1);
+      box-shadow: 0 0 24px rgb(var(--hq-purple) / 0.15), 0 4px 16px rgb(var(--hq-accent) / 0.1);
+      border-color: rgb(255 255 255 / 0.12);
     }
 
     /* Agent avatar */
@@ -686,7 +713,7 @@
           <path d="M16 2L28 9V23L16 30L4 23V9L16 2Z" stroke="url(#logoGrad)" stroke-width="1.5" fill="none"/>
           <path d="M16 6L24 10.5V21.5L16 26L8 21.5V10.5L16 6Z" stroke="url(#logoGrad)" stroke-width="1" fill="none" opacity="0.5"/>
           <circle cx="16" cy="16" r="4" fill="url(#logoGrad)" opacity="0.8"/>
-          <circle cx="16" cy="16" r="2" fill="#0F0E16"/>
+          <circle cx="16" cy="16" r="2" fill="rgb(15 14 22)"/>
           <line x1="16" y1="12" x2="16" y2="6" stroke="url(#logoGrad)" stroke-width="1" opacity="0.6"/>
           <line x1="19.5" y1="14" x2="24" y2="10.5" stroke="url(#logoGrad)" stroke-width="1" opacity="0.6"/>
           <line x1="19.5" y1="18" x2="24" y2="21.5" stroke="url(#logoGrad)" stroke-width="1" opacity="0.6"/>
@@ -1157,17 +1184,26 @@
             <span x-show="activityLogs.length > 0"
                   class="text-[9px] font-mono bg-hq-accent/10 text-hq-accent px-1.5 py-0.5 rounded"
                   x-text="activityLogs.length"></span>
-            <span class="text-[10px] text-hq-muted transition-transform duration-200"
-                  :class="logExpanded ? 'rotate-180' : ''">&#9660;</span>
+            <svg class="w-3 h-3 text-hq-muted transition-transform duration-200"
+                 :class="logExpanded ? 'rotate-180' : ''"
+                 fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
           </div>
         </button>
         <div x-show="logExpanded" x-collapse>
+          <!-- 전체삭제 버튼 -->
+          <div x-show="activityLogs.length > 0" class="flex items-center justify-end px-3 pb-1">
+            <button @click="activityLogs = []; saveActivityLogs()" class="text-[10px] text-hq-red/60 hover:text-hq-red transition">전체 삭제</button>
+          </div>
           <div class="overflow-y-auto scrollbar-thin max-h-52 px-3 pb-3 space-y-0.5">
-            <template x-for="(log, i) in activityLogs.slice(-30).reverse()" :key="i">
-              <div class="log-item text-[11px] text-hq-muted fade-in">
-                <span class="font-mono text-hq-muted/80" x-text="log.time"></span>
-                <span class="text-hq-cyan/70 font-medium" x-text="log.agent_id"></span>
-                <span x-text="log.action"></span>
+            <template x-for="(log, i) in activityLogs.slice(-50).reverse()" :key="i">
+              <div class="log-item text-[11px] text-hq-muted fade-in group flex items-center gap-1">
+                <div class="flex-1 min-w-0">
+                  <span class="font-mono text-hq-muted/80" x-text="log.time"></span>
+                  <span class="text-hq-cyan/70 font-medium" x-text="log.agent_id"></span>
+                  <span x-text="log.action"></span>
+                </div>
+                <button @click="activityLogs.splice(activityLogs.indexOf(log), 1); saveActivityLogs()"
+                        class="opacity-0 group-hover:opacity-100 text-hq-red/50 hover:text-hq-red transition shrink-0" title="삭제">&times;</button>
               </div>
             </template>
             <template x-if="activityLogs.length === 0">
@@ -1264,7 +1300,7 @@
                   <div class="text-[10px] text-hq-muted uppercase tracking-wider">누적 비용</div>
                 </div>
               </div>
-              <div class="text-[11px] text-hq-muted" x-text="(dashboard.totalTokens || 0).toLocaleString() + ' 토큰'"></div>
+              <div class="text-[11px] text-hq-muted" x-text="(dashboard.totalTokens || 0).toLocaleString() + ' AI 사용량'"></div>
             </div>
             <div class="glass border border-hq-border rounded-xl p-4 hover-glow">
               <div class="flex items-center gap-3 mb-2">
@@ -1306,14 +1342,25 @@
           <!-- Feedback + Budget Row -->
           <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-8">
             <!-- CEO 만족도 카드 (#7) -->
-            <div class="glass border border-hq-border rounded-xl p-4 hover-glow">
-              <div class="flex items-center gap-3 mb-2">
+            <div class="glass border border-hq-border rounded-xl p-5 hover-glow">
+              <div class="flex items-center gap-3 mb-3">
                 <div class="w-9 h-9 rounded-lg bg-hq-yellow/15 flex items-center justify-center">
                   <svg class="w-4.5 h-4.5 text-hq-yellow" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                 </div>
                 <div class="flex-1">
                   <div class="text-xl font-bold text-hq-text" x-text="(feedbackStats.satisfaction_rate || 0) + '%'"></div>
                   <div class="text-[10px] text-hq-muted uppercase tracking-wider">CEO 만족도</div>
+                </div>
+                <!-- 만족도 시각 표시 바 -->
+                <div class="w-20 h-20 relative flex items-center justify-center shrink-0">
+                  <svg class="w-full h-full -rotate-90" viewBox="0 0 36 36">
+                    <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                          fill="none" stroke="rgb(var(--hq-border))" stroke-width="3"/>
+                    <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                          fill="none" stroke="rgb(var(--hq-yellow))" stroke-width="3"
+                          :stroke-dasharray="(feedbackStats.satisfaction_rate || 0) + ', 100'"/>
+                  </svg>
+                  <span class="absolute text-[11px] font-bold text-hq-yellow" x-text="(feedbackStats.satisfaction_rate || 0) + '%'"></span>
                 </div>
               </div>
               <div class="flex items-center gap-3 text-[11px]">
@@ -1410,7 +1457,7 @@
                   <defs><linearGradient id="heroGrad" x1="0" y1="0" x2="32" y2="32"><stop offset="0%" stop-color="#06b6d4"/><stop offset="50%" stop-color="#3b82f6"/><stop offset="100%" stop-color="#8b5cf6"/></linearGradient></defs>
                   <path d="M16 2L28 9V23L16 30L4 23V9L16 2Z" stroke="url(#heroGrad)" stroke-width="1.5" fill="none"/>
                   <path d="M16 6L24 10.5V21.5L16 26L8 21.5V10.5L16 6Z" stroke="url(#heroGrad)" stroke-width="1" fill="none" opacity="0.4"/>
-                  <circle cx="16" cy="16" r="4" fill="url(#heroGrad)" opacity="0.8"/><circle cx="16" cy="16" r="2" fill="#0a0e1a"/>
+                  <circle cx="16" cy="16" r="4" fill="url(#heroGrad)" opacity="0.8"/><circle cx="16" cy="16" r="2" fill="rgb(15 14 22)"/>
                   <line x1="16" y1="12" x2="16" y2="6" stroke="url(#heroGrad)" stroke-width="1" opacity="0.5"/>
                   <line x1="19.5" y1="14" x2="24" y2="10.5" stroke="url(#heroGrad)" stroke-width="1" opacity="0.5"/>
                   <line x1="19.5" y1="18" x2="24" y2="21.5" stroke="url(#heroGrad)" stroke-width="1" opacity="0.5"/>
@@ -1676,8 +1723,13 @@
                 :disabled="!inputText.trim()"
                 class="bg-gradient-to-r from-hq-accent to-hq-purple hover:from-blue-500 hover:to-violet-500
                        disabled:from-gray-700 disabled:to-gray-700 disabled:text-hq-muted
-                       text-white rounded-xl px-6 py-3 text-sm font-semibold transition-all shrink-0
-                       hover:shadow-lg hover:shadow-hq-accent/20 disabled:shadow-none">보내기</button>
+                       text-white rounded-full w-11 h-11 flex items-center justify-center transition-all shrink-0
+                       hover:shadow-lg hover:shadow-hq-accent/20 disabled:shadow-none"
+                title="보내기">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 10.5L12 3m0 0l7.5 7.5M12 3v18"/>
+                </svg>
+              </button>
               <button x-show="systemStatus === 'working'" @click="cancelTask()"
                 class="bg-hq-red/20 border border-hq-red/30 hover:bg-hq-red/30
                        text-hq-red rounded-xl px-6 py-3 text-sm font-semibold transition-all shrink-0 flex items-center gap-2">
@@ -2623,7 +2675,7 @@
               SNS 플랫폼을 연결하려면 각 플랫폼의 API 키가 필요합니다. <code class="bg-hq-bg px-1 rounded text-hq-cyan">.env</code> 파일에 해당 플랫폼의 API 키를 설정한 뒤 "연결하기"를 누르세요.
             </div>
             <div class="grid grid-cols-2 gap-4">
-              <template x-for="platform in ['instagram','youtube','linkedin','tistory','naver_blog','naver_cafe','daum_cafe']" :key="platform">
+              <template x-for="platform in ['instagram','youtube','linkedin','threads','tistory','naver_blog','naver_cafe','daum_cafe']" :key="platform">
                 <div class="glass border border-hq-border rounded-xl p-4">
                   <div class="flex items-center justify-between mb-3">
                     <span class="text-sm font-bold text-hq-text" x-text="getSNSPlatformName(platform)"></span>
@@ -3175,7 +3227,7 @@
             </div>
             <!-- 상관 -->
             <div x-show="agentConfigData?.superior_id">
-              <span class="text-xs text-hq-muted block mb-1">상관 (보고 대상)</span>
+              <span class="text-xs text-hq-muted block mb-1">상관</span>
               <div @click="openAgentConfig(agentConfigData?.superior_id)" class="inline-flex items-center gap-2 bg-hq-purple/10 border border-hq-purple/20 rounded-lg px-3 py-1.5 cursor-pointer hover:bg-hq-purple/20 transition">
                 <div class="w-5 h-5 rounded-md flex items-center justify-center text-[8px] font-bold" :class="getAgentAvatarClass(agentConfigData?.superior_id)" x-text="getAgentInitials(agentConfigData?.superior_id)"></div>
                 <span class="text-xs text-hq-text" x-text="getAgentName(agentConfigData?.superior_id)"></span>
@@ -3186,9 +3238,9 @@
               <span class="text-xs text-hq-muted block mb-1">부하직원</span>
               <div class="flex flex-wrap gap-1.5">
                 <template x-for="subId in (agentConfigData?.subordinate_ids || [])" :key="subId">
-                  <div @click="openAgentConfig(subId)" class="inline-flex items-center gap-1.5 bg-hq-cyan/10 border border-hq-cyan/20 rounded-lg px-2.5 py-1 cursor-pointer hover:bg-hq-cyan/20 transition">
-                    <div class="w-4 h-4 rounded flex items-center justify-center text-[7px] font-bold" :class="getAgentAvatarClass(subId)" x-text="getAgentInitials(subId)"></div>
-                    <span class="text-[10px] text-hq-text" x-text="getAgentName(subId)"></span>
+                  <div @click="openAgentConfig(subId)" class="inline-flex items-center gap-2 bg-hq-cyan/10 border border-hq-cyan/20 rounded-lg px-3 py-1.5 cursor-pointer hover:bg-hq-cyan/20 transition">
+                    <div class="w-5 h-5 rounded-md flex items-center justify-center text-[8px] font-bold" :class="getAgentAvatarClass(subId)" x-text="getAgentInitials(subId)"></div>
+                    <span class="text-xs text-hq-text" x-text="getAgentName(subId)"></span>
                   </div>
                 </template>
               </div>
@@ -3273,9 +3325,18 @@
           <div class="bg-hq-bg rounded-xl p-4">
             <label class="text-xs text-hq-muted block mb-2">시스템 프롬프트 (소울)</label>
             <p class="text-[11px] text-hq-muted/70 mb-3">에이전트의 성격과 행동 방식을 결정하는 핵심 지시문입니다. 변경하면 즉시 반영됩니다.</p>
-            <textarea x-model="agentSoulText" rows="12"
-                      class="w-full bg-hq-panel border border-hq-border rounded-lg px-4 py-3 text-sm text-hq-text font-mono resize-y focus:outline-none focus:border-hq-accent/50 input-glow"
-                      placeholder="이 에이전트의 시스템 프롬프트를 입력하세요..."></textarea>
+            <div class="bg-gray-950 rounded-lg border border-hq-border overflow-hidden">
+              <div class="flex items-center gap-2 px-4 py-2 bg-gray-900 border-b border-gray-800">
+                <span class="w-3 h-3 rounded-full bg-red-500/70"></span>
+                <span class="w-3 h-3 rounded-full bg-yellow-500/70"></span>
+                <span class="w-3 h-3 rounded-full bg-green-500/70"></span>
+                <span class="text-[10px] text-gray-500 font-mono ml-2">soul.prompt</span>
+              </div>
+              <textarea x-model="agentSoulText" rows="12"
+                        class="w-full bg-gray-950 px-4 py-3 text-sm text-green-400 resize-y focus:outline-none border-none"
+                        style="font-family: 'JetBrains Mono', monospace; line-height: 1.7;"
+                        placeholder="이 에이전트의 시스템 프롬프트를 입력하세요..."></textarea>
+            </div>
             <div class="flex items-center justify-between mt-3">
               <span class="text-[10px] text-hq-muted font-mono" x-text="agentSoulText.length + '자'"></span>
               <button @click="saveAgentSoul()"
@@ -3950,8 +4011,9 @@
 
             case 'activity_log':
               msg.data.time = new Date().toLocaleTimeString('ko-KR', { timeZone: 'Asia/Seoul', hour12: false });
+              msg.data.timestamp = Date.now();
               this.activityLogs.push(msg.data);
-              if (this.activityLogs.length > 200) this.activityLogs = this.activityLogs.slice(-100);
+              if (this.activityLogs.length > 50) this.activityLogs = this.activityLogs.slice(-50);
               this.saveActivityLogs();
               break;
 
@@ -5450,7 +5512,13 @@
         restoreActivityLogs() {
           try {
             const saved = localStorage.getItem('corthex-activity-logs');
-            if (saved) this.activityLogs = JSON.parse(saved).slice(-100);
+            if (saved) {
+              let logs = JSON.parse(saved);
+              // 자동 정리: 7일 이상 된 로그 삭제, 최대 50개 유지
+              const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+              logs = logs.filter(l => !l.timestamp || l.timestamp > sevenDaysAgo);
+              this.activityLogs = logs.slice(-50);
+            }
           } catch { /* 무시 */ }
         },
         saveActivityLogs() {
@@ -5570,6 +5638,7 @@
             'instagram': 'Instagram',
             'youtube': 'YouTube',
             'linkedin': 'LinkedIn',
+            'threads': 'Threads',
             'tistory': 'Tistory',
             'naver_blog': '네이버 블로그',
             'naver_cafe': '네이버 카페',
