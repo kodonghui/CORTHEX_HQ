@@ -2651,7 +2651,10 @@
           <div class="space-y-1">
             <template x-for="(log, i) in activityLogs.filter(l => activityLogFilter === 'all' || l.agent_id === activityLogFilter).slice().reverse()" :key="i">
               <div class="flex items-center gap-3 bg-hq-surface border border-hq-border/30 rounded-lg px-4 py-2.5 hover:bg-hq-surface transition">
-                <span class="text-[11px] font-mono text-hq-muted/85 shrink-0 whitespace-nowrap" x-text="log.time"></span>
+                <div class="shrink-0 text-right" style="min-width:72px;">
+                  <div class="text-[10px] font-mono text-hq-muted/60 leading-tight" x-text="log.timeDate || log.time?.split(' ')[0] || ''"></div>
+                  <div class="text-[13px] font-mono font-semibold text-hq-muted leading-tight" x-text="log.timeClock || log.time?.split(' ')[1] || log.time || ''"></div>
+                </div>
                 <span class="w-7 h-7 rounded-md flex items-center justify-center text-[9px] font-bold shrink-0"
                       :class="getAgentAvatarClass(log.agent_id)" x-text="getAgentInitials(log.agent_id)"></span>
                 <span class="text-xs font-medium text-hq-cyan/80 shrink-0 w-24 truncate" x-text="getAgentName(log.agent_id)"></span>
@@ -4142,7 +4145,7 @@
               break;
 
             case 'activity_log':
-              msg.data.time = new Date().toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul', month: '2-digit', day: '2-digit' }) + ' ' + new Date().toLocaleTimeString('ko-KR', { timeZone: 'Asia/Seoul', hour12: false });
+              { const now = new Date(); const d = now.toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/\.\s*/g, '.').replace(/\.$/, ''); const t = now.toLocaleTimeString('ko-KR', { timeZone: 'Asia/Seoul', hour12: false, hour: '2-digit', minute: '2-digit' }); msg.data.timeDate = d; msg.data.timeClock = t; msg.data.time = d + ' ' + t; }
               msg.data.timestamp = Date.now();
               this.activityLogs.push(msg.data);
               if (this.activityLogs.length > 50) this.activityLogs = this.activityLogs.slice(-50);
