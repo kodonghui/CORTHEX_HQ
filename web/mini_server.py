@@ -80,10 +80,11 @@ try:
 except ImportError:
     yaml = None  # PyYAML 미설치 시 graceful fallback
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
-from fastapi.responses import HTMLResponse, FileResponse
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Body, Request
+from fastapi.responses import HTMLResponse, FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
-from starlette.requests import Request
+from pydantic import BaseModel
+from typing import Optional
 
 logger = logging.getLogger("corthex.mini_server")
 
@@ -165,6 +166,35 @@ def _load_tools() -> list[dict]:
 # 서버 시작 시 1회 로드 (메모리 절약: 필요한 정보만 캐시)
 _AGENTS_DETAIL: dict[str, dict] = _load_agents()
 _TOOLS_LIST: list[dict] = _load_tools()
+
+# ── 데이터 저장 디렉토리 (런타임 데이터) ──
+DATA_DIR = Path(BASE_DIR).parent / "data"
+DATA_DIR.mkdir(exist_ok=True)
+KNOWLEDGE_DIR = Path(BASE_DIR).parent / "knowledge"
+ARCHIVE_DIR = Path(BASE_DIR).parent / "archive"
+
+
+def _load_data(name: str, default=None):
+    """data/ 폴더에서 JSON 파일 읽기. 없으면 default 반환."""
+    path = DATA_DIR / f"{name}.json"
+    if path.exists():
+        try:
+            return json.loads(path.read_text(encoding="utf-8"))
+        except Exception:
+            pass
+    return default if default is not None else {}
+
+
+def _save_data(name: str, data) -> None:
+    """data/ 폴더에 JSON 파일 저장."""
+    path = DATA_DIR / f"{name}.json"
+    path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def _save_config_file(name: str, data: dict) -> None:
+    """config/ 폴더에 JSON 파일 저장 (설정 변경 시)."""
+    json_path = CONFIG_DIR / f"{name}.json"
+    json_path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -339,12 +369,10 @@ async def get_dashboard():
 
 @app.get("/api/budget")
 async def get_budget():
-    return {
-        "daily_limit": 10.0,
-        "daily_used": 0.0,
-        "monthly_limit": 300.0,
-        "monthly_used": 0.0,
-    }
+    return _load_data("budget", {
+        "daily_limit": 10.0, "daily_used": 0.0,
+        "monthly_limit": 300.0, "monthly_used": 0.0,
+    })
 
 
 @app.get("/api/quality")
@@ -352,19 +380,40 @@ async def get_quality():
     return {"average_score": 0, "total_evaluated": 0, "rules": []}
 
 
-@app.get("/api/feedback")
-async def get_feedback():
-    return {"good": 0, "bad": 0, "total": 0}
-
+# ── 프리셋 관리 ──
 
 @app.get("/api/presets")
 async def get_presets():
-    return []
+    return _load_data("presets", [])
 
+
+@app.post("/api/presets")
+async def save_preset(request: Request):
+    """프리셋 저장."""
+    body = await request.json()
+    presets = _load_data("presets", [])
+    name = body.get("name", "")
+    # 같은 이름이 있으면 덮어쓰기
+    presets = [p for p in presets if p.get("name") != name]
+    presets.append(body)
+    _save_data("presets", presets)
+    return {"success": True}
+
+
+@app.delete("/api/presets/{name}")
+async def delete_preset(name: str):
+    """프리셋 삭제."""
+    presets = _load_data("presets", [])
+    presets = [p for p in presets if p.get("name") != name]
+    _save_data("presets", presets)
+    return {"success": True}
+
+
+# ── 성능/작업 (읽기 전용 — 실제 데이터는 풀 서버에서 생성) ──
 
 @app.get("/api/performance")
 async def get_performance():
-    return {"agents": [], "summary": {}}
+    return _load_data("performance", {"agents": [], "summary": {}})
 
 
 @app.get("/api/tasks")
@@ -399,29 +448,359 @@ async def get_replay_latest():
     return {"steps": []}
 
 
+# ── 예약 (스케줄) 관리 ──
+
 @app.get("/api/schedules")
 async def get_schedules():
-    return []
+    return _load_data("schedules", [])
 
+
+@app.post("/api/schedules")
+async def add_schedule(request: Request):
+    """새 예약 추가."""
+    body = await request.json()
+    schedules = _load_data("schedules", [])
+    schedule_id = f"sch_{datetime.now(KST).strftime('%Y%m%d%H%M%S')}_{len(schedules)}"
+    schedule = {
+        "id": schedule_id,
+        "command": body.get("command", ""),
+        "cron": body.get("cron", ""),
+        "description": body.get("description", ""),
+        "enabled": True,
+        "created_at": datetime.now(KST).isoformat(),
+    }
+    schedules.append(schedule)
+    _save_data("schedules", schedules)
+    return {"success": True, "schedule": schedule}
+
+
+@app.post("/api/schedules/{schedule_id}/toggle")
+async def toggle_schedule(schedule_id: str):
+    """예약 활성화/비활성화."""
+    schedules = _load_data("schedules", [])
+    for s in schedules:
+        if s.get("id") == schedule_id:
+            s["enabled"] = not s.get("enabled", True)
+            _save_data("schedules", schedules)
+            return {"success": True, "enabled": s["enabled"]}
+    return {"success": False, "error": "not found"}
+
+
+@app.delete("/api/schedules/{schedule_id}")
+async def delete_schedule(schedule_id: str):
+    """예약 삭제."""
+    schedules = _load_data("schedules", [])
+    schedules = [s for s in schedules if s.get("id") != schedule_id]
+    _save_data("schedules", schedules)
+    return {"success": True}
+
+
+# ── 워크플로우 관리 ──
 
 @app.get("/api/workflows")
 async def get_workflows():
-    return []
+    return _load_data("workflows", [])
 
+
+@app.post("/api/workflows")
+async def create_workflow(request: Request):
+    """새 워크플로우 생성."""
+    body = await request.json()
+    workflows = _load_data("workflows", [])
+    wf_id = f"wf_{datetime.now(KST).strftime('%Y%m%d%H%M%S')}_{len(workflows)}"
+    workflow = {
+        "id": wf_id,
+        "name": body.get("name", "새 워크플로우"),
+        "steps": body.get("steps", []),
+        "created_at": datetime.now(KST).isoformat(),
+    }
+    workflows.append(workflow)
+    _save_data("workflows", workflows)
+    return {"success": True, "workflow": workflow}
+
+
+@app.put("/api/workflows/{wf_id}")
+async def save_workflow(wf_id: str, request: Request):
+    """워크플로우 수정."""
+    body = await request.json()
+    workflows = _load_data("workflows", [])
+    for wf in workflows:
+        if wf.get("id") == wf_id:
+            wf["name"] = body.get("name", wf.get("name", ""))
+            wf["steps"] = body.get("steps", wf.get("steps", []))
+            _save_data("workflows", workflows)
+            return {"success": True, "workflow": wf}
+    return {"success": False, "error": "not found"}
+
+
+@app.delete("/api/workflows/{wf_id}")
+async def delete_workflow(wf_id: str):
+    """워크플로우 삭제."""
+    workflows = _load_data("workflows", [])
+    workflows = [w for w in workflows if w.get("id") != wf_id]
+    _save_data("workflows", workflows)
+    return {"success": True}
+
+
+@app.post("/api/workflows/{wf_id}/run")
+async def run_workflow(wf_id: str):
+    """워크플로우 실행 (경량 서버에서는 미지원)."""
+    return {"success": False, "error": "경량 서버 모드에서는 워크플로우 실행이 불가합니다. 메인 서버에서 사용해주세요."}
+
+
+# ── 지식파일 관리 ──
 
 @app.get("/api/knowledge")
 async def get_knowledge():
-    return {"entries": [], "total": 0}
+    entries = []
+    if KNOWLEDGE_DIR.exists():
+        for folder in sorted(KNOWLEDGE_DIR.iterdir()):
+            if folder.is_dir() and not folder.name.startswith("."):
+                for f in sorted(folder.iterdir()):
+                    if f.is_file() and f.suffix == ".md":
+                        entries.append({
+                            "folder": folder.name,
+                            "filename": f.name,
+                            "size": f.stat().st_size,
+                            "modified": datetime.fromtimestamp(f.stat().st_mtime, KST).isoformat(),
+                        })
+    return {"entries": entries, "total": len(entries)}
 
 
-@app.get("/api/knowledge/{entry_id}")
-async def get_knowledge_entry(entry_id: str):
+@app.get("/api/knowledge/{folder}/{filename}")
+async def get_knowledge_file(folder: str, filename: str):
+    """지식 파일 내용 읽기."""
+    file_path = KNOWLEDGE_DIR / folder / filename
+    if file_path.exists() and file_path.is_file():
+        content = file_path.read_text(encoding="utf-8")
+        return {"folder": folder, "filename": filename, "content": content}
     return {"error": "not found"}
 
 
+@app.post("/api/knowledge")
+async def save_knowledge(request: Request):
+    """지식 파일 저장/업로드."""
+    body = await request.json()
+    folder = body.get("folder", "shared")
+    filename = body.get("filename", "untitled.md")
+    content = body.get("content", "")
+    folder_path = KNOWLEDGE_DIR / folder
+    folder_path.mkdir(parents=True, exist_ok=True)
+    file_path = folder_path / filename
+    file_path.write_text(content, encoding="utf-8")
+    return {"success": True, "folder": folder, "filename": filename}
+
+
+@app.delete("/api/knowledge/{folder}/{filename}")
+async def delete_knowledge(folder: str, filename: str):
+    """지식 파일 삭제."""
+    file_path = KNOWLEDGE_DIR / folder / filename
+    if file_path.exists() and file_path.is_file():
+        file_path.unlink()
+        return {"success": True}
+    return {"success": False, "error": "not found"}
+
+
+# ── 에이전트 메모리 관리 ──
+
 @app.get("/api/memory/{agent_id}")
 async def get_memory(agent_id: str):
-    return {"memories": []}
+    all_memories = _load_data("memories", {})
+    return {"memories": all_memories.get(agent_id, [])}
+
+
+@app.post("/api/memory/{agent_id}")
+async def add_memory(agent_id: str, request: Request):
+    """에이전트 메모리 추가."""
+    body = await request.json()
+    all_memories = _load_data("memories", {})
+    if agent_id not in all_memories:
+        all_memories[agent_id] = []
+    memory_id = f"mem_{datetime.now(KST).strftime('%Y%m%d%H%M%S')}_{len(all_memories[agent_id])}"
+    memory = {
+        "id": memory_id,
+        "content": body.get("content", ""),
+        "created_at": datetime.now(KST).isoformat(),
+    }
+    all_memories[agent_id].append(memory)
+    _save_data("memories", all_memories)
+    return {"success": True, "memory": memory}
+
+
+@app.delete("/api/memory/{agent_id}/{memory_id}")
+async def delete_memory(agent_id: str, memory_id: str):
+    """에이전트 메모리 삭제."""
+    all_memories = _load_data("memories", {})
+    if agent_id in all_memories:
+        all_memories[agent_id] = [m for m in all_memories[agent_id] if m.get("id") != memory_id]
+        _save_data("memories", all_memories)
+    return {"success": True}
+
+
+# ── 피드백 ──
+
+@app.get("/api/feedback")
+async def get_feedback():
+    return _load_data("feedback", {"good": 0, "bad": 0, "total": 0})
+
+
+@app.post("/api/feedback")
+async def send_feedback(request: Request):
+    """피드백 전송."""
+    body = await request.json()
+    feedback = _load_data("feedback", {"good": 0, "bad": 0, "total": 0})
+    rating = body.get("rating", "")
+    if rating == "good":
+        feedback["good"] = feedback.get("good", 0) + 1
+    elif rating == "bad":
+        feedback["bad"] = feedback.get("bad", 0) + 1
+    feedback["total"] = feedback.get("good", 0) + feedback.get("bad", 0)
+    _save_data("feedback", feedback)
+    return {"success": True, **feedback}
+
+
+# ── 대화 ──
+
+@app.get("/api/conversation")
+async def get_conversation():
+    return _load_data("conversation", {"messages": []})
+
+
+# ── 아카이브 ──
+
+@app.get("/api/archive")
+async def get_archive():
+    """아카이브 보고서 목록."""
+    entries = []
+    if ARCHIVE_DIR.exists():
+        for div_folder in sorted(ARCHIVE_DIR.iterdir()):
+            if div_folder.is_dir() and not div_folder.name.startswith("."):
+                for f in sorted(div_folder.iterdir(), reverse=True):
+                    if f.is_file():
+                        entries.append({
+                            "division": div_folder.name,
+                            "filename": f.name,
+                            "size": f.stat().st_size,
+                            "modified": datetime.fromtimestamp(f.stat().st_mtime, KST).isoformat(),
+                        })
+    return {"entries": entries, "total": len(entries)}
+
+
+@app.get("/api/archive/{division}/{filename}")
+async def read_archive_report(division: str, filename: str):
+    """아카이브 보고서 읽기."""
+    file_path = ARCHIVE_DIR / division / filename
+    if file_path.exists() and file_path.is_file():
+        content = file_path.read_text(encoding="utf-8")
+        return {"division": division, "filename": filename, "content": content}
+    return {"error": "not found"}
+
+
+@app.get("/api/archive/by-correlation/{correlation_id}")
+async def search_archive_by_correlation(correlation_id: str):
+    """상관ID로 아카이브 검색."""
+    results = []
+    if ARCHIVE_DIR.exists():
+        for div_folder in ARCHIVE_DIR.iterdir():
+            if div_folder.is_dir():
+                for f in div_folder.iterdir():
+                    if f.is_file() and correlation_id in f.name:
+                        results.append({
+                            "division": div_folder.name,
+                            "filename": f.name,
+                        })
+    return {"results": results}
+
+
+# ── SNS 연동 (플레이스홀더 — 실제 연동은 외부 API 키 필요) ──
+
+_SNS_PLATFORMS = ["instagram", "x", "youtube", "threads", "tiktok", "facebook"]
+
+
+@app.get("/api/sns/status")
+async def get_sns_status():
+    """SNS 플랫폼 연결 상태."""
+    return {p: {"connected": False, "username": ""} for p in _SNS_PLATFORMS}
+
+
+@app.get("/api/sns/oauth/status")
+async def get_sns_oauth_status():
+    """SNS OAuth 인증 상태."""
+    return {p: {"authenticated": False} for p in _SNS_PLATFORMS}
+
+
+@app.get("/api/sns/auth/{platform}")
+async def sns_auth(platform: str):
+    """SNS 플랫폼 인증 (미구현 — OAuth 설정 필요)."""
+    return {"success": False, "error": f"{platform} OAuth 연동이 아직 설정되지 않았습니다. API 키를 등록해주세요."}
+
+
+@app.post("/api/sns/instagram/photo")
+async def post_instagram_photo(request: Request):
+    return {"success": False, "error": "인스타그램 API가 아직 연동되지 않았습니다."}
+
+
+@app.post("/api/sns/instagram/reel")
+async def post_instagram_reel(request: Request):
+    return {"success": False, "error": "인스타그램 API가 아직 연동되지 않았습니다."}
+
+
+@app.post("/api/sns/youtube/upload")
+async def post_youtube_video(request: Request):
+    return {"success": False, "error": "유튜브 API가 아직 연동되지 않았습니다."}
+
+
+@app.get("/api/sns/queue")
+async def get_sns_queue():
+    """SNS 게시 대기열."""
+    return _load_data("sns_queue", [])
+
+
+@app.post("/api/sns/approve/{item_id}")
+async def approve_sns(item_id: str):
+    return {"success": False, "error": "SNS API가 아직 연동되지 않았습니다."}
+
+
+@app.post("/api/sns/reject/{item_id}")
+async def reject_sns(item_id: str):
+    queue = _load_data("sns_queue", [])
+    queue = [q for q in queue if q.get("id") != item_id]
+    _save_data("sns_queue", queue)
+    return {"success": True}
+
+
+@app.get("/api/sns/events")
+async def get_sns_events(limit: int = 50):
+    """SNS 이벤트 로그."""
+    return _load_data("sns_events", [])[:limit]
+
+
+# ── 인증 (부트스트랩 모드 — 비밀번호 없이 CEO 자동 인증) ──
+
+@app.post("/api/auth/login")
+async def login(request: Request):
+    """로그인 (부트스트랩 모드에서는 항상 성공)."""
+    return {"success": True, "role": "ceo", "token": "bootstrap-mode"}
+
+
+@app.post("/api/auth/register")
+async def register(request: Request):
+    """회원가입 (부트스트랩 모드에서는 비활성)."""
+    return {"success": False, "error": "부트스트랩 모드에서는 회원가입이 불필요합니다. 자동으로 CEO 권한이 부여됩니다."}
+
+
+# ── 헬스체크 ──
+
+@app.get("/api/health")
+async def health_check():
+    """서버 상태 확인."""
+    return {
+        "status": "ok",
+        "mode": "mini_server",
+        "agents": len(AGENTS),
+        "telegram": _telegram_available and _telegram_app is not None,
+        "timestamp": datetime.now(KST).isoformat(),
+    }
 
 
 _QUALITY_RULES: dict = _load_config("quality_rules")
@@ -460,6 +839,130 @@ async def get_quality_rules():
         "known_divisions": _KNOWN_DIVISIONS,
         "division_labels": _DIVISION_LABELS,
     }
+
+
+# ── 품질검수: 루브릭 저장/삭제 + 규칙 저장 ──
+
+@app.put("/api/quality-rules/rubric/{division}")
+async def save_rubric(division: str, request: Request):
+    """부서별 루브릭(검수 기준) 저장."""
+    body = await request.json()
+    rubric = {
+        "name": body.get("name", ""),
+        "prompt": body.get("prompt", ""),
+        "model": body.get("model", ""),
+        "reasoning_effort": body.get("reasoning_effort", ""),
+    }
+    if "rubrics" not in _QUALITY_RULES:
+        _QUALITY_RULES["rubrics"] = {}
+    _QUALITY_RULES["rubrics"][division] = rubric
+    _save_config_file("quality_rules", _QUALITY_RULES)
+    return {"success": True, "division": division}
+
+
+@app.delete("/api/quality-rules/rubric/{division}")
+async def delete_rubric(division: str):
+    """부서별 루브릭 삭제 (default는 삭제 불가)."""
+    if division == "default":
+        return {"success": False, "error": "기본 루브릭은 삭제할 수 없습니다"}
+    rubrics = _QUALITY_RULES.get("rubrics", {})
+    if division in rubrics:
+        del rubrics[division]
+        _save_config_file("quality_rules", _QUALITY_RULES)
+    return {"success": True}
+
+
+@app.put("/api/quality-rules/model")
+async def save_review_model(request: Request):
+    """품질검수에 사용할 AI 모델 변경."""
+    body = await request.json()
+    if "rules" not in _QUALITY_RULES:
+        _QUALITY_RULES["rules"] = {}
+    _QUALITY_RULES["rules"]["review_model"] = body.get("model", "gpt-4o-mini")
+    _save_config_file("quality_rules", _QUALITY_RULES)
+    return {"success": True}
+
+
+@app.put("/api/quality-rules/rules")
+async def save_quality_rules(request: Request):
+    """품질검수 규칙 저장 (최소 길이, 재시도 횟수 등)."""
+    body = await request.json()
+    if "rules" not in _QUALITY_RULES:
+        _QUALITY_RULES["rules"] = {}
+    for key in ("min_length", "max_retry", "check_hallucination", "check_relevance", "review_model"):
+        if key in body:
+            _QUALITY_RULES["rules"][key] = body[key]
+    _save_config_file("quality_rules", _QUALITY_RULES)
+    return {"success": True}
+
+
+# ── 에이전트 설정: 소울/모델/추론 저장 ──
+
+@app.put("/api/agents/{agent_id}/soul")
+async def save_agent_soul(agent_id: str, request: Request):
+    """에이전트 소울(성격) 저장."""
+    body = await request.json()
+    soul_text = body.get("soul", "")
+    # souls/ 디렉토리에 파일로 저장
+    souls_dir = Path(BASE_DIR).parent / "souls" / "agents"
+    souls_dir.mkdir(parents=True, exist_ok=True)
+    soul_path = souls_dir / f"{agent_id}.md"
+    soul_path.write_text(soul_text, encoding="utf-8")
+    return {"success": True, "agent_id": agent_id}
+
+
+@app.put("/api/agents/{agent_id}/model")
+async def save_agent_model(agent_id: str, request: Request):
+    """에이전트에 배정된 AI 모델 변경."""
+    body = await request.json()
+    new_model = body.get("model", "")
+    # 메모리 내 AGENTS 리스트 업데이트
+    for a in AGENTS:
+        if a["agent_id"] == agent_id:
+            a["model_name"] = new_model
+            break
+    # agents.yaml 상세 정보도 업데이트
+    if agent_id in _AGENTS_DETAIL:
+        _AGENTS_DETAIL[agent_id]["model_name"] = new_model
+    # 데이터 파일에 변경사항 저장 (서버 재시작 시 복원용)
+    overrides = _load_data("agent_overrides", {})
+    if agent_id not in overrides:
+        overrides[agent_id] = {}
+    overrides[agent_id]["model_name"] = new_model
+    _save_data("agent_overrides", overrides)
+    return {"success": True, "agent_id": agent_id, "model": new_model}
+
+
+@app.put("/api/agents/{agent_id}/reasoning")
+async def save_agent_reasoning(agent_id: str, request: Request):
+    """에이전트 추론 방식(reasoning effort) 변경."""
+    body = await request.json()
+    effort = body.get("reasoning_effort", "")
+    if agent_id in _AGENTS_DETAIL:
+        _AGENTS_DETAIL[agent_id]["reasoning_effort"] = effort
+    overrides = _load_data("agent_overrides", {})
+    if agent_id not in overrides:
+        overrides[agent_id] = {}
+    overrides[agent_id]["reasoning_effort"] = effort
+    _save_data("agent_overrides", overrides)
+    return {"success": True, "agent_id": agent_id, "reasoning_effort": effort}
+
+
+# ── 예산 설정 저장 ──
+
+@app.put("/api/budget")
+async def save_budget(request: Request):
+    """예산 설정 저장."""
+    body = await request.json()
+    budget = _load_data("budget", {
+        "daily_limit": 10.0, "daily_used": 0.0,
+        "monthly_limit": 300.0, "monthly_used": 0.0,
+    })
+    for key in ("daily_limit", "monthly_limit"):
+        if key in body:
+            budget[key] = float(body[key])
+    _save_data("budget", budget)
+    return {"success": True, **budget}
 
 
 @app.get("/api/available-models")
