@@ -1,0 +1,118 @@
+# ═══════════════════════════════════════════════════════════════
+# CORTHEX HQ - Python Dependencies
+# ═══════════════════════════════════════════════════════════════
+# 자동 생성됨 (analyze_imports.py)
+# 프로젝트: https://github.com/kodonghui/CORTHEX_HQ
+# Python: 3.10+
+
+# ───────────────────────────────────────────────────────────────
+# Web Framework (FastAPI 기반 웹 애플리케이션)
+# ───────────────────────────────────────────────────────────────
+fastapi>=0.104.0  # web/app.py, web/mini_server.py, web/ws_manager.py
+uvicorn[standard]>=0.24.0  # web/mini_server.py, run_web.py
+jinja2>=3.1.0  # FastAPI templates (web/app.py)
+python-multipart>=0.0.6  # FastAPI file uploads
+
+# ───────────────────────────────────────────────────────────────
+# LLM Providers (AI 모델 연동)
+# ───────────────────────────────────────────────────────────────
+anthropic>=0.39.0  # src/llm/anthropic_provider.py, web/ai_handler.py
+openai>=1.54.0  # src/llm/openai_provider.py, src/tools/audio_transcriber.py, src/tools/embedding_tool.py
+google-generativeai>=0.3.0  # src/tools/calendar_tool.py, web/ai_handler.py (Gemini)
+tiktoken>=0.5.0  # src/tools/token_counter.py (OpenAI 토큰 계산)
+
+# ───────────────────────────────────────────────────────────────
+# Data Science & Analytics (차트, 재무 분석, 백테스팅)
+# ───────────────────────────────────────────────────────────────
+pandas>=2.0.0  # src/tools/backtest_engine.py, src/tools/dividend_calendar.py, src/tools/spreadsheet_tool.py
+numpy>=1.24.0  # src/tools/financial_calculator.py
+numpy-financial>=1.0.0  # src/tools/financial_calculator.py (NPV, IRR 등)
+matplotlib>=3.7.0  # src/tools/chart_generator.py
+plotly>=5.14.0  # src/tools/chart_generator.py (인터랙티브 차트)
+pandas-ta>=0.3.14b  # src/tools/backtest_engine.py, src/tools/kr_stock.py (기술적 분석 지표)
+
+# ───────────────────────────────────────────────────────────────
+# Korean Stock Market (한국 주식 시장 데이터)
+# ───────────────────────────────────────────────────────────────
+pykrx>=1.0.36  # src/tools/backtest_engine.py, src/tools/dividend_calendar.py, src/tools/kr_stock.py
+yfinance>=0.2.28  # src/tools/global_market_tool.py (글로벌 주식 데이터)
+
+# ───────────────────────────────────────────────────────────────
+# Database & Storage (SQLite, 벡터 DB)
+# ───────────────────────────────────────────────────────────────
+aiosqlite>=0.19.0  # web/db.py (비동기 SQLite)
+chromadb>=0.4.0  # src/tools/vector_knowledge.py (벡터 임베딩 저장)
+
+# ───────────────────────────────────────────────────────────────
+# HTTP Clients & Web Scraping (API 호출, 웹 크롤링)
+# ───────────────────────────────────────────────────────────────
+httpx>=0.25.0  # src/integrations/sns_publisher.py, src/tools/api_benchmark.py (비동기 HTTP)
+requests>=2.31.0  # 동기 HTTP 클라이언트 (레거시 도구용)
+beautifulsoup4>=4.12.0  # src/tools/competitor_monitor.py, src/tools/platform_market_scraper.py (HTML 파싱)
+lxml>=4.9.0  # BeautifulSoup4 파서 (더 빠른 HTML 파싱)
+selenium>=4.15.0  # src/tools/sns/browser_utils.py, src/tools/sns/daum_cafe_publisher.py (자동화 브라우저)
+
+# ───────────────────────────────────────────────────────────────
+# Document Processing (PDF, Excel, Markdown)
+# ───────────────────────────────────────────────────────────────
+PyPDF2>=3.0.0  # PDF 읽기/쓰기
+pdfplumber>=0.10.0  # src/tools/pdf_parser.py (고급 PDF 파싱)
+PyMuPDF>=1.23.0  # src/tools/pdf_parser.py, src/tools/vector_knowledge.py (fitz 패키지)
+openpyxl>=3.1.0  # src/tools/spreadsheet_tool.py (Excel 파일 읽기/쓰기)
+python-docx>=0.8.11  # Word 문서 처리
+
+# ───────────────────────────────────────────────────────────────
+# Configuration & Environment (설정 파일, 환경 변수)
+# ───────────────────────────────────────────────────────────────
+python-dotenv>=1.0.0  # web/app.py, main.py, run_web.py (.env 파일 로드)
+pyyaml>=6.0  # src/core/budget.py, src/core/preset.py (YAML 설정 파일)
+pydantic>=2.0.0  # src/core/agent.py, src/core/message.py, src/tools/base.py (데이터 검증)
+
+# ───────────────────────────────────────────────────────────────
+# Telegram Bot (양방향 텔레그램 연동)
+# ───────────────────────────────────────────────────────────────
+python-telegram-bot>=20.0  # src/integrations/telegram_bot.py, src/telegram/bot.py
+
+# ───────────────────────────────────────────────────────────────
+# Email & Communication (이메일 발송, SMTP)
+# ───────────────────────────────────────────────────────────────
+aiosmtplib>=2.0.0  # src/tools/email_sender.py (비동기 SMTP)
+
+# ───────────────────────────────────────────────────────────────
+# External APIs & Integrations (외부 API 연동)
+# ───────────────────────────────────────────────────────────────
+notion-client>=2.0.0  # src/tools/notion_api.py
+google-api-python-client>=2.100.0  # src/tools/calendar_tool.py (구글 캘린더)
+google-play-scraper>=1.2.0  # src/tools/app_review_scraper.py (플레이스토어 리뷰)
+scholarly>=1.7.0  # src/tools/scholar_scraper.py (구글 스칼라)
+yt-dlp>=2023.10.0  # src/tools/youtube_analyzer.py (유튜브 다운로드)
+
+# ───────────────────────────────────────────────────────────────
+# Audio & Video Processing (오디오 변환, 동영상 처리)
+# ───────────────────────────────────────────────────────────────
+pydub>=0.25.0  # src/tools/audio_transcriber.py (오디오 포맷 변환)
+ffmpeg-python>=0.2.0  # 오디오/비디오 인코딩 (pydub 의존성)
+
+# ───────────────────────────────────────────────────────────────
+# CLI & User Interface (커맨드라인 인터페이스)
+# ───────────────────────────────────────────────────────────────
+rich>=13.0.0  # src/cli/app.py (예쁜 터미널 출력)
+
+# ───────────────────────────────────────────────────────────────
+# Security & Authentication (비밀번호 해싱, JWT)
+# ───────────────────────────────────────────────────────────────
+bcrypt>=4.0.0  # src/core/auth.py (비밀번호 해싱)
+pyjwt>=2.8.0  # src/core/auth.py (JWT 토큰)
+
+# ───────────────────────────────────────────────────────────────
+# Task Scheduling (작업 스케줄링, Cron)
+# ───────────────────────────────────────────────────────────────
+croniter>=1.4.0  # src/core/scheduler.py (cron 표현식 파싱)
+
+# ───────────────────────────────────────────────────────────────
+# Development & Testing (개발 도구, 테스트)
+# ───────────────────────────────────────────────────────────────
+pytest>=7.4.0  # 테스트 프레임워크
+pytest-asyncio>=0.21.0  # 비동기 테스트
+black>=23.0.0  # 코드 포맷터
+mypy>=1.5.0  # 타입 체커
