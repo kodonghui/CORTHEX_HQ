@@ -22,11 +22,13 @@ jobs:
         uses: appleboy/ssh-action@v1
         env:
           BUILD_NUMBER: ${{ github.run_number }}
+          TG_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TG_CEO_CHAT_ID: ${{ secrets.TELEGRAM_CEO_CHAT_ID }}
         with:
           host: ${{ secrets.SERVER_IP }}
           username: ubuntu
           key: ${{ secrets.SERVER_SSH_KEY }}
-          envs: BUILD_NUMBER
+          envs: BUILD_NUMBER,TG_BOT_TOKEN,TG_CEO_CHAT_ID
           script: |
             echo "🚀 배포 시작... (빌드 #${BUILD_NUMBER})"
 
@@ -65,17 +67,38 @@ jobs:
             # git 저장소의 templates에도 빌드번호 주입된 HTML 복사 (서버가 여기서 읽음)
             cp /tmp/index.html /home/ubuntu/CORTHEX_HQ/web/templates/index.html
 
-            # 5단계: Python 의존성 설치 (PyYAML 등)
+            # 5단계: Python 의존성 설치 (PyYAML + 텔레그램 봇)
             echo "📦 Python 패키지 설치 중..."
             sudo apt-get install -y python3-yaml 2>/dev/null || echo "⚠️ python3-yaml 설치 실패"
+            pip3 install python-telegram-bot 2>/dev/null || sudo pip3 install python-telegram-bot 2>/dev/null || echo "⚠️ python-telegram-bot 설치 실패"
 
             # 5.5단계: YAML → JSON 변환 (서버의 Python에 PyYAML이 없어도 동작하도록)
             # 시스템 Python3에 yaml이 설치되어 있으므로 시스템 Python으로 실행
             echo "🔄 설정 파일 JSON 변환 중..."
             /usr/bin/python3 /home/ubuntu/CORTHEX_HQ/config/yaml2json.py 2>&1 || echo "⚠️ JSON 변환 건너뜀"
 
+            # 5.6단계: 텔레그램 봇 환경변수 설정
+            if [ -n "${TG_BOT_TOKEN}" ]; then
+              echo "🤖 텔레그램 봇 환경변수 설정 중..."
+              # corthex 서비스의 환경변수 파일에 텔레그램 설정 추가
+              ENV_FILE="/home/ubuntu/corthex.env"
+              # 기존 텔레그램 설정 제거 후 새로 추가
+              touch "$ENV_FILE"
+              sed -i '/^TELEGRAM_/d' "$ENV_FILE"
+              echo "TELEGRAM_BOT_TOKEN=${TG_BOT_TOKEN}" >> "$ENV_FILE"
+              echo "TELEGRAM_CEO_CHAT_ID=${TG_CEO_CHAT_ID}" >> "$ENV_FILE"
+
+              # systemd 서비스가 이 환경변수 파일을 읽도록 설정
+              if ! grep -q "EnvironmentFile" /etc/systemd/system/corthex.service 2>/dev/null; then
+                sudo sed -i "/\[Service\]/a EnvironmentFile=/home/ubuntu/corthex.env" /etc/systemd/system/corthex.service 2>/dev/null || echo "⚠️ systemd 설정 건너뜀"
+                sudo systemctl daemon-reload
+              fi
+              echo "✅ 텔레그램 봇 환경변수 설정 완료"
+            fi
+
             # 6단계: 미니 서버 재시작
             echo "🔁 미니 서버 재시작 중..."
+            sudo systemctl daemon-reload
             sudo systemctl restart corthex
 
             # 7단계: 상태 확인

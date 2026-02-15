@@ -3,6 +3,7 @@ CORTHEX HQ - Mini Server (경량 서버)
 
 Oracle Cloud 무료 서버(1GB RAM)에서 대시보드를 서비스하기 위한 경량 서버.
 전체 백엔드의 핵심 API만 제공하여 대시보드 UI가 정상 작동하도록 함.
+텔레그램 봇도 여기서 24시간 구동됩니다.
 """
 import asyncio
 import json
@@ -22,6 +23,21 @@ from fastapi.staticfiles import StaticFiles
 from starlette.requests import Request
 
 logger = logging.getLogger("corthex.mini_server")
+
+# ── 텔레그램 봇 (선택적 로드) ──
+_telegram_available = False
+try:
+    from telegram import Update, BotCommand
+    from telegram.ext import (
+        Application,
+        CommandHandler,
+        MessageHandler,
+        ContextTypes,
+        filters,
+    )
+    _telegram_available = True
+except ImportError:
+    logger.info("python-telegram-bot 미설치 — 텔레그램 봇 비활성화")
 
 KST = timezone(timedelta(hours=9))
 
@@ -397,6 +413,216 @@ async def get_available_models():
             "cost_output": 2.0,
         },
     ]
+
+
+# ── 텔레그램 봇 ──
+
+_telegram_app = None  # telegram.ext.Application 인스턴스
+
+
+async def _tg_cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """/start — 봇 연결 확인."""
+    chat_id = update.effective_chat.id
+    ceo_id = os.getenv("TELEGRAM_CEO_CHAT_ID", "")
+
+    if not ceo_id:
+        # CEO chat_id 미설정 → 안내 메시지
+        logger.info("텔레그램 chat_id 감지: %s", chat_id)
+        await update.message.reply_text(
+            f"CORTHEX HQ 텔레그램 봇입니다.\n\n"
+            f"당신의 chat_id: `{chat_id}`\n\n"
+            f"서버 환경변수에 TELEGRAM_CEO_CHAT_ID={chat_id} 를 추가하세요.",
+            parse_mode="Markdown",
+        )
+        return
+
+    if str(chat_id) != ceo_id:
+        await update.message.reply_text("권한이 없습니다.")
+        return
+
+    await update.message.reply_text(
+        "*CORTHEX HQ 텔레그램 봇*\n\n"
+        "CEO 인증 완료.\n"
+        "24시간 서버에서 작동 중입니다.\n\n"
+        "/help 로 사용법을 확인하세요.",
+        parse_mode="Markdown",
+    )
+
+
+async def _tg_cmd_help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """/help — 사용법 안내."""
+    if not _is_tg_ceo(update):
+        return
+    await update.message.reply_text(
+        "*CORTHEX HQ 사용법*\n\n"
+        "/agents — 에이전트 목록 (29명)\n"
+        "/health — 서버 상태 확인\n"
+        "/help — 이 사용법\n\n"
+        "일반 메시지를 보내면 접수됩니다.",
+        parse_mode="Markdown",
+    )
+
+
+async def _tg_cmd_agents(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """/agents — 에이전트 목록."""
+    if not _is_tg_ceo(update):
+        return
+
+    divisions = {}
+    for a in AGENTS:
+        div = a.get("division", "기타")
+        divisions.setdefault(div, []).append(a)
+
+    lines = ["*CORTHEX HQ 에이전트 목록*\n"]
+    div_labels = {
+        "secretary": "비서실",
+        "leet_master.tech": "기술개발처 (CTO)",
+        "leet_master.strategy": "사업기획처 (CSO)",
+        "leet_master.legal": "법무·IP처 (CLO)",
+        "leet_master.marketing": "마케팅·고객처 (CMO)",
+        "finance.investment": "투자분석처 (CIO)",
+        "publishing": "출판·기록처 (CPO)",
+    }
+    for div, agents_list in divisions.items():
+        label = div_labels.get(div, div)
+        lines.append(f"\n*{label}* ({len(agents_list)}명)")
+        for a in agents_list:
+            role_icon = "👔" if a["role"] == "manager" else "👤"
+            lines.append(f"  {role_icon} {a['name_ko']}")
+
+    lines.append(f"\n총 {len(AGENTS)}명")
+    await update.message.reply_text("\n".join(lines), parse_mode="Markdown")
+
+
+async def _tg_cmd_health(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """/health — 서버 상태."""
+    if not _is_tg_ceo(update):
+        return
+
+    now = datetime.now(KST).strftime("%Y-%m-%d %H:%M:%S")
+    await update.message.reply_text(
+        f"*서버 상태*\n\n"
+        f"상태: 정상 운영 중\n"
+        f"서버: Oracle Cloud (춘천)\n"
+        f"에이전트: {len(AGENTS)}명 대기 중\n"
+        f"시간: {now} KST",
+        parse_mode="Markdown",
+    )
+
+
+async def _tg_handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """일반 텍스트 메시지 처리."""
+    if not _is_tg_ceo(update):
+        return
+
+    text = update.message.text.strip()
+    if not text:
+        return
+
+    now = datetime.now(KST).strftime("%H:%M")
+    await update.message.reply_text(
+        f"접수했습니다. ({now})\n\n"
+        f"현재 경량 서버 모드로, AI 에이전트 실행은 메인 서버에서 가능합니다.\n"
+        f"메인 서버 구축 후 이 봇에서 직접 업무 지시가 가능해집니다.",
+    )
+
+    # 웹 대시보드에 알림 (WebSocket 연결된 클라이언트들에게)
+    for ws in connected_clients[:]:
+        try:
+            await ws.send_json({
+                "event": "activity_log",
+                "data": {
+                    "agent_id": "chief_of_staff",
+                    "message": f"[텔레그램] CEO 지시: {text[:50]}{'...' if len(text) > 50 else ''}",
+                    "level": "info",
+                    "time": now,
+                }
+            })
+        except Exception:
+            pass
+
+
+def _is_tg_ceo(update: Update) -> bool:
+    """CEO 인증 확인."""
+    if not update.effective_chat or not update.message:
+        return False
+    ceo_id = os.getenv("TELEGRAM_CEO_CHAT_ID", "")
+    if not ceo_id:
+        return False
+    if str(update.effective_chat.id) != ceo_id:
+        asyncio.create_task(update.message.reply_text("권한이 없습니다."))
+        return False
+    return True
+
+
+async def _start_telegram_bot() -> None:
+    """텔레그램 봇을 시작합니다 (FastAPI 이벤트 루프 안에서 실행)."""
+    global _telegram_app
+
+    if not _telegram_available:
+        logger.info("python-telegram-bot 미설치 — 텔레그램 봇 건너뜀")
+        return
+
+    token = os.getenv("TELEGRAM_BOT_TOKEN", "")
+    if not token:
+        logger.info("TELEGRAM_BOT_TOKEN 미설정 — 텔레그램 봇 건너뜀")
+        return
+
+    try:
+        _telegram_app = Application.builder().token(token).build()
+
+        # 핸들러 등록
+        _telegram_app.add_handler(CommandHandler("start", _tg_cmd_start))
+        _telegram_app.add_handler(CommandHandler("help", _tg_cmd_help))
+        _telegram_app.add_handler(CommandHandler("agents", _tg_cmd_agents))
+        _telegram_app.add_handler(CommandHandler("health", _tg_cmd_health))
+        _telegram_app.add_handler(
+            MessageHandler(filters.TEXT & ~filters.COMMAND, _tg_handle_message)
+        )
+
+        # 봇 명령어 메뉴 설정
+        await _telegram_app.bot.set_my_commands([
+            BotCommand("start", "봇 시작"),
+            BotCommand("help", "사용법"),
+            BotCommand("agents", "에이전트 목록"),
+            BotCommand("health", "서버 상태"),
+        ])
+
+        await _telegram_app.initialize()
+        await _telegram_app.start()
+        await _telegram_app.updater.start_polling(drop_pending_updates=True)
+
+        ceo_id = os.getenv("TELEGRAM_CEO_CHAT_ID", "")
+        logger.info("텔레그램 봇 시작 완료 (CEO chat_id: %s)", ceo_id or "미설정")
+    except Exception as e:
+        logger.error("텔레그램 봇 시작 실패: %s", e)
+        _telegram_app = None
+
+
+async def _stop_telegram_bot() -> None:
+    """텔레그램 봇을 종료합니다."""
+    global _telegram_app
+    if _telegram_app:
+        try:
+            await _telegram_app.updater.stop()
+            await _telegram_app.stop()
+            await _telegram_app.shutdown()
+            logger.info("텔레그램 봇 종료 완료")
+        except Exception as e:
+            logger.warning("텔레그램 봇 종료 중 오류: %s", e)
+        _telegram_app = None
+
+
+@app.on_event("startup")
+async def on_startup():
+    """서버 시작 시 텔레그램 봇도 함께 시작."""
+    await _start_telegram_bot()
+
+
+@app.on_event("shutdown")
+async def on_shutdown():
+    """서버 종료 시 텔레그램 봇도 함께 종료."""
+    await _stop_telegram_bot()
 
 
 if __name__ == "__main__":
