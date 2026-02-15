@@ -1599,6 +1599,19 @@
               </template>
             </div>
             <div class="flex items-end gap-3">
+              <!-- Batch/실시간 세그먼트 토글 -->
+              <div class="flex rounded-xl border border-hq-border/40 overflow-hidden shrink-0 self-stretch">
+                <button @click="useBatch = false"
+                        class="text-xs px-3 py-2 transition-all"
+                        :class="!useBatch
+                          ? 'bg-hq-accent/15 text-hq-accent'
+                          : 'text-hq-muted/60 hover:text-hq-muted'">⚡ 실시간</button>
+                <button @click="useBatch = true"
+                        class="text-xs px-3 py-2 transition-all"
+                        :class="useBatch
+                          ? 'bg-hq-purple/15 text-hq-purple'
+                          : 'text-hq-muted/60 hover:text-hq-muted'">📦 Batch</button>
+              </div>
               <div class="flex-1 relative">
                 <textarea x-model="inputText" x-ref="inputArea"
                   @keydown="handleInputKeydown($event)" @input="handleInputChange($event)"
@@ -1612,14 +1625,6 @@
                 <div class="absolute right-3 bottom-3 text-[10px] font-mono text-hq-muted/70"
                      x-show="!inputText.trim() && systemStatus !== 'working'">Enter &#9166;</div>
               </div>
-              <!-- Batch/실시간 토글 -->
-              <button @click="useBatch = !useBatch"
-                      class="text-[11px] px-2.5 py-2 rounded-xl border transition-all shrink-0"
-                      :class="useBatch
-                        ? 'bg-hq-purple/15 text-hq-purple border-hq-purple/30 hover:bg-hq-purple/25'
-                        : 'border-hq-border/30 text-hq-muted hover:text-hq-accent hover:border-hq-accent/30'">
-                <span x-text="useBatch ? '📦 Batch' : '⚡ 실시간'"></span>
-              </button>
               <button x-show="systemStatus !== 'working'" @click="sendMessage()"
                 :disabled="!inputText.trim()"
                 class="bg-gradient-to-r from-hq-accent to-hq-purple hover:from-blue-500 hover:to-violet-500
@@ -1631,16 +1636,6 @@
                        text-hq-red rounded-xl px-6 py-3 text-sm font-semibold transition-all shrink-0 flex items-center gap-2">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
                 취소
-              </button>
-            </div>
-            <!-- Batch/실시간 토글 (항상 보임) -->
-            <div class="flex items-center mt-1.5">
-              <button @click="useBatch = !useBatch"
-                      class="text-[11px] flex items-center gap-1.5 px-2.5 py-1 rounded-lg transition-all"
-                      :class="useBatch
-                        ? 'bg-hq-purple/15 text-hq-purple border border-hq-purple/30 hover:bg-hq-purple/25'
-                        : 'text-hq-muted hover:text-hq-accent hover:bg-hq-accent/10'">
-                <span x-text="useBatch ? '📦 Batch' : '⚡ 실시간'"></span>
               </button>
             </div>
           </div>
@@ -2901,8 +2896,8 @@
               <input x-model="rubricEditName" class="w-full bg-hq-panel border border-hq-border rounded-lg px-3 py-2 text-sm text-hq-text" placeholder="예: 기본 검수 기준">
             </div>
             <div class="mb-2">
-              <label class="text-xs text-hq-muted mb-1 block">검수 기준 (프롬프트)</label>
-              <textarea x-model="rubricEditPrompt" rows="5" class="w-full bg-hq-panel border border-hq-border rounded-lg px-3 py-2 text-sm text-hq-text resize-y font-mono" placeholder="다음 기준으로 검수하세요:&#10;1. ..."></textarea>
+              <label class="text-xs text-hq-muted mb-1 block">검수 기준</label>
+              <textarea x-model="rubricEditPrompt" rows="5" class="w-full bg-hq-panel border border-hq-border rounded-lg px-3 py-2 text-sm text-hq-text resize-y" placeholder="다음 기준으로 검수하세요:&#10;1. ..."></textarea>
             </div>
             <div class="flex items-center gap-2">
               <button @click="saveRubric()" class="bg-hq-accent hover:bg-blue-600 text-white rounded-lg px-3 py-1.5 text-xs">저장</button>
@@ -2946,7 +2941,7 @@
                 </div>
                 <div class="grid grid-cols-2 gap-2 mb-2">
                   <div>
-                    <label class="text-xs text-hq-muted mb-1 block">검수 모델 (부서 전용)</label>
+                    <label class="text-xs text-hq-muted mb-1 block">검수 모델</label>
                     <select x-model="rubricEditModel" class="w-full bg-hq-panel border border-hq-border rounded-lg px-3 py-2 text-sm text-hq-text">
                       <option value="">공통 모델 사용</option>
                       <template x-for="[provLabel, models] in Object.entries(getModelsByProvider())" :key="provLabel">
@@ -2970,13 +2965,13 @@
                   </div>
                 </div>
                 <div class="mb-2">
-                  <label class="text-xs text-hq-muted mb-1 block">검수 기준 (프롬프트)</label>
-                  <textarea x-model="rubricEditPrompt" rows="5" class="w-full bg-hq-panel border border-hq-border rounded-lg px-3 py-2 text-sm text-hq-text resize-y font-mono" placeholder="다음 기준으로 검수하세요:&#10;1. ..."></textarea>
+                  <label class="text-xs text-hq-muted mb-1 block">검수 기준</label>
+                  <textarea x-model="rubricEditPrompt" rows="5" class="w-full bg-hq-panel border border-hq-border rounded-lg px-3 py-2 text-sm text-hq-text resize-y" placeholder="다음 기준으로 검수하세요:&#10;1. ..."></textarea>
                 </div>
                 <div class="flex items-center gap-2">
                   <button @click="saveRubric()" class="bg-hq-accent hover:bg-blue-600 text-white rounded-lg px-3 py-1.5 text-xs">저장</button>
                   <button @click="editingRubric = null" class="bg-hq-surface hover:bg-hq-panel text-hq-text rounded-lg px-3 py-1.5 text-xs">취소</button>
-                  <button x-show="qualityRules.rubrics && qualityRules.rubrics[div]" @click="deleteRubric()" class="text-hq-red/70 hover:text-hq-red text-xs ml-auto">삭제</button>
+                  <button x-show="qualityRules.rubrics && qualityRules.rubrics[div]" @click="deleteRubric()" class="text-hq-red/70 hover:text-hq-red text-xs ml-auto" title="이 부서의 검수 기준을 삭제하고 공통 기준으로 되돌립니다">공통 기준으로 초기화</button>
                 </div>
               </div>
             </div>
