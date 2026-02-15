@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>CORTHEX HQ - CEO Command Center</title>
+  <title>CORTHEX HQ - Cyber Command Center</title>
   <script src="https://cdn.tailwindcss.com/3.4.17"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/@alpinejs/collapse@3.x.x/dist/cdn.min.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
@@ -36,21 +36,21 @@
     @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css');
     @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap');
 
-    /* ═══ Glass + Aurora Mix 팔레트 (따뜻한 보라빛 다크 — 밝기 개선) ═══ */
+    /* ═══ 사이버 사령부 팔레트 (Cyber Command Center — 네온 다크) ═══ */
     :root, .dark {
-      --hq-bg: 24 22 34;
-      --hq-surface: 34 32 46;
-      --hq-panel: 44 42 58;
-      --hq-border: 65 62 82;
-      --hq-border-light: 85 82 105;
-      --hq-accent: 100 160 255;
-      --hq-cyan: 40 215 240;
-      --hq-purple: 170 140 255;
-      --hq-green: 52 211 153;
-      --hq-yellow: 251 191 36;
-      --hq-red: 248 113 113;
-      --hq-text: 235 232 245;
-      --hq-muted: 150 145 172;
+      --hq-bg: 10 12 18;
+      --hq-surface: 16 20 30;
+      --hq-panel: 22 28 40;
+      --hq-border: 40 50 70;
+      --hq-border-light: 55 65 90;
+      --hq-accent: 0 200 150;
+      --hq-cyan: 0 230 255;
+      --hq-purple: 140 100 255;
+      --hq-green: 0 255 136;
+      --hq-yellow: 255 210 0;
+      --hq-red: 255 60 80;
+      --hq-text: 220 235 240;
+      --hq-muted: 120 140 160;
       --hq-shadow: 0 0 0;
     }
     /* ═══ 라이트모드 팔레트 (따뜻한 연보라 기반) ═══ */
@@ -74,32 +74,32 @@
     * { box-sizing: border-box; }
     body { font-family: 'Pretendard Variable', 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif; }
 
-    /* ═══ 다크 모드 배경 (오로라 그라데이션) ═══ */
+    /* ═══ 사이버 사령부 배경 (딥 다크 + 네온 글로우) ═══ */
     .dark body {
-      background: linear-gradient(135deg, #181622 0%, #221A30 35%, #161C28 65%, #1A182A 100%);
+      background: linear-gradient(145deg, #060810 0%, #0A0E1A 30%, #081018 60%, #0C0A16 100%);
       background-attachment: fixed;
     }
-    /* 오로라 글로우 — 보라색 (왼쪽 위) */
+    /* 네온 글로우 — 사이버 그린 (왼쪽 위) */
     .dark body::before {
       content: '';
       position: fixed;
-      top: -20%;
-      left: -10%;
-      width: 60%;
-      height: 60%;
-      background: radial-gradient(ellipse at center, rgba(170,140,255,0.06) 0%, transparent 70%);
+      top: -25%;
+      left: -15%;
+      width: 65%;
+      height: 65%;
+      background: radial-gradient(ellipse at center, rgba(0,255,136,0.04) 0%, transparent 65%);
       pointer-events: none;
       z-index: 0;
     }
-    /* 오로라 글로우 — 청록색 (오른쪽 아래) */
+    /* 네온 글로우 — 시안 (오른쪽 아래) */
     .dark body::after {
       content: '';
       position: fixed;
-      bottom: -20%;
-      right: -10%;
-      width: 60%;
-      height: 60%;
-      background: radial-gradient(ellipse at center, rgba(40,215,240,0.04) 0%, transparent 70%);
+      bottom: -25%;
+      right: -15%;
+      width: 65%;
+      height: 65%;
+      background: radial-gradient(ellipse at center, rgba(0,230,255,0.03) 0%, transparent 65%);
       pointer-events: none;
       z-index: 0;
     }
@@ -131,6 +131,24 @@
       from { opacity: 0; transform: translateX(-16px); }
       to { opacity: 1; transform: translateX(0); }
     }
+    @keyframes slideInRight {
+      from { opacity: 0; transform: translateX(16px); }
+      to { opacity: 1; transform: translateX(0); }
+    }
+    @keyframes scaleIn {
+      from { opacity: 0; transform: scale(0.92); }
+      to { opacity: 1; transform: scale(1); }
+    }
+    @keyframes shimmer {
+      0% { background-position: -200% 0; }
+      100% { background-position: 200% 0; }
+    }
+    @keyframes bounceIn {
+      0% { opacity: 0; transform: scale(0.3); }
+      50% { opacity: 1; transform: scale(1.05); }
+      70% { transform: scale(0.95); }
+      100% { transform: scale(1); }
+    }
     @keyframes pulseDot {
       0%, 100% { opacity: 1; transform: scale(1); }
       50% { opacity: 0.4; transform: scale(0.85); }
@@ -158,12 +176,71 @@
     .fade-in-up { animation: fadeInUp 0.4s ease-out; }
     .fade-in { animation: fadeIn 0.3s ease-out; }
     .slide-in-left { animation: slideInLeft 0.3s ease-out; }
+    .slide-in-right { animation: slideInRight 0.3s ease-out; }
+    .scale-in { animation: scaleIn 0.25s ease-out; }
+    .bounce-in { animation: bounceIn 0.5s ease-out; }
     .pulse-dot { animation: pulseDot 1.5s ease-in-out infinite; }
     .progress-bar { transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1); }
+    .msg-user { animation: slideInRight 0.35s ease-out; }
+    .msg-result { animation: slideInLeft 0.4s ease-out; }
+    .msg-processing { animation: scaleIn 0.3s ease-out; }
+    .shimmer { background: linear-gradient(90deg, transparent 25%, rgba(var(--hq-accent),0.08) 50%, transparent 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; }
 
-    /* Gradient text */
+    /* ═══ 사이버 사령부 전용 애니메이션 ═══ */
+    @keyframes cyberGlow {
+      0%, 100% { box-shadow: 0 0 5px rgba(0,255,136,0.1), inset 0 0 5px rgba(0,255,136,0.05); }
+      50% { box-shadow: 0 0 20px rgba(0,255,136,0.2), inset 0 0 10px rgba(0,255,136,0.1); }
+    }
+    @keyframes scanLine {
+      0% { transform: translateY(-100%); }
+      100% { transform: translateY(100vh); }
+    }
+    @keyframes dataStream {
+      0% { background-position: 0% 0%; }
+      100% { background-position: 0% 100%; }
+    }
+    @keyframes neonPulse {
+      0%, 100% { text-shadow: 0 0 4px rgba(0,255,136,0.4), 0 0 11px rgba(0,255,136,0.2); }
+      50% { text-shadow: 0 0 8px rgba(0,255,136,0.6), 0 0 20px rgba(0,255,136,0.3), 0 0 40px rgba(0,255,136,0.1); }
+    }
+    @keyframes borderGlow {
+      0%, 100% { border-color: rgba(0,255,136,0.15); }
+      50% { border-color: rgba(0,255,136,0.4); }
+    }
+    .cyber-glow { animation: cyberGlow 3s ease-in-out infinite; }
+    .neon-text { animation: neonPulse 2s ease-in-out infinite; }
+    .cyber-border { animation: borderGlow 2.5s ease-in-out infinite; }
+
+    /* 사이버 카드 호버 효과 */
+    .cyber-card {
+      transition: all 0.3s ease;
+      border: 1px solid rgba(0,255,136,0.1);
+    }
+    .cyber-card:hover {
+      border-color: rgba(0,255,136,0.4);
+      box-shadow: 0 0 15px rgba(0,255,136,0.1), 0 4px 20px rgba(0,0,0,0.3);
+      transform: translateY(-1px);
+    }
+
+    /* 스캔라인 오버레이 (미세한 CRT 효과) */
+    .scan-overlay::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        rgba(0,255,136,0.01) 2px,
+        rgba(0,255,136,0.01) 4px
+      );
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    /* Gradient text — 사이버 사령부 네온 그라디언트 */
     .gradient-text {
-      background: linear-gradient(135deg, #06b6d4, #3b82f6, #8b5cf6);
+      background: linear-gradient(135deg, #00ff88, #00e6ff, #8c64ff);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
       background-clip: text;
@@ -236,8 +313,8 @@
       transition: box-shadow 0.3s ease, border-color 0.3s ease, background-color 0.3s ease;
     }
     .hover-glow:hover {
-      box-shadow: 0 0 24px rgb(var(--hq-purple) / 0.15), 0 4px 16px rgb(var(--hq-accent) / 0.1);
-      border-color: rgb(255 255 255 / 0.12);
+      box-shadow: 0 0 24px rgb(var(--hq-green) / 0.15), 0 4px 16px rgb(var(--hq-cyan) / 0.1);
+      border-color: rgb(var(--hq-green) / 0.25);
     }
 
     /* Agent avatar */
@@ -719,15 +796,15 @@
         <svg width="28" height="28" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
           <defs>
             <linearGradient id="logoGrad" x1="0" y1="0" x2="32" y2="32">
-              <stop offset="0%" stop-color="#06b6d4"/>
-              <stop offset="50%" stop-color="#3b82f6"/>
-              <stop offset="100%" stop-color="#8b5cf6"/>
+              <stop offset="0%" stop-color="#00ff88"/>
+              <stop offset="50%" stop-color="#00e6ff"/>
+              <stop offset="100%" stop-color="#8c64ff"/>
             </linearGradient>
           </defs>
           <path d="M16 2L28 9V23L16 30L4 23V9L16 2Z" stroke="url(#logoGrad)" stroke-width="1.5" fill="none"/>
           <path d="M16 6L24 10.5V21.5L16 26L8 21.5V10.5L16 6Z" stroke="url(#logoGrad)" stroke-width="1" fill="none" opacity="0.5"/>
           <circle cx="16" cy="16" r="4" fill="url(#logoGrad)" opacity="0.8"/>
-          <circle cx="16" cy="16" r="2" fill="rgb(24 22 34)"/>
+          <circle cx="16" cy="16" r="2" fill="rgb(10 12 18)"/>
           <line x1="16" y1="12" x2="16" y2="6" stroke="url(#logoGrad)" stroke-width="1" opacity="0.6"/>
           <line x1="19.5" y1="14" x2="24" y2="10.5" stroke="url(#logoGrad)" stroke-width="1" opacity="0.6"/>
           <line x1="19.5" y1="18" x2="24" y2="21.5" stroke="url(#logoGrad)" stroke-width="1" opacity="0.6"/>
@@ -736,7 +813,7 @@
           <line x1="12.5" y1="14" x2="8" y2="10.5" stroke="url(#logoGrad)" stroke-width="1" opacity="0.6"/>
         </svg>
         <div>
-          <div class="text-base font-bold tracking-wide gradient-text">CORTHEX</div>
+          <div class="text-base font-bold tracking-widest gradient-text font-mono">CORTHEX <span class="text-hq-muted/50 text-xs">HQ</span></div>
         </div>
       </div>
       <div class="flex items-center gap-2">
@@ -931,7 +1008,7 @@
       <!-- Org Tree -->
       <div class="flex-1 overflow-y-auto scrollbar-thin p-4 space-y-1.5">
         <div class="flex items-center justify-between px-2 mb-3">
-          <div class="text-[10px] font-bold text-hq-muted uppercase tracking-[0.15em]">조직도</div>
+          <div class="text-[10px] font-bold text-hq-muted uppercase tracking-[0.15em] font-mono">ORG TREE</div>
           <div class="text-[10px] font-mono text-hq-muted" x-text="Object.keys(agentNames).length + '명'"></div>
         </div>
         <!-- 에이전트 상태 요약 -->
@@ -948,8 +1025,8 @@
               CEO
             </div>
             <div class="flex-1">
-              <div class="text-sm font-semibold text-hq-text">CEO</div>
-              <div class="text-[10px] text-hq-muted">총괄 사령관</div>
+              <div class="text-sm font-semibold text-hq-text font-mono">CEO</div>
+              <div class="text-[10px] text-hq-muted font-mono">COMMANDER</div>
             </div>
             <svg class="w-3.5 h-3.5 text-hq-muted/80" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
           </div>
@@ -1299,8 +1376,8 @@
       <div x-show="viewMode === 'chat' && activeTab === 'home'" x-cloak class="flex-1 overflow-y-auto scrollbar-thin px-6 pt-8 pb-6 bg-grid">
         <div class="max-w-5xl mx-auto fade-in-up">
           <div class="mb-6">
-            <h1 class="text-2xl font-bold gradient-text mb-1">CORTHEX HQ 대시보드</h1>
-            <p class="text-sm text-hq-muted">AI 에이전트 기업 현황을 한눈에 확인하세요</p>
+            <h1 class="text-2xl font-bold gradient-text mb-1">CYBER COMMAND CENTER</h1>
+            <p class="text-sm text-hq-muted">작전 현황 — 29개 유닛 실시간 모니터링</p>
           </div>
 
           <!-- Summary Cards -->
@@ -1522,10 +1599,10 @@
             <div class="flex flex-col items-center justify-center h-full text-center fade-in-up">
               <div class="mb-6 relative">
                 <svg width="72" height="72" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" class="drop-shadow-lg">
-                  <defs><linearGradient id="heroGrad" x1="0" y1="0" x2="32" y2="32"><stop offset="0%" stop-color="#06b6d4"/><stop offset="50%" stop-color="#3b82f6"/><stop offset="100%" stop-color="#8b5cf6"/></linearGradient></defs>
+                  <defs><linearGradient id="heroGrad" x1="0" y1="0" x2="32" y2="32"><stop offset="0%" stop-color="#00ff88"/><stop offset="50%" stop-color="#00e6ff"/><stop offset="100%" stop-color="#8c64ff"/></linearGradient></defs>
                   <path d="M16 2L28 9V23L16 30L4 23V9L16 2Z" stroke="url(#heroGrad)" stroke-width="1.5" fill="none"/>
                   <path d="M16 6L24 10.5V21.5L16 26L8 21.5V10.5L16 6Z" stroke="url(#heroGrad)" stroke-width="1" fill="none" opacity="0.4"/>
-                  <circle cx="16" cy="16" r="4" fill="url(#heroGrad)" opacity="0.8"/><circle cx="16" cy="16" r="2" fill="rgb(15 14 22)"/>
+                  <circle cx="16" cy="16" r="4" fill="url(#heroGrad)" opacity="0.8"/><circle cx="16" cy="16" r="2" fill="rgb(10 12 18)"/>
                   <line x1="16" y1="12" x2="16" y2="6" stroke="url(#heroGrad)" stroke-width="1" opacity="0.5"/>
                   <line x1="19.5" y1="14" x2="24" y2="10.5" stroke="url(#heroGrad)" stroke-width="1" opacity="0.5"/>
                   <line x1="19.5" y1="18" x2="24" y2="21.5" stroke="url(#heroGrad)" stroke-width="1" opacity="0.5"/>
@@ -1536,24 +1613,24 @@
                 <div class="absolute inset-0 bg-hq-accent/10 rounded-full blur-3xl scale-150"></div>
               </div>
 
-              <h1 class="text-4xl font-extrabold gradient-text mb-2 tracking-tight">CORTHEX HQ</h1>
-              <p class="text-lg text-hq-text/80 mb-1" x-text="greeting"></p>
-              <p class="text-hq-muted text-sm mb-8 max-w-sm leading-relaxed">
-                4개 본부, 25명의 에이전트가 명령을 대기하고 있습니다
+              <h1 class="text-4xl font-extrabold gradient-text mb-2 tracking-tight" style="letter-spacing: 0.15em;">CYBER COMMAND</h1>
+              <p class="text-lg text-hq-green/90 mb-1 font-mono" x-text="greeting"></p>
+              <p class="text-hq-cyan/60 text-sm mb-8 max-w-sm leading-relaxed font-mono">
+                [ SYSTEM ONLINE ] 29 UNITS STANDING BY
               </p>
 
               <div class="flex gap-3 mb-6">
-                <div class="glass border border-hq-border rounded-xl px-4 py-3 hover-glow cursor-default">
-                  <div class="text-lg font-bold text-hq-cyan">4</div><div class="text-[10px] text-hq-muted uppercase tracking-wider">본부</div>
+                <div class="glass border border-hq-green/30 rounded-xl px-4 py-3 hover-glow cursor-default bounce-in" style="animation-delay:0.1s">
+                  <div class="text-lg font-bold text-hq-green font-mono">7</div><div class="text-[10px] text-hq-green/50 uppercase tracking-wider font-mono">DIVISION</div>
                 </div>
-                <div class="glass border border-hq-border rounded-xl px-4 py-3 hover-glow cursor-default">
-                  <div class="text-lg font-bold text-hq-accent">25</div><div class="text-[10px] text-hq-muted uppercase tracking-wider">에이전트</div>
+                <div class="glass border border-hq-cyan/30 rounded-xl px-4 py-3 hover-glow cursor-default bounce-in" style="animation-delay:0.2s">
+                  <div class="text-lg font-bold text-hq-cyan font-mono" x-text="agents.length || 29"></div><div class="text-[10px] text-hq-cyan/50 uppercase tracking-wider font-mono">AGENTS</div>
                 </div>
-                <div class="glass border border-hq-border rounded-xl px-4 py-3 hover-glow cursor-default">
-                  <div class="text-lg font-bold text-hq-purple">5</div><div class="text-[10px] text-hq-muted uppercase tracking-wider">도구</div>
+                <div class="glass border border-hq-purple/30 rounded-xl px-4 py-3 hover-glow cursor-default bounce-in" style="animation-delay:0.3s">
+                  <div class="text-lg font-bold text-hq-purple font-mono" x-text="tools.length || 103"></div><div class="text-[10px] text-hq-purple/50 uppercase tracking-wider font-mono">WEAPONS</div>
                 </div>
-                <div class="glass border border-hq-border rounded-xl px-4 py-3 hover-glow cursor-default">
-                  <div class="text-lg font-bold text-hq-green">2</div><div class="text-[10px] text-hq-muted uppercase tracking-wider">AI 모델</div>
+                <div class="glass border border-hq-accent/30 rounded-xl px-4 py-3 hover-glow cursor-default bounce-in" style="animation-delay:0.4s">
+                  <div class="text-lg font-bold text-hq-accent font-mono">3</div><div class="text-[10px] text-hq-accent/50 uppercase tracking-wider font-mono">AI ENGINE</div>
                 </div>
               </div>
 
@@ -1603,11 +1680,11 @@
 
           <!-- ═══ Messages ═══ -->
           <template x-for="(msg, i) in messages" :key="i">
-            <div class="fade-in-up">
+            <div>
 
               <!-- User message -->
               <template x-if="msg.type === 'user'">
-                <div class="flex justify-end mb-4">
+                <div class="flex justify-end mb-4 msg-user">
                   <div class="max-w-2xl">
                     <div class="bg-gradient-to-br from-hq-accent/20 to-hq-purple/10 border border-hq-accent/20 rounded-2xl rounded-tr-md px-5 py-3.5 glow-blue">
                       <div class="flex items-center gap-2 mb-1.5">
@@ -1624,7 +1701,7 @@
 
               <!-- Processing indicator -->
               <template x-if="msg.type === 'processing'">
-                <div class="mb-4">
+                <div class="mb-4 msg-processing">
                   <div class="max-w-3xl">
                     <div class="glass border border-hq-yellow/20 rounded-2xl rounded-tl-md px-5 py-4">
                       <div class="flex items-center gap-2 mb-3">
@@ -1662,7 +1739,7 @@
 
               <!-- Agent result -->
               <template x-if="msg.type === 'result'">
-                <div class="mb-4">
+                <div class="mb-4 msg-result">
                   <div class="max-w-4xl">
                     <div class="glass border border-hq-green/20 rounded-2xl rounded-tl-md overflow-hidden">
                       <div class="flex items-center justify-between px-5 py-3 border-b border-hq-border/50 bg-hq-green/[0.03]">
@@ -1725,7 +1802,7 @@
 
               <!-- Error -->
               <template x-if="msg.type === 'error'">
-                <div class="mb-4">
+                <div class="mb-4 scale-in">
                   <div class="max-w-2xl">
                     <div class="bg-hq-red/5 border border-hq-red/20 rounded-2xl rounded-tl-md px-5 py-4">
                       <div class="flex items-center gap-2 mb-2">
@@ -1789,7 +1866,7 @@
               <button x-show="systemStatus !== 'working'" @click="sendMessage()"
                 :disabled="!inputText.trim()"
                 :class="inputText.trim()
-                  ? 'bg-gradient-to-r from-hq-accent to-hq-purple hover:from-blue-500 hover:to-violet-500 text-white shadow-lg shadow-hq-accent/30 hover:shadow-xl hover:shadow-hq-accent/40'
+                  ? 'bg-gradient-to-r from-hq-green/80 to-hq-cyan/80 hover:from-hq-green hover:to-hq-cyan text-black shadow-lg shadow-hq-green/30 hover:shadow-xl hover:shadow-hq-green/40'
                   : 'border-2 border-hq-accent/30 bg-hq-accent/10 text-hq-accent/40'"
                 class="rounded-full w-12 h-12 flex items-center justify-center transition-all shrink-0"
                 title="보내기">
@@ -1817,12 +1894,20 @@
             <button x-show="presets.items && presets.items.length > 0" @click="presets.showModal = true" class="text-[11px] text-hq-muted/80 hover:text-hq-accent transition px-1 shrink-0">
               <svg class="w-3.5 h-3.5 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
             </button>
-            <!-- 대화 내보내기 (오른쪽 끝) -->
-            <button x-show="messages.length > 0" @click="exportConversation()"
-                    class="text-[10px] text-hq-muted/70 hover:text-hq-accent flex items-center gap-1 transition ml-auto shrink-0">
-              <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-              내보내기
-            </button>
+            <!-- 대화 내보내기 + 비우기 (오른쪽 끝) -->
+            <div x-show="messages.length > 0" class="flex items-center gap-2 ml-auto shrink-0">
+              <button @click="exportConversation()"
+                      class="text-[10px] text-hq-muted/70 hover:text-hq-accent flex items-center gap-1 transition">
+                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                내보내기
+              </button>
+              <span class="text-hq-border">|</span>
+              <button @click="clearConversation()"
+                      class="text-[10px] text-hq-muted/70 hover:text-hq-red flex items-center gap-1 transition">
+                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                대화 비우기
+              </button>
+            </div>
           </div>
         </div>
       </div><!-- /command tab -->
@@ -1830,7 +1915,7 @@
       <!-- ═══ Tab: 성능 (Performance) ═══ -->
       <div x-show="viewMode === 'chat' && activeTab === 'performance'" x-cloak class="flex-1 overflow-y-auto scrollbar-thin p-6 bg-grid">
         <div class="max-w-5xl mx-auto fade-in-up">
-          <h1 class="text-xl font-bold text-hq-text mb-1">에이전트 성능</h1>
+          <h1 class="text-xl font-bold text-hq-text mb-1 font-mono tracking-wider">POWER ANALYSIS</h1>
           <p class="text-sm text-hq-muted mb-6">에이전트별 작업 통계를 확인하세요</p>
 
           <!-- Performance Summary Cards -->
@@ -1911,8 +1996,8 @@
           <!-- CEO 사무실 -->
           <div class="office-room glass border border-hq-accent/20 bg-gradient-to-br from-hq-accent/5 to-hq-purple/5">
             <div class="flex items-center gap-3 mb-3 px-3 py-2.5 rounded-lg glass border-l-[3px] border-l-hq-accent border border-hq-accent/10">
-              <span class="text-lg">👔</span>
-              <span class="text-sm font-bold text-hq-accent uppercase tracking-wider">CEO 사무실</span>
+              <span class="text-lg">⚡</span>
+              <span class="text-sm font-bold text-hq-accent uppercase tracking-wider font-mono">COMMAND CENTER</span>
             </div>
             <div class="flex gap-3">
               <div class="desk-card glass border border-hq-accent/30 w-[160px] cursor-pointer" @click="showCeoProfile = true">
@@ -1920,8 +2005,8 @@
                   <div class="agent-avatar bg-gradient-to-br from-hq-accent to-hq-purple text-white text-[10px]">CEO</div>
                   <div class="status-light status-light-working"></div>
                 </div>
-                <div class="text-sm font-semibold text-hq-text">CEO</div>
-                <div class="text-[10px] text-hq-muted">총괄 사령관 (You)</div>
+                <div class="text-sm font-semibold text-hq-text font-mono">CEO</div>
+                <div class="text-[10px] text-hq-muted font-mono">COMMANDER (You)</div>
               </div>
             </div>
           </div>
@@ -1929,8 +2014,8 @@
           <!-- 비서실 -->
           <div class="office-room glass border border-hq-yellow/20 bg-hq-yellow/[0.06]">
             <div class="flex items-center gap-3 mb-3 px-3 py-2.5 rounded-lg glass border-l-[3px] border-l-hq-yellow border border-hq-yellow/10">
-              <span class="text-lg">📋</span>
-              <span class="text-sm font-bold text-hq-yellow uppercase tracking-wider">비서실</span>
+              <span class="text-lg">🎖️</span>
+              <span class="text-sm font-bold text-hq-yellow uppercase tracking-wider font-mono">STAFF OPS</span>
               <span class="text-[10px] text-hq-muted ml-auto">4명</span>
             </div>
             <div class="grid grid-cols-4 gap-3">
@@ -1951,8 +2036,8 @@
           <!-- LEET Master 본부 -->
           <div class="office-room glass border border-hq-cyan/20 bg-hq-cyan/[0.06]">
             <div class="flex items-center gap-3 mb-4 px-3 py-2.5 rounded-lg glass border-l-[3px] border-l-hq-cyan border border-hq-cyan/10">
-              <span class="text-lg">🏢</span>
-              <span class="text-sm font-bold text-hq-cyan uppercase tracking-wider">LEET Master 본부</span>
+              <span class="text-lg">🛡️</span>
+              <span class="text-sm font-bold text-hq-cyan uppercase tracking-wider font-mono">LEET MASTER HQ</span>
               <span class="text-[10px] text-hq-muted ml-auto">16명 (4개 처)</span>
             </div>
             <div class="grid grid-cols-2 gap-4">
@@ -2038,8 +2123,8 @@
           <!-- 투자분석 본부 -->
           <div class="office-room glass border border-hq-purple/20 bg-hq-purple/[0.06]">
             <div class="flex items-center gap-3 mb-3 px-3 py-2.5 rounded-lg glass border-l-[3px] border-l-hq-purple border border-hq-purple/10">
-              <span class="text-lg">📈</span>
-              <span class="text-sm font-bold text-hq-purple uppercase tracking-wider">투자분석 본부</span>
+              <span class="text-lg">📡</span>
+              <span class="text-sm font-bold text-hq-purple uppercase tracking-wider font-mono">INVESTMENT HQ</span>
               <span class="text-[10px] text-hq-muted ml-auto">5명</span>
             </div>
             <div class="grid grid-cols-5 gap-3">
@@ -2059,8 +2144,8 @@
           <!-- 도구 풀 -->
           <div class="office-room glass border border-hq-border bg-hq-red/[0.06]">
             <div class="flex items-center gap-3 mb-3 px-3 py-2.5 rounded-lg glass border-l-[3px] border-l-hq-red border border-hq-red/10">
-              <span class="text-lg">🛠️</span>
-              <span class="text-sm font-bold text-hq-red/70 uppercase tracking-wider">도구 풀</span>
+              <span class="text-lg">⚔️</span>
+              <span class="text-sm font-bold text-hq-red/70 uppercase tracking-wider font-mono">WEAPON POOL</span>
               <span class="text-[10px] text-hq-muted ml-auto">5개</span>
             </div>
             <div class="grid grid-cols-5 gap-3">
@@ -2088,8 +2173,8 @@
           <!-- Header -->
           <div class="flex items-center justify-between mb-6">
             <div>
-              <h1 class="text-xl font-bold text-hq-text mb-1">대시보드</h1>
-              <p class="text-sm text-hq-muted">실시간 운영 현황</p>
+              <h1 class="text-xl font-bold text-hq-text mb-1 font-mono tracking-wider">DASHBOARD</h1>
+              <p class="text-sm text-hq-muted font-mono">실시간 운영 현황</p>
             </div>
             <button @click="loadDashboard()" class="bg-hq-surface border border-hq-border rounded-lg px-3 py-1.5 text-xs text-hq-muted hover:text-hq-text transition flex items-center gap-1.5">
               <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
@@ -2547,8 +2632,8 @@
                   <div class="absolute -bottom-1 -left-3 w-2 h-2 rounded-full bg-hq-accent/30 float-anim" style="animation-delay:1s"></div>
                   <div class="absolute top-1/2 -right-5 w-2 h-2 rounded-full bg-hq-yellow/30 float-anim" style="animation-delay:1.5s"></div>
                 </div>
-                <div class="text-base font-semibold text-hq-text mb-1">에이전트들이 대기 중이에요</div>
-                <div class="text-xs text-hq-muted/70 mb-6">명령을 내리면 여기에 작업 기록이 쌓입니다</div>
+                <div class="text-base font-semibold text-hq-text mb-1 font-mono">UNITS STANDING BY</div>
+                <div class="text-xs text-hq-muted/70 mb-6 font-mono">명령을 내리면 작전 기록이 쌓입니다</div>
                 <!-- 빠른 명령 버튼 -->
                 <div class="flex flex-wrap justify-center gap-2">
                   <button @click="commandInput='전 부서 현황 보고'; switchTab('command')"
@@ -2579,12 +2664,12 @@
         <div class="max-w-4xl mx-auto fade-in-up">
           <div class="flex items-center justify-between mb-6">
             <div>
-              <h1 class="text-xl font-bold text-hq-text mb-1">작업 예약</h1>
+              <h1 class="text-xl font-bold text-hq-text mb-1 font-mono tracking-wider">CRON BASE</h1>
               <p class="text-sm text-hq-muted">반복 작업을 자동으로 실행합니다</p>
             </div>
             <button @click="schedules.showModal = true"
-                    class="bg-hq-accent hover:bg-blue-600 text-white rounded-lg px-4 py-2 text-sm font-semibold transition">
-              + 새 예약
+                    class="bg-hq-green/20 hover:bg-hq-green/30 text-hq-green border border-hq-green/40 rounded-lg px-4 py-2 text-sm font-semibold font-mono transition">
+              + NEW SCHEDULE
             </button>
           </div>
 
@@ -2627,7 +2712,7 @@
         <div class="max-w-4xl mx-auto fade-in-up">
           <div class="flex items-center justify-between mb-6">
             <div>
-              <h1 class="text-xl font-bold text-hq-text mb-1">워크플로우</h1>
+              <h1 class="text-xl font-bold text-hq-text mb-1 font-mono tracking-wider">AUTOMATION</h1>
               <p class="text-sm text-hq-muted">여러 단계를 연결해서 자동화 흐름을 만드세요</p>
             </div>
             <button @click="workflows.showEditor = true; workflows.editing = null; workflows.editSteps = [{name:'', command:''}]"
@@ -2679,7 +2764,7 @@
       <div x-show="viewMode === 'chat' && activeTab === 'activityLog'" class="flex-1 overflow-y-auto scrollbar-thin p-6 bg-grid">
         <div class="max-w-4xl mx-auto fade-in-up">
           <div class="flex items-center justify-between mb-4">
-            <h2 class="text-lg font-bold text-hq-text">활동 로그</h2>
+            <h2 class="text-lg font-bold text-hq-text font-mono tracking-wider">COMM LOG</h2>
             <div class="flex items-center gap-3">
               <select x-model="activityLogFilter"
                       class="bg-hq-surface border border-hq-border rounded-lg px-3 py-1.5 text-xs text-hq-text min-w-[120px]">
@@ -2723,7 +2808,7 @@
         <!-- Left: File Tree -->
         <div class="w-64 border-r border-hq-border overflow-y-auto scrollbar-thin p-4 bg-hq-surface shrink-0">
           <div class="flex items-center justify-between mb-3">
-            <h3 class="text-xs font-bold text-hq-text uppercase tracking-wider">파일 목록</h3>
+            <h3 class="text-xs font-bold text-hq-text uppercase tracking-wider font-mono">INTEL FILES</h3>
             <button @click="knowledge.showCreateForm = !knowledge.showCreateForm" class="text-hq-accent text-xs hover:text-hq-accent/80">+ 새 파일</button>
           </div>
           <div x-show="knowledge.showCreateForm" x-transition class="mb-3 space-y-1">
@@ -2785,9 +2870,9 @@
            class="flex-1 overflow-y-auto scrollbar-thin p-6 bg-grid">
         <div class="max-w-5xl mx-auto fade-in-up">
           <div class="flex items-center justify-between mb-4">
-            <h2 class="text-lg font-bold text-hq-text flex items-center gap-2">
+            <h2 class="text-lg font-bold text-hq-text flex items-center gap-2 font-mono tracking-wider">
               <svg class="w-5 h-5 text-hq-purple" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/></svg>
-              아카이브
+              CLASSIFIED
               <span class="text-xs text-hq-muted font-normal ml-1" x-text="'총 ' + archive.files.length + '건'" x-show="archive.files.length > 0"></span>
             </h2>
             <div class="flex items-center gap-2">
@@ -2859,7 +2944,7 @@
            x-transition:enter-end="opacity-100 translate-y-0"
            class="flex-1 overflow-y-auto scrollbar-thin p-6 bg-grid">
         <div class="max-w-5xl mx-auto fade-in-up">
-          <h2 class="text-lg font-bold text-hq-text mb-4">SNS 관리</h2>
+          <h2 class="text-lg font-bold text-hq-text mb-4 font-mono tracking-wider">COMM STATION</h2>
           <!-- Sub Tabs -->
           <div class="flex gap-2 mb-6">
             <button @click="sns.tab = 'status'; loadSNS()" :class="sns.tab === 'status' ? 'bg-hq-accent/20 text-hq-accent' : 'text-hq-muted'" class="px-3 py-1.5 text-xs font-semibold rounded-lg transition">연결 상태</button>
@@ -3227,8 +3312,8 @@
        style="display: none;">
     <div class="bg-hq-panel border border-hq-border rounded-2xl w-full max-w-[400px] mx-4 p-8">
       <div class="text-center mb-6">
-        <div class="text-2xl font-bold gradient-text mb-2">CORTHEX HQ</div>
-        <p class="text-sm text-hq-muted">CEO 관제실에 로그인하세요</p>
+        <div class="text-2xl font-bold gradient-text mb-2 font-mono tracking-wider">CYBER COMMAND</div>
+        <p class="text-sm text-hq-muted font-mono">[ ACCESS RESTRICTED ] 인증이 필요합니다</p>
       </div>
 
       <div class="space-y-4">
@@ -3245,7 +3330,7 @@
 
       <div class="flex flex-col gap-2 mt-6">
         <button @click="doLogin()"
-                class="bg-hq-accent hover:bg-blue-600 text-white rounded-lg px-5 py-2.5 text-sm font-semibold transition w-full">로그인</button>
+                class="bg-hq-green/20 hover:bg-hq-green/30 text-hq-green border border-hq-green/40 rounded-lg px-5 py-2.5 text-sm font-semibold font-mono tracking-wider transition w-full">ACCESS</button>
       </div>
     </div>
   </div>
@@ -3853,16 +3938,16 @@
         // ── Tab System ──
         activeTab: 'home',
         tabs: [
-          { id: 'home', label: '홈', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0a1 1 0 01-1-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 01-1 1"/></svg>' },
-          { id: 'command', label: '명령', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>' },
-          { id: 'performance', label: '성능', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>' },
-          { id: 'history', label: '작업내역', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>' },
-          { id: 'schedule', label: '예약', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>' },
-          { id: 'workflow', label: '워크플로우', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z"/></svg>' },
-          { id: 'activityLog', label: '로그', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>' },
-          { id: 'knowledge', label: '지식', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>' },
-          { id: 'archive', label: '아카이브', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8"/></svg>' },
-          { id: 'sns', label: 'SNS', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z"/></svg>' },
+          { id: 'home', label: '작전현황', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0a1 1 0 01-1-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 01-1 1"/></svg>' },
+          { id: 'command', label: '사령실', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>' },
+          { id: 'performance', label: '전력분석', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>' },
+          { id: 'history', label: '작전일지', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>' },
+          { id: 'schedule', label: '크론기지', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>' },
+          { id: 'workflow', label: '자동화', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z"/></svg>' },
+          { id: 'activityLog', label: '통신로그', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>' },
+          { id: 'knowledge', label: '정보국', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>' },
+          { id: 'archive', label: '기밀문서', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8"/></svg>' },
+          { id: 'sns', label: '통신국', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z"/></svg>' },
         ],
 
         // ── Dashboard (홈) ──
@@ -4139,7 +4224,7 @@
         useBatch: false,
 
         // Input hint — 고정 텍스트 (#18)
-        inputHints: ['CEO님, 명령을 입력하세요 (Shift+Enter: 줄바꿈)'],
+        inputHints: ['COMMANDER, 명령을 입력하세요 (Shift+Enter: 줄바꿈)'],
         inputHintIndex: 0,
 
         init() {
@@ -4511,9 +4596,11 @@
         // ── Welcome Screen ──
         getGreeting() {
           const hour = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Seoul' })).getHours();
-          if (hour < 12) return '좋은 아침입니다, CEO님';
-          if (hour < 18) return '좋은 오후입니다, CEO님';
-          return '좋은 저녁입니다, CEO님';
+          if (hour < 6) return '새벽에도 열일하시네요, 고동희 대표님';
+          if (hour < 12) return '좋은 아침입니다, 고동희 대표님';
+          if (hour < 18) return '환영합니다, 고동희 대표님';
+          if (hour < 22) return '좋은 저녁입니다, 고동희 대표님';
+          return '오늘도 수고하셨습니다, 고동희 대표님';
         },
 
         // loadBackendPresets는 loadPresets()에 통합됨
@@ -5972,6 +6059,21 @@
           this.showToast('대화 기록이 다운로드되었습니다.', 'success');
         },
 
+        // ── 대화 비우기 ──
+        async clearConversation() {
+          if (this.messages.length === 0) return;
+          if (!confirm('대화 기록을 모두 삭제하시겠습니까?\n(삭제 후 복구할 수 없습니다)')) return;
+          try {
+            await fetch('/api/conversation', { method: 'DELETE' });
+            this.messages = [];
+            this.activeAgents = {};
+            this.systemStatus = 'idle';
+            this.showToast('대화 기록이 삭제되었습니다.', 'success');
+          } catch (e) {
+            this.showToast('대화 삭제에 실패했습니다.', 'error');
+          }
+        },
+
         // ── #16: Keyboard Shortcuts ──
         initKeyboardShortcuts() {
           document.addEventListener('keydown', (e) => {
@@ -6000,10 +6102,10 @@
 
         // ── #12: Tab grouping helpers ──
         getPrimaryTabs() {
-          return this.tabs.filter(t => ['home', 'command', 'performance', 'history', 'sns'].includes(t.id));
+          return this.tabs.filter(t => ['home', 'command', 'performance', 'history', 'schedule'].includes(t.id));
         },
         getSecondaryTabs() {
-          return this.tabs.filter(t => !['home', 'command', 'performance', 'history', 'sns'].includes(t.id));
+          return this.tabs.filter(t => !['home', 'command', 'performance', 'history', 'schedule'].includes(t.id));
         },
 
         // ── #4: Publishing division support ──
