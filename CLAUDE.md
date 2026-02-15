@@ -223,5 +223,21 @@
   - 다크모드 문제가 생기면 색상보다 **투명도(opacity)부터 확인**할 것
   - `index.html`에서 `opacity`가 들어간 애니메이션을 수정할 때는 어떤 요소에 적용되는지 반드시 확인할 것
 
+### 사고 3: 부서별 검수 기준이 안 뜨는 문제 (2026-02-15)
+
+- **증상**: 설정 화면에서 "부서별 검수 기준" 섹션이 빈 칸으로 표시됨. 부서 목록이 하나도 안 나옴
+- **원인 (2가지가 겹침)**:
+  1. `mini_server.py`의 `/api/quality-rules` API가 빈 데이터(`{"model": "", "rubrics": {}}`)만 반환
+  2. `config/yaml2json.py`가 `agents`와 `tools`만 JSON으로 변환하고, `quality_rules`는 변환 안 함
+  3. 서버에 PyYAML이 없어서 YAML 파일을 직접 못 읽음 → JSON이 없으니 빈 설정 사용
+  4. 프론트엔드는 `qualityRules.known_divisions` 배열로 부서 목록을 그리는데, 이 데이터가 없으니 아무것도 안 뜸
+- **해결**:
+  1. `mini_server.py`가 `_load_config("quality_rules")`로 설정 파일을 읽어서 `rules`, `rubrics`, `known_divisions`, `division_labels`를 반환하도록 수정
+  2. `yaml2json.py`에 `quality_rules`도 변환 대상에 추가
+- **교훈**:
+  - **새 설정 파일(`.yaml`)을 추가하면 반드시 `yaml2json.py`의 변환 목록에도 추가할 것**
+  - **미니서버 API가 빈 데이터를 반환하면 프론트엔드가 작동 안 함** → API 추가/수정 시 실제 데이터를 반환하는지 반드시 확인
+  - 프론트엔드가 빈 화면이면 → 브라우저 개발자 도구(F12)에서 API 응답부터 확인할 것
+
 ## 환경 설정
 - gh CLI가 없으면 세션 시작 시 설치: `(type gh > /dev/null 2>&1) || (curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null && sudo apt update && sudo apt install gh -y)`
