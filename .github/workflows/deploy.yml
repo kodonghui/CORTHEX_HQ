@@ -87,12 +87,8 @@ jobs:
               sed -i '/^TELEGRAM_/d' "$ENV_FILE"
               echo "TELEGRAM_BOT_TOKEN=${TG_BOT_TOKEN}" >> "$ENV_FILE"
               echo "TELEGRAM_CEO_CHAT_ID=${TG_CEO_CHAT_ID}" >> "$ENV_FILE"
-
-              # systemd 서비스가 이 환경변수 파일을 읽도록 설정
-              if ! grep -q "EnvironmentFile" /etc/systemd/system/corthex.service 2>/dev/null; then
-                sudo sed -i "/\[Service\]/a EnvironmentFile=/home/ubuntu/corthex.env" /etc/systemd/system/corthex.service 2>/dev/null || echo "⚠️ systemd 설정 건너뜀"
-                sudo systemctl daemon-reload
-              fi
+              echo "📋 corthex.env 내용 확인:"
+              cat "$ENV_FILE" | sed 's/\(BOT_TOKEN=\).*/\1***/' # 토큰은 마스킹해서 출력
               echo "✅ 텔레그램 봇 환경변수 설정 완료"
             fi
 
@@ -102,12 +98,14 @@ jobs:
             sudo systemctl restart corthex
 
             # 7단계: 상태 확인
-            sleep 2
+            sleep 3
             if sudo systemctl is-active --quiet corthex; then
               echo "✅ 배포 완료! 미니 서버 정상 실행 중 (빌드 #${BUILD_NUMBER})"
+              echo "📋 최근 서버 로그 (텔레그램 봇 시작 확인):"
+              sudo journalctl -u corthex --no-pager -n 15 --no-hostname
             else
               echo "❌ 미니 서버 시작 실패"
-              sudo journalctl -u corthex --no-pager -n 10
+              sudo journalctl -u corthex --no-pager -n 20
               exit 1
             fi
 
