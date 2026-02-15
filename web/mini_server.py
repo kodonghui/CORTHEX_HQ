@@ -25,13 +25,14 @@ from db import (
     save_setting, load_setting, get_today_cost,
 )
 try:
-    from ai_handler import init_ai_client, is_ai_ready, ask_ai, select_model, classify_task
+    from ai_handler import init_ai_client, is_ai_ready, ask_ai, select_model, classify_task, get_available_providers
 except ImportError:
     def init_ai_client(): return False
     def is_ai_ready(): return False
     async def ask_ai(*a, **kw): return {"error": "ai_handler 미설치"}
     def select_model(t, override=None): return override or "claude-haiku-4-5-20251001"
     async def classify_task(t): return {"agent_id": "chief_of_staff", "reason": "ai_handler 미설치", "cost_usd": 0}
+    def get_available_providers(): return {"anthropic": False, "google": False, "openai": False}
 
 # Python 출력 버퍼링 비활성화 (systemd에서 로그가 바로 보이도록)
 os.environ["PYTHONUNBUFFERED"] = "1"
@@ -298,7 +299,7 @@ async def websocket_endpoint(ws: WebSocket):
             msg = json.loads(data)
             # 메시지를 받으면 DB에 저장 + 응답
             if msg.get("type") == "command":
-                cmd_text = msg.get("content", "").strip()
+                cmd_text = (msg.get("content") or msg.get("text", "")).strip()
                 if cmd_text:
                     # DB에 메시지 + 작업 저장
                     task = create_task(cmd_text, source="websocket")
@@ -440,10 +441,11 @@ async def get_dashboard():
         "uptime": now,
         "agents": AGENTS,
         "recent_completed": stats["recent_completed"],
-        # API 키 연결 상태 — 환경변수 + AI 클라이언트 확인
+        # API 키 연결 상태 — 프로바이더별 클라이언트 확인
         "api_keys": {
-            "openai": bool(os.getenv("OPENAI_API_KEY", "")),
-            "anthropic": is_ai_ready(),  # AI 클라이언트가 정상 초기화되었는지
+            "anthropic": get_available_providers().get("anthropic", False),
+            "google": get_available_providers().get("google", False),
+            "openai": get_available_providers().get("openai", False),
             "notion": bool(os.getenv("NOTION_API_KEY", "")),
             "telegram": bool(os.getenv("TELEGRAM_BOT_TOKEN", "")),
         },
@@ -1399,6 +1401,7 @@ async def _start_telegram_bot() -> None:
             # 모드 확인
             mode = load_setting("tg_mode") or "realtime"
             now = datetime.now(KST).strftime("%H:%M")
+            result = {}  # 웹소켓 브로드캐스트용
 
             if mode == "realtime" and is_ai_ready():
                 # 실시간 모드: AI가 답변
@@ -1439,7 +1442,7 @@ async def _start_telegram_bot() -> None:
                     parse_mode="Markdown",
                 )
 
-            # 활동 로그 저장 + 웹소켓 브로드캐스트
+            # 활동 로그 저장 + 웹소켓 브로드캐스트 (웹 채팅에도 대화 표시)
             log_entry = save_activity_log(
                 "chief_of_staff",
                 f"[텔레그램] CEO 지시: {text[:50]}{'...' if len(text) > 50 else ''} (#{task['task_id']})",
@@ -1448,6 +1451,37 @@ async def _start_telegram_bot() -> None:
                 try:
                     await ws.send_json({"event": "task_accepted", "data": task})
                     await ws.send_json({"event": "activity_log", "data": log_entry})
+                    # 텔레그램 대화를 웹 채팅에도 표시
+                    await ws.send_json({
+                        "event": "telegram_message",
+                        "data": {"type": "user", "text": text, "source": "telegram"}
+                    })
+                    if "error" not in result:
+                        await ws.send_json({
+                            "event": "result",
+                            "data": {
+                                "content": result.get("content", ""),
+                                "sender_id": result.get("agent_id", "chief_of_staff"),
+                                "handled_by": result.get("handled_by", "비서실장"),
+                                "delegation": result.get("delegation", ""),
+                                "time_seconds": result.get("time_seconds", 0),
+                                "cost": result.get("total_cost_usd", result.get("cost_usd", 0)),
+                                "model": result.get("model", ""),
+                                "routing_method": result.get("routing_method", ""),
+                                "source": "telegram",
+                            }
+                        })
+                    else:
+                        await ws.send_json({
+                            "event": "result",
+                            "data": {
+                                "content": f"❌ {result['error']}",
+                                "sender_id": "chief_of_staff",
+                                "handled_by": "비서실장",
+                                "time_seconds": 0, "cost": 0,
+                                "source": "telegram",
+                            }
+                        })
                 except Exception:
                     pass
 

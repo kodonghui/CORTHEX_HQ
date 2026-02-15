@@ -1,7 +1,12 @@
 """
-CORTHEX HQ - AI Handler
+CORTHEX HQ - AI Handler (멀티 프로바이더)
 
-AI 호출, 모델 라우팅, 에이전트 분류, 비용 계산을 담당합니다.
+Anthropic (Claude), Google (Gemini), OpenAI (GPT) 3개 프로바이더를 지원합니다.
+모델명 접두사로 프로바이더를 자동 판별합니다:
+  - claude-*  → Anthropic API
+  - gemini-*  → Google Generative AI API
+  - gpt-*     → OpenAI API
+
 mini_server.py에서 import하여 사용합니다.
 """
 import json
@@ -11,20 +16,52 @@ import logging
 
 logger = logging.getLogger("corthex.ai")
 
-# ── Anthropic 선택적 로드 ──
-_ai_available = False
-_client = None
+# ── 프로바이더별 클라이언트 (선택적 로드) ──
+
+# Anthropic
+_anthropic_client = None
+_anthropic_available = False
 try:
     from anthropic import AsyncAnthropic
-    _ai_available = True
+    _anthropic_available = True
 except ImportError:
-    logger.warning("anthropic 패키지 미설치 — AI 기능 비활성화")
+    logger.warning("anthropic 패키지 미설치")
+
+# Google Gemini
+_google_client = None
+_google_available = False
+try:
+    from google import genai
+    _google_available = True
+except ImportError:
+    logger.warning("google-genai 패키지 미설치")
+
+# OpenAI
+_openai_client = None
+_openai_available = False
+try:
+    from openai import AsyncOpenAI
+    _openai_available = True
+except ImportError:
+    logger.warning("openai 패키지 미설치")
+
 
 # ── 모델 가격표 (1M 토큰당 USD) ──
 _PRICING = {
+    # Anthropic
+    "claude-opus-4-6": {"input": 15.00, "output": 75.00},
     "claude-sonnet-4-5-20250929": {"input": 3.00, "output": 15.00},
-    "claude-haiku-4-5-20251001": {"input": 0.80, "output": 4.00},
-    "claude-opus-4-6": {"input": 5.00, "output": 25.00},
+    "claude-haiku-4-5-20251001": {"input": 0.25, "output": 1.25},
+    # Google Gemini
+    "gemini-3-pro-preview": {"input": 2.50, "output": 15.00},
+    "gemini-2.5-pro": {"input": 1.25, "output": 10.00},
+    "gemini-2.5-flash": {"input": 0.15, "output": 0.60},
+    # OpenAI
+    "gpt-5.2-pro": {"input": 18.00, "output": 90.00},
+    "gpt-5.2": {"input": 5.00, "output": 25.00},
+    "gpt-5.1": {"input": 4.00, "output": 20.00},
+    "gpt-5": {"input": 2.50, "output": 10.00},
+    "gpt-5-mini": {"input": 0.50, "output": 2.00},
 }
 
 # ── 모델 라우팅 키워드 ──
@@ -51,41 +88,117 @@ CEO의 명령을 읽고 어느 부서가 처리해야 하는지 판단하세요.
 {"agent_id": "부서ID", "reason": "한줄 이유"}"""
 
 
+def _get_provider(model: str) -> str:
+    """모델명으로 프로바이더를 판별합니다."""
+    if model.startswith("claude-"):
+        return "anthropic"
+    elif model.startswith("gemini-"):
+        return "google"
+    elif model.startswith("gpt-"):
+        return "openai"
+    return "anthropic"  # 알 수 없으면 기본값
+
+
 def init_ai_client() -> bool:
-    """AI 클라이언트 초기화. 반환: 성공 여부."""
-    global _client
-    if not _ai_available:
-        return False
-    api_key = os.getenv("ANTHROPIC_API_KEY", "")
-    if not api_key:
-        logger.warning("ANTHROPIC_API_KEY 미설정 — AI 기능 비활성화")
-        return False
-    _client = AsyncAnthropic(api_key=api_key)
-    logger.info("AI 클라이언트 초기화 완료")
-    return True
+    """모든 AI 클라이언트 초기화. 최소 1개라도 성공하면 True 반환."""
+    global _anthropic_client, _google_client, _openai_client
+    any_ok = False
+
+    # Anthropic
+    if _anthropic_available:
+        key = os.getenv("ANTHROPIC_API_KEY", "")
+        if key:
+            _anthropic_client = AsyncAnthropic(api_key=key)
+            logger.info("Anthropic 클라이언트 초기화 완료")
+            any_ok = True
+        else:
+            logger.warning("ANTHROPIC_API_KEY 미설정")
+
+    # Google Gemini
+    if _google_available:
+        key = os.getenv("GOOGLE_API_KEY", "") or os.getenv("GEMINI_API_KEY", "")
+        if key:
+            _google_client = genai.Client(api_key=key)
+            logger.info("Google Gemini 클라이언트 초기화 완료")
+            any_ok = True
+        else:
+            logger.warning("GOOGLE_API_KEY 미설정")
+
+    # OpenAI
+    if _openai_available:
+        key = os.getenv("OPENAI_API_KEY", "")
+        if key:
+            _openai_client = AsyncOpenAI(api_key=key)
+            logger.info("OpenAI 클라이언트 초기화 완료")
+            any_ok = True
+        else:
+            logger.warning("OPENAI_API_KEY 미설정")
+
+    if not any_ok:
+        logger.warning("사용 가능한 AI 프로바이더가 없습니다")
+    return any_ok
 
 
 def is_ai_ready() -> bool:
-    """AI 호출이 가능한 상태인지 확인."""
-    return _client is not None
+    """최소 1개 AI 프로바이더가 사용 가능한 상태인지 확인."""
+    return any([_anthropic_client, _google_client, _openai_client])
+
+
+def get_available_providers() -> dict:
+    """현재 사용 가능한 프로바이더 상태를 반환합니다."""
+    return {
+        "anthropic": _anthropic_client is not None,
+        "google": _google_client is not None,
+        "openai": _openai_client is not None,
+    }
+
+
+def _pick_fallback_model(provider: str) -> str | None:
+    """요청한 프로바이더가 없을 때, 사용 가능한 다른 모델을 반환합니다."""
+    if _anthropic_client:
+        return "claude-sonnet-4-5-20250929"
+    if _google_client:
+        return "gemini-2.5-flash"
+    if _openai_client:
+        return "gpt-5-mini"
+    return None
 
 
 def select_model(text: str, override: str | None = None) -> str:
     """메시지 내용에 따라 적절한 모델을 선택합니다.
 
-    Args:
-        text: 메시지 내용
-        override: 수동 모드에서 강제 지정할 모델명 (None이면 자동 모드)
-
-    - 수동 모드: override 모델을 즉시 반환
-    - 자동 모드: 짧은 질문 → haiku, 복잡한 질문 → sonnet
+    - 수동 모드: override 모델을 반환 (해당 프로바이더가 없으면 폴백)
+    - 자동 모드: 짧은 질문 → 저비용 모델, 복잡한 질문 → 고급 모델
     """
     if override:
-        return override
+        provider = _get_provider(override)
+        providers = get_available_providers()
+        if providers.get(provider):
+            return override
+        # 해당 프로바이더 사용 불가 → 폴백
+        fallback = _pick_fallback_model(provider)
+        if fallback:
+            logger.warning("%s 프로바이더 사용 불가 → %s로 폴백", provider, fallback)
+            return fallback
+        return override  # 폴백도 없으면 그냥 반환 (ask_ai에서 에러 처리)
+
+    # 자동 모드: 사용 가능한 프로바이더 중에서 선택
     is_complex = any(kw in text for kw in _COMPLEX_KEYWORDS)
-    if len(text) <= 50 and not is_complex:
-        return "claude-haiku-4-5-20251001"
-    return "claude-sonnet-4-5-20250929"
+
+    if _anthropic_client:
+        if len(text) <= 50 and not is_complex:
+            return "claude-haiku-4-5-20251001"
+        return "claude-sonnet-4-5-20250929"
+    elif _google_client:
+        if len(text) <= 50 and not is_complex:
+            return "gemini-2.5-flash"
+        return "gemini-2.5-pro"
+    elif _openai_client:
+        if len(text) <= 50 and not is_complex:
+            return "gpt-5-mini"
+        return "gpt-5.2"
+
+    return "claude-sonnet-4-5-20250929"  # 아무것도 없으면 기본값
 
 
 def _calc_cost(model: str, input_tokens: int, output_tokens: int) -> float:
@@ -97,17 +210,26 @@ def _calc_cost(model: str, input_tokens: int, output_tokens: int) -> float:
 async def classify_task(text: str) -> dict:
     """CEO 명령을 분류하여 적합한 에이전트 ID를 반환합니다.
 
-    Haiku 모델로 저비용 분류를 수행합니다 (~$0.001/건).
+    가장 저렴한 사용 가능 모델로 분류를 수행합니다.
     반환: {"agent_id": "cto_manager", "reason": "...", "cost_usd": 0.001}
-    실패 시: {"agent_id": "chief_of_staff", "reason": "분류 실패", "cost_usd": 0}
     """
     if not is_ai_ready():
+        return {"agent_id": "chief_of_staff", "reason": "AI 미연결", "cost_usd": 0}
+
+    # 분류용 모델: 가장 저렴한 모델 선택
+    if _anthropic_client:
+        classify_model = "claude-haiku-4-5-20251001"
+    elif _google_client:
+        classify_model = "gemini-2.5-flash"
+    elif _openai_client:
+        classify_model = "gpt-5-mini"
+    else:
         return {"agent_id": "chief_of_staff", "reason": "AI 미연결", "cost_usd": 0}
 
     result = await ask_ai(
         user_message=text,
         system_prompt=_CLASSIFY_PROMPT,
-        model="claude-haiku-4-5-20251001",
+        model=classify_model,
     )
 
     if "error" in result:
@@ -116,7 +238,6 @@ async def classify_task(text: str) -> dict:
     # JSON 파싱
     content = result.get("content", "").strip()
     try:
-        # JSON 블록이 ```로 감싸져 있을 수 있음
         if "```" in content:
             content = content.split("```")[1]
             if content.startswith("json"):
@@ -132,61 +253,144 @@ async def classify_task(text: str) -> dict:
         return {"agent_id": "chief_of_staff", "reason": "분류 결과 파싱 실패", "cost_usd": result.get("cost_usd", 0)}
 
 
-async def ask_ai(
-    user_message: str,
-    system_prompt: str = "",
-    model: str | None = None,
-) -> dict:
-    """AI에게 질문합니다.
+# ── 프로바이더별 API 호출 ──
 
-    반환: {"content", "model", "input_tokens", "output_tokens", "cost_usd", "time_seconds"}
-    AI 불가 시: {"error": "사유"}
-    """
-    if not is_ai_ready():
-        return {"error": "AI 미연결 — ANTHROPIC_API_KEY를 확인하세요"}
-
-    if model is None:
-        model = select_model(user_message)
-
+async def _call_anthropic(user_message: str, system_prompt: str, model: str) -> dict:
+    """Anthropic (Claude) API 호출."""
     messages = [{"role": "user", "content": user_message}]
-
-    kwargs = {
-        "model": model,
-        "max_tokens": 4096,
-        "messages": messages,
-    }
+    kwargs = {"model": model, "max_tokens": 4096, "messages": messages}
     if system_prompt:
         kwargs["system"] = system_prompt
-
-    # sonnet은 temperature 0.3, haiku는 0.5
     if "haiku" in model:
         kwargs["temperature"] = 0.5
     else:
         kwargs["temperature"] = 0.3
 
-    start = time.time()
-    try:
-        resp = await _client.messages.create(**kwargs)
-    except Exception as e:
-        logger.error("AI 호출 실패: %s", e)
-        return {"error": f"AI 호출 실패: {str(e)[:200]}"}
+    resp = await _anthropic_client.messages.create(**kwargs)
 
-    elapsed = time.time() - start
-
-    # 응답 텍스트 추출
     content = ""
     for block in resp.content:
         if block.type == "text":
             content = block.text
             break
 
-    input_tokens = resp.usage.input_tokens
-    output_tokens = resp.usage.output_tokens
-    cost = _calc_cost(model, input_tokens, output_tokens)
+    return {
+        "content": content,
+        "input_tokens": resp.usage.input_tokens,
+        "output_tokens": resp.usage.output_tokens,
+    }
+
+
+async def _call_google(user_message: str, system_prompt: str, model: str) -> dict:
+    """Google Gemini API 호출 (google-genai SDK 사용)."""
+    import asyncio
+
+    config = {"max_output_tokens": 4096, "temperature": 0.3}
+    if system_prompt:
+        config["system_instruction"] = system_prompt
+
+    # google-genai SDK는 동기 API → asyncio.to_thread로 비동기 실행
+    def _sync_call():
+        response = _google_client.models.generate_content(
+            model=model,
+            contents=user_message,
+            config=config,
+        )
+        return response
+
+    resp = await asyncio.to_thread(_sync_call)
+
+    content = resp.text or ""
+    # 토큰 사용량 추출
+    usage = getattr(resp, "usage_metadata", None)
+    input_tokens = getattr(usage, "prompt_token_count", 0) if usage else 0
+    output_tokens = getattr(usage, "candidates_token_count", 0) if usage else 0
 
     return {
         "content": content,
+        "input_tokens": input_tokens,
+        "output_tokens": output_tokens,
+    }
+
+
+async def _call_openai(user_message: str, system_prompt: str, model: str) -> dict:
+    """OpenAI (GPT) API 호출."""
+    messages = []
+    if system_prompt:
+        messages.append({"role": "system", "content": system_prompt})
+    messages.append({"role": "user", "content": user_message})
+
+    resp = await _openai_client.chat.completions.create(
+        model=model,
+        messages=messages,
+        max_tokens=4096,
+        temperature=0.3,
+    )
+
+    content = resp.choices[0].message.content or ""
+    input_tokens = resp.usage.prompt_tokens if resp.usage else 0
+    output_tokens = resp.usage.completion_tokens if resp.usage else 0
+
+    return {
+        "content": content,
+        "input_tokens": input_tokens,
+        "output_tokens": output_tokens,
+    }
+
+
+async def ask_ai(
+    user_message: str,
+    system_prompt: str = "",
+    model: str | None = None,
+) -> dict:
+    """AI에게 질문합니다 (프로바이더 자동 판별).
+
+    반환: {"content", "model", "input_tokens", "output_tokens", "cost_usd", "time_seconds"}
+    AI 불가 시: {"error": "사유"}
+    """
+    if not is_ai_ready():
+        return {"error": "AI 미연결 — API 키를 확인하세요"}
+
+    if model is None:
+        model = select_model(user_message)
+
+    provider = _get_provider(model)
+    providers = get_available_providers()
+
+    # 해당 프로바이더 사용 불가 시 폴백
+    if not providers.get(provider):
+        fallback = _pick_fallback_model(provider)
+        if fallback:
+            logger.warning("%s 프로바이더 사용 불가 → %s로 폴백", provider, fallback)
+            model = fallback
+            provider = _get_provider(model)
+        else:
+            return {"error": f"{provider} API 키가 설정되지 않았습니다"}
+
+    start = time.time()
+    try:
+        if provider == "anthropic":
+            result = await _call_anthropic(user_message, system_prompt, model)
+        elif provider == "google":
+            result = await _call_google(user_message, system_prompt, model)
+        elif provider == "openai":
+            result = await _call_openai(user_message, system_prompt, model)
+        else:
+            return {"error": f"알 수 없는 프로바이더: {provider}"}
+    except Exception as e:
+        logger.error("AI 호출 실패 (%s/%s): %s", provider, model, e)
+        return {"error": f"AI 호출 실패 ({provider}): {str(e)[:200]}"}
+
+    elapsed = time.time() - start
+
+    input_tokens = result.get("input_tokens", 0)
+    output_tokens = result.get("output_tokens", 0)
+    cost = _calc_cost(model, input_tokens, output_tokens)
+
+    return {
+        "content": result["content"],
         "model": model,
+        "provider": provider,
         "input_tokens": input_tokens,
         "output_tokens": output_tokens,
         "cost_usd": round(cost, 6),
