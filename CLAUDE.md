@@ -116,8 +116,9 @@
   1. claude/ 브랜치에 [완료] 커밋 push
   2. `auto-merge-claude.yml`이 PR 생성 + main에 자동 머지
   3. 머지 성공 후 → `deploy.yml`을 **직접 실행(trigger)**시킴
-  4. 서버에서 `git pull` → 파일 복사 → 미니 서버 재시작
+  4. 서버에서 `git fetch + git reset --hard` → 파일 복사 → 미니 서버 재시작
   - **중요**: GitHub 보안 정책상, 워크플로우가 만든 push는 다른 워크플로우를 자동 실행시키지 않음. 그래서 auto-merge에서 `gh workflow run deploy.yml`로 직접 실행시키는 구조
+  - **중요**: 서버에서 `git pull`을 쓰면 안 됨! 반드시 `git fetch + git reset --hard` 사용 (아래 "과거 사고" 참고)
 - **워크플로우 파일**:
   - `.github/workflows/auto-merge-claude.yml` — 자동 머지 + 배포 트리거
   - `.github/workflows/deploy.yml` — 실제 서버 배포 (SSH로 접속해서 파일 복사)
@@ -145,6 +146,7 @@
 |------|------|------|
 | 배포 성공인데 화면이 안 바뀜 | **브라우저 캐시** — 브라우저가 옛날 파일을 기억 | `Ctrl+Shift+R` (강력 새로고침) 또는 주소 뒤에 `?v=2` 붙이기 |
 | 배포 성공인데 화면이 안 바뀜 (2) | **nginx 캐시** — 서버가 브라우저에 캐시 허용 | deploy.yml이 자동으로 nginx에 `no-cache` 헤더 설정 (2026-02-15 추가) |
+| 배포 성공인데 화면이 안 바뀜 (3) | **서버 git pull 실패** — 이전 배포가 서버 파일을 수정해서 git pull이 충돌 에러를 냄 | `git pull` 대신 `git fetch + git reset --hard` 사용 (deploy.yml에 이미 반영됨). **Actions 로그에서 "error: Your local changes would be overwritten" 메시지가 있으면 이 문제** |
 | GitHub Actions "success"인데 서버 접속 안됨 | **서버 다운** 또는 **방화벽 차단** | Oracle Cloud 콘솔에서 인스턴스 상태 확인 → Security List에서 포트 80 열려있는지 확인 |
 | `pip 설치 실패` 경고 | PyYAML 패키지 설치 실패 | 무시 가능 (yaml 없이도 미니 서버 동작함) |
 | 빌드 번호가 `BUILD_NUMBER_PLACEHOLDER`로 표시 | HTML을 로컬에서 직접 열었음 (서버 아님) | 반드시 `http://168.107.28.100`으로 접속해야 함. 로컬 파일을 브라우저로 열면 빌드 번호가 주입 안됨 |
@@ -157,7 +159,8 @@
 ### 배포 흐름 상세 (디버깅용)
 ```
 [코드 수정] → [git push] → [auto-merge.yml] → [PR 생성 + main 머지]
-    → [deploy.yml 직접 실행] → [서버 SSH 접속] → [git pull]
+    → [deploy.yml 직접 실행] → [서버 SSH 접속]
+    → [git fetch + git reset --hard] (⚠️ git pull 아님!)
     → [sed로 빌드번호 주입] → [/var/www/html/index.html 복사]
     → [corthex 서비스 재시작] → [deploy-status.json 생성]
 ```
@@ -166,6 +169,59 @@
 - deploy.yml이 첫 배포 시 nginx 설정에 `Cache-Control: no-cache` 헤더를 자동 추가
 - 이후 배포부터는 브라우저가 항상 최신 파일을 받아감
 - 수동으로 확인: `curl -I http://168.107.28.100` → `Cache-Control: no-cache` 헤더 있으면 정상
+
+## 과거 사고 기록 (같은 실수 반복 금지!)
+
+### 사고 1: 서버 배포 안 되는 문제 (2026-02-15)
+
+- **증상**: 코드를 고치고 배포했는데, 서버에 아무 변화가 없음. 빌드 번호는 올라가지만 코드는 옛날 것 그대로
+- **원인 (2가지가 겹침)**:
+  1. `deploy.yml`이 서버에서 `git pull origin main`을 쓰고 있었음
+  2. 그런데 이전 배포에서 `sed` 명령어가 `index.html`에 빌드 번호를 주입하면서 파일을 수정함
+  3. 그래서 다음 배포 때 `git pull`이 "로컬 변경사항이 있어서 못 가져온다" 에러를 냄
+  4. **git pull이 실패해도** 배포 스크립트가 계속 진행됨 → 옛날 코드로 빌드 번호만 새로 주입 → 겉보기엔 "배포 성공"이지만 실제로는 코드가 안 바뀜
+- **해결**: `git pull` 대신 `git fetch origin main` + `git reset --hard origin/main` 사용
+  - `git fetch`는 최신 코드를 다운만 받고
+  - `git reset --hard`는 로컬 파일을 다운받은 코드로 **강제 덮어씌움** (로컬 변경사항 무시)
+- **교훈**:
+  - **deploy.yml에서 `git pull`은 절대 쓰지 말 것** → `git fetch + git reset --hard`만 사용
+  - GitHub Actions 로그에서 "error" 문자열이 있는지 반드시 확인할 것
+  - "배포 성공"이라고 뜨더라도 Actions 로그 전체를 확인해야 함 (중간에 에러가 있어도 최종 결과가 "success"일 수 있음)
+
+### 사고 2: 다크모드에서 화면이 안 보이는 문제 (2026-02-15)
+
+- **증상**: 다크모드에서 모든 글자, 카드, 버튼이 거의 안 보임. 색상을 아무리 바꿔도 안 나음
+- **원인**: `.bg-grid` 클래스의 `gridPulse` 애니메이션 때문
+  ```css
+  /* ❌ 잘못된 코드 — 이렇게 하면 안 됨! */
+  @keyframes gridPulse {
+    0%, 100% { opacity: 0.03; }  /* 투명도 3% */
+    50% { opacity: 0.06; }       /* 투명도 6% */
+  }
+  .bg-grid {
+    background-image: 격자 무늬;
+    animation: gridPulse 8s infinite;  /* ← 이게 문제! */
+  }
+  ```
+  - CSS의 `opacity`는 **요소 전체**(배경 + 글자 + 자식 요소 전부)에 적용됨
+  - 배경 무늬만 깜빡이게 하려던 의도였지만, 글자/카드/버튼까지 전부 투명도 3%가 되어 안 보임
+  - `.bg-grid`가 12개 메인 콘텐츠 영역에 전부 사용되어 모든 탭이 영향받음
+- **해결**: 격자 무늬를 `::before` 가상 요소로 분리
+  ```css
+  /* ✅ 올바른 코드 — 현재 적용된 방식 */
+  .bg-grid { position: relative; }
+  .bg-grid::before {
+    content: ''; position: absolute; inset: 0;
+    background-image: 격자 무늬;
+    animation: gridPulse 8s infinite;  /* 가상 요소에만 적용 → 콘텐츠 영향 없음 */
+    pointer-events: none; z-index: 0;
+  }
+  .bg-grid > * { position: relative; z-index: 1; }
+  ```
+- **교훈**:
+  - **CSS `opacity` 애니메이션을 콘텐츠가 있는 요소에 직접 걸면 안 됨** → 반드시 `::before`/`::after` 가상 요소로 분리
+  - 다크모드 문제가 생기면 색상보다 **투명도(opacity)부터 확인**할 것
+  - `index.html`에서 `opacity`가 들어간 애니메이션을 수정할 때는 어떤 요소에 적용되는지 반드시 확인할 것
 
 ## 환경 설정
 - gh CLI가 없으면 세션 시작 시 설치: `(type gh > /dev/null 2>&1) || (curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null && sudo apt update && sudo apt install gh -y)`
