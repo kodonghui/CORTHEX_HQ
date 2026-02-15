@@ -1420,22 +1420,53 @@
             </template>
           </div>
 
-          <!-- Quick Commands -->
+          <!-- Quick Commands (프리셋 카드 그리드) -->
           <div class="glass border border-hq-border rounded-xl p-5">
             <h2 class="text-sm font-bold text-hq-text mb-4 flex items-center gap-2">
               <svg class="w-4 h-4 text-hq-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
               빠른 명령
             </h2>
             <div class="grid grid-cols-2 lg:grid-cols-3 gap-3">
+              <!-- 서버 프리셋 -->
               <template x-for="p in presets.items" :key="p.name">
                 <button @click="switchTab('command'); $nextTick(() => sendPreset(p.command))"
-                        class="text-left p-3 bg-hq-panel rounded-lg hover:bg-hq-bg border border-transparent hover:border-hq-accent/20 transition group">
-                  <div class="text-sm font-medium text-hq-text group-hover:text-hq-text" x-text="p.name"></div>
+                        class="text-left p-4 glass border border-hq-border rounded-xl hover-glow transition group">
+                  <div class="text-sm font-medium text-hq-text group-hover:text-hq-accent" x-text="p.name"></div>
                   <div class="text-[11px] text-hq-muted mt-1 truncate" x-text="p.command"></div>
                 </button>
               </template>
+              <!-- 기본 프리셋 (서버 프리셋이 없을 때만 표시) -->
+              <template x-if="!presets.items || presets.items.length === 0">
+                <div class="contents">
+                  <button @click="switchTab('command'); $nextTick(() => { inputText = '전 부서 현황 보고'; sendMessage(); })"
+                          class="text-left p-4 glass border border-hq-border rounded-xl hover-glow transition group">
+                    <div class="text-sm font-medium text-hq-text group-hover:text-hq-accent">📊 전 부서 현황</div>
+                    <div class="text-[11px] text-hq-muted mt-1">전 부서 현황 보고</div>
+                  </button>
+                  <button @click="switchTab('command'); $nextTick(() => { inputText = '@CTO 기술 점검 실행'; sendMessage(); })"
+                          class="text-left p-4 glass border border-hq-border rounded-xl hover-glow transition group">
+                    <div class="text-sm font-medium text-hq-text group-hover:text-hq-accent">🔧 기술 점검</div>
+                    <div class="text-[11px] text-hq-muted mt-1">@CTO 기술 점검 실행</div>
+                  </button>
+                  <button @click="switchTab('command'); $nextTick(() => { inputText = '@CSO 보안 스캔 시작'; sendMessage(); })"
+                          class="text-left p-4 glass border border-hq-border rounded-xl hover-glow transition group">
+                    <div class="text-sm font-medium text-hq-text group-hover:text-hq-accent">🛡️ 보안 스캔</div>
+                    <div class="text-[11px] text-hq-muted mt-1">@CSO 보안 스캔 시작</div>
+                  </button>
+                  <button @click="switchTab('command'); $nextTick(() => { inputText = '@CMO 마케팅 전략 분석'; sendMessage(); })"
+                          class="text-left p-4 glass border border-hq-border rounded-xl hover-glow transition group">
+                    <div class="text-sm font-medium text-hq-text group-hover:text-hq-accent">📈 마케팅 분석</div>
+                    <div class="text-[11px] text-hq-muted mt-1">@CMO 마케팅 전략 분석</div>
+                  </button>
+                  <button @click="switchTab('command'); $nextTick(() => { inputText = '@CFO 예산 현황 정리'; sendMessage(); })"
+                          class="text-left p-4 glass border border-hq-border rounded-xl hover-glow transition group">
+                    <div class="text-sm font-medium text-hq-text group-hover:text-hq-accent">💰 예산 현황</div>
+                    <div class="text-[11px] text-hq-muted mt-1">@CFO 예산 현황 정리</div>
+                  </button>
+                </div>
+              </template>
               <button @click="switchTab('command')"
-                      class="text-left p-3 bg-hq-panel rounded-lg hover:bg-hq-bg border border-dashed border-hq-border hover:border-hq-accent/30 transition group flex items-center justify-center min-h-[60px]">
+                      class="text-left p-4 bg-hq-panel/30 rounded-xl border border-dashed border-hq-border hover:border-hq-accent/30 transition group flex items-center justify-center min-h-[60px]">
                 <span class="text-sm text-hq-muted group-hover:text-hq-accent">+ 직접 명령</span>
               </button>
             </div>
@@ -1529,7 +1560,7 @@
                   </div>
                 </div>
               </div>
-              <p class="text-[11px] text-hq-muted/80 mt-4">자유롭게 명령을 입력하세요 (Shift+Enter: 줄바꿈)</p>
+              <!-- 텍스트 제거됨 (#17) -->
             </div>
           </template>
 
@@ -1738,20 +1769,20 @@
               </button>
             </div>
           </div>
-        <!-- Preset Chips -->
-        <div x-show="presets.items.length > 0" class="flex items-center gap-2 flex-wrap mt-2 max-w-4xl mx-auto">
-          <template x-for="p in presets.items" :key="p.name">
-            <button @click="sendPreset(p.command)"
-                    :disabled="systemStatus === 'working'"
-                    class="text-[11px] bg-hq-panel border border-hq-border rounded-lg px-2.5 py-1 hover:border-hq-accent/40 hover:text-hq-accent transition disabled:opacity-30 text-hq-muted">
-              <span x-text="p.name"></span>
+          <!-- Preset Chips -->
+          <div x-show="presets.items.length > 0" class="flex items-center gap-2 flex-wrap mt-2 max-w-4xl mx-auto overflow-x-auto scrollbar-thin">
+            <template x-for="p in presets.items" :key="p.name">
+              <button @click="sendPreset(p.command)"
+                      :disabled="systemStatus === 'working'"
+                      class="text-[11px] bg-hq-panel border border-hq-border rounded-lg px-2.5 py-1 hover:border-hq-accent/40 hover:text-hq-accent transition disabled:opacity-30 text-hq-muted whitespace-nowrap shrink-0">
+                <span x-text="p.name"></span>
+              </button>
+            </template>
+            <button @click="presets.showModal = true" class="text-[11px] text-hq-muted/80 hover:text-hq-accent transition px-1 shrink-0">
+              <svg class="w-3.5 h-3.5 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
             </button>
-          </template>
-          <button @click="presets.showModal = true" class="text-[11px] text-hq-muted/80 hover:text-hq-accent transition px-1">
-            <svg class="w-3.5 h-3.5 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
-          </button>
+          </div>
         </div>
-      </div>
       </div><!-- /command tab -->
 
       <!-- ═══ Tab: 성능 (Performance) ═══ -->
@@ -3862,15 +3893,8 @@
         // Batch mode toggle (#5)
         useBatch: false,
 
-        // Input hint rotation
-        inputHints: [
-          '명령을 입력하세요... (Shift+Enter: 줄바꿈)',
-          '@CTO 기술 현황 리포트 작성해줘',
-          '오늘 각 부서 업무 현황 알려줘',
-          '@CMO 마케팅 전략 분석해줘',
-          '@CFO 이번 달 예산 현황 정리해줘',
-          '@CLO 계약서 검토해줘',
-        ],
+        // Input hint — 고정 텍스트 (#18)
+        inputHints: ['CEO님, 명령을 입력하세요 (Shift+Enter: 줄바꿈)'],
         inputHintIndex: 0,
 
         init() {
@@ -3901,12 +3925,7 @@
           this.loadPresets();
           // Keyboard shortcuts (#16)
           this.initKeyboardShortcuts();
-          // Input hint rotation (3초마다 placeholder 변경)
-          setInterval(() => {
-            if (!this.inputText.trim()) {
-              this.inputHintIndex = (this.inputHintIndex + 1) % this.inputHints.length;
-            }
-          }, 3000);
+          // Input hint — 순환 제거, 고정 텍스트 사용 (#18)
         },
 
         // ── Theme ──
