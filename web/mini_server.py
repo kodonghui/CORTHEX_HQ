@@ -298,7 +298,7 @@ async def websocket_endpoint(ws: WebSocket):
             msg = json.loads(data)
             # 메시지를 받으면 DB에 저장 + 응답
             if msg.get("type") == "command":
-                cmd_text = msg.get("content", "").strip()
+                cmd_text = (msg.get("content") or msg.get("text") or "").strip()
                 if cmd_text:
                     # DB에 메시지 + 작업 저장
                     task = create_task(cmd_text, source="websocket")
