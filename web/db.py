@@ -114,6 +114,13 @@ CREATE TABLE IF NOT EXISTS archives (
 
 CREATE INDEX IF NOT EXISTS idx_archives_division ON archives(division);
 CREATE INDEX IF NOT EXISTS idx_archives_created_at ON archives(created_at);
+
+-- 설정 테이블: 키-값 저장소 (프리셋, 예약, 워크플로우, 예산 등 모든 웹 데이터)
+CREATE TABLE IF NOT EXISTS settings (
+    key             TEXT PRIMARY KEY,
+    value           TEXT NOT NULL,
+    updated_at      TEXT NOT NULL
+);
 """
 
 
@@ -459,5 +466,36 @@ def get_archive(division: str, filename: str) -> Optional[dict]:
             "content": row["content"],
             "created_at": row["created_at"],
         }
+    finally:
+        conn.close()
+
+
+# ── Settings (키-값 저장소) ──
+
+def save_setting(key: str, value) -> None:
+    """설정값을 DB에 저장합니다. value는 JSON 직렬화됩니다."""
+    conn = get_connection()
+    try:
+        json_value = json.dumps(value, ensure_ascii=False)
+        conn.execute(
+            "INSERT OR REPLACE INTO settings (key, value, updated_at) "
+            "VALUES (?, ?, ?)",
+            (key, json_value, _now_iso()),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def load_setting(key: str, default=None):
+    """DB에서 설정값을 조회합니다. 없으면 default 반환."""
+    conn = get_connection()
+    try:
+        row = conn.execute(
+            "SELECT value FROM settings WHERE key = ?", (key,)
+        ).fetchone()
+        if row:
+            return json.loads(row[0])
+        return default
     finally:
         conn.close()

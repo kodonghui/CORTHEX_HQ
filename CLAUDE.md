@@ -31,6 +31,17 @@
 - **프레임워크**: Tailwind CSS + Alpine.js (CDN)
 - **디자인 시스템**: `hq-*` 커스텀 컬러 토큰 사용
 
+## 데이터 저장 규칙 (SQLite DB)
+- **웹에서 사용자가 저장/수정/삭제하는 모든 데이터는 반드시 SQLite DB(`settings` 테이블)에 저장할 것**
+  - 프리셋, 예약, 워크플로우, 메모리, 피드백, 예산, 에이전트 설정, 품질 검수 기준, 에이전트 소울 등 전부 포함
+  - JSON 파일(`data/*.json`)에 저장하면 안 됨 — 배포(`git reset --hard`) 시 날아감
+- **저장 방법**: `db.py`의 `save_setting(key, value)` / `load_setting(key, default)` 사용
+  - `value`는 자동으로 JSON 직렬화됨 (dict, list, str 등 아무거나 가능)
+  - 예: `save_setting("presets", [{"name": "기본", ...}])` → DB에 영구 저장
+- **기존 JSON 데이터 자동 마이그레이션**: `_load_data(name)`은 DB를 먼저 확인하고, 없으면 JSON 파일에서 읽어서 DB로 자동 이전함
+- **DB 위치**: 서버에서는 `/home/ubuntu/corthex.db` (git 저장소 밖) → 배포해도 데이터 안 날아감
+- **config 설정 저장**: `_save_config_file(name, data)` → `config_{name}` 키로 DB에 저장
+
 ## 업데이트 기록 규칙
 - 모든 작업 내용을 `docs/updates/` 폴더에 기록할 것
 - 파일명 형식: `YYYY-MM-DD_작업요약.md` (예: `2026-02-13_홈페이지-디자인.md`)

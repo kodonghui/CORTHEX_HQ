@@ -20,6 +20,7 @@ from db import (
     update_task, list_tasks, toggle_bookmark as db_toggle_bookmark,
     get_dashboard_stats, save_activity_log, list_activity_logs,
     save_archive, list_archives, get_archive as db_get_archive,
+    save_setting, load_setting,
 )
 
 # Python 출력 버퍼링 비활성화 (systemd에서 로그가 바로 보이도록)
@@ -175,26 +176,31 @@ ARCHIVE_DIR = Path(BASE_DIR).parent / "archive"
 
 
 def _load_data(name: str, default=None):
-    """data/ 폴더에서 JSON 파일 읽기. 없으면 default 반환."""
+    """DB에서 설정 데이터 로드. DB에 없으면 기존 JSON 파일 확인 후 자동 마이그레이션."""
+    # 1순위: SQLite DB
+    db_val = load_setting(name)
+    if db_val is not None:
+        return db_val
+    # 2순위: 기존 JSON 파일 (자동 마이그레이션)
     path = DATA_DIR / f"{name}.json"
     if path.exists():
         try:
-            return json.loads(path.read_text(encoding="utf-8"))
+            val = json.loads(path.read_text(encoding="utf-8"))
+            save_setting(name, val)  # DB로 마이그레이션
+            return val
         except Exception:
             pass
     return default if default is not None else {}
 
 
 def _save_data(name: str, data) -> None:
-    """data/ 폴더에 JSON 파일 저장."""
-    path = DATA_DIR / f"{name}.json"
-    path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+    """DB에 설정 데이터 저장."""
+    save_setting(name, data)
 
 
 def _save_config_file(name: str, data: dict) -> None:
-    """config/ 폴더에 JSON 파일 저장 (설정 변경 시)."""
-    json_path = CONFIG_DIR / f"{name}.json"
-    json_path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+    """설정 변경을 DB에 저장. (재배포해도 유지됨)"""
+    save_setting(f"config_{name}", data)
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -329,9 +335,12 @@ async def get_agent(agent_id: str):
         if a["agent_id"] == agent_id:
             # agents.yaml에서 상세 정보 보충 (allowed_tools, capabilities 등)
             detail = _AGENTS_DETAIL.get(agent_id, {})
+            # DB에 저장된 소울 오버라이드 확인
+            soul_override = load_setting(f"soul_{agent_id}")
+            system_prompt = soul_override if soul_override is not None else detail.get("system_prompt", "")
             return {
                 **a,
-                "system_prompt": detail.get("system_prompt", ""),
+                "system_prompt": system_prompt,
                 "capabilities": detail.get("capabilities", []),
                 "allowed_tools": detail.get("allowed_tools", []),
                 "subordinate_ids": detail.get("subordinate_ids", []),
@@ -666,50 +675,7 @@ async def get_conversation():
     return _load_data("conversation", {"messages": []})
 
 
-# ── 아카이브 ──
-
-@app.get("/api/archive")
-async def get_archive():
-    """아카이브 보고서 목록."""
-    entries = []
-    if ARCHIVE_DIR.exists():
-        for div_folder in sorted(ARCHIVE_DIR.iterdir()):
-            if div_folder.is_dir() and not div_folder.name.startswith("."):
-                for f in sorted(div_folder.iterdir(), reverse=True):
-                    if f.is_file():
-                        entries.append({
-                            "division": div_folder.name,
-                            "filename": f.name,
-                            "size": f.stat().st_size,
-                            "modified": datetime.fromtimestamp(f.stat().st_mtime, KST).isoformat(),
-                        })
-    return {"entries": entries, "total": len(entries)}
-
-
-@app.get("/api/archive/{division}/{filename}")
-async def read_archive_report(division: str, filename: str):
-    """아카이브 보고서 읽기."""
-    file_path = ARCHIVE_DIR / division / filename
-    if file_path.exists() and file_path.is_file():
-        content = file_path.read_text(encoding="utf-8")
-        return {"division": division, "filename": filename, "content": content}
-    return {"error": "not found"}
-
-
-@app.get("/api/archive/by-correlation/{correlation_id}")
-async def search_archive_by_correlation(correlation_id: str):
-    """상관ID로 아카이브 검색."""
-    results = []
-    if ARCHIVE_DIR.exists():
-        for div_folder in ARCHIVE_DIR.iterdir():
-            if div_folder.is_dir():
-                for f in div_folder.iterdir():
-                    if f.is_file() and correlation_id in f.name:
-                        results.append({
-                            "division": div_folder.name,
-                            "filename": f.name,
-                        })
-    return {"results": results}
+# ── 아카이브 (DB 기반 — 하단 activity-logs/archive API 섹션에서 정의됨) ──
 
 
 # ── SNS 연동 (플레이스홀더 — 실제 연동은 외부 API 키 필요) ──
@@ -803,7 +769,8 @@ async def health_check():
     }
 
 
-_QUALITY_RULES: dict = _load_config("quality_rules")
+# 품질검수 규칙: DB 오버라이드 우선, 없으면 파일에서 로드
+_QUALITY_RULES: dict = load_setting("config_quality_rules") or _load_config("quality_rules")
 
 # 부서 ID → 한국어 이름 매핑
 _DIVISION_LABELS: dict[str, str] = {
@@ -900,14 +867,11 @@ async def save_quality_rules(request: Request):
 
 @app.put("/api/agents/{agent_id}/soul")
 async def save_agent_soul(agent_id: str, request: Request):
-    """에이전트 소울(성격) 저장."""
+    """에이전트 소울(성격) 저장. DB에 영구 저장됨."""
     body = await request.json()
     soul_text = body.get("soul", "")
-    # souls/ 디렉토리에 파일로 저장
-    souls_dir = Path(BASE_DIR).parent / "souls" / "agents"
-    souls_dir.mkdir(parents=True, exist_ok=True)
-    soul_path = souls_dir / f"{agent_id}.md"
-    soul_path.write_text(soul_text, encoding="utf-8")
+    # DB에 저장 (재배포해도 유지)
+    save_setting(f"soul_{agent_id}", soul_text)
     return {"success": True, "agent_id": agent_id}
 
 
