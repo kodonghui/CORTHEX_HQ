@@ -150,6 +150,18 @@ def init_db() -> None:
     try:
         conn.executescript(_SCHEMA_SQL)
         conn.commit()
+        # tasks 테이블에 신규 컬럼 추가 (기존 DB 호환 — 없으면 추가)
+        _migrate_columns = [
+            ("tags", "TEXT NOT NULL DEFAULT '[]'"),
+            ("is_read", "INTEGER NOT NULL DEFAULT 0"),
+            ("archived", "INTEGER NOT NULL DEFAULT 0"),
+        ]
+        for col_name, col_def in _migrate_columns:
+            try:
+                conn.execute(f"ALTER TABLE tasks ADD COLUMN {col_name} {col_def}")
+                conn.commit()
+            except sqlite3.OperationalError:
+                pass  # 이미 존재하면 무시
         print(f"[DB] 초기화 완료: {DB_PATH}")
     except Exception as e:
         print(f"[DB] 초기화 실패: {e}")
@@ -176,6 +188,20 @@ def _gen_task_id() -> str:
 
 def _row_to_task(row: sqlite3.Row) -> dict:
     """sqlite3.Row를 프론트엔드가 기대하는 task dict로 변환."""
+    # 신규 컬럼이 없는 이전 DB와 호환
+    tags_raw = ""
+    is_read = 0
+    archived = 0
+    try:
+        tags_raw = row["tags"]
+        is_read = row["is_read"]
+        archived = row["archived"]
+    except (IndexError, KeyError):
+        pass
+    try:
+        tags = json.loads(tags_raw) if tags_raw else []
+    except (json.JSONDecodeError, TypeError):
+        tags = []
     return {
         "task_id": row["task_id"],
         "command": row["command"],
@@ -189,6 +215,9 @@ def _row_to_task(row: sqlite3.Row) -> dict:
         "correlation_id": row["correlation_id"],
         "source": row["source"],
         "agent_id": row["agent_id"],
+        "tags": tags,
+        "is_read": bool(is_read),
+        "archived": bool(archived),
     }
 
 
@@ -291,7 +320,8 @@ def update_task(task_id: str, **kwargs) -> None:
 
 
 def list_tasks(keyword: str = "", status: str = "",
-               bookmarked: bool = False, limit: int = 50) -> list:
+               bookmarked: bool = False, limit: int = 50,
+               archived: bool = False, tag: str = "") -> list:
     """작업 목록 조회 (검색/필터/페이징)."""
     conn = get_connection()
     try:
@@ -305,10 +335,110 @@ def list_tasks(keyword: str = "", status: str = "",
             params.append(status)
         if bookmarked:
             query += " AND bookmarked = 1"
+        # 아카이브 필터: 기본적으로 아카이브 안 된 것만 보여줌
+        try:
+            if archived:
+                query += " AND archived = 1"
+            else:
+                query += " AND (archived = 0 OR archived IS NULL)"
+        except Exception:
+            pass  # archived 컬럼이 없는 이전 DB 호환
+        if tag:
+            query += " AND tags LIKE ?"
+            params.append(f'%"{tag}"%')
         query += " ORDER BY created_at DESC LIMIT ?"
         params.append(limit)
         rows = conn.execute(query, params).fetchall()
         return [_row_to_task(r) for r in rows]
+    finally:
+        conn.close()
+
+
+def delete_task(task_id: str) -> bool:
+    """작업을 삭제합니다."""
+    conn = get_connection()
+    try:
+        conn.execute("DELETE FROM tasks WHERE task_id = ?", (task_id,))
+        conn.commit()
+        return True
+    finally:
+        conn.close()
+
+
+def bulk_delete_tasks(task_ids: list) -> int:
+    """여러 작업을 한번에 삭제합니다. 반환: 삭제된 수."""
+    if not task_ids:
+        return 0
+    conn = get_connection()
+    try:
+        placeholders = ",".join(["?"] * len(task_ids))
+        cur = conn.execute(f"DELETE FROM tasks WHERE task_id IN ({placeholders})", task_ids)
+        conn.commit()
+        return cur.rowcount
+    finally:
+        conn.close()
+
+
+def bulk_archive_tasks(task_ids: list, archive: bool = True) -> int:
+    """여러 작업을 아카이브(보관)합니다. 반환: 변경된 수."""
+    if not task_ids:
+        return 0
+    conn = get_connection()
+    try:
+        placeholders = ",".join(["?"] * len(task_ids))
+        val = 1 if archive else 0
+        cur = conn.execute(
+            f"UPDATE tasks SET archived = ? WHERE task_id IN ({placeholders})",
+            [val] + task_ids,
+        )
+        conn.commit()
+        return cur.rowcount
+    finally:
+        conn.close()
+
+
+def set_task_tags(task_id: str, tags: list) -> bool:
+    """작업에 태그를 설정합니다."""
+    conn = get_connection()
+    try:
+        conn.execute(
+            "UPDATE tasks SET tags = ? WHERE task_id = ?",
+            (json.dumps(tags, ensure_ascii=False), task_id),
+        )
+        conn.commit()
+        return True
+    finally:
+        conn.close()
+
+
+def mark_task_read(task_id: str, is_read: bool = True) -> bool:
+    """작업을 읽음/안읽음으로 표시합니다."""
+    conn = get_connection()
+    try:
+        conn.execute(
+            "UPDATE tasks SET is_read = ? WHERE task_id = ?",
+            (1 if is_read else 0, task_id),
+        )
+        conn.commit()
+        return True
+    finally:
+        conn.close()
+
+
+def bulk_mark_read(task_ids: list, is_read: bool = True) -> int:
+    """여러 작업을 읽음/안읽음으로 표시합니다."""
+    if not task_ids:
+        return 0
+    conn = get_connection()
+    try:
+        placeholders = ",".join(["?"] * len(task_ids))
+        val = 1 if is_read else 0
+        cur = conn.execute(
+            f"UPDATE tasks SET is_read = ? WHERE task_id IN ({placeholders})",
+            [val] + task_ids,
+        )
+        conn.commit()
+        return cur.rowcount
     finally:
         conn.close()
 

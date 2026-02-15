@@ -26,6 +26,8 @@ from db import (
     save_archive, list_archives, get_archive as db_get_archive,
     save_setting, load_setting, get_today_cost,
     save_conversation_message, load_conversation_messages, clear_conversation_messages,
+    delete_task as db_delete_task, bulk_delete_tasks, bulk_archive_tasks,
+    set_task_tags, mark_task_read, bulk_mark_read,
 )
 try:
     from ai_handler import init_ai_client, is_ai_ready, ask_ai, select_model, classify_task, get_available_providers
@@ -525,14 +527,98 @@ async def delete_preset(name: str):
 
 @app.get("/api/performance")
 async def get_performance():
-    return _load_data("performance", {"agents": [], "summary": {}})
+    """에이전트별 실제 성능 통계를 DB에서 계산하여 반환합니다."""
+    from db import get_connection
+    conn = get_connection()
+    try:
+        # DB에서 에이전트별 작업 통계 집계
+        rows = conn.execute("""
+            SELECT agent_id,
+                   COUNT(*) as total_tasks,
+                   SUM(CASE WHEN success = 1 THEN 1 ELSE 0 END) as completed,
+                   SUM(CASE WHEN success = 0 THEN 1 ELSE 0 END) as failed,
+                   COALESCE(SUM(cost_usd), 0) as total_cost,
+                   COALESCE(AVG(time_seconds), 0) as avg_time,
+                   COALESCE(SUM(tokens_used), 0) as total_tokens
+            FROM tasks
+            WHERE agent_id IS NOT NULL AND agent_id != ''
+            GROUP BY agent_id
+            ORDER BY total_tasks DESC
+        """).fetchall()
+
+        # 에이전트 이름/역할 맵 구축
+        agent_map = {a["agent_id"]: a for a in AGENTS}
+
+        agents_perf = []
+        total_llm_calls = 0
+        total_cost = 0.0
+
+        for row in rows:
+            aid = row["agent_id"]
+            info = agent_map.get(aid, {})
+            total = row["total_tasks"]
+            completed = row["completed"] or 0
+            rate = round(completed / total * 100, 1) if total > 0 else 0
+
+            agents_perf.append({
+                "agent_id": aid,
+                "name_ko": info.get("name_ko", aid),
+                "role": info.get("role", "unknown"),
+                "division": info.get("division", ""),
+                "llm_calls": total,
+                "tasks_completed": completed,
+                "tasks_failed": row["failed"] or 0,
+                "success_rate": rate,
+                "cost_usd": round(row["total_cost"], 6),
+                "avg_execution_seconds": round(row["avg_time"], 2),
+                "total_tokens": row["total_tokens"] or 0,
+            })
+            total_llm_calls += total
+            total_cost += row["total_cost"]
+
+        # DB에 작업이 아직 없으면 에이전트 목록만 빈 값으로 반환
+        if not agents_perf:
+            for a in AGENTS:
+                agents_perf.append({
+                    "agent_id": a["agent_id"],
+                    "name_ko": a["name_ko"],
+                    "role": a["role"],
+                    "division": a.get("division", ""),
+                    "llm_calls": 0,
+                    "tasks_completed": 0,
+                    "tasks_failed": 0,
+                    "success_rate": 0,
+                    "cost_usd": 0,
+                    "avg_execution_seconds": 0,
+                    "total_tokens": 0,
+                })
+
+        return {
+            "agents": agents_perf,
+            "total_llm_calls": total_llm_calls,
+            "total_cost_usd": round(total_cost, 6),
+        }
+    except Exception as e:
+        logger.error("성능 통계 조회 실패: %s", e)
+        # 에러 시에도 에이전트 목록은 보여주기
+        return {
+            "agents": [{"agent_id": a["agent_id"], "name_ko": a["name_ko"],
+                        "role": a["role"], "llm_calls": 0, "tasks_completed": 0,
+                        "success_rate": 0, "cost_usd": 0, "avg_execution_seconds": 0}
+                       for a in AGENTS],
+            "total_llm_calls": 0,
+            "total_cost_usd": 0,
+        }
+    finally:
+        conn.close()
 
 
 @app.get("/api/tasks")
 async def get_tasks(keyword: str = "", status: str = "", bookmarked: bool = False,
-                    limit: int = 50):
+                    limit: int = 50, archived: bool = False, tag: str = ""):
     tasks = list_tasks(keyword=keyword, status=status,
-                       bookmarked=bookmarked, limit=limit)
+                       bookmarked=bookmarked, limit=limit,
+                       archived=archived, tag=tag)
     return tasks
 
 
@@ -548,6 +634,238 @@ async def get_task(task_id: str):
 async def bookmark_task(task_id: str):
     new_state = db_toggle_bookmark(task_id)
     return {"bookmarked": new_state}
+
+
+@app.delete("/api/tasks/{task_id}")
+async def delete_task_api(task_id: str):
+    """작업 삭제."""
+    db_delete_task(task_id)
+    return {"success": True}
+
+
+@app.put("/api/tasks/{task_id}/tags")
+async def update_task_tags(task_id: str, request: Request):
+    """작업 태그 업데이트."""
+    body = await request.json()
+    tags = body.get("tags", [])
+    set_task_tags(task_id, tags)
+    return {"success": True, "tags": tags}
+
+
+@app.put("/api/tasks/{task_id}/read")
+async def mark_task_read_api(task_id: str, request: Request):
+    """작업 읽음/안읽음 표시."""
+    body = await request.json()
+    is_read = body.get("is_read", True)
+    mark_task_read(task_id, is_read)
+    return {"success": True, "is_read": is_read}
+
+
+@app.post("/api/tasks/bulk")
+async def bulk_task_action(request: Request):
+    """작업 일괄 처리 (삭제/아카이브/읽음 등)."""
+    body = await request.json()
+    action = body.get("action", "")
+    task_ids = body.get("task_ids", [])
+    if not task_ids:
+        return {"success": False, "error": "task_ids가 비어있습니다"}
+
+    if action == "delete":
+        count = bulk_delete_tasks(task_ids)
+        return {"success": True, "action": "delete", "affected": count}
+    elif action == "archive":
+        count = bulk_archive_tasks(task_ids, archive=True)
+        return {"success": True, "action": "archive", "affected": count}
+    elif action == "unarchive":
+        count = bulk_archive_tasks(task_ids, archive=False)
+        return {"success": True, "action": "unarchive", "affected": count}
+    elif action == "read":
+        count = bulk_mark_read(task_ids, is_read=True)
+        return {"success": True, "action": "read", "affected": count}
+    elif action == "unread":
+        count = bulk_mark_read(task_ids, is_read=False)
+        return {"success": True, "action": "unread", "affected": count}
+    else:
+        return {"success": False, "error": f"알 수 없는 액션: {action}"}
+
+
+# ── 배치 명령 (여러 명령 한번에 실행) ──
+
+_batch_queue: list[dict] = []  # 배치 대기열
+_batch_running = False
+
+
+@app.get("/api/batch/queue")
+async def get_batch_queue():
+    """배치 대기열 조회."""
+    return {"queue": _batch_queue, "running": _batch_running}
+
+
+@app.post("/api/batch")
+async def submit_batch(request: Request):
+    """배치 명령 제출 — 여러 명령을 한번에 접수합니다."""
+    body = await request.json()
+    commands = body.get("commands", [])
+    mode = body.get("mode", "sequential")  # sequential 또는 parallel
+
+    if not commands:
+        return {"success": False, "error": "명령 목록이 비어있습니다"}
+
+    batch_id = f"batch_{datetime.now(KST).strftime('%Y%m%d%H%M%S')}"
+    batch_items = []
+    for i, cmd in enumerate(commands):
+        item = {
+            "batch_id": batch_id,
+            "index": i,
+            "command": cmd if isinstance(cmd, str) else cmd.get("command", ""),
+            "status": "pending",
+            "result": None,
+            "task_id": None,
+        }
+        batch_items.append(item)
+        _batch_queue.append(item)
+
+    # 백그라운드에서 배치 실행
+    asyncio.create_task(_run_batch(batch_id, batch_items, mode))
+
+    return {"success": True, "batch_id": batch_id, "count": len(commands), "mode": mode}
+
+
+async def _run_batch(batch_id: str, items: list, mode: str):
+    """배치 명령을 실행합니다."""
+    global _batch_running
+    _batch_running = True
+
+    try:
+        if mode == "parallel":
+            # 병렬 실행
+            tasks = []
+            for item in items:
+                tasks.append(_run_batch_item(item))
+            await asyncio.gather(*tasks)
+        else:
+            # 순차 실행
+            for item in items:
+                await _run_batch_item(item)
+    finally:
+        _batch_running = False
+        # 완료된 배치 항목은 10분 후 정리
+        await asyncio.sleep(600)
+        for item in items:
+            if item in _batch_queue:
+                _batch_queue.remove(item)
+
+
+async def _run_batch_item(item: dict):
+    """배치 내 개별 명령을 실행합니다."""
+    item["status"] = "running"
+    try:
+        task = create_task(item["command"], source="batch")
+        item["task_id"] = task["task_id"]
+
+        # AI 처리 (_process_ai_command과 동일한 로직)
+        result = await _process_ai_command(item["command"], source="batch")
+
+        item["status"] = "completed"
+        item["result"] = result.get("content", "")[:200] if isinstance(result, dict) else str(result)[:200]
+    except Exception as e:
+        item["status"] = "failed"
+        item["result"] = str(e)[:200]
+
+
+@app.delete("/api/batch/queue")
+async def clear_batch_queue():
+    """배치 대기열을 비웁니다."""
+    global _batch_queue
+    _batch_queue = [item for item in _batch_queue if item.get("status") == "running"]
+    return {"success": True}
+
+
+# ── 크론 실행 엔진 (asyncio 기반 스케줄러) ──
+
+_cron_task = None  # 크론 루프 태스크
+
+
+def _parse_cron_preset(preset: str) -> dict:
+    """크론 프리셋을 실행 조건으로 변환합니다."""
+    presets = {
+        "every_minute": {"interval_seconds": 60},
+        "every_5min": {"interval_seconds": 300},
+        "every_30min": {"interval_seconds": 1800},
+        "hourly": {"interval_seconds": 3600},
+        "daily_9am": {"hour": 9, "minute": 0},
+        "daily_6pm": {"hour": 18, "minute": 0},
+        "weekday_9am": {"hour": 9, "minute": 0, "weekday_only": True},
+        "monday_9am": {"hour": 9, "minute": 0, "day_of_week": 0},
+    }
+    return presets.get(preset, {"interval_seconds": 3600})
+
+
+def _should_run_schedule(schedule: dict, now: datetime) -> bool:
+    """현재 시간에 이 예약을 실행해야 하는지 확인합니다."""
+    if not schedule.get("enabled", False):
+        return False
+
+    preset = schedule.get("cron_preset", "")
+    cron_config = _parse_cron_preset(preset)
+
+    # 마지막 실행 시간 확인
+    last_run = schedule.get("last_run_ts", 0)
+    elapsed = now.timestamp() - last_run
+
+    if "interval_seconds" in cron_config:
+        return elapsed >= cron_config["interval_seconds"]
+
+    # 시/분 기반 스케줄
+    if now.hour == cron_config.get("hour", -1) and now.minute == cron_config.get("minute", -1):
+        if cron_config.get("weekday_only") and now.weekday() >= 5:
+            return False
+        if "day_of_week" in cron_config and now.weekday() != cron_config["day_of_week"]:
+            return False
+        # 같은 시각에 중복 실행 방지 (최소 55초 간격)
+        return elapsed >= 55
+    return False
+
+
+async def _cron_loop():
+    """1분마다 예약된 작업을 확인하고 실행합니다."""
+    logger = logging.getLogger("corthex.cron")
+    logger.info("크론 실행 엔진 시작")
+
+    while True:
+        try:
+            await asyncio.sleep(60)  # 1분마다 체크
+            schedules = _load_data("schedules", [])
+            now = datetime.now(KST)
+
+            for schedule in schedules:
+                if _should_run_schedule(schedule, now):
+                    command = schedule.get("command", "")
+                    if not command:
+                        continue
+
+                    logger.info("크론 실행: %s — %s", schedule.get("name", ""), command)
+                    save_activity_log("system", f"⏰ 예약 실행: {schedule.get('name', '')} — {command[:50]}", "info")
+
+                    # 실행 시간 기록
+                    schedule["last_run"] = now.strftime("%Y-%m-%d %H:%M")
+                    schedule["last_run_ts"] = now.timestamp()
+                    _save_data("schedules", schedules)
+
+                    # 백그라운드에서 명령 실행
+                    asyncio.create_task(_run_scheduled_command(command, schedule.get("name", "")))
+
+        except Exception as e:
+            logger.error("크론 루프 에러: %s", e)
+
+
+async def _run_scheduled_command(command: str, schedule_name: str):
+    """예약된 명령을 실행합니다."""
+    try:
+        result = await _process_ai_command(command, source="cron")
+        save_activity_log("system", f"✅ 예약 완료: {schedule_name}", "info")
+    except Exception as e:
+        save_activity_log("system", f"❌ 예약 실패: {schedule_name} — {str(e)[:100]}", "error")
 
 
 @app.get("/api/replay/{correlation_id}")
@@ -660,8 +978,58 @@ async def delete_workflow(wf_id: str):
 
 @app.post("/api/workflows/{wf_id}/run")
 async def run_workflow(wf_id: str):
-    """워크플로우 실행 (경량 서버에서는 미지원)."""
-    return {"success": False, "error": "경량 서버 모드에서는 워크플로우 실행이 불가합니다. 메인 서버에서 사용해주세요."}
+    """워크플로우를 실행합니다 — 스텝을 순서대로 AI로 처리합니다."""
+    workflows = _load_data("workflows", [])
+    wf = None
+    for w in workflows:
+        if w.get("id") == wf_id:
+            wf = w
+            break
+    if not wf:
+        return {"success": False, "error": "워크플로우를 찾을 수 없습니다"}
+
+    steps = wf.get("steps", [])
+    if not steps:
+        return {"success": False, "error": "워크플로우에 실행할 단계가 없습니다"}
+
+    if not is_ai_ready():
+        return {"success": False, "error": "AI가 연결되지 않아 워크플로우를 실행할 수 없습니다"}
+
+    # 백그라운드에서 순차 실행
+    asyncio.create_task(_run_workflow_steps(wf_id, wf.get("name", ""), steps))
+    return {"success": True, "message": f"워크플로우 '{wf.get('name', '')}' 실행을 시작합니다 ({len(steps)}단계)"}
+
+
+async def _run_workflow_steps(wf_id: str, wf_name: str, steps: list):
+    """워크플로우 스텝을 순차 실행합니다."""
+    save_activity_log("system", f"🔄 워크플로우 시작: {wf_name} ({len(steps)}단계)", "info")
+    results = []
+    prev_result = ""
+
+    for i, step in enumerate(steps):
+        step_name = step.get("name", f"단계 {i+1}")
+        command = step.get("command", "")
+        if not command:
+            continue
+
+        # 이전 단계 결과를 참조할 수 있도록 명령에 컨텍스트 추가
+        if prev_result and i > 0:
+            command = f"[이전 단계 결과 참고: {prev_result[:500]}]\n\n{command}"
+
+        save_activity_log("system", f"▶ {wf_name} — {step_name} 실행 중", "info")
+
+        try:
+            result = await _process_ai_command(command, source="workflow")
+            content = result.get("content", "") if isinstance(result, dict) else str(result)
+            prev_result = content[:500]
+            results.append({"step": step_name, "status": "completed", "result": content[:200]})
+            save_activity_log("system", f"✅ {wf_name} — {step_name} 완료", "info")
+        except Exception as e:
+            results.append({"step": step_name, "status": "failed", "error": str(e)[:200]})
+            save_activity_log("system", f"❌ {wf_name} — {step_name} 실패: {str(e)[:100]}", "error")
+            break  # 실패 시 중단
+
+    save_activity_log("system", f"🏁 워크플로우 완료: {wf_name} — {len(results)}/{len(steps)} 단계 처리", "info")
 
 
 # ── 지식파일 관리 ──
@@ -2290,12 +2658,16 @@ async def _process_ai_command(text: str, task_id: str) -> dict:
 
 @app.on_event("startup")
 async def on_startup():
-    """서버 시작 시 DB 초기화 + AI 클라이언트 + 텔레그램 봇 시작."""
+    """서버 시작 시 DB 초기화 + AI 클라이언트 + 텔레그램 봇 + 크론 엔진 시작."""
     init_db()
     _load_chief_prompt()
     ai_ok = init_ai_client()
     _log(f"[AI] 클라이언트 초기화: {'성공 ✅' if ai_ok else '실패 ❌ (ANTHROPIC_API_KEY 미설정?)'}")
     await _start_telegram_bot()
+    # 크론 실행 엔진 시작
+    global _cron_task
+    _cron_task = asyncio.create_task(_cron_loop())
+    _log("[CRON] 크론 실행 엔진 시작 ✅")
 
 
 @app.on_event("shutdown")
