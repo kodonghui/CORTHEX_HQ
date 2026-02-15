@@ -26,12 +26,13 @@ jobs:
           TG_CEO_CHAT_ID: ${{ secrets.TELEGRAM_CEO_CHAT_ID }}
           ANTHROPIC_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           OPENAI_KEY: ${{ secrets.OPENAI_API_KEY }}
+          GOOGLE_KEY: ${{ secrets.GOOGLE_API_KEY }}
           NOTION_KEY: ${{ secrets.NOTION_API_KEY }}
         with:
           host: ${{ secrets.SERVER_IP }}
           username: ubuntu
           key: ${{ secrets.SERVER_SSH_KEY }}
-          envs: BUILD_NUMBER,TG_BOT_TOKEN,TG_CEO_CHAT_ID,ANTHROPIC_KEY,OPENAI_KEY,NOTION_KEY
+          envs: BUILD_NUMBER,TG_BOT_TOKEN,TG_CEO_CHAT_ID,ANTHROPIC_KEY,OPENAI_KEY,GOOGLE_KEY,NOTION_KEY
           script: |
             echo "🚀 배포 시작... (빌드 #${BUILD_NUMBER})"
 
@@ -84,7 +85,7 @@ jobs:
             echo "🔍 uvicorn 경로: $UVICORN_PY"
             # 시스템 Python에 설치
             # --ignore-installed: Ubuntu 시스템 패키지(typing_extensions 등)와 버전 충돌 방지
-            sudo python3 -m pip install --break-system-packages --ignore-installed python-telegram-bot anthropic 2>&1 || true
+            sudo python3 -m pip install --break-system-packages --ignore-installed python-telegram-bot anthropic google-genai openai 2>&1 || true
             # ExecStart에서 사용하는 Python에도 설치
             SVC_EXEC=$(grep "ExecStart" /etc/systemd/system/corthex.service 2>/dev/null | head -1)
             echo "🔍 ExecStart: $SVC_EXEC"
@@ -93,18 +94,20 @@ jobs:
               VENV_PIP=$(echo "$SVC_EXEC" | grep -oP '(/\S+)/bin/' | head -1)
               if [ -n "$VENV_PIP" ] && [ -x "${VENV_PIP}pip" ]; then
                 echo "📦 가상환경 pip 사용: ${VENV_PIP}pip"
-                "${VENV_PIP}pip" install python-telegram-bot anthropic 2>&1
+                "${VENV_PIP}pip" install python-telegram-bot anthropic google-genai openai 2>&1
               fi
             fi
             # ExecStart에서 Python 경로 추출해서 해당 Python에 설치
             SVC_PYTHON=$(echo "$SVC_EXEC" | grep -oP '/\S+python\S*' | head -1)
             if [ -n "$SVC_PYTHON" ] && [ -x "$SVC_PYTHON" ]; then
               echo "📦 서비스 Python으로 설치: $SVC_PYTHON"
-              sudo "$SVC_PYTHON" -m pip install --break-system-packages --ignore-installed python-telegram-bot anthropic 2>&1 || true
+              sudo "$SVC_PYTHON" -m pip install --break-system-packages --ignore-installed python-telegram-bot anthropic google-genai openai 2>&1 || true
             fi
             # 설치 확인
             python3 -c "import telegram; print(f'✅ python-telegram-bot v{telegram.__version__} 설치됨')" 2>&1 || echo "❌ telegram 모듈 임포트 실패!"
             python3 -c "import anthropic; print(f'✅ anthropic v{anthropic.__version__} 설치됨')" 2>&1 || echo "❌ anthropic 모듈 임포트 실패!"
+            python3 -c "from google import genai; print('✅ google-genai 설치됨')" 2>&1 || echo "❌ google-genai 모듈 임포트 실패!"
+            python3 -c "import openai; print(f'✅ openai v{openai.__version__} 설치됨')" 2>&1 || echo "❌ openai 모듈 임포트 실패!"
 
             # 5.5단계: YAML → JSON 변환 (서버의 Python에 PyYAML이 없어도 동작하도록)
             # 시스템 Python3에 yaml이 설치되어 있으므로 시스템 Python으로 실행
@@ -137,6 +140,11 @@ jobs:
               sed -i '/^OPENAI_API_KEY/d' "$ENV_FILE"
               echo "OPENAI_API_KEY=${OPENAI_KEY}" >> "$ENV_FILE"
               echo "✅ OpenAI API 키 설정 완료"
+            fi
+            if [ -n "${GOOGLE_KEY}" ]; then
+              sed -i '/^GOOGLE_API_KEY/d' "$ENV_FILE"
+              echo "GOOGLE_API_KEY=${GOOGLE_KEY}" >> "$ENV_FILE"
+              echo "✅ Google API 키 설정 완료"
             fi
             if [ -n "${NOTION_KEY}" ]; then
               sed -i '/^NOTION_API_KEY/d' "$ENV_FILE"
