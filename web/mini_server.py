@@ -297,9 +297,42 @@ async def get_memory(agent_id: str):
     return {"memories": []}
 
 
+_QUALITY_RULES: dict = _load_config("quality_rules")
+
+# 부서 ID → 한국어 이름 매핑
+_DIVISION_LABELS: dict[str, str] = {
+    "default": "기본 (전체 공통)",
+    "secretary": "비서실",
+    "leet_master.tech": "기술개발팀 (CTO)",
+    "leet_master.strategy": "전략기획팀 (CSO)",
+    "leet_master.legal": "법무팀 (CLO)",
+    "leet_master.marketing": "마케팅팀 (CMO)",
+    "finance.investment": "금융분석팀 (CIO)",
+    "publishing": "콘텐츠팀 (CPO)",
+}
+
+# 부서 목록 (default 제외)
+_KNOWN_DIVISIONS: list[str] = [
+    "secretary",
+    "leet_master.tech",
+    "leet_master.strategy",
+    "leet_master.legal",
+    "leet_master.marketing",
+    "finance.investment",
+    "publishing",
+]
+
+
 @app.get("/api/quality-rules")
 async def get_quality_rules():
-    return {"model": "", "rubrics": {}}
+    rules = _QUALITY_RULES.get("rules", {})
+    rubrics = _QUALITY_RULES.get("rubrics", {})
+    return {
+        "rules": rules,
+        "rubrics": rubrics,
+        "known_divisions": _KNOWN_DIVISIONS,
+        "division_labels": _DIVISION_LABELS,
+    }
 
 
 @app.get("/api/available-models")

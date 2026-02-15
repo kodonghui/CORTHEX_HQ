@@ -35,37 +35,38 @@
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
-    /* ═══ Theme Color Variables ═══ */
+    /* ═══ 뉴트럴 다크 팔레트 (남색 제거, 무채색 기반) ═══ */
     :root, .dark {
-      --hq-bg: 30 38 55;
-      --hq-surface: 55 68 95;
-      --hq-panel: 75 90 120;
-      --hq-border: 110 135 180;
-      --hq-border-light: 145 170 210;
-      --hq-accent: 110 180 255;
-      --hq-cyan: 70 225 248;
-      --hq-purple: 185 160 255;
-      --hq-green: 75 230 175;
-      --hq-yellow: 255 210 70;
-      --hq-red: 255 130 130;
-      --hq-text: 242 246 255;
-      --hq-muted: 190 210 238;
+      --hq-bg: 13 17 23;
+      --hq-surface: 22 27 34;
+      --hq-panel: 33 38 48;
+      --hq-border: 48 54 65;
+      --hq-border-light: 68 76 90;
+      --hq-accent: 96 165 250;
+      --hq-cyan: 34 211 238;
+      --hq-purple: 167 139 250;
+      --hq-green: 52 211 153;
+      --hq-yellow: 251 191 36;
+      --hq-red: 248 113 113;
+      --hq-text: 237 242 247;
+      --hq-muted: 148 163 184;
       --hq-shadow: 0 0 0;
     }
+    /* ═══ 라이트모드 팔레트 (깨끗한 흰색 기반) ═══ */
     html:not(.dark) {
-      --hq-bg: 232 237 245;
-      --hq-surface: 248 250 253;
-      --hq-panel: 218 225 238;
-      --hq-border: 170 185 210;
-      --hq-border-light: 130 150 180;
-      --hq-accent: 37 99 235;
-      --hq-cyan: 8 145 178;
+      --hq-bg: 249 250 251;
+      --hq-surface: 255 255 255;
+      --hq-panel: 243 244 246;
+      --hq-border: 229 231 235;
+      --hq-border-light: 209 213 219;
+      --hq-accent: 59 130 246;
+      --hq-cyan: 6 182 212;
       --hq-purple: 124 58 237;
-      --hq-green: 5 150 105;
-      --hq-yellow: 180 100 0;
-      --hq-red: 200 35 35;
-      --hq-text: 20 28 50;
-      --hq-muted: 70 85 115;
+      --hq-green: 16 185 129;
+      --hq-yellow: 217 119 6;
+      --hq-red: 220 38 38;
+      --hq-text: 17 24 39;
+      --hq-muted: 107 114 128;
       --hq-shadow: 0 0 0;
     }
 
@@ -74,12 +75,12 @@
 
     /* ═══ 다크 모드 배경 (단색) ═══ */
     .dark body {
-      background: rgb(16, 22, 36);
+      background: rgb(10 12 18);
     }
 
     /* ═══ 라이트 모드 배경 (단색) ═══ */
     html:not(.dark) body {
-      background: rgb(228, 233, 242);
+      background: rgb(245 246 250);
     }
 
     .font-mono { font-family: 'JetBrains Mono', monospace; }
@@ -2874,7 +2875,7 @@
 
       <!-- Section 3: Department-Specific Rubrics -->
       <div class="mb-4">
-        <h3 class="text-sm font-semibold text-hq-text mb-2">부서별 검수 기준 (루브릭)</h3>
+        <h3 class="text-sm font-semibold text-hq-text mb-2">부서별 검수 기준</h3>
         <p class="text-xs text-hq-muted/70 mb-3">각 부서별 검수 기준을 설정하세요. 미설정 부서는 위 공통 기준이 적용됩니다.</p>
 
         <div class="space-y-2">
