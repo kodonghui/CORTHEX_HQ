@@ -65,18 +65,7 @@ jobs:
 
             # 5.5단계: YAML → JSON 변환 (PyYAML 없이도 동작하도록 백업)
             echo "🔄 설정 파일 JSON 변환 중..."
-            python3 -c "
-import yaml, json, pathlib
-for name in ['agents', 'tools']:
-    src = pathlib.Path('/home/ubuntu/config') / f'{name}.yaml'
-    dst = pathlib.Path('/home/ubuntu/config') / f'{name}.json'
-    if src.exists():
-        data = yaml.safe_load(src.read_text(encoding='utf-8'))
-        dst.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding='utf-8')
-        print(f'  ✅ {name}.yaml → {name}.json 변환 완료')
-    else:
-        print(f'  ⚠️ {name}.yaml 없음')
-" 2>/dev/null || echo "⚠️ JSON 변환 건너뜀 (YAML 직접 로드로 동작)"
+            python3 /home/ubuntu/config/yaml2json.py 2>/dev/null || echo "⚠️ JSON 변환 건너뜀"
 
             # 6단계: 미니 서버 재시작
             echo "🔁 미니 서버 재시작 중..."
