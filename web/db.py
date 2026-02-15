@@ -121,6 +121,26 @@ CREATE TABLE IF NOT EXISTS settings (
     value           TEXT NOT NULL,
     updated_at      TEXT NOT NULL
 );
+
+-- 대화 기록 테이블: 웹 채팅 메시지 저장
+CREATE TABLE IF NOT EXISTS conversation_messages (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    type            TEXT NOT NULL,
+    text            TEXT,
+    content         TEXT,
+    sender_id       TEXT,
+    handled_by      TEXT,
+    delegation      TEXT,
+    model           TEXT,
+    time_seconds    REAL,
+    cost            REAL,
+    quality_score   REAL,
+    task_id         TEXT,
+    source          TEXT DEFAULT 'web',
+    created_at      TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_conversation_created_at ON conversation_messages(created_at);
 """
 
 
@@ -520,5 +540,90 @@ def load_setting(key: str, default=None):
     except sqlite3.OperationalError:
         # settings 테이블이 아직 생성되지 않은 경우 (init_db 호출 전)
         return default
+    finally:
+        conn.close()
+
+
+# ── Conversation Messages CRUD ──
+
+def save_conversation_message(message_type: str, **kwargs) -> int:
+    """대화 메시지를 DB에 저장합니다. 반환: row id."""
+    conn = get_connection()
+    try:
+        # 허용된 필드만 필터링
+        allowed = {
+            "text", "content", "sender_id", "handled_by", "delegation",
+            "model", "time_seconds", "cost", "quality_score", "task_id", "source"
+        }
+        filtered = {k: v for k, v in kwargs.items() if k in allowed}
+
+        # 컬럼과 값 준비
+        columns = ["type", "created_at"] + list(filtered.keys())
+        values = [message_type, _now_iso()] + list(filtered.values())
+        placeholders = ", ".join(["?"] * len(columns))
+
+        cur = conn.execute(
+            f"INSERT INTO conversation_messages ({', '.join(columns)}) VALUES ({placeholders})",
+            values
+        )
+        conn.commit()
+        return cur.lastrowid
+    except sqlite3.OperationalError:
+        # conversation_messages 테이블이 아직 없는 경우 (init_db 전)
+        return 0
+    finally:
+        conn.close()
+
+
+def load_conversation_messages(limit: int = 100) -> list:
+    """DB에서 대화 기록을 조회합니다."""
+    conn = get_connection()
+    try:
+        rows = conn.execute(
+            "SELECT * FROM conversation_messages ORDER BY created_at ASC LIMIT ?",
+            (limit,)
+        ).fetchall()
+
+        messages = []
+        for row in rows:
+            msg = {"type": row["type"]}
+            # type에 따라 필요한 필드만 추가
+            if row["type"] == "user":
+                msg["text"] = row["text"]
+                if row["source"]:
+                    msg["source"] = row["source"]
+            elif row["type"] == "result":
+                msg.update({
+                    "content": row["content"],
+                    "sender_id": row["sender_id"],
+                    "handled_by": row["handled_by"],
+                    "delegation": row["delegation"] or "",
+                    "model": row["model"] or "",
+                    "time_seconds": row["time_seconds"],
+                    "cost": row["cost"],
+                    "quality_score": row["quality_score"],
+                    "task_id": row["task_id"] or "",
+                    "collapsed": False,
+                    "feedbackSent": False,
+                    "feedbackRating": None,
+                    "source": row["source"] or "web",
+                })
+            messages.append(msg)
+        return messages
+    except sqlite3.OperationalError:
+        # conversation_messages 테이블이 아직 없는 경우
+        return []
+    finally:
+        conn.close()
+
+
+def clear_conversation_messages() -> None:
+    """대화 기록을 모두 삭제합니다."""
+    conn = get_connection()
+    try:
+        conn.execute("DELETE FROM conversation_messages")
+        conn.commit()
+    except sqlite3.OperationalError:
+        pass
     finally:
         conn.close()
