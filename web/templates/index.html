@@ -37,19 +37,19 @@
 
     /* ═══ Theme Color Variables ═══ */
     :root, .dark {
-      --hq-bg: 32 40 56;
-      --hq-surface: 48 58 78;
-      --hq-panel: 62 75 98;
-      --hq-border: 90 115 155;
-      --hq-border-light: 125 152 195;
-      --hq-accent: 100 170 255;
-      --hq-cyan: 50 218 240;
-      --hq-purple: 175 148 255;
-      --hq-green: 60 220 162;
-      --hq-yellow: 255 200 50;
-      --hq-red: 255 120 120;
-      --hq-text: 238 243 255;
-      --hq-muted: 175 195 225;
+      --hq-bg: 30 38 55;
+      --hq-surface: 55 68 95;
+      --hq-panel: 75 90 120;
+      --hq-border: 110 135 180;
+      --hq-border-light: 145 170 210;
+      --hq-accent: 110 180 255;
+      --hq-cyan: 70 225 248;
+      --hq-purple: 185 160 255;
+      --hq-green: 75 230 175;
+      --hq-yellow: 255 210 70;
+      --hq-red: 255 130 130;
+      --hq-text: 242 246 255;
+      --hq-muted: 190 210 238;
       --hq-shadow: 0 0 0;
     }
     html:not(.dark) {
@@ -74,7 +74,7 @@
 
     /* ═══ 다크 모드 배경 (단색) ═══ */
     .dark body {
-      background: rgb(22, 28, 42);
+      background: rgb(16, 22, 36);
     }
 
     /* ═══ 라이트 모드 배경 (단색) ═══ */
@@ -158,10 +158,10 @@
     }
 
     /* Glow effects */
-    .glow-cyan { box-shadow: 0 0 20px rgb(var(--hq-cyan) / 0.15), 0 0 40px rgb(var(--hq-cyan) / 0.05); }
-    .glow-blue { box-shadow: 0 0 20px rgb(var(--hq-accent) / 0.15), 0 0 40px rgb(var(--hq-accent) / 0.05); }
-    .glow-purple { box-shadow: 0 0 20px rgb(var(--hq-purple) / 0.15), 0 0 40px rgb(var(--hq-purple) / 0.05); }
-    .glow-accent { box-shadow: 0 0 24px rgb(var(--hq-accent) / 0.2); }
+    .glow-cyan { box-shadow: 0 0 20px rgb(var(--hq-cyan) / 0.25), 0 0 40px rgb(var(--hq-cyan) / 0.1); }
+    .glow-blue { box-shadow: 0 0 20px rgb(var(--hq-accent) / 0.25), 0 0 40px rgb(var(--hq-accent) / 0.1); }
+    .glow-purple { box-shadow: 0 0 20px rgb(var(--hq-purple) / 0.25), 0 0 40px rgb(var(--hq-purple) / 0.1); }
+    .glow-accent { box-shadow: 0 0 24px rgb(var(--hq-accent) / 0.3); }
 
     /* Glass effect — solid background for maximum contrast */
     .glass {
@@ -293,14 +293,15 @@
     .desk-card {
       border-radius: 12px; padding: 12px; cursor: pointer;
       transition: all 0.2s ease; position: relative; min-width: 100px;
-      border: 1px solid rgb(var(--hq-border) / 0.5);
+      border: 1px solid rgb(var(--hq-border) / 0.7);
+      background: rgb(var(--hq-surface));
     }
-    .desk-card:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgb(var(--hq-shadow) / 0.15); border-color: rgb(var(--hq-accent) / 0.4); }
+    .desk-card:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgb(var(--hq-shadow) / 0.2); border-color: rgb(var(--hq-accent) / 0.6); }
     .status-light { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
     .status-light-working { background: rgb(var(--hq-green)); box-shadow: 0 0 10px rgb(var(--hq-green) / 0.6); animation: pulseDot 1.5s ease-in-out infinite; }
     .status-light-idle { background: rgb(var(--hq-yellow)); box-shadow: 0 0 6px rgb(var(--hq-yellow) / 0.4); }
     .status-light-done { background: rgb(var(--hq-green)); }
-    .status-light-off { background: rgb(var(--hq-muted) / 0.5); }
+    .status-light-off { background: rgb(var(--hq-muted) / 0.7); }
 
     /* ═══ #11: Mobile responsive ═══ */
     @media (max-width: 768px) {
@@ -320,6 +321,119 @@
     @media (max-width: 480px) {
       .lg\:grid-cols-4, .grid-cols-4 { grid-template-columns: 1fr !important; }
     }
+
+    /* ═══ DARK MODE VISIBILITY BOOST ═══ */
+    /* 문제: Tailwind 투명도(/5, /10, /15, /20)가 다크 배경에서 안 보임 */
+    /* 해결: 다크모드에서 핵심 요소들의 가시성을 강제로 올림 */
+
+    /* 1) 유리(glass) 효과 카드 — 배경 더 밝게, 테두리 확실하게 */
+    .dark .glass {
+      background: rgb(var(--hq-surface) / 0.95) !important;
+      border-color: rgb(var(--hq-border) / 0.7) !important;
+    }
+
+    /* 2) 사이드바 — 배경과 확실히 구분 */
+    .dark aside {
+      background: rgb(var(--hq-surface) / 0.98) !important;
+      border-color: rgb(var(--hq-border) / 0.6) !important;
+    }
+
+    /* 3) 책상 카드(사무실 뷰) — 배경 밝게, 테두리 보이게 */
+    .dark .desk-card {
+      background: rgb(var(--hq-surface)) !important;
+      border-color: rgb(var(--hq-border) / 0.7) !important;
+    }
+
+    /* 4) 사무실 방 — 배경 최소 가시성 보장 */
+    .dark .office-room {
+      background: rgb(var(--hq-bg) / 0.9) !important;
+      border-color: rgb(var(--hq-border) / 0.5) !important;
+    }
+
+    /* 5) 사이드바 조직도 항목 — 접혀있을 때도 보이게 */
+    .dark [class*="bg-hq-panel/15"] {
+      background-color: rgb(var(--hq-panel) / 0.35) !important;
+    }
+    .dark [class*="bg-hq-panel/20"] {
+      background-color: rgb(var(--hq-panel) / 0.4) !important;
+    }
+    .dark [class*="bg-hq-panel/25"] {
+      background-color: rgb(var(--hq-panel) / 0.45) !important;
+    }
+
+    /* 6) 색상별 배경 투명도 부스트 — /5 → /20, /10 → /25, /15 → /30 */
+    .dark [class*="bg-hq-cyan/5"] { background-color: rgb(var(--hq-cyan) / 0.2) !important; }
+    .dark [class*="bg-hq-cyan/10"] { background-color: rgb(var(--hq-cyan) / 0.25) !important; }
+    .dark [class*="bg-hq-accent/5"] { background-color: rgb(var(--hq-accent) / 0.2) !important; }
+    .dark [class*="bg-hq-accent/10"] { background-color: rgb(var(--hq-accent) / 0.25) !important; }
+    .dark [class*="bg-hq-accent/15"] { background-color: rgb(var(--hq-accent) / 0.3) !important; }
+    .dark [class*="bg-hq-purple/5"] { background-color: rgb(var(--hq-purple) / 0.2) !important; }
+    .dark [class*="bg-hq-purple/10"] { background-color: rgb(var(--hq-purple) / 0.25) !important; }
+    .dark [class*="bg-hq-green/5"] { background-color: rgb(var(--hq-green) / 0.2) !important; }
+    .dark [class*="bg-hq-green/10"] { background-color: rgb(var(--hq-green) / 0.25) !important; }
+    .dark [class*="bg-hq-green/15"] { background-color: rgb(var(--hq-green) / 0.3) !important; }
+    .dark [class*="bg-hq-yellow/5"] { background-color: rgb(var(--hq-yellow) / 0.2) !important; }
+    .dark [class*="bg-hq-yellow/10"] { background-color: rgb(var(--hq-yellow) / 0.25) !important; }
+    .dark [class*="bg-hq-yellow/15"] { background-color: rgb(var(--hq-yellow) / 0.3) !important; }
+    .dark [class*="bg-hq-red/5"] { background-color: rgb(var(--hq-red) / 0.2) !important; }
+    .dark [class*="bg-hq-red/10"] { background-color: rgb(var(--hq-red) / 0.25) !important; }
+    .dark [class*="bg-hq-red/15"] { background-color: rgb(var(--hq-red) / 0.3) !important; }
+    .dark [class*="bg-hq-muted/10"] { background-color: rgb(var(--hq-muted) / 0.25) !important; }
+    .dark [class*="bg-hq-muted/15"] { background-color: rgb(var(--hq-muted) / 0.3) !important; }
+
+    /* 7) 테두리 투명도 부스트 — /20 → /45, /30 → /55 */
+    .dark [class*="border-hq-cyan/20"] { border-color: rgb(var(--hq-cyan) / 0.45) !important; }
+    .dark [class*="border-hq-cyan/30"] { border-color: rgb(var(--hq-cyan) / 0.55) !important; }
+    .dark [class*="border-hq-accent/20"] { border-color: rgb(var(--hq-accent) / 0.45) !important; }
+    .dark [class*="border-hq-accent/30"] { border-color: rgb(var(--hq-accent) / 0.55) !important; }
+    .dark [class*="border-hq-purple/20"] { border-color: rgb(var(--hq-purple) / 0.45) !important; }
+    .dark [class*="border-hq-purple/30"] { border-color: rgb(var(--hq-purple) / 0.55) !important; }
+    .dark [class*="border-hq-green/20"] { border-color: rgb(var(--hq-green) / 0.45) !important; }
+    .dark [class*="border-hq-green/30"] { border-color: rgb(var(--hq-green) / 0.55) !important; }
+    .dark [class*="border-hq-yellow/20"] { border-color: rgb(var(--hq-yellow) / 0.45) !important; }
+    .dark [class*="border-hq-yellow/30"] { border-color: rgb(var(--hq-yellow) / 0.55) !important; }
+    .dark [class*="border-hq-red/20"] { border-color: rgb(var(--hq-red) / 0.45) !important; }
+    .dark [class*="border-hq-red/30"] { border-color: rgb(var(--hq-red) / 0.55) !important; }
+    .dark [class*="border-hq-border/30"] { border-color: rgb(var(--hq-border) / 0.6) !important; }
+    .dark [class*="border-hq-border/50"] { border-color: rgb(var(--hq-border) / 0.75) !important; }
+
+    /* 8) 텍스트 투명도 부스트 — /60~/80 → 더 밝게 */
+    .dark [class*="text-hq-text/60"] { color: rgb(var(--hq-text) / 0.85) !important; }
+    .dark [class*="text-hq-text/80"] { color: rgb(var(--hq-text) / 0.95) !important; }
+    .dark [class*="text-hq-text/90"] { color: rgb(var(--hq-text)) !important; }
+    .dark [class*="text-hq-muted/70"] { color: rgb(var(--hq-muted) / 0.9) !important; }
+    .dark [class*="text-hq-muted/80"] { color: rgb(var(--hq-muted) / 0.95) !important; }
+    .dark [class*="text-hq-muted/85"] { color: rgb(var(--hq-muted)) !important; }
+    .dark [class*="text-hq-cyan/40"] { color: rgb(var(--hq-cyan) / 0.7) !important; }
+    .dark [class*="text-hq-cyan/70"] { color: rgb(var(--hq-cyan) / 0.9) !important; }
+    .dark [class*="text-hq-purple/40"] { color: rgb(var(--hq-purple) / 0.7) !important; }
+    .dark [class*="text-hq-red/50"] { color: rgb(var(--hq-red) / 0.8) !important; }
+    .dark [class*="text-hq-red/70"] { color: rgb(var(--hq-red) / 0.9) !important; }
+    .dark [class*="text-hq-green/60"] { color: rgb(var(--hq-green) / 0.85) !important; }
+    .dark [class*="text-hq-purple/60"] { color: rgb(var(--hq-purple) / 0.85) !important; }
+    .dark [class*="text-hq-yellow/80"] { color: rgb(var(--hq-yellow) / 0.95) !important; }
+    .dark [class*="text-hq-green/80"] { color: rgb(var(--hq-green) / 0.95) !important; }
+
+    /* 9) 로그 항목 호버 */
+    .dark .log-item:hover {
+      background: rgb(var(--hq-accent) / 0.15) !important;
+    }
+
+    /* 10) 입력 필드 가시성 */
+    .dark input, .dark textarea, .dark select {
+      background-color: rgb(var(--hq-bg)) !important;
+      border-color: rgb(var(--hq-border) / 0.6) !important;
+      color: rgb(var(--hq-text)) !important;
+    }
+    .dark input::placeholder, .dark textarea::placeholder {
+      color: rgb(var(--hq-muted) / 0.7) !important;
+    }
+
+    /* 11) 그라디언트 배경 투명도 부스트 */
+    .dark [class*="from-hq-accent/10"] { --tw-gradient-from: rgb(var(--hq-accent) / 0.25) !important; }
+    .dark [class*="to-hq-purple/10"] { --tw-gradient-to: rgb(var(--hq-purple) / 0.2) !important; }
+    .dark [class*="from-hq-accent/5"] { --tw-gradient-from: rgb(var(--hq-accent) / 0.2) !important; }
+    .dark [class*="to-hq-purple/5"] { --tw-gradient-to: rgb(var(--hq-purple) / 0.15) !important; }
   </style>
 </head>
 
