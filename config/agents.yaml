@@ -66,6 +66,18 @@ agents:
       - "decision_tracker"
       - "audio_transcriber"
       - "cross_agent_protocol"
+      # my-skills-plugin 스킬
+      - "skill_brainstorming"
+      - "skill_brainstorm"
+      - "skill_writing_plans"
+      - "skill_executing_plans"
+      - "skill_dispatching_parallel_agents"
+      - "skill_handoff"
+      - "skill_strategic_compact"
+      - "skill_continuous_learning"
+      - "skill_continuous_learning_v2"
+      - "skill_using_superpowers"
+      - "skill_pensieve"
 
   - agent_id: "report_specialist"
     name: "General Specialist"
@@ -80,7 +92,9 @@ agents:
     capabilities:
       - "보고서 요약"
     superior_id: "chief_of_staff"
-    allowed_tools: []  # 도구 사용 안 함 (순수 텍스트 분석·요약 전문)
+    allowed_tools:
+      # my-skills-plugin 스킬
+      - "skill_strategic_compact"
 
   - agent_id: "schedule_specialist"
     name: "Strategy Specialist"
@@ -98,6 +112,9 @@ agents:
     superior_id: "chief_of_staff"
     allowed_tools:
       - "calendar_tool"
+      # my-skills-plugin 스킬
+      - "skill_writing_plans"
+      - "skill_executing_plans"
 
   - agent_id: "relay_specialist"
     name: "Communications Specialist"
@@ -114,6 +131,8 @@ agents:
     superior_id: "chief_of_staff"
     allowed_tools:
       - "cross_agent_protocol"
+      # my-skills-plugin 스킬
+      - "skill_iterative_retrieval"
 
   # ═══════════════════════════════════════════
   #  기술개발처 (CTO) - 비서실장 직속
@@ -161,6 +180,24 @@ agents:
       - "token_counter"
       - "image_generator"
       - "cross_agent_protocol"
+      # my-skills-plugin 스킬
+      - "skill_coding_standards"
+      - "skill_security_review"
+      - "skill_security_scan"
+      - "skill_code_documenter"
+      - "skill_verification_loop"
+      - "skill_systematic_debugging"
+      - "skill_writing_plans"
+      - "skill_code_review"
+      - "skill_requesting_code_review"
+      - "skill_receiving_code_review"
+      - "skill_create_pr"
+      - "skill_finishing_branch"
+      - "skill_changelog_generator"
+      - "skill_developer_growth"
+      - "skill_mcp_builder"
+      - "skill_dispatching_parallel_agents"
+      - "skill_subagent_driven_development"
 
   - agent_id: "frontend_specialist"
     name: "Frontend Specialist"
@@ -181,6 +218,14 @@ agents:
     superior_id: "cto_manager"
     allowed_tools:
       - "designer"
+      # my-skills-plugin 스킬
+      - "skill_frontend_patterns"
+      - "skill_frontend_design"
+      - "skill_senior_frontend"
+      - "skill_coding_standards"
+      - "skill_artifacts_builder"
+      - "skill_tdd_workflow"
+      - "skill_verification_before_completion"
 
   - agent_id: "backend_specialist"
     name: "Backend/API Specialist"
@@ -220,6 +265,15 @@ agents:
       - "security_scanner"
       - "log_analyzer"
       - "api_benchmark"
+      # my-skills-plugin 스킬
+      - "skill_backend_patterns"
+      - "skill_python_patterns"
+      - "skill_python_testing"
+      - "skill_coding_standards"
+      - "skill_tdd_workflow"
+      - "skill_security_review"
+      - "skill_verification_loop"
+      - "skill_systematic_debugging"
 
   - agent_id: "infra_specialist"
     name: "DB/Infrastructure Specialist"
@@ -260,6 +314,13 @@ agents:
       - "security_scanner"
       - "log_analyzer"
       - "api_benchmark"
+      # my-skills-plugin 스킬
+      - "skill_security_review"
+      - "skill_security_scan"
+      - "skill_verification_loop"
+      - "skill_postgres_patterns"
+      - "skill_clickhouse_io"
+      - "skill_git_worktrees"
 
   - agent_id: "ai_model_specialist"
     name: "AI Model Specialist"
@@ -282,6 +343,11 @@ agents:
       - "embedding_tool"
       - "token_counter"
       - "vector_knowledge"
+      # my-skills-plugin 스킬
+      - "skill_python_patterns"
+      - "skill_python_testing"
+      - "skill_eval_harness"
+      - "skill_iterative_retrieval"
 
   # ─── 사업기획처 (CSO) - 비서실장 직속 ───
 
@@ -358,6 +424,16 @@ agents:
       - "pdf_parser"
       - "decision_tracker"
       - "cross_agent_protocol"
+      # my-skills-plugin 스킬
+      - "skill_pricing_strategy"
+      - "skill_launch_strategy"
+      - "skill_competitor_alternatives"
+      - "skill_marketing_ideas"
+      - "skill_content_strategy"
+      - "skill_last30days"
+      - "skill_free_tool_strategy"
+      - "skill_product_marketing_context"
+      - "skill_brainstorming"
 
   - agent_id: "market_research_specialist"
     name: "Market Research Specialist"
@@ -458,6 +534,11 @@ agents:
       - "naver_place_scraper"
       - "scholar_scraper"
       - "real_web_search"
+      # my-skills-plugin 스킬
+      - "skill_last30days"
+      - "skill_content_strategy"
+      - "skill_competitor_alternatives"
+      - "skill_defuddle"
 
   - agent_id: "business_plan_specialist"
     name: "Business Plan Specialist"
@@ -497,6 +578,10 @@ agents:
       - "spreadsheet_tool"
       - "chart_generator"
       - "pdf_parser"
+      # my-skills-plugin 스킬
+      - "skill_pricing_strategy"
+      - "skill_launch_strategy"
+      - "skill_free_tool_strategy"
 
   - agent_id: "financial_model_specialist"
     name: "Financial Modeling Specialist"
@@ -533,6 +618,8 @@ agents:
       - "spreadsheet_tool"
       - "financial_calculator"
       - "chart_generator"
+      # my-skills-plugin 스킬
+      - "skill_pricing_strategy"
 
   # ─── 법무·IP처 (CLO) - 비서실장 직속 ───
 
@@ -571,6 +658,9 @@ agents:
       - "law_change_monitor"
       - "pdf_parser"
       - "cross_agent_protocol"
+      # my-skills-plugin 스킬
+      - "skill_security_review"
+      - "skill_security_scan"
 
   - agent_id: "copyright_specialist"
     name: "Copyright Specialist"
@@ -606,6 +696,8 @@ agents:
       - "contract_reviewer"
       - "law_change_monitor"
       - "pdf_parser"
+      # my-skills-plugin 스킬
+      - "skill_security_review"
 
   - agent_id: "patent_specialist"
     name: "Patent/Terms Specialist"
@@ -643,6 +735,8 @@ agents:
       - "contract_reviewer"
       - "law_change_monitor"
       - "pdf_parser"
+      # my-skills-plugin 스킬
+      - "skill_security_review"
 
   # ─── 마케팅·고객처 (CMO) - 비서실장 직속 ───
 
@@ -691,6 +785,25 @@ agents:
       - "email_sender"
       - "image_generator"
       - "cross_agent_protocol"
+      # my-skills-plugin 스킬
+      - "skill_copywriting"
+      - "skill_copy_editing"
+      - "skill_marketing_ideas"
+      - "skill_marketing_psychology"
+      - "skill_social_content"
+      - "skill_email_sequence"
+      - "skill_page_cro"
+      - "skill_form_cro"
+      - "skill_signup_flow_cro"
+      - "skill_onboarding_cro"
+      - "skill_popup_cro"
+      - "skill_paywall_upgrade_cro"
+      - "skill_seo_audit"
+      - "skill_launch_strategy"
+      - "skill_paid_ads"
+      - "skill_referral_program"
+      - "skill_content_strategy"
+      - "skill_product_marketing_context"
 
   - agent_id: "survey_specialist"
     name: "Survey/Research Specialist"
@@ -725,6 +838,10 @@ agents:
     allowed_tools:
       - "leet_survey"
       - "sentiment_analyzer"
+      # my-skills-plugin 스킬
+      - "skill_last30days"
+      - "skill_marketing_psychology"
+      - "skill_defuddle"
 
   - agent_id: "content_specialist"
     name: "Content Specialist"
@@ -771,6 +888,18 @@ agents:
       - "competitor_sns_monitor"
       - "newsletter_builder"
       - "image_generator"
+      # my-skills-plugin 스킬
+      - "skill_copywriting"
+      - "skill_copy_editing"
+      - "skill_social_content"
+      - "skill_seo_audit"
+      - "skill_schema_markup"
+      - "skill_programmatic_seo"
+      - "skill_email_sequence"
+      - "skill_page_cro"
+      - "skill_content_strategy"
+      - "skill_canvas_design"
+      - "skill_theme_factory"
 
   - agent_id: "community_specialist"
     name: "Community Specialist"
@@ -793,6 +922,11 @@ agents:
       - "seo_analyzer"
       - "sentiment_analyzer"
       - "competitor_sns_monitor"
+      # my-skills-plugin 스킬
+      - "skill_social_content"
+      - "skill_last30days"
+      - "skill_marketing_ideas"
+      - "skill_defuddle"
 
   # ═══════════════════════════════════════════
   #  투자분석처 (CIO) - 비서실장 직속
@@ -848,6 +982,9 @@ agents:
       - "chart_generator"
       - "spreadsheet_tool"
       - "cross_agent_protocol"
+      # my-skills-plugin 스킬
+      - "skill_last30days"
+      - "skill_defuddle"
 
   - agent_id: "market_condition_specialist"
     name: "Market Condition Specialist"
@@ -883,6 +1020,9 @@ agents:
       - "ecos_macro"
       - "real_web_search"
       - "global_market_tool"
+      # my-skills-plugin 스킬
+      - "skill_last30days"
+      - "skill_defuddle"
 
   - agent_id: "stock_analysis_specialist"
     name: "Stock Analysis Specialist"
@@ -944,6 +1084,8 @@ agents:
       - "global_market_tool"
       - "financial_calculator"
       - "chart_generator"
+      # my-skills-plugin 스킬
+      - "skill_last30days"
 
   - agent_id: "technical_analysis_specialist"
     name: "Technical Analysis Specialist"
@@ -979,6 +1121,8 @@ agents:
       - "kr_stock"
       - "backtest_engine"
       - "chart_generator"
+      # my-skills-plugin 스킬
+      - "skill_last30days"
 
   - agent_id: "risk_management_specialist"
     name: "Risk Management Specialist"
@@ -1020,6 +1164,8 @@ agents:
       - "financial_calculator"
       - "global_market_tool"
       - "notification_engine"
+      # my-skills-plugin 스킬
+      - "skill_last30days"
 
   # ═══════════════════════════════════════════
   #  출판·기록처 (CPO) - 비서실장 직속
@@ -1095,6 +1241,17 @@ agents:
       - "audio_transcriber"
       - "image_generator"
       - "cross_agent_protocol"
+      # my-skills-plugin 스킬
+      - "skill_copywriting"
+      - "skill_copy_editing"
+      - "skill_code_documenter"
+      - "skill_changelog_generator"
+      - "skill_content_strategy"
+      - "skill_canvas_design"
+      - "skill_theme_factory"
+      - "skill_obsidian_markdown"
+      - "skill_nutrient_doc"
+      - "skill_handoff"
 
   - agent_id: "chronicle_specialist"
     name: "Company Chronicle Specialist"
@@ -1142,6 +1299,11 @@ agents:
       - "real_web_search"
       - "decision_tracker"
       - "audio_transcriber"
+      # my-skills-plugin 스킬
+      - "skill_copy_editing"
+      - "skill_changelog_generator"
+      - "skill_obsidian_markdown"
+      - "skill_obsidian_cli"
 
   - agent_id: "editor_specialist"
     name: "Content Editor Specialist"
@@ -1185,6 +1347,12 @@ agents:
       - "newsletter_builder"
       - "chart_generator"
       - "pdf_parser"
+      # my-skills-plugin 스킬
+      - "skill_copy_editing"
+      - "skill_copywriting"
+      - "skill_seo_audit"
+      - "skill_theme_factory"
+      - "skill_nutrient_doc"
 
   - agent_id: "archive_specialist"
     name: "Archive Specialist"
@@ -1231,3 +1399,9 @@ agents:
       - "doc_converter"
       - "meeting_formatter"
       - "vector_knowledge"
+      # my-skills-plugin 스킬
+      - "skill_code_documenter"
+      - "skill_obsidian_markdown"
+      - "skill_obsidian_cli"
+      - "skill_obsidian_bases"
+      - "skill_json_canvas"

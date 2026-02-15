@@ -9,9 +9,9 @@
 ## 마지막 업데이트
 
 - **날짜**: 2026-02-15
-- **작업 브랜치**: claude/fix-allowed-tools-logic-943fa2
-- **작업 내용**: 다크모드 가시성 완전 보장 — Tailwind CDN 독립 순수 CSS 백업 추가
-- **빌드 번호**: #34
+- **작업 브랜치**: claude/add-skills-plugin-tools
+- **작업 내용**: my-skills-plugin 88개 스킬 도구 등록 + 29개 에이전트 역할별 할당
+- **빌드 번호**: (배포 후 확인)
 
 ---
 
@@ -48,6 +48,7 @@
 12. **웹 세션 환경변수 자동 설정** (`.claude/scripts/setup-env.sh`) - GitHub Codespaces Secrets에서 API 키를 읽어 `.env.local` 자동 생성
 13. **AI 모델 설정 개선** (2026-02-15) - Claude 4.5/4.6 + GPT-5 이상 8개 모델 제공, Codex 제거, Provider별 그룹화(Anthropic/OpenAI)로 UI 가독성 향상
 14. **빌드 번호 시스템** (2026-02-15) - GitHub Actions run number를 빌드 번호로 사용, 웹 화면에 자동 표시, 배포 확인 즉시 가능
+15. **my-skills-plugin 88개 스킬 도구 등록** (2026-02-15) - 마케팅(22개), 개발프로세스(20개), 코딩패턴(25개), 유틸리티(16개), 메타(5개) 스킬을 도구로 등록하고, 29개 에이전트에게 역할별 할당 완료
 
 ---
 
