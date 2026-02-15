@@ -5075,7 +5075,7 @@
           try {
             const data = await fetch('/api/schedules').then(r => r.json());
             this.schedules.items = (Array.isArray(data) ? data : data.schedules || []).map(s => ({
-              ...s, id: s.schedule_id, cron_label: s.cron_preset,
+              ...s, id: s.id || s.schedule_id, cron_label: s.cron_preset || s.cron || '',
             }));
           } catch (e) { this.schedules.items = []; }
         },

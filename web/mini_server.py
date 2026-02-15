@@ -226,6 +226,20 @@ async def index():
     return HTMLResponse(content=html_content)
 
 
+@app.get("/deploy-status.json")
+async def deploy_status():
+    """배포 상태 JSON (deploy.yml이 /var/www/html/에 생성한 파일 읽기)."""
+    import json as _json
+    for path in ["/var/www/html/deploy-status.json", os.path.join(BASE_DIR, "deploy-status.json")]:
+        if os.path.exists(path):
+            try:
+                with open(path, "r") as f:
+                    return _json.load(f)
+            except Exception:
+                pass
+    return {"build": get_build_number(), "time": datetime.now(KST).isoformat(), "status": "success", "commit": ""}
+
+
 # ── 에이전트 목록 ──
 AGENTS = [
     {"agent_id": "chief_of_staff", "name_ko": "비서실장", "role": "manager", "division": "secretary", "status": "idle", "model_name": "claude-sonnet-4-5-20250929"},
@@ -537,8 +551,10 @@ async def add_schedule(request: Request):
     schedule_id = f"sch_{datetime.now(KST).strftime('%Y%m%d%H%M%S')}_{len(schedules)}"
     schedule = {
         "id": schedule_id,
+        "name": body.get("name", ""),
         "command": body.get("command", ""),
         "cron": body.get("cron", ""),
+        "cron_preset": body.get("cron_preset", ""),
         "description": body.get("description", ""),
         "enabled": True,
         "created_at": datetime.now(KST).isoformat(),
