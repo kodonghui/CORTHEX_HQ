@@ -170,13 +170,27 @@
       -webkit-backdrop-filter: blur(12px);
     }
 
-    /* Background grid pattern */
+    /* Background grid pattern — 격자 무늬는 ::before 가상 요소로만 표시 */
+    /* ⚠️ 주의: gridPulse 애니메이션을 .bg-grid 자체에 걸면 opacity가 */
+    /*    요소 전체(글자, 버튼 등)에 적용되어 콘텐츠가 안 보이게 됨! */
     .bg-grid {
+      position: relative;
+    }
+    .bg-grid::before {
+      content: '';
+      position: absolute;
+      inset: 0;
       background-image:
         linear-gradient(rgb(var(--hq-accent) / 0.07) 1px, transparent 1px),
         linear-gradient(90deg, rgb(var(--hq-accent) / 0.07) 1px, transparent 1px);
       background-size: 40px 40px;
       animation: gridPulse 8s ease-in-out infinite;
+      pointer-events: none;
+      z-index: 0;
+    }
+    .bg-grid > * {
+      position: relative;
+      z-index: 1;
     }
 
     /* Hover transitions */
