@@ -376,7 +376,7 @@ async def auth_status(request: Request):
 async def get_agents():
     """에이전트 목록 반환 (오버라이드된 model_name, reasoning_effort 포함)."""
     result = []
-    overrides = load_setting("agent_model_overrides") or {}
+    overrides = _load_data("agent_overrides", {})
     for a in AGENTS:
         agent = dict(a)
         aid = agent["agent_id"]
@@ -1018,6 +1018,31 @@ async def save_quality_rules(request: Request):
 
 # ── 에이전트 설정: 소울/모델/추론 저장 ──
 
+@app.put("/api/agents/bulk-model")
+async def bulk_change_model(request: Request):
+    """모든 에이전트의 모델을 한번에 변경."""
+    body = await request.json()
+    new_model = body.get("model_name", "")
+    reasoning = body.get("reasoning_effort", "")
+    if not new_model:
+        return {"error": "model_name 필수"}
+    overrides = _load_data("agent_overrides", {})
+    changed = 0
+    for a in AGENTS:
+        aid = a["agent_id"]
+        a["model_name"] = new_model
+        if aid in _AGENTS_DETAIL:
+            _AGENTS_DETAIL[aid]["model_name"] = new_model
+            _AGENTS_DETAIL[aid]["reasoning_effort"] = reasoning
+        if aid not in overrides:
+            overrides[aid] = {}
+        overrides[aid]["model_name"] = new_model
+        overrides[aid]["reasoning_effort"] = reasoning
+        changed += 1
+    _save_data("agent_overrides", overrides)
+    return {"success": True, "changed": changed, "model_name": new_model, "reasoning_effort": reasoning}
+
+
 @app.put("/api/agents/{agent_id}/soul")
 async def save_agent_soul(agent_id: str, request: Request):
     """에이전트 소울(성격) 저장. DB에 영구 저장됨."""
@@ -1032,7 +1057,7 @@ async def save_agent_soul(agent_id: str, request: Request):
 async def save_agent_model(agent_id: str, request: Request):
     """에이전트에 배정된 AI 모델 변경."""
     body = await request.json()
-    new_model = body.get("model", "")
+    new_model = body.get("model_name") or body.get("model", "")
     # 메모리 내 AGENTS 리스트 업데이트
     for a in AGENTS:
         if a["agent_id"] == agent_id:

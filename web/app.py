@@ -807,6 +807,45 @@ class ModelUpdateRequest(BaseModel):
     model_name: str
 
 
+class BulkModelRequest(BaseModel):
+    model_name: str
+    reasoning_effort: str = ""
+
+
+@app.put("/api/agents/bulk-model")
+async def bulk_update_model(body: BulkModelRequest) -> dict:
+    """모든 에이전트의 모델을 한번에 변경."""
+    global agents_cfg_raw
+    if not registry or not agents_cfg_raw:
+        return {"error": "not initialized"}
+
+    changed = 0
+    for a in agents_cfg_raw.get("agents", []):
+        a["model_name"] = body.model_name
+        a["reasoning_effort"] = body.reasoning_effort
+        changed += 1
+
+    # Persist to YAML
+    yaml_path = CONFIG_DIR / "agents.yaml"
+    with open(yaml_path, "w", encoding="utf-8") as f:
+        f.write("# =============================================================\n")
+        f.write("# CORTHEX HQ - Agent Configuration (에이전트 설정)\n")
+        f.write("# =============================================================\n\n")
+        yaml.dump(agents_cfg_raw, f, allow_unicode=True, default_flow_style=False, sort_keys=False)
+
+    # Hot-reload all agents
+    for agent_id in list(registry._agents.keys()):
+        try:
+            agent = registry.get_agent(agent_id)
+            agent.config = agent.config.model_copy(
+                update={"model_name": body.model_name, "reasoning_effort": body.reasoning_effort}
+            )
+        except Exception:
+            pass
+
+    return {"success": True, "changed": changed, "model_name": body.model_name, "reasoning_effort": body.reasoning_effort}
+
+
 @app.put("/api/agents/{agent_id}/model")
 async def update_agent_model(agent_id: str, body: ModelUpdateRequest) -> dict:
     """Update an agent's model_name and persist to agents.yaml."""

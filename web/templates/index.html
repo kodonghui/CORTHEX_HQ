@@ -2220,6 +2220,51 @@
                   <div class="text-[10px] text-hq-muted">각 에이전트에 개별 지정된 모델을 사용합니다</div>
                   <div class="text-[10px] text-hq-accent mt-1">에이전트 클릭 → 모델 탭에서 개별 변경 가능</div>
                 </div>
+
+                <!-- 전체 모델 일괄 변경 -->
+                <div class="border-t border-hq-border mt-4 pt-4">
+                  <div class="text-[11px] font-bold text-hq-text mb-2">전체 에이전트 모델 일괄 변경</div>
+                  <div class="text-[10px] text-hq-muted mb-3">29명 전원의 모델과 추론 정도를 한번에 바꿉니다</div>
+                  <!-- 모델 선택 -->
+                  <select x-model="bulkModelSelection"
+                          @change="bulkReasoningOptions = _getDefaultReasoning(bulkModelSelection); bulkReasoningSelection = ''"
+                          class="w-full bg-hq-bg border border-hq-border rounded-lg px-3 py-2 text-xs text-hq-text mb-2">
+                    <option value="">모델 선택...</option>
+                    <template x-for="[provLabel, models] of Object.entries(getModelsByProvider())" :key="provLabel">
+                      <optgroup :label="provLabel">
+                        <template x-for="m in models" :key="m.name">
+                          <option :value="m.name" x-text="getModelDisplayName(m.name) + ' (' + getModelTierLabel(m.tier) + ')'"></option>
+                        </template>
+                      </optgroup>
+                    </template>
+                  </select>
+                  <!-- 추론 정도 -->
+                  <div x-show="bulkReasoningOptions.length > 0" class="flex flex-wrap gap-1.5 mb-3">
+                    <button @click="bulkReasoningSelection = ''"
+                            :class="!bulkReasoningSelection ? 'bg-hq-accent/20 text-hq-accent border-hq-accent' : 'text-hq-muted border-hq-border'"
+                            class="text-[10px] border rounded-md px-2 py-1 transition">기본</button>
+                    <template x-for="lv in bulkReasoningOptions" :key="lv">
+                      <button @click="bulkReasoningSelection = lv"
+                              :class="bulkReasoningSelection === lv
+                                ? (lv === 'none' ? 'bg-hq-muted/20 text-hq-muted border-hq-muted'
+                                  : lv === 'low' ? 'bg-hq-green/20 text-hq-green border-hq-green'
+                                  : lv === 'medium' ? 'bg-hq-yellow/20 text-hq-yellow border-hq-yellow'
+                                  : lv === 'high' ? 'bg-hq-purple/20 text-hq-purple border-hq-purple'
+                                  : 'bg-hq-red/20 text-hq-red border-hq-red')
+                                : 'text-hq-muted border-hq-border'"
+                              class="text-[10px] border rounded-md px-2 py-1 transition"
+                              x-text="({'none':'⛔ none','low':'⚡ low','medium':'🧠 medium','high':'🔬 high','xhigh':'🔥 xhigh'})[lv] || lv"></button>
+                    </template>
+                  </div>
+                  <!-- 적용 버튼 -->
+                  <button @click="applyBulkModel()"
+                          :disabled="!bulkModelSelection || bulkModelSaving"
+                          :class="bulkModelSelection ? 'bg-hq-accent hover:bg-blue-600 text-white' : 'bg-hq-bg text-hq-muted cursor-not-allowed border border-hq-border'"
+                          class="w-full text-xs font-bold px-3 py-2.5 rounded-lg transition flex items-center justify-center gap-2">
+                    <span x-show="bulkModelSaving" class="animate-spin">&#8987;</span>
+                    <span x-text="bulkModelSaving ? '변경 중...' : '29명 전체 적용'"></span>
+                  </button>
+                </div>
               </div>
 
               <!-- Quality Section -->
@@ -3926,6 +3971,10 @@
         budget: {},
         modelMode: 'auto',
         modelOverride: 'claude-sonnet-4-5-20250929',
+        bulkModelSelection: '',
+        bulkReasoningSelection: '',
+        bulkReasoningOptions: [],
+        bulkModelSaving: false,
         quality: {},
         showTaskDetail: false,
         taskDetailData: null,
@@ -5759,9 +5808,15 @@
         // ── Model Mode (자동/수동) ──
         async loadModelMode() {
           try {
-            const res = await fetch('/api/model-mode').then(r => r.json());
+            const [res, modelsRes] = await Promise.all([
+              fetch('/api/model-mode').then(r => r.json()),
+              !this.availableModels.length ? fetch('/api/available-models').then(r => r.json()) : Promise.resolve(null),
+            ]);
             this.modelMode = res.mode || 'auto';
             this.modelOverride = res.override || 'claude-sonnet-4-5-20250929';
+            if (modelsRes && Array.isArray(modelsRes)) {
+              this.availableModels = this.sortModels(modelsRes);
+            }
           } catch {}
         },
         async saveModelMode() {
@@ -5774,6 +5829,36 @@
             const label = this.modelMode === 'auto' ? '자동 모드 (질문에 따라 자동 선택)' : '수동 모드 (에이전트별 개별 모델)';
             this.showToast(label, 'success');
           } catch { this.showToast('모델 모드 변경 실패', 'error'); }
+        },
+
+        async applyBulkModel() {
+          if (!this.bulkModelSelection) return;
+          const displayName = this.getModelDisplayName(this.bulkModelSelection);
+          const label = this.bulkReasoningSelection ? `${displayName} (${this.bulkReasoningSelection})` : displayName;
+          if (!confirm(`29명 전체 에이전트의 모델을 "${label}"(으)로 변경합니다.\n\n정말 진행할까요?`)) return;
+          this.bulkModelSaving = true;
+          try {
+            const res = await fetch('/api/agents/bulk-model', {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ model_name: this.bulkModelSelection, reasoning_effort: this.bulkReasoningSelection }),
+            }).then(r => r.json());
+            if (res.error) {
+              this.showToast(res.error, 'error');
+            } else {
+              // 모든 에이전트 카드 표시 갱신
+              for (const a of Object.keys(this.agentModels)) {
+                this.agentModelRaw[a] = this.bulkModelSelection;
+                this.agentReasonings[a] = this.bulkReasoningSelection;
+                this.agentModels[a] = this.bulkReasoningSelection ? `${displayName} (${this.bulkReasoningSelection})` : displayName;
+              }
+              this.showToast(`${res.changed}명 에이전트 → ${label} 변경 완료`, 'success');
+            }
+          } catch (e) {
+            this.showToast('일괄 변경 실패: ' + (e.message || '서버 연결 오류'), 'error');
+          } finally {
+            this.bulkModelSaving = false;
+          }
         },
 
         // ── #13: Activity Log Persistence ──
