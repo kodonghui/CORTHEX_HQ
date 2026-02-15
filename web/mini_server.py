@@ -10,6 +10,8 @@ import json
 import logging
 import os
 import sys
+import time
+import uuid as _uuid
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
@@ -20,8 +22,15 @@ from db import (
     update_task, list_tasks, toggle_bookmark as db_toggle_bookmark,
     get_dashboard_stats, save_activity_log, list_activity_logs,
     save_archive, list_archives, get_archive as db_get_archive,
-    save_setting, load_setting,
+    save_setting, load_setting, get_today_cost,
 )
+try:
+    from ai_handler import init_ai_client, is_ai_ready, ask_ai, select_model
+except ImportError:
+    def init_ai_client(): return False
+    def is_ai_ready(): return False
+    async def ask_ai(*a, **kw): return {"error": "ai_handler 미설치"}
+    def select_model(t): return "claude-haiku-4-5-20251001"
 
 # Python 출력 버퍼링 비활성화 (systemd에서 로그가 바로 보이도록)
 os.environ["PYTHONUNBUFFERED"] = "1"
@@ -280,36 +289,51 @@ async def websocket_endpoint(ws: WebSocket):
                     task = create_task(cmd_text, source="websocket")
                     save_message(cmd_text, source="websocket",
                                  task_id=task["task_id"])
-                    update_task(task["task_id"], status="completed",
-                                result_summary="경량 모드 — AI 미연결",
-                                success=1, time_seconds=0.1)
                     # 작업 접수 이벤트 브로드캐스트
-                    now = datetime.now(KST).strftime("%H:%M:%S")
                     log_entry = save_activity_log(
                         "chief_of_staff",
                         f"[웹] 명령 접수: {cmd_text[:50]}{'...' if len(cmd_text) > 50 else ''} (#{task['task_id']})",
                     )
                     for c in connected_clients[:]:
                         try:
-                            await c.send_json({
-                                "event": "task_accepted",
-                                "data": task,
-                            })
-                            await c.send_json({
-                                "event": "activity_log",
-                                "data": log_entry,
-                            })
+                            await c.send_json({"event": "task_accepted", "data": task})
+                            await c.send_json({"event": "activity_log", "data": log_entry})
                         except Exception:
                             pass
-                await ws.send_json({
-                    "event": "result",
-                    "data": {
-                        "content": "현재 경량 모드로 실행 중입니다. 전체 AI 에이전트 기능은 메인 서버에서 사용 가능합니다.",
-                        "sender_id": "chief_of_staff",
-                        "time_seconds": 0.1,
-                        "cost": 0,
-                    }
-                })
+
+                    # AI 처리
+                    if is_ai_ready():
+                        update_task(task["task_id"], status="running")
+                        result = await _process_ai_command(cmd_text, task["task_id"])
+                        if "error" in result:
+                            await ws.send_json({
+                                "event": "result",
+                                "data": {"content": f"❌ {result['error']}", "sender_id": "chief_of_staff", "time_seconds": 0, "cost": 0}
+                            })
+                        else:
+                            await ws.send_json({
+                                "event": "result",
+                                "data": {
+                                    "content": result.get("content", ""),
+                                    "sender_id": "chief_of_staff",
+                                    "time_seconds": result.get("time_seconds", 0),
+                                    "cost": result.get("cost_usd", 0),
+                                    "model": result.get("model", ""),
+                                }
+                            })
+                    else:
+                        update_task(task["task_id"], status="completed",
+                                    result_summary="AI 미연결 — 접수만 완료",
+                                    success=1, time_seconds=0.1)
+                        await ws.send_json({
+                            "event": "result",
+                            "data": {
+                                "content": "AI가 아직 연결되지 않았습니다. ANTHROPIC_API_KEY를 설정해주세요.",
+                                "sender_id": "chief_of_staff",
+                                "time_seconds": 0.1,
+                                "cost": 0,
+                            }
+                        })
     except WebSocketDisconnect:
         connected_clients.remove(ws)
     except Exception:
@@ -320,8 +344,14 @@ async def websocket_endpoint(ws: WebSocket):
 # ── API 엔드포인트 ──
 
 @app.get("/api/auth/status")
-async def auth_status():
-    return {"bootstrap_mode": True, "role": "ceo", "authenticated": True}
+async def auth_status(request: Request):
+    if _check_auth(request):
+        return {"bootstrap_mode": False, "role": "ceo", "authenticated": True}
+    # 비밀번호가 기본값이고 세션이 없으면 부트스트랩 모드
+    stored_pw = load_setting("admin_password")
+    if (not stored_pw or stored_pw == "corthex2026") and not _sessions:
+        return {"bootstrap_mode": True, "role": "ceo", "authenticated": True}
+    return {"bootstrap_mode": False, "role": "viewer", "authenticated": False}
 
 
 @app.get("/api/agents")
@@ -378,10 +408,15 @@ async def get_dashboard():
 
 @app.get("/api/budget")
 async def get_budget():
-    return _load_data("budget", {
-        "daily_limit": 10.0, "daily_used": 0.0,
-        "monthly_limit": 300.0, "monthly_used": 0.0,
-    })
+    limit = float(load_setting("daily_budget_usd") or 7.0)
+    today = get_today_cost()
+    return {
+        "daily_limit": limit, "daily_used": today,
+        "today_cost": today,
+        "remaining": round(limit - today, 6),
+        "exceeded": today >= limit,
+        "monthly_limit": 300.0, "monthly_used": today,
+    }
 
 
 @app.get("/api/quality")
@@ -741,18 +776,69 @@ async def get_sns_events(limit: int = 50):
     return _load_data("sns_events", [])[:limit]
 
 
-# ── 인증 (부트스트랩 모드 — 비밀번호 없이 CEO 자동 인증) ──
+# ── 인증 (Phase 3: 비밀번호 로그인) ──
+
+_sessions: dict[str, float] = {}  # token → 만료 시간
+_SESSION_TTL = 86400 * 7  # 7일
+
+
+def _check_auth(request: Request) -> bool:
+    """요청의 인증 상태를 확인합니다."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    if not token:
+        token = request.query_params.get("token", "")
+    if token and token in _sessions:
+        if _sessions[token] > time.time():
+            return True
+        del _sessions[token]
+    return False
+
 
 @app.post("/api/auth/login")
 async def login(request: Request):
-    """로그인 (부트스트랩 모드에서는 항상 성공)."""
-    return {"success": True, "role": "ceo", "token": "bootstrap-mode"}
+    """비밀번호 로그인."""
+    body = await request.json()
+    pw = body.get("password", "")
+    stored_pw = load_setting("admin_password") or "corthex2026"
+    if pw != stored_pw:
+        return JSONResponse({"success": False, "error": "비밀번호가 틀립니다"}, status_code=401)
+    token = str(_uuid.uuid4())
+    _sessions[token] = time.time() + _SESSION_TTL
+    return {"success": True, "token": token, "user": {"role": "ceo", "name": "CEO"}}
 
 
-@app.post("/api/auth/register")
-async def register(request: Request):
-    """회원가입 (부트스트랩 모드에서는 비활성)."""
-    return {"success": False, "error": "부트스트랩 모드에서는 회원가입이 불필요합니다. 자동으로 CEO 권한이 부여됩니다."}
+@app.post("/api/auth/logout")
+async def logout(request: Request):
+    """로그아웃."""
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    if token in _sessions:
+        del _sessions[token]
+    return {"success": True}
+
+
+@app.get("/api/auth/check")
+async def auth_check(request: Request):
+    """토큰 유효성 확인."""
+    if _check_auth(request):
+        return {"authenticated": True, "role": "ceo"}
+    return JSONResponse({"authenticated": False}, status_code=401)
+
+
+@app.post("/api/auth/change-password")
+async def change_password(request: Request):
+    """비밀번호 변경."""
+    if not _check_auth(request):
+        return JSONResponse({"success": False, "error": "인증 필요"}, status_code=401)
+    body = await request.json()
+    current = body.get("current", "")
+    new_pw = body.get("new_password", "")
+    stored_pw = load_setting("admin_password") or "corthex2026"
+    if current != stored_pw:
+        return JSONResponse({"success": False, "error": "현재 비밀번호가 틀립니다"}, status_code=401)
+    if len(new_pw) < 4:
+        return {"success": False, "error": "비밀번호는 4자 이상이어야 합니다"}
+    save_setting("admin_password", new_pw)
+    return {"success": True}
 
 
 # ── 헬스체크 ──
@@ -916,17 +1002,11 @@ async def save_agent_reasoning(agent_id: str, request: Request):
 
 @app.put("/api/budget")
 async def save_budget(request: Request):
-    """예산 설정 저장."""
+    """일일 예산 한도 변경."""
     body = await request.json()
-    budget = _load_data("budget", {
-        "daily_limit": 10.0, "daily_used": 0.0,
-        "monthly_limit": 300.0, "monthly_used": 0.0,
-    })
-    for key in ("daily_limit", "monthly_limit"):
-        if key in body:
-            budget[key] = float(body[key])
-    _save_data("budget", budget)
-    return {"success": True, **budget}
+    if "daily_limit" in body:
+        save_setting("daily_budget_usd", float(body["daily_limit"]))
+    return {"success": True}
 
 
 @app.get("/api/available-models")
@@ -1131,6 +1211,28 @@ async def _start_telegram_bot() -> None:
                 parse_mode="Markdown",
             )
 
+        async def cmd_realtime(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+            """실시간 모드로 전환."""
+            if not _is_tg_ceo(update):
+                return
+            save_setting("tg_mode", "realtime")
+            await update.message.reply_text(
+                "🔴 *실시간 모드*로 전환했습니다.\n\n"
+                "이제 보내시는 메시지에 AI가 즉시 답변합니다.",
+                parse_mode="Markdown",
+            )
+
+        async def cmd_batch(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+            """배치 모드로 전환."""
+            if not _is_tg_ceo(update):
+                return
+            save_setting("tg_mode", "batch")
+            await update.message.reply_text(
+                "📦 *배치 모드*로 전환했습니다.\n\n"
+                "메시지를 접수만 하고, AI 처리는 하지 않습니다.",
+                parse_mode="Markdown",
+            )
+
         async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             if not _is_tg_ceo(update):
                 return
@@ -1142,17 +1244,46 @@ async def _start_telegram_bot() -> None:
             task = create_task(text, source="telegram")
             save_message(text, source="telegram", chat_id=chat_id,
                          task_id=task["task_id"])
-            update_task(task["task_id"], status="completed",
-                        result_summary="경량 모드 — AI 미연결",
-                        success=1, time_seconds=0.1)
+
+            # 모드 확인
+            mode = load_setting("tg_mode") or "realtime"
             now = datetime.now(KST).strftime("%H:%M")
-            await update.message.reply_text(
-                f"접수했습니다. ({now})\n"
-                f"작업 ID: `{task['task_id']}`\n\n"
-                f"현재 경량 서버 모드로, AI 에이전트 실행은 메인 서버에서 가능합니다.\n"
-                f"메인 서버 구축 후 이 봇에서 직접 업무 지시가 가능해집니다.",
-                parse_mode="Markdown",
-            )
+
+            if mode == "realtime" and is_ai_ready():
+                # 실시간 모드: AI가 답변
+                update_task(task["task_id"], status="running")
+                await update.message.reply_text(f"⏳ 처리 중... (#{task['task_id']})")
+
+                result = await _process_ai_command(text, task["task_id"])
+
+                if "error" in result:
+                    await update.message.reply_text(f"❌ {result['error']}")
+                else:
+                    content = result.get("content", "")
+                    cost = result.get("cost_usd", 0)
+                    model = result.get("model", "")
+                    # 텔레그램 메시지 길이 제한 (4096자)
+                    if len(content) > 3900:
+                        content = content[:3900] + "\n\n... (결과가 잘렸습니다. 웹에서 전체 확인)"
+                    await update.message.reply_text(
+                        f"{content}\n\n"
+                        f"─────\n"
+                        f"💰 ${cost:.4f} | 🤖 {model.split('-')[1] if '-' in model else model}",
+                        parse_mode=None,
+                    )
+            else:
+                # 배치 모드 또는 AI 미준비
+                update_task(task["task_id"], status="completed",
+                            result_summary="배치 모드 — 접수만 완료" if mode == "batch" else "AI 미연결 — 접수만 완료",
+                            success=1, time_seconds=0.1)
+                reason = "배치 모드" if mode == "batch" else "AI 미연결"
+                await update.message.reply_text(
+                    f"📋 접수했습니다. ({now})\n"
+                    f"작업 ID: `{task['task_id']}`\n"
+                    f"상태: {reason}",
+                    parse_mode="Markdown",
+                )
+
             # 활동 로그 저장 + 웹소켓 브로드캐스트
             log_entry = save_activity_log(
                 "chief_of_staff",
@@ -1160,14 +1291,8 @@ async def _start_telegram_bot() -> None:
             )
             for ws in connected_clients[:]:
                 try:
-                    await ws.send_json({
-                        "event": "task_accepted",
-                        "data": task,
-                    })
-                    await ws.send_json({
-                        "event": "activity_log",
-                        "data": log_entry,
-                    })
+                    await ws.send_json({"event": "task_accepted", "data": task})
+                    await ws.send_json({"event": "activity_log", "data": log_entry})
                 except Exception:
                     pass
 
@@ -1187,6 +1312,8 @@ async def _start_telegram_bot() -> None:
         _telegram_app.add_handler(CommandHandler("help", cmd_help))
         _telegram_app.add_handler(CommandHandler("agents", cmd_agents))
         _telegram_app.add_handler(CommandHandler("health", cmd_health))
+        _telegram_app.add_handler(CommandHandler("실시간", cmd_realtime))
+        _telegram_app.add_handler(CommandHandler("배치", cmd_batch))
         _telegram_app.add_handler(
             MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message)
         )
@@ -1231,10 +1358,70 @@ async def _stop_telegram_bot() -> None:
         _telegram_app = None
 
 
+# ── AI 비서실장 (Phase 2) ──
+
+_chief_prompt: str = ""
+
+
+def _load_chief_prompt() -> None:
+    """비서실장 시스템 프롬프트를 로드합니다."""
+    global _chief_prompt
+    # 1순위: DB에 저장된 소울 오버라이드
+    override = load_setting("soul_chief_of_staff")
+    if override:
+        _chief_prompt = override
+        _log("[AI] 비서실장 프롬프트: DB 오버라이드 사용")
+        return
+    # 2순위: souls 파일
+    soul_path = Path(BASE_DIR).parent / "souls" / "agents" / "chief_of_staff.md"
+    if soul_path.exists():
+        _chief_prompt = soul_path.read_text(encoding="utf-8")
+        _log(f"[AI] 비서실장 프롬프트: {soul_path}")
+        return
+    # 3순위: 기본 프롬프트
+    _chief_prompt = (
+        "당신은 CORTHEX HQ의 비서실장입니다. "
+        "CEO의 업무 지시를 받아 처리하고, 명확하고 간결하게 한국어로 답변합니다. "
+        "항상 존댓말을 사용하고, 구체적이고 실행 가능한 답변을 제공합니다."
+    )
+    _log("[AI] 비서실장 프롬프트: 기본값 사용")
+
+
+async def _process_ai_command(text: str, task_id: str) -> dict:
+    """AI에게 명령을 보내고 결과를 반환합니다."""
+    # 예산 확인
+    limit = float(load_setting("daily_budget_usd") or 7.0)
+    today = get_today_cost()
+    if today >= limit:
+        update_task(task_id, status="failed",
+                    result_summary=f"일일 예산 초과 (${today:.2f}/${limit:.0f})",
+                    success=0)
+        return {"error": f"일일 예산을 초과했습니다 (${today:.2f}/${limit:.0f})"}
+    # AI 호출
+    result = await ask_ai(text, system_prompt=_chief_prompt)
+    if "error" in result:
+        update_task(task_id, status="failed",
+                    result_summary=f"AI 오류: {result['error'][:100]}",
+                    success=0)
+        return result
+    # DB 업데이트
+    update_task(task_id, status="completed",
+                result_summary=result["content"][:500],
+                result_data=result["content"],
+                success=1,
+                cost_usd=result.get("cost_usd", 0),
+                tokens_used=result.get("input_tokens", 0) + result.get("output_tokens", 0),
+                time_seconds=result.get("time_seconds", 0))
+    return result
+
+
 @app.on_event("startup")
 async def on_startup():
-    """서버 시작 시 DB 초기화 + 텔레그램 봇 시작."""
+    """서버 시작 시 DB 초기화 + AI 클라이언트 + 텔레그램 봇 시작."""
     init_db()
+    _load_chief_prompt()
+    ai_ok = init_ai_client()
+    _log(f"[AI] 클라이언트 초기화: {'성공 ✅' if ai_ok else '실패 ❌ (ANTHROPIC_API_KEY 미설정?)'}")
     await _start_telegram_bot()
 
 

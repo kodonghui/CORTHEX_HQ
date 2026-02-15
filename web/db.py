@@ -472,6 +472,23 @@ def get_archive(division: str, filename: str) -> Optional[dict]:
 
 # ── Settings (키-값 저장소) ──
 
+def get_today_cost() -> float:
+    """오늘(KST 기준) 사용한 총 AI 비용을 반환합니다 (USD)."""
+    conn = get_connection()
+    try:
+        today = _now_kst().strftime("%Y-%m-%d")
+        today_start = f"{today}T00:00:00"
+        row = conn.execute(
+            "SELECT COALESCE(SUM(cost_usd), 0) FROM tasks WHERE created_at >= ?",
+            (today_start,),
+        ).fetchone()
+        return round(row[0], 6)
+    except Exception:
+        return 0.0
+    finally:
+        conn.close()
+
+
 def save_setting(key: str, value) -> None:
     """설정값을 DB에 저장합니다. value는 JSON 직렬화됩니다."""
     conn = get_connection()
