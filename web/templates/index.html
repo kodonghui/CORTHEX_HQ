@@ -2512,12 +2512,12 @@
               <div class="glass border border-hq-border rounded-xl p-4 hover-glow">
                 <div class="flex items-center justify-between">
                   <div class="flex-1">
-                    <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
-                      <span class="text-sm font-semibold text-hq-text" x-text="s.name"></span>
-                      <span style="display:inline-block; flex-shrink:0; font-size:10px; padding:2px 8px; border-radius:9999px; font-weight:500;"
+                    <p style="margin:0 0 6px 0;">
+                      <span style="font-size:14px; font-weight:600;" class="text-hq-text" x-text="s.name"></span>
+                      <span style="margin-left:8px; display:inline; vertical-align:middle; font-size:10px; padding:2px 10px; border-radius:9999px; font-weight:500;"
                             :class="s.enabled ? 'bg-hq-green/15 text-hq-green border border-hq-green/20' : 'bg-hq-muted/15 text-hq-muted border border-hq-border'"
                             x-text="s.enabled ? '활성' : '비활성'"></span>
-                    </div>
+                    </p>
                     <div class="text-[12px] text-hq-muted mb-1" x-text="s.command"></div>
                     <div class="flex items-center gap-3 text-[11px] text-hq-muted/70">
                       <span x-text="'주기: ' + (s.cron_label || s.cron)"></span>
