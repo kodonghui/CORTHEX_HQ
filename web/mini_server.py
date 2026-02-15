@@ -374,7 +374,26 @@ async def auth_status(request: Request):
 
 @app.get("/api/agents")
 async def get_agents():
-    return AGENTS
+    """에이전트 목록 반환 (오버라이드된 model_name, reasoning_effort 포함)."""
+    result = []
+    overrides = load_setting("agent_model_overrides") or {}
+    for a in AGENTS:
+        agent = dict(a)
+        aid = agent["agent_id"]
+        detail = _AGENTS_DETAIL.get(aid, {})
+        # 오버라이드된 모델명 반영
+        if aid in overrides and "model_name" in overrides[aid]:
+            agent["model_name"] = overrides[aid]["model_name"]
+        elif detail.get("model_name"):
+            agent["model_name"] = detail["model_name"]
+        # 추론 레벨 반영
+        agent["reasoning_effort"] = ""
+        if aid in overrides and "reasoning_effort" in overrides[aid]:
+            agent["reasoning_effort"] = overrides[aid]["reasoning_effort"]
+        elif detail.get("reasoning_effort"):
+            agent["reasoning_effort"] = detail["reasoning_effort"]
+        result.append(agent)
+    return result
 
 
 @app.get("/api/agents/{agent_id}")
