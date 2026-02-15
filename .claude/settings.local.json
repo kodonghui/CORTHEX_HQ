@@ -13,7 +13,9 @@
       "Bash(git reset:*)",
       "Bash(git mv:*)",
       "Bash(gh pr create:*)",
-      "Bash(git fetch:*)"
+      "Bash(git fetch:*)",
+      "Bash(python3:*)",
+      "Bash(python -c:*)"
     ]
   }
 }
