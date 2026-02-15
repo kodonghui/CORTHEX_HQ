@@ -745,6 +745,13 @@
       </div>
     </div>
 
+    <!-- 로그아웃 버튼 (로그인 상태이고 부트스트랩 모드가 아닐 때만) -->
+    <template x-if="auth.token && !auth.bootstrapMode">
+      <button @click="doLogout()"
+              class="text-[10px] text-hq-muted hover:text-hq-red border border-hq-border hover:border-hq-red/30 rounded-md px-2 py-0.5 transition mr-2"
+              title="로그아웃">로그아웃</button>
+    </template>
+
     <div class="flex items-center gap-5">
       <!-- System Status (click → health popover) -->
       <div class="flex items-center gap-2 relative">
@@ -3081,16 +3088,11 @@
 
       <div class="space-y-4">
         <div>
-          <label class="text-xs text-hq-muted font-semibold mb-1 block">사용자명</label>
-          <input x-model="auth.loginUser" placeholder="사용자명"
-                 class="w-full bg-hq-bg border border-hq-border rounded-lg px-3 py-2.5 text-sm text-hq-text focus:border-hq-accent outline-none"
-                 @keydown.enter="$refs.loginPass.focus()">
-        </div>
-        <div>
           <label class="text-xs text-hq-muted font-semibold mb-1 block">비밀번호</label>
-          <input x-ref="loginPass" x-model="auth.loginPass" type="password" placeholder="비밀번호"
+          <input x-model="auth.loginPass" type="password" placeholder="비밀번호"
                  class="w-full bg-hq-bg border border-hq-border rounded-lg px-3 py-2.5 text-sm text-hq-text focus:border-hq-accent outline-none"
                  @keydown.enter="doLogin()">
+          <p class="text-[10px] text-hq-muted/60 mt-1">기본 비밀번호: corthex2026</p>
         </div>
       </div>
 
@@ -3099,8 +3101,6 @@
       <div class="flex flex-col gap-2 mt-6">
         <button @click="doLogin()"
                 class="bg-hq-accent hover:bg-blue-600 text-white rounded-lg px-5 py-2.5 text-sm font-semibold transition w-full">로그인</button>
-        <button @click="doRegister()"
-                class="border border-hq-border text-hq-muted hover:text-hq-text rounded-lg px-5 py-2.5 text-sm transition w-full">회원가입</button>
       </div>
     </div>
   </div>
@@ -5139,28 +5139,25 @@
 
         async checkAuth() {
           try {
-            const data = await fetch('/api/auth/status').then(r => r.json());
+            const token = localStorage.getItem('corthex_token');
+            const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
+            const data = await fetch('/api/auth/status', { headers }).then(r => r.json());
             this.auth.bootstrapMode = data.bootstrap_mode;
-            if (data.bootstrap_mode) {
-              this.auth.role = 'ceo';
+            if (data.authenticated) {
+              this.auth.role = data.role || 'ceo';
               this.auth.showLogin = false;
+              if (token) {
+                this.auth.token = token;
+                const userJson = localStorage.getItem('corthex_user');
+                if (userJson) this.auth.user = JSON.parse(userJson);
+              }
               return;
             }
-            // 토큰 확인
-            const token = localStorage.getItem('corthex_token');
-            if (token) {
-              this.auth.token = token;
-              const userJson = localStorage.getItem('corthex_user');
-              if (userJson) {
-                this.auth.user = JSON.parse(userJson);
-                this.auth.role = this.auth.user.role;
-              }
-              this.auth.showLogin = false;
-            } else {
-              this.auth.showLogin = true;
-            }
+            // 인증 실패
+            localStorage.removeItem('corthex_token');
+            localStorage.removeItem('corthex_user');
+            this.auth.showLogin = true;
           } catch (e) {
-            // API 오류 시 부트스트랩 모드로 간주
             this.auth.bootstrapMode = true;
             this.auth.role = 'ceo';
           }
@@ -5168,57 +5165,39 @@
 
         async doLogin() {
           this.auth.loginError = '';
-          const username = this.auth.loginUser.trim();
           const password = this.auth.loginPass.trim();
-          if (!username || !password) { this.auth.loginError = '사용자명과 비밀번호를 입력하세요'; return; }
+          if (!password) { this.auth.loginError = '비밀번호를 입력하세요'; return; }
           try {
             const data = await fetch('/api/auth/login', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ username, password }),
+              body: JSON.stringify({ password }),
             }).then(r => r.json());
             if (data.success) {
               localStorage.setItem('corthex_token', data.token);
-              localStorage.setItem('corthex_user', JSON.stringify(data.user));
+              localStorage.setItem('corthex_user', JSON.stringify(data.user || {role:'ceo'}));
               this.auth.token = data.token;
-              this.auth.user = data.user;
-              this.auth.role = data.user.role;
+              this.auth.user = data.user || {role:'ceo'};
+              this.auth.role = 'ceo';
               this.auth.showLogin = false;
-              this.auth.loginUser = '';
               this.auth.loginPass = '';
+              this.showToast('로그인 성공', 'success');
             } else {
               this.auth.loginError = data.error || '로그인 실패';
             }
           } catch (e) { this.auth.loginError = '서버 연결 오류'; }
         },
 
-        async doRegister() {
-          this.auth.loginError = '';
-          const username = this.auth.loginUser.trim();
-          const password = this.auth.loginPass.trim();
-          if (!username || !password) { this.auth.loginError = '사용자명과 비밀번호를 입력하세요'; return; }
+        async doLogout() {
           try {
-            const data = await fetch('/api/auth/register', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ username, password }),
-            }).then(r => r.json());
-            if (data.success) {
-              localStorage.setItem('corthex_token', data.token);
-              localStorage.setItem('corthex_user', JSON.stringify(data.user));
-              this.auth.token = data.token;
-              this.auth.user = data.user;
-              this.auth.role = data.user.role;
-              this.auth.showLogin = false;
-              this.auth.loginUser = '';
-              this.auth.loginPass = '';
-            } else {
-              this.auth.loginError = data.error || '회원가입 실패';
+            const token = localStorage.getItem('corthex_token');
+            if (token) {
+              await fetch('/api/auth/logout', {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` },
+              });
             }
-          } catch (e) { this.auth.loginError = '서버 연결 오류'; }
-        },
-
-        doLogout() {
+          } catch (e) { /* 무시 */ }
           localStorage.removeItem('corthex_token');
           localStorage.removeItem('corthex_user');
           this.auth.token = null;
@@ -5227,6 +5206,7 @@
           if (!this.auth.bootstrapMode) {
             this.auth.showLogin = true;
           }
+          this.showToast('로그아웃 되었습니다', 'info');
         },
 
         // ── Dynamic Loading ──

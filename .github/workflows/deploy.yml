@@ -24,11 +24,12 @@ jobs:
           BUILD_NUMBER: ${{ github.run_number }}
           TG_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TG_CEO_CHAT_ID: ${{ secrets.TELEGRAM_CEO_CHAT_ID }}
+          ANTHROPIC_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         with:
           host: ${{ secrets.SERVER_IP }}
           username: ubuntu
           key: ${{ secrets.SERVER_SSH_KEY }}
-          envs: BUILD_NUMBER,TG_BOT_TOKEN,TG_CEO_CHAT_ID
+          envs: BUILD_NUMBER,TG_BOT_TOKEN,TG_CEO_CHAT_ID,ANTHROPIC_KEY
           script: |
             echo "🚀 배포 시작... (빌드 #${BUILD_NUMBER})"
 
@@ -62,6 +63,7 @@ jobs:
             mkdir -p /home/ubuntu/web/templates
             mkdir -p /home/ubuntu/config
             cp web/mini_server.py /home/ubuntu/web/mini_server.py
+            cp web/ai_handler.py /home/ubuntu/web/ai_handler.py
             cp web/db.py /home/ubuntu/web/db.py
             cp /tmp/index.html /home/ubuntu/web/templates/index.html
             cp -r config/* /home/ubuntu/config/ 2>/dev/null || echo "⚠️ config 파일 없음 (무시)"
@@ -79,7 +81,7 @@ jobs:
             UVICORN_PY=$(python3 -c "import shutil; u=shutil.which('uvicorn'); print(u)" 2>/dev/null)
             echo "🔍 uvicorn 경로: $UVICORN_PY"
             # 시스템 Python에 설치
-            sudo python3 -m pip install --break-system-packages python-telegram-bot 2>&1 || true
+            sudo python3 -m pip install --break-system-packages python-telegram-bot anthropic 2>&1 || true
             # ExecStart에서 사용하는 Python에도 설치
             SVC_EXEC=$(grep "ExecStart" /etc/systemd/system/corthex.service 2>/dev/null | head -1)
             echo "🔍 ExecStart: $SVC_EXEC"
@@ -88,17 +90,18 @@ jobs:
               VENV_PIP=$(echo "$SVC_EXEC" | grep -oP '(/\S+)/bin/' | head -1)
               if [ -n "$VENV_PIP" ] && [ -x "${VENV_PIP}pip" ]; then
                 echo "📦 가상환경 pip 사용: ${VENV_PIP}pip"
-                "${VENV_PIP}pip" install python-telegram-bot 2>&1
+                "${VENV_PIP}pip" install python-telegram-bot anthropic 2>&1
               fi
             fi
             # ExecStart에서 Python 경로 추출해서 해당 Python에 설치
             SVC_PYTHON=$(echo "$SVC_EXEC" | grep -oP '/\S+python\S*' | head -1)
             if [ -n "$SVC_PYTHON" ] && [ -x "$SVC_PYTHON" ]; then
               echo "📦 서비스 Python으로 설치: $SVC_PYTHON"
-              sudo "$SVC_PYTHON" -m pip install --break-system-packages python-telegram-bot 2>&1 || true
+              sudo "$SVC_PYTHON" -m pip install --break-system-packages python-telegram-bot anthropic 2>&1 || true
             fi
             # 설치 확인
             python3 -c "import telegram; print(f'✅ python-telegram-bot v{telegram.__version__} 설치됨')" 2>&1 || echo "❌ telegram 모듈 임포트 실패!"
+            python3 -c "import anthropic; print(f'✅ anthropic v{anthropic.__version__} 설치됨')" 2>&1 || echo "❌ anthropic 모듈 임포트 실패!"
 
             # 5.5단계: YAML → JSON 변환 (서버의 Python에 PyYAML이 없어도 동작하도록)
             # 시스템 Python3에 yaml이 설치되어 있으므로 시스템 Python으로 실행
@@ -118,6 +121,15 @@ jobs:
               echo "📋 corthex.env 내용 확인:"
               cat "$ENV_FILE" | sed 's/\(BOT_TOKEN=\).*/\1***/' # 토큰은 마스킹해서 출력
               echo "✅ 텔레그램 봇 환경변수 설정 완료"
+            fi
+
+            # 5.7단계: Anthropic API 키 환경변수 설정
+            if [ -n "${ANTHROPIC_KEY}" ]; then
+              echo "🤖 Anthropic API 키 설정 중..."
+              ENV_FILE="/home/ubuntu/corthex.env"
+              sed -i '/^ANTHROPIC_API_KEY/d' "$ENV_FILE"
+              echo "ANTHROPIC_API_KEY=${ANTHROPIC_KEY}" >> "$ENV_FILE"
+              echo "✅ Anthropic API 키 설정 완료"
             fi
 
             # 6단계: 미니 서버 재시작
