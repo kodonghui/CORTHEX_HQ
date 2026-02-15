@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>CORTHEX HQ - CEO Command Center</title>
-  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/@alpinejs/collapse@3.x.x/dist/cdn.min.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
@@ -434,6 +434,113 @@
     .dark [class*="to-hq-purple/10"] { --tw-gradient-to: rgb(var(--hq-purple) / 0.2) !important; }
     .dark [class*="from-hq-accent/5"] { --tw-gradient-from: rgb(var(--hq-accent) / 0.2) !important; }
     .dark [class*="to-hq-purple/5"] { --tw-gradient-to: rgb(var(--hq-purple) / 0.15) !important; }
+
+    /* ═══ 12) CRITICAL: 다크모드 가시성 최종 보장 ═══ */
+    /* Tailwind CDN 로딩 실패/지연 시에도 텍스트가 무조건 보이도록 순수 CSS 백업 */
+
+    /* 12-1) 기본 텍스트 색상 — body에서 상속되도록 */
+    .dark body {
+      color: #f2f6ff !important;
+    }
+    html:not(.dark) body {
+      color: #141c32 !important;
+    }
+
+    /* 12-2) 헤딩 — 무조건 밝게 */
+    .dark h1, .dark h2, .dark h3, .dark h4 {
+      color: #f2f6ff !important;
+    }
+
+    /* 12-3) muted 텍스트 — CSS 변수 사용하되 직접 fallback */
+    .dark .text-hq-muted,
+    .dark [class*="text-hq-muted"] {
+      color: #bed2ee !important;
+    }
+
+    /* 12-4) 강조 색상 텍스트 — 직접 색상값 */
+    .dark .text-hq-text,
+    .dark [class*="text-hq-text"] {
+      color: #f2f6ff !important;
+    }
+    .dark .text-hq-cyan,
+    .dark [class*="text-hq-cyan"] {
+      color: #46e1f8 !important;
+    }
+    .dark .text-hq-accent,
+    .dark [class*="text-hq-accent"] {
+      color: #6eb4ff !important;
+    }
+    .dark .text-hq-purple,
+    .dark [class*="text-hq-purple"] {
+      color: #b9a0ff !important;
+    }
+    .dark .text-hq-green,
+    .dark [class*="text-hq-green"] {
+      color: #4be6af !important;
+    }
+    .dark .text-hq-yellow,
+    .dark [class*="text-hq-yellow"] {
+      color: #ffd246 !important;
+    }
+    .dark .text-hq-red,
+    .dark [class*="text-hq-red"] {
+      color: #ff8282 !important;
+    }
+
+    /* 12-5) 핵심 배경색 직접 지정 (투명도 변형은 건드리지 않음) */
+    .dark .glass {
+      background-color: rgba(55, 68, 95, 0.95) !important;
+      border-color: rgba(110, 135, 180, 0.6) !important;
+    }
+    .dark aside {
+      background-color: rgba(55, 68, 95, 0.98) !important;
+      border-color: rgba(110, 135, 180, 0.6) !important;
+    }
+
+    /* 12-6) 테두리 직접 지정 */
+    .dark .border-hq-border,
+    .dark [class*="border-hq-border"] {
+      border-color: rgba(110, 135, 180, 0.6) !important;
+    }
+
+    /* 12-7) 사이드바 요소 가시성 보장 */
+    .dark aside {
+      color: #f2f6ff !important;
+    }
+    .dark aside .text-hq-muted,
+    .dark aside [class*="text-hq-muted"] {
+      color: #bed2ee !important;
+    }
+
+    /* 12-8) 헤더 바 텍스트 보장 */
+    .dark header {
+      color: #f2f6ff !important;
+    }
+    .dark header span,
+    .dark header div,
+    .dark header button {
+      color: inherit;
+    }
+
+    /* 12-9) 카드 내부 기본 텍스트 상속 보장 */
+    .dark .glass {
+      color: #f2f6ff !important;
+    }
+
+    /* 12-11) gradient-text는 건들지 않음 (이미 -webkit-text-fill-color: transparent 사용) */
+    .dark .gradient-text {
+      -webkit-text-fill-color: transparent !important;
+    }
+
+    /* 12-12) 상태 뱃지 색상 보장 */
+    .dark .status-badge {
+      color: inherit !important;
+    }
+
+    /* 12-13) SVG 아이콘 색상 보장 (currentColor 사용하는 아이콘) */
+    .dark svg {
+      color: inherit;
+    }
   </style>
 </head>
 
