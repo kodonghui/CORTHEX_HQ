@@ -1100,6 +1100,31 @@ async def get_available_models():
             "cost_input": 0.5,
             "cost_output": 2.0,
         },
+        # Google (Gemini) 모델들
+        {
+            "name": "gemini-3-pro-preview",
+            "provider": "google",
+            "tier": "executive",
+            "cost_input": 2.5,
+            "cost_output": 15.0,
+            "reasoning": "최고급 추론 + 멀티모달 + 에이전트 코딩",
+        },
+        {
+            "name": "gemini-2.5-pro",
+            "provider": "google",
+            "tier": "manager",
+            "cost_input": 1.25,
+            "cost_output": 10.0,
+            "reasoning": "고급 추론 + 100만 토큰 컨텍스트 + 적응형 사고",
+        },
+        {
+            "name": "gemini-2.5-flash",
+            "provider": "google",
+            "tier": "specialist",
+            "cost_input": 0.15,
+            "cost_output": 0.60,
+            "reasoning": "빠른 응답 + 사고 예산 조절 가능 + 고효율",
+        },
     ]
 
 
