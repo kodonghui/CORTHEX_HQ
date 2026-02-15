@@ -25,12 +25,13 @@ from db import (
     save_setting, load_setting, get_today_cost,
 )
 try:
-    from ai_handler import init_ai_client, is_ai_ready, ask_ai, select_model
+    from ai_handler import init_ai_client, is_ai_ready, ask_ai, select_model, classify_task
 except ImportError:
     def init_ai_client(): return False
     def is_ai_ready(): return False
     async def ask_ai(*a, **kw): return {"error": "ai_handler 미설치"}
-    def select_model(t): return "claude-haiku-4-5-20251001"
+    def select_model(t, override=None): return override or "claude-haiku-4-5-20251001"
+    async def classify_task(t): return {"agent_id": "chief_of_staff", "reason": "ai_handler 미설치", "cost_usd": 0}
 
 # Python 출력 버퍼링 비활성화 (systemd에서 로그가 바로 보이도록)
 os.environ["PYTHONUNBUFFERED"] = "1"
@@ -308,17 +309,19 @@ async def websocket_endpoint(ws: WebSocket):
                         if "error" in result:
                             await ws.send_json({
                                 "event": "result",
-                                "data": {"content": f"❌ {result['error']}", "sender_id": "chief_of_staff", "time_seconds": 0, "cost": 0}
+                                "data": {"content": f"❌ {result['error']}", "sender_id": result.get("agent_id", "chief_of_staff"), "handled_by": result.get("handled_by", "비서실장"), "time_seconds": 0, "cost": 0}
                             })
                         else:
                             await ws.send_json({
                                 "event": "result",
                                 "data": {
                                     "content": result.get("content", ""),
-                                    "sender_id": "chief_of_staff",
+                                    "sender_id": result.get("agent_id", "chief_of_staff"),
+                                    "handled_by": result.get("handled_by", "비서실장"),
                                     "time_seconds": result.get("time_seconds", 0),
-                                    "cost": result.get("cost_usd", 0),
+                                    "cost": result.get("total_cost_usd", result.get("cost_usd", 0)),
                                     "model": result.get("model", ""),
+                                    "routing_method": result.get("routing_method", ""),
                                 }
                             })
                     else:
@@ -417,6 +420,25 @@ async def get_budget():
         "exceeded": today >= limit,
         "monthly_limit": 300.0, "monthly_used": today,
     }
+
+
+@app.get("/api/model-mode")
+async def get_model_mode():
+    """현재 모델 모드 조회 (auto/manual)."""
+    mode = load_setting("model_mode") or "auto"
+    override = load_setting("model_override") or "claude-sonnet-4-5-20250929"
+    return {"mode": mode, "override": override}
+
+
+@app.put("/api/model-mode")
+async def set_model_mode(request: Request):
+    """모델 모드 변경."""
+    body = await request.json()
+    mode = body.get("mode", "auto")
+    save_setting("model_mode", mode)
+    if mode == "manual" and "override" in body:
+        save_setting("model_override", body["override"])
+    return {"success": True, "mode": mode}
 
 
 @app.get("/api/quality")
@@ -1287,10 +1309,13 @@ async def _start_telegram_bot() -> None:
                     # 텔레그램 메시지 길이 제한 (4096자)
                     if len(content) > 3900:
                         content = content[:3900] + "\n\n... (결과가 잘렸습니다. 웹에서 전체 확인)"
+                    handled_by = result.get("handled_by", "비서실장")
+                    routing = result.get("routing_method", "")
+                    model_short = model.split("-")[1] if "-" in model else model
                     await update.message.reply_text(
                         f"{content}\n\n"
                         f"─────\n"
-                        f"💰 ${cost:.4f} | 🤖 {model.split('-')[1] if '-' in model else model}",
+                        f"👤 {handled_by} | 💰 ${cost:.4f} | 🤖 {model_short}",
                         parse_mode=None,
                     )
             else:
@@ -1382,38 +1407,150 @@ async def _stop_telegram_bot() -> None:
         _telegram_app = None
 
 
-# ── AI 비서실장 (Phase 2) ──
+# ── AI 에이전트 위임 시스템 (Phase 5) ──
+
+# 부서별 키워드 라우팅 테이블
+_ROUTING_KEYWORDS: dict[str, list[str]] = {
+    "cto_manager": [
+        "코드", "버그", "프론트", "백엔드", "API", "서버", "배포",
+        "웹사이트", "홈페이지", "디자인", "UI", "UX", "데이터베이스",
+        "개발", "프로그래밍", "깃허브", "github", "리팩토링",
+    ],
+    "cso_manager": [
+        "시장", "경쟁사", "사업계획", "매출", "예측", "전략",
+        "비즈니스", "BM", "수익", "사업", "기획", "성장",
+    ],
+    "clo_manager": [
+        "저작권", "특허", "상표", "약관", "계약", "법률", "소송", "IP",
+        "규제", "라이선스", "법적", "법무",
+    ],
+    "cmo_manager": [
+        "마케팅", "광고", "SNS", "인스타", "유튜브", "고객",
+        "설문", "브랜딩", "콘텐츠", "홍보", "프로모션", "캠페인",
+    ],
+    "cio_manager": [
+        "삼성", "애플", "주식", "투자", "종목", "차트", "시황",
+        "코스피", "나스닥", "포트폴리오", "금리", "환율", "채권",
+        "ETF", "펀드", "배당", "테슬라", "엔비디아",
+    ],
+    "cpo_manager": [
+        "기록", "빌딩로그", "연대기", "블로그", "출판", "편집", "회고",
+        "아카이브", "문서화", "회의록",
+    ],
+}
+
+# 에이전트 ID → 한국어 이름 매핑
+_AGENT_NAMES: dict[str, str] = {
+    "chief_of_staff": "비서실장",
+    "cto_manager": "CTO (기술개발처장)",
+    "cso_manager": "CSO (사업기획처장)",
+    "clo_manager": "CLO (법무IP처장)",
+    "cmo_manager": "CMO (마케팅고객처장)",
+    "cio_manager": "CIO (투자분석처장)",
+    "cpo_manager": "CPO (출판기록처장)",
+}
+
+
+def _classify_by_keywords(text: str) -> str | None:
+    """키워드 기반 빠른 분류. 매칭 실패 시 None 반환."""
+    for agent_id, keywords in _ROUTING_KEYWORDS.items():
+        if any(kw in text for kw in keywords):
+            return agent_id
+    return None
+
+
+async def _route_task(text: str) -> dict:
+    """CEO 명령을 적합한 에이전트에게 라우팅합니다.
+
+    1단계: 키워드 매칭 (무료, 즉시)
+    2단계: AI 분류 (Haiku, ~$0.001)
+    3단계: 폴백 → 비서실장
+    """
+    # 1단계: 키워드 분류
+    agent_id = _classify_by_keywords(text)
+    if agent_id:
+        return {
+            "agent_id": agent_id,
+            "method": "키워드",
+            "cost_usd": 0.0,
+            "reason": "키워드 매칭",
+        }
+
+    # 2단계: AI 분류 (키워드 실패 시)
+    result = await classify_task(text)
+    if result.get("agent_id") and result["agent_id"] != "chief_of_staff":
+        return {
+            "agent_id": result["agent_id"],
+            "method": "AI분류",
+            "cost_usd": result.get("cost_usd", 0),
+            "reason": result.get("reason", "AI 분류"),
+        }
+
+    # 3단계: 폴백 — 비서실장 직접 처리
+    return {
+        "agent_id": "chief_of_staff",
+        "method": "직접",
+        "cost_usd": result.get("cost_usd", 0),
+        "reason": result.get("reason", "비서실장 직접 처리"),
+    }
+
+
+def _load_agent_prompt(agent_id: str) -> str:
+    """에이전트의 시스템 프롬프트(소울)를 로드합니다.
+
+    우선순위: DB 오버라이드 > souls/*.md 파일 > agents.yaml system_prompt > 기본값
+    """
+    # 1순위: DB 오버라이드
+    soul = load_setting(f"soul_{agent_id}")
+    if soul:
+        return soul
+
+    # 2순위: souls 파일
+    soul_path = Path(BASE_DIR).parent / "souls" / "agents" / f"{agent_id}.md"
+    if soul_path.exists():
+        try:
+            return soul_path.read_text(encoding="utf-8")
+        except Exception:
+            pass
+
+    # 3순위: agents.yaml의 system_prompt
+    detail = _AGENTS_DETAIL.get(agent_id, {})
+    if detail.get("system_prompt"):
+        return detail["system_prompt"]
+
+    # 4순위: 기본 프롬프트
+    name = _AGENT_NAMES.get(agent_id, agent_id)
+    return (
+        f"당신은 CORTHEX HQ의 {name}입니다. "
+        "CEO의 업무 지시를 받아 처리하고, 명확하고 간결하게 한국어로 답변합니다. "
+        "항상 존댓말을 사용하고, 구체적이고 실행 가능한 답변을 제공합니다."
+    )
+
 
 _chief_prompt: str = ""
 
 
 def _load_chief_prompt() -> None:
-    """비서실장 시스템 프롬프트를 로드합니다."""
+    """비서실장 시스템 프롬프트를 로드합니다 (서버 시작 시 캐시)."""
     global _chief_prompt
-    # 1순위: DB에 저장된 소울 오버라이드
-    override = load_setting("soul_chief_of_staff")
-    if override:
-        _chief_prompt = override
-        _log("[AI] 비서실장 프롬프트: DB 오버라이드 사용")
-        return
-    # 2순위: souls 파일
-    soul_path = Path(BASE_DIR).parent / "souls" / "agents" / "chief_of_staff.md"
-    if soul_path.exists():
-        _chief_prompt = soul_path.read_text(encoding="utf-8")
-        _log(f"[AI] 비서실장 프롬프트: {soul_path}")
-        return
-    # 3순위: 기본 프롬프트
-    _chief_prompt = (
-        "당신은 CORTHEX HQ의 비서실장입니다. "
-        "CEO의 업무 지시를 받아 처리하고, 명확하고 간결하게 한국어로 답변합니다. "
-        "항상 존댓말을 사용하고, 구체적이고 실행 가능한 답변을 제공합니다."
-    )
-    _log("[AI] 비서실장 프롬프트: 기본값 사용")
+    _chief_prompt = _load_agent_prompt("chief_of_staff")
+    _log("[AI] 비서실장 프롬프트 로드 완료")
+
+
+def _get_model_override() -> str | None:
+    """수동 모드일 때 강제 적용할 모델명 반환. 자동 모드이면 None."""
+    mode = load_setting("model_mode") or "auto"
+    if mode == "manual":
+        return load_setting("model_override") or None
+    return None
 
 
 async def _process_ai_command(text: str, task_id: str) -> dict:
-    """AI에게 명령을 보내고 결과를 반환합니다."""
-    # 예산 확인
+    """CEO 명령을 적합한 에이전트에게 위임하고 AI 결과를 반환합니다.
+
+    흐름: 예산 확인 → 라우팅(분류) → 소울 로드 → 모델 선택 → AI 호출 → DB 저장
+    """
+    # 1) 예산 확인
     limit = float(load_setting("daily_budget_usd") or 7.0)
     today = get_today_cost()
     if today >= limit:
@@ -1421,21 +1558,52 @@ async def _process_ai_command(text: str, task_id: str) -> dict:
                     result_summary=f"일일 예산 초과 (${today:.2f}/${limit:.0f})",
                     success=0)
         return {"error": f"일일 예산을 초과했습니다 (${today:.2f}/${limit:.0f})"}
-    # AI 호출
-    result = await ask_ai(text, system_prompt=_chief_prompt)
+
+    # 2) 라우팅 — 적합한 에이전트 결정
+    routing = await _route_task(text)
+    target_id = routing["agent_id"]
+    routing_cost = routing.get("cost_usd", 0)
+
+    # 3) 에이전트 소울(성격) 로드
+    if target_id == "chief_of_staff" and _chief_prompt:
+        soul = _chief_prompt  # 캐시된 비서실장 프롬프트 사용
+    else:
+        soul = _load_agent_prompt(target_id)
+
+    # 4) 모델 결정 (수동 오버라이드 or 자동)
+    override = _get_model_override()
+    model = select_model(text, override=override)
+
+    # 5) AI 호출
+    result = await ask_ai(text, system_prompt=soul, model=model)
+
     if "error" in result:
         update_task(task_id, status="failed",
                     result_summary=f"AI 오류: {result['error'][:100]}",
-                    success=0)
+                    success=0, agent_id=target_id)
+        result["handled_by"] = _AGENT_NAMES.get(target_id, target_id)
         return result
-    # DB 업데이트
+
+    # 6) 총 비용 = 라우팅 비용 + AI 호출 비용
+    total_cost = routing_cost + result.get("cost_usd", 0)
+
+    # 7) DB 업데이트 (에이전트 ID 포함)
     update_task(task_id, status="completed",
                 result_summary=result["content"][:500],
                 result_data=result["content"],
                 success=1,
-                cost_usd=result.get("cost_usd", 0),
+                cost_usd=total_cost,
                 tokens_used=result.get("input_tokens", 0) + result.get("output_tokens", 0),
-                time_seconds=result.get("time_seconds", 0))
+                time_seconds=result.get("time_seconds", 0),
+                agent_id=target_id)
+
+    # 8) 응답에 라우팅 정보 추가
+    result["handled_by"] = _AGENT_NAMES.get(target_id, target_id)
+    result["agent_id"] = target_id
+    result["routing_method"] = routing["method"]
+    result["routing_reason"] = routing.get("reason", "")
+    result["total_cost_usd"] = total_cost
+
     return result
 
 

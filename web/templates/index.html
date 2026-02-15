@@ -1666,7 +1666,7 @@
                       <div class="flex items-center justify-between px-5 py-3 border-b border-hq-border/50 bg-hq-green/[0.03]">
                         <div class="flex items-center gap-2.5">
                           <div class="w-2 h-2 rounded-full bg-hq-green"></div>
-                          <span class="text-xs font-bold text-hq-green uppercase tracking-wider" x-text="getAgentName(msg.sender_id) || '결과'"></span>
+                          <span class="text-xs font-bold text-hq-green tracking-wider" x-text="msg.handled_by || getAgentName(msg.sender_id) || '결과'"></span>
                           <template x-if="msg.quality_score">
                             <span class="status-badge border" :class="getQualityBadge(msg.quality_score).cls" x-text="getQualityBadge(msg.quality_score).label"></span>
                           </template>
@@ -1681,6 +1681,12 @@
                               <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                               <span x-text="'$' + (msg.cost || 0).toFixed(4)"></span>
                             </div>
+                            <template x-if="msg.model">
+                              <div class="flex items-center gap-1">
+                                <span class="text-hq-accent">&#9679;</span>
+                                <span x-text="msg.model.includes('-') ? msg.model.split('-')[1] : msg.model"></span>
+                              </div>
+                            </template>
                           </div>
                           <button @click="copyToClipboard(msg.content)" class="text-hq-muted hover:text-hq-green transition p-1" title="복사">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
@@ -2183,6 +2189,39 @@
                            :style="'width: ' + Math.min(100, (budget.monthly_used || 0) / (budget.monthly_limit || 1) * 100) + '%'"></div>
                     </div>
                   </div>
+                </div>
+              </div>
+
+              <!-- Model Mode Section -->
+              <div class="glass border border-hq-border rounded-xl p-5">
+                <div class="flex justify-between items-center mb-4">
+                  <h3 class="text-sm font-bold text-hq-text flex items-center gap-2">
+                    <span class="text-hq-accent">&#9881;</span> AI 모델 모드
+                  </h3>
+                </div>
+                <div class="flex gap-2 mb-3">
+                  <button @click="modelMode = 'auto'; saveModelMode()"
+                          :class="modelMode === 'auto' ? 'bg-hq-accent text-white' : 'bg-hq-bg text-hq-muted border border-hq-border'"
+                          class="flex-1 text-xs font-bold px-3 py-2 rounded-lg transition">
+                    자동
+                  </button>
+                  <button @click="modelMode = 'manual'; saveModelMode()"
+                          :class="modelMode === 'manual' ? 'bg-hq-accent text-white' : 'bg-hq-bg text-hq-muted border border-hq-border'"
+                          class="flex-1 text-xs font-bold px-3 py-2 rounded-lg transition">
+                    수동
+                  </button>
+                </div>
+                <div x-show="modelMode === 'auto'" class="text-[10px] text-hq-muted">
+                  질문 길이/내용에 따라 Haiku(저비용) 또는 Sonnet(고품질) 자동 선택
+                </div>
+                <div x-show="modelMode === 'manual'" class="mt-2">
+                  <select x-model="modelOverride" @change="saveModelMode()"
+                          class="w-full bg-hq-bg border border-hq-border rounded-lg px-3 py-2 text-sm text-hq-text">
+                    <option value="claude-haiku-4-5-20251001">Claude Haiku (저비용)</option>
+                    <option value="claude-sonnet-4-5-20250929">Claude Sonnet (균형)</option>
+                    <option value="claude-opus-4-6">Claude Opus (최고 성능)</option>
+                  </select>
+                  <div class="text-[10px] text-hq-muted mt-1">모든 에이전트가 이 모델을 사용합니다</div>
                 </div>
               </div>
 
@@ -3817,6 +3856,8 @@
         // Dashboard extras (budget, quality, task detail)
         dashboardRefreshTimer: null,
         budget: {},
+        modelMode: 'auto',
+        modelOverride: 'claude-sonnet-4-5-20250929',
         quality: {},
         showTaskDetail: false,
         taskDetailData: null,
@@ -4133,6 +4174,8 @@
                 type: 'result',
                 content: msg.data.content,
                 sender_id: msg.data.sender_id || 'chief_of_staff',
+                handled_by: msg.data.handled_by || '비서실장',
+                model: msg.data.model || '',
                 time_seconds: msg.data.time_seconds,
                 cost: msg.data.cost,
                 quality_score: msg.data.quality_score || null,
@@ -4792,6 +4835,7 @@
               fetch('/api/budget').then(r => r.ok ? r.json() : {}),
               fetch('/api/quality').then(r => r.ok ? r.json() : {}),
             ]);
+            this.loadModelMode();
             this.dashboard = {
               todayTasks: data.today_task_count || 0,
               todayCompleted: data.today_completed || 0,
@@ -5593,6 +5637,26 @@
               this.showToast(res.error || '예산 수정 실패', 'error');
             }
           } catch { this.showToast('예산 수정에 실패했습니다.', 'error'); }
+        },
+
+        // ── Model Mode (자동/수동) ──
+        async loadModelMode() {
+          try {
+            const res = await fetch('/api/model-mode').then(r => r.json());
+            this.modelMode = res.mode || 'auto';
+            this.modelOverride = res.override || 'claude-sonnet-4-5-20250929';
+          } catch {}
+        },
+        async saveModelMode() {
+          try {
+            await fetch('/api/model-mode', {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ mode: this.modelMode, override: this.modelOverride }),
+            });
+            const label = this.modelMode === 'auto' ? '자동 모드' : this.modelOverride.split('-')[1] || this.modelOverride;
+            this.showToast('모델 모드: ' + label, 'success');
+          } catch { this.showToast('모델 모드 변경 실패', 'error'); }
         },
 
         // ── #13: Activity Log Persistence ──
