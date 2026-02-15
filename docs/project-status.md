@@ -9,9 +9,9 @@
 ## 마지막 업데이트
 
 - **날짜**: 2026-02-15
-- **버전**: `0.05.051`
-- **작업 브랜치**: claude/design-neutral-dark-overhaul
-- **작업 내용**: Glass + Aurora Mix 디자인 적용 — 따뜻한 톤 팔레트, 오로라 그라데이션 배경, 유리 효과(glassmorphism), 보내기 버튼 수정
+- **버전**: `0.05.054`
+- **작업 브랜치**: claude/reapply-history-ui-improvements
+- **작업 내용**: 작업내역 탭 & 명령 입력창 UI 개선 — 빈 상태 일러스트, 샘플 데이터 미리보기, 입력 힌트 순환, 통계 카드 리디자인 (이전 PR에서 유실된 변경분 재적용)
 - **빌드 번호**: 배포 후 확인 (GitHub Actions `deploy.yml` 실행 번호 = 빌드 번호)
 
 ---
