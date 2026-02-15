@@ -3001,45 +3001,64 @@
 
   <!-- ═══ Universal Delete Confirm Modal (범용 삭제 확인) ═══ -->
   <div x-show="confirmDelete.type" x-transition.opacity
-       class="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-lg"
+       class="fixed inset-0 z-[60] flex items-center justify-center backdrop-blur-lg"
+       :class="darkMode ? 'bg-black/60' : 'bg-black/30'"
        @click.self="confirmDelete = {type:null, id:null, name:null}" style="display: none;">
     <div class="relative overflow-hidden rounded-3xl w-full max-w-[400px] mx-4 text-center" @click.stop
-         style="background: rgba(18,10,36,0.92); border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 0 60px rgba(239,68,68,0.12), 0 0 120px rgba(139,92,246,0.08), 0 8px 32px rgba(0,0,0,0.4);"
+         :style="darkMode
+           ? 'background: rgba(18,10,36,0.92); border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 0 60px rgba(239,68,68,0.12), 0 0 120px rgba(139,92,246,0.08), 0 8px 32px rgba(0,0,0,0.4);'
+           : 'background: rgba(255,255,255,0.95); border: 1px solid rgba(210,38,38,0.15); box-shadow: 0 0 40px rgba(210,38,38,0.08), 0 8px 32px rgba(0,0,0,0.1);'"
          x-transition:enter="transition ease-out duration-300"
          x-transition:enter-start="opacity-0 scale-90 translate-y-4"
          x-transition:enter-end="opacity-100 scale-100 translate-y-0">
       <!-- 오로라 배경 그라데이션 -->
-      <div style="position:absolute; inset:0; background: linear-gradient(135deg, rgba(239,68,68,0.06) 0%, rgba(139,92,246,0.08) 40%, rgba(236,72,153,0.06) 70%, rgba(239,68,68,0.04) 100%); pointer-events:none;"></div>
+      <div :style="darkMode
+        ? 'position:absolute; inset:0; background: linear-gradient(135deg, rgba(239,68,68,0.06) 0%, rgba(139,92,246,0.08) 40%, rgba(236,72,153,0.06) 70%, rgba(239,68,68,0.04) 100%); pointer-events:none;'
+        : 'position:absolute; inset:0; background: linear-gradient(135deg, rgba(210,38,38,0.03) 0%, rgba(114,48,220,0.03) 40%, rgba(210,38,38,0.02) 100%); pointer-events:none;'"></div>
       <!-- 상단 빨간 라인 -->
-      <div style="position:absolute; top:0; left:0; right:0; height:2px; background: linear-gradient(90deg, transparent, rgba(239,68,68,0.6), rgba(236,72,153,0.4), transparent);"></div>
+      <div :style="darkMode
+        ? 'position:absolute; top:0; left:0; right:0; height:2px; background: linear-gradient(90deg, transparent, rgba(239,68,68,0.6), rgba(236,72,153,0.4), transparent);'
+        : 'position:absolute; top:0; left:0; right:0; height:2px; background: linear-gradient(90deg, transparent, rgba(210,38,38,0.5), rgba(180,60,120,0.3), transparent);'"></div>
       <div class="relative px-8 pt-8 pb-7">
         <!-- 큰 아이콘 + 빨간 글로우 -->
         <div class="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6"
-             style="background: radial-gradient(circle, rgba(239,68,68,0.2) 0%, rgba(239,68,68,0.05) 70%); border: 1.5px solid rgba(239,68,68,0.3); box-shadow: 0 0 30px rgba(239,68,68,0.25), 0 0 60px rgba(239,68,68,0.1);">
-          <svg class="w-9 h-9" style="color: rgb(252,129,129); filter: drop-shadow(0 0 8px rgba(239,68,68,0.4));" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+             :style="darkMode
+               ? 'background: radial-gradient(circle, rgba(239,68,68,0.2) 0%, rgba(239,68,68,0.05) 70%); border: 1.5px solid rgba(239,68,68,0.3); box-shadow: 0 0 30px rgba(239,68,68,0.25), 0 0 60px rgba(239,68,68,0.1);'
+               : 'background: radial-gradient(circle, rgba(210,38,38,0.1) 0%, rgba(210,38,38,0.03) 70%); border: 1.5px solid rgba(210,38,38,0.2); box-shadow: 0 0 20px rgba(210,38,38,0.1);'">
+          <svg class="w-9 h-9" :style="darkMode
+            ? 'color: rgb(252,129,129); filter: drop-shadow(0 0 8px rgba(239,68,68,0.4));'
+            : 'color: rgb(210,38,38); filter: drop-shadow(0 0 6px rgba(210,38,38,0.2));'" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
         </div>
         <!-- 제목 (타입에 따라 다르게) -->
         <h3 class="text-lg font-bold text-hq-text mb-3" x-text="confirmDelete.type === 'workflow' ? '워크플로우를 삭제하시겠습니까?' : '예약을 삭제하시겠습니까?'"></h3>
         <!-- 이름 하이라이트 -->
         <div class="mb-6">
           <div class="inline-block rounded-lg px-4 py-2"
-               style="background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.15);">
-            <span class="text-sm font-semibold" style="color: rgb(252,165,165);" x-text="confirmDelete.name || '이름 없음'"></span>
+               :style="darkMode
+                 ? 'background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.15);'
+                 : 'background: rgba(210,38,38,0.06); border: 1px solid rgba(210,38,38,0.12);'">
+            <span class="text-sm font-semibold"
+                  :style="darkMode ? 'color: rgb(252,165,165);' : 'color: rgb(185,28,28);'"
+                  x-text="confirmDelete.name || '이름 없음'"></span>
           </div>
-          <p class="text-[13px] mt-3" style="color: rgba(200,195,220,0.6);">이 항목은 영구적으로 삭제되며 복구할 수 없습니다.</p>
+          <p class="text-[13px] mt-3" :style="darkMode ? 'color: rgba(200,195,220,0.6);' : 'color: rgba(85,80,108,0.7);'">이 항목은 영구적으로 삭제되며 복구할 수 없습니다.</p>
         </div>
         <!-- 버튼 (전체 너비, 세로 배치) -->
         <div class="space-y-2.5">
           <button @click="if(confirmDelete.type==='schedule') deleteSchedule(confirmDelete.id); else if(confirmDelete.type==='workflow') deleteWorkflow(confirmDelete.id); confirmDelete={type:null,id:null,name:null};"
                   class="w-full py-3 text-sm text-white rounded-2xl font-semibold transition-all duration-200"
-                  style="background: linear-gradient(135deg, rgb(220,50,50), rgb(180,30,80)); box-shadow: 0 0 20px rgba(239,68,68,0.3), 0 4px 12px rgba(0,0,0,0.3);"
-                  onmouseover="this.style.boxShadow='0 0 35px rgba(239,68,68,0.5), 0 4px 16px rgba(0,0,0,0.4)'; this.style.transform='translateY(-1px)'"
-                  onmouseout="this.style.boxShadow='0 0 20px rgba(239,68,68,0.3), 0 4px 12px rgba(0,0,0,0.3)'; this.style.transform='translateY(0)'">삭제하기</button>
+                  :style="darkMode
+                    ? 'background: linear-gradient(135deg, rgb(220,50,50), rgb(180,30,80)); box-shadow: 0 0 20px rgba(239,68,68,0.3), 0 4px 12px rgba(0,0,0,0.3);'
+                    : 'background: linear-gradient(135deg, rgb(220,50,50), rgb(185,28,28)); box-shadow: 0 2px 12px rgba(210,38,38,0.25);'"
+                  @mouseover="$el.style.transform='translateY(-1px)'; $el.style.boxShadow=darkMode ? '0 0 35px rgba(239,68,68,0.5), 0 4px 16px rgba(0,0,0,0.4)' : '0 4px 20px rgba(210,38,38,0.35)'"
+                  @mouseout="$el.style.transform='translateY(0)'; $el.style.boxShadow=darkMode ? '0 0 20px rgba(239,68,68,0.3), 0 4px 12px rgba(0,0,0,0.3)' : '0 2px 12px rgba(210,38,38,0.25)'">삭제하기</button>
           <button @click="confirmDelete = {type:null, id:null, name:null}"
                   class="w-full py-3 text-sm rounded-2xl transition-all duration-200 font-medium"
-                  style="color: rgba(200,195,220,0.8); border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.04);"
-                  onmouseover="this.style.background='rgba(255,255,255,0.08)'; this.style.borderColor='rgba(255,255,255,0.15)'"
-                  onmouseout="this.style.background='rgba(255,255,255,0.04)'; this.style.borderColor='rgba(255,255,255,0.08)'">취소</button>
+                  :style="darkMode
+                    ? 'color: rgba(200,195,220,0.8); border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.04);'
+                    : 'color: rgba(85,80,108,0.8); border: 1px solid rgba(0,0,0,0.1); background: rgba(0,0,0,0.03);'"
+                  @mouseover="$el.style.background=darkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'; $el.style.borderColor=darkMode ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.15)'"
+                  @mouseout="$el.style.background=darkMode ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)'; $el.style.borderColor=darkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.1)'">취소</button>
         </div>
       </div>
     </div>
