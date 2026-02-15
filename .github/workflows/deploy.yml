@@ -60,59 +60,42 @@ jobs:
             echo "📄 대시보드 파일 복사 중..."
             sudo cp /tmp/index.html /var/www/html/index.html
 
-            # 4단계: 미니 서버 파일 복사
-            # 주의: corthex 서비스는 /home/ubuntu/CORTHEX_HQ/web/ (git 저장소)에서 실행됨
-            echo "🐍 미니 서버 파일 복사 중..."
+            # 4단계: 백엔드 파일 복사
+            echo "🐍 백엔드 파일 복사 중..."
             mkdir -p /home/ubuntu/web/templates
+            mkdir -p /home/ubuntu/web/src
             mkdir -p /home/ubuntu/config
-            cp web/mini_server.py /home/ubuntu/web/mini_server.py
-            cp web/ai_handler.py /home/ubuntu/web/ai_handler.py
-            cp web/db.py /home/ubuntu/web/db.py
+            # app.py와 src/ 폴더 복사
+            cp web/app.py /home/ubuntu/web/app.py
+            cp -r web/src/* /home/ubuntu/web/src/ 2>/dev/null || echo "⚠️ src 폴더 복사 실패"
+            # templates 복사
             cp /tmp/index.html /home/ubuntu/web/templates/index.html
             cp -r config/* /home/ubuntu/config/ 2>/dev/null || echo "⚠️ config 파일 없음 (무시)"
-            # git 저장소의 templates에도 빌드번호 주입된 HTML 복사 (서버가 여기서 읽음)
+            # git 저장소의 templates에도 빌드번호 주입된 HTML 복사
             cp /tmp/index.html /home/ubuntu/CORTHEX_HQ/web/templates/index.html
 
-            # 5단계: Python 의존성 설치 (PyYAML + 텔레그램 봇)
-            echo "📦 Python 패키지 설치 중..."
-            sudo apt-get install -y python3-yaml python3-pip 2>/dev/null || echo "⚠️ apt 패키지 설치 실패"
-            # corthex.service 설정 확인 (어떤 Python/uvicorn을 사용하는지)
-            echo "🔍 corthex.service 설정:"
-            cat /etc/systemd/system/corthex.service 2>/dev/null || echo "(서비스 파일 없음)"
-            echo ""
-            # uvicorn이 사용하는 Python에 맞게 설치
-            UVICORN_PY=$(python3 -c "import shutil; u=shutil.which('uvicorn'); print(u)" 2>/dev/null)
-            echo "🔍 uvicorn 경로: $UVICORN_PY"
-            # 시스템 Python에 설치
-            # --ignore-installed: Ubuntu 시스템 패키지(typing_extensions 등)와 버전 충돌 방지
-            sudo python3 -m pip install --break-system-packages --ignore-installed python-telegram-bot anthropic google-genai openai 2>&1 || true
-            # ExecStart에서 사용하는 Python에도 설치
-            SVC_EXEC=$(grep "ExecStart" /etc/systemd/system/corthex.service 2>/dev/null | head -1)
-            echo "🔍 ExecStart: $SVC_EXEC"
-            # venv의 pip를 찾아서 설치
-            if echo "$SVC_EXEC" | grep -q "venv\|virtualenv"; then
-              VENV_PIP=$(echo "$SVC_EXEC" | grep -oP '(/\S+)/bin/' | head -1)
-              if [ -n "$VENV_PIP" ] && [ -x "${VENV_PIP}pip" ]; then
-                echo "📦 가상환경 pip 사용: ${VENV_PIP}pip"
-                "${VENV_PIP}pip" install python-telegram-bot anthropic google-genai openai 2>&1
-              fi
+            # 5단계: Python venv 설정 및 의존성 설치
+            echo "📦 Python 가상환경 설정 중..."
+            # venv가 없으면 생성
+            if [ ! -d "/home/ubuntu/web/venv" ]; then
+              echo "🆕 가상환경 생성 중..."
+              python3 -m venv /home/ubuntu/web/venv
             fi
-            # ExecStart에서 Python 경로 추출해서 해당 Python에 설치
-            SVC_PYTHON=$(echo "$SVC_EXEC" | grep -oP '/\S+python\S*' | head -1)
-            if [ -n "$SVC_PYTHON" ] && [ -x "$SVC_PYTHON" ]; then
-              echo "📦 서비스 Python으로 설치: $SVC_PYTHON"
-              sudo "$SVC_PYTHON" -m pip install --break-system-packages --ignore-installed python-telegram-bot anthropic google-genai openai 2>&1 || true
-            fi
+            # venv 활성화 후 requirements.txt 설치
+            echo "📦 requirements.txt 패키지 설치 중..."
+            /home/ubuntu/web/venv/bin/pip install --upgrade pip
+            /home/ubuntu/web/venv/bin/pip install -r /home/ubuntu/CORTHEX_HQ/web/requirements.txt
             # 설치 확인
-            python3 -c "import telegram; print(f'✅ python-telegram-bot v{telegram.__version__} 설치됨')" 2>&1 || echo "❌ telegram 모듈 임포트 실패!"
-            python3 -c "import anthropic; print(f'✅ anthropic v{anthropic.__version__} 설치됨')" 2>&1 || echo "❌ anthropic 모듈 임포트 실패!"
-            python3 -c "from google import genai; print('✅ google-genai 설치됨')" 2>&1 || echo "❌ google-genai 모듈 임포트 실패!"
-            python3 -c "import openai; print(f'✅ openai v{openai.__version__} 설치됨')" 2>&1 || echo "❌ openai 모듈 임포트 실패!"
+            /home/ubuntu/web/venv/bin/python -c "import telegram; print(f'✅ python-telegram-bot v{telegram.__version__} 설치됨')" 2>&1 || echo "❌ telegram 모듈 임포트 실패!"
+            /home/ubuntu/web/venv/bin/python -c "import anthropic; print(f'✅ anthropic v{anthropic.__version__} 설치됨')" 2>&1 || echo "❌ anthropic 모듈 임포트 실패!"
+            /home/ubuntu/web/venv/bin/python -c "from google import genai; print('✅ google-genai 설치됨')" 2>&1 || echo "❌ google-genai 모듈 임포트 실패!"
+            /home/ubuntu/web/venv/bin/python -c "import openai; print(f'✅ openai v{openai.__version__} 설치됨')" 2>&1 || echo "❌ openai 모듈 임포트 실패!"
+            /home/ubuntu/web/venv/bin/python -c "import fastapi; print(f'✅ fastapi v{fastapi.__version__} 설치됨')" 2>&1 || echo "❌ fastapi 모듈 임포트 실패!"
+            /home/ubuntu/web/venv/bin/python -c "import uvicorn; print(f'✅ uvicorn v{uvicorn.__version__} 설치됨')" 2>&1 || echo "❌ uvicorn 모듈 임포트 실패!"
 
-            # 5.5단계: YAML → JSON 변환 (서버의 Python에 PyYAML이 없어도 동작하도록)
-            # 시스템 Python3에 yaml이 설치되어 있으므로 시스템 Python으로 실행
+            # 5.5단계: YAML → JSON 변환
             echo "🔄 설정 파일 JSON 변환 중..."
-            /usr/bin/python3 /home/ubuntu/CORTHEX_HQ/config/yaml2json.py 2>&1 || echo "⚠️ JSON 변환 건너뜀"
+            /home/ubuntu/web/venv/bin/python /home/ubuntu/CORTHEX_HQ/config/yaml2json.py 2>&1 || echo "⚠️ JSON 변환 건너뜀"
 
             # 5.6단계: 텔레그램 봇 환경변수 설정
             if [ -n "${TG_BOT_TOKEN}" ]; then
@@ -153,15 +136,44 @@ jobs:
             fi
             echo "📋 등록된 API 키 수: $(grep -c '_KEY=' "$ENV_FILE" || echo 0)개"
 
-            # 6단계: 미니 서버 재시작
-            echo "🔁 미니 서버 재시작 중..."
+            # 6단계: systemd 서비스 파일 업데이트 (app.py 실행하도록 변경)
+            echo "⚙️ corthex.service 설정 업데이트 중..."
+            # 서비스 파일이 없으면 생성, 있으면 ExecStart만 업데이트
+            if [ ! -f /etc/systemd/system/corthex.service ]; then
+              echo "🆕 서비스 파일 생성 중..."
+              sudo tee /etc/systemd/system/corthex.service > /dev/null <<EOF
+            [Unit]
+            Description=CORTHEX HQ Backend Server
+            After=network.target
+
+            [Service]
+            Type=simple
+            User=ubuntu
+            WorkingDirectory=/home/ubuntu/web
+            EnvironmentFile=/home/ubuntu/corthex.env
+            ExecStart=/home/ubuntu/web/venv/bin/uvicorn app:app --host 0.0.0.0 --port 8000
+            Restart=always
+            RestartSec=10
+
+            [Install]
+            WantedBy=multi-user.target
+            EOF
+            else
+              # 기존 서비스 파일의 ExecStart만 업데이트
+              echo "♻️ ExecStart 경로 업데이트 중..."
+              sudo sed -i 's|ExecStart=.*|ExecStart=/home/ubuntu/web/venv/bin/uvicorn app:app --host 0.0.0.0 --port 8000|' /etc/systemd/system/corthex.service
+              sudo sed -i 's|WorkingDirectory=.*|WorkingDirectory=/home/ubuntu/web|' /etc/systemd/system/corthex.service
+            fi
+
+            # 7단계: 서버 재시작
+            echo "🔁 백엔드 서버 재시작 중..."
             sudo systemctl daemon-reload
             sudo systemctl restart corthex
 
-            # 7단계: 상태 확인
+            # 8단계: 상태 확인
             sleep 5
             if sudo systemctl is-active --quiet corthex; then
-              echo "✅ 배포 완료! 미니 서버 정상 실행 중 (빌드 #${BUILD_NUMBER})"
+              echo "✅ 배포 완료! 백엔드 서버 정상 실행 중 (빌드 #${BUILD_NUMBER})"
               echo "📋 최근 서버 로그:"
               sudo journalctl -u corthex --no-pager -n 20 --no-hostname
               echo ""
@@ -169,15 +181,15 @@ jobs:
               curl -s http://localhost:8000/api/telegram-status 2>/dev/null || echo "⚠️ 진단 API 호출 실패"
               echo ""
             else
-              echo "❌ 미니 서버 시작 실패"
+              echo "❌ 백엔드 서버 시작 실패"
               sudo journalctl -u corthex --no-pager -n 30
               exit 1
             fi
 
-            # 8단계: 배포 상태 JSON 저장 (프론트엔드에서 읽을 수 있도록)
+            # 9단계: 배포 상태 JSON 저장 (프론트엔드에서 읽을 수 있도록)
             echo "{\"build\":${BUILD_NUMBER},\"time\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\",\"status\":\"success\",\"commit\":\"$(cd /home/ubuntu/CORTHEX_HQ && git rev-parse --short HEAD)\"}" | sudo tee /var/www/html/deploy-status.json > /dev/null
 
-            # 9단계: nginx 캐시 방지 설정 (HTML 파일이 항상 최신 버전으로 보이도록)
+            # 10단계: nginx 캐시 방지 설정 (HTML 파일이 항상 최신 버전으로 보이도록)
             if ! grep -q "no-cache" /etc/nginx/sites-available/default 2>/dev/null; then
               sudo sed -i '/location \/ {/a\\t\tadd_header Cache-Control "no-cache, no-store, must-revalidate";\n\t\tadd_header Pragma "no-cache";\n\t\tadd_header Expires "0";' /etc/nginx/sites-available/default 2>/dev/null || echo "⚠️ nginx 캐시 설정 건너뜀"
               sudo nginx -t 2>/dev/null && sudo systemctl reload nginx 2>/dev/null || echo "⚠️ nginx 리로드 건너뜀"
