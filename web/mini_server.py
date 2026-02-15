@@ -14,16 +14,17 @@ from pathlib import Path
 
 
 def _load_env_file() -> None:
-    """환경변수 파일을 직접 읽어서 os.environ에 설정.
-    systemd EnvironmentFile이 안 먹힐 수 있으므로 직접 로드하는 안전장치."""
+    """환경변수 파일을 직접 읽어서 os.environ에 설정."""
     env_paths = [
         Path("/home/ubuntu/corthex.env"),        # 서버 배포 환경
         Path(__file__).parent.parent / ".env.local",  # 로컬 개발 환경
         Path(__file__).parent.parent / ".env",        # 로컬 폴백
     ]
     for env_path in env_paths:
+        print(f"[ENV] 확인: {env_path} (존재: {env_path.exists()})")
         if env_path.exists():
             try:
+                loaded = 0
                 for line in env_path.read_text(encoding="utf-8").splitlines():
                     line = line.strip()
                     if not line or line.startswith("#"):
@@ -32,17 +33,15 @@ def _load_env_file() -> None:
                         key, _, value = line.partition("=")
                         key = key.strip()
                         value = value.strip()
-                        # 이미 설정된 환경변수는 덮어쓰지 않음
-                        if key and key not in os.environ:
+                        if key:
                             os.environ[key] = value
-                logging.getLogger("corthex.mini_server").info(
-                    "환경변수 파일 로드: %s", env_path
-                )
+                            loaded += 1
+                print(f"[ENV] ✅ {loaded}개 환경변수 로드: {env_path}")
+                print(f"[ENV] TG_TOKEN 존재: {bool(os.getenv('TELEGRAM_BOT_TOKEN', ''))} "
+                      f"(길이: {len(os.getenv('TELEGRAM_BOT_TOKEN', ''))})")
             except Exception as e:
-                logging.getLogger("corthex.mini_server").warning(
-                    "환경변수 파일 읽기 실패 (%s): %s", env_path, e
-                )
-            break  # 첫 번째로 찾은 파일만 사용
+                print(f"[ENV] ❌ 실패: {e}")
+            break
 
 
 _load_env_file()
@@ -71,8 +70,9 @@ try:
         filters,
     )
     _telegram_available = True
-except ImportError:
-    logger.info("python-telegram-bot 미설치 — 텔레그램 봇 비활성화")
+    print("[TG] python-telegram-bot 임포트 성공 ✅")
+except ImportError as e:
+    print(f"[TG] python-telegram-bot 임포트 실패 ❌: {e}")
 
 KST = timezone(timedelta(hours=9))
 
@@ -461,16 +461,20 @@ async def _start_telegram_bot() -> None:
     """텔레그램 봇을 시작합니다 (FastAPI 이벤트 루프 안에서 실행)."""
     global _telegram_app
 
+    print(f"[TG] 봇 시작 시도 (_telegram_available={_telegram_available})")
+
     if not _telegram_available:
-        logger.info("python-telegram-bot 미설치 — 텔레그램 봇 건너뜀")
+        print("[TG] ❌ 라이브러리 없음 — 건너뜀")
         return
 
     token = os.getenv("TELEGRAM_BOT_TOKEN", "")
+    print(f"[TG] 토큰 존재: {bool(token)} (길이: {len(token)})")
     if not token:
-        logger.info("TELEGRAM_BOT_TOKEN 미설정 — 텔레그램 봇 건너뜀")
+        print("[TG] ❌ 토큰 미설정 — 건너뜀")
         return
 
     try:
+        print("[TG] Application 빌드 중...")
         _telegram_app = Application.builder().token(token).build()
 
         # ── 핸들러 함수들 (라이브러리 설치된 경우에만 정의) ──
@@ -603,14 +607,19 @@ async def _start_telegram_bot() -> None:
             BotCommand("health", "서버 상태"),
         ])
 
+        print("[TG] 핸들러 등록 완료, initialize()...")
         await _telegram_app.initialize()
+        print("[TG] start()...")
         await _telegram_app.start()
+        print("[TG] polling 시작...")
         await _telegram_app.updater.start_polling(drop_pending_updates=True)
 
         ceo_id = os.getenv("TELEGRAM_CEO_CHAT_ID", "")
-        logger.info("텔레그램 봇 시작 완료 (CEO chat_id: %s)", ceo_id or "미설정")
+        print(f"[TG] ✅ 봇 시작 완료! (CEO: {ceo_id or '미설정'})")
     except Exception as e:
-        logger.error("텔레그램 봇 시작 실패 (서버는 계속 동작): %s", e)
+        print(f"[TG] ❌ 봇 시작 실패: {e}")
+        import traceback
+        traceback.print_exc()
         _telegram_app = None
 
 
