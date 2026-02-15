@@ -601,6 +601,7 @@ async def create_workflow(request: Request):
     workflow = {
         "id": wf_id,
         "name": body.get("name", "새 워크플로우"),
+        "description": body.get("description", ""),
         "steps": body.get("steps", []),
         "created_at": datetime.now(KST).isoformat(),
     }
@@ -617,6 +618,7 @@ async def save_workflow(wf_id: str, request: Request):
     for wf in workflows:
         if wf.get("id") == wf_id:
             wf["name"] = body.get("name", wf.get("name", ""))
+            wf["description"] = body.get("description", wf.get("description", ""))
             wf["steps"] = body.get("steps", wf.get("steps", []))
             _save_data("workflows", workflows)
             return {"success": True, "workflow": wf}
