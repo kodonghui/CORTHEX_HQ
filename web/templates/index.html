@@ -5649,10 +5649,10 @@
             await fetch('/api/model-mode', {
               method: 'PUT',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ mode: this.modelMode, override: this.modelOverride }),
+              body: JSON.stringify({ mode: this.modelMode }),
             });
-            const label = this.modelMode === 'auto' ? '자동 모드' : this.modelOverride.split('-')[1] || this.modelOverride;
-            this.showToast('모델 모드: ' + label, 'success');
+            const label = this.modelMode === 'auto' ? '자동 모드 (질문에 따라 자동 선택)' : '수동 모드 (에이전트별 개별 모델)';
+            this.showToast(label, 'success');
           } catch { this.showToast('모델 모드 변경 실패', 'error'); }
         },
 

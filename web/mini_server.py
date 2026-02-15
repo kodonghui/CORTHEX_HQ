@@ -318,6 +318,7 @@ async def websocket_endpoint(ws: WebSocket):
                                     "content": result.get("content", ""),
                                     "sender_id": result.get("agent_id", "chief_of_staff"),
                                     "handled_by": result.get("handled_by", "비서실장"),
+                                    "delegation": result.get("delegation", ""),
                                     "time_seconds": result.get("time_seconds", 0),
                                     "cost": result.get("total_cost_usd", result.get("cost_usd", 0)),
                                     "model": result.get("model", ""),
@@ -406,6 +407,13 @@ async def get_dashboard():
         "uptime": now,
         "agents": AGENTS,
         "recent_completed": stats["recent_completed"],
+        # API 키 연결 상태 — 환경변수 + AI 클라이언트 확인
+        "api_keys": {
+            "openai": bool(os.getenv("OPENAI_API_KEY", "")),
+            "anthropic": is_ai_ready(),  # AI 클라이언트가 정상 초기화되었는지
+            "notion": bool(os.getenv("NOTION_API_KEY", "")),
+            "telegram": bool(os.getenv("TELEGRAM_BOT_TOKEN", "")),
+        },
     }
 
 
@@ -1309,13 +1317,14 @@ async def _start_telegram_bot() -> None:
                     # 텔레그램 메시지 길이 제한 (4096자)
                     if len(content) > 3900:
                         content = content[:3900] + "\n\n... (결과가 잘렸습니다. 웹에서 전체 확인)"
-                    handled_by = result.get("handled_by", "비서실장")
-                    routing = result.get("routing_method", "")
+                    delegation = result.get("delegation", "")
                     model_short = model.split("-")[1] if "-" in model else model
+                    # 비서실장 위임 표시: "비서실장 → CTO" 또는 "비서실장"
+                    footer_who = delegation if delegation else "비서실장"
                     await update.message.reply_text(
                         f"{content}\n\n"
                         f"─────\n"
-                        f"👤 {handled_by} | 💰 ${cost:.4f} | 🤖 {model_short}",
+                        f"👤 {footer_who} | 💰 ${cost:.4f} | 🤖 {model_short}",
                         parse_mode=None,
                     )
             else:
@@ -1537,11 +1546,25 @@ def _load_chief_prompt() -> None:
     _log("[AI] 비서실장 프롬프트 로드 완료")
 
 
-def _get_model_override() -> str | None:
-    """수동 모드일 때 강제 적용할 모델명 반환. 자동 모드이면 None."""
+def _get_model_override(agent_id: str) -> str | None:
+    """모델 모드에 따라 에이전트의 모델을 결정합니다.
+
+    - 자동 모드: None 반환 → select_model()이 질문 내용에 따라 자동 선택
+    - 수동 모드: 해당 에이전트에 개별 지정된 모델을 반환
+      (에이전트 상세에서 CEO가 직접 설정한 모델)
+    """
     mode = load_setting("model_mode") or "auto"
-    if mode == "manual":
-        return load_setting("model_override") or None
+    if mode != "manual":
+        return None
+    # 수동 모드 → 에이전트별 개별 지정 모델 사용
+    detail = _AGENTS_DETAIL.get(agent_id, {})
+    agent_model = detail.get("model_name")
+    if agent_model:
+        return agent_model
+    # AGENTS 리스트에서도 확인
+    for a in AGENTS:
+        if a["agent_id"] == agent_id and a.get("model_name"):
+            return a["model_name"]
     return None
 
 
@@ -1570,8 +1593,8 @@ async def _process_ai_command(text: str, task_id: str) -> dict:
     else:
         soul = _load_agent_prompt(target_id)
 
-    # 4) 모델 결정 (수동 오버라이드 or 자동)
-    override = _get_model_override()
+    # 4) 모델 결정 (수동: 에이전트별 지정 모델 / 자동: 질문에 따라 선택)
+    override = _get_model_override(target_id)
     model = select_model(text, override=override)
 
     # 5) AI 호출
@@ -1597,8 +1620,22 @@ async def _process_ai_command(text: str, task_id: str) -> dict:
                 time_seconds=result.get("time_seconds", 0),
                 agent_id=target_id)
 
-    # 8) 응답에 라우팅 정보 추가
-    result["handled_by"] = _AGENT_NAMES.get(target_id, target_id)
+    # 8) 응답에 라우팅 정보 추가 — 비서실장 명령체계 반영
+    target_name = _AGENT_NAMES.get(target_id, target_id)
+    if target_id == "chief_of_staff":
+        # 비서실장이 직접 처리
+        result["handled_by"] = "비서실장"
+        result["delegation"] = ""
+    else:
+        # 비서실장이 부서에 위임
+        result["handled_by"] = target_name
+        result["delegation"] = f"비서실장 → {target_name}"
+        # 응답 본문 앞에 위임 안내 추가
+        result["content"] = (
+            f"📋 비서실장이 이 업무를 **{target_name}**에게 위임했습니다.\n\n---\n\n"
+            + result.get("content", "")
+        )
+
     result["agent_id"] = target_id
     result["routing_method"] = routing["method"]
     result["routing_reason"] = routing.get("reason", "")
