@@ -1678,9 +1678,17 @@ async def _broadcast_status(agent_id: str, status: str, progress: float, detail:
 
 
 async def _call_agent(agent_id: str, text: str) -> dict:
-    """단일 에이전트에게 AI 호출을 수행합니다 (상태 이벤트 포함)."""
+    """단일 에이전트에게 AI 호출을 수행합니다 (상태 이벤트 + 활동 로그 포함)."""
     agent_name = _AGENT_NAMES.get(agent_id, _SPECIALIST_NAMES.get(agent_id, agent_id))
     await _broadcast_status(agent_id, "working", 0.2, f"{agent_name} 분석 중...")
+
+    # 활동 로그 — 누가 일하는지 기록
+    log_entry = save_activity_log(agent_id, f"[{agent_name}] 작업 시작: {text[:40]}...")
+    for c in connected_clients[:]:
+        try:
+            await c.send_json({"event": "activity_log", "data": log_entry})
+        except Exception:
+            pass
 
     soul = _load_agent_prompt(agent_id)
     override = _get_model_override(agent_id)
@@ -1693,11 +1701,21 @@ async def _call_agent(agent_id: str, text: str) -> dict:
         return {"agent_id": agent_id, "name": agent_name, "error": result["error"], "cost_usd": 0}
 
     await _broadcast_status(agent_id, "done", 1.0, "완료")
+
+    # 완료 로그
+    cost = result.get("cost_usd", 0)
+    log_done = save_activity_log(agent_id, f"[{agent_name}] 작업 완료 (${cost:.4f})")
+    for c in connected_clients[:]:
+        try:
+            await c.send_json({"event": "activity_log", "data": log_done})
+        except Exception:
+            pass
+
     return {
         "agent_id": agent_id,
         "name": agent_name,
         "content": result.get("content", ""),
-        "cost_usd": result.get("cost_usd", 0),
+        "cost_usd": cost,
         "model": result.get("model", ""),
         "time_seconds": result.get("time_seconds", 0),
         "input_tokens": result.get("input_tokens", 0),
@@ -1735,9 +1753,19 @@ async def _manager_with_delegation(manager_id: str, text: str) -> dict:
     """
     mgr_name = _AGENT_NAMES.get(manager_id, manager_id)
     specialists = _MANAGER_SPECIALISTS.get(manager_id, [])
+    spec_names = [_SPECIALIST_NAMES.get(s, s) for s in specialists]
 
     # 처장 상태: 명령 분석 중
     await _broadcast_status(manager_id, "working", 0.1, "명령 분석 → 전문가 위임 중...")
+
+    # 처장 활동 로그 — 전문가에게 위임
+    if specialists:
+        log_mgr = save_activity_log(manager_id, f"[{mgr_name}] 전문가 {len(specialists)}명에게 위임: {', '.join(spec_names)}")
+        for c in connected_clients[:]:
+            try:
+                await c.send_json({"event": "activity_log", "data": log_mgr})
+            except Exception:
+                pass
 
     # 전문가들에게 병렬 위임
     spec_results = await _delegate_to_specialists(manager_id, text)
@@ -1797,27 +1825,26 @@ async def _manager_with_delegation(manager_id: str, text: str) -> dict:
 
 
 async def _broadcast_to_managers(text: str, task_id: str) -> dict:
-    """전체 부서 브로드캐스트 — 29명 에이전트 동시 가동!
+    """전체 부서 브로드캐스트.
 
-    비서실장 → 6개 처장 → 각 처장의 전문가들 전부 병렬 호출.
-    처장들이 전문가 결과를 검수 + 종합하여 보고서 작성.
-    최종적으로 비서실장이 6개 부서 보고서를 하나로 합침.
+    비서실장 → 6개 처장에게 명령 전달.
+    각 처장은 자기 소속 전문가들에게 위임 → 결과 검수 → 종합 보고서 작성.
+    비서실장은 처장만 호출하고, 전문가는 처장이 알아서 호출합니다.
     """
     managers = ["cto_manager", "cso_manager", "clo_manager", "cmo_manager", "cio_manager", "cpo_manager"]
 
     # 비서실장 상태: 전달 중
-    await _broadcast_status("chief_of_staff", "working", 0.1, "29명 에이전트 총동원 중...")
+    await _broadcast_status("chief_of_staff", "working", 0.1, "6개 부서 처장에게 명령 하달 중...")
 
-    # 활동 로그
-    total_agents = 1 + len(managers) + sum(len(_MANAGER_SPECIALISTS.get(m, [])) for m in managers)
-    log_entry = save_activity_log("chief_of_staff", f"[브로드캐스트] {total_agents}명 에이전트 총동원: {text[:40]}...")
+    # 활동 로그 — 비서실장이 처장들에게 전달
+    log_entry = save_activity_log("chief_of_staff", f"[비서실장] 6개 처장에게 명령 전달: {text[:40]}...")
     for c in connected_clients[:]:
         try:
             await c.send_json({"event": "activity_log", "data": log_entry})
         except Exception:
             pass
 
-    # 6개 부서 동시 호출 (각 부서 내 전문가까지 병렬 처리)
+    # 6개 처장 동시 호출 (각 처장이 자기 전문가를 알아서 호출 + 검수)
     tasks = [_manager_with_delegation(mgr_id, text) for mgr_id in managers]
     results = await asyncio.gather(*tasks, return_exceptions=True)
 
@@ -1848,16 +1875,15 @@ async def _broadcast_to_managers(text: str, task_id: str) -> dict:
     # 비서실장 완료
     await _broadcast_status("chief_of_staff", "done", 1.0, "종합 완료")
 
-    agents_mobilized = 1 + success_count + total_specialists  # 비서실장 + 처장 + 전문가
     compiled_content = (
-        f"📢 **전체 부서 브로드캐스트 결과** ({agents_mobilized}명 에이전트 동원)\n\n"
-        f"비서실장이 6개 부서 + 소속 전문가 전원에게 동시 전달했습니다.\n\n---\n\n"
+        f"📢 **전체 부서 브로드캐스트 결과** (6개 처장 + 전문가 {total_specialists}명 동원)\n\n"
+        f"비서실장 → 6개 처장에게 명령 전달 → 각 처장이 소속 전문가를 호출하여 결과를 종합했습니다.\n\n---\n\n"
         + "\n\n---\n\n".join(compiled_parts)
     )
 
     # DB 업데이트
     update_task(task_id, status="completed",
-                result_summary=f"브로드캐스트 완료 ({agents_mobilized}명 동원, {success_count}/6 부서 응답)",
+                result_summary=f"브로드캐스트 완료 ({success_count}/6 부서 보고, 전문가 {total_specialists}명)",
                 result_data=compiled_content,
                 success=1,
                 cost_usd=total_cost,
@@ -1867,8 +1893,8 @@ async def _broadcast_to_managers(text: str, task_id: str) -> dict:
     return {
         "content": compiled_content,
         "agent_id": "chief_of_staff",
-        "handled_by": f"비서실장 ({agents_mobilized}명 동원)",
-        "delegation": f"비서실장 → 6개 부서 + 전문가 {total_specialists}명",
+        "handled_by": "비서실장 → 6개 처장",
+        "delegation": "비서실장 → 처장 → 전문가",
         "total_cost_usd": round(total_cost, 6),
         "time_seconds": round(total_time, 2),
         "model": "multi-agent",
@@ -2084,11 +2110,11 @@ async def _process_ai_command(text: str, task_id: str) -> dict:
         result["total_cost_usd"] = total_cost
         return result
 
-    # 5) 부서 위임 — 처장 + 전문가 풀 체인
+    # 5) 부서 위임 — 비서실장 → 처장 → 전문가
     target_name = _AGENT_NAMES.get(target_id, target_id)
     await _broadcast_status("chief_of_staff", "working", 0.1, f"{target_name}에게 위임 중...")
 
-    # 처장 + 소속 전문가 동시 가동
+    # 처장이 자기 전문가를 호출 → 결과 검수 → 종합 보고서
     delegation_result = await _manager_with_delegation(target_id, text)
 
     await _broadcast_status("chief_of_staff", "done", 1.0, "위임 완료")
@@ -2105,12 +2131,12 @@ async def _process_ai_command(text: str, task_id: str) -> dict:
     specs_used = delegation_result.get("specialists_used", 0)
     delegation_label = f"비서실장 → {target_name}"
     if specs_used:
-        delegation_label += f" + 전문가 {specs_used}명"
+        delegation_label += f" → 전문가 {specs_used}명"
 
     content = delegation_result.get("content", "")
-    header = f"📋 비서실장이 **{target_name}**에게 위임했습니다."
+    header = f"📋 **{target_name}** 보고"
     if specs_used:
-        header += f" (전문가 {specs_used}명 동원)"
+        header += f" (소속 전문가 {specs_used}명 동원)"
     content = f"{header}\n\n---\n\n{content}"
 
     update_task(task_id, status="completed",
