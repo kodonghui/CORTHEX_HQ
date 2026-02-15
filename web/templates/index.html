@@ -715,7 +715,7 @@
       </button>
       <!-- Logo (클릭 → 홈) -->
       <div class="flex items-center gap-2.5 cursor-pointer hover:opacity-80 transition-opacity"
-           @click="viewMode = 'chat'; activeTab = 'command'">
+           @click="viewMode = 'chat'; activeTab = 'command'; $nextTick(() => scrollToBottom()); setTimeout(() => scrollToBottom(), 300)">
         <svg width="28" height="28" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
           <defs>
             <linearGradient id="logoGrad" x1="0" y1="0" x2="32" y2="32">
@@ -5512,6 +5512,8 @@
               this.$nextTick(() => this.scrollToBottom());
               setTimeout(() => this.scrollToBottom(), 200);
               setTimeout(() => this.scrollToBottom(), 500);
+              setTimeout(() => this.scrollToBottom(), 1000);
+              setTimeout(() => this.scrollToBottom(), 2000);
             }
           } catch (e) {
             console.warn('대화 기록 복원 실패:', e);
@@ -5980,7 +5982,9 @@
               this.viewMode = 'chat';
               this.$nextTick(() => {
                 if (this.$refs.inputArea) this.$refs.inputArea.focus();
+                this.scrollToBottom();
               });
+              setTimeout(() => this.scrollToBottom(), 300);
             }
             // Esc → 모달 닫기
             if (e.key === 'Escape') {
@@ -6056,8 +6060,12 @@
         },
 
         scrollToBottom() {
-          const el = this.$refs.chatArea;
-          if (el) el.scrollTop = el.scrollHeight;
+          const el = this.$refs.chatArea || document.getElementById('chatArea');
+          if (el) {
+            el.scrollTop = el.scrollHeight;
+            // 마크다운 렌더링 이후에도 한 번 더
+            requestAnimationFrame(() => { el.scrollTop = el.scrollHeight; });
+          }
         },
       };
     }
