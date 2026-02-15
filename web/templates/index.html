@@ -2505,9 +2505,9 @@
               <div class="glass border border-hq-border rounded-xl p-4 hover-glow">
                 <div class="flex items-center justify-between">
                   <div class="flex-1">
-                    <div class="flex items-center gap-2 mb-1.5">
-                      <span class="text-sm font-semibold text-hq-text leading-none" x-text="s.name"></span>
-                      <span class="text-[10px] px-2 py-0.5 rounded-full font-medium leading-none"
+                    <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
+                      <span class="text-sm font-semibold text-hq-text" x-text="s.name"></span>
+                      <span style="display:inline-block; flex-shrink:0; font-size:10px; padding:2px 8px; border-radius:9999px; font-weight:500;"
                             :class="s.enabled ? 'bg-hq-green/15 text-hq-green border border-hq-green/20' : 'bg-hq-muted/15 text-hq-muted border border-hq-border'"
                             x-text="s.enabled ? '활성' : '비활성'"></span>
                     </div>
@@ -3449,7 +3449,7 @@
               </div>
               <textarea x-model="agentSoulText" rows="12"
                         class="w-full bg-gray-950 px-4 py-3 text-sm text-green-400 resize-y focus:outline-none border-none"
-                        style="font-family: 'JetBrains Mono', monospace; line-height: 1.7;"
+                        style="font-family: 'Pretendard Variable', 'Pretendard', sans-serif; line-height: 1.8;"
                         placeholder="이 에이전트의 시스템 프롬프트를 입력하세요..."></textarea>
             </div>
             <div class="flex items-center justify-between mt-3">
