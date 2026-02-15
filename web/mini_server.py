@@ -12,6 +12,8 @@ import os
 import sys
 import time
 import uuid as _uuid
+import urllib.request
+import urllib.error
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
@@ -1628,6 +1630,94 @@ _AGENT_NAMES: dict[str, str] = {
     "cpo_manager": "CPO (출판기록처장)",
 }
 
+# ── 노션 API 연동 (에이전트 산출물 자동 저장) ──
+
+_NOTION_API_KEY = os.getenv("NOTION_API_KEY", "")
+_NOTION_DB_ID = os.getenv("NOTION_DEFAULT_DB_ID", "ee0527e4-697b-4cb6-8df0-6dca3f59ad4e")
+
+# 에이전트 ID → 부서명 매핑
+_AGENT_DIVISION: dict[str, str] = {}
+for _a in AGENTS:
+    if _a.get("division"):
+        _AGENT_DIVISION[_a["agent_id"]] = _a["division"]
+
+
+async def _save_to_notion(agent_id: str, title: str, content: str,
+                          report_type: str = "보고서") -> str | None:
+    """에이전트 산출물을 노션 DB에 저장합니다.
+
+    Python 기본 라이브러리(urllib)만 사용 — 추가 패키지 불필요.
+    실패해도 에러만 로깅하고 None 반환 (서버 동작에 영향 없음).
+    """
+    if not _NOTION_API_KEY:
+        return None
+
+    division = _AGENT_DIVISION.get(agent_id, "")
+    agent_name = _AGENT_NAMES.get(agent_id, _SPECIALIST_NAMES.get(agent_id, agent_id))
+    now_str = datetime.now(KST).strftime("%Y-%m-%d")
+
+    # 노션 페이지 프로퍼티 구성
+    properties: dict = {
+        "Name": {"title": [{"text": {"content": title[:100]}}]},
+    }
+    # 선택 속성들 (DB에 해당 컬럼이 없으면 노션이 무시함)
+    if agent_name:
+        properties["Agent"] = {"rich_text": [{"text": {"content": agent_name}}]}
+    if division:
+        properties["Division"] = {"rich_text": [{"text": {"content": division}}]}
+    if report_type:
+        properties["Type"] = {"rich_text": [{"text": {"content": report_type}}]}
+    properties["Status"] = {"rich_text": [{"text": {"content": "완료"}}]}
+
+    # 본문 → 노션 블록 (최대 2000자, 노션 블록 크기 제한)
+    children = []
+    text_chunks = [content[i:i+1900] for i in range(0, min(len(content), 8000), 1900)]
+    for chunk in text_chunks:
+        children.append({
+            "object": "block",
+            "type": "paragraph",
+            "paragraph": {"rich_text": [{"text": {"content": chunk}}]},
+        })
+
+    body = json.dumps({
+        "parent": {"database_id": _NOTION_DB_ID},
+        "properties": properties,
+        "children": children,
+    }).encode("utf-8")
+
+    headers = {
+        "Authorization": f"Bearer {_NOTION_API_KEY}",
+        "Content-Type": "application/json",
+        "Notion-Version": "2022-06-28",
+    }
+
+    def _do_request():
+        req = urllib.request.Request(
+            "https://api.notion.com/v1/pages",
+            data=body, headers=headers, method="POST",
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                return json.loads(resp.read().decode("utf-8"))
+        except urllib.error.HTTPError as e:
+            err_body = e.read().decode("utf-8", errors="replace")[:200]
+            _log(f"[Notion] HTTP {e.code} 오류: {err_body}")
+            return None
+        except Exception as e:
+            _log(f"[Notion] 요청 실패: {e}")
+            return None
+
+    try:
+        result = await asyncio.to_thread(_do_request)
+        if result and result.get("url"):
+            _log(f"[Notion] 저장 완료: {title[:50]} → {result['url']}")
+            return result["url"]
+    except Exception as e:
+        _log(f"[Notion] 비동기 실행 실패: {e}")
+
+    return None
+
+
 # 브로드캐스트 키워드 (모든 부서에 동시 전달하는 명령)
 _BROADCAST_KEYWORDS = [
     "전체", "모든 부서", "출석", "회의", "현황 보고",
@@ -1704,6 +1794,7 @@ async def _call_agent(agent_id: str, text: str) -> dict:
 
     # 완료 로그
     cost = result.get("cost_usd", 0)
+    content = result.get("content", "")
     log_done = save_activity_log(agent_id, f"[{agent_name}] 작업 완료 (${cost:.4f})")
     for c in connected_clients[:]:
         try:
@@ -1711,10 +1802,18 @@ async def _call_agent(agent_id: str, text: str) -> dict:
         except Exception:
             pass
 
+    # 노션에 산출물 자동 저장 (비동기, 실패해도 무시)
+    if content and len(content) > 20:
+        asyncio.create_task(_save_to_notion(
+            agent_id=agent_id,
+            title=f"[{agent_name}] {text[:50]}",
+            content=content,
+        ))
+
     return {
         "agent_id": agent_id,
         "name": agent_name,
-        "content": result.get("content", ""),
+        "content": content,
         "cost_usd": cost,
         "model": result.get("model", ""),
         "time_seconds": result.get("time_seconds", 0),
@@ -1812,11 +1911,21 @@ async def _manager_with_delegation(manager_id: str, text: str) -> dict:
 
     total_cost = spec_cost + synthesis.get("cost_usd", 0)
     specialists_used = len([r for r in spec_results if "error" not in r])
+    synth_content = synthesis.get("content", "")
+
+    # 종합 보고서를 노션에 저장
+    if synth_content and len(synth_content) > 20:
+        asyncio.create_task(_save_to_notion(
+            agent_id=manager_id,
+            title=f"[{mgr_name}] 종합보고: {text[:40]}",
+            content=synth_content,
+            report_type="종합보고서",
+        ))
 
     return {
         "agent_id": manager_id,
         "name": mgr_name,
-        "content": synthesis.get("content", ""),
+        "content": synth_content,
         "cost_usd": total_cost,
         "model": synthesis.get("model", ""),
         "time_seconds": round(spec_time + synthesis.get("time_seconds", 0), 2),
