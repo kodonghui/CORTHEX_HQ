@@ -1603,10 +1603,10 @@
                 <textarea x-model="inputText" x-ref="inputArea"
                   @keydown="handleInputKeydown($event)" @input="handleInputChange($event)"
                   :disabled="systemStatus === 'working'"
-                  placeholder="명령을 입력하세요... (Shift+Enter: 줄바꿈)"
+                  :placeholder="inputHints[inputHintIndex]"
                   rows="1"
                   class="w-full bg-hq-bg border border-hq-border rounded-xl px-4 py-3 pr-10 text-sm text-hq-text
-                         placeholder-hq-muted/70 focus:outline-none focus:border-hq-accent/50 input-glow
+                         placeholder-hq-muted/70 focus:outline-none focus:border-hq-accent/50 input-glow-animated
                          disabled:opacity-40 disabled:cursor-not-allowed transition-all resize-none overflow-hidden"
                   style="min-height:44px; max-height:200px;" autofocus></textarea>
                 <div class="absolute right-3 bottom-3 text-[10px] font-mono text-hq-muted/70"
@@ -2166,6 +2166,11 @@
 
         <div class="flex-1 overflow-y-auto scrollbar-thin p-6 bg-grid">
           <div class="max-w-5xl mx-auto space-y-2">
+            <!-- 샘플 데이터 배너 -->
+            <div x-show="taskHistory.isSample" class="mb-3 bg-hq-yellow/10 border border-hq-yellow/20 rounded-lg px-4 py-2.5 flex items-center gap-2">
+              <svg class="w-4 h-4 text-hq-yellow shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+              <span class="text-xs text-hq-yellow/90">미리보기용 샘플 데이터입니다. 실제 명령을 실행하면 진짜 작업 기록으로 대체됩니다.</span>
+            </div>
             <template x-for="task in getPagedTaskHistory()" :key="task.task_id">
               <div class="glass border rounded-xl p-4 hover-glow transition"
                    :class="taskHistory.selectedIds.includes(task.task_id) ? 'border-hq-accent/40' : 'border-hq-border'">
@@ -2235,12 +2240,41 @@
                 더 보기 (<span x-text="taskHistory.items.length - taskHistoryPage * taskHistoryPageSize"></span>건 남음)
               </button>
             </div>
-            <template x-if="!taskHistory.items || taskHistory.items.length === 0">
-              <div class="text-center py-16">
-                <div class="text-4xl mb-3">📋</div>
-                <div class="text-sm text-hq-muted mb-1">작업 내역이 없습니다</div>
-                <div class="text-xs text-hq-muted/70">홈에서 명령을 내리면 여기에 기록됩니다</div>
-                <button @click="switchTab('command')" class="mt-4 text-xs text-hq-accent hover:text-hq-accent/80 bg-hq-accent/10 border border-hq-accent/20 rounded-lg px-4 py-2 transition">명령하러 가기</button>
+            <template x-if="(!taskHistory.items || taskHistory.items.length === 0) && !taskHistory.isSample">
+              <div class="text-center py-20">
+                <!-- CSS 일러스트 -->
+                <div class="inline-block mb-6 relative">
+                  <div class="w-20 h-20 rounded-2xl bg-gradient-to-br from-hq-accent/20 to-hq-purple/20 border border-hq-border flex items-center justify-center mx-auto float-anim">
+                    <svg class="w-10 h-10 text-hq-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+                    </svg>
+                  </div>
+                  <div class="absolute -top-2 -right-2 w-3 h-3 rounded-full bg-hq-green/40 animate-pulse"></div>
+                  <div class="absolute -bottom-1 -left-3 w-2 h-2 rounded-full bg-hq-purple/40 animate-pulse" style="animation-delay: 1s;"></div>
+                </div>
+                <h3 class="text-base font-semibold text-hq-text mb-2">에이전트들이 대기 중이에요</h3>
+                <p class="text-sm text-hq-muted mb-6">명령을 내리면 여기에 작업 기록이 쌓여요</p>
+                <!-- 빠른 명령 버튼 -->
+                <div class="flex flex-wrap justify-center gap-2 mb-4">
+                  <button @click="switchTab('command'); $nextTick(() => { inputText = '오늘 업무 현황 알려줘'; })"
+                          class="text-xs bg-hq-panel border border-hq-border rounded-lg px-3 py-2 hover:border-hq-accent/40 hover:text-hq-accent transition text-hq-muted flex items-center gap-1.5">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+                    업무 현황 조회
+                  </button>
+                  <button @click="switchTab('command'); $nextTick(() => { inputText = '@CTO 기술 리포트 작성해줘'; })"
+                          class="text-xs bg-hq-panel border border-hq-border rounded-lg px-3 py-2 hover:border-hq-accent/40 hover:text-hq-accent transition text-hq-muted flex items-center gap-1.5">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                    기술 리포트
+                  </button>
+                  <button @click="switchTab('command'); $nextTick(() => { inputText = '@CMO 마케팅 분석 해줘'; })"
+                          class="text-xs bg-hq-panel border border-hq-border rounded-lg px-3 py-2 hover:border-hq-accent/40 hover:text-hq-accent transition text-hq-muted flex items-center gap-1.5">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>
+                    마케팅 분석
+                  </button>
+                </div>
+                <button @click="switchTab('command')" class="text-xs text-hq-accent hover:text-hq-accent/80 bg-hq-accent/10 border border-hq-accent/20 rounded-lg px-4 py-2 transition">
+                  명령 탭으로 이동
+                </button>
               </div>
             </template>
           </div>
@@ -3433,7 +3467,7 @@
         presets: { items: [], showModal: false, editName: '', editCommand: '' },
 
         // ── Task History (작업내역) ──
-        taskHistory: { items: [], search: '', filterStatus: 'all', filterDateFrom: '', filterDateTo: '', bookmarkOnly: false, selectedIds: [], expandedId: null, replayData: {}, compareMode: false, compareA: null, compareB: null, loaded: false },
+        taskHistory: { items: [], search: '', filterStatus: 'all', filterDateFrom: '', filterDateTo: '', bookmarkOnly: false, selectedIds: [], expandedId: null, replayData: {}, compareMode: false, compareA: null, compareB: null, loaded: false, isSample: false },
 
         // ── Performance (성능) ──
         performance: { agents: [], totalCalls: 0, totalCost: 0, totalTasks: 0, avgSuccessRate: 0, maxCost: 0, loaded: false },
@@ -3688,6 +3722,17 @@
         // Batch mode toggle (#5)
         useBatch: false,
 
+        // Input hint rotation
+        inputHints: [
+          '명령을 입력하세요... (Shift+Enter: 줄바꿈)',
+          '@CTO 기술 현황 리포트 작성해줘',
+          '오늘 각 부서 업무 현황 알려줘',
+          '@CMO 마케팅 전략 분석해줘',
+          '@CFO 이번 달 예산 현황 정리해줘',
+          '@CLO 계약서 검토해줘',
+        ],
+        inputHintIndex: 0,
+
         init() {
           // Dark mode
           const savedTheme = localStorage.getItem('corthex-theme');
@@ -3716,6 +3761,12 @@
           this.loadPresets();
           // Keyboard shortcuts (#16)
           this.initKeyboardShortcuts();
+          // Input hint rotation (3초마다 placeholder 변경)
+          setInterval(() => {
+            if (!this.inputText.trim()) {
+              this.inputHintIndex = (this.inputHintIndex + 1) % this.inputHints.length;
+            }
+          }, 3000);
         },
 
         // ── Theme ──
@@ -4571,9 +4622,64 @@
             if (this.taskHistory.filterStatus !== 'all') params.set('status', this.taskHistory.filterStatus);
             if (this.taskHistory.bookmarkOnly) params.set('bookmarked', 'true');
             const data = await fetch('/api/tasks?' + params.toString()).then(r => r.json());
-            this.taskHistory.items = data || [];
+            if (data && data.length > 0) {
+              this.taskHistory.items = data;
+              this.taskHistory.isSample = false;
+            } else {
+              this.taskHistory.items = this._getSampleTaskHistory();
+              this.taskHistory.isSample = true;
+            }
             this.taskHistory.loaded = true;
-          } catch (e) { console.error('Task history load failed:', e); }
+          } catch (e) {
+            console.error('Task history load failed:', e);
+            if (!this.taskHistory.loaded) {
+              this.taskHistory.items = this._getSampleTaskHistory();
+              this.taskHistory.isSample = true;
+              this.taskHistory.loaded = true;
+            }
+          }
+        },
+
+        _getSampleTaskHistory() {
+          const now = Date.now();
+          return [
+            {
+              task_id: 'sample_1', command: '@CTO 이번 주 기술 현황 리포트 작성해줘',
+              status: 'completed', created_at: new Date(now - 3600000).toISOString(),
+              summary: '기술 현황 리포트 완료 — 서버 가동률 99.7%, 응답 시간 평균 120ms',
+              time_seconds: 12.4, cost: 0.0156, bookmarked: true, correlation_id: null,
+            },
+            {
+              task_id: 'sample_2', command: '전 부서 일일 업무 현황 보고',
+              status: 'completed', created_at: new Date(now - 7200000).toISOString(),
+              summary: '29개 에이전트의 일일 업무 현황을 종합했습니다',
+              time_seconds: 28.7, cost: 0.0423, bookmarked: false, correlation_id: 'corr_sample_1',
+            },
+            {
+              task_id: 'sample_3', command: '@CMO 경쟁사 마케팅 전략 분석',
+              status: 'completed', created_at: new Date(now - 14400000).toISOString(),
+              summary: '주요 경쟁사 3곳의 마케팅 전략을 비교 분석했습니다',
+              time_seconds: 45.2, cost: 0.0687, bookmarked: false, correlation_id: null,
+            },
+            {
+              task_id: 'sample_4', command: '@CFO 이번 달 예산 집행 현황 정리',
+              status: 'failed', created_at: new Date(now - 21600000).toISOString(),
+              summary: '예산 데이터 소스 접근 실패 — API 키 만료',
+              time_seconds: 3.1, cost: 0.0012, bookmarked: false, correlation_id: null,
+            },
+            {
+              task_id: 'sample_5', command: '@CLO 개인정보처리방침 최신 법령 반영 검토',
+              status: 'completed', created_at: new Date(now - 43200000).toISOString(),
+              summary: '2026년 2월 기준 개인정보보호법 개정사항 3건을 반영했습니다',
+              time_seconds: 67.8, cost: 0.0934, bookmarked: true, correlation_id: 'corr_sample_2',
+            },
+            {
+              task_id: 'sample_6', command: '@CSO 보안 취약점 스캔 실행',
+              status: 'running', created_at: new Date(now - 300000).toISOString(),
+              summary: '시스템 보안 취약점을 스캔하고 있습니다...',
+              time_seconds: null, cost: 0.0045, bookmarked: false, correlation_id: null,
+            },
+          ];
         },
 
         async loadTaskDetail(taskId) {

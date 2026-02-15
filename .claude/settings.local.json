@@ -15,7 +15,11 @@
       "Bash(gh pr create:*)",
       "Bash(git fetch:*)",
       "Bash(python3:*)",
-      "Bash(python -c:*)"
+      "Bash(python -c:*)",
+      "Bash(gh run view:*)",
+      "Bash(curl -s \"https://api.telegram.org/bot8231178851:AAETsrXWuv1ffKXyKGsaT9qHV5b0U0mXs5k/getMe\")",
+      "Bash(git merge:*)",
+      "Bash(curl:*)"
     ]
   }
 }
