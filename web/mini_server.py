@@ -1920,36 +1920,75 @@ async def _route_task(text: str) -> dict:
     }
 
 
+def _get_tool_descriptions(agent_id: str) -> str:
+    """에이전트에 할당된 도구 설명을 생성합니다."""
+    detail = _AGENTS_DETAIL.get(agent_id, {})
+    allowed = detail.get("allowed_tools", [])
+    if not allowed:
+        return ""
+
+    # 도구 ID → 설명 매핑
+    tool_map = {t.get("tool_id"): t for t in _TOOLS_LIST}
+    descs = []
+    for tid in allowed:
+        t = tool_map.get(tid)
+        if t:
+            name = t.get("name_ko") or t.get("name", tid)
+            desc = t.get("description", "")[:150]
+            descs.append(f"- **{name}**: {desc}")
+
+    if not descs:
+        return ""
+
+    return (
+        "\n\n## 사용 가능한 전문 도구\n"
+        "아래 도구의 기능을 활용하여 더 정확하고 전문적인 답변을 제공하세요.\n"
+        + "\n".join(descs)
+    )
+
+
 def _load_agent_prompt(agent_id: str) -> str:
-    """에이전트의 시스템 프롬프트(소울)를 로드합니다.
+    """에이전트의 시스템 프롬프트(소울) + 도구 정보를 로드합니다.
 
     우선순위: DB 오버라이드 > souls/*.md 파일 > agents.yaml system_prompt > 기본값
+    마지막에 할당된 도구 설명을 자동으로 추가합니다.
     """
+    prompt = ""
+
     # 1순위: DB 오버라이드
     soul = load_setting(f"soul_{agent_id}")
     if soul:
-        return soul
+        prompt = soul
+    else:
+        # 2순위: souls 파일
+        soul_path = Path(BASE_DIR).parent / "souls" / "agents" / f"{agent_id}.md"
+        if soul_path.exists():
+            try:
+                prompt = soul_path.read_text(encoding="utf-8")
+            except Exception:
+                pass
 
-    # 2순위: souls 파일
-    soul_path = Path(BASE_DIR).parent / "souls" / "agents" / f"{agent_id}.md"
-    if soul_path.exists():
-        try:
-            return soul_path.read_text(encoding="utf-8")
-        except Exception:
-            pass
+    if not prompt:
+        # 3순위: agents.yaml의 system_prompt
+        detail = _AGENTS_DETAIL.get(agent_id, {})
+        if detail.get("system_prompt"):
+            prompt = detail["system_prompt"]
 
-    # 3순위: agents.yaml의 system_prompt
-    detail = _AGENTS_DETAIL.get(agent_id, {})
-    if detail.get("system_prompt"):
-        return detail["system_prompt"]
+    if not prompt:
+        # 4순위: 기본 프롬프트
+        name = _AGENT_NAMES.get(agent_id, _SPECIALIST_NAMES.get(agent_id, agent_id))
+        prompt = (
+            f"당신은 CORTHEX HQ의 {name}입니다. "
+            "CEO의 업무 지시를 받아 처리하고, 명확하고 간결하게 한국어로 답변합니다. "
+            "항상 존댓말을 사용하고, 구체적이고 실행 가능한 답변을 제공합니다."
+        )
 
-    # 4순위: 기본 프롬프트
-    name = _AGENT_NAMES.get(agent_id, agent_id)
-    return (
-        f"당신은 CORTHEX HQ의 {name}입니다. "
-        "CEO의 업무 지시를 받아 처리하고, 명확하고 간결하게 한국어로 답변합니다. "
-        "항상 존댓말을 사용하고, 구체적이고 실행 가능한 답변을 제공합니다."
-    )
+    # 도구 설명 추가 (에이전트가 자신의 도구를 인지하고 활용할 수 있게)
+    tools_desc = _get_tool_descriptions(agent_id)
+    if tools_desc:
+        prompt += tools_desc
+
+    return prompt
 
 
 _chief_prompt: str = ""
