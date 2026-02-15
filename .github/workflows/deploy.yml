@@ -98,14 +98,18 @@ jobs:
             sudo systemctl restart corthex
 
             # 7단계: 상태 확인
-            sleep 3
+            sleep 5
             if sudo systemctl is-active --quiet corthex; then
               echo "✅ 배포 완료! 미니 서버 정상 실행 중 (빌드 #${BUILD_NUMBER})"
-              echo "📋 최근 서버 로그 (텔레그램 봇 시작 확인):"
-              sudo journalctl -u corthex --no-pager -n 15 --no-hostname
+              echo "📋 최근 서버 로그:"
+              sudo journalctl -u corthex --no-pager -n 20 --no-hostname
+              echo ""
+              echo "📋 텔레그램 봇 진단:"
+              curl -s http://localhost:8000/api/telegram-status 2>/dev/null || echo "⚠️ 진단 API 호출 실패"
+              echo ""
             else
               echo "❌ 미니 서버 시작 실패"
-              sudo journalctl -u corthex --no-pager -n 20
+              sudo journalctl -u corthex --no-pager -n 30
               exit 1
             fi
 

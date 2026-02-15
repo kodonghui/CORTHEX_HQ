@@ -9,8 +9,24 @@ import asyncio
 import json
 import logging
 import os
+import sys
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
+
+# Python 출력 버퍼링 비활성화 (systemd에서 로그가 바로 보이도록)
+os.environ["PYTHONUNBUFFERED"] = "1"
+
+# 진단 정보 수집용
+_diag: dict = {"env_loaded": False, "env_file": "", "env_count": 0,
+               "tg_import": False, "tg_import_error": "",
+               "tg_token_found": False, "tg_started": False, "tg_error": ""}
+
+
+def _log(msg: str) -> None:
+    """디버그 로그 출력 (stdout + stderr 양쪽에 flush)."""
+    print(msg, flush=True)
+    sys.stderr.write(msg + "\n")
+    sys.stderr.flush()
 
 
 def _load_env_file() -> None:
@@ -21,7 +37,7 @@ def _load_env_file() -> None:
         Path(__file__).parent.parent / ".env",        # 로컬 폴백
     ]
     for env_path in env_paths:
-        print(f"[ENV] 확인: {env_path} (존재: {env_path.exists()})")
+        _log(f"[ENV] 확인: {env_path} (존재: {env_path.exists()})")
         if env_path.exists():
             try:
                 loaded = 0
@@ -36,11 +52,15 @@ def _load_env_file() -> None:
                         if key:
                             os.environ[key] = value
                             loaded += 1
-                print(f"[ENV] ✅ {loaded}개 환경변수 로드: {env_path}")
-                print(f"[ENV] TG_TOKEN 존재: {bool(os.getenv('TELEGRAM_BOT_TOKEN', ''))} "
-                      f"(길이: {len(os.getenv('TELEGRAM_BOT_TOKEN', ''))})")
+                _diag["env_loaded"] = True
+                _diag["env_file"] = str(env_path)
+                _diag["env_count"] = loaded
+                tg = os.getenv("TELEGRAM_BOT_TOKEN", "")
+                _diag["tg_token_found"] = bool(tg)
+                _log(f"[ENV] ✅ {loaded}개 로드: {env_path}")
+                _log(f"[ENV] TG_TOKEN: {bool(tg)} (길이:{len(tg)})")
             except Exception as e:
-                print(f"[ENV] ❌ 실패: {e}")
+                _log(f"[ENV] ❌ 실패: {e}")
             break
 
 
@@ -70,9 +90,11 @@ try:
         filters,
     )
     _telegram_available = True
-    print("[TG] python-telegram-bot 임포트 성공 ✅")
+    _diag["tg_import"] = True
+    _log("[TG] python-telegram-bot 임포트 성공 ✅")
 except ImportError as e:
-    print(f"[TG] python-telegram-bot 임포트 실패 ❌: {e}")
+    _diag["tg_import_error"] = str(e)
+    _log(f"[TG] python-telegram-bot 임포트 실패 ❌: {e}")
 
 KST = timezone(timedelta(hours=9))
 
@@ -450,6 +472,19 @@ async def get_available_models():
     ]
 
 
+# ── 진단 API (텔레그램 봇 디버깅용) ──
+@app.get("/api/telegram-status")
+async def telegram_status():
+    """텔레그램 봇 진단 정보 반환."""
+    return {
+        **_diag,
+        "tg_app_exists": _telegram_app is not None,
+        "tg_available": _telegram_available,
+        "env_token_set": bool(os.getenv("TELEGRAM_BOT_TOKEN", "")),
+        "env_ceo_id": os.getenv("TELEGRAM_CEO_CHAT_ID", ""),
+    }
+
+
 # ── 텔레그램 봇 ──
 # 주의: python-telegram-bot 미설치 시에도 서버가 정상 작동해야 함
 # 모든 텔레그램 관련 코드는 _telegram_available 체크 후에만 실행
@@ -461,20 +496,21 @@ async def _start_telegram_bot() -> None:
     """텔레그램 봇을 시작합니다 (FastAPI 이벤트 루프 안에서 실행)."""
     global _telegram_app
 
-    print(f"[TG] 봇 시작 시도 (_telegram_available={_telegram_available})")
+    _log(f"[TG] 봇 시작 시도 (_telegram_available={_telegram_available})")
 
     if not _telegram_available:
-        print("[TG] ❌ 라이브러리 없음 — 건너뜀")
+        _log("[TG] ❌ 라이브러리 없음 — 건너뜀")
         return
 
     token = os.getenv("TELEGRAM_BOT_TOKEN", "")
-    print(f"[TG] 토큰 존재: {bool(token)} (길이: {len(token)})")
+    _log(f"[TG] 토큰 존재: {bool(token)} (길이: {len(token)})")
     if not token:
-        print("[TG] ❌ 토큰 미설정 — 건너뜀")
+        _log("[TG] ❌ 토큰 미설정 — 건너뜀")
+        _diag["tg_error"] = "TELEGRAM_BOT_TOKEN 환경변수 없음"
         return
 
     try:
-        print("[TG] Application 빌드 중...")
+        _log("[TG] Application 빌드 중...")
         _telegram_app = Application.builder().token(token).build()
 
         # ── 핸들러 함수들 (라이브러리 설치된 경우에만 정의) ──
@@ -607,17 +643,19 @@ async def _start_telegram_bot() -> None:
             BotCommand("health", "서버 상태"),
         ])
 
-        print("[TG] 핸들러 등록 완료, initialize()...")
+        _log("[TG] 핸들러 등록 완료, initialize()...")
         await _telegram_app.initialize()
-        print("[TG] start()...")
+        _log("[TG] start()...")
         await _telegram_app.start()
-        print("[TG] polling 시작...")
+        _log("[TG] polling 시작...")
         await _telegram_app.updater.start_polling(drop_pending_updates=True)
 
         ceo_id = os.getenv("TELEGRAM_CEO_CHAT_ID", "")
-        print(f"[TG] ✅ 봇 시작 완료! (CEO: {ceo_id or '미설정'})")
+        _diag["tg_started"] = True
+        _log(f"[TG] ✅ 봇 시작 완료! (CEO: {ceo_id or '미설정'})")
     except Exception as e:
-        print(f"[TG] ❌ 봇 시작 실패: {e}")
+        _diag["tg_error"] = str(e)
+        _log(f"[TG] ❌ 봇 시작 실패: {e}")
         import traceback
         traceback.print_exc()
         _telegram_app = None
