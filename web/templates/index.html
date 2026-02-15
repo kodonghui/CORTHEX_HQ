@@ -203,13 +203,13 @@
       box-shadow: 0 8px 24px rgb(var(--hq-shadow) / 0.15);
     }
 
-    /* Card hover glow */
+    /* Card hover glow — 유리 위 은은한 빛 */
     .hover-glow {
-      transition: box-shadow 0.3s ease, border-color 0.3s ease;
+      transition: box-shadow 0.3s ease, border-color 0.3s ease, background-color 0.3s ease;
     }
     .hover-glow:hover {
-      box-shadow: 0 0 24px rgb(var(--hq-accent) / 0.15);
-      border-color: rgb(var(--hq-border-light));
+      box-shadow: 0 0 24px rgb(var(--hq-accent) / 0.12), 0 4px 16px rgb(var(--hq-purple) / 0.08);
+      border-color: rgb(255 255 255 / 0.1);
     }
 
     /* Agent avatar */
@@ -267,6 +267,29 @@
     .input-glow:focus {
       box-shadow: 0 0 0 3px rgb(var(--hq-accent) / 0.15), 0 0 20px rgb(var(--hq-accent) / 0.1);
     }
+
+    /* Animated gradient border for command input */
+    .input-glow-animated:focus {
+      animation: borderGlow 3s ease-in-out infinite;
+      border-color: rgb(var(--hq-accent));
+    }
+    @keyframes borderGlow {
+      0%, 100% {
+        border-color: rgb(var(--hq-accent));
+        box-shadow: 0 0 0 3px rgb(var(--hq-accent) / 0.15), 0 0 20px rgb(var(--hq-accent) / 0.08);
+      }
+      50% {
+        border-color: rgb(var(--hq-purple));
+        box-shadow: 0 0 0 3px rgb(var(--hq-purple) / 0.15), 0 0 20px rgb(var(--hq-purple) / 0.08);
+      }
+    }
+
+    /* Floating animation for empty state */
+    @keyframes floatY {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-10px); }
+    }
+    .float-anim { animation: floatY 3s ease-in-out infinite; }
 
     /* Activity log item */
     .log-item {
@@ -349,60 +372,84 @@
     .gradient-text { -webkit-text-fill-color: transparent !important; }
     svg { color: inherit; }
 
-    /* --- 다크모드 구조 요소 --- */
+    /* --- Tailwind 흰색/검정색 텍스트 보호 (body !important에 덮이지 않게) --- */
+    .text-white { color: #ffffff !important; }
+    .text-black { color: #000000 !important; }
+
+    /* --- 다크모드 구조 요소 (Glass 효과) --- */
     .dark .glass {
-      background-color: rgb(var(--hq-surface) / 0.95) !important;
-      border-color: rgb(var(--hq-border) / 0.6) !important;
+      background-color: rgb(var(--hq-surface) / 0.55) !important;
+      backdrop-filter: blur(20px) saturate(1.4) !important;
+      -webkit-backdrop-filter: blur(20px) saturate(1.4) !important;
+      border-color: rgb(255 255 255 / 0.06) !important;
       color: rgb(var(--hq-text)) !important;
     }
     .dark aside {
-      background-color: rgb(var(--hq-surface) / 0.98) !important;
-      border-color: rgb(var(--hq-border) / 0.6) !important;
+      background-color: rgb(var(--hq-surface) / 0.45) !important;
+      backdrop-filter: blur(24px) saturate(1.5) !important;
+      -webkit-backdrop-filter: blur(24px) saturate(1.5) !important;
+      border-color: rgb(255 255 255 / 0.05) !important;
       color: rgb(var(--hq-text)) !important;
     }
     .dark .desk-card {
-      background: rgb(var(--hq-surface)) !important;
-      border-color: rgb(var(--hq-border) / 0.7) !important;
+      background: rgb(var(--hq-surface) / 0.45) !important;
+      backdrop-filter: blur(12px) saturate(1.3) !important;
+      -webkit-backdrop-filter: blur(12px) saturate(1.3) !important;
+      border-color: rgb(255 255 255 / 0.06) !important;
     }
     .dark .office-room {
-      background: rgb(var(--hq-bg) / 0.9) !important;
-      border-color: rgb(var(--hq-border) / 0.5) !important;
+      background: rgb(var(--hq-bg) / 0.5) !important;
+      backdrop-filter: blur(8px) !important;
+      -webkit-backdrop-filter: blur(8px) !important;
+      border-color: rgb(255 255 255 / 0.04) !important;
     }
     .dark input, .dark textarea, .dark select {
-      background-color: rgb(var(--hq-bg)) !important;
-      border-color: rgb(var(--hq-border) / 0.6) !important;
+      background-color: rgb(var(--hq-bg) / 0.6) !important;
+      backdrop-filter: blur(8px) !important;
+      -webkit-backdrop-filter: blur(8px) !important;
+      border-color: rgb(255 255 255 / 0.08) !important;
       color: rgb(var(--hq-text)) !important;
     }
     .dark input::placeholder, .dark textarea::placeholder {
       color: rgb(var(--hq-muted) / 0.7) !important;
     }
-    .dark .log-item:hover { background: rgb(var(--hq-accent) / 0.15) !important; }
+    .dark .log-item:hover { background: rgb(var(--hq-accent) / 0.1) !important; }
 
-    /* --- 라이트모드 구조 요소 --- */
+    /* --- 라이트모드 구조 요소 (소프트 Glass) --- */
     html:not(.dark) .glass {
-      background-color: rgb(var(--hq-surface) / 0.92) !important;
-      border-color: rgb(var(--hq-border)) !important;
+      background-color: rgb(var(--hq-surface) / 0.7) !important;
+      backdrop-filter: blur(20px) saturate(1.3) !important;
+      -webkit-backdrop-filter: blur(20px) saturate(1.3) !important;
+      border-color: rgb(var(--hq-border) / 0.4) !important;
       color: rgb(var(--hq-text)) !important;
-      box-shadow: 0 1px 3px rgb(0 0 0 / 0.06);
+      box-shadow: 0 1px 4px rgb(0 0 0 / 0.04);
     }
     html:not(.dark) aside {
-      background-color: rgb(var(--hq-surface)) !important;
-      border-color: rgb(var(--hq-border)) !important;
+      background-color: rgb(var(--hq-surface) / 0.65) !important;
+      backdrop-filter: blur(24px) saturate(1.3) !important;
+      -webkit-backdrop-filter: blur(24px) saturate(1.3) !important;
+      border-color: rgb(var(--hq-border) / 0.3) !important;
       color: rgb(var(--hq-text)) !important;
-      box-shadow: 1px 0 4px rgb(0 0 0 / 0.04);
+      box-shadow: 1px 0 6px rgb(0 0 0 / 0.03);
     }
     html:not(.dark) .desk-card {
-      background: rgb(var(--hq-surface)) !important;
-      border-color: rgb(var(--hq-border)) !important;
-      box-shadow: 0 1px 4px rgb(0 0 0 / 0.06);
+      background: rgb(var(--hq-surface) / 0.6) !important;
+      backdrop-filter: blur(12px) !important;
+      -webkit-backdrop-filter: blur(12px) !important;
+      border-color: rgb(var(--hq-border) / 0.3) !important;
+      box-shadow: 0 2px 8px rgb(0 0 0 / 0.04);
     }
     html:not(.dark) .office-room {
-      background: rgb(var(--hq-panel)) !important;
-      border-color: rgb(var(--hq-border) / 0.5) !important;
+      background: rgb(var(--hq-panel) / 0.5) !important;
+      backdrop-filter: blur(8px) !important;
+      -webkit-backdrop-filter: blur(8px) !important;
+      border-color: rgb(var(--hq-border) / 0.3) !important;
     }
     html:not(.dark) input, html:not(.dark) textarea, html:not(.dark) select {
-      background-color: rgb(var(--hq-surface)) !important;
-      border-color: rgb(var(--hq-border)) !important;
+      background-color: rgb(var(--hq-surface) / 0.8) !important;
+      backdrop-filter: blur(8px) !important;
+      -webkit-backdrop-filter: blur(8px) !important;
+      border-color: rgb(var(--hq-border) / 0.5) !important;
       color: rgb(var(--hq-text)) !important;
     }
     html:not(.dark) input::placeholder, html:not(.dark) textarea::placeholder {
@@ -639,7 +686,7 @@
           <path d="M16 2L28 9V23L16 30L4 23V9L16 2Z" stroke="url(#logoGrad)" stroke-width="1.5" fill="none"/>
           <path d="M16 6L24 10.5V21.5L16 26L8 21.5V10.5L16 6Z" stroke="url(#logoGrad)" stroke-width="1" fill="none" opacity="0.5"/>
           <circle cx="16" cy="16" r="4" fill="url(#logoGrad)" opacity="0.8"/>
-          <circle cx="16" cy="16" r="2" fill="#0a0e1a"/>
+          <circle cx="16" cy="16" r="2" fill="#0F0E16"/>
           <line x1="16" y1="12" x2="16" y2="6" stroke="url(#logoGrad)" stroke-width="1" opacity="0.6"/>
           <line x1="19.5" y1="14" x2="24" y2="10.5" stroke="url(#logoGrad)" stroke-width="1" opacity="0.6"/>
           <line x1="19.5" y1="18" x2="24" y2="21.5" stroke="url(#logoGrad)" stroke-width="1" opacity="0.6"/>
@@ -1599,6 +1646,19 @@
               </template>
             </div>
             <div class="flex items-end gap-3">
+              <!-- Batch/실시간 세그먼트 토글 -->
+              <div class="flex rounded-xl border border-hq-border/40 overflow-hidden shrink-0 self-stretch">
+                <button @click="useBatch = false"
+                        class="text-xs px-3 py-2 transition-all"
+                        :class="!useBatch
+                          ? 'bg-hq-accent/15 text-hq-accent'
+                          : 'text-hq-muted/60 hover:text-hq-muted'">⚡ 실시간</button>
+                <button @click="useBatch = true"
+                        class="text-xs px-3 py-2 transition-all"
+                        :class="useBatch
+                          ? 'bg-hq-purple/15 text-hq-purple'
+                          : 'text-hq-muted/60 hover:text-hq-muted'">📦 Batch</button>
+              </div>
               <div class="flex-1 relative">
                 <textarea x-model="inputText" x-ref="inputArea"
                   @keydown="handleInputKeydown($event)" @input="handleInputChange($event)"
@@ -1612,14 +1672,6 @@
                 <div class="absolute right-3 bottom-3 text-[10px] font-mono text-hq-muted/70"
                      x-show="!inputText.trim() && systemStatus !== 'working'">Enter &#9166;</div>
               </div>
-              <!-- Batch/실시간 토글 -->
-              <button @click="useBatch = !useBatch"
-                      class="text-[11px] px-2.5 py-2 rounded-xl border transition-all shrink-0"
-                      :class="useBatch
-                        ? 'bg-hq-purple/15 text-hq-purple border-hq-purple/30 hover:bg-hq-purple/25'
-                        : 'border-hq-border/30 text-hq-muted hover:text-hq-accent hover:border-hq-accent/30'">
-                <span x-text="useBatch ? '📦 Batch' : '⚡ 실시간'"></span>
-              </button>
               <button x-show="systemStatus !== 'working'" @click="sendMessage()"
                 :disabled="!inputText.trim()"
                 class="bg-gradient-to-r from-hq-accent to-hq-purple hover:from-blue-500 hover:to-violet-500
@@ -1631,16 +1683,6 @@
                        text-hq-red rounded-xl px-6 py-3 text-sm font-semibold transition-all shrink-0 flex items-center gap-2">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
                 취소
-              </button>
-            </div>
-            <!-- Batch/실시간 토글 (항상 보임) -->
-            <div class="flex items-center mt-1.5">
-              <button @click="useBatch = !useBatch"
-                      class="text-[11px] flex items-center gap-1.5 px-2.5 py-1 rounded-lg transition-all"
-                      :class="useBatch
-                        ? 'bg-hq-purple/15 text-hq-purple border border-hq-purple/30 hover:bg-hq-purple/25'
-                        : 'text-hq-muted hover:text-hq-accent hover:bg-hq-accent/10'">
-                <span x-text="useBatch ? '📦 Batch' : '⚡ 실시간'"></span>
               </button>
             </div>
           </div>
@@ -2114,23 +2156,51 @@
       <!-- ═══ Tab: 작업내역 (History) ═══ -->
       <div x-show="viewMode === 'chat' && activeTab === 'history'" x-cloak class="flex-1 flex flex-col overflow-hidden">
         <div class="px-6 pt-5 pb-3 shrink-0 border-b border-hq-border bg-hq-surface">
-          <!-- 통계 카드 -->
+          <!-- 통계 카드 (아이콘 + 색상 강화) -->
           <div class="grid grid-cols-4 gap-3 max-w-5xl mx-auto mb-4">
-            <div class="bg-hq-panel border border-hq-border/50 rounded-lg px-3 py-2">
-              <div class="text-lg font-bold text-hq-text" x-text="taskHistory.items?.length || 0"></div>
-              <div class="text-[10px] text-hq-muted">전체 작업</div>
+            <!-- 전체 작업 -->
+            <div class="bg-hq-panel border border-hq-border/50 rounded-lg px-4 py-3 flex items-center gap-3 relative overflow-hidden">
+              <div class="absolute left-0 top-0 bottom-0 w-1 bg-hq-accent rounded-l-lg"></div>
+              <div class="w-9 h-9 rounded-lg bg-hq-accent/10 flex items-center justify-center shrink-0">
+                <svg class="w-5 h-5 text-hq-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+              </div>
+              <div>
+                <div class="text-xl font-bold text-hq-text" x-text="taskHistory.items?.length || 0"></div>
+                <div class="text-[10px] text-hq-muted">전체 작업</div>
+              </div>
             </div>
-            <div class="bg-hq-panel border border-hq-border/50 rounded-lg px-3 py-2">
-              <div class="text-lg font-bold text-hq-green" x-text="(taskHistory.items || []).filter(t => t.status === 'completed').length"></div>
-              <div class="text-[10px] text-hq-muted">완료</div>
+            <!-- 완료 -->
+            <div class="bg-hq-panel border border-hq-border/50 rounded-lg px-4 py-3 flex items-center gap-3 relative overflow-hidden">
+              <div class="absolute left-0 top-0 bottom-0 w-1 bg-hq-green rounded-l-lg"></div>
+              <div class="w-9 h-9 rounded-lg bg-hq-green/10 flex items-center justify-center shrink-0">
+                <svg class="w-5 h-5 text-hq-green" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+              </div>
+              <div>
+                <div class="text-xl font-bold text-hq-green" x-text="(taskHistory.items || []).filter(t => t.status === 'completed').length"></div>
+                <div class="text-[10px] text-hq-muted">완료</div>
+              </div>
             </div>
-            <div class="bg-hq-panel border border-hq-border/50 rounded-lg px-3 py-2">
-              <div class="text-lg font-bold text-hq-red" x-text="(taskHistory.items || []).filter(t => t.status === 'failed').length"></div>
-              <div class="text-[10px] text-hq-muted">실패</div>
+            <!-- 실패 -->
+            <div class="bg-hq-panel border border-hq-border/50 rounded-lg px-4 py-3 flex items-center gap-3 relative overflow-hidden">
+              <div class="absolute left-0 top-0 bottom-0 w-1 bg-hq-red rounded-l-lg"></div>
+              <div class="w-9 h-9 rounded-lg bg-hq-red/10 flex items-center justify-center shrink-0">
+                <svg class="w-5 h-5 text-hq-red" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+              </div>
+              <div>
+                <div class="text-xl font-bold text-hq-red" x-text="(taskHistory.items || []).filter(t => t.status === 'failed').length"></div>
+                <div class="text-[10px] text-hq-muted">실패</div>
+              </div>
             </div>
-            <div class="bg-hq-panel border border-hq-border/50 rounded-lg px-3 py-2">
-              <div class="text-lg font-bold text-hq-cyan" x-text="'$' + ((taskHistory.items || []).reduce((s, t) => s + (t.cost || 0), 0)).toFixed(2)"></div>
-              <div class="text-[10px] text-hq-muted">총 비용</div>
+            <!-- 총 비용 -->
+            <div class="bg-hq-panel border border-hq-border/50 rounded-lg px-4 py-3 flex items-center gap-3 relative overflow-hidden">
+              <div class="absolute left-0 top-0 bottom-0 w-1 bg-hq-cyan rounded-l-lg"></div>
+              <div class="w-9 h-9 rounded-lg bg-hq-cyan/10 flex items-center justify-center shrink-0">
+                <svg class="w-5 h-5 text-hq-cyan" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+              </div>
+              <div>
+                <div class="text-xl font-bold text-hq-cyan" x-text="'$' + ((taskHistory.items || []).reduce((s, t) => s + (t.cost || 0), 0)).toFixed(2)"></div>
+                <div class="text-[10px] text-hq-muted">총 비용</div>
+              </div>
             </div>
           </div>
           <div class="flex items-center gap-3 max-w-5xl mx-auto">
@@ -2901,8 +2971,8 @@
               <input x-model="rubricEditName" class="w-full bg-hq-panel border border-hq-border rounded-lg px-3 py-2 text-sm text-hq-text" placeholder="예: 기본 검수 기준">
             </div>
             <div class="mb-2">
-              <label class="text-xs text-hq-muted mb-1 block">검수 기준 (프롬프트)</label>
-              <textarea x-model="rubricEditPrompt" rows="5" class="w-full bg-hq-panel border border-hq-border rounded-lg px-3 py-2 text-sm text-hq-text resize-y font-mono" placeholder="다음 기준으로 검수하세요:&#10;1. ..."></textarea>
+              <label class="text-xs text-hq-muted mb-1 block">검수 기준</label>
+              <textarea x-model="rubricEditPrompt" rows="5" class="w-full bg-hq-panel border border-hq-border rounded-lg px-3 py-2 text-sm text-hq-text resize-y" placeholder="다음 기준으로 검수하세요:&#10;1. ..."></textarea>
             </div>
             <div class="flex items-center gap-2">
               <button @click="saveRubric()" class="bg-hq-accent hover:bg-blue-600 text-white rounded-lg px-3 py-1.5 text-xs">저장</button>
@@ -2946,7 +3016,7 @@
                 </div>
                 <div class="grid grid-cols-2 gap-2 mb-2">
                   <div>
-                    <label class="text-xs text-hq-muted mb-1 block">검수 모델 (부서 전용)</label>
+                    <label class="text-xs text-hq-muted mb-1 block">검수 모델</label>
                     <select x-model="rubricEditModel" class="w-full bg-hq-panel border border-hq-border rounded-lg px-3 py-2 text-sm text-hq-text">
                       <option value="">공통 모델 사용</option>
                       <template x-for="[provLabel, models] in Object.entries(getModelsByProvider())" :key="provLabel">
@@ -2970,13 +3040,13 @@
                   </div>
                 </div>
                 <div class="mb-2">
-                  <label class="text-xs text-hq-muted mb-1 block">검수 기준 (프롬프트)</label>
-                  <textarea x-model="rubricEditPrompt" rows="5" class="w-full bg-hq-panel border border-hq-border rounded-lg px-3 py-2 text-sm text-hq-text resize-y font-mono" placeholder="다음 기준으로 검수하세요:&#10;1. ..."></textarea>
+                  <label class="text-xs text-hq-muted mb-1 block">검수 기준</label>
+                  <textarea x-model="rubricEditPrompt" rows="5" class="w-full bg-hq-panel border border-hq-border rounded-lg px-3 py-2 text-sm text-hq-text resize-y" placeholder="다음 기준으로 검수하세요:&#10;1. ..."></textarea>
                 </div>
                 <div class="flex items-center gap-2">
                   <button @click="saveRubric()" class="bg-hq-accent hover:bg-blue-600 text-white rounded-lg px-3 py-1.5 text-xs">저장</button>
                   <button @click="editingRubric = null" class="bg-hq-surface hover:bg-hq-panel text-hq-text rounded-lg px-3 py-1.5 text-xs">취소</button>
-                  <button x-show="qualityRules.rubrics && qualityRules.rubrics[div]" @click="deleteRubric()" class="text-hq-red/70 hover:text-hq-red text-xs ml-auto">삭제</button>
+                  <button x-show="qualityRules.rubrics && qualityRules.rubrics[div]" @click="deleteRubric()" class="text-hq-red/70 hover:text-hq-red text-xs ml-auto" title="이 부서의 검수 기준을 삭제하고 공통 기준으로 되돌립니다">공통 기준으로 초기화</button>
                 </div>
               </div>
             </div>

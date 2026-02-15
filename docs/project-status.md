@@ -11,7 +11,7 @@
 - **날짜**: 2026-02-15
 - **버전**: `0.05.051`
 - **작업 브랜치**: claude/design-neutral-dark-overhaul
-- **작업 내용**: Batch/실시간 세그먼트 토글을 입력창 왼쪽에 배치 — 항상 보이는 [⚡실시간|📦Batch] 토글
+- **작업 내용**: Glass + Aurora Mix 디자인 적용 — 따뜻한 톤 팔레트, 오로라 그라데이션 배경, 유리 효과(glassmorphism), 보내기 버튼 수정
 - **빌드 번호**: 배포 후 확인 (GitHub Actions `deploy.yml` 실행 번호 = 빌드 번호)
 
 ---
