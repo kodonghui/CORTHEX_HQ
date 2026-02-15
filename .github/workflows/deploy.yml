@@ -38,7 +38,10 @@ jobs:
             else
               echo "🔄 최신 코드 가져오는 중..."
               cd CORTHEX_HQ
-              git pull origin main
+              # ⚠️ 이전 배포에서 sed가 index.html을 수정하므로 로컬 변경사항 발생
+              # git pull이 실패하지 않도록 로컬 변경사항을 먼저 버림
+              git fetch origin main
+              git reset --hard origin/main
             fi
 
             cd /home/ubuntu/CORTHEX_HQ
