@@ -1802,13 +1802,24 @@ async def _call_agent(agent_id: str, text: str) -> dict:
         except Exception:
             pass
 
-    # 노션에 산출물 자동 저장 (비동기, 실패해도 무시)
+    # 산출물 저장 (노션 + 아카이브 DB)
     if content and len(content) > 20:
+        # 노션에 저장 (비동기, 실패해도 무시)
         asyncio.create_task(_save_to_notion(
             agent_id=agent_id,
             title=f"[{agent_name}] {text[:50]}",
             content=content,
         ))
+        # 아카이브 DB에 저장 (영구 보관)
+        division = _AGENT_DIVISION.get(agent_id, "secretary")
+        now_str = datetime.now(KST).strftime("%Y%m%d_%H%M%S")
+        archive_content = f"# [{agent_name}] {text[:60]}\n\n{content}"
+        save_archive(
+            division=division,
+            filename=f"{agent_id}_{now_str}.md",
+            content=archive_content,
+            agent_id=agent_id,
+        )
 
     return {
         "agent_id": agent_id,
@@ -1913,7 +1924,7 @@ async def _manager_with_delegation(manager_id: str, text: str) -> dict:
     specialists_used = len([r for r in spec_results if "error" not in r])
     synth_content = synthesis.get("content", "")
 
-    # 종합 보고서를 노션에 저장
+    # 종합 보고서 저장 (노션 + 아카이브 DB)
     if synth_content and len(synth_content) > 20:
         asyncio.create_task(_save_to_notion(
             agent_id=manager_id,
@@ -1921,6 +1932,16 @@ async def _manager_with_delegation(manager_id: str, text: str) -> dict:
             content=synth_content,
             report_type="종합보고서",
         ))
+        # 아카이브 DB에 저장
+        division = _AGENT_DIVISION.get(manager_id, "secretary")
+        now_str = datetime.now(KST).strftime("%Y%m%d_%H%M%S")
+        archive_content = f"# [{mgr_name}] 종합보고: {text[:50]}\n\n{synth_content}"
+        save_archive(
+            division=division,
+            filename=f"{manager_id}_synthesis_{now_str}.md",
+            content=archive_content,
+            agent_id=manager_id,
+        )
 
     return {
         "agent_id": manager_id,
