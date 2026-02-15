@@ -92,10 +92,18 @@ def _load_env_file() -> None:
 
 _load_env_file()
 
+# 프로젝트 루트를 sys.path에 추가 (src/ 모듈 임포트용)
+_PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, _PROJECT_ROOT)
+
 try:
     import yaml
 except ImportError:
     yaml = None  # PyYAML 미설치 시 graceful fallback
+
+# ── ToolPool 지연 로딩 ──
+_tool_pool = None  # None=미초기화, False=실패, ToolPool인스턴스=성공
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Body, Request
 from fastapi.responses import HTMLResponse, FileResponse, JSONResponse
@@ -2656,9 +2664,134 @@ async def _process_ai_command(text: str, task_id: str) -> dict:
     }
 
 
+# ── 도구 실행 파이프라인 ──
+
+def _init_tool_pool():
+    """ToolPool 초기화 — src/tools/ 모듈을 동적으로 로드합니다.
+
+    ask_ai()를 ModelRouter 인터페이스로 감싸는 어댑터를 만들어,
+    기존 도구 코드를 수정 없이 사용할 수 있게 합니다.
+    """
+    global _tool_pool
+    if _tool_pool is not None:
+        return _tool_pool if _tool_pool else None
+
+    try:
+        from src.tools.pool import ToolPool
+        from src.llm.base import LLMResponse
+
+        class _MiniModelRouter:
+            """ask_ai()를 ModelRouter.complete() 인터페이스로 감싸는 어댑터."""
+
+            class cost_tracker:
+                """더미 비용 추적기 (mini_server는 자체 비용 추적 사용)."""
+                @staticmethod
+                def record(*args, **kwargs):
+                    pass
+
+            async def complete(self, model_name="", messages=None,
+                             temperature=0.3, max_tokens=4096,
+                             agent_id="", reasoning_effort=None,
+                             use_batch=False):
+                messages = messages or []
+                system_prompt = ""
+                user_message = ""
+                for msg in messages:
+                    if msg.get("role") == "system":
+                        system_prompt = msg["content"]
+                    elif msg.get("role") == "user":
+                        user_message = msg["content"]
+
+                result = await ask_ai(user_message, system_prompt, model_name)
+
+                if "error" in result:
+                    return LLMResponse(
+                        content=f"[도구 LLM 오류] {result['error']}",
+                        model=model_name,
+                        input_tokens=0, output_tokens=0,
+                        cost_usd=0.0, provider="unknown",
+                    )
+                return LLMResponse(
+                    content=result["content"],
+                    model=result.get("model", model_name),
+                    input_tokens=result.get("input_tokens", 0),
+                    output_tokens=result.get("output_tokens", 0),
+                    cost_usd=result.get("cost_usd", 0.0),
+                    provider=result.get("provider", "unknown"),
+                )
+
+            async def close(self):
+                pass
+
+        router = _MiniModelRouter()
+        pool = ToolPool(router)
+
+        tools_config = _load_config("tools")
+        pool.build_from_config(tools_config)
+
+        loaded = len(pool._tools)
+        _tool_pool = pool
+        _log(f"[TOOLS] ToolPool 초기화 완료: {loaded}개 도구 로드 ✅")
+        return pool
+
+    except Exception as e:
+        _log(f"[TOOLS] ToolPool 초기화 실패 (도구 목록만 표시): {e}")
+        _tool_pool = False
+        return None
+
+
+@app.post("/api/tools/{tool_id}/execute")
+async def execute_tool(tool_id: str, request: Request):
+    """도구를 직접 실행합니다.
+
+    요청 body: {"action": "...", "query": "...", ...} (도구별 상이)
+    응답: {"result": "...", "tool_id": "...", "cost_usd": 0.0}
+    """
+    pool = _init_tool_pool()
+    if not pool:
+        return JSONResponse(
+            {"error": "도구 실행 엔진 미초기화 (ToolPool 로드 실패)"},
+            status_code=503,
+        )
+
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+
+    try:
+        result = await pool.invoke(tool_id, caller_id="ceo_direct", **body)
+        return {"result": result, "tool_id": tool_id, "status": "ok"}
+    except Exception as e:
+        return JSONResponse(
+            {"error": f"도구 실행 오류: {str(e)[:300]}", "tool_id": tool_id},
+            status_code=400,
+        )
+
+
+@app.get("/api/tools/status")
+async def get_tools_status():
+    """로드된 도구 목록과 ToolPool 상태를 반환합니다."""
+    pool = _init_tool_pool()
+    if not pool:
+        return {
+            "pool_status": "unavailable",
+            "loaded_tools": [],
+            "total_defined": len(_TOOLS_LIST),
+        }
+
+    loaded = list(pool._tools.keys())
+    return {
+        "pool_status": "ready",
+        "loaded_tools": loaded,
+        "loaded_count": len(loaded),
+        "total_defined": len(_TOOLS_LIST),
+    }
+
+
 @app.on_event("startup")
 async def on_startup():
-    """서버 시작 시 DB 초기화 + AI 클라이언트 + 텔레그램 봇 + 크론 엔진 시작."""
+    """서버 시작 시 DB 초기화 + AI 클라이언트 + 텔레그램 봇 + 크론 엔진 + 도구 풀 시작."""
     init_db()
     _load_chief_prompt()
     ai_ok = init_ai_client()
@@ -2668,6 +2801,8 @@ async def on_startup():
     global _cron_task
     _cron_task = asyncio.create_task(_cron_loop())
     _log("[CRON] 크론 실행 엔진 시작 ✅")
+    # 도구 실행 엔진 초기화 (비동기 아닌 동기 — 첫 요청 시 lazy 로드도 지원)
+    _init_tool_pool()
 
 
 @app.on_event("shutdown")
