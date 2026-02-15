@@ -869,7 +869,7 @@ async def save_quality_rules(request: Request):
 async def save_agent_soul(agent_id: str, request: Request):
     """에이전트 소울(성격) 저장. DB에 영구 저장됨."""
     body = await request.json()
-    soul_text = body.get("soul", "")
+    soul_text = body.get("soul") or body.get("system_prompt", "")
     # DB에 저장 (재배포해도 유지)
     save_setting(f"soul_{agent_id}", soul_text)
     return {"success": True, "agent_id": agent_id}
