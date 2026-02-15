@@ -2596,16 +2596,17 @@
               <div class="glass border border-hq-border rounded-xl p-4 hover-glow">
                 <div class="flex items-start justify-between gap-3">
                   <div class="flex-1 min-w-0">
-                    <div class="mb-1"><span class="inline-block w-2 h-2 rounded-full bg-violet-400 mr-1.5 align-middle"></span><span class="text-sm font-semibold text-hq-text align-middle" x-text="wf.name"></span></div>
-                    <div class="text-[12px] text-hq-muted mb-2" x-text="wf.description || wf.steps.length + '단계'"></div>
-                    <div class="flex items-center gap-1.5 flex-wrap">
+                    <div class="flex items-center gap-2 flex-wrap mb-1">
+                      <span class="inline-block w-2 h-2 rounded-full bg-violet-400 shrink-0"></span>
+                      <span class="text-sm font-semibold text-hq-text" x-text="wf.name"></span>
                       <template x-for="(step, i) in wf.steps" :key="i">
-                        <div class="flex items-center gap-1.5">
+                        <div class="flex items-center gap-1">
+                          <span x-show="i > 0" class="text-hq-muted/40 text-[10px]">→</span>
                           <span class="text-[10px] bg-hq-accent/10 text-hq-accent rounded-md px-2 py-0.5 font-medium" x-text="step.name || ('단계 ' + (i+1))"></span>
-                          <span x-show="i < wf.steps.length - 1" class="text-hq-muted/50 text-[10px]">→</span>
                         </div>
                       </template>
                     </div>
+                    <div class="text-[12px] text-hq-muted ml-3.5" x-text="wf.description || wf.steps.length + '단계'"></div>
                   </div>
                   <div class="flex items-center gap-2 shrink-0">
                     <button @click="runWorkflow(wf.id)"
@@ -5154,7 +5155,7 @@
           try {
             const data = await fetch('/api/workflows').then(r => r.json());
             this.workflows.items = (Array.isArray(data) ? data : data.workflows || []).map(w => ({
-              ...w, id: w.workflow_id,
+              ...w, id: w.id || w.workflow_id,
             }));
           } catch (e) { this.workflows.items = []; }
         },
