@@ -433,3 +433,561 @@ tools:
     name_ko: "에이전트 협업 프로토콜"
     description: "에이전트 간 횡적 협업 — 작업 요청, 정보 공유, 작업 인계, 결과 수집·종합"
     model_name: "gpt-5-mini"
+
+  # ═══════════════════════════════════════════
+  # My Skills Plugin — 전문 스킬 도구
+  # ═══════════════════════════════════════════
+  # my-skills-collection 플러그인의 104개 스킬 중
+  # 에이전트 역할에 맞는 핵심 스킬을 도구로 등록
+
+  # ─── 마케팅 & 성장 스킬 ───
+
+  - tool_id: "skill_copywriting"
+    name: "Copywriting Skill"
+    name_ko: "카피라이팅 스킬"
+    description: "홈페이지, 랜딩페이지, 가격 페이지 등 마케팅 글을 처음부터 새로 써주는 전문 스킬"
+    model_name: "gpt-5-mini"
+
+  - tool_id: "skill_copy_editing"
+    name: "Copy Editing Skill"
+    name_ko: "카피 편집 스킬"
+    description: "이미 있는 마케팅 글을 분석하고 더 설득력 있게 다듬어주는 전문 스킬"
+    model_name: "gpt-5-mini"
+
+  - tool_id: "skill_social_content"
+    name: "Social Content Skill"
+    name_ko: "SNS 콘텐츠 스킬"
+    description: "LinkedIn, X(트위터), 인스타그램 등 SNS 플랫폼별 최적화된 콘텐츠 제작 스킬"
+    model_name: "gpt-5-mini"
+
+  - tool_id: "skill_email_sequence"
+    name: "Email Sequence Skill"
+    name_ko: "이메일 시퀀스 스킬"
+    description: "자동 이메일 시리즈 설계 — 웰컴, 너처링, 재참여 등 목적별 이메일 시퀀스 기획"
+    model_name: "gpt-5-mini"
+
+  - tool_id: "skill_seo_audit"
+    name: "SEO Audit Skill"
+    name_ko: "SEO 감사 스킬"
+    description: "사이트 SEO 건강 검진 — 왜 구글에서 안 나오는지 점검하고 개선안 제시"
+    model_name: "gpt-5-mini"
+
+  - tool_id: "skill_schema_markup"
+    name: "Schema Markup Skill"
+    name_ko: "스키마 마크업 스킬"
+    description: "구글 검색 결과에 별점, 가격 등 풍부한 정보가 표시되게 구조화 데이터 코드 생성"
+    model_name: "gpt-5-mini"
+
+  - tool_id: "skill_content_strategy"
+    name: "Content Strategy Skill"
+    name_ko: "콘텐츠 전략 스킬"
+    description: "블로그, SNS, 뉴스레터 등 어떤 콘텐츠를 만들지 전략 수립 스킬"
+    model_name: "gpt-5-mini"
+
+  - tool_id: "skill_page_cro"
+    name: "Page CRO Skill"
+    name_ko: "페이지 전환율 최적화 스킬"
+    description: "마케팅 페이지의 전환율(방문자→고객) 개선 — 레이아웃, CTA, 신뢰 요소 분석"
+    model_name: "gpt-5-mini"
+
+  - tool_id: "skill_form_cro"
+    name: "Form CRO Skill"
+    name_ko: "폼 전환율 최적화 스킬"
+    description: "문의/데모 요청 등 폼 최적화 — 이탈률 줄이고 완료율 높이는 개선안"
+    model_name: "gpt-5-mini"
+
+  - tool_id: "skill_marketing_ideas"
+    name: "Marketing Ideas Skill"
+    name_ko: "마케팅 아이디어 스킬"
+    description: "139개 검증된 SaaS 마케팅 전술 라이브러리에서 현재 상황에 맞는 아이디어 추천"
+    model_name: "gpt-5-mini"
+
+  - tool_id: "skill_marketing_psychology"
+    name: "Marketing Psychology Skill"
+    name_ko: "마케팅 심리학 스킬"
+    description: "70+ 심리학 멘탈 모델을 마케팅에 적용 — 가격, 카피, UI에 설득 원칙 적용"
+    model_name: "gpt-5-mini"
+
+  - tool_id: "skill_pricing_strategy"
+    name: "Pricing Strategy Skill"
+    name_ko: "가격 전략 스킬"
+    description: "SaaS 가격 및 요금제 설계 — 무료/유료 구분, 티어 구성, 가격 심리학 적용"
+    model_name: "gpt-5-mini"
+
+  - tool_id: "skill_launch_strategy"
+    name: "Launch Strategy Skill"
+    name_ko: "런칭 전략 스킬"
+    description: "제품/기능 출시 전략 — Product Hunt, 베타 런칭, 사전 예약 등 단계별 런칭 계획"
+    model_name: "gpt-5-mini"
+
+  - tool_id: "skill_competitor_alternatives"
+    name: "Competitor Alternatives Skill"
+    name_ko: "경쟁사 비교 스킬"
+    description: "경쟁사 비교 페이지 제작 — '우리 vs 경쟁사' 비교표, 차별점 강조 콘텐츠"
+    model_name: "gpt-5-mini"
+
+  - tool_id: "skill_paid_ads"
+    name: "Paid Ads Skill"
+    name_ko: "유료 광고 스킬"
+    description: "Google, Meta, LinkedIn 등 유료 광고 캠페인 설계 — 타겟팅, 예산, 카피 작성"
+    model_name: "gpt-5-mini"
+
+  - tool_id: "skill_referral_program"
+    name: "Referral Program Skill"
+    name_ko: "추천인 프로그램 스킬"
+    description: "고객이 친구를 데려오는 추천인 시스템 설계 — 인센티브, 메커닉스, 추적 구조"
+    model_name: "gpt-5-mini"
+
+  # ─── 개발 프로세스 스킬 ───
+
+  - tool_id: "skill_tdd_workflow"
+    name: "TDD Workflow Skill"
+    name_ko: "TDD 워크플로우 스킬"
+    description: "테스트 주도 개발(TDD) — 테스트를 먼저 쓰고 코드 작성하는 유연한 워크플로우"
+    model_name: "gpt-5-mini"
+
+  - tool_id: "skill_verification_loop"
+    name: "Verification Loop Skill"
+    name_ko: "종합 검증 스킬"
+    description: "6단계 종합 검증 — 빌드→타입→린트→테스트→보안→diff 순서로 배포 전 품질 보증"
+    model_name: "gpt-5-mini"
+
+  - tool_id: "skill_systematic_debugging"
+    name: "Systematic Debugging Skill"
+    name_ko: "체계적 디버깅 스킬"
+    description: "감으로 찾지 않고 단계적·논리적으로 버그 원인을 추적하는 디버깅 방법론"
+    model_name: "gpt-5-mini"
+
+  - tool_id: "skill_code_review"
+    name: "Code Review Skill"
+    name_ko: "코드 리뷰 스킬"
+    description: "코드 리뷰 요청 및 피드백 대응 — 주요 기능 완료 후 머지 전 코드 품질 검토"
+    model_name: "gpt-5-mini"
+
+  - tool_id: "skill_writing_plans"
+    name: "Writing Plans Skill"
+    name_ko: "구현 계획서 스킬"
+    description: "복잡한 기능 개발 전 구현 계획서 작성 — 단계별 목표, 기술 선택, 리스크 분석"
+    model_name: "gpt-5-mini"
+
+  # ─── 코딩 패턴 & 표준 스킬 ───
+
+  - tool_id: "skill_coding_standards"
+    name: "Coding Standards Skill"
+    name_ko: "코딩 표준 스킬"
+    description: "TypeScript, JavaScript, React, Node.js 코딩 규칙과 모범 사례 자동 적용"
+    model_name: "gpt-5-mini"
+
+  - tool_id: "skill_frontend_patterns"
+    name: "Frontend Patterns Skill"
+    name_ko: "프론트엔드 패턴 스킬"
+    description: "React, Next.js 컴포넌트 설계 패턴 — 상태 관리, 성능 최적화, 접근성"
+    model_name: "gpt-5-mini"
+
+  - tool_id: "skill_frontend_design"
+    name: "Frontend Design Skill"
+    name_ko: "프론트엔드 디자인 스킬"
+    description: "고퀄리티 UI 디자인 — 미학, 타이포그래피, 색상, 애니메이션 가이드라인"
+    model_name: "gpt-5-mini"
+
+  - tool_id: "skill_backend_patterns"
+    name: "Backend Patterns Skill"
+    name_ko: "백엔드 패턴 스킬"
+    description: "Node.js/Express/FastAPI 백엔드 설계 패턴 — API, 캐싱, 인증, 에러 처리"
+    model_name: "gpt-5-mini"
+
+  - tool_id: "skill_python_patterns"
+    name: "Python Patterns Skill"
+    name_ko: "Python 패턴 스킬"
+    description: "Python 코딩 스타일, 타입 힌트, 에러 처리, 동시성 등 모범 사례"
+    model_name: "gpt-5-mini"
+
+  - tool_id: "skill_security_review"
+    name: "Security Review Skill"
+    name_ko: "보안 코드 리뷰 스킬"
+    description: "코드 보안 검토 체크리스트 — 인증, 입력 검증, 시크릿 관리, OWASP Top 10"
+    model_name: "gpt-5-mini"
+
+  # ─── 도구 & 유틸리티 스킬 ───
+
+  - tool_id: "skill_code_documenter"
+    name: "Code Documenter Skill"
+    name_ko: "코드 문서화 스킬"
+    description: "코드베이스 분석 후 기술 문서 자동 생성 — API 문서, 아키텍처 다이어그램"
+    model_name: "gpt-5-mini"
+
+  - tool_id: "skill_changelog_generator"
+    name: "Changelog Generator Skill"
+    name_ko: "변경 로그 생성 스킬"
+    description: "Git 커밋 히스토리에서 사용자 친화적 변경 로그/릴리스 노트 자동 생성"
+    model_name: "gpt-5-mini"
+
+  - tool_id: "skill_last30days"
+    name: "Last 30 Days Research Skill"
+    name_ko: "최근 30일 트렌드 스킬"
+    description: "최근 30일간 Reddit, X, 웹에서 특정 주제의 최신 동향/트렌드 리서치"
+    model_name: "gpt-5-mini"
+
+  - tool_id: "skill_canvas_design"
+    name: "Canvas Design Skill"
+    name_ko: "디자인 제작 스킬"
+    description: "포스터, 배너, 인포그래픽 등 시각 디자인 제작 — PNG/PDF 출력"
+    model_name: "gpt-5-mini"
+
+  - tool_id: "skill_defuddle"
+    name: "Defuddle Skill"
+    name_ko: "웹 콘텐츠 추출 스킬"
+    description: "웹 페이지에서 핵심 텍스트만 깔끔하게 추출 — 광고/메뉴 제거, 본문만 추출"
+    model_name: "gpt-5-mini"
+
+  - tool_id: "skill_brainstorming"
+    name: "Brainstorming Skill"
+    name_ko: "브레인스토밍 스킬"
+    description: "코드 쓰기 전에 아이디어→설계→스펙 변환 — 체계적 아이디어 기획 프로세스"
+    model_name: "gpt-5-mini"
+
+  - tool_id: "skill_handoff"
+    name: "Handoff Skill"
+    name_ko: "세션 인계 스킬"
+    description: "세션 끝날 때 다음 세션에 맥락 전달 — 핸드오프 문서 자동 생성"
+    model_name: "gpt-5-mini"
+
+  - tool_id: "skill_mcp_builder"
+    name: "MCP Builder Skill"
+    name_ko: "MCP 서버 구축 스킬"
+    description: "외부 API와 AI를 연결하는 MCP 서버 구축 가이드 — Slack, GitHub 등 연동"
+    model_name: "gpt-5-mini"
+
+  # ─── 마케팅 추가 스킬 ───
+
+  - tool_id: "skill_programmatic_seo"
+    name: "Programmatic SEO Skill"
+    name_ko: "대량 SEO 페이지 생성 스킬"
+    description: "템플릿으로 SEO 페이지를 대량 생성(100~1000개) — '[도구]+[용도]' 패턴 페이지"
+    model_name: "gpt-5-mini"
+
+  - tool_id: "skill_signup_flow_cro"
+    name: "Signup Flow CRO Skill"
+    name_ko: "가입 플로우 최적화 스킬"
+    description: "가입 과정 최적화 — 가입 단계에서 이탈하는 사용자를 줄이는 개선안"
+    model_name: "gpt-5-mini"
+
+  - tool_id: "skill_onboarding_cro"
+    name: "Onboarding CRO Skill"
+    name_ko: "온보딩 최적화 스킬"
+    description: "가입 후 첫 경험 최적화 — 사용자가 '아하!' 하는 순간까지 이끄는 플로우 설계"
+    model_name: "gpt-5-mini"
+
+  - tool_id: "skill_popup_cro"
+    name: "Popup CRO Skill"
+    name_ko: "팝업 최적화 스킬"
+    description: "팝업/모달 최적화 — 리드 수집 팝업, 이탈 방지 팝업 설계 및 전환율 개선"
+    model_name: "gpt-5-mini"
+
+  - tool_id: "skill_paywall_upgrade_cro"
+    name: "Paywall Upgrade CRO Skill"
+    name_ko: "페이월 업그레이드 스킬"
+    description: "무료→유료 전환 화면 최적화 — 유료 결제 페이지 이탈률 감소 전략"
+    model_name: "gpt-5-mini"
+
+  - tool_id: "skill_free_tool_strategy"
+    name: "Free Tool Strategy Skill"
+    name_ko: "무료 도구 전략 스킬"
+    description: "리드 생성용 무료 도구 기획 — 무료 계산기/도구로 잠재 고객 유입 전략"
+    model_name: "gpt-5-mini"
+
+  - tool_id: "skill_product_marketing_context"
+    name: "Product Marketing Context Skill"
+    name_ko: "제품 마케팅 컨텍스트 스킬"
+    description: "제품 마케팅 기초 문서 작성 — 다른 마케팅 스킬들이 참조하는 핵심 컨텍스트"
+    model_name: "gpt-5-mini"
+
+  # ─── 개발 프로세스 추가 스킬 ───
+
+  - tool_id: "skill_test_driven_development"
+    name: "Test Driven Development Skill"
+    name_ko: "TDD 엄격 모드 스킬"
+    description: "엄격한 TDD — 테스트를 먼저 쓰고, 그다음 코드 작성하는 규율 중심 개발"
+    model_name: "gpt-5-mini"
+
+  - tool_id: "skill_eval_harness"
+    name: "Eval Harness Skill"
+    name_ko: "평가 기반 개발 스킬"
+    description: "평가 기반 개발(EDD) — 테스트 케이스를 먼저 정의하고 AI/ML 기능 개발"
+    model_name: "gpt-5-mini"
+
+  - tool_id: "skill_verification_before_completion"
+    name: "Verification Before Completion Skill"
+    name_ko: "완료 전 검증 스킬"
+    description: "작업 '완료'라고 말하기 전에 반드시 테스트/빌드/린트 검증 실행"
+    model_name: "gpt-5-mini"
+
+  - tool_id: "skill_requesting_code_review"
+    name: "Requesting Code Review Skill"
+    name_ko: "코드 리뷰 요청 스킬"
+    description: "주요 기능 완료 후 머지 전 코드 리뷰를 요청하는 체계적 프로세스"
+    model_name: "gpt-5-mini"
+
+  - tool_id: "skill_receiving_code_review"
+    name: "Receiving Code Review Skill"
+    name_ko: "코드 리뷰 수신 스킬"
+    description: "코드 리뷰 피드백을 받을 때 분석·대응하는 방법론"
+    model_name: "gpt-5-mini"
+
+  - tool_id: "skill_create_pr"
+    name: "Create PR Skill"
+    name_ko: "PR 생성 스킬"
+    description: "GitHub 풀 리퀘스트(코드 합치기 요청) 생성 — 제목, 설명, 리뷰어 지정"
+    model_name: "gpt-5-mini"
+
+  - tool_id: "skill_executing_plans"
+    name: "Executing Plans Skill"
+    name_ko: "계획 실행 스킬"
+    description: "미리 짠 구현 계획을 단계별로 체계적으로 실행하는 프로세스"
+    model_name: "gpt-5-mini"
+
+  - tool_id: "skill_dispatching_parallel_agents"
+    name: "Dispatching Parallel Agents Skill"
+    name_ko: "병렬 에이전트 실행 스킬"
+    description: "여러 작업을 동시에 처리 — 서로 관련 없는 작업을 병렬로 배분·실행"
+    model_name: "gpt-5-mini"
+
+  - tool_id: "skill_subagent_driven_development"
+    name: "Subagent Driven Development Skill"
+    name_ko: "서브에이전트 개발 스킬"
+    description: "각 작업마다 별도 에이전트가 독립적으로 담당하는 개발 방식"
+    model_name: "gpt-5-mini"
+
+  - tool_id: "skill_finishing_branch"
+    name: "Finishing Branch Skill"
+    name_ko: "브랜치 마무리 스킬"
+    description: "개발 브랜치 마무리 — 머지, PR 생성, 또는 폐기 등 브랜치 정리 프로세스"
+    model_name: "gpt-5-mini"
+
+  - tool_id: "skill_git_worktrees"
+    name: "Git Worktrees Skill"
+    name_ko: "Git Worktree 스킬"
+    description: "Git worktree로 격리된 작업 공간 만들기 — 메인 코드 영향 없이 독립 작업"
+    model_name: "gpt-5-mini"
+
+  - tool_id: "skill_strategic_compact"
+    name: "Strategic Compact Skill"
+    name_ko: "전략적 압축 스킬"
+    description: "대화가 길어질 때 핵심만 압축 — 맥락 유지하면서 토큰 절약"
+    model_name: "gpt-5-mini"
+
+  - tool_id: "skill_brainstorm"
+    name: "Brainstorm Skill"
+    name_ko: "아이디어 기획 스킬"
+    description: "여러 세션에 걸친 아이디어 기획 — SaaS 아이디어, 전략, 책 등 큰 프로젝트 구상"
+    model_name: "gpt-5-mini"
+
+  # ─── 코딩 패턴 추가 스킬 ───
+
+  - tool_id: "skill_senior_frontend"
+    name: "Senior Frontend Skill"
+    name_ko: "시니어 프론트엔드 스킬"
+    description: "시니어급 React/Next.js 개발 패턴 — 스캐폴딩, 접근성, 성능 분석"
+    model_name: "gpt-5-mini"
+
+  - tool_id: "skill_artifacts_builder"
+    name: "Artifacts Builder Skill"
+    name_ko: "아티팩트 빌더 스킬"
+    description: "복잡한 HTML/React 아티팩트(미리보기 가능한 UI) 생성"
+    model_name: "gpt-5-mini"
+
+  - tool_id: "skill_python_testing"
+    name: "Python Testing Skill"
+    name_ko: "Python 테스트 스킬"
+    description: "pytest 기반 테스트 전략 — 픽스처, 모킹, 커버리지, 통합 테스트"
+    model_name: "gpt-5-mini"
+
+  - tool_id: "skill_java_coding_standards"
+    name: "Java Coding Standards Skill"
+    name_ko: "Java 코딩 표준 스킬"
+    description: "Java 코딩 규칙 — 명명 규칙, 불변성, Optional, 스트림, 예외 처리"
+    model_name: "gpt-5-mini"
+
+  - tool_id: "skill_springboot_patterns"
+    name: "Spring Boot Patterns Skill"
+    name_ko: "Spring Boot 패턴 스킬"
+    description: "Spring Boot 아키텍처 패턴 — REST API, 서비스 레이어, 캐싱, 설정"
+    model_name: "gpt-5-mini"
+
+  - tool_id: "skill_springboot_security"
+    name: "Spring Boot Security Skill"
+    name_ko: "Spring Boot 보안 스킬"
+    description: "Spring Boot 보안 — 인증, JWT, CSRF 방지, SQL 인젝션 방지"
+    model_name: "gpt-5-mini"
+
+  - tool_id: "skill_springboot_tdd"
+    name: "Spring Boot TDD Skill"
+    name_ko: "Spring Boot TDD 스킬"
+    description: "Spring Boot TDD — JUnit 5, MockMvc, Testcontainers 활용"
+    model_name: "gpt-5-mini"
+
+  - tool_id: "skill_springboot_verification"
+    name: "Spring Boot Verification Skill"
+    name_ko: "Spring Boot 검증 스킬"
+    description: "Spring Boot 배포 전 검증 — 빌드, 정적분석, 테스트, 보안 스캔"
+    model_name: "gpt-5-mini"
+
+  - tool_id: "skill_jpa_patterns"
+    name: "JPA Patterns Skill"
+    name_ko: "JPA 패턴 스킬"
+    description: "JPA/Hibernate 데이터베이스 패턴 — 엔티티, 관계, 쿼리 최적화, N+1 해결"
+    model_name: "gpt-5-mini"
+
+  - tool_id: "skill_django_patterns"
+    name: "Django Patterns Skill"
+    name_ko: "Django 패턴 스킬"
+    description: "Django 아키텍처 패턴 — ORM, REST Framework, 캐싱, 미들웨어"
+    model_name: "gpt-5-mini"
+
+  - tool_id: "skill_django_security"
+    name: "Django Security Skill"
+    name_ko: "Django 보안 스킬"
+    description: "Django 보안 — 인증, CSRF, XSS, SQL 인젝션 방지, 시크릿 관리"
+    model_name: "gpt-5-mini"
+
+  - tool_id: "skill_django_tdd"
+    name: "Django TDD Skill"
+    name_ko: "Django TDD 스킬"
+    description: "Django TDD — pytest-django, Factory Boy 활용 테스트 전략"
+    model_name: "gpt-5-mini"
+
+  - tool_id: "skill_django_verification"
+    name: "Django Verification Skill"
+    name_ko: "Django 검증 스킬"
+    description: "Django 배포 전 검증 — 마이그레이션, 린팅, 테스트, 보안 스캔"
+    model_name: "gpt-5-mini"
+
+  - tool_id: "skill_golang_patterns"
+    name: "Golang Patterns Skill"
+    name_ko: "Go 패턴 스킬"
+    description: "Go 코딩 패턴 — 인터페이스, 에러 처리, 동시성(goroutine/channel)"
+    model_name: "gpt-5-mini"
+
+  - tool_id: "skill_golang_testing"
+    name: "Golang Testing Skill"
+    name_ko: "Go 테스트 스킬"
+    description: "Go 테스트 패턴 — 테이블 기반 테스트, 벤치마크, 퍼징"
+    model_name: "gpt-5-mini"
+
+  - tool_id: "skill_cpp_testing"
+    name: "C++ Testing Skill"
+    name_ko: "C++ 테스트 스킬"
+    description: "C++ 테스트 — GoogleTest, CTest, 새니타이저, 커버리지 분석"
+    model_name: "gpt-5-mini"
+
+  - tool_id: "skill_postgres_patterns"
+    name: "PostgreSQL Patterns Skill"
+    name_ko: "PostgreSQL 패턴 스킬"
+    description: "PostgreSQL 모범 사례 — 인덱스, 쿼리 최적화, 스키마 설계, 보안"
+    model_name: "gpt-5-mini"
+
+  - tool_id: "skill_clickhouse_io"
+    name: "ClickHouse Skill"
+    name_ko: "ClickHouse 분석 DB 스킬"
+    description: "ClickHouse 분석 DB 패턴 — OLAP, 실시간 집계, MergeTree 엔진"
+    model_name: "gpt-5-mini"
+
+  - tool_id: "skill_security_scan"
+    name: "Security Scan Skill"
+    name_ko: "보안 스캔 스킬"
+    description: "Claude Code 설정 파일 보안 스캔 — CLAUDE.md, MCP 설정 감사"
+    model_name: "gpt-5-mini"
+
+  # ─── 도구 & 유틸리티 추가 스킬 ───
+
+  - tool_id: "skill_theme_factory"
+    name: "Theme Factory Skill"
+    name_ko: "테마 팩토리 스킬"
+    description: "슬라이드, 문서 등에 일관된 테마(색상/폰트) 적용 — 프레젠테이션 디자인"
+    model_name: "gpt-5-mini"
+
+  - tool_id: "skill_developer_growth"
+    name: "Developer Growth Analysis Skill"
+    name_ko: "개발자 성장 분석 스킬"
+    description: "코딩 패턴 분석 + 성장 리포트 — 개발 실력 현황과 개선점 분석"
+    model_name: "gpt-5-mini"
+
+  - tool_id: "skill_route_researcher"
+    name: "Route Researcher Skill"
+    name_ko: "등반 루트 조사 스킬"
+    description: "북미 산악 등반 루트 조사 — 난이도, 시즌, 장비, 위험 요소 분석"
+    model_name: "gpt-5-mini"
+
+  - tool_id: "skill_obsidian_markdown"
+    name: "Obsidian Markdown Skill"
+    name_ko: "Obsidian 마크다운 스킬"
+    description: "Obsidian 전용 마크다운 문법 — 위키링크, 콜아웃, 프로퍼티 등 작성"
+    model_name: "gpt-5-mini"
+
+  - tool_id: "skill_obsidian_cli"
+    name: "Obsidian CLI Skill"
+    name_ko: "Obsidian CLI 스킬"
+    description: "CLI로 Obsidian 볼트 조작 — 노트 읽기, 쓰기, 검색, 태그 관리"
+    model_name: "gpt-5-mini"
+
+  - tool_id: "skill_obsidian_bases"
+    name: "Obsidian Bases Skill"
+    name_ko: "Obsidian Bases 스킬"
+    description: "Obsidian Bases(.base 파일) 생성 — 노션 데이터베이스 같은 뷰 생성"
+    model_name: "gpt-5-mini"
+
+  - tool_id: "skill_json_canvas"
+    name: "JSON Canvas Skill"
+    name_ko: "JSON 캔버스 스킬"
+    description: "Obsidian Canvas(.canvas 파일) 생성/편집 — 마인드맵, 비주얼 노트"
+    model_name: "gpt-5-mini"
+
+  - tool_id: "skill_configure_ecc"
+    name: "Configure ECC Skill"
+    name_ko: "ECC 설정 스킬"
+    description: "Everything Claude Code 스킬 모음 설치 도우미 — 새 프로젝트 세팅"
+    model_name: "gpt-5-mini"
+
+  - tool_id: "skill_nutrient_doc"
+    name: "Nutrient Document Processing Skill"
+    name_ko: "문서 처리 스킬"
+    description: "Nutrient API로 문서 처리 — PDF 변환, OCR 텍스트 추출, 전자 서명"
+    model_name: "gpt-5-mini"
+
+  - tool_id: "skill_pensieve"
+    name: "Pensieve Skill"
+    name_ko: "의도 라우팅 스킬"
+    description: "사용자 의도를 파악해서 올바른 도구/파이프라인으로 자동 연결"
+    model_name: "gpt-5-mini"
+
+  # ─── 자동 학습 & 메타 스킬 ───
+
+  - tool_id: "skill_continuous_learning"
+    name: "Continuous Learning Skill"
+    name_ko: "지속 학습 스킬"
+    description: "세션에서 재사용 가능한 패턴을 자동 추출하여 메모리에 저장"
+    model_name: "gpt-5-mini"
+
+  - tool_id: "skill_continuous_learning_v2"
+    name: "Continuous Learning V2 Skill"
+    name_ko: "지속 학습 V2 스킬"
+    description: "진화된 패턴 학습 — '본능' 기반 학습 + 신뢰도 점수 시스템"
+    model_name: "gpt-5-mini"
+
+  - tool_id: "skill_using_superpowers"
+    name: "Using Superpowers Skill"
+    name_ko: "슈퍼파워 활용 스킬"
+    description: "대화 시작 시 어떤 스킬을 쓸지 자동 판단하는 가이드 시스템"
+    model_name: "gpt-5-mini"
+
+  - tool_id: "skill_iterative_retrieval"
+    name: "Iterative Retrieval Skill"
+    name_ko: "점진적 정보 수집 스킬"
+    description: "필요한 정보를 점진적으로 수집 — 멀티 에이전트 환경 맥락 부족 문제 해결"
+    model_name: "gpt-5-mini"
+
+  - tool_id: "skill_project_guidelines"
+    name: "Project Guidelines Skill"
+    name_ko: "프로젝트 가이드라인 스킬"
+    description: "프로젝트별 전용 스킬을 만들 때 참고할 템플릿 — 커스텀 스킬 제작"
+    model_name: "gpt-5-mini"
