@@ -2548,13 +2548,10 @@
               <div class="glass border border-hq-border rounded-xl p-4 hover-glow">
                 <div class="flex items-center justify-between">
                   <div class="flex-1">
-                    <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
-                      <span style="font-size:14px; font-weight:600; color:rgb(var(--hq-text));" x-text="s.name"></span>
-                      <span style="font-size:10px; padding:2px 10px; border-radius:9999px; font-weight:500; white-space:nowrap; line-height:1.4;"
-                            :style="s.enabled
-                              ? 'background:rgb(var(--hq-green)/0.15); color:rgb(var(--hq-green)); border:1px solid rgb(var(--hq-green)/0.2);'
-                              : 'background:rgb(var(--hq-muted)/0.15); color:rgb(var(--hq-muted)); border:1px solid rgb(var(--hq-border));'"
-                            x-text="s.enabled ? '활성' : '비활성'"></span>
+                    <div style="margin-bottom:6px; line-height:1;">
+                      <span style="font-size:14px; font-weight:600; vertical-align:middle;" class="text-hq-text" x-text="s.name"></span>
+                      <span x-show="s.enabled" style="display:inline-block; vertical-align:middle; margin-left:6px; font-size:10px; padding:2px 10px; border-radius:9999px; font-weight:500; background:rgba(52,211,153,0.15); color:rgb(52,211,153); border:1px solid rgba(52,211,153,0.2);">활성</span>
+                      <span x-show="!s.enabled" style="display:inline-block; vertical-align:middle; margin-left:6px; font-size:10px; padding:2px 10px; border-radius:9999px; font-weight:500; background:rgba(150,145,172,0.15); color:rgb(150,145,172); border:1px solid rgba(150,145,172,0.2);">비활성</span>
                     </div>
                     <div class="text-[12px] text-hq-muted mb-1" x-text="s.command"></div>
                     <div class="flex items-center gap-3 text-[11px] text-hq-muted/70">
@@ -3476,13 +3473,11 @@
         <!-- Tab: Soul -->
         <div x-show="agentConfigTab === 'soul'">
           <div class="bg-hq-bg rounded-xl p-4">
-            <div class="flex items-center gap-2.5 mb-2">
-              <div class="w-7 h-7 rounded-lg bg-hq-purple/15 border border-hq-purple/20 flex items-center justify-center text-sm">🧠</div>
-              <div>
-                <label class="text-xs font-semibold text-hq-text block">시스템 프롬프트</label>
-                <span class="text-[10px] text-hq-muted/60">에이전트의 성격과 행동 방식을 결정합니다</span>
-              </div>
+            <div class="flex items-center gap-2 mb-1">
+              <span class="text-base">🧠</span>
+              <label class="text-xs font-semibold text-hq-text">시스템 프롬프트</label>
             </div>
+            <p class="text-[11px] text-hq-muted/60 mb-3">에이전트의 성격과 행동 방식을 결정합니다. 변경하면 즉시 반영됩니다.</p>
             <textarea x-model="agentSoulText" rows="14"
                       class="w-full rounded-xl border border-hq-border/50 px-5 py-4 text-[13px] text-hq-text resize-y focus:outline-none focus:border-hq-accent/40 transition-colors"
                       style="font-family: 'Pretendard Variable', 'Pretendard', sans-serif; line-height: 1.9; background:rgb(var(--hq-panel)/0.5); letter-spacing:0.01em;"

@@ -25,11 +25,13 @@ jobs:
           TG_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TG_CEO_CHAT_ID: ${{ secrets.TELEGRAM_CEO_CHAT_ID }}
           ANTHROPIC_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OPENAI_KEY: ${{ secrets.OPENAI_API_KEY }}
+          NOTION_KEY: ${{ secrets.NOTION_API_KEY }}
         with:
           host: ${{ secrets.SERVER_IP }}
           username: ubuntu
           key: ${{ secrets.SERVER_SSH_KEY }}
-          envs: BUILD_NUMBER,TG_BOT_TOKEN,TG_CEO_CHAT_ID,ANTHROPIC_KEY
+          envs: BUILD_NUMBER,TG_BOT_TOKEN,TG_CEO_CHAT_ID,ANTHROPIC_KEY,OPENAI_KEY,NOTION_KEY
           script: |
             echo "🚀 배포 시작... (빌드 #${BUILD_NUMBER})"
 
@@ -124,14 +126,24 @@ jobs:
               echo "✅ 텔레그램 봇 환경변수 설정 완료"
             fi
 
-            # 5.7단계: Anthropic API 키 환경변수 설정
+            # 5.7단계: API 키 환경변수 설정
+            ENV_FILE="/home/ubuntu/corthex.env"
             if [ -n "${ANTHROPIC_KEY}" ]; then
-              echo "🤖 Anthropic API 키 설정 중..."
-              ENV_FILE="/home/ubuntu/corthex.env"
               sed -i '/^ANTHROPIC_API_KEY/d' "$ENV_FILE"
               echo "ANTHROPIC_API_KEY=${ANTHROPIC_KEY}" >> "$ENV_FILE"
               echo "✅ Anthropic API 키 설정 완료"
             fi
+            if [ -n "${OPENAI_KEY}" ]; then
+              sed -i '/^OPENAI_API_KEY/d' "$ENV_FILE"
+              echo "OPENAI_API_KEY=${OPENAI_KEY}" >> "$ENV_FILE"
+              echo "✅ OpenAI API 키 설정 완료"
+            fi
+            if [ -n "${NOTION_KEY}" ]; then
+              sed -i '/^NOTION_API_KEY/d' "$ENV_FILE"
+              echo "NOTION_API_KEY=${NOTION_KEY}" >> "$ENV_FILE"
+              echo "✅ Notion API 키 설정 완료"
+            fi
+            echo "📋 등록된 API 키 수: $(grep -c '_KEY=' "$ENV_FILE" || echo 0)개"
 
             # 6단계: 미니 서버 재시작
             echo "🔁 미니 서버 재시작 중..."
