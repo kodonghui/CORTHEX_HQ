@@ -52,12 +52,15 @@ jobs:
             sudo cp /tmp/index.html /var/www/html/index.html
 
             # 4단계: 미니 서버 파일 복사
+            # 주의: corthex 서비스는 /home/ubuntu/CORTHEX_HQ/web/ (git 저장소)에서 실행됨
             echo "🐍 미니 서버 파일 복사 중..."
             mkdir -p /home/ubuntu/web/templates
             mkdir -p /home/ubuntu/config
             cp web/mini_server.py /home/ubuntu/web/mini_server.py
             cp /tmp/index.html /home/ubuntu/web/templates/index.html
             cp -r config/* /home/ubuntu/config/ 2>/dev/null || echo "⚠️ config 파일 없음 (무시)"
+            # git 저장소의 templates에도 빌드번호 주입된 HTML 복사 (서버가 여기서 읽음)
+            cp /tmp/index.html /home/ubuntu/CORTHEX_HQ/web/templates/index.html
 
             # 5단계: Python 의존성 설치 (PyYAML 등)
             echo "📦 Python 패키지 설치 중..."

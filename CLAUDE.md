@@ -98,6 +98,13 @@
 - **주의사항**:
   - 서버 파일을 직접 수정하지 말 것 (GitHub에서 코드 수정 → 자동 배포가 정상 흐름)
   - 배포 실패 시 GitHub Actions 로그를 먼저 확인할 것
+- **서버 설정 파일 규칙 (중요!)**:
+  - 서버의 미니 서버(corthex 서비스)는 **`/home/ubuntu/CORTHEX_HQ/web/`**(git 저장소)에서 실행됨
+  - 따라서 설정 파일 경로는 **`/home/ubuntu/CORTHEX_HQ/config/`** (git 저장소의 config 폴더)
+  - 서버의 Python 환경에 **PyYAML이 없음** → YAML 파일을 직접 못 읽음
+  - 해결: 배포 시 `config/yaml2json.py`가 YAML → JSON 자동 변환. mini_server.py는 JSON을 우선 읽음
+  - **config/agents.yaml 또는 config/tools.yaml을 수정하면 자동 배포 후 JSON이 재생성됨** (별도 작업 불필요)
+  - `deploy.yml` 안에 Python 코드를 직접 넣으면 YAML 들여쓰기 문제가 생김 → **반드시 별도 .py 파일로 분리**할 것
 
 ## 배포 트러블슈팅 (문제 해결 가이드)
 
