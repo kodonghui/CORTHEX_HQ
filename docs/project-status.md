@@ -61,6 +61,7 @@
 - **미니서버 기능 확장 필요**: 설정 파일(presets/schedules/workflows/budget/quality_rules)을 읽어서 빈 화면 해소 필요
 - **노션 보고 시스템 환경 설정 필요**: `.env.local`에 실제 `NOTION_API_KEY`와 `NOTION_DEFAULT_DB_ID` 값을 입력해야 에이전트들의 노션 보고가 실제로 작동함
 - **노션 DB data_source_id**: `ee0527e4-697b-4cb6-8df0-6dca3f59ad4e`
+- **29명 에이전트 소울(성격) 설정 필요**: `docs/TODO-에이전트-설정.md` 참고
 
 ---
 
