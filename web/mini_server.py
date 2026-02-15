@@ -416,143 +416,10 @@ async def get_available_models():
 
 
 # ── 텔레그램 봇 ──
+# 주의: python-telegram-bot 미설치 시에도 서버가 정상 작동해야 함
+# 모든 텔레그램 관련 코드는 _telegram_available 체크 후에만 실행
 
 _telegram_app = None  # telegram.ext.Application 인스턴스
-
-
-async def _tg_cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """/start — 봇 연결 확인."""
-    chat_id = update.effective_chat.id
-    ceo_id = os.getenv("TELEGRAM_CEO_CHAT_ID", "")
-
-    if not ceo_id:
-        # CEO chat_id 미설정 → 안내 메시지
-        logger.info("텔레그램 chat_id 감지: %s", chat_id)
-        await update.message.reply_text(
-            f"CORTHEX HQ 텔레그램 봇입니다.\n\n"
-            f"당신의 chat_id: `{chat_id}`\n\n"
-            f"서버 환경변수에 TELEGRAM_CEO_CHAT_ID={chat_id} 를 추가하세요.",
-            parse_mode="Markdown",
-        )
-        return
-
-    if str(chat_id) != ceo_id:
-        await update.message.reply_text("권한이 없습니다.")
-        return
-
-    await update.message.reply_text(
-        "*CORTHEX HQ 텔레그램 봇*\n\n"
-        "CEO 인증 완료.\n"
-        "24시간 서버에서 작동 중입니다.\n\n"
-        "/help 로 사용법을 확인하세요.",
-        parse_mode="Markdown",
-    )
-
-
-async def _tg_cmd_help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """/help — 사용법 안내."""
-    if not _is_tg_ceo(update):
-        return
-    await update.message.reply_text(
-        "*CORTHEX HQ 사용법*\n\n"
-        "/agents — 에이전트 목록 (29명)\n"
-        "/health — 서버 상태 확인\n"
-        "/help — 이 사용법\n\n"
-        "일반 메시지를 보내면 접수됩니다.",
-        parse_mode="Markdown",
-    )
-
-
-async def _tg_cmd_agents(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """/agents — 에이전트 목록."""
-    if not _is_tg_ceo(update):
-        return
-
-    divisions = {}
-    for a in AGENTS:
-        div = a.get("division", "기타")
-        divisions.setdefault(div, []).append(a)
-
-    lines = ["*CORTHEX HQ 에이전트 목록*\n"]
-    div_labels = {
-        "secretary": "비서실",
-        "leet_master.tech": "기술개발처 (CTO)",
-        "leet_master.strategy": "사업기획처 (CSO)",
-        "leet_master.legal": "법무·IP처 (CLO)",
-        "leet_master.marketing": "마케팅·고객처 (CMO)",
-        "finance.investment": "투자분석처 (CIO)",
-        "publishing": "출판·기록처 (CPO)",
-    }
-    for div, agents_list in divisions.items():
-        label = div_labels.get(div, div)
-        lines.append(f"\n*{label}* ({len(agents_list)}명)")
-        for a in agents_list:
-            role_icon = "👔" if a["role"] == "manager" else "👤"
-            lines.append(f"  {role_icon} {a['name_ko']}")
-
-    lines.append(f"\n총 {len(AGENTS)}명")
-    await update.message.reply_text("\n".join(lines), parse_mode="Markdown")
-
-
-async def _tg_cmd_health(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """/health — 서버 상태."""
-    if not _is_tg_ceo(update):
-        return
-
-    now = datetime.now(KST).strftime("%Y-%m-%d %H:%M:%S")
-    await update.message.reply_text(
-        f"*서버 상태*\n\n"
-        f"상태: 정상 운영 중\n"
-        f"서버: Oracle Cloud (춘천)\n"
-        f"에이전트: {len(AGENTS)}명 대기 중\n"
-        f"시간: {now} KST",
-        parse_mode="Markdown",
-    )
-
-
-async def _tg_handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """일반 텍스트 메시지 처리."""
-    if not _is_tg_ceo(update):
-        return
-
-    text = update.message.text.strip()
-    if not text:
-        return
-
-    now = datetime.now(KST).strftime("%H:%M")
-    await update.message.reply_text(
-        f"접수했습니다. ({now})\n\n"
-        f"현재 경량 서버 모드로, AI 에이전트 실행은 메인 서버에서 가능합니다.\n"
-        f"메인 서버 구축 후 이 봇에서 직접 업무 지시가 가능해집니다.",
-    )
-
-    # 웹 대시보드에 알림 (WebSocket 연결된 클라이언트들에게)
-    for ws in connected_clients[:]:
-        try:
-            await ws.send_json({
-                "event": "activity_log",
-                "data": {
-                    "agent_id": "chief_of_staff",
-                    "message": f"[텔레그램] CEO 지시: {text[:50]}{'...' if len(text) > 50 else ''}",
-                    "level": "info",
-                    "time": now,
-                }
-            })
-        except Exception:
-            pass
-
-
-def _is_tg_ceo(update: Update) -> bool:
-    """CEO 인증 확인."""
-    if not update.effective_chat or not update.message:
-        return False
-    ceo_id = os.getenv("TELEGRAM_CEO_CHAT_ID", "")
-    if not ceo_id:
-        return False
-    if str(update.effective_chat.id) != ceo_id:
-        asyncio.create_task(update.message.reply_text("권한이 없습니다."))
-        return False
-    return True
 
 
 async def _start_telegram_bot() -> None:
@@ -571,13 +438,126 @@ async def _start_telegram_bot() -> None:
     try:
         _telegram_app = Application.builder().token(token).build()
 
+        # ── 핸들러 함수들 (라이브러리 설치된 경우에만 정의) ──
+
+        async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+            chat_id = update.effective_chat.id
+            ceo_id = os.getenv("TELEGRAM_CEO_CHAT_ID", "")
+            if not ceo_id:
+                logger.info("텔레그램 chat_id 감지: %s", chat_id)
+                await update.message.reply_text(
+                    f"CORTHEX HQ 텔레그램 봇입니다.\n\n"
+                    f"당신의 chat_id: `{chat_id}`\n\n"
+                    f"서버 환경변수에 TELEGRAM_CEO_CHAT_ID={chat_id} 를 추가하세요.",
+                    parse_mode="Markdown",
+                )
+                return
+            if str(chat_id) != ceo_id:
+                await update.message.reply_text("권한이 없습니다.")
+                return
+            await update.message.reply_text(
+                "*CORTHEX HQ 텔레그램 봇*\n\n"
+                "CEO 인증 완료.\n"
+                "24시간 서버에서 작동 중입니다.\n\n"
+                "/help 로 사용법을 확인하세요.",
+                parse_mode="Markdown",
+            )
+
+        async def cmd_help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+            if not _is_tg_ceo(update):
+                return
+            await update.message.reply_text(
+                "*CORTHEX HQ 사용법*\n\n"
+                "/agents — 에이전트 목록 (29명)\n"
+                "/health — 서버 상태 확인\n"
+                "/help — 이 사용법\n\n"
+                "일반 메시지를 보내면 접수됩니다.",
+                parse_mode="Markdown",
+            )
+
+        async def cmd_agents(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+            if not _is_tg_ceo(update):
+                return
+            divisions = {}
+            for a in AGENTS:
+                div = a.get("division", "기타")
+                divisions.setdefault(div, []).append(a)
+            lines = ["*CORTHEX HQ 에이전트 목록*\n"]
+            div_labels = {
+                "secretary": "비서실",
+                "leet_master.tech": "기술개발처 (CTO)",
+                "leet_master.strategy": "사업기획처 (CSO)",
+                "leet_master.legal": "법무·IP처 (CLO)",
+                "leet_master.marketing": "마케팅·고객처 (CMO)",
+                "finance.investment": "투자분석처 (CIO)",
+                "publishing": "출판·기록처 (CPO)",
+            }
+            for div, agents_list in divisions.items():
+                label = div_labels.get(div, div)
+                lines.append(f"\n*{label}* ({len(agents_list)}명)")
+                for a in agents_list:
+                    icon = "👔" if a["role"] == "manager" else "👤"
+                    lines.append(f"  {icon} {a['name_ko']}")
+            lines.append(f"\n총 {len(AGENTS)}명")
+            await update.message.reply_text("\n".join(lines), parse_mode="Markdown")
+
+        async def cmd_health(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+            if not _is_tg_ceo(update):
+                return
+            now = datetime.now(KST).strftime("%Y-%m-%d %H:%M:%S")
+            await update.message.reply_text(
+                f"*서버 상태*\n\n"
+                f"상태: 정상 운영 중\n"
+                f"서버: Oracle Cloud (춘천)\n"
+                f"에이전트: {len(AGENTS)}명 대기 중\n"
+                f"시간: {now} KST",
+                parse_mode="Markdown",
+            )
+
+        async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+            if not _is_tg_ceo(update):
+                return
+            text = update.message.text.strip()
+            if not text:
+                return
+            now = datetime.now(KST).strftime("%H:%M")
+            await update.message.reply_text(
+                f"접수했습니다. ({now})\n\n"
+                f"현재 경량 서버 모드로, AI 에이전트 실행은 메인 서버에서 가능합니다.\n"
+                f"메인 서버 구축 후 이 봇에서 직접 업무 지시가 가능해집니다.",
+            )
+            for ws in connected_clients[:]:
+                try:
+                    await ws.send_json({
+                        "event": "activity_log",
+                        "data": {
+                            "agent_id": "chief_of_staff",
+                            "message": f"[텔레그램] CEO 지시: {text[:50]}{'...' if len(text) > 50 else ''}",
+                            "level": "info",
+                            "time": now,
+                        }
+                    })
+                except Exception:
+                    pass
+
+        def _is_tg_ceo(update: Update) -> bool:
+            if not update.effective_chat or not update.message:
+                return False
+            ceo_id = os.getenv("TELEGRAM_CEO_CHAT_ID", "")
+            if not ceo_id:
+                return False
+            if str(update.effective_chat.id) != ceo_id:
+                asyncio.create_task(update.message.reply_text("권한이 없습니다."))
+                return False
+            return True
+
         # 핸들러 등록
-        _telegram_app.add_handler(CommandHandler("start", _tg_cmd_start))
-        _telegram_app.add_handler(CommandHandler("help", _tg_cmd_help))
-        _telegram_app.add_handler(CommandHandler("agents", _tg_cmd_agents))
-        _telegram_app.add_handler(CommandHandler("health", _tg_cmd_health))
+        _telegram_app.add_handler(CommandHandler("start", cmd_start))
+        _telegram_app.add_handler(CommandHandler("help", cmd_help))
+        _telegram_app.add_handler(CommandHandler("agents", cmd_agents))
+        _telegram_app.add_handler(CommandHandler("health", cmd_health))
         _telegram_app.add_handler(
-            MessageHandler(filters.TEXT & ~filters.COMMAND, _tg_handle_message)
+            MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message)
         )
 
         # 봇 명령어 메뉴 설정
@@ -595,7 +575,7 @@ async def _start_telegram_bot() -> None:
         ceo_id = os.getenv("TELEGRAM_CEO_CHAT_ID", "")
         logger.info("텔레그램 봇 시작 완료 (CEO chat_id: %s)", ceo_id or "미설정")
     except Exception as e:
-        logger.error("텔레그램 봇 시작 실패: %s", e)
+        logger.error("텔레그램 봇 시작 실패 (서버는 계속 동작): %s", e)
         _telegram_app = None
 
 
