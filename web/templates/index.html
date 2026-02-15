@@ -1555,13 +1555,6 @@
                 <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
                 대화 내보내기
               </button>
-              <!-- Batch/실시간 토글 -->
-              <button @click="useBatch = !useBatch"
-                      :class="useBatch ? 'bg-hq-purple/20 text-hq-purple border-hq-purple/30' : 'text-hq-muted/85 border-hq-border/30'"
-                      class="text-[10px] flex items-center gap-1 px-2 py-0.5 border rounded-md transition">
-                <span x-text="useBatch ? 'Batch (저렴)' : '실시간'"></span>
-              </button>
-              <span class="text-[9px] text-hq-muted/70 font-mono">Ctrl+K</span>
             </div>
             <!-- @mention dropdown -->
             <div x-show="showMentionDropdown" x-transition
@@ -1601,6 +1594,16 @@
                        text-hq-red rounded-xl px-6 py-3 text-sm font-semibold transition-all shrink-0 flex items-center gap-2">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
                 취소
+              </button>
+            </div>
+            <!-- Batch/실시간 토글 (항상 보임) -->
+            <div class="flex items-center mt-1.5">
+              <button @click="useBatch = !useBatch"
+                      class="text-[11px] flex items-center gap-1.5 px-2.5 py-1 rounded-lg transition-all"
+                      :class="useBatch
+                        ? 'bg-hq-purple/15 text-hq-purple border border-hq-purple/30 hover:bg-hq-purple/25'
+                        : 'text-hq-muted hover:text-hq-accent hover:bg-hq-accent/10'">
+                <span x-text="useBatch ? '📦 Batch' : '⚡ 실시간'"></span>
               </button>
             </div>
           </div>
@@ -2819,7 +2822,7 @@
               <optgroup :label="provLabel">
                 <template x-for="m in models" :key="m.name">
                   <option :value="m.name"
-                          x-text="getModelDisplayName(m.name) + ' [' + getModelTierLabel(m.tier) + '] ($' + (m.cost_input ?? 0) + '/' + (m.cost_output ?? 0) + ')'">
+                          x-text="getModelDisplayName(m.name) + ' ($' + (m.cost_input ?? 0) + '/' + (m.cost_output ?? 0) + ')'">
                   </option>
                 </template>
               </optgroup>
@@ -2874,7 +2877,7 @@
 
       <!-- Section 3: Department-Specific Rubrics -->
       <div class="mb-4">
-        <h3 class="text-sm font-semibold text-hq-text mb-2">부서별 검수 기준 (루브릭)</h3>
+        <h3 class="text-sm font-semibold text-hq-text mb-2">부서별 검수 기준</h3>
         <p class="text-xs text-hq-muted/70 mb-3">각 부서별 검수 기준을 설정하세요. 미설정 부서는 위 공통 기준이 적용됩니다.</p>
 
         <div class="space-y-2">
@@ -2912,7 +2915,7 @@
                       <template x-for="[provLabel, models] in Object.entries(getModelsByProvider())" :key="provLabel">
                         <optgroup :label="provLabel">
                           <template x-for="m in models" :key="m.name">
-                            <option :value="m.name" x-text="getModelDisplayName(m.name) + ' [' + getModelTierLabel(m.tier) + ']'"></option>
+                            <option :value="m.name" x-text="getModelDisplayName(m.name)"></option>
                           </template>
                         </optgroup>
                       </template>
@@ -3053,7 +3056,7 @@
               <template x-for="[provLabel, models] in Object.entries(getModelsByProvider())" :key="provLabel">
                 <optgroup :label="provLabel">
                   <template x-for="m in models" :key="m.name">
-                    <option :value="m.name" x-text="getModelDisplayName(m.name) + ' [' + getModelTierLabel(m.tier) + '] ($' + (m.cost_input ?? 0) + '/' + (m.cost_output ?? 0) + ')'"></option>
+                    <option :value="m.name" x-text="getModelDisplayName(m.name) + ' ($' + (m.cost_input ?? 0) + '/' + (m.cost_output ?? 0) + ')'"></option>
                   </template>
                 </optgroup>
               </template>
@@ -4174,14 +4177,18 @@
         },
 
         getModelsByProvider() {
-          const groups = {};
+          const ordered = { 'Anthropic (Claude)': [], 'OpenAI': [] };
           for (const m of (this.availableModels || [])) {
             const prov = m.provider || 'other';
             const label = prov === 'anthropic' ? 'Anthropic (Claude)' : prov === 'openai' ? 'OpenAI' : prov;
-            if (!groups[label]) groups[label] = [];
-            groups[label].push(m);
+            if (!ordered[label]) ordered[label] = [];
+            ordered[label].push(m);
           }
-          return groups;
+          // 빈 그룹 제거
+          for (const key of Object.keys(ordered)) {
+            if (ordered[key].length === 0) delete ordered[key];
+          }
+          return ordered;
         },
 
         async loadQualityRules() {
