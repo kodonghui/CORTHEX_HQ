@@ -8,3 +8,7 @@ dist/
 .pytest_cache/
 logs/
 .claude/settings.local.json
+
+# 배포 시 자동 생성되는 JSON 설정 파일 (YAML → JSON 변환 결과물)
+config/agents.json
+config/tools.json

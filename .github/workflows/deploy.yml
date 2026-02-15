@@ -63,9 +63,10 @@ jobs:
             echo "📦 Python 패키지 설치 중..."
             sudo apt-get install -y python3-yaml 2>/dev/null || echo "⚠️ python3-yaml 설치 실패"
 
-            # 5.5단계: YAML → JSON 변환 (PyYAML 없이도 동작하도록 백업)
+            # 5.5단계: YAML → JSON 변환 (서버의 Python에 PyYAML이 없어도 동작하도록)
+            # 시스템 Python3에 yaml이 설치되어 있으므로 시스템 Python으로 실행
             echo "🔄 설정 파일 JSON 변환 중..."
-            python3 /home/ubuntu/config/yaml2json.py 2>/dev/null || echo "⚠️ JSON 변환 건너뜀"
+            /usr/bin/python3 /home/ubuntu/CORTHEX_HQ/config/yaml2json.py 2>&1 || echo "⚠️ JSON 변환 건너뜀"
 
             # 6단계: 미니 서버 재시작
             echo "🔁 미니 서버 재시작 중..."
