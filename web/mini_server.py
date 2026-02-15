@@ -1040,6 +1040,503 @@ async def _run_workflow_steps(wf_id: str, wf_name: str, steps: list):
     save_activity_log("system", f"🏁 워크플로우 완료: {wf_name} — {len(results)}/{len(steps)} 단계 처리", "info")
 
 
+# ── 자동매매 시스템 (키움증권 프레임워크) ──
+
+_trading_bot_active = False  # 자동매매 봇 ON/OFF
+_trading_bot_task = None     # 자동매매 봇 asyncio Task
+
+
+def _default_portfolio() -> dict:
+    """기본 포트폴리오 데이터."""
+    return {
+        "cash": 50_000_000,    # 초기 현금 (5천만원)
+        "initial_cash": 50_000_000,
+        "holdings": [],        # [{ticker, name, qty, avg_price, current_price}]
+        "updated_at": datetime.now(KST).isoformat(),
+    }
+
+
+def _default_trading_settings() -> dict:
+    """기본 자동매매 설정."""
+    return {
+        "max_position_pct": 20,       # 종목당 최대 비중 (%)
+        "max_daily_trades": 10,       # 일일 최대 거래 횟수
+        "max_daily_loss_pct": 3,      # 일일 최대 손실 (%)
+        "default_stop_loss_pct": -5,  # 기본 손절 (%)
+        "default_take_profit_pct": 10, # 기본 익절 (%)
+        "order_size": 1_000_000,      # 기본 주문 금액 (원)
+        "trading_hours": {"start": "09:00", "end": "15:20"},  # 장 시간
+        "auto_stop_loss": True,       # 자동 손절 활성화
+        "auto_take_profit": True,     # 자동 익절 활성화
+        "kiwoom_connected": False,    # 키움증권 API 연결 여부
+        "paper_trading": True,        # 모의투자 모드 (실거래 전)
+    }
+
+
+@app.get("/api/trading/summary")
+async def get_trading_summary():
+    """트레이딩 대시보드 요약 데이터."""
+    portfolio = _load_data("trading_portfolio", _default_portfolio())
+    strategies = _load_data("trading_strategies", [])
+    watchlist = _load_data("trading_watchlist", [])
+    history = _load_data("trading_history", [])
+    signals = _load_data("trading_signals", [])
+    settings = _load_data("trading_settings", _default_trading_settings())
+
+    # 포트폴리오 평가 계산
+    holdings = portfolio.get("holdings", [])
+    total_eval = sum(h.get("current_price", 0) * h.get("qty", 0) for h in holdings)
+    total_buy_cost = sum(h.get("avg_price", 0) * h.get("qty", 0) for h in holdings)
+    cash = portfolio.get("cash", 0)
+    total_asset = cash + total_eval
+    total_pnl = total_eval - total_buy_cost
+    pnl_pct = (total_pnl / total_buy_cost * 100) if total_buy_cost > 0 else 0
+
+    # 오늘 거래 집계
+    today_str = datetime.now(KST).strftime("%Y-%m-%d")
+    today_trades = [t for t in history if t.get("date", "").startswith(today_str)]
+    today_pnl = sum(t.get("pnl", 0) for t in today_trades)
+
+    active_strategies = [s for s in strategies if s.get("active")]
+
+    return {
+        "portfolio": {
+            "cash": cash,
+            "total_eval": total_eval,
+            "total_asset": total_asset,
+            "total_pnl": total_pnl,
+            "pnl_pct": round(pnl_pct, 2),
+            "holdings_count": len(holdings),
+            "initial_cash": portfolio.get("initial_cash", 50_000_000),
+        },
+        "strategies": {
+            "total": len(strategies),
+            "active": len(active_strategies),
+        },
+        "watchlist_count": len(watchlist),
+        "today": {
+            "trades": len(today_trades),
+            "pnl": today_pnl,
+        },
+        "signals_count": len(signals),
+        "settings": settings,
+        "bot_active": _trading_bot_active,
+    }
+
+
+@app.get("/api/trading/portfolio")
+async def get_trading_portfolio():
+    """포트폴리오 전체 데이터."""
+    portfolio = _load_data("trading_portfolio", _default_portfolio())
+    return portfolio
+
+
+@app.post("/api/trading/portfolio")
+async def update_trading_portfolio(request: Request):
+    """포트폴리오 업데이트 (초기 자금 설정 등)."""
+    body = await request.json()
+    portfolio = _load_data("trading_portfolio", _default_portfolio())
+
+    if "cash" in body:
+        portfolio["cash"] = body["cash"]
+    if "initial_cash" in body:
+        portfolio["initial_cash"] = body["initial_cash"]
+        portfolio["cash"] = body["initial_cash"]
+        portfolio["holdings"] = []
+    portfolio["updated_at"] = datetime.now(KST).isoformat()
+
+    _save_data("trading_portfolio", portfolio)
+    save_activity_log("system", f"💰 포트폴리오 업데이트: 현금 {portfolio['cash']:,.0f}원", "info")
+    return {"success": True, "portfolio": portfolio}
+
+
+@app.get("/api/trading/strategies")
+async def get_trading_strategies():
+    """매매 전략 목록."""
+    return _load_data("trading_strategies", [])
+
+
+@app.post("/api/trading/strategies")
+async def save_trading_strategy(request: Request):
+    """매매 전략 추가/수정."""
+    body = await request.json()
+    strategies = _load_data("trading_strategies", [])
+
+    strategy_id = body.get("id") or f"strat_{datetime.now(KST).strftime('%Y%m%d%H%M%S')}_{len(strategies)}"
+
+    existing = next((s for s in strategies if s.get("id") == strategy_id), None)
+    if existing:
+        existing.update({
+            "name": body.get("name", existing.get("name", "")),
+            "type": body.get("type", existing.get("type", "manual")),
+            "indicator": body.get("indicator", existing.get("indicator", "")),
+            "buy_condition": body.get("buy_condition", existing.get("buy_condition", "")),
+            "sell_condition": body.get("sell_condition", existing.get("sell_condition", "")),
+            "target_tickers": body.get("target_tickers", existing.get("target_tickers", [])),
+            "stop_loss_pct": body.get("stop_loss_pct", existing.get("stop_loss_pct", -5)),
+            "take_profit_pct": body.get("take_profit_pct", existing.get("take_profit_pct", 10)),
+            "order_size": body.get("order_size", existing.get("order_size", 1_000_000)),
+            "active": body.get("active", existing.get("active", True)),
+            "updated_at": datetime.now(KST).isoformat(),
+        })
+    else:
+        strategy = {
+            "id": strategy_id,
+            "name": body.get("name", "새 전략"),
+            "type": body.get("type", "manual"),
+            "indicator": body.get("indicator", ""),
+            "buy_condition": body.get("buy_condition", ""),
+            "sell_condition": body.get("sell_condition", ""),
+            "target_tickers": body.get("target_tickers", []),
+            "stop_loss_pct": body.get("stop_loss_pct", -5),
+            "take_profit_pct": body.get("take_profit_pct", 10),
+            "order_size": body.get("order_size", 1_000_000),
+            "active": body.get("active", True),
+            "created_at": datetime.now(KST).isoformat(),
+            "updated_at": datetime.now(KST).isoformat(),
+        }
+        strategies.append(strategy)
+
+    _save_data("trading_strategies", strategies)
+    save_activity_log("system", f"📊 매매 전략 저장: {body.get('name', strategy_id)}", "info")
+    return {"success": True, "strategies": strategies}
+
+
+@app.delete("/api/trading/strategies/{strategy_id}")
+async def delete_trading_strategy(strategy_id: str):
+    """매매 전략 삭제."""
+    strategies = _load_data("trading_strategies", [])
+    strategies = [s for s in strategies if s.get("id") != strategy_id]
+    _save_data("trading_strategies", strategies)
+    return {"success": True}
+
+
+@app.put("/api/trading/strategies/{strategy_id}/toggle")
+async def toggle_trading_strategy(strategy_id: str):
+    """매매 전략 활성/비활성 토글."""
+    strategies = _load_data("trading_strategies", [])
+    for s in strategies:
+        if s.get("id") == strategy_id:
+            s["active"] = not s.get("active", True)
+            _save_data("trading_strategies", strategies)
+            return {"success": True, "active": s["active"]}
+    return {"success": False, "error": "전략을 찾을 수 없습니다"}
+
+
+@app.get("/api/trading/watchlist")
+async def get_trading_watchlist():
+    """관심 종목 목록."""
+    return _load_data("trading_watchlist", [])
+
+
+@app.post("/api/trading/watchlist")
+async def add_trading_watchlist(request: Request):
+    """관심 종목 추가."""
+    body = await request.json()
+    watchlist = _load_data("trading_watchlist", [])
+
+    ticker = body.get("ticker", "")
+    if not ticker:
+        return {"success": False, "error": "종목코드 필수"}
+
+    # 중복 체크
+    if any(w.get("ticker") == ticker for w in watchlist):
+        return {"success": False, "error": "이미 등록된 종목"}
+
+    item = {
+        "ticker": ticker,
+        "name": body.get("name", ticker),
+        "target_price": body.get("target_price", 0),
+        "alert_type": body.get("alert_type", "above"),
+        "notes": body.get("notes", ""),
+        "added_at": datetime.now(KST).isoformat(),
+    }
+    watchlist.append(item)
+    _save_data("trading_watchlist", watchlist)
+    save_activity_log("system", f"👁️ 관심종목 추가: {item['name']} ({ticker})", "info")
+    return {"success": True, "watchlist": watchlist}
+
+
+@app.delete("/api/trading/watchlist/{ticker}")
+async def remove_trading_watchlist(ticker: str):
+    """관심 종목 삭제."""
+    watchlist = _load_data("trading_watchlist", [])
+    watchlist = [w for w in watchlist if w.get("ticker") != ticker]
+    _save_data("trading_watchlist", watchlist)
+    return {"success": True}
+
+
+@app.post("/api/trading/order")
+async def execute_trading_order(request: Request):
+    """모의 주문 실행 (매수/매도).
+
+    실제 키움증권 API 연결 전까지는 포트폴리오 데이터만 업데이트합니다.
+    """
+    body = await request.json()
+    action = body.get("action", "")  # "buy" or "sell"
+    ticker = body.get("ticker", "")
+    name = body.get("name", ticker)
+    qty = int(body.get("qty", 0))
+    price = int(body.get("price", 0))
+
+    if not all([action in ("buy", "sell"), ticker, qty > 0, price > 0]):
+        return {"success": False, "error": "매수/매도, 종목코드, 수량, 가격 필수"}
+
+    portfolio = _load_data("trading_portfolio", _default_portfolio())
+    total_amount = qty * price
+
+    if action == "buy":
+        if portfolio["cash"] < total_amount:
+            return {"success": False, "error": f"현금 부족: 필요 {total_amount:,.0f}원, 보유 {portfolio['cash']:,.0f}원"}
+
+        # 기존 보유 종목 확인 (평단 계산)
+        holding = next((h for h in portfolio["holdings"] if h["ticker"] == ticker), None)
+        if holding:
+            old_total = holding["avg_price"] * holding["qty"]
+            new_total = old_total + total_amount
+            holding["qty"] += qty
+            holding["avg_price"] = int(new_total / holding["qty"])
+            holding["current_price"] = price
+        else:
+            portfolio["holdings"].append({
+                "ticker": ticker,
+                "name": name,
+                "qty": qty,
+                "avg_price": price,
+                "current_price": price,
+            })
+
+        portfolio["cash"] -= total_amount
+
+    elif action == "sell":
+        holding = next((h for h in portfolio["holdings"] if h["ticker"] == ticker), None)
+        if not holding:
+            return {"success": False, "error": f"{name} 보유하지 않음"}
+        if holding["qty"] < qty:
+            return {"success": False, "error": f"보유 수량 부족: 보유 {holding['qty']}주, 매도 {qty}주"}
+
+        pnl = (price - holding["avg_price"]) * qty
+        holding["qty"] -= qty
+        holding["current_price"] = price
+
+        if holding["qty"] == 0:
+            portfolio["holdings"] = [h for h in portfolio["holdings"] if h["ticker"] != ticker]
+
+        portfolio["cash"] += total_amount
+
+    portfolio["updated_at"] = datetime.now(KST).isoformat()
+    _save_data("trading_portfolio", portfolio)
+
+    # 거래 내역 저장
+    history = _load_data("trading_history", [])
+    trade = {
+        "id": f"trade_{datetime.now(KST).strftime('%Y%m%d%H%M%S')}_{len(history)}",
+        "date": datetime.now(KST).isoformat(),
+        "ticker": ticker,
+        "name": name,
+        "action": action,
+        "qty": qty,
+        "price": price,
+        "total": total_amount,
+        "pnl": pnl if action == "sell" else 0,
+        "strategy": body.get("strategy", "manual"),
+        "status": "executed",
+    }
+    history.insert(0, trade)
+    if len(history) > 500:
+        history = history[:500]
+    _save_data("trading_history", history)
+
+    action_ko = "매수" if action == "buy" else "매도"
+    pnl_str = f" (손익: {pnl:+,.0f}원)" if action == "sell" else ""
+    save_activity_log("system",
+        f"{'📈' if action == 'buy' else '📉'} {action_ko}: {name} {qty}주 × {price:,.0f}원 = {total_amount:,.0f}원{pnl_str}",
+        "info")
+
+    return {"success": True, "trade": trade, "portfolio": portfolio}
+
+
+@app.get("/api/trading/history")
+async def get_trading_history():
+    """거래 내역."""
+    return _load_data("trading_history", [])
+
+
+@app.get("/api/trading/signals")
+async def get_trading_signals():
+    """매매 시그널 목록."""
+    return _load_data("trading_signals", [])
+
+
+@app.post("/api/trading/signals/generate")
+async def generate_trading_signals():
+    """AI가 현재 관심종목/전략 기반으로 매매 시그널을 생성합니다."""
+    watchlist = _load_data("trading_watchlist", [])
+    strategies = _load_data("trading_strategies", [])
+    active_strategies = [s for s in strategies if s.get("active")]
+
+    if not watchlist and not active_strategies:
+        return {"success": False, "error": "관심종목이나 활성 전략이 없습니다"}
+
+    tickers_info = ", ".join([f"{w['name']}({w['ticker']})" for w in watchlist[:10]])
+    strats_info = ", ".join([s["name"] for s in active_strategies[:5]])
+
+    prompt = f"""다음 종목들에 대해 매매 시그널을 생성해주세요.
+
+관심종목: {tickers_info or '없음'}
+활성전략: {strats_info or '없음'}
+
+각 종목에 대해 다음 형식으로 분석해주세요:
+- 종목명 (종목코드): 매수/매도/관망 | 신뢰도(%) | 근거 한줄"""
+
+    if not is_ai_ready():
+        # AI 미연결 시 더미 시그널 생성
+        signals = _load_data("trading_signals", [])
+        for w in watchlist[:5]:
+            signal = {
+                "id": f"sig_{datetime.now(KST).strftime('%Y%m%d%H%M%S')}_{w['ticker']}",
+                "date": datetime.now(KST).isoformat(),
+                "ticker": w["ticker"],
+                "name": w["name"],
+                "action": "hold",
+                "confidence": 50,
+                "reason": "AI 미연결 — 분석 불가 (API 키 등록 필요)",
+                "strategy": "auto",
+            }
+            signals.insert(0, signal)
+        if len(signals) > 200:
+            signals = signals[:200]
+        _save_data("trading_signals", signals)
+        return {"success": True, "signals": signals[:20]}
+
+    result = await ask_ai(prompt, "당신은 투자분석 AI입니다. 기술적/펀더멘털 분석을 기반으로 매매 시그널을 생성합니다.", "claude-haiku-4-5-20251001")
+    content = result.get("content", "")
+
+    signals = _load_data("trading_signals", [])
+    new_signal = {
+        "id": f"sig_{datetime.now(KST).strftime('%Y%m%d%H%M%S')}",
+        "date": datetime.now(KST).isoformat(),
+        "analysis": content,
+        "tickers": [w["ticker"] for w in watchlist[:10]],
+        "strategy": "ai_analysis",
+        "cost_usd": result.get("cost_usd", 0),
+    }
+    signals.insert(0, new_signal)
+    if len(signals) > 200:
+        signals = signals[:200]
+    _save_data("trading_signals", signals)
+    save_activity_log("system", f"🤖 AI 매매 시그널 생성: {len(watchlist)}개 종목 분석", "info")
+
+    return {"success": True, "signal": new_signal}
+
+
+@app.get("/api/trading/settings")
+async def get_trading_settings():
+    """자동매매 설정."""
+    return _load_data("trading_settings", _default_trading_settings())
+
+
+@app.post("/api/trading/settings")
+async def save_trading_settings(request: Request):
+    """자동매매 설정 저장."""
+    body = await request.json()
+    settings = _load_data("trading_settings", _default_trading_settings())
+    settings.update(body)
+    _save_data("trading_settings", settings)
+    save_activity_log("system", "⚙️ 자동매매 설정 업데이트", "info")
+    return {"success": True, "settings": settings}
+
+
+@app.post("/api/trading/bot/toggle")
+async def toggle_trading_bot():
+    """자동매매 봇 ON/OFF 토글."""
+    global _trading_bot_active, _trading_bot_task
+
+    _trading_bot_active = not _trading_bot_active
+
+    if _trading_bot_active:
+        if _trading_bot_task is None or _trading_bot_task.done():
+            _trading_bot_task = asyncio.create_task(_trading_bot_loop())
+        save_activity_log("system", "🤖 자동매매 봇 가동 시작!", "info")
+        _log("[TRADING] 자동매매 봇 시작 ✅")
+    else:
+        save_activity_log("system", "⏹️ 자동매매 봇 중지", "info")
+        _log("[TRADING] 자동매매 봇 중지")
+
+    return {"success": True, "bot_active": _trading_bot_active}
+
+
+@app.get("/api/trading/bot/status")
+async def get_trading_bot_status():
+    """자동매매 봇 상태."""
+    return {
+        "active": _trading_bot_active,
+        "task_running": _trading_bot_task is not None and not _trading_bot_task.done() if _trading_bot_task else False,
+        "settings": _load_data("trading_settings", _default_trading_settings()),
+    }
+
+
+async def _trading_bot_loop():
+    """자동매매 봇 루프 — 매 5분마다 전략 체크 및 시그널 생성.
+
+    현재는 모의투자 모드(paper_trading=True)로 작동합니다.
+    키움증권 API가 연결되면 실제 주문으로 전환 가능합니다.
+    """
+    logger = logging.getLogger("corthex.trading")
+    logger.info("자동매매 봇 루프 시작")
+
+    while _trading_bot_active:
+        try:
+            await asyncio.sleep(300)  # 5분마다 체크
+            if not _trading_bot_active:
+                break
+
+            settings = _load_data("trading_settings", _default_trading_settings())
+            now = datetime.now(KST)
+            now_time = now.strftime("%H:%M")
+
+            # 장 시간 체크
+            start_time = settings.get("trading_hours", {}).get("start", "09:00")
+            end_time = settings.get("trading_hours", {}).get("end", "15:20")
+            if not (start_time <= now_time <= end_time):
+                continue
+
+            # 활성 전략 확인
+            strategies = _load_data("trading_strategies", [])
+            active = [s for s in strategies if s.get("active")]
+            if not active:
+                continue
+
+            logger.info("[TRADING BOT] 전략 스캔: %d개 활성 전략", len(active))
+            save_activity_log("system", f"🔍 자동매매 스캔: {len(active)}개 전략 확인 중...", "info")
+
+            # 여기서 실제 시그널 생성 + 자동 주문 로직이 들어갑니다
+            # 현재는 로그만 남기고, 키움증권 API 연결 후 실제 매매 로직 추가 예정
+
+        except Exception as e:
+            logger.error("[TRADING BOT] 에러: %s", e)
+
+    logger.info("자동매매 봇 루프 종료")
+
+
+@app.post("/api/trading/portfolio/reset")
+async def reset_trading_portfolio(request: Request):
+    """포트폴리오 초기화 (모의투자 리셋)."""
+    body = await request.json()
+    initial_cash = body.get("initial_cash", 50_000_000)
+    portfolio = {
+        "cash": initial_cash,
+        "initial_cash": initial_cash,
+        "holdings": [],
+        "updated_at": datetime.now(KST).isoformat(),
+    }
+    _save_data("trading_portfolio", portfolio)
+    _save_data("trading_history", [])
+    _save_data("trading_signals", [])
+    save_activity_log("system", f"🔄 모의투자 리셋: 초기 자금 {initial_cash:,.0f}원", "info")
+    return {"success": True, "portfolio": portfolio}
+
+
 # ── 지식파일 관리 ──
 
 @app.get("/api/knowledge")
@@ -1988,6 +2485,8 @@ _ROUTING_KEYWORDS: dict[str, list[str]] = {
         "삼성", "애플", "주식", "투자", "종목", "차트", "시황",
         "코스피", "나스닥", "포트폴리오", "금리", "환율", "채권",
         "ETF", "펀드", "배당", "테슬라", "엔비디아",
+        "매수", "매도", "자동매매", "키움", "백테스트", "전략",
+        "손절", "익절", "시가총액", "PER", "RSI", "MACD",
     ],
     "cpo_manager": [
         "기록", "빌딩로그", "연대기", "블로그", "출판", "편집", "회고",
