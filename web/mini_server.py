@@ -1705,27 +1705,120 @@ async def _call_agent(agent_id: str, text: str) -> dict:
     }
 
 
-async def _broadcast_to_managers(text: str, task_id: str) -> dict:
-    """모든 처장에게 동시에 명령을 전달하고 결과를 종합합니다.
+async def _delegate_to_specialists(manager_id: str, text: str) -> list[dict]:
+    """처장이 소속 전문가들에게 병렬로 위임합니다.
 
-    asyncio.gather로 6개 부서를 동시에 호출하여 속도를 높입니다.
-    각 처장의 상태 표시등이 동시에 깜빡이며 작업 진행이 보입니다.
+    asyncio.gather로 전문가들을 동시에 호출 → 상태 표시등 전부 깜빡임.
+    """
+    specialists = _MANAGER_SPECIALISTS.get(manager_id, [])
+    if not specialists:
+        return []
+
+    tasks = [_call_agent(spec_id, text) for spec_id in specialists]
+    results = await asyncio.gather(*tasks, return_exceptions=True)
+
+    processed = []
+    for i, r in enumerate(results):
+        spec_id = specialists[i]
+        if isinstance(r, Exception):
+            processed.append({"agent_id": spec_id, "name": _SPECIALIST_NAMES.get(spec_id, spec_id), "error": str(r)[:100], "cost_usd": 0})
+        else:
+            processed.append(r)
+    return processed
+
+
+async def _manager_with_delegation(manager_id: str, text: str) -> dict:
+    """처장이 전문가에게 위임 → 결과 종합(검수) → 보고서 작성.
+
+    흐름: 처장 분석 시작 → 전문가 병렬 호출 → 처장이 결과 종합 + 검수 → 보고서 반환
+    검수: 처장이 전문가 결과를 읽고 종합하는 과정 자체가 품질 검수 역할을 합니다.
+    """
+    mgr_name = _AGENT_NAMES.get(manager_id, manager_id)
+    specialists = _MANAGER_SPECIALISTS.get(manager_id, [])
+
+    # 처장 상태: 명령 분석 중
+    await _broadcast_status(manager_id, "working", 0.1, "명령 분석 → 전문가 위임 중...")
+
+    # 전문가들에게 병렬 위임
+    spec_results = await _delegate_to_specialists(manager_id, text)
+
+    if not spec_results:
+        # 전문가가 없으면 처장이 직접 처리
+        return await _call_agent(manager_id, text)
+
+    # 전문가 결과 취합
+    spec_parts = []
+    spec_cost = 0.0
+    spec_time = 0.0
+    for r in spec_results:
+        name = r.get("name", r.get("agent_id", "?"))
+        if "error" in r:
+            spec_parts.append(f"[{name}] 오류: {r['error'][:80]}")
+        else:
+            spec_parts.append(f"[{name}]\n{r.get('content', '응답 없음')}")
+            spec_cost += r.get("cost_usd", 0)
+            spec_time = max(spec_time, r.get("time_seconds", 0))
+
+    # 처장이 종합 + 검수 (전문가 결과를 읽고 CEO에게 보고서 작성)
+    synthesis_prompt = (
+        f"당신은 {mgr_name}입니다. 소속 전문가들이 아래 분석 결과를 제출했습니다.\n"
+        f"이를 검수하고 종합하여 CEO에게 보고할 간결한 보고서를 작성하세요.\n"
+        f"전문가 의견 중 부족하거나 잘못된 부분이 있으면 지적하고 보완하세요.\n\n"
+        f"## CEO 원본 명령\n{text}\n\n"
+        f"## 전문가 분석 결과\n" + "\n\n".join(spec_parts)
+    )
+
+    soul = _load_agent_prompt(manager_id)
+    override = _get_model_override(manager_id)
+    model = select_model(synthesis_prompt, override=override)
+
+    await _broadcast_status(manager_id, "working", 0.7, "전문가 결과 검수 + 종합 중...")
+    synthesis = await ask_ai(synthesis_prompt, system_prompt=soul, model=model)
+
+    await _broadcast_status(manager_id, "done", 1.0, "보고 완료")
+
+    if "error" in synthesis:
+        # 종합 실패 시 전문가 결과만 반환
+        content = f"**{mgr_name} 전문가 분석 결과**\n\n" + "\n\n---\n\n".join(spec_parts)
+        return {"agent_id": manager_id, "name": mgr_name, "content": content, "cost_usd": spec_cost}
+
+    total_cost = spec_cost + synthesis.get("cost_usd", 0)
+    specialists_used = len([r for r in spec_results if "error" not in r])
+
+    return {
+        "agent_id": manager_id,
+        "name": mgr_name,
+        "content": synthesis.get("content", ""),
+        "cost_usd": total_cost,
+        "model": synthesis.get("model", ""),
+        "time_seconds": round(spec_time + synthesis.get("time_seconds", 0), 2),
+        "specialists_used": specialists_used,
+    }
+
+
+async def _broadcast_to_managers(text: str, task_id: str) -> dict:
+    """전체 부서 브로드캐스트 — 29명 에이전트 동시 가동!
+
+    비서실장 → 6개 처장 → 각 처장의 전문가들 전부 병렬 호출.
+    처장들이 전문가 결과를 검수 + 종합하여 보고서 작성.
+    최종적으로 비서실장이 6개 부서 보고서를 하나로 합침.
     """
     managers = ["cto_manager", "cso_manager", "clo_manager", "cmo_manager", "cio_manager", "cpo_manager"]
 
     # 비서실장 상태: 전달 중
-    await _broadcast_status("chief_of_staff", "working", 0.1, "전체 부서에 전달 중...")
+    await _broadcast_status("chief_of_staff", "working", 0.1, "29명 에이전트 총동원 중...")
 
     # 활동 로그
-    log_entry = save_activity_log("chief_of_staff", f"[브로드캐스트] 6개 부서에 동시 전달: {text[:40]}...")
+    total_agents = 1 + len(managers) + sum(len(_MANAGER_SPECIALISTS.get(m, [])) for m in managers)
+    log_entry = save_activity_log("chief_of_staff", f"[브로드캐스트] {total_agents}명 에이전트 총동원: {text[:40]}...")
     for c in connected_clients[:]:
         try:
             await c.send_json({"event": "activity_log", "data": log_entry})
         except Exception:
             pass
 
-    # 모든 처장에게 동시 AI 호출
-    tasks = [_call_agent(mgr_id, text) for mgr_id in managers]
+    # 6개 부서 동시 호출 (각 부서 내 전문가까지 병렬 처리)
+    tasks = [_manager_with_delegation(mgr_id, text) for mgr_id in managers]
     results = await asyncio.gather(*tasks, return_exceptions=True)
 
     # 결과 종합
@@ -1733,17 +1826,21 @@ async def _broadcast_to_managers(text: str, task_id: str) -> dict:
     total_cost = 0.0
     total_time = 0.0
     success_count = 0
+    total_specialists = 0
 
     for i, result in enumerate(results):
         mgr_id = managers[i]
         mgr_name = _AGENT_NAMES.get(mgr_id, mgr_id)
 
         if isinstance(result, Exception):
-            compiled_parts.append(f"### ❌ {mgr_name}\n오류가 발생했습니다: {str(result)[:100]}")
+            compiled_parts.append(f"### ❌ {mgr_name}\n오류: {str(result)[:100]}")
         elif "error" in result:
             compiled_parts.append(f"### ❌ {mgr_name}\n{result['error'][:200]}")
         else:
-            compiled_parts.append(f"### 📋 {mgr_name}\n{result.get('content', '응답 없음')}")
+            specs = result.get("specialists_used", 0)
+            total_specialists += specs
+            spec_label = f" (전문가 {specs}명 동원)" if specs else ""
+            compiled_parts.append(f"### 📋 {mgr_name}{spec_label}\n{result.get('content', '응답 없음')}")
             total_cost += result.get("cost_usd", 0)
             total_time = max(total_time, result.get("time_seconds", 0))
             success_count += 1
@@ -1751,15 +1848,16 @@ async def _broadcast_to_managers(text: str, task_id: str) -> dict:
     # 비서실장 완료
     await _broadcast_status("chief_of_staff", "done", 1.0, "종합 완료")
 
+    agents_mobilized = 1 + success_count + total_specialists  # 비서실장 + 처장 + 전문가
     compiled_content = (
-        f"📢 **전체 부서 브로드캐스트 결과** ({success_count}/6개 부서 응답)\n\n"
-        f"비서실장이 6개 부서에 동시에 전달했습니다.\n\n---\n\n"
+        f"📢 **전체 부서 브로드캐스트 결과** ({agents_mobilized}명 에이전트 동원)\n\n"
+        f"비서실장이 6개 부서 + 소속 전문가 전원에게 동시 전달했습니다.\n\n---\n\n"
         + "\n\n---\n\n".join(compiled_parts)
     )
 
     # DB 업데이트
     update_task(task_id, status="completed",
-                result_summary=f"6개 부서 브로드캐스트 완료 ({success_count}/6 응답)",
+                result_summary=f"브로드캐스트 완료 ({agents_mobilized}명 동원, {success_count}/6 부서 응답)",
                 result_data=compiled_content,
                 success=1,
                 cost_usd=total_cost,
@@ -1769,8 +1867,8 @@ async def _broadcast_to_managers(text: str, task_id: str) -> dict:
     return {
         "content": compiled_content,
         "agent_id": "chief_of_staff",
-        "handled_by": "비서실장 (전체 브로드캐스트)",
-        "delegation": "비서실장 → 전체 6개 부서",
+        "handled_by": f"비서실장 ({agents_mobilized}명 동원)",
+        "delegation": f"비서실장 → 6개 부서 + 전문가 {total_specialists}명",
         "total_cost_usd": round(total_cost, 6),
         "time_seconds": round(total_time, 2),
         "model": "multi-agent",
@@ -1891,10 +1989,11 @@ async def _process_ai_command(text: str, task_id: str) -> dict:
 
     흐름:
       예산 확인 → 브로드캐스트 확인 → 라우팅(분류) → 상태 전송
-      → 소울 로드 → 모델 선택 → AI 호출 → 검수 → DB 저장
+      → 처장+전문가 풀 체인 위임 → 검수 → DB 저장
 
-    브로드캐스트 모드: "전체", "출석체크" 등 → 6개 부서 동시 호출
-    단일 위임 모드: 키워드/AI 분류 → 해당 부서 처장 호출
+    브로드캐스트 모드: "전체", "출석체크" 등 → 29명 동시 가동
+    단일 위임 모드: 키워드/AI 분류 → 처장+전문가 체인 호출
+    직접 처리: 비서실장이 직접 답변 (단순 질문)
     """
     # 1) 예산 확인
     limit = float(load_setting("daily_budget_usd") or 7.0)
@@ -1905,7 +2004,7 @@ async def _process_ai_command(text: str, task_id: str) -> dict:
                     success=0)
         return {"error": f"일일 예산을 초과했습니다 (${today:.2f}/${limit:.0f})"}
 
-    # 2) 브로드캐스트 명령 확인 → 6개 부서 동시 호출
+    # 2) 브로드캐스트 명령 확인 → 29명 동시 가동
     if _is_broadcast_command(text):
         return await _broadcast_to_managers(text, task_id)
 
@@ -1914,75 +2013,84 @@ async def _process_ai_command(text: str, task_id: str) -> dict:
     target_id = routing["agent_id"]
     routing_cost = routing.get("cost_usd", 0)
 
-    # 4) 상태 표시등 전송 — 프론트엔드의 초록불이 깜빡이기 시작
-    await _broadcast_status(target_id, "working", 0.2, "처리 중...")
-    if target_id != "chief_of_staff":
-        target_name_for_status = _AGENT_NAMES.get(target_id, target_id)
-        await _broadcast_status("chief_of_staff", "working", 0.1, f"{target_name_for_status}에게 위임 중...")
-
-    # 5) 에이전트 소울(성격) 로드
-    if target_id == "chief_of_staff" and _chief_prompt:
-        soul = _chief_prompt  # 캐시된 비서실장 프롬프트 사용
-    else:
-        soul = _load_agent_prompt(target_id)
-
-    # 6) 모델 결정 (수동: 에이전트별 지정 모델 / 자동: 질문에 따라 선택)
-    override = _get_model_override(target_id)
-    model = select_model(text, override=override)
-
-    # 7) AI 호출
-    result = await ask_ai(text, system_prompt=soul, model=model)
-
-    if "error" in result:
-        await _broadcast_status(target_id, "done", 1.0, "오류 발생")
-        if target_id != "chief_of_staff":
-            await _broadcast_status("chief_of_staff", "done", 1.0)
-        update_task(task_id, status="failed",
-                    result_summary=f"AI 오류: {result['error'][:100]}",
-                    success=0, agent_id=target_id)
-        result["handled_by"] = _AGENT_NAMES.get(target_id, target_id)
-        return result
-
-    # 8) 상태 완료 전송 — 초록불이 안정 상태로 전환
-    await _broadcast_status(target_id, "done", 1.0, "완료")
-    if target_id != "chief_of_staff":
-        await _broadcast_status("chief_of_staff", "done", 1.0, "위임 완료")
-
-    # 9) 총 비용 = 라우팅 비용 + AI 호출 비용
-    total_cost = routing_cost + result.get("cost_usd", 0)
-
-    # 10) DB 업데이트 (에이전트 ID 포함)
-    update_task(task_id, status="completed",
-                result_summary=result["content"][:500],
-                result_data=result["content"],
-                success=1,
-                cost_usd=total_cost,
-                tokens_used=result.get("input_tokens", 0) + result.get("output_tokens", 0),
-                time_seconds=result.get("time_seconds", 0),
-                agent_id=target_id)
-
-    # 11) 응답에 라우팅 정보 추가 — 비서실장 명령체계 반영
-    target_name = _AGENT_NAMES.get(target_id, target_id)
+    # 4) 비서실장 직접 처리 (일반 질문, 인사 등)
     if target_id == "chief_of_staff":
-        # 비서실장이 직접 처리
+        await _broadcast_status("chief_of_staff", "working", 0.2, "직접 처리 중...")
+        soul = _chief_prompt if _chief_prompt else _load_agent_prompt("chief_of_staff")
+        override = _get_model_override("chief_of_staff")
+        model = select_model(text, override=override)
+        result = await ask_ai(text, system_prompt=soul, model=model)
+
+        await _broadcast_status("chief_of_staff", "done", 1.0, "완료")
+
+        if "error" in result:
+            update_task(task_id, status="failed",
+                        result_summary=f"AI 오류: {result['error'][:100]}",
+                        success=0, agent_id="chief_of_staff")
+            result["handled_by"] = "비서실장"
+            return result
+
+        total_cost = routing_cost + result.get("cost_usd", 0)
+        update_task(task_id, status="completed",
+                    result_summary=result["content"][:500],
+                    result_data=result["content"],
+                    success=1, cost_usd=total_cost,
+                    tokens_used=result.get("input_tokens", 0) + result.get("output_tokens", 0),
+                    time_seconds=result.get("time_seconds", 0),
+                    agent_id="chief_of_staff")
         result["handled_by"] = "비서실장"
         result["delegation"] = ""
-    else:
-        # 비서실장이 부서에 위임
-        result["handled_by"] = target_name
-        result["delegation"] = f"비서실장 → {target_name}"
-        # 응답 본문 앞에 위임 안내 추가
-        result["content"] = (
-            f"📋 비서실장이 이 업무를 **{target_name}**에게 위임했습니다.\n\n---\n\n"
-            + result.get("content", "")
-        )
+        result["agent_id"] = "chief_of_staff"
+        result["routing_method"] = routing["method"]
+        result["total_cost_usd"] = total_cost
+        return result
 
-    result["agent_id"] = target_id
-    result["routing_method"] = routing["method"]
-    result["routing_reason"] = routing.get("reason", "")
-    result["total_cost_usd"] = total_cost
+    # 5) 부서 위임 — 처장 + 전문가 풀 체인
+    target_name = _AGENT_NAMES.get(target_id, target_id)
+    await _broadcast_status("chief_of_staff", "working", 0.1, f"{target_name}에게 위임 중...")
 
-    return result
+    # 처장 + 소속 전문가 동시 가동
+    delegation_result = await _manager_with_delegation(target_id, text)
+
+    await _broadcast_status("chief_of_staff", "done", 1.0, "위임 완료")
+
+    if "error" in delegation_result:
+        update_task(task_id, status="failed",
+                    result_summary=f"위임 오류: {delegation_result['error'][:100]}",
+                    success=0, agent_id=target_id)
+        delegation_result["handled_by"] = target_name
+        return delegation_result
+
+    # 6) 결과 정리
+    total_cost = routing_cost + delegation_result.get("cost_usd", 0)
+    specs_used = delegation_result.get("specialists_used", 0)
+    delegation_label = f"비서실장 → {target_name}"
+    if specs_used:
+        delegation_label += f" + 전문가 {specs_used}명"
+
+    content = delegation_result.get("content", "")
+    header = f"📋 비서실장이 **{target_name}**에게 위임했습니다."
+    if specs_used:
+        header += f" (전문가 {specs_used}명 동원)"
+    content = f"{header}\n\n---\n\n{content}"
+
+    update_task(task_id, status="completed",
+                result_summary=content[:500],
+                result_data=content,
+                success=1, cost_usd=total_cost,
+                time_seconds=delegation_result.get("time_seconds", 0),
+                agent_id=target_id)
+
+    return {
+        "content": content,
+        "agent_id": target_id,
+        "handled_by": target_name,
+        "delegation": delegation_label,
+        "total_cost_usd": round(total_cost, 6),
+        "time_seconds": delegation_result.get("time_seconds", 0),
+        "model": delegation_result.get("model", ""),
+        "routing_method": routing["method"],
+    }
 
 
 @app.on_event("startup")
