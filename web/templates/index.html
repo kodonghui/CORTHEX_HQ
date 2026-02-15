@@ -700,6 +700,17 @@
   <!-- ═══ Top Bar ═══ -->
   <header class="h-14 glass border-b border-hq-border flex items-center justify-between px-5 shrink-0 z-20">
     <div class="flex items-center gap-4">
+      <!-- Sidebar Toggle -->
+      <button @click="sidebarOpen = !sidebarOpen"
+              class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-hq-panel/50 transition-colors text-hq-muted hover:text-hq-text"
+              :title="sidebarOpen ? '사이드바 접기' : '사이드바 펼치기'">
+        <svg x-show="sidebarOpen" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5M3.75 17.25h16.5"/>
+        </svg>
+        <svg x-show="!sidebarOpen" x-cloak class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5M3.75 17.25h16.5"/>
+        </svg>
+      </button>
       <!-- Logo -->
       <div class="flex items-center gap-2.5">
         <svg width="28" height="28" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -890,7 +901,14 @@
   <div class="flex flex-1 overflow-hidden">
 
     <!-- ═══ Left Panel: Organization ═══ -->
-    <aside class="w-[280px] bg-hq-surface border-r border-hq-border flex flex-col shrink-0 mobile-sidebar-hidden">
+    <aside x-show="sidebarOpen"
+           x-transition:enter="transition-all ease-out duration-300"
+           x-transition:enter-start="opacity-0 -translate-x-full w-0"
+           x-transition:enter-end="opacity-100 translate-x-0 w-[280px]"
+           x-transition:leave="transition-all ease-in duration-200"
+           x-transition:leave-start="opacity-100 translate-x-0 w-[280px]"
+           x-transition:leave-end="opacity-0 -translate-x-full w-0"
+           class="w-[280px] bg-hq-surface border-r border-hq-border flex flex-col shrink-0 overflow-hidden">
 
       <!-- Org Tree -->
       <div class="flex-1 overflow-y-auto scrollbar-thin p-4 space-y-1.5">
@@ -1104,12 +1122,7 @@
               <div :id="'agent-' + id" @click="openAgentConfig(id)" class="flex items-center gap-2 px-2 py-1 rounded-md hover:bg-hq-red/10 transition-all duration-300 cursor-pointer" title="클릭하면 모델·추론·소울 설정 가능">
                 <span class="w-1.5 h-1.5 rounded-full transition-colors" :class="[getAgentDotClass(id), activeAgents[id]?.status==='working' ? 'agent-working-glow' : '']"></span>
                 <span class="text-xs text-hq-muted" x-text="getAgentName(id)"></span>
-                <template x-if="id !== 'risk_management_specialist'">
-                  <span class="text-[9px] font-mono text-hq-cyan/40 ml-auto flex items-center gap-0.5" title="다른 에이전트와 동시에 작업합니다">⚡ 동시</span>
-                </template>
-                <template x-if="id === 'risk_management_specialist'">
-                  <span class="text-[9px] font-mono text-hq-purple/40 ml-auto flex items-center gap-0.5" title="앞 에이전트가 끝나면 시작합니다">📋 순서대로</span>
-                </template>
+                <!-- 동시/순서대로 표시는 에이전트 상세 팝업에서만 노출 -->
               </div>
             </template>
           </div>
@@ -1198,7 +1211,7 @@
             <template x-for="(log, i) in activityLogs.slice(-50).reverse()" :key="i">
               <div class="log-item text-[11px] text-hq-muted fade-in group flex items-center gap-1">
                 <div class="flex-1 min-w-0">
-                  <span class="font-mono text-hq-muted/80" x-text="log.time"></span>
+                  <span class="font-mono text-hq-muted/80" x-text="(log.time || '').substring(0, 5)"></span>
                   <span class="text-hq-cyan/70 font-medium" x-text="log.agent_id"></span>
                   <span x-text="log.action"></span>
                 </div>
@@ -1420,22 +1433,53 @@
             </template>
           </div>
 
-          <!-- Quick Commands -->
+          <!-- Quick Commands (프리셋 카드 그리드) -->
           <div class="glass border border-hq-border rounded-xl p-5">
             <h2 class="text-sm font-bold text-hq-text mb-4 flex items-center gap-2">
               <svg class="w-4 h-4 text-hq-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
               빠른 명령
             </h2>
             <div class="grid grid-cols-2 lg:grid-cols-3 gap-3">
+              <!-- 서버 프리셋 -->
               <template x-for="p in presets.items" :key="p.name">
                 <button @click="switchTab('command'); $nextTick(() => sendPreset(p.command))"
-                        class="text-left p-3 bg-hq-panel rounded-lg hover:bg-hq-bg border border-transparent hover:border-hq-accent/20 transition group">
-                  <div class="text-sm font-medium text-hq-text group-hover:text-hq-text" x-text="p.name"></div>
+                        class="text-left p-4 glass border border-hq-border rounded-xl hover-glow transition group">
+                  <div class="text-sm font-medium text-hq-text group-hover:text-hq-accent" x-text="p.name"></div>
                   <div class="text-[11px] text-hq-muted mt-1 truncate" x-text="p.command"></div>
                 </button>
               </template>
+              <!-- 기본 프리셋 (서버 프리셋이 없을 때만 표시) -->
+              <template x-if="!presets.items || presets.items.length === 0">
+                <div class="contents">
+                  <button @click="switchTab('command'); $nextTick(() => { inputText = '전 부서 현황 보고'; sendMessage(); })"
+                          class="text-left p-4 glass border border-hq-border rounded-xl hover-glow transition group">
+                    <div class="text-sm font-medium text-hq-text group-hover:text-hq-accent">📊 전 부서 현황</div>
+                    <div class="text-[11px] text-hq-muted mt-1">전 부서 현황 보고</div>
+                  </button>
+                  <button @click="switchTab('command'); $nextTick(() => { inputText = '@CTO 기술 점검 실행'; sendMessage(); })"
+                          class="text-left p-4 glass border border-hq-border rounded-xl hover-glow transition group">
+                    <div class="text-sm font-medium text-hq-text group-hover:text-hq-accent">🔧 기술 점검</div>
+                    <div class="text-[11px] text-hq-muted mt-1">@CTO 기술 점검 실행</div>
+                  </button>
+                  <button @click="switchTab('command'); $nextTick(() => { inputText = '@CSO 보안 스캔 시작'; sendMessage(); })"
+                          class="text-left p-4 glass border border-hq-border rounded-xl hover-glow transition group">
+                    <div class="text-sm font-medium text-hq-text group-hover:text-hq-accent">🛡️ 보안 스캔</div>
+                    <div class="text-[11px] text-hq-muted mt-1">@CSO 보안 스캔 시작</div>
+                  </button>
+                  <button @click="switchTab('command'); $nextTick(() => { inputText = '@CMO 마케팅 전략 분석'; sendMessage(); })"
+                          class="text-left p-4 glass border border-hq-border rounded-xl hover-glow transition group">
+                    <div class="text-sm font-medium text-hq-text group-hover:text-hq-accent">📈 마케팅 분석</div>
+                    <div class="text-[11px] text-hq-muted mt-1">@CMO 마케팅 전략 분석</div>
+                  </button>
+                  <button @click="switchTab('command'); $nextTick(() => { inputText = '@CFO 예산 현황 정리'; sendMessage(); })"
+                          class="text-left p-4 glass border border-hq-border rounded-xl hover-glow transition group">
+                    <div class="text-sm font-medium text-hq-text group-hover:text-hq-accent">💰 예산 현황</div>
+                    <div class="text-[11px] text-hq-muted mt-1">@CFO 예산 현황 정리</div>
+                  </button>
+                </div>
+              </template>
               <button @click="switchTab('command')"
-                      class="text-left p-3 bg-hq-panel rounded-lg hover:bg-hq-bg border border-dashed border-hq-border hover:border-hq-accent/30 transition group flex items-center justify-center min-h-[60px]">
+                      class="text-left p-4 bg-hq-panel/30 rounded-xl border border-dashed border-hq-border hover:border-hq-accent/30 transition group flex items-center justify-center min-h-[60px]">
                 <span class="text-sm text-hq-muted group-hover:text-hq-accent">+ 직접 명령</span>
               </button>
             </div>
@@ -1529,7 +1573,7 @@
                   </div>
                 </div>
               </div>
-              <p class="text-[11px] text-hq-muted/80 mt-4">자유롭게 명령을 입력하세요 (Shift+Enter: 줄바꿈)</p>
+              <!-- 텍스트 제거됨 (#17) -->
             </div>
           </template>
 
@@ -1738,20 +1782,20 @@
               </button>
             </div>
           </div>
-        <!-- Preset Chips -->
-        <div x-show="presets.items.length > 0" class="flex items-center gap-2 flex-wrap mt-2 max-w-4xl mx-auto">
-          <template x-for="p in presets.items" :key="p.name">
-            <button @click="sendPreset(p.command)"
-                    :disabled="systemStatus === 'working'"
-                    class="text-[11px] bg-hq-panel border border-hq-border rounded-lg px-2.5 py-1 hover:border-hq-accent/40 hover:text-hq-accent transition disabled:opacity-30 text-hq-muted">
-              <span x-text="p.name"></span>
+          <!-- Preset Chips -->
+          <div x-show="presets.items.length > 0" class="flex items-center gap-2 flex-wrap mt-2 max-w-4xl mx-auto overflow-x-auto scrollbar-thin">
+            <template x-for="p in presets.items" :key="p.name">
+              <button @click="sendPreset(p.command)"
+                      :disabled="systemStatus === 'working'"
+                      class="text-[11px] bg-hq-panel border border-hq-border rounded-lg px-2.5 py-1 hover:border-hq-accent/40 hover:text-hq-accent transition disabled:opacity-30 text-hq-muted whitespace-nowrap shrink-0">
+                <span x-text="p.name"></span>
+              </button>
+            </template>
+            <button @click="presets.showModal = true" class="text-[11px] text-hq-muted/80 hover:text-hq-accent transition px-1 shrink-0">
+              <svg class="w-3.5 h-3.5 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
             </button>
-          </template>
-          <button @click="presets.showModal = true" class="text-[11px] text-hq-muted/80 hover:text-hq-accent transition px-1">
-            <svg class="w-3.5 h-3.5 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
-          </button>
+          </div>
         </div>
-      </div>
       </div><!-- /command tab -->
 
       <!-- ═══ Tab: 성능 (Performance) ═══ -->
@@ -1837,7 +1881,7 @@
 
           <!-- CEO 사무실 -->
           <div class="office-room glass border border-hq-accent/20 bg-gradient-to-br from-hq-accent/5 to-hq-purple/5">
-            <div class="flex items-center gap-2 mb-3">
+            <div class="flex items-center gap-3 mb-3 px-3 py-2.5 rounded-lg glass border-l-[3px] border-l-hq-accent border border-hq-accent/10">
               <span class="text-lg">👔</span>
               <span class="text-sm font-bold text-hq-accent uppercase tracking-wider">CEO 사무실</span>
             </div>
@@ -1855,7 +1899,7 @@
 
           <!-- 비서실 -->
           <div class="office-room glass border border-hq-yellow/20 bg-hq-yellow/[0.06]">
-            <div class="flex items-center gap-2 mb-3">
+            <div class="flex items-center gap-3 mb-3 px-3 py-2.5 rounded-lg glass border-l-[3px] border-l-hq-yellow border border-hq-yellow/10">
               <span class="text-lg">📋</span>
               <span class="text-sm font-bold text-hq-yellow uppercase tracking-wider">비서실</span>
               <span class="text-[10px] text-hq-muted ml-auto">4명</span>
@@ -1877,7 +1921,7 @@
 
           <!-- LEET Master 본부 -->
           <div class="office-room glass border border-hq-cyan/20 bg-hq-cyan/[0.06]">
-            <div class="flex items-center gap-2 mb-4">
+            <div class="flex items-center gap-3 mb-4 px-3 py-2.5 rounded-lg glass border-l-[3px] border-l-hq-cyan border border-hq-cyan/10">
               <span class="text-lg">🏢</span>
               <span class="text-sm font-bold text-hq-cyan uppercase tracking-wider">LEET Master 본부</span>
               <span class="text-[10px] text-hq-muted ml-auto">16명 (4개 처)</span>
@@ -1885,7 +1929,7 @@
             <div class="grid grid-cols-2 gap-4">
               <!-- 기술개발처 CTO -->
               <div class="bg-hq-panel border border-hq-border rounded-xl p-3">
-                <div class="flex items-center gap-2 mb-3">
+                <div class="flex items-center gap-2 mb-3 px-2 py-1.5 rounded-md bg-hq-surface/50 border-l-2 border-l-hq-cyan">
                   <span class="text-sm">🔧</span>
                   <span class="text-xs font-bold text-hq-cyan">기술개발처 (CTO)</span>
                 </div>
@@ -1904,7 +1948,7 @@
               </div>
               <!-- 사업기획처 CSO -->
               <div class="bg-hq-panel border border-hq-border rounded-xl p-3">
-                <div class="flex items-center gap-2 mb-3">
+                <div class="flex items-center gap-2 mb-3 px-2 py-1.5 rounded-md bg-hq-surface/50 border-l-2 border-l-hq-cyan">
                   <span class="text-sm">📊</span>
                   <span class="text-xs font-bold text-hq-cyan">사업기획처 (CSO)</span>
                 </div>
@@ -1923,7 +1967,7 @@
               </div>
               <!-- 법무 IP처 CLO -->
               <div class="bg-hq-panel border border-hq-border rounded-xl p-3">
-                <div class="flex items-center gap-2 mb-3">
+                <div class="flex items-center gap-2 mb-3 px-2 py-1.5 rounded-md bg-hq-surface/50 border-l-2 border-l-hq-cyan">
                   <span class="text-sm">⚖️</span>
                   <span class="text-xs font-bold text-hq-cyan">법무 IP처 (CLO)</span>
                 </div>
@@ -1942,7 +1986,7 @@
               </div>
               <!-- 마케팅 고객처 CMO -->
               <div class="bg-hq-panel border border-hq-border rounded-xl p-3">
-                <div class="flex items-center gap-2 mb-3">
+                <div class="flex items-center gap-2 mb-3 px-2 py-1.5 rounded-md bg-hq-surface/50 border-l-2 border-l-hq-cyan">
                   <span class="text-sm">📣</span>
                   <span class="text-xs font-bold text-hq-cyan">마케팅 고객처 (CMO)</span>
                 </div>
@@ -1964,7 +2008,7 @@
 
           <!-- 투자분석 본부 -->
           <div class="office-room glass border border-hq-purple/20 bg-hq-purple/[0.06]">
-            <div class="flex items-center gap-2 mb-3">
+            <div class="flex items-center gap-3 mb-3 px-3 py-2.5 rounded-lg glass border-l-[3px] border-l-hq-purple border border-hq-purple/10">
               <span class="text-lg">📈</span>
               <span class="text-sm font-bold text-hq-purple uppercase tracking-wider">투자분석 본부</span>
               <span class="text-[10px] text-hq-muted ml-auto">5명</span>
@@ -1985,7 +2029,7 @@
 
           <!-- 도구 풀 -->
           <div class="office-room glass border border-hq-border bg-hq-red/[0.06]">
-            <div class="flex items-center gap-2 mb-3">
+            <div class="flex items-center gap-3 mb-3 px-3 py-2.5 rounded-lg glass border-l-[3px] border-l-hq-red border border-hq-red/10">
               <span class="text-lg">🛠️</span>
               <span class="text-sm font-bold text-hq-red/70 uppercase tracking-wider">도구 풀</span>
               <span class="text-[10px] text-hq-muted ml-auto">5개</span>
@@ -3584,6 +3628,7 @@
         activeAgents: {},
         ws: null,
         logExpanded: true,
+        sidebarOpen: true,
 
         // ── Tab System ──
         activeTab: 'home',
@@ -3862,15 +3907,8 @@
         // Batch mode toggle (#5)
         useBatch: false,
 
-        // Input hint rotation
-        inputHints: [
-          '명령을 입력하세요... (Shift+Enter: 줄바꿈)',
-          '@CTO 기술 현황 리포트 작성해줘',
-          '오늘 각 부서 업무 현황 알려줘',
-          '@CMO 마케팅 전략 분석해줘',
-          '@CFO 이번 달 예산 현황 정리해줘',
-          '@CLO 계약서 검토해줘',
-        ],
+        // Input hint — 고정 텍스트 (#18)
+        inputHints: ['CEO님, 명령을 입력하세요 (Shift+Enter: 줄바꿈)'],
         inputHintIndex: 0,
 
         init() {
@@ -3901,12 +3939,7 @@
           this.loadPresets();
           // Keyboard shortcuts (#16)
           this.initKeyboardShortcuts();
-          // Input hint rotation (3초마다 placeholder 변경)
-          setInterval(() => {
-            if (!this.inputText.trim()) {
-              this.inputHintIndex = (this.inputHintIndex + 1) % this.inputHints.length;
-            }
-          }, 3000);
+          // Input hint — 순환 제거, 고정 텍스트 사용 (#18)
         },
 
         // ── Theme ──
