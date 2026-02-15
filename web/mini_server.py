@@ -1168,7 +1168,10 @@ async def _start_telegram_bot() -> None:
                 "/agents — 에이전트 목록 (29명)\n"
                 "/health — 서버 상태 확인\n"
                 "/help — 이 사용법\n\n"
-                "일반 메시지를 보내면 접수됩니다.",
+                "*모드 전환*\n"
+                "실시간 — AI가 즉시 답변 (기본)\n"
+                "배치 — 접수만 (AI 미사용)\n\n"
+                "일반 메시지를 보내면 AI가 답변합니다.",
                 parse_mode="Markdown",
             )
 
@@ -1211,34 +1214,31 @@ async def _start_telegram_bot() -> None:
                 parse_mode="Markdown",
             )
 
-        async def cmd_realtime(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-            """실시간 모드로 전환."""
-            if not _is_tg_ceo(update):
-                return
-            save_setting("tg_mode", "realtime")
-            await update.message.reply_text(
-                "🔴 *실시간 모드*로 전환했습니다.\n\n"
-                "이제 보내시는 메시지에 AI가 즉시 답변합니다.",
-                parse_mode="Markdown",
-            )
-
-        async def cmd_batch(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-            """배치 모드로 전환."""
-            if not _is_tg_ceo(update):
-                return
-            save_setting("tg_mode", "batch")
-            await update.message.reply_text(
-                "📦 *배치 모드*로 전환했습니다.\n\n"
-                "메시지를 접수만 하고, AI 처리는 하지 않습니다.",
-                parse_mode="Markdown",
-            )
-
         async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             if not _is_tg_ceo(update):
                 return
             text = update.message.text.strip()
             if not text:
                 return
+
+            # 한국어 명령어 처리 (텔레그램 CommandHandler는 영어만 지원)
+            if text in ("실시간", "/실시간"):
+                save_setting("tg_mode", "realtime")
+                await update.message.reply_text(
+                    "🔴 *실시간 모드*로 전환했습니다.\n\n"
+                    "이제 보내시는 메시지에 AI가 즉시 답변합니다.",
+                    parse_mode="Markdown",
+                )
+                return
+            if text in ("배치", "/배치"):
+                save_setting("tg_mode", "batch")
+                await update.message.reply_text(
+                    "📦 *배치 모드*로 전환했습니다.\n\n"
+                    "메시지를 접수만 하고, AI 처리는 하지 않습니다.",
+                    parse_mode="Markdown",
+                )
+                return
+
             chat_id = str(update.effective_chat.id)
             # DB에 메시지 + 작업 저장
             task = create_task(text, source="telegram")
@@ -1312,8 +1312,6 @@ async def _start_telegram_bot() -> None:
         _telegram_app.add_handler(CommandHandler("help", cmd_help))
         _telegram_app.add_handler(CommandHandler("agents", cmd_agents))
         _telegram_app.add_handler(CommandHandler("health", cmd_health))
-        _telegram_app.add_handler(CommandHandler("실시간", cmd_realtime))
-        _telegram_app.add_handler(CommandHandler("배치", cmd_batch))
         _telegram_app.add_handler(
             MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message)
         )
