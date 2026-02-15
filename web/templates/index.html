@@ -338,257 +338,285 @@
     }
 
     /* ═══════════════════════════════════════════════════════════════════ */
-    /* ═══ PURE CSS COLOR SYSTEM (순수 CSS 색상 시스템) ═══ */
-    /* Tailwind CDN에 의존하지 않고, 모든 hq-* 색상을 직접 정의 */
-    /* 색상값: text=#f2f6ff, muted=#bed2ee, accent=#6eb4ff, cyan=#46e1f8 */
-    /*         purple=#b9a0ff, green=#4be6af, yellow=#ffd246, red=#ff8282 */
-    /*         bg=#1e2637, surface=#37445f, panel=#4b5a78, border=#6e87b4 */
+    /* ═══ PURE CSS COLOR SYSTEM v2 (CSS 변수 기반 — 자동 테마 전환) ═══ */
+    /* 모든 색상이 CSS 변수를 참조 → 다크/라이트 모드 자동 전환 */
     /* ═══════════════════════════════════════════════════════════════════ */
 
     /* --- body 기본 색상 --- */
-    .dark body { color: #f2f6ff !important; }
-    html:not(.dark) body { color: #141c32 !important; }
-    .dark h1, .dark h2, .dark h3, .dark h4 { color: #f2f6ff !important; }
-    .dark header { color: #f2f6ff !important; }
-    .dark .gradient-text { -webkit-text-fill-color: transparent !important; }
-    .dark svg { color: inherit; }
+    body { color: rgb(var(--hq-text)) !important; }
+    h1, h2, h3, h4 { color: rgb(var(--hq-text)) !important; }
+    header { color: rgb(var(--hq-text)) !important; }
+    .gradient-text { -webkit-text-fill-color: transparent !important; }
+    svg { color: inherit; }
 
-    /* --- 구조 요소: glass, aside, desk-card, office-room, input --- */
+    /* --- 다크모드 구조 요소 --- */
     .dark .glass {
-      background-color: rgba(55, 68, 95, 0.95) !important;
-      border-color: rgba(110, 135, 180, 0.6) !important;
-      color: #f2f6ff !important;
+      background-color: rgb(var(--hq-surface) / 0.95) !important;
+      border-color: rgb(var(--hq-border) / 0.6) !important;
+      color: rgb(var(--hq-text)) !important;
     }
     .dark aside {
-      background-color: rgba(55, 68, 95, 0.98) !important;
-      border-color: rgba(110, 135, 180, 0.6) !important;
-      color: #f2f6ff !important;
+      background-color: rgb(var(--hq-surface) / 0.98) !important;
+      border-color: rgb(var(--hq-border) / 0.6) !important;
+      color: rgb(var(--hq-text)) !important;
     }
     .dark .desk-card {
-      background: #37445f !important;
-      border-color: rgba(110, 135, 180, 0.7) !important;
+      background: rgb(var(--hq-surface)) !important;
+      border-color: rgb(var(--hq-border) / 0.7) !important;
     }
     .dark .office-room {
-      background: rgba(30, 38, 55, 0.9) !important;
-      border-color: rgba(110, 135, 180, 0.5) !important;
+      background: rgb(var(--hq-bg) / 0.9) !important;
+      border-color: rgb(var(--hq-border) / 0.5) !important;
     }
     .dark input, .dark textarea, .dark select {
-      background-color: #1e2637 !important;
-      border-color: rgba(110, 135, 180, 0.6) !important;
-      color: #f2f6ff !important;
+      background-color: rgb(var(--hq-bg)) !important;
+      border-color: rgb(var(--hq-border) / 0.6) !important;
+      color: rgb(var(--hq-text)) !important;
     }
     .dark input::placeholder, .dark textarea::placeholder {
-      color: rgba(190, 210, 238, 0.7) !important;
+      color: rgb(var(--hq-muted) / 0.7) !important;
     }
-    .dark .log-item:hover { background: rgba(110, 180, 255, 0.15) !important; }
+    .dark .log-item:hover { background: rgb(var(--hq-accent) / 0.15) !important; }
 
-    /* ═══ text-hq-* 텍스트 색상 (기본) ═══ */
-    .text-hq-text { color: #f2f6ff !important; }
-    .text-hq-muted { color: #bed2ee !important; }
-    .text-hq-accent { color: #6eb4ff !important; }
-    .text-hq-cyan { color: #46e1f8 !important; }
-    .text-hq-purple { color: #b9a0ff !important; }
-    .text-hq-green { color: #4be6af !important; }
-    .text-hq-yellow { color: #ffd246 !important; }
-    .text-hq-red { color: #ff8282 !important; }
+    /* --- 라이트모드 구조 요소 --- */
+    html:not(.dark) .glass {
+      background-color: rgb(var(--hq-surface) / 0.92) !important;
+      border-color: rgb(var(--hq-border)) !important;
+      color: rgb(var(--hq-text)) !important;
+      box-shadow: 0 1px 3px rgb(0 0 0 / 0.06);
+    }
+    html:not(.dark) aside {
+      background-color: rgb(var(--hq-surface)) !important;
+      border-color: rgb(var(--hq-border)) !important;
+      color: rgb(var(--hq-text)) !important;
+      box-shadow: 1px 0 4px rgb(0 0 0 / 0.04);
+    }
+    html:not(.dark) .desk-card {
+      background: rgb(var(--hq-surface)) !important;
+      border-color: rgb(var(--hq-border)) !important;
+      box-shadow: 0 1px 4px rgb(0 0 0 / 0.06);
+    }
+    html:not(.dark) .office-room {
+      background: rgb(var(--hq-panel)) !important;
+      border-color: rgb(var(--hq-border) / 0.5) !important;
+    }
+    html:not(.dark) input, html:not(.dark) textarea, html:not(.dark) select {
+      background-color: rgb(var(--hq-surface)) !important;
+      border-color: rgb(var(--hq-border)) !important;
+      color: rgb(var(--hq-text)) !important;
+    }
+    html:not(.dark) input::placeholder, html:not(.dark) textarea::placeholder {
+      color: rgb(var(--hq-muted) / 0.7) !important;
+    }
+    html:not(.dark) .log-item:hover { background: rgb(var(--hq-accent) / 0.08) !important; }
+
+    /* ═══ text-hq-* 텍스트 색상 (CSS 변수 기반) ═══ */
+    .text-hq-text { color: rgb(var(--hq-text)) !important; }
+    .text-hq-muted { color: rgb(var(--hq-muted)) !important; }
+    .text-hq-accent { color: rgb(var(--hq-accent)) !important; }
+    .text-hq-cyan { color: rgb(var(--hq-cyan)) !important; }
+    .text-hq-purple { color: rgb(var(--hq-purple)) !important; }
+    .text-hq-green { color: rgb(var(--hq-green)) !important; }
+    .text-hq-yellow { color: rgb(var(--hq-yellow)) !important; }
+    .text-hq-red { color: rgb(var(--hq-red)) !important; }
 
     /* ═══ text-hq-* 투명도 변형 ═══ */
-    .text-hq-text\/90 { color: rgba(242, 246, 255, 0.9) !important; }
-    .text-hq-text\/80 { color: rgba(242, 246, 255, 0.8) !important; }
-    .text-hq-text\/60 { color: rgba(242, 246, 255, 0.6) !important; }
-    .text-hq-muted\/85 { color: rgba(190, 210, 238, 0.85) !important; }
-    .text-hq-muted\/80 { color: rgba(190, 210, 238, 0.8) !important; }
-    .text-hq-muted\/70 { color: rgba(190, 210, 238, 0.7) !important; }
-    .text-hq-muted\/40 { color: rgba(190, 210, 238, 0.4) !important; }
-    .text-hq-muted\/30 { color: rgba(190, 210, 238, 0.3) !important; }
-    .text-hq-muted\/10 { color: rgba(190, 210, 238, 0.1) !important; }
-    .text-hq-accent\/80 { color: rgba(110, 180, 255, 0.8) !important; }
-    .text-hq-cyan\/85 { color: rgba(70, 225, 248, 0.85) !important; }
-    .text-hq-cyan\/80 { color: rgba(70, 225, 248, 0.8) !important; }
-    .text-hq-cyan\/70 { color: rgba(70, 225, 248, 0.7) !important; }
-    .text-hq-cyan\/40 { color: rgba(70, 225, 248, 0.4) !important; }
-    .text-hq-purple\/80 { color: rgba(185, 160, 255, 0.8) !important; }
-    .text-hq-purple\/60 { color: rgba(185, 160, 255, 0.6) !important; }
-    .text-hq-purple\/40 { color: rgba(185, 160, 255, 0.4) !important; }
-    .text-hq-green\/80 { color: rgba(75, 230, 175, 0.8) !important; }
-    .text-hq-green\/60 { color: rgba(75, 230, 175, 0.6) !important; }
-    .text-hq-yellow\/80 { color: rgba(255, 210, 70, 0.8) !important; }
-    .text-hq-yellow\/50 { color: rgba(255, 210, 70, 0.5) !important; }
-    .text-hq-red\/70 { color: rgba(255, 130, 130, 0.7) !important; }
-    .text-hq-red\/60 { color: rgba(255, 130, 130, 0.6) !important; }
-    .text-hq-red\/50 { color: rgba(255, 130, 130, 0.5) !important; }
+    .text-hq-text\/90 { color: rgb(var(--hq-text) / 0.9) !important; }
+    .text-hq-text\/80 { color: rgb(var(--hq-text) / 0.8) !important; }
+    .text-hq-text\/60 { color: rgb(var(--hq-text) / 0.6) !important; }
+    .text-hq-muted\/85 { color: rgb(var(--hq-muted) / 0.85) !important; }
+    .text-hq-muted\/80 { color: rgb(var(--hq-muted) / 0.8) !important; }
+    .text-hq-muted\/70 { color: rgb(var(--hq-muted) / 0.7) !important; }
+    .text-hq-muted\/40 { color: rgb(var(--hq-muted) / 0.4) !important; }
+    .text-hq-muted\/30 { color: rgb(var(--hq-muted) / 0.3) !important; }
+    .text-hq-muted\/10 { color: rgb(var(--hq-muted) / 0.1) !important; }
+    .text-hq-accent\/80 { color: rgb(var(--hq-accent) / 0.8) !important; }
+    .text-hq-cyan\/85 { color: rgb(var(--hq-cyan) / 0.85) !important; }
+    .text-hq-cyan\/80 { color: rgb(var(--hq-cyan) / 0.8) !important; }
+    .text-hq-cyan\/70 { color: rgb(var(--hq-cyan) / 0.7) !important; }
+    .text-hq-cyan\/40 { color: rgb(var(--hq-cyan) / 0.4) !important; }
+    .text-hq-purple\/80 { color: rgb(var(--hq-purple) / 0.8) !important; }
+    .text-hq-purple\/60 { color: rgb(var(--hq-purple) / 0.6) !important; }
+    .text-hq-purple\/40 { color: rgb(var(--hq-purple) / 0.4) !important; }
+    .text-hq-green\/80 { color: rgb(var(--hq-green) / 0.8) !important; }
+    .text-hq-green\/60 { color: rgb(var(--hq-green) / 0.6) !important; }
+    .text-hq-yellow\/80 { color: rgb(var(--hq-yellow) / 0.8) !important; }
+    .text-hq-yellow\/50 { color: rgb(var(--hq-yellow) / 0.5) !important; }
+    .text-hq-red\/70 { color: rgb(var(--hq-red) / 0.7) !important; }
+    .text-hq-red\/60 { color: rgb(var(--hq-red) / 0.6) !important; }
+    .text-hq-red\/50 { color: rgb(var(--hq-red) / 0.5) !important; }
 
-    /* ═══ bg-hq-* 배경 색상 (기본) ═══ */
-    .bg-hq-bg { background-color: #1e2637 !important; }
-    .bg-hq-surface { background-color: #37445f !important; }
-    .bg-hq-panel { background-color: #4b5a78 !important; }
-    .bg-hq-accent { background-color: #6eb4ff !important; }
-    .bg-hq-cyan { background-color: #46e1f8 !important; }
-    .bg-hq-green { background-color: #4be6af !important; }
-    .bg-hq-red { background-color: #ff8282 !important; }
-    .bg-hq-yellow { background-color: #ffd246 !important; }
-    .bg-hq-purple { background-color: #b9a0ff !important; }
+    /* ═══ bg-hq-* 배경 색상 (CSS 변수 기반) ═══ */
+    .bg-hq-bg { background-color: rgb(var(--hq-bg)) !important; }
+    .bg-hq-surface { background-color: rgb(var(--hq-surface)) !important; }
+    .bg-hq-panel { background-color: rgb(var(--hq-panel)) !important; }
+    .bg-hq-accent { background-color: rgb(var(--hq-accent)) !important; }
+    .bg-hq-cyan { background-color: rgb(var(--hq-cyan)) !important; }
+    .bg-hq-green { background-color: rgb(var(--hq-green)) !important; }
+    .bg-hq-red { background-color: rgb(var(--hq-red)) !important; }
+    .bg-hq-yellow { background-color: rgb(var(--hq-yellow)) !important; }
+    .bg-hq-purple { background-color: rgb(var(--hq-purple)) !important; }
 
     /* ═══ bg-hq-* 투명도 변형 ═══ */
-    .bg-hq-bg\/95 { background-color: rgba(30, 38, 55, 0.95) !important; }
-    .bg-hq-panel\/15 { background-color: rgba(75, 90, 120, 0.15) !important; }
-    .bg-hq-panel\/20 { background-color: rgba(75, 90, 120, 0.2) !important; }
-    .bg-hq-panel\/25 { background-color: rgba(75, 90, 120, 0.25) !important; }
-    .bg-hq-accent\/5 { background-color: rgba(110, 180, 255, 0.05) !important; }
-    .bg-hq-accent\/10 { background-color: rgba(110, 180, 255, 0.1) !important; }
-    .bg-hq-accent\/15 { background-color: rgba(110, 180, 255, 0.15) !important; }
-    .bg-hq-accent\/20 { background-color: rgba(110, 180, 255, 0.2) !important; }
-    .bg-hq-accent\/30 { background-color: rgba(110, 180, 255, 0.3) !important; }
-    .bg-hq-accent\/40 { background-color: rgba(110, 180, 255, 0.4) !important; }
-    .bg-hq-accent\/50 { background-color: rgba(110, 180, 255, 0.5) !important; }
-    .bg-hq-accent\/80 { background-color: rgba(110, 180, 255, 0.8) !important; }
-    .bg-hq-cyan\/5 { background-color: rgba(70, 225, 248, 0.05) !important; }
-    .bg-hq-cyan\/10 { background-color: rgba(70, 225, 248, 0.1) !important; }
-    .bg-hq-cyan\/20 { background-color: rgba(70, 225, 248, 0.2) !important; }
-    .bg-hq-cyan\/40 { background-color: rgba(70, 225, 248, 0.4) !important; }
-    .bg-hq-purple\/5 { background-color: rgba(185, 160, 255, 0.05) !important; }
-    .bg-hq-purple\/10 { background-color: rgba(185, 160, 255, 0.1) !important; }
-    .bg-hq-purple\/15 { background-color: rgba(185, 160, 255, 0.15) !important; }
-    .bg-hq-purple\/20 { background-color: rgba(185, 160, 255, 0.2) !important; }
-    .bg-hq-green\/5 { background-color: rgba(75, 230, 175, 0.05) !important; }
-    .bg-hq-green\/10 { background-color: rgba(75, 230, 175, 0.1) !important; }
-    .bg-hq-green\/15 { background-color: rgba(75, 230, 175, 0.15) !important; }
-    .bg-hq-green\/20 { background-color: rgba(75, 230, 175, 0.2) !important; }
-    .bg-hq-green\/30 { background-color: rgba(75, 230, 175, 0.3) !important; }
-    .bg-hq-yellow\/10 { background-color: rgba(255, 210, 70, 0.1) !important; }
-    .bg-hq-yellow\/15 { background-color: rgba(255, 210, 70, 0.15) !important; }
-    .bg-hq-yellow\/20 { background-color: rgba(255, 210, 70, 0.2) !important; }
-    .bg-hq-yellow\/60 { background-color: rgba(255, 210, 70, 0.6) !important; }
-    .bg-hq-red\/5 { background-color: rgba(255, 130, 130, 0.05) !important; }
-    .bg-hq-red\/10 { background-color: rgba(255, 130, 130, 0.1) !important; }
-    .bg-hq-red\/15 { background-color: rgba(255, 130, 130, 0.15) !important; }
-    .bg-hq-red\/20 { background-color: rgba(255, 130, 130, 0.2) !important; }
-    .bg-hq-red\/30 { background-color: rgba(255, 130, 130, 0.3) !important; }
-    .bg-hq-red\/40 { background-color: rgba(255, 130, 130, 0.4) !important; }
-    .bg-hq-muted\/10 { background-color: rgba(190, 210, 238, 0.1) !important; }
-    .bg-hq-muted\/15 { background-color: rgba(190, 210, 238, 0.15) !important; }
-    .bg-hq-muted\/30 { background-color: rgba(190, 210, 238, 0.3) !important; }
-    .bg-hq-muted\/40 { background-color: rgba(190, 210, 238, 0.4) !important; }
-    .bg-hq-muted\/80 { background-color: rgba(190, 210, 238, 0.8) !important; }
+    .bg-hq-bg\/95 { background-color: rgb(var(--hq-bg) / 0.95) !important; }
+    .bg-hq-panel\/15 { background-color: rgb(var(--hq-panel) / 0.15) !important; }
+    .bg-hq-panel\/20 { background-color: rgb(var(--hq-panel) / 0.2) !important; }
+    .bg-hq-panel\/25 { background-color: rgb(var(--hq-panel) / 0.25) !important; }
+    .bg-hq-accent\/5 { background-color: rgb(var(--hq-accent) / 0.05) !important; }
+    .bg-hq-accent\/10 { background-color: rgb(var(--hq-accent) / 0.1) !important; }
+    .bg-hq-accent\/15 { background-color: rgb(var(--hq-accent) / 0.15) !important; }
+    .bg-hq-accent\/20 { background-color: rgb(var(--hq-accent) / 0.2) !important; }
+    .bg-hq-accent\/30 { background-color: rgb(var(--hq-accent) / 0.3) !important; }
+    .bg-hq-accent\/40 { background-color: rgb(var(--hq-accent) / 0.4) !important; }
+    .bg-hq-accent\/50 { background-color: rgb(var(--hq-accent) / 0.5) !important; }
+    .bg-hq-accent\/80 { background-color: rgb(var(--hq-accent) / 0.8) !important; }
+    .bg-hq-cyan\/5 { background-color: rgb(var(--hq-cyan) / 0.05) !important; }
+    .bg-hq-cyan\/10 { background-color: rgb(var(--hq-cyan) / 0.1) !important; }
+    .bg-hq-cyan\/20 { background-color: rgb(var(--hq-cyan) / 0.2) !important; }
+    .bg-hq-cyan\/40 { background-color: rgb(var(--hq-cyan) / 0.4) !important; }
+    .bg-hq-purple\/5 { background-color: rgb(var(--hq-purple) / 0.05) !important; }
+    .bg-hq-purple\/10 { background-color: rgb(var(--hq-purple) / 0.1) !important; }
+    .bg-hq-purple\/15 { background-color: rgb(var(--hq-purple) / 0.15) !important; }
+    .bg-hq-purple\/20 { background-color: rgb(var(--hq-purple) / 0.2) !important; }
+    .bg-hq-green\/5 { background-color: rgb(var(--hq-green) / 0.05) !important; }
+    .bg-hq-green\/10 { background-color: rgb(var(--hq-green) / 0.1) !important; }
+    .bg-hq-green\/15 { background-color: rgb(var(--hq-green) / 0.15) !important; }
+    .bg-hq-green\/20 { background-color: rgb(var(--hq-green) / 0.2) !important; }
+    .bg-hq-green\/30 { background-color: rgb(var(--hq-green) / 0.3) !important; }
+    .bg-hq-yellow\/10 { background-color: rgb(var(--hq-yellow) / 0.1) !important; }
+    .bg-hq-yellow\/15 { background-color: rgb(var(--hq-yellow) / 0.15) !important; }
+    .bg-hq-yellow\/20 { background-color: rgb(var(--hq-yellow) / 0.2) !important; }
+    .bg-hq-yellow\/60 { background-color: rgb(var(--hq-yellow) / 0.6) !important; }
+    .bg-hq-red\/5 { background-color: rgb(var(--hq-red) / 0.05) !important; }
+    .bg-hq-red\/10 { background-color: rgb(var(--hq-red) / 0.1) !important; }
+    .bg-hq-red\/15 { background-color: rgb(var(--hq-red) / 0.15) !important; }
+    .bg-hq-red\/20 { background-color: rgb(var(--hq-red) / 0.2) !important; }
+    .bg-hq-red\/30 { background-color: rgb(var(--hq-red) / 0.3) !important; }
+    .bg-hq-red\/40 { background-color: rgb(var(--hq-red) / 0.4) !important; }
+    .bg-hq-muted\/10 { background-color: rgb(var(--hq-muted) / 0.1) !important; }
+    .bg-hq-muted\/15 { background-color: rgb(var(--hq-muted) / 0.15) !important; }
+    .bg-hq-muted\/30 { background-color: rgb(var(--hq-muted) / 0.3) !important; }
+    .bg-hq-muted\/40 { background-color: rgb(var(--hq-muted) / 0.4) !important; }
+    .bg-hq-muted\/80 { background-color: rgb(var(--hq-muted) / 0.8) !important; }
 
-    /* ═══ border-hq-* 테두리 색상 (기본) ═══ */
-    .border-hq-border { border-color: #6e87b4 !important; }
-    .border-hq-border-light { border-color: #91aad2 !important; }
-    .border-hq-accent { border-color: #6eb4ff !important; }
-    .border-hq-cyan { border-color: #46e1f8 !important; }
-    .border-hq-green { border-color: #4be6af !important; }
-    .border-hq-yellow { border-color: #ffd246 !important; }
-    .border-hq-red { border-color: #ff8282 !important; }
-    .border-hq-purple { border-color: #b9a0ff !important; }
-    .border-hq-muted { border-color: #bed2ee !important; }
+    /* ═══ border-hq-* 테두리 색상 (CSS 변수 기반) ═══ */
+    .border-hq-border { border-color: rgb(var(--hq-border)) !important; }
+    .border-hq-border-light { border-color: rgb(var(--hq-border-light)) !important; }
+    .border-hq-accent { border-color: rgb(var(--hq-accent)) !important; }
+    .border-hq-cyan { border-color: rgb(var(--hq-cyan)) !important; }
+    .border-hq-green { border-color: rgb(var(--hq-green)) !important; }
+    .border-hq-yellow { border-color: rgb(var(--hq-yellow)) !important; }
+    .border-hq-red { border-color: rgb(var(--hq-red)) !important; }
+    .border-hq-purple { border-color: rgb(var(--hq-purple)) !important; }
+    .border-hq-muted { border-color: rgb(var(--hq-muted)) !important; }
 
     /* ═══ border-hq-* 투명도 변형 ═══ */
-    .border-hq-border\/30 { border-color: rgba(110, 135, 180, 0.3) !important; }
-    .border-hq-border\/40 { border-color: rgba(110, 135, 180, 0.4) !important; }
-    .border-hq-border\/50 { border-color: rgba(110, 135, 180, 0.5) !important; }
-    .border-hq-accent\/20 { border-color: rgba(110, 180, 255, 0.2) !important; }
-    .border-hq-accent\/30 { border-color: rgba(110, 180, 255, 0.3) !important; }
-    .border-hq-accent\/40 { border-color: rgba(110, 180, 255, 0.4) !important; }
-    .border-hq-accent\/50 { border-color: rgba(110, 180, 255, 0.5) !important; }
-    .border-hq-cyan\/20 { border-color: rgba(70, 225, 248, 0.2) !important; }
-    .border-hq-cyan\/30 { border-color: rgba(70, 225, 248, 0.3) !important; }
-    .border-hq-green\/20 { border-color: rgba(75, 230, 175, 0.2) !important; }
-    .border-hq-green\/30 { border-color: rgba(75, 230, 175, 0.3) !important; }
-    .border-hq-green\/40 { border-color: rgba(75, 230, 175, 0.4) !important; }
-    .border-hq-yellow\/15 { border-color: rgba(255, 210, 70, 0.15) !important; }
-    .border-hq-yellow\/20 { border-color: rgba(255, 210, 70, 0.2) !important; }
-    .border-hq-yellow\/30 { border-color: rgba(255, 210, 70, 0.3) !important; }
-    .border-hq-yellow\/40 { border-color: rgba(255, 210, 70, 0.4) !important; }
-    .border-hq-red\/20 { border-color: rgba(255, 130, 130, 0.2) !important; }
-    .border-hq-red\/30 { border-color: rgba(255, 130, 130, 0.3) !important; }
-    .border-hq-red\/40 { border-color: rgba(255, 130, 130, 0.4) !important; }
-    .border-hq-purple\/20 { border-color: rgba(185, 160, 255, 0.2) !important; }
-    .border-hq-purple\/30 { border-color: rgba(185, 160, 255, 0.3) !important; }
+    .border-hq-border\/30 { border-color: rgb(var(--hq-border) / 0.3) !important; }
+    .border-hq-border\/40 { border-color: rgb(var(--hq-border) / 0.4) !important; }
+    .border-hq-border\/50 { border-color: rgb(var(--hq-border) / 0.5) !important; }
+    .border-hq-accent\/20 { border-color: rgb(var(--hq-accent) / 0.2) !important; }
+    .border-hq-accent\/30 { border-color: rgb(var(--hq-accent) / 0.3) !important; }
+    .border-hq-accent\/40 { border-color: rgb(var(--hq-accent) / 0.4) !important; }
+    .border-hq-accent\/50 { border-color: rgb(var(--hq-accent) / 0.5) !important; }
+    .border-hq-cyan\/20 { border-color: rgb(var(--hq-cyan) / 0.2) !important; }
+    .border-hq-cyan\/30 { border-color: rgb(var(--hq-cyan) / 0.3) !important; }
+    .border-hq-green\/20 { border-color: rgb(var(--hq-green) / 0.2) !important; }
+    .border-hq-green\/30 { border-color: rgb(var(--hq-green) / 0.3) !important; }
+    .border-hq-green\/40 { border-color: rgb(var(--hq-green) / 0.4) !important; }
+    .border-hq-yellow\/15 { border-color: rgb(var(--hq-yellow) / 0.15) !important; }
+    .border-hq-yellow\/20 { border-color: rgb(var(--hq-yellow) / 0.2) !important; }
+    .border-hq-yellow\/30 { border-color: rgb(var(--hq-yellow) / 0.3) !important; }
+    .border-hq-yellow\/40 { border-color: rgb(var(--hq-yellow) / 0.4) !important; }
+    .border-hq-red\/20 { border-color: rgb(var(--hq-red) / 0.2) !important; }
+    .border-hq-red\/30 { border-color: rgb(var(--hq-red) / 0.3) !important; }
+    .border-hq-red\/40 { border-color: rgb(var(--hq-red) / 0.4) !important; }
+    .border-hq-purple\/20 { border-color: rgb(var(--hq-purple) / 0.2) !important; }
+    .border-hq-purple\/30 { border-color: rgb(var(--hq-purple) / 0.3) !important; }
 
-    /* ═══ 그래디언트 (from/to/via) ═══ */
-    .from-hq-accent { --tw-gradient-from: #6eb4ff !important; --tw-gradient-to: rgba(110,180,255,0) !important; }
-    .from-hq-cyan { --tw-gradient-from: #46e1f8 !important; --tw-gradient-to: rgba(70,225,248,0) !important; }
-    .from-hq-green { --tw-gradient-from: #4be6af !important; --tw-gradient-to: rgba(75,230,175,0) !important; }
-    .from-hq-yellow { --tw-gradient-from: #ffd246 !important; --tw-gradient-to: rgba(255,210,70,0) !important; }
-    .from-hq-accent\/5 { --tw-gradient-from: rgba(110,180,255,0.05) !important; }
-    .from-hq-accent\/10 { --tw-gradient-from: rgba(110,180,255,0.1) !important; }
-    .from-hq-accent\/15 { --tw-gradient-from: rgba(110,180,255,0.15) !important; }
-    .from-hq-accent\/20 { --tw-gradient-from: rgba(110,180,255,0.2) !important; }
-    .to-hq-purple { --tw-gradient-to: #b9a0ff !important; }
-    .to-hq-cyan { --tw-gradient-to: #46e1f8 !important; }
-    .to-hq-yellow { --tw-gradient-to: #ffd246 !important; }
-    .to-hq-accent { --tw-gradient-to: #6eb4ff !important; }
-    .to-hq-purple\/5 { --tw-gradient-to: rgba(185,160,255,0.05) !important; }
-    .to-hq-purple\/10 { --tw-gradient-to: rgba(185,160,255,0.1) !important; }
-    .to-hq-purple\/15 { --tw-gradient-to: rgba(185,160,255,0.15) !important; }
-    .via-hq-accent { --tw-gradient-via: #6eb4ff !important; }
+    /* ═══ 그래디언트 (from/to/via) — CSS 변수 기반 ═══ */
+    .from-hq-accent { --tw-gradient-from: rgb(var(--hq-accent)) !important; --tw-gradient-to: rgb(var(--hq-accent) / 0) !important; }
+    .from-hq-cyan { --tw-gradient-from: rgb(var(--hq-cyan)) !important; --tw-gradient-to: rgb(var(--hq-cyan) / 0) !important; }
+    .from-hq-green { --tw-gradient-from: rgb(var(--hq-green)) !important; --tw-gradient-to: rgb(var(--hq-green) / 0) !important; }
+    .from-hq-yellow { --tw-gradient-from: rgb(var(--hq-yellow)) !important; --tw-gradient-to: rgb(var(--hq-yellow) / 0) !important; }
+    .from-hq-accent\/5 { --tw-gradient-from: rgb(var(--hq-accent) / 0.05) !important; }
+    .from-hq-accent\/10 { --tw-gradient-from: rgb(var(--hq-accent) / 0.1) !important; }
+    .from-hq-accent\/15 { --tw-gradient-from: rgb(var(--hq-accent) / 0.15) !important; }
+    .from-hq-accent\/20 { --tw-gradient-from: rgb(var(--hq-accent) / 0.2) !important; }
+    .to-hq-purple { --tw-gradient-to: rgb(var(--hq-purple)) !important; }
+    .to-hq-cyan { --tw-gradient-to: rgb(var(--hq-cyan)) !important; }
+    .to-hq-yellow { --tw-gradient-to: rgb(var(--hq-yellow)) !important; }
+    .to-hq-accent { --tw-gradient-to: rgb(var(--hq-accent)) !important; }
+    .to-hq-purple\/5 { --tw-gradient-to: rgb(var(--hq-purple) / 0.05) !important; }
+    .to-hq-purple\/10 { --tw-gradient-to: rgb(var(--hq-purple) / 0.1) !important; }
+    .to-hq-purple\/15 { --tw-gradient-to: rgb(var(--hq-purple) / 0.15) !important; }
+    .via-hq-accent { --tw-gradient-via: rgb(var(--hq-accent)) !important; }
 
     /* ═══ shadow, placeholder, ring ═══ */
-    .shadow-hq-accent\/20 { --tw-shadow-color: rgba(110,180,255,0.2) !important; }
-    .placeholder-hq-muted\/70::placeholder { color: rgba(190,210,238,0.7) !important; }
-    .ring-hq-accent\/50 { --tw-ring-color: rgba(110,180,255,0.5) !important; }
-    .ring-hq-green { --tw-ring-color: #4be6af !important; }
+    .shadow-hq-accent\/20 { --tw-shadow-color: rgb(var(--hq-accent) / 0.2) !important; }
+    .placeholder-hq-muted\/70::placeholder { color: rgb(var(--hq-muted) / 0.7) !important; }
+    .ring-hq-accent\/50 { --tw-ring-color: rgb(var(--hq-accent) / 0.5) !important; }
+    .ring-hq-green { --tw-ring-color: rgb(var(--hq-green)) !important; }
 
     /* ═══ hover: 변형 ═══ */
-    .hover\:text-hq-text:hover { color: #f2f6ff !important; }
-    .hover\:text-hq-accent:hover { color: #6eb4ff !important; }
-    .hover\:text-hq-accent\/80:hover { color: rgba(110,180,255,0.8) !important; }
-    .hover\:text-hq-red:hover { color: #ff8282 !important; }
-    .hover\:text-hq-green:hover { color: #4be6af !important; }
-    .hover\:text-hq-yellow:hover { color: #ffd246 !important; }
-    .hover\:text-hq-yellow\/50:hover { color: rgba(255,210,70,0.5) !important; }
-    .hover\:text-hq-cyan\/80:hover { color: rgba(70,225,248,0.8) !important; }
+    .hover\:text-hq-text:hover { color: rgb(var(--hq-text)) !important; }
+    .hover\:text-hq-accent:hover { color: rgb(var(--hq-accent)) !important; }
+    .hover\:text-hq-accent\/80:hover { color: rgb(var(--hq-accent) / 0.8) !important; }
+    .hover\:text-hq-red:hover { color: rgb(var(--hq-red)) !important; }
+    .hover\:text-hq-green:hover { color: rgb(var(--hq-green)) !important; }
+    .hover\:text-hq-yellow:hover { color: rgb(var(--hq-yellow)) !important; }
+    .hover\:text-hq-yellow\/50:hover { color: rgb(var(--hq-yellow) / 0.5) !important; }
+    .hover\:text-hq-cyan\/80:hover { color: rgb(var(--hq-cyan) / 0.8) !important; }
 
-    .hover\:bg-hq-bg:hover { background-color: #1e2637 !important; }
-    .hover\:bg-hq-surface:hover { background-color: #37445f !important; }
-    .hover\:bg-hq-panel:hover { background-color: #4b5a78 !important; }
-    .hover\:bg-hq-panel\/20:hover { background-color: rgba(75,90,120,0.2) !important; }
-    .hover\:bg-hq-panel\/25:hover { background-color: rgba(75,90,120,0.25) !important; }
-    .hover\:bg-hq-accent\/10:hover { background-color: rgba(110,180,255,0.1) !important; }
-    .hover\:bg-hq-accent\/20:hover { background-color: rgba(110,180,255,0.2) !important; }
-    .hover\:bg-hq-accent\/30:hover { background-color: rgba(110,180,255,0.3) !important; }
-    .hover\:bg-hq-accent\/80:hover { background-color: rgba(110,180,255,0.8) !important; }
-    .hover\:bg-hq-cyan\/10:hover { background-color: rgba(70,225,248,0.1) !important; }
-    .hover\:bg-hq-cyan\/20:hover { background-color: rgba(70,225,248,0.2) !important; }
-    .hover\:bg-hq-green\/10:hover { background-color: rgba(75,230,175,0.1) !important; }
-    .hover\:bg-hq-green\/20:hover { background-color: rgba(75,230,175,0.2) !important; }
-    .hover\:bg-hq-green\/30:hover { background-color: rgba(75,230,175,0.3) !important; }
-    .hover\:bg-hq-purple\/10:hover { background-color: rgba(185,160,255,0.1) !important; }
-    .hover\:bg-hq-purple\/20:hover { background-color: rgba(185,160,255,0.2) !important; }
-    .hover\:bg-hq-yellow\/10:hover { background-color: rgba(255,210,70,0.1) !important; }
-    .hover\:bg-hq-yellow\/20:hover { background-color: rgba(255,210,70,0.2) !important; }
-    .hover\:bg-hq-red\/10:hover { background-color: rgba(255,130,130,0.1) !important; }
-    .hover\:bg-hq-red\/20:hover { background-color: rgba(255,130,130,0.2) !important; }
-    .hover\:bg-hq-red\/30:hover { background-color: rgba(255,130,130,0.3) !important; }
+    .hover\:bg-hq-bg:hover { background-color: rgb(var(--hq-bg)) !important; }
+    .hover\:bg-hq-surface:hover { background-color: rgb(var(--hq-surface)) !important; }
+    .hover\:bg-hq-panel:hover { background-color: rgb(var(--hq-panel)) !important; }
+    .hover\:bg-hq-panel\/20:hover { background-color: rgb(var(--hq-panel) / 0.2) !important; }
+    .hover\:bg-hq-panel\/25:hover { background-color: rgb(var(--hq-panel) / 0.25) !important; }
+    .hover\:bg-hq-accent\/10:hover { background-color: rgb(var(--hq-accent) / 0.1) !important; }
+    .hover\:bg-hq-accent\/20:hover { background-color: rgb(var(--hq-accent) / 0.2) !important; }
+    .hover\:bg-hq-accent\/30:hover { background-color: rgb(var(--hq-accent) / 0.3) !important; }
+    .hover\:bg-hq-accent\/80:hover { background-color: rgb(var(--hq-accent) / 0.8) !important; }
+    .hover\:bg-hq-cyan\/10:hover { background-color: rgb(var(--hq-cyan) / 0.1) !important; }
+    .hover\:bg-hq-cyan\/20:hover { background-color: rgb(var(--hq-cyan) / 0.2) !important; }
+    .hover\:bg-hq-green\/10:hover { background-color: rgb(var(--hq-green) / 0.1) !important; }
+    .hover\:bg-hq-green\/20:hover { background-color: rgb(var(--hq-green) / 0.2) !important; }
+    .hover\:bg-hq-green\/30:hover { background-color: rgb(var(--hq-green) / 0.3) !important; }
+    .hover\:bg-hq-purple\/10:hover { background-color: rgb(var(--hq-purple) / 0.1) !important; }
+    .hover\:bg-hq-purple\/20:hover { background-color: rgb(var(--hq-purple) / 0.2) !important; }
+    .hover\:bg-hq-yellow\/10:hover { background-color: rgb(var(--hq-yellow) / 0.1) !important; }
+    .hover\:bg-hq-yellow\/20:hover { background-color: rgb(var(--hq-yellow) / 0.2) !important; }
+    .hover\:bg-hq-red\/10:hover { background-color: rgb(var(--hq-red) / 0.1) !important; }
+    .hover\:bg-hq-red\/20:hover { background-color: rgb(var(--hq-red) / 0.2) !important; }
+    .hover\:bg-hq-red\/30:hover { background-color: rgb(var(--hq-red) / 0.3) !important; }
 
-    .hover\:border-hq-border:hover { border-color: #6e87b4 !important; }
-    .hover\:border-hq-border-light:hover { border-color: #91aad2 !important; }
-    .hover\:border-hq-muted:hover { border-color: #bed2ee !important; }
-    .hover\:border-hq-accent\/20:hover { border-color: rgba(110,180,255,0.2) !important; }
-    .hover\:border-hq-accent\/30:hover { border-color: rgba(110,180,255,0.3) !important; }
-    .hover\:border-hq-accent\/40:hover { border-color: rgba(110,180,255,0.4) !important; }
-    .hover\:border-hq-cyan\/30:hover { border-color: rgba(70,225,248,0.3) !important; }
-    .hover\:border-hq-yellow\/30:hover { border-color: rgba(255,210,70,0.3) !important; }
-    .hover\:border-hq-purple\/30:hover { border-color: rgba(185,160,255,0.3) !important; }
+    .hover\:border-hq-border:hover { border-color: rgb(var(--hq-border)) !important; }
+    .hover\:border-hq-border-light:hover { border-color: rgb(var(--hq-border-light)) !important; }
+    .hover\:border-hq-muted:hover { border-color: rgb(var(--hq-muted)) !important; }
+    .hover\:border-hq-accent\/20:hover { border-color: rgb(var(--hq-accent) / 0.2) !important; }
+    .hover\:border-hq-accent\/30:hover { border-color: rgb(var(--hq-accent) / 0.3) !important; }
+    .hover\:border-hq-accent\/40:hover { border-color: rgb(var(--hq-accent) / 0.4) !important; }
+    .hover\:border-hq-cyan\/30:hover { border-color: rgb(var(--hq-cyan) / 0.3) !important; }
+    .hover\:border-hq-yellow\/30:hover { border-color: rgb(var(--hq-yellow) / 0.3) !important; }
+    .hover\:border-hq-purple\/30:hover { border-color: rgb(var(--hq-purple) / 0.3) !important; }
 
-    .hover\:from-hq-accent\/15:hover { --tw-gradient-from: rgba(110,180,255,0.15) !important; }
-    .hover\:to-hq-purple\/15:hover { --tw-gradient-to: rgba(185,160,255,0.15) !important; }
-    .hover\:shadow-hq-accent\/20:hover { --tw-shadow-color: rgba(110,180,255,0.2) !important; }
+    .hover\:from-hq-accent\/15:hover { --tw-gradient-from: rgb(var(--hq-accent) / 0.15) !important; }
+    .hover\:to-hq-purple\/15:hover { --tw-gradient-to: rgb(var(--hq-purple) / 0.15) !important; }
+    .hover\:shadow-hq-accent\/20:hover { --tw-shadow-color: rgb(var(--hq-accent) / 0.2) !important; }
 
     /* ═══ focus: 변형 ═══ */
-    .focus\:border-hq-accent:focus { border-color: #6eb4ff !important; }
-    .focus\:border-hq-accent\/50:focus { border-color: rgba(110,180,255,0.5) !important; }
-    .focus\:ring-hq-accent\/50:focus { --tw-ring-color: rgba(110,180,255,0.5) !important; }
+    .focus\:border-hq-accent:focus { border-color: rgb(var(--hq-accent)) !important; }
+    .focus\:border-hq-accent\/50:focus { border-color: rgb(var(--hq-accent) / 0.5) !important; }
+    .focus\:ring-hq-accent\/50:focus { --tw-ring-color: rgb(var(--hq-accent) / 0.5) !important; }
 
     /* ═══ group-hover: 변형 ═══ */
-    .group:hover .group-hover\:text-hq-text { color: #f2f6ff !important; }
-    .group:hover .group-hover\:text-hq-accent { color: #6eb4ff !important; }
+    .group:hover .group-hover\:text-hq-text { color: rgb(var(--hq-text)) !important; }
+    .group:hover .group-hover\:text-hq-accent { color: rgb(var(--hq-accent)) !important; }
 
     /* ═══ disabled: 변형 ═══ */
-    .disabled\:text-hq-muted:disabled { color: #bed2ee !important; }
+    .disabled\:text-hq-muted:disabled { color: rgb(var(--hq-muted)) !important; }
 
     /* ═══ 상태 뱃지 색상 보장 ═══ */
-    .dark .status-badge { color: inherit !important; }
+    .status-badge { color: inherit !important; }
   </style>
 </head>
 
@@ -1584,6 +1612,14 @@
                 <div class="absolute right-3 bottom-3 text-[10px] font-mono text-hq-muted/70"
                      x-show="!inputText.trim() && systemStatus !== 'working'">Enter &#9166;</div>
               </div>
+              <!-- Batch/실시간 토글 -->
+              <button @click="useBatch = !useBatch"
+                      class="text-[11px] px-2.5 py-2 rounded-xl border transition-all shrink-0"
+                      :class="useBatch
+                        ? 'bg-hq-purple/15 text-hq-purple border-hq-purple/30 hover:bg-hq-purple/25'
+                        : 'border-hq-border/30 text-hq-muted hover:text-hq-accent hover:border-hq-accent/30'">
+                <span x-text="useBatch ? '📦 Batch' : '⚡ 실시간'"></span>
+              </button>
               <button x-show="systemStatus !== 'working'" @click="sendMessage()"
                 :disabled="!inputText.trim()"
                 class="bg-gradient-to-r from-hq-accent to-hq-purple hover:from-blue-500 hover:to-violet-500
