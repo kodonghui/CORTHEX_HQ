@@ -13,6 +13,15 @@ import sys
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
+# DB 모듈을 같은 폴더에서 임포트
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from db import (
+    init_db, save_message, create_task, get_task as db_get_task,
+    update_task, list_tasks, toggle_bookmark as db_toggle_bookmark,
+    get_dashboard_stats, save_activity_log, list_activity_logs,
+    save_archive, list_archives, get_archive as db_get_archive,
+)
+
 # Python 출력 버퍼링 비활성화 (systemd에서 로그가 바로 보이도록)
 os.environ["PYTHONUNBUFFERED"] = "1"
 
@@ -227,8 +236,35 @@ async def websocket_endpoint(ws: WebSocket):
         while True:
             data = await ws.receive_text()
             msg = json.loads(data)
-            # 메시지를 받으면 간단한 응답
+            # 메시지를 받으면 DB에 저장 + 응답
             if msg.get("type") == "command":
+                cmd_text = msg.get("content", "").strip()
+                if cmd_text:
+                    # DB에 메시지 + 작업 저장
+                    task = create_task(cmd_text, source="websocket")
+                    save_message(cmd_text, source="websocket",
+                                 task_id=task["task_id"])
+                    update_task(task["task_id"], status="completed",
+                                result_summary="경량 모드 — AI 미연결",
+                                success=1, time_seconds=0.1)
+                    # 작업 접수 이벤트 브로드캐스트
+                    now = datetime.now(KST).strftime("%H:%M:%S")
+                    log_entry = save_activity_log(
+                        "chief_of_staff",
+                        f"[웹] 명령 접수: {cmd_text[:50]}{'...' if len(cmd_text) > 50 else ''} (#{task['task_id']})",
+                    )
+                    for c in connected_clients[:]:
+                        try:
+                            await c.send_json({
+                                "event": "task_accepted",
+                                "data": task,
+                            })
+                            await c.send_json({
+                                "event": "activity_log",
+                                "data": log_entry,
+                            })
+                        except Exception:
+                            pass
                 await ws.send_json({
                     "event": "result",
                     "data": {
@@ -284,14 +320,20 @@ async def get_tools():
 @app.get("/api/dashboard")
 async def get_dashboard():
     now = datetime.now(KST).isoformat()
+    stats = get_dashboard_stats()
     return {
         "total_agents": len(AGENTS),
-        "active_agents": 0,
-        "idle_agents": len(AGENTS),
-        "total_tasks_today": 0,
-        "system_status": "idle",
+        "active_agents": stats["running_count"],
+        "idle_agents": len(AGENTS) - stats["running_count"],
+        "total_tasks_today": stats["today_task_count"],
+        "today_completed": stats["today_completed"],
+        "today_failed": stats["today_failed"],
+        "total_cost": stats["total_cost"],
+        "total_tokens": stats["total_tokens"],
+        "system_status": "busy" if stats["running_count"] > 0 else "idle",
         "uptime": now,
         "agents": AGENTS,
+        "recent_completed": stats["recent_completed"],
     }
 
 
@@ -326,13 +368,25 @@ async def get_performance():
 
 
 @app.get("/api/tasks")
-async def get_tasks():
-    return {"tasks": [], "total": 0}
+async def get_tasks(keyword: str = "", status: str = "", bookmarked: bool = False,
+                    limit: int = 50):
+    tasks = list_tasks(keyword=keyword, status=status,
+                       bookmarked=bookmarked, limit=limit)
+    return tasks
 
 
 @app.get("/api/tasks/{task_id}")
 async def get_task(task_id: str):
-    return {"error": "not found"}
+    task = db_get_task(task_id)
+    if not task:
+        return {"error": "not found"}
+    return task
+
+
+@app.post("/api/tasks/{task_id}/bookmark")
+async def bookmark_task(task_id: str):
+    new_state = db_toggle_bookmark(task_id)
+    return {"bookmarked": new_state}
 
 
 @app.get("/api/replay/{correlation_id}")
@@ -472,6 +526,27 @@ async def get_available_models():
     ]
 
 
+# ── 활동 로그 API ──
+@app.get("/api/activity-logs")
+async def get_activity_logs(limit: int = 50, agent_id: str = None):
+    logs = list_activity_logs(limit=limit, agent_id=agent_id)
+    return logs
+
+
+# ── 아카이브 API ──
+@app.get("/api/archive")
+async def get_archive_list(division: str = None, limit: int = 100):
+    return list_archives(division=division, limit=limit)
+
+
+@app.get("/api/archive/{division}/{filename}")
+async def get_archive_file(division: str, filename: str):
+    doc = db_get_archive(division, filename)
+    if not doc:
+        return {"error": "not found"}
+    return doc
+
+
 # ── 진단 API (텔레그램 봇 디버깅용) ──
 @app.get("/api/telegram-status")
 async def telegram_status():
@@ -595,22 +670,36 @@ async def _start_telegram_bot() -> None:
             text = update.message.text.strip()
             if not text:
                 return
+            chat_id = str(update.effective_chat.id)
+            # DB에 메시지 + 작업 저장
+            task = create_task(text, source="telegram")
+            save_message(text, source="telegram", chat_id=chat_id,
+                         task_id=task["task_id"])
+            update_task(task["task_id"], status="completed",
+                        result_summary="경량 모드 — AI 미연결",
+                        success=1, time_seconds=0.1)
             now = datetime.now(KST).strftime("%H:%M")
             await update.message.reply_text(
-                f"접수했습니다. ({now})\n\n"
+                f"접수했습니다. ({now})\n"
+                f"작업 ID: `{task['task_id']}`\n\n"
                 f"현재 경량 서버 모드로, AI 에이전트 실행은 메인 서버에서 가능합니다.\n"
                 f"메인 서버 구축 후 이 봇에서 직접 업무 지시가 가능해집니다.",
+                parse_mode="Markdown",
+            )
+            # 활동 로그 저장 + 웹소켓 브로드캐스트
+            log_entry = save_activity_log(
+                "chief_of_staff",
+                f"[텔레그램] CEO 지시: {text[:50]}{'...' if len(text) > 50 else ''} (#{task['task_id']})",
             )
             for ws in connected_clients[:]:
                 try:
                     await ws.send_json({
+                        "event": "task_accepted",
+                        "data": task,
+                    })
+                    await ws.send_json({
                         "event": "activity_log",
-                        "data": {
-                            "agent_id": "chief_of_staff",
-                            "message": f"[텔레그램] CEO 지시: {text[:50]}{'...' if len(text) > 50 else ''}",
-                            "level": "info",
-                            "time": now,
-                        }
+                        "data": log_entry,
                     })
                 except Exception:
                     pass
@@ -677,7 +766,8 @@ async def _stop_telegram_bot() -> None:
 
 @app.on_event("startup")
 async def on_startup():
-    """서버 시작 시 텔레그램 봇도 함께 시작."""
+    """서버 시작 시 DB 초기화 + 텔레그램 봇 시작."""
+    init_db()
     await _start_telegram_bot()
 
 

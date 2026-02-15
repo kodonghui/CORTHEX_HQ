@@ -62,6 +62,7 @@ jobs:
             mkdir -p /home/ubuntu/web/templates
             mkdir -p /home/ubuntu/config
             cp web/mini_server.py /home/ubuntu/web/mini_server.py
+            cp web/db.py /home/ubuntu/web/db.py
             cp /tmp/index.html /home/ubuntu/web/templates/index.html
             cp -r config/* /home/ubuntu/config/ 2>/dev/null || echo "⚠️ config 파일 없음 (무시)"
             # git 저장소의 templates에도 빌드번호 주입된 HTML 복사 (서버가 여기서 읽음)
