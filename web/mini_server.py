@@ -374,7 +374,26 @@ async def auth_status(request: Request):
 
 @app.get("/api/agents")
 async def get_agents():
-    return AGENTS
+    """에이전트 목록 반환 (오버라이드된 model_name, reasoning_effort 포함)."""
+    result = []
+    overrides = load_setting("agent_model_overrides") or {}
+    for a in AGENTS:
+        agent = dict(a)
+        aid = agent["agent_id"]
+        detail = _AGENTS_DETAIL.get(aid, {})
+        # 오버라이드된 모델명 반영
+        if aid in overrides and "model_name" in overrides[aid]:
+            agent["model_name"] = overrides[aid]["model_name"]
+        elif detail.get("model_name"):
+            agent["model_name"] = detail["model_name"]
+        # 추론 레벨 반영
+        agent["reasoning_effort"] = ""
+        if aid in overrides and "reasoning_effort" in overrides[aid]:
+            agent["reasoning_effort"] = overrides[aid]["reasoning_effort"]
+        elif detail.get("reasoning_effort"):
+            agent["reasoning_effort"] = detail["reasoning_effort"]
+        result.append(agent)
+    return result
 
 
 @app.get("/api/agents/{agent_id}")
@@ -1067,6 +1086,7 @@ async def get_available_models():
             "tier": "executive",
             "cost_input": 15.0,
             "cost_output": 75.0,
+            "reasoning_levels": ["low", "medium", "high"],
         },
         {
             "name": "claude-sonnet-4-5-20250929",
@@ -1074,6 +1094,7 @@ async def get_available_models():
             "tier": "manager",
             "cost_input": 3.0,
             "cost_output": 15.0,
+            "reasoning_levels": ["low", "medium", "high"],
         },
         {
             "name": "claude-haiku-4-5-20251001",
@@ -1081,6 +1102,7 @@ async def get_available_models():
             "tier": "specialist",
             "cost_input": 0.25,
             "cost_output": 1.25,
+            "reasoning_levels": [],
         },
         # OpenAI (GPT) 모델들 - 임원급/매니저급/전문가급
         {
@@ -1089,6 +1111,7 @@ async def get_available_models():
             "tier": "executive",
             "cost_input": 18.0,
             "cost_output": 90.0,
+            "reasoning_levels": ["medium", "high", "xhigh"],
         },
         {
             "name": "gpt-5.2",
@@ -1096,6 +1119,7 @@ async def get_available_models():
             "tier": "manager",
             "cost_input": 5.0,
             "cost_output": 25.0,
+            "reasoning_levels": ["none", "low", "medium", "high", "xhigh"],
         },
         {
             "name": "gpt-5.1",
@@ -1103,6 +1127,7 @@ async def get_available_models():
             "tier": "manager",
             "cost_input": 4.0,
             "cost_output": 20.0,
+            "reasoning_levels": ["none", "low", "medium", "high"],
         },
         {
             "name": "gpt-5",
@@ -1110,6 +1135,7 @@ async def get_available_models():
             "tier": "specialist",
             "cost_input": 2.5,
             "cost_output": 10.0,
+            "reasoning_levels": ["none", "low", "medium", "high"],
         },
         {
             "name": "gpt-5-mini",
@@ -1117,31 +1143,36 @@ async def get_available_models():
             "tier": "specialist",
             "cost_input": 0.5,
             "cost_output": 2.0,
+            "reasoning_levels": ["low", "medium", "high"],
         },
         # Google (Gemini) 모델들
+        # Gemini 3: thinking_level 파라미터 (low/high만 지원)
         {
             "name": "gemini-3-pro-preview",
             "provider": "google",
             "tier": "executive",
             "cost_input": 2.5,
             "cost_output": 15.0,
-            "reasoning": "최고급 추론 + 멀티모달 + 에이전트 코딩",
+            "reasoning_levels": ["low", "high"],
         },
+        # Gemini 2.5: thinking_budget 파라미터 (토큰 수 조절)
+        # 2.5 Pro: 최소 128 토큰, 끌 수 없음
         {
             "name": "gemini-2.5-pro",
             "provider": "google",
             "tier": "manager",
             "cost_input": 1.25,
             "cost_output": 10.0,
-            "reasoning": "고급 추론 + 100만 토큰 컨텍스트 + 적응형 사고",
+            "reasoning_levels": ["low", "medium", "high"],
         },
+        # 2.5 Flash: 0~24576 토큰, 끌 수 있음 (budget=0)
         {
             "name": "gemini-2.5-flash",
             "provider": "google",
             "tier": "specialist",
             "cost_input": 0.15,
             "cost_output": 0.60,
-            "reasoning": "빠른 응답 + 사고 예산 조절 가능 + 고효율",
+            "reasoning_levels": ["none", "low", "medium", "high"],
         },
     ]
 
