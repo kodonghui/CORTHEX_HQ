@@ -50,6 +50,12 @@ from src.core.memory import MemoryManager
 from src.core.scheduler import Scheduler
 from src.core.workflow import WorkflowEngine
 from web.ws_manager import ConnectionManager
+from web.db import (
+    init_db, save_message, create_task, get_task, update_task,
+    list_tasks, toggle_bookmark, save_activity_log,
+    list_activity_logs, save_archive, list_archives, get_archive,
+    save_setting, load_setting, get_dashboard_stats,
+)
 
 logger = logging.getLogger("corthex.web")
 
@@ -108,6 +114,9 @@ auth_manager: AuthManager | None = None
 async def startup() -> None:
     """Initialize the agent system on server start."""
     global orchestrator, model_router, registry, context, knowledge_mgr, agents_cfg_raw, budget_manager, preset_manager, oauth_manager, webhook_receiver, tool_pool_ref, feedback_manager, quality_rules_manager, memory_manager, scheduler, workflow_engine, auth_manager
+
+    # SQLite DB 초기화 (최우선)
+    init_db()
 
     logger.info("CORTHEX HQ 시스템 초기화 중...")
 
@@ -351,10 +360,6 @@ def _archive_agent_report(msg: Message) -> None:
 
     division = agent.config.division or "general"
     timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
-
-    archive_dir = ARCHIVE_DIR / division
-    archive_dir.mkdir(parents=True, exist_ok=True)
-
     filename = f"{timestamp}_{msg.sender_id}.md"
 
     # 보고서 본문 추출
@@ -372,6 +377,19 @@ def _archive_agent_report(msg: Message) -> None:
         f"> **상관 작업 ID**: {msg.correlation_id}  \n\n"
         f"---\n\n{result_text}\n"
     )
+
+    # DB에 저장 (파일 시스템 대신)
+    save_archive(
+        division=division,
+        filename=filename,
+        content=content,
+        correlation_id=msg.correlation_id,
+        agent_id=msg.sender_id,
+    )
+
+    # 파일 시스템에도 저장 (기존 동작 유지 — 백업용)
+    archive_dir = ARCHIVE_DIR / division
+    archive_dir.mkdir(parents=True, exist_ok=True)
     (archive_dir / filename).write_text(content, encoding="utf-8")
 
 
@@ -455,30 +473,12 @@ async def get_performance() -> dict:
 @app.get("/api/dashboard")
 async def get_dashboard() -> dict:
     """홈 대시보드 집계 통계 엔드포인트."""
-    today = datetime.now(timezone.utc).date()
-    all_tasks = task_store.list_all(limit=999)
-    today_tasks = [t for t in all_tasks if t.created_at.date() == today]
-    completed_today = [t for t in today_tasks if t.status == TaskStatus.COMPLETED]
-    failed_today = [t for t in today_tasks if t.status == TaskStatus.FAILED]
-    running_tasks = [t for t in all_tasks if t.status == TaskStatus.RUNNING]
-    recent = sorted(
-        [t for t in all_tasks if t.status == TaskStatus.COMPLETED],
-        key=lambda t: t.completed_at or t.created_at,
-        reverse=True,
-    )[:5]
-    total_cost = model_router.cost_tracker.total_cost if model_router else 0
-    total_tokens = model_router.cost_tracker.total_tokens if model_router else 0
+    stats = get_dashboard_stats()
     agent_count = registry.agent_count if registry else 0
     return {
-        "today_task_count": len(today_tasks),
-        "today_completed": len(completed_today),
-        "today_failed": len(failed_today),
-        "running_count": len(running_tasks),
-        "total_tasks": len(all_tasks),
-        "total_cost": round(total_cost, 6),
-        "total_tokens": total_tokens,
+        **stats,
+        "total_tasks": stats["today_task_count"],  # 전체 작업 수 (호환성)
         "agent_count": agent_count,
-        "recent_completed": [_task_to_dict(t) for t in recent],
         "system_health": "ok" if orchestrator else "not_initialized",
         "api_keys": {
             "openai": bool(os.getenv("OPENAI_API_KEY", "")),
@@ -507,43 +507,42 @@ async def update_budget(body: dict) -> dict:
         budget_manager.daily_limit = float(daily)
     if monthly is not None:
         budget_manager.monthly_limit = float(monthly)
-    # YAML 파일에 저장
-    budget_path = CONFIG_DIR / "budget.yaml"
+    # DB에 저장 (YAML 파일 대신)
     budget_cfg = {"daily_limit": budget_manager.daily_limit, "monthly_limit": budget_manager.monthly_limit}
-    with open(budget_path, "w", encoding="utf-8") as f:
-        yaml.dump(budget_cfg, f, allow_unicode=True, default_flow_style=False)
+    save_setting("budget", budget_cfg)
     return {"success": True, "daily_limit": budget_manager.daily_limit, "monthly_limit": budget_manager.monthly_limit}
 
 
 @app.get("/api/presets")
 async def get_presets() -> list[dict]:
     """Return all command presets."""
-    if not preset_manager:
-        return []
-    return preset_manager.to_list()
+    presets = load_setting("presets", [])
+    return presets
 
 
 @app.post("/api/presets")
 async def add_preset(body: dict) -> dict:
     """Add a new command preset."""
-    if not preset_manager:
-        return {"error": "시스템 미초기화"}
     name = body.get("name", "").strip()
     command = body.get("command", "").strip()
     if not name or not command:
         return {"error": "name과 command가 필요합니다"}
-    preset_manager.add(name, command)
+    presets = load_setting("presets", [])
+    presets.append({"name": name, "command": command})
+    save_setting("presets", presets)
     return {"success": True, "name": name, "command": command}
 
 
 @app.delete("/api/presets/{name}")
 async def delete_preset(name: str) -> dict:
     """Delete a command preset."""
-    if not preset_manager:
-        return {"error": "시스템 미초기화"}
-    if preset_manager.remove(name):
-        return {"success": True}
-    return {"error": f"프리셋 '{name}'을 찾을 수 없습니다"}
+    presets = load_setting("presets", [])
+    original_count = len(presets)
+    presets = [p for p in presets if p.get("name") != name]
+    if len(presets) == original_count:
+        return {"error": f"프리셋 '{name}'을 찾을 수 없습니다"}
+    save_setting("presets", presets)
+    return {"success": True}
 
 
 @app.get("/api/conversation")
@@ -997,7 +996,7 @@ def _task_to_dict(t: StoredTask, include_result: bool = False) -> dict:
 
 
 @app.get("/api/tasks")
-async def list_tasks(
+async def list_tasks_api(
     keyword: str = "",
     status: str = "",
     date_from: str = "",
@@ -1005,31 +1004,23 @@ async def list_tasks(
     bookmarked: bool = False,
 ) -> list[dict]:
     """List tasks with optional search/filter."""
-    if keyword or status or date_from or date_to or bookmarked:
-        tasks = task_store.search(
-            keyword=keyword, status=status,
-            date_from=date_from, date_to=date_to,
-            bookmarked_only=bookmarked,
-        )
-    else:
-        tasks = task_store.list_all()
-    return [_task_to_dict(t) for t in tasks]
+    return list_tasks(keyword=keyword, status=status, bookmarked=bookmarked)
 
 
 @app.post("/api/tasks/{task_id}/bookmark")
 async def toggle_task_bookmark(task_id: str) -> dict:
     """Toggle bookmark on a task."""
-    new_state = task_store.toggle_bookmark(task_id)
+    new_state = toggle_bookmark(task_id)
     return {"task_id": task_id, "bookmarked": new_state}
 
 
 @app.get("/api/tasks/{task_id}")
-async def get_task(task_id: str) -> dict:
+async def get_task_api(task_id: str) -> dict:
     """Get full task details including result content."""
-    t = task_store.get(task_id)
+    t = get_task(task_id)
     if not t:
         return {"error": "task not found"}
-    return _task_to_dict(t, include_result=True)
+    return t
 
 
 # ─── Knowledge Management ───
@@ -1106,8 +1097,13 @@ async def list_archive() -> list[dict]:
 @app.get("/api/archive/{division}/{filename}")
 async def read_archive(division: str, filename: str) -> dict:
     """개별 아카이브 보고서 조회."""
+    # DB에서 먼저 조회
+    result = get_archive(division, filename)
+    if result:
+        return result
+
+    # DB에 없으면 파일 시스템에서 조회 (폴백)
     filepath = ARCHIVE_DIR / division / filename
-    # 경로 탈출 방지: ARCHIVE_DIR 바깥 파일 접근 차단
     try:
         if not str(filepath.resolve()).startswith(str(ARCHIVE_DIR.resolve())):
             return {"error": "잘못된 경로입니다"}
@@ -1406,11 +1402,11 @@ async def submit_command(body: CommandRequest) -> dict:
     """외부에서 명령 제출 (Telegram, OpenClaw, 기타 클라이언트)."""
     if not orchestrator:
         return {"error": "시스템 미초기화"}
-    stored = task_store.create(body.text)
+    stored = create_task(body.text, source="api")
     asyncio.create_task(
-        _run_background_task(stored, body.text, body.depth, body.batch)
+        _run_background_task(stored["task_id"], body.text, body.depth, body.batch)
     )
-    return {"task_id": stored.task_id, "status": "accepted"}
+    return {"task_id": stored["task_id"], "status": "accepted"}
 
 
 async def _execute_command_for_api(
@@ -1419,9 +1415,11 @@ async def _execute_command_for_api(
     """Telegram/REST 등 외부 클라이언트를 위한 동기적 명령 실행."""
     if not orchestrator:
         return {"error": "시스템 미초기화"}
-    stored = task_store.create(text)
-    stored.status = TaskStatus.RUNNING
-    stored.started_at = datetime.now(timezone.utc)
+
+    stored = create_task(text, source="telegram")
+    task_id = stored["task_id"]
+    update_task(task_id, status="running")
+
     start_cost = model_router.cost_tracker.total_cost if model_router else 0
     start_tokens = model_router.cost_tracker.total_tokens if model_router else 0
     start_time = time.monotonic()
@@ -1430,34 +1428,45 @@ async def _execute_command_for_api(
         result = await orchestrator.process_command(
             text, context={"max_steps": depth, "use_batch": use_batch}
         )
-        stored.success = result.success
-        stored.result_data = str(result.result_data or result.summary)
-        stored.result_summary = result.summary
-        stored.correlation_id = result.correlation_id
-        stored.status = TaskStatus.COMPLETED
+        success = result.success
+        result_data = str(result.result_data or result.summary)
+        result_summary = result.summary
+        correlation_id = result.correlation_id
+        status = "completed"
     except Exception as e:
-        stored.success = False
-        stored.result_data = str(e)
-        stored.result_summary = f"오류: {e}"
-        stored.status = TaskStatus.FAILED
+        success = False
+        result_data = str(e)
+        result_summary = f"오류: {e}"
+        correlation_id = None
+        status = "failed"
     finally:
-        stored.completed_at = datetime.now(timezone.utc)
-        stored.execution_time_seconds = round(time.monotonic() - start_time, 2)
-        stored.cost_usd = round(
+        time_seconds = round(time.monotonic() - start_time, 2)
+        cost_usd = round(
             (model_router.cost_tracker.total_cost - start_cost) if model_router else 0, 6
         )
-        stored.tokens_used = (
+        tokens_used = (
             (model_router.cost_tracker.total_tokens - start_tokens) if model_router else 0
         )
-        stored.output_file = _save_result_file(stored)
+
+        update_task(
+            task_id,
+            status=status,
+            success=1 if success else 0,
+            result_data=result_data,
+            result_summary=result_summary,
+            correlation_id=correlation_id,
+            cost_usd=cost_usd,
+            tokens_used=tokens_used,
+            time_seconds=time_seconds,
+        )
 
     return {
-        "task_id": stored.task_id,
-        "success": stored.success,
-        "result_data": stored.result_data,
-        "summary": stored.result_summary,
-        "time_seconds": stored.execution_time_seconds,
-        "cost": stored.cost_usd,
+        "task_id": task_id,
+        "success": success,
+        "result_data": result_data,
+        "summary": result_summary,
+        "time_seconds": time_seconds,
+        "cost": cost_usd,
     }
 
 
@@ -1480,13 +1489,15 @@ async def websocket_endpoint(ws: WebSocket) -> None:
 
             if msg.get("type") == "cancel":
                 task_id = msg.get("task_id", "")
-                if task_id and task_store:
-                    t = task_store.get(task_id)
-                    if t and t.status == TaskStatus.RUNNING:
-                        t.status = TaskStatus.FAILED
-                        t.success = False
-                        t.result_summary = "CEO가 작업을 취소했습니다."
-                        t.completed_at = datetime.now(timezone.utc)
+                if task_id:
+                    t = get_task(task_id)
+                    if t and t.get("status") == "running":
+                        update_task(
+                            task_id,
+                            status="failed",
+                            success=0,
+                            result_summary="CEO가 작업을 취소했습니다.",
+                        )
                 await ws_manager.broadcast("task_completed", {
                     "task_id": task_id,
                     "success": False,
@@ -1510,11 +1521,11 @@ async def websocket_endpoint(ws: WebSocket) -> None:
                     continue
 
                 # Create a stored task
-                stored = task_store.create(user_input)
+                stored = create_task(user_input, source="websocket")
 
                 # Notify all clients: task accepted
                 await ws_manager.broadcast("task_accepted", {
-                    "task_id": stored.task_id,
+                    "task_id": stored["task_id"],
                     "command": user_input,
                     "batch": use_batch,
                 })
@@ -1528,7 +1539,7 @@ async def websocket_endpoint(ws: WebSocket) -> None:
 
                 # Launch background task
                 asyncio.create_task(
-                    _run_background_task(stored, user_input, depth, use_batch)
+                    _run_background_task(stored["task_id"], user_input, depth, use_batch)
                 )
 
     except WebSocketDisconnect:
@@ -1539,11 +1550,10 @@ async def websocket_endpoint(ws: WebSocket) -> None:
 
 
 async def _run_background_task(
-    stored: StoredTask, user_input: str, depth: int, use_batch: bool = False
+    task_id: str, user_input: str, depth: int, use_batch: bool = False
 ) -> None:
     """Execute orchestrator command in the background."""
-    stored.status = TaskStatus.RUNNING
-    stored.started_at = datetime.now(timezone.utc)
+    update_task(task_id, status="running")
     start_cost = model_router.cost_tracker.total_cost if model_router else 0
     start_tokens = model_router.cost_tracker.total_tokens if model_router else 0
     start_time = time.monotonic()
@@ -1552,38 +1562,47 @@ async def _run_background_task(
         result = await orchestrator.process_command(
             user_input, context={"max_steps": depth, "use_batch": use_batch}
         )
-        stored.success = result.success
-        stored.result_data = str(result.result_data or result.summary)
-        stored.result_summary = result.summary
-        stored.correlation_id = result.correlation_id
-        stored.status = TaskStatus.COMPLETED
+        success = result.success
+        result_data = str(result.result_data or result.summary)
+        result_summary = result.summary
+        correlation_id = result.correlation_id
+        status = "completed"
     except Exception as e:
-        stored.success = False
-        stored.result_data = str(e)
-        stored.result_summary = f"오류: {e}"
-        stored.status = TaskStatus.FAILED
+        success = False
+        result_data = str(e)
+        result_summary = f"오류: {e}"
+        correlation_id = None
+        status = "failed"
     finally:
-        stored.completed_at = datetime.now(timezone.utc)
-        stored.execution_time_seconds = round(time.monotonic() - start_time, 2)
-        stored.cost_usd = round(
+        time_seconds = round(time.monotonic() - start_time, 2)
+        cost_usd = round(
             (model_router.cost_tracker.total_cost - start_cost) if model_router else 0, 6
         )
-        stored.tokens_used = (
+        tokens_used = (
             (model_router.cost_tracker.total_tokens - start_tokens) if model_router else 0
         )
 
-        # Save result to file
-        stored.output_file = _save_result_file(stored)
+        # DB에 저장
+        update_task(
+            task_id,
+            status=status,
+            success=1 if success else 0,
+            result_data=result_data,
+            result_summary=result_summary,
+            correlation_id=correlation_id,
+            cost_usd=cost_usd,
+            tokens_used=tokens_used,
+            time_seconds=time_seconds,
+        )
 
         # Broadcast completion to ALL connected clients
         await ws_manager.broadcast("task_completed", {
-            "task_id": stored.task_id,
-            "success": stored.success,
-            "content": stored.result_data,
-            "summary": stored.result_summary,
-            "time_seconds": stored.execution_time_seconds,
-            "cost": stored.cost_usd,
-            "output_file": stored.output_file,
+            "task_id": task_id,
+            "success": success,
+            "content": result_data,
+            "summary": result_summary,
+            "time_seconds": time_seconds,
+            "cost": cost_usd,
         })
 
         # Reset all agent statuses
