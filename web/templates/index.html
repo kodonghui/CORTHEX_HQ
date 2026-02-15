@@ -35,13 +35,13 @@
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
-    /* ═══ Glass + Aurora Mix 팔레트 (따뜻한 보라빛 다크) ═══ */
+    /* ═══ Glass + Aurora Mix 팔레트 (따뜻한 보라빛 다크 — 밝기 개선) ═══ */
     :root, .dark {
-      --hq-bg: 15 14 22;
-      --hq-surface: 26 24 36;
-      --hq-panel: 36 34 48;
-      --hq-border: 58 55 75;
-      --hq-border-light: 78 75 98;
+      --hq-bg: 24 22 34;
+      --hq-surface: 34 32 46;
+      --hq-panel: 44 42 58;
+      --hq-border: 65 62 82;
+      --hq-border-light: 85 82 105;
       --hq-accent: 100 160 255;
       --hq-cyan: 40 215 240;
       --hq-purple: 170 140 255;
@@ -75,7 +75,7 @@
 
     /* ═══ 다크 모드 배경 (오로라 그라데이션) ═══ */
     .dark body {
-      background: linear-gradient(135deg, #0F0E16 0%, #1A1428 35%, #0E1520 65%, #12101E 100%);
+      background: linear-gradient(135deg, #181622 0%, #221A30 35%, #161C28 65%, #1A182A 100%);
       background-attachment: fixed;
     }
     /* 오로라 글로우 — 보라색 (왼쪽 위) */
@@ -473,11 +473,12 @@
       border-color: rgb(var(--hq-border) / 0.3) !important;
     }
     html:not(.dark) input, html:not(.dark) textarea, html:not(.dark) select {
-      background-color: rgb(var(--hq-surface) / 0.8) !important;
+      background-color: rgb(255 255 255 / 0.9) !important;
       backdrop-filter: blur(8px) !important;
       -webkit-backdrop-filter: blur(8px) !important;
-      border-color: rgb(var(--hq-border) / 0.5) !important;
+      border-color: rgb(var(--hq-border) / 0.7) !important;
       color: rgb(var(--hq-text)) !important;
+      box-shadow: 0 1px 3px rgb(0 0 0 / 0.06) !important;
     }
     html:not(.dark) input::placeholder, html:not(.dark) textarea::placeholder {
       color: rgb(var(--hq-muted) / 0.7) !important;
@@ -711,8 +712,9 @@
           <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5M3.75 17.25h16.5"/>
         </svg>
       </button>
-      <!-- Logo -->
-      <div class="flex items-center gap-2.5">
+      <!-- Logo (클릭 → 홈) -->
+      <div class="flex items-center gap-2.5 cursor-pointer hover:opacity-80 transition-opacity"
+           @click="viewMode = 'chat'; activeTab = 'command'">
         <svg width="28" height="28" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
           <defs>
             <linearGradient id="logoGrad" x1="0" y1="0" x2="32" y2="32">
@@ -724,7 +726,7 @@
           <path d="M16 2L28 9V23L16 30L4 23V9L16 2Z" stroke="url(#logoGrad)" stroke-width="1.5" fill="none"/>
           <path d="M16 6L24 10.5V21.5L16 26L8 21.5V10.5L16 6Z" stroke="url(#logoGrad)" stroke-width="1" fill="none" opacity="0.5"/>
           <circle cx="16" cy="16" r="4" fill="url(#logoGrad)" opacity="0.8"/>
-          <circle cx="16" cy="16" r="2" fill="rgb(15 14 22)"/>
+          <circle cx="16" cy="16" r="2" fill="rgb(24 22 34)"/>
           <line x1="16" y1="12" x2="16" y2="6" stroke="url(#logoGrad)" stroke-width="1" opacity="0.6"/>
           <line x1="19.5" y1="14" x2="24" y2="10.5" stroke="url(#logoGrad)" stroke-width="1" opacity="0.6"/>
           <line x1="19.5" y1="18" x2="24" y2="21.5" stroke="url(#logoGrad)" stroke-width="1" opacity="0.6"/>
@@ -1488,7 +1490,11 @@
       </div>
 
       <!-- ═══ Tab: 명령 (Command) ═══ -->
-      <div x-show="viewMode === 'chat' && activeTab === 'command'" x-cloak class="flex-1 flex flex-col overflow-hidden">
+      <div x-show="viewMode === 'chat' && activeTab === 'command'" x-cloak
+           x-transition:enter="transition ease-out duration-200"
+           x-transition:enter-start="opacity-0 translate-y-2"
+           x-transition:enter-end="opacity-100 translate-y-0"
+           class="flex-1 flex flex-col overflow-hidden">
 
         <!-- Chat Messages -->
         <div class="flex-1 overflow-y-auto scrollbar-thin px-6 pt-8 pb-6 space-y-4 bg-grid" id="chatArea" x-ref="chatArea">
@@ -1713,16 +1719,8 @@
         </div>
 
         <!-- ═══ Input Bar ═══ -->
-        <div class="border-t border-hq-border bg-hq-surface backdrop-blur-sm p-4 shrink-0">
+        <div class="border-t-2 border-hq-accent/20 bg-hq-surface/90 backdrop-blur-md p-4 shrink-0 shadow-[0_-4px_16px_rgb(var(--hq-shadow)/0.08)]">
           <div class="max-w-4xl mx-auto relative">
-            <!-- Export + Shortcut hint -->
-            <div x-show="messages.length > 0" class="flex items-center justify-end gap-2 mb-2">
-              <button @click="exportConversation()"
-                      class="text-[10px] text-hq-muted/85 hover:text-hq-accent flex items-center gap-1 transition">
-                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-                대화 내보내기
-              </button>
-            </div>
             <!-- @mention dropdown -->
             <div x-show="showMentionDropdown" x-transition
                  class="absolute bottom-full mb-2 left-0 w-64 glass border border-hq-border rounded-xl overflow-hidden shadow-xl z-10">
@@ -1756,19 +1754,20 @@
                   :disabled="systemStatus === 'working'"
                   :placeholder="inputHints[inputHintIndex]"
                   rows="1"
-                  class="w-full bg-hq-bg border border-hq-border rounded-xl px-4 py-3 pr-10 text-sm text-hq-text
-                         placeholder-hq-muted/70 focus:outline-none focus:border-hq-accent/50 input-glow-animated
-                         disabled:opacity-40 disabled:cursor-not-allowed transition-all resize-none overflow-hidden"
+                  class="w-full bg-hq-bg border-2 border-hq-border-light rounded-xl px-4 py-3 pr-10 text-sm text-hq-text
+                         placeholder-hq-muted/70 focus:outline-none focus:border-hq-accent/60 input-glow-animated
+                         disabled:opacity-40 disabled:cursor-not-allowed transition-all resize-none overflow-hidden
+                         shadow-sm"
                   style="min-height:44px; max-height:200px;" autofocus></textarea>
                 <div class="absolute right-3 bottom-3 text-[10px] font-mono text-hq-muted/70"
                      x-show="!inputText.trim() && systemStatus !== 'working'">Enter &#9166;</div>
               </div>
               <button x-show="systemStatus !== 'working'" @click="sendMessage()"
                 :disabled="!inputText.trim()"
-                class="bg-gradient-to-r from-hq-accent to-hq-purple hover:from-blue-500 hover:to-violet-500
-                       disabled:from-gray-700 disabled:to-gray-700 disabled:text-hq-muted
-                       text-white rounded-full w-11 h-11 flex items-center justify-center transition-all shrink-0
-                       hover:shadow-lg hover:shadow-hq-accent/20 disabled:shadow-none"
+                :class="inputText.trim()
+                  ? 'bg-gradient-to-r from-hq-accent to-hq-purple hover:from-blue-500 hover:to-violet-500 text-white shadow-lg shadow-hq-accent/30 hover:shadow-xl hover:shadow-hq-accent/40'
+                  : 'border-2 border-hq-accent/30 bg-hq-accent/10 text-hq-accent/40'"
+                class="rounded-full w-12 h-12 flex items-center justify-center transition-all shrink-0"
                 title="보내기">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
                   <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 10.5L12 3m0 0l7.5 7.5M12 3v18"/>
@@ -1782,8 +1781,8 @@
               </button>
             </div>
           </div>
-          <!-- Preset Chips -->
-          <div x-show="presets.items.length > 0" class="flex items-center gap-2 flex-wrap mt-2 max-w-4xl mx-auto overflow-x-auto scrollbar-thin">
+          <!-- Preset Chips + 대화 내보내기 -->
+          <div class="flex items-center gap-2 flex-wrap mt-2 max-w-4xl mx-auto overflow-x-auto scrollbar-thin">
             <template x-for="p in presets.items" :key="p.name">
               <button @click="sendPreset(p.command)"
                       :disabled="systemStatus === 'working'"
@@ -1793,6 +1792,12 @@
             </template>
             <button @click="presets.showModal = true" class="text-[11px] text-hq-muted/80 hover:text-hq-accent transition px-1 shrink-0">
               <svg class="w-3.5 h-3.5 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
+            </button>
+            <!-- 대화 내보내기 (오른쪽 끝) -->
+            <button x-show="messages.length > 0" @click="exportConversation()"
+                    class="text-[10px] text-hq-muted/70 hover:text-hq-accent flex items-center gap-1 transition ml-auto shrink-0">
+              <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+              내보내기
             </button>
           </div>
         </div>
@@ -1886,7 +1891,7 @@
               <span class="text-sm font-bold text-hq-accent uppercase tracking-wider">CEO 사무실</span>
             </div>
             <div class="flex gap-3">
-              <div class="desk-card glass border border-hq-accent/30 w-[160px] cursor-default">
+              <div class="desk-card glass border border-hq-accent/30 w-[160px] cursor-pointer" @click="showCeoProfile = true">
                 <div class="flex items-center justify-between mb-2">
                   <div class="agent-avatar bg-gradient-to-br from-hq-accent to-hq-purple text-white text-[10px]">CEO</div>
                   <div class="status-light status-light-working"></div>
@@ -2122,12 +2127,22 @@
                 </div>
               </div>
 
-              <!-- Budget Section -->
-              <div class="glass border border-hq-border rounded-xl p-5" x-show="budget && (budget.daily_limit || budget.monthly_limit)">
-                <h3 class="text-sm font-bold text-hq-text mb-4 flex items-center gap-2">
-                  <span class="text-hq-yellow">$</span> 예산 현황
-                </h3>
-                <div class="space-y-4">
+              <!-- Budget Section (항상 표시) -->
+              <div class="glass border border-hq-border rounded-xl p-5">
+                <div class="flex items-center justify-between mb-4">
+                  <h3 class="text-sm font-bold text-hq-text flex items-center gap-2">
+                    <span class="text-hq-yellow">$</span> 예산 현황
+                  </h3>
+                  <button @click="showBudgetEdit = true; budgetEditDaily = budget.daily_limit || 0; budgetEditMonthly = budget.monthly_limit || 0"
+                          class="text-xs text-hq-accent hover:text-hq-accent/80 px-2 py-1 border border-hq-accent/20 rounded-lg transition">한도 수정</button>
+                </div>
+                <!-- 한도 미설정 안내 -->
+                <div x-show="!budget.daily_limit && !budget.monthly_limit" class="text-center py-4">
+                  <div class="text-xs text-hq-muted mb-2">예산 한도가 설정되지 않았습니다</div>
+                  <button @click="showBudgetEdit = true; budgetEditDaily = 10; budgetEditMonthly = 200"
+                          class="text-xs bg-hq-accent/10 text-hq-accent border border-hq-accent/20 rounded-lg px-3 py-1.5 hover:bg-hq-accent/20 transition">한도 설정하기</button>
+                </div>
+                <div class="space-y-4" x-show="budget.daily_limit || budget.monthly_limit">
                   <!-- Daily Budget -->
                   <div x-show="budget.daily_limit">
                     <div class="flex justify-between text-xs mb-1.5">
@@ -2190,20 +2205,29 @@
                   </div>
                 </div>
 
-                <!-- 배포 상태 카드 -->
+                <!-- 배포 상태 카드 (정렬 통일) -->
                 <div class="grid grid-cols-3 gap-3 mb-4">
-                  <div class="bg-hq-panel rounded-lg p-3 text-center">
-                    <div class="text-lg font-bold font-mono" :class="deployStatus.status === 'success' ? 'text-hq-green' : 'text-hq-red'" x-text="deployStatus.build ? '#' + deployStatus.build : '-'"></div>
-                    <div class="text-[10px] text-hq-muted">현재 빌드</div>
+                  <div class="bg-hq-panel rounded-lg p-3 min-h-[76px] flex flex-col items-center justify-center">
+                    <div class="text-[10px] text-hq-muted mb-1.5 flex items-center gap-1">
+                      <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 2h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 8.172V3L8 2z"/></svg>
+                      현재 빌드
+                    </div>
+                    <div class="text-base font-bold font-mono" :class="deployStatus.status === 'success' ? 'text-hq-green' : 'text-hq-red'" x-text="deployStatus.build ? '#' + deployStatus.build : '-'"></div>
                   </div>
-                  <div class="bg-hq-panel rounded-lg p-3 text-center">
-                    <div class="text-sm font-bold" :class="deployStatus.status === 'success' ? 'text-hq-green' : deployStatus.status === 'loading' ? 'text-hq-yellow' : 'text-hq-red'"
+                  <div class="bg-hq-panel rounded-lg p-3 min-h-[76px] flex flex-col items-center justify-center">
+                    <div class="text-[10px] text-hq-muted mb-1.5 flex items-center gap-1">
+                      <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01"/></svg>
+                      서버 상태
+                    </div>
+                    <div class="text-base font-bold" :class="deployStatus.status === 'success' ? 'text-hq-green' : deployStatus.status === 'loading' ? 'text-hq-yellow' : 'text-hq-red'"
                          x-text="deployStatus.status === 'success' ? '정상' : deployStatus.status === 'loading' ? '확인중...' : '확인 불가'"></div>
-                    <div class="text-[10px] text-hq-muted">서버 상태</div>
                   </div>
-                  <div class="bg-hq-panel rounded-lg p-3 text-center">
-                    <div class="text-sm font-bold text-hq-text font-mono" x-text="deployStatus.time ? new Date(deployStatus.time).toLocaleString('ko-KR', {timeZone:'Asia/Seoul', month:'numeric', day:'numeric', hour:'2-digit', minute:'2-digit'}) : '-'"></div>
-                    <div class="text-[10px] text-hq-muted">마지막 배포</div>
+                  <div class="bg-hq-panel rounded-lg p-3 min-h-[76px] flex flex-col items-center justify-center">
+                    <div class="text-[10px] text-hq-muted mb-1.5 flex items-center gap-1">
+                      <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                      마지막 배포
+                    </div>
+                    <div class="text-base font-bold text-hq-text font-mono" x-text="deployStatus.time ? new Date(deployStatus.time).toLocaleString('ko-KR', {timeZone:'Asia/Seoul', month:'numeric', day:'numeric', hour:'2-digit', minute:'2-digit'}) : '-'"></div>
                   </div>
                 </div>
 
@@ -2250,7 +2274,11 @@
       </div>
 
       <!-- ═══ Tab: 작업내역 (History) ═══ -->
-      <div x-show="viewMode === 'chat' && activeTab === 'history'" x-cloak class="flex-1 flex flex-col overflow-hidden">
+      <div x-show="viewMode === 'chat' && activeTab === 'history'" x-cloak
+           x-transition:enter="transition ease-out duration-200"
+           x-transition:enter-start="opacity-0 translate-y-2"
+           x-transition:enter-end="opacity-100 translate-y-0"
+           class="flex-1 flex flex-col overflow-hidden">
         <div class="px-6 pt-5 pb-3 shrink-0 border-b border-hq-border bg-hq-surface">
           <!-- 통계 카드 (아이콘 + 색상 강화) -->
           <div class="grid grid-cols-4 gap-3 max-w-5xl mx-auto mb-4">
@@ -2446,7 +2474,11 @@
       </div>
 
       <!-- ═══ Tab: 예약 (Schedule) ═══ -->
-      <div x-show="viewMode === 'chat' && activeTab === 'schedule'" x-cloak class="flex-1 overflow-y-auto scrollbar-thin p-6 bg-grid">
+      <div x-show="viewMode === 'chat' && activeTab === 'schedule'" x-cloak
+           x-transition:enter="transition ease-out duration-200"
+           x-transition:enter-start="opacity-0 translate-y-2"
+           x-transition:enter-end="opacity-100 translate-y-0"
+           class="flex-1 overflow-y-auto scrollbar-thin p-6 bg-grid">
         <div class="max-w-4xl mx-auto fade-in-up">
           <div class="flex items-center justify-between mb-6">
             <div>
@@ -2494,7 +2526,11 @@
       </div>
 
       <!-- ═══ Tab: 워크플로우 (Workflow) ═══ -->
-      <div x-show="viewMode === 'chat' && activeTab === 'workflow'" x-cloak class="flex-1 overflow-y-auto scrollbar-thin p-6 bg-grid">
+      <div x-show="viewMode === 'chat' && activeTab === 'workflow'" x-cloak
+           x-transition:enter="transition ease-out duration-200"
+           x-transition:enter-start="opacity-0 translate-y-2"
+           x-transition:enter-end="opacity-100 translate-y-0"
+           class="flex-1 overflow-y-auto scrollbar-thin p-6 bg-grid">
         <div class="max-w-4xl mx-auto fade-in-up">
           <div class="flex items-center justify-between mb-6">
             <div>
@@ -2582,7 +2618,11 @@
       </div>
 
       <!-- ═══ Knowledge View (지식 관리) ═══ -->
-      <div x-show="viewMode === 'chat' && activeTab === 'knowledge'" class="flex-1 overflow-hidden flex bg-grid">
+      <div x-show="viewMode === 'chat' && activeTab === 'knowledge'"
+           x-transition:enter="transition ease-out duration-200"
+           x-transition:enter-start="opacity-0 translate-y-2"
+           x-transition:enter-end="opacity-100 translate-y-0"
+           class="flex-1 overflow-hidden flex bg-grid">
         <!-- Left: File Tree -->
         <div class="w-64 border-r border-hq-border overflow-y-auto scrollbar-thin p-4 bg-hq-surface shrink-0">
           <div class="flex items-center justify-between mb-3">
@@ -2641,10 +2681,18 @@
       </div>
 
       <!-- ═══ Archive View (아카이브) ═══ -->
-      <div x-show="viewMode === 'chat' && activeTab === 'archive'" class="flex-1 overflow-y-auto scrollbar-thin p-6 bg-grid">
+      <div x-show="viewMode === 'chat' && activeTab === 'archive'"
+           x-transition:enter="transition ease-out duration-200"
+           x-transition:enter-start="opacity-0 translate-y-2"
+           x-transition:enter-end="opacity-100 translate-y-0"
+           class="flex-1 overflow-y-auto scrollbar-thin p-6 bg-grid">
         <div class="max-w-5xl mx-auto fade-in-up">
           <div class="flex items-center justify-between mb-4">
-            <h2 class="text-lg font-bold text-hq-text">아카이브 (보고서 저장소)</h2>
+            <h2 class="text-lg font-bold text-hq-text flex items-center gap-2">
+              <svg class="w-5 h-5 text-hq-purple" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/></svg>
+              아카이브
+              <span class="text-xs text-hq-muted font-normal ml-1" x-text="'총 ' + archive.files.length + '건'" x-show="archive.files.length > 0"></span>
+            </h2>
             <div class="flex items-center gap-2">
               <input x-model="archive.searchCorrelation" placeholder="작업 ID로 검색"
                 class="bg-hq-surface border border-hq-border rounded-lg px-3 py-1.5 text-xs text-hq-text w-48" @keydown.enter="searchArchiveByCorrelation()">
@@ -2665,27 +2713,36 @@
           <template x-if="archive.loading">
             <div class="text-center py-8 text-hq-muted">로딩 중...</div>
           </template>
-          <!-- Report List -->
-          <div class="space-y-2 mb-6" x-show="!archive.loading">
+          <!-- Report List (카드형 그리드) -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-6" x-show="!archive.loading && archive.files.filter(f => archive.filterDivision === 'all' || f.division === archive.filterDivision).length > 0">
             <template x-for="file in archive.files.filter(f => archive.filterDivision === 'all' || f.division === archive.filterDivision)" :key="file.division + '/' + file.filename">
               <div @click="readArchiveReport(file)"
-                :class="archive.selectedReport && archive.selectedReport.filename === file.filename ? 'border-hq-accent/40 bg-hq-accent/5' : 'border-hq-border'"
-                class="glass border rounded-xl px-4 py-3 cursor-pointer hover:bg-hq-surface transition">
-                <div class="flex items-center justify-between">
-                  <div class="flex items-center gap-3">
-                    <span class="status-badge bg-hq-cyan/10 text-hq-cyan text-[9px]" x-text="getDivisionLabel(file.division)"></span>
-                    <span class="text-sm text-hq-text/80" x-text="file.filename"></span>
-                  </div>
-                  <div class="flex items-center gap-3 text-[10px] text-hq-muted font-mono">
-                    <span x-text="file.size ? (file.size / 1024).toFixed(1) + 'KB' : ''"></span>
-                    <span x-text="file.modified ? new Date(file.modified).toLocaleDateString('ko-KR') : ''"></span>
-                  </div>
+                :class="archive.selectedReport && archive.selectedReport.filename === file.filename ? 'border-hq-accent/40 bg-hq-accent/5 shadow-lg shadow-hq-accent/10' : 'border-hq-border hover:border-hq-accent/30'"
+                class="glass border rounded-xl p-4 cursor-pointer hover:translate-y-[-2px] transition-all duration-200">
+                <div class="flex items-center gap-2 mb-2">
+                  <span class="status-badge text-[9px]"
+                    :class="file.division?.includes('tech') ? 'bg-hq-cyan/10 text-hq-cyan' :
+                            file.division?.includes('strategy') ? 'bg-hq-purple/10 text-hq-purple' :
+                            file.division?.includes('legal') ? 'bg-hq-red/10 text-hq-red' :
+                            file.division?.includes('marketing') ? 'bg-hq-green/10 text-hq-green' :
+                            file.division?.includes('finance') ? 'bg-hq-yellow/10 text-hq-yellow' :
+                            'bg-hq-accent/10 text-hq-accent'"
+                    x-text="getDivisionLabel(file.division)"></span>
+                  <span class="text-[10px] text-hq-muted font-mono ml-auto" x-text="file.modified ? new Date(file.modified).toLocaleDateString('ko-KR') : ''"></span>
                 </div>
+                <div class="text-sm font-medium text-hq-text truncate mb-1" x-text="file.filename"></div>
+                <div class="text-[10px] text-hq-muted font-mono" x-text="file.size ? (file.size / 1024).toFixed(1) + 'KB' : ''"></div>
               </div>
             </template>
-            <template x-if="archive.files.length === 0">
-              <div class="text-center text-hq-muted/80 py-8">아카이브에 보고서가 없습니다</div>
-            </template>
+          </div>
+          <!-- 빈 화면 안내 -->
+          <div x-show="!archive.loading && archive.files.filter(f => archive.filterDivision === 'all' || f.division === archive.filterDivision).length === 0"
+               class="flex flex-col items-center justify-center py-20 text-center">
+            <div class="w-20 h-20 rounded-2xl bg-hq-purple/10 flex items-center justify-center mb-4 float-anim">
+              <svg class="w-10 h-10 text-hq-purple/50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/></svg>
+            </div>
+            <div class="text-sm font-semibold text-hq-text/60 mb-1">아직 보관된 보고서가 없습니다</div>
+            <div class="text-xs text-hq-muted">에이전트가 작업을 완료하면 여기에 보고서가 자동 저장됩니다</div>
           </div>
           <!-- Report Content -->
           <div x-show="archive.content" class="glass border border-hq-border rounded-xl p-5">
@@ -2699,7 +2756,11 @@
       </div>
 
       <!-- ═══ SNS Management View (SNS 관리) ═══ -->
-      <div x-show="viewMode === 'chat' && activeTab === 'sns'" class="flex-1 overflow-y-auto scrollbar-thin p-6 bg-grid">
+      <div x-show="viewMode === 'chat' && activeTab === 'sns'"
+           x-transition:enter="transition ease-out duration-200"
+           x-transition:enter-start="opacity-0 translate-y-2"
+           x-transition:enter-end="opacity-100 translate-y-0"
+           class="flex-1 overflow-y-auto scrollbar-thin p-6 bg-grid">
         <div class="max-w-5xl mx-auto fade-in-up">
           <h2 class="text-lg font-bold text-hq-text mb-4">SNS 관리</h2>
           <!-- Sub Tabs -->
@@ -3115,7 +3176,7 @@
             </div>
             <div class="mb-3">
               <label class="text-xs text-hq-muted mb-1 block">검수 기준</label>
-              <textarea x-model="rubricEditPrompt" rows="5" class="w-full bg-hq-panel border border-hq-border rounded-lg px-3 py-2 text-sm text-hq-text resize-y leading-relaxed" placeholder="다음 기준으로 검수하세요:&#10;1. ..."></textarea>
+              <textarea x-model="rubricEditPrompt" rows="5" class="w-full bg-hq-panel border border-hq-border rounded-lg px-3 py-2 text-[13px] text-hq-text resize-y font-mono" style="line-height:1.7; letter-spacing:0.01em;" placeholder="다음 기준으로 검수하세요:&#10;1. ..."></textarea>
             </div>
             <div class="flex items-center gap-2">
               <button @click.stop="saveRubric()" class="bg-hq-accent hover:bg-blue-600 text-white rounded-lg px-4 py-1.5 text-xs font-medium transition">저장</button>
@@ -3172,7 +3233,7 @@
                   </div>
                   <div class="mb-3">
                     <label class="text-xs text-hq-muted mb-1 block">검수 기준</label>
-                    <textarea x-model="rubricEditPrompt" rows="5" class="w-full bg-hq-panel border border-hq-border rounded-lg px-3 py-2 text-sm text-hq-text resize-y leading-relaxed" placeholder="다음 기준으로 검수하세요:&#10;1. ..."></textarea>
+                    <textarea x-model="rubricEditPrompt" rows="5" class="w-full bg-hq-panel border border-hq-border rounded-lg px-3 py-2 text-[13px] text-hq-text resize-y font-mono" style="line-height:1.7; letter-spacing:0.01em;" placeholder="다음 기준으로 검수하세요:&#10;1. ..."></textarea>
                   </div>
                   <div class="flex items-center gap-2">
                     <button @click.stop="saveRubric()" class="bg-hq-accent hover:bg-blue-600 text-white rounded-lg px-4 py-1.5 text-xs font-medium transition">저장</button>
