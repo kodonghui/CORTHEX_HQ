@@ -33,7 +33,8 @@
     }
   </script>
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+    @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css');
+    @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap');
 
     /* ═══ Glass + Aurora Mix 팔레트 (따뜻한 보라빛 다크 — 밝기 개선) ═══ */
     :root, .dark {
@@ -54,24 +55,24 @@
     }
     /* ═══ 라이트모드 팔레트 (따뜻한 연보라 기반) ═══ */
     html:not(.dark) {
-      --hq-bg: 240 238 245;
-      --hq-surface: 248 246 252;
-      --hq-panel: 235 232 242;
-      --hq-border: 210 206 220;
-      --hq-border-light: 190 185 205;
-      --hq-accent: 80 130 240;
-      --hq-cyan: 6 182 212;
-      --hq-purple: 124 58 237;
-      --hq-green: 16 185 129;
-      --hq-yellow: 217 119 6;
-      --hq-red: 220 38 38;
+      --hq-bg: 232 228 240;         /* 따뜻한 라벤더 배경 */
+      --hq-surface: 240 237 248;    /* 밝은 라벤더 표면 */
+      --hq-panel: 224 220 236;      /* 구분감 있는 패널 */
+      --hq-border: 200 195 215;
+      --hq-border-light: 180 174 198;
+      --hq-accent: 70 120 230;
+      --hq-cyan: 6 172 200;
+      --hq-purple: 114 48 220;
+      --hq-green: 16 175 120;
+      --hq-yellow: 207 109 6;
+      --hq-red: 210 38 38;
       --hq-text: 25 22 40;
-      --hq-muted: 100 95 120;
+      --hq-muted: 85 80 108;
       --hq-shadow: 0 0 0;
     }
 
     * { box-sizing: border-box; }
-    body { font-family: 'Inter', sans-serif; }
+    body { font-family: 'Pretendard Variable', 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif; }
 
     /* ═══ 다크 모드 배경 (오로라 그라데이션) ═══ */
     .dark body {
@@ -105,7 +106,7 @@
 
     /* ═══ 라이트 모드 배경 (따뜻한 연보라 그라데이션) ═══ */
     html:not(.dark) body {
-      background: linear-gradient(135deg, #F0EEF5 0%, #E8E4F0 35%, #EDE9F3 65%, #F5F3F8 100%);
+      background: linear-gradient(135deg, #E8E4F0 0%, #E0DBEE 35%, #E5E1F0 65%, #ECE8F4 100%);
       background-attachment: fixed;
     }
 
@@ -777,12 +778,20 @@
             <div class="space-y-2">
               <div class="flex items-center justify-between">
                 <span class="text-xs text-hq-muted">전체</span>
-                <span class="text-xs font-bold" :class="healthData.overall === 'ok' ? 'text-hq-green' : healthData.overall === 'warning' ? 'text-hq-yellow' : 'text-hq-red'"
-                      x-text="healthData.overall === 'ok' ? '정상' : healthData.overall === 'warning' ? '경고' : '오류'"></span>
+                <span class="text-xs font-bold" :class="(healthData.status === 'ok' || healthData.overall === 'ok') ? 'text-hq-green' : (healthData.status === 'warning' || healthData.overall === 'warning') ? 'text-hq-yellow' : 'text-hq-red'"
+                      x-text="(healthData.status === 'ok' || healthData.overall === 'ok') ? '정상' : (healthData.status === 'warning' || healthData.overall === 'warning') ? '경고' : '오류'"></span>
               </div>
               <div class="flex items-center justify-between">
-                <span class="text-xs text-hq-muted">오케스트레이터 (지휘자)</span>
-                <span class="text-xs" x-text="healthData.orchestrator !== undefined ? (healthData.orchestrator ? '✅' : '❌') : (healthData.message || '-')"></span>
+                <span class="text-xs text-hq-muted">서버</span>
+                <span class="text-xs" x-text="healthData.mode || '미니서버'"></span>
+              </div>
+              <div class="flex items-center justify-between" x-show="healthData.agents !== undefined">
+                <span class="text-xs text-hq-muted">등록 에이전트</span>
+                <span class="text-xs font-mono text-hq-accent" x-text="healthData.agents + '명'"></span>
+              </div>
+              <div class="flex items-center justify-between" x-show="healthData.telegram !== undefined">
+                <span class="text-xs text-hq-muted">텔레그램</span>
+                <span class="text-xs" x-text="healthData.telegram ? '연결됨' : '미연결'"></span>
               </div>
               <div class="flex items-center justify-between" x-show="healthData.model_router !== undefined">
                 <span class="text-xs text-hq-muted">모델 라우터 (경로 배정)</span>
@@ -1248,7 +1257,7 @@
         <template x-for="tab in getPrimaryTabs()" :key="tab.id">
           <button @click="switchTab(tab.id); showMoreTabs = false"
                   :class="activeTab === tab.id
-                    ? 'text-white border-hq-accent bg-hq-accent/10'
+                    ? 'text-hq-accent border-hq-accent bg-hq-accent/10 font-bold'
                     : 'text-hq-muted border-transparent hover:text-hq-text hover:bg-hq-panel/20'"
                   class="flex items-center gap-1.5 px-3 py-2 text-[11px] font-semibold border-b-2 transition-all rounded-t-lg whitespace-nowrap">
             <span x-html="tab.icon" class="w-3.5 h-3.5"></span>
@@ -1259,7 +1268,7 @@
         <div class="relative">
           <button @click="showMoreTabs = !showMoreTabs"
                   :class="getSecondaryTabs().some(t => t.id === activeTab)
-                    ? 'text-white border-hq-accent bg-hq-accent/10'
+                    ? 'text-hq-accent border-hq-accent bg-hq-accent/10 font-bold'
                     : 'text-hq-muted border-transparent hover:text-hq-text hover:bg-hq-panel/20'"
                   class="flex items-center gap-1 px-3 py-2 text-[11px] font-semibold border-b-2 transition-all rounded-t-lg whitespace-nowrap">
             <span x-text="getSecondaryTabs().find(t => t.id === activeTab)?.label || '더보기'"></span>
@@ -1781,8 +1790,8 @@
               </button>
             </div>
           </div>
-          <!-- Preset Chips + 대화 내보내기 -->
-          <div class="flex items-center gap-2 flex-wrap mt-2 max-w-4xl mx-auto overflow-x-auto scrollbar-thin">
+          <!-- Preset Chips + 대화 내보내기 (프리셋이 있거나 메시지가 있을 때만 표시) -->
+          <div x-show="(presets.items && presets.items.length > 0) || messages.length > 0" class="flex items-center gap-2 flex-wrap mt-2 max-w-4xl mx-auto overflow-x-auto scrollbar-thin">
             <template x-for="p in presets.items" :key="p.name">
               <button @click="sendPreset(p.command)"
                       :disabled="systemStatus === 'working'"
@@ -1790,7 +1799,7 @@
                 <span x-text="p.name"></span>
               </button>
             </template>
-            <button @click="presets.showModal = true" class="text-[11px] text-hq-muted/80 hover:text-hq-accent transition px-1 shrink-0">
+            <button x-show="presets.items && presets.items.length > 0" @click="presets.showModal = true" class="text-[11px] text-hq-muted/80 hover:text-hq-accent transition px-1 shrink-0">
               <svg class="w-3.5 h-3.5 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
             </button>
             <!-- 대화 내보내기 (오른쪽 끝) -->
@@ -2496,9 +2505,10 @@
               <div class="glass border border-hq-border rounded-xl p-4 hover-glow">
                 <div class="flex items-center justify-between">
                   <div class="flex-1">
-                    <div class="flex items-center gap-2 mb-1">
-                      <span class="text-sm font-semibold text-hq-text" x-text="s.name"></span>
-                      <span class="status-badge" :class="s.enabled ? 'bg-hq-green/15 text-hq-green border border-hq-green/20' : 'bg-hq-muted/15 text-hq-muted border border-hq-border'"
+                    <div class="flex items-center gap-2 mb-1.5">
+                      <span class="text-sm font-semibold text-hq-text leading-none" x-text="s.name"></span>
+                      <span class="text-[10px] px-2 py-0.5 rounded-full font-medium leading-none"
+                            :class="s.enabled ? 'bg-hq-green/15 text-hq-green border border-hq-green/20' : 'bg-hq-muted/15 text-hq-muted border border-hq-border'"
                             x-text="s.enabled ? '활성' : '비활성'"></span>
                     </div>
                     <div class="text-[12px] text-hq-muted mb-1" x-text="s.command"></div>
@@ -2548,13 +2558,13 @@
               <div class="glass border border-hq-border rounded-xl p-4 hover-glow">
                 <div class="flex items-center justify-between">
                   <div class="flex-1">
-                    <div class="text-sm font-semibold text-hq-text mb-1" x-text="wf.name"></div>
-                    <div class="text-[12px] text-hq-muted" x-text="wf.description || wf.steps.length + '단계'"></div>
-                    <div class="flex items-center gap-2 mt-2">
+                    <div class="text-sm font-semibold text-hq-text mb-0.5" x-text="wf.name"></div>
+                    <div class="text-[12px] text-hq-muted mb-2" x-text="wf.description || wf.steps.length + '단계'"></div>
+                    <div class="flex items-center gap-1.5 flex-wrap">
                       <template x-for="(step, i) in wf.steps" :key="i">
-                        <div class="flex items-center gap-1">
-                          <span class="text-[10px] bg-hq-accent/10 text-hq-accent rounded px-1.5 py-0.5" x-text="step.name || ('단계 ' + (i+1))"></span>
-                          <span x-show="i < wf.steps.length - 1" class="text-hq-muted/70 text-[10px]">→</span>
+                        <div class="flex items-center gap-1.5">
+                          <span class="text-[10px] bg-hq-accent/10 text-hq-accent rounded-md px-2 py-0.5 font-medium" x-text="step.name || ('단계 ' + (i+1))"></span>
+                          <span x-show="i < wf.steps.length - 1" class="text-hq-muted/50 text-[10px]">→</span>
                         </div>
                       </template>
                     </div>
@@ -3035,7 +3045,7 @@
                 <div class="flex-1 space-y-1.5">
                   <input x-model="step.name" :placeholder="'단계 ' + (idx+1) + ' 이름'"
                          class="w-full bg-hq-panel border border-hq-border rounded px-2 py-1 text-xs text-hq-text focus:border-hq-accent outline-none">
-                  <textarea x-model="step.command" placeholder="실행할 명령 ({prev_result}로 이전 결과 참조)" rows="2"
+                  <textarea x-model="step.command" placeholder="이 단계에서 AI에게 시킬 작업을 입력하세요" rows="2"
                             class="w-full bg-hq-panel border border-hq-border rounded px-2 py-1 text-xs text-hq-text focus:border-hq-accent outline-none resize-none"></textarea>
                 </div>
                 <button @click="workflows.editSteps.splice(idx, 1)"
@@ -3044,8 +3054,8 @@
               </div>
             </template>
           </div>
-          <div class="text-[10px] text-hq-muted/80 mt-2">
-            TIP: 명령에 <code class="text-hq-accent">{prev_result}</code>를 넣으면 이전 단계 결과가 자동으로 들어갑니다.
+          <div class="text-[10px] text-hq-muted/80 mt-2 bg-hq-panel/50 rounded-lg px-3 py-1.5">
+            💡 여러 단계를 순서대로 실행합니다. 앞 단계의 결과를 다음 단계에서 쓰고 싶으면 <code class="text-hq-accent bg-hq-accent/10 px-1 rounded">{prev_result}</code> 를 입력하세요.
           </div>
         </div>
       </div>
@@ -5333,7 +5343,10 @@
           this.knowledge.loading = true;
           try {
             const res = await fetch('/api/knowledge');
-            if (res.ok) this.knowledge.files = await res.json();
+            if (res.ok) {
+              const data = await res.json();
+              this.knowledge.files = data.entries || data || [];
+            }
           } catch { this.showToast('지식 파일 목록을 불러올 수 없습니다.', 'error'); }
           finally { this.knowledge.loading = false; }
         },
