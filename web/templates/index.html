@@ -4295,7 +4295,7 @@
             case 'result':
             case 'task_completed':
               this.messages = this.messages.filter(m => m.type !== 'processing');
-              this.messages.push({
+              const resultMsg = {
                 type: 'result',
                 content: msg.data.content,
                 sender_id: msg.data.sender_id || 'chief_of_staff',
@@ -4310,7 +4310,34 @@
                 feedbackSent: false,
                 feedbackRating: null,
                 source: msg.data.source || 'web',
-              });
+              };
+              this.messages.push(resultMsg);
+
+              // DB에 AI 응답 저장
+              (async () => {
+                try {
+                  await fetch('/api/conversation/save', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      type: 'result',
+                      content: resultMsg.content,
+                      sender_id: resultMsg.sender_id,
+                      handled_by: resultMsg.handled_by,
+                      delegation: resultMsg.delegation,
+                      model: resultMsg.model,
+                      time_seconds: resultMsg.time_seconds,
+                      cost: resultMsg.cost,
+                      quality_score: resultMsg.quality_score,
+                      task_id: resultMsg.task_id,
+                      source: resultMsg.source,
+                    }),
+                  });
+                } catch (e) {
+                  console.warn('AI 응답 저장 실패:', e);
+                }
+              })();
+
               this.systemStatus = 'idle';
               this.currentTaskId = null;
               this.totalCost = msg.data.cost || this.totalCost;
@@ -4368,7 +4395,7 @@
         },
 
         // ── Input Experience ──
-        sendMessage() {
+        async sendMessage() {
           const text = this.inputText.trim();
           if (!text || this.systemStatus === 'working') return;
 
@@ -4381,6 +4408,17 @@
           this.activeAgents = {};
 
           if (this.$refs.inputArea) this.$refs.inputArea.style.height = 'auto';
+
+          // DB에 사용자 메시지 저장
+          try {
+            await fetch('/api/conversation/save', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ type: 'user', text }),
+            });
+          } catch (e) {
+            console.warn('메시지 저장 실패:', e);
+          }
 
           if (this.ws && this.ws.readyState === WebSocket.OPEN) {
             this.ws.send(JSON.stringify({ type: 'command', text, batch: this.useBatch }));
@@ -5457,12 +5495,9 @@
           try {
             const res = await fetch('/api/conversation');
             if (!res.ok) return;
-            const history = await res.json();
-            if (Array.isArray(history) && history.length > 0) {
-              history.forEach(item => {
-                if (item.command) this.messages.push({ type: 'user', text: item.command });
-                if (item.summary) this.messages.push({ type: 'result', content: item.summary, sender_id: 'system', collapsed: false, feedbackSent: false, feedbackRating: null });
-              });
+            const messages = await res.json();
+            if (Array.isArray(messages) && messages.length > 0) {
+              this.messages = messages;
               this.$nextTick(() => this.scrollToBottom());
             }
           } catch (e) {
