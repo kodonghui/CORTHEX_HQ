@@ -50,20 +50,25 @@
 
 ## 빌드 번호 규칙 (배포 확인용)
 - **목적**: 배포가 완료됐는지 확인하기 위해 빌드 번호 시스템 사용
-- **빌드 번호란?**: GitHub Actions가 자동으로 매기는 실행 번호 (예: 빌드 #123)
+- **빌드 번호란?**: GitHub Actions의 `deploy.yml` 워크플로우 실행 횟수 (예: 빌드 #38)
+- **빌드 번호 소스는 오직 하나**: `deploy.yml`의 `${{ github.run_number }}`
+  - `mini_server.py`는 빌드 번호를 자체 생성하지 않음 (로컬에서는 "dev"로 표시)
+  - Git 커밋 개수(`git rev-list --count HEAD`)는 빌드 번호와 **무관함** (절대 사용하지 말 것)
+- **빌드 번호는 사전에 알 수 없음**: 배포가 실행되어야 번호가 매겨짐
 - **작업 완료 시 반드시 할 것**:
-  1. 채팅 마지막에 **"이 작업은 빌드 #XX로 배포됩니다"** 형식으로 빌드 번호 남기기
-  2. `docs/project-status.md`에 현재 빌드 번호 기록
+  1. 채팅 마지막에 **"배포가 시작되었습니다. GitHub Actions에서 빌드 번호를 확인해주세요."** 라고 남기기
+  2. `docs/project-status.md`를 최신 상태로 갱신
   3. 배포 완료 후 웹 화면 우측 상단에서 빌드 번호 확인 가능 (http://168.107.28.100)
 - **빌드 번호 확인 방법**:
   - 웹 화면: 우측 상단에 "빌드 #XX" 표시
-  - GitHub Actions: https://github.com/kodonghui/CORTHEX_HQ/actions 에서 실행 번호 확인
+  - 배포 상태 JSON: `http://168.107.28.100/deploy-status.json` 접속
+  - GitHub Actions: https://github.com/kodonghui/CORTHEX_HQ/actions 에서 "Deploy to Oracle Cloud Server" 실행 번호 확인
 - **예시**:
   ```
   ✅ 작업 완료!
 
-  📦 이 작업은 빌드 #123으로 배포됩니다.
-  배포 완료 후 웹 화면에서 "빌드 #123"이 표시되면 정상 배포된 것입니다.
+  🚀 배포가 시작되었습니다.
+  GitHub Actions에서 배포 완료 후, 웹 화면(http://168.107.28.100)에서 빌드 번호가 올라갔는지 확인해주세요.
   ```
 
 ## 기억력 보완 규칙 (대화 맥락 유지)

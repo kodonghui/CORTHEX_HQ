@@ -8,7 +8,6 @@ import asyncio
 import json
 import logging
 import os
-import subprocess
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
@@ -33,20 +32,10 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 TEMPLATE_DIR = os.path.join(BASE_DIR, "templates")
 
 def get_build_number() -> str:
-    """Git 커밋 개수로 빌드 번호 생성 (저장한 횟수 = 빌드 번호)"""
-    try:
-        result = subprocess.run(
-            ["git", "rev-list", "--count", "HEAD"],
-            capture_output=True,
-            text=True,
-            cwd=Path(BASE_DIR).parent,  # 프로젝트 루트 디렉토리
-            timeout=5
-        )
-        if result.returncode == 0:
-            return result.stdout.strip()
-        return "dev"
-    except Exception:
-        return "dev"
+    """빌드 번호 반환.
+    실제 빌드 번호는 GitHub Actions 배포 시 deploy.yml이 HTML에 직접 주입함.
+    이 함수는 로컬 개발 환경(배포 전)에서만 사용되는 폴백 값을 반환."""
+    return "dev"
 
 # ── 설정 파일에서 에이전트/도구 정보 로드 ──
 CONFIG_DIR = Path(BASE_DIR).parent / "config"
