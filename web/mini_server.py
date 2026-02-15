@@ -208,6 +208,25 @@ async def get_tools():
     return _TOOLS_LIST
 
 
+@app.get("/api/debug/config")
+async def debug_config():
+    """디버그용: 설정 파일 로드 상태 확인 (문제 해결 후 제거 예정)"""
+    config_dir = str(CONFIG_DIR)
+    return {
+        "base_dir": BASE_DIR,
+        "config_dir": config_dir,
+        "config_dir_exists": os.path.isdir(config_dir),
+        "agents_json_exists": (CONFIG_DIR / "agents.json").exists(),
+        "agents_yaml_exists": (CONFIG_DIR / "agents.yaml").exists(),
+        "tools_json_exists": (CONFIG_DIR / "tools.json").exists(),
+        "tools_yaml_exists": (CONFIG_DIR / "tools.yaml").exists(),
+        "yaml_available": yaml is not None,
+        "agents_detail_count": len(_AGENTS_DETAIL),
+        "tools_list_count": len(_TOOLS_LIST),
+        "sample_agent_ids": list(_AGENTS_DETAIL.keys())[:5],
+    }
+
+
 @app.get("/api/dashboard")
 async def get_dashboard():
     now = datetime.now(KST).isoformat()
