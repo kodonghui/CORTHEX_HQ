@@ -4344,6 +4344,15 @@
               this.showToast('작업이 완료되었습니다.', 'success');
               this.sendDesktopNotification('CORTHEX HQ', '작업이 완료되었습니다.');
               this.$nextTick(() => this.scrollToBottom());
+              // 이중 스크롤: 마크다운 렌더링 후에도 스크롤
+              setTimeout(() => this.scrollToBottom(), 300);
+              // 남아있는 working 에이전트를 done으로 전환
+              Object.keys(this.activeAgents).forEach(id => {
+                if (this.activeAgents[id]?.status === 'working') {
+                  this.activeAgents[id].status = 'done';
+                  this.activeAgents[id].progress = 1.0;
+                }
+              });
               // (#17) 에이전트 완료 상태 5초 유지 후 idle로
               Object.keys(this.activeAgents).forEach(id => {
                 if (this.activeAgents[id]?.status === 'done') {
@@ -4425,6 +4434,7 @@
           }
 
           this.$nextTick(() => this.scrollToBottom());
+          setTimeout(() => this.scrollToBottom(), 150);
         },
 
         sendPreset(text) {
@@ -5498,7 +5508,10 @@
             const messages = await res.json();
             if (Array.isArray(messages) && messages.length > 0) {
               this.messages = messages;
+              // 복원 후 스크롤 — 마크다운 렌더링 시간까지 고려하여 여러 번 시도
               this.$nextTick(() => this.scrollToBottom());
+              setTimeout(() => this.scrollToBottom(), 200);
+              setTimeout(() => this.scrollToBottom(), 500);
             }
           } catch (e) {
             console.warn('대화 기록 복원 실패:', e);

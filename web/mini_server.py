@@ -1628,6 +1628,155 @@ _AGENT_NAMES: dict[str, str] = {
     "cpo_manager": "CPO (출판기록처장)",
 }
 
+# 브로드캐스트 키워드 (모든 부서에 동시 전달하는 명령)
+_BROADCAST_KEYWORDS = [
+    "전체", "모든 부서", "출석", "회의", "현황 보고",
+    "총괄", "전원", "각 부서", "출석체크", "브리핑",
+]
+
+# 처장 → 소속 전문가 매핑
+_MANAGER_SPECIALISTS: dict[str, list[str]] = {
+    "cto_manager": ["frontend_specialist", "backend_specialist", "infra_specialist", "ai_model_specialist"],
+    "cso_manager": ["market_research_specialist", "business_plan_specialist", "financial_model_specialist"],
+    "clo_manager": ["copyright_specialist", "patent_specialist"],
+    "cmo_manager": ["survey_specialist", "content_specialist", "community_specialist"],
+    "cio_manager": ["market_condition_specialist", "stock_analysis_specialist", "technical_analysis_specialist", "risk_management_specialist"],
+    "cpo_manager": ["chronicle_specialist", "editor_specialist", "archive_specialist"],
+}
+
+# 전문가 ID → 한국어 이름 (AGENTS 리스트에서 자동 구축)
+_SPECIALIST_NAMES: dict[str, str] = {}
+for _a in AGENTS:
+    if _a["role"] == "specialist":
+        _SPECIALIST_NAMES[_a["agent_id"]] = _a["name_ko"]
+
+
+def _is_broadcast_command(text: str) -> bool:
+    """브로드캐스트 명령인지 확인합니다."""
+    return any(kw in text for kw in _BROADCAST_KEYWORDS)
+
+
+async def _broadcast_status(agent_id: str, status: str, progress: float, detail: str = ""):
+    """에이전트 상태를 모든 WebSocket 클라이언트에게 전송합니다.
+
+    프론트엔드의 상태 표시등(초록불 깜빡임)을 제어합니다.
+    status: 'working' | 'done' | 'idle'
+    """
+    for c in connected_clients[:]:
+        try:
+            await c.send_json({
+                "event": "agent_status",
+                "data": {
+                    "agent_id": agent_id,
+                    "status": status,
+                    "progress": progress,
+                    "detail": detail,
+                }
+            })
+        except Exception:
+            pass
+
+
+async def _call_agent(agent_id: str, text: str) -> dict:
+    """단일 에이전트에게 AI 호출을 수행합니다 (상태 이벤트 포함)."""
+    agent_name = _AGENT_NAMES.get(agent_id, _SPECIALIST_NAMES.get(agent_id, agent_id))
+    await _broadcast_status(agent_id, "working", 0.2, f"{agent_name} 분석 중...")
+
+    soul = _load_agent_prompt(agent_id)
+    override = _get_model_override(agent_id)
+    model = select_model(text, override=override)
+
+    result = await ask_ai(text, system_prompt=soul, model=model)
+
+    if "error" in result:
+        await _broadcast_status(agent_id, "done", 1.0, "오류 발생")
+        return {"agent_id": agent_id, "name": agent_name, "error": result["error"], "cost_usd": 0}
+
+    await _broadcast_status(agent_id, "done", 1.0, "완료")
+    return {
+        "agent_id": agent_id,
+        "name": agent_name,
+        "content": result.get("content", ""),
+        "cost_usd": result.get("cost_usd", 0),
+        "model": result.get("model", ""),
+        "time_seconds": result.get("time_seconds", 0),
+        "input_tokens": result.get("input_tokens", 0),
+        "output_tokens": result.get("output_tokens", 0),
+    }
+
+
+async def _broadcast_to_managers(text: str, task_id: str) -> dict:
+    """모든 처장에게 동시에 명령을 전달하고 결과를 종합합니다.
+
+    asyncio.gather로 6개 부서를 동시에 호출하여 속도를 높입니다.
+    각 처장의 상태 표시등이 동시에 깜빡이며 작업 진행이 보입니다.
+    """
+    managers = ["cto_manager", "cso_manager", "clo_manager", "cmo_manager", "cio_manager", "cpo_manager"]
+
+    # 비서실장 상태: 전달 중
+    await _broadcast_status("chief_of_staff", "working", 0.1, "전체 부서에 전달 중...")
+
+    # 활동 로그
+    log_entry = save_activity_log("chief_of_staff", f"[브로드캐스트] 6개 부서에 동시 전달: {text[:40]}...")
+    for c in connected_clients[:]:
+        try:
+            await c.send_json({"event": "activity_log", "data": log_entry})
+        except Exception:
+            pass
+
+    # 모든 처장에게 동시 AI 호출
+    tasks = [_call_agent(mgr_id, text) for mgr_id in managers]
+    results = await asyncio.gather(*tasks, return_exceptions=True)
+
+    # 결과 종합
+    compiled_parts = []
+    total_cost = 0.0
+    total_time = 0.0
+    success_count = 0
+
+    for i, result in enumerate(results):
+        mgr_id = managers[i]
+        mgr_name = _AGENT_NAMES.get(mgr_id, mgr_id)
+
+        if isinstance(result, Exception):
+            compiled_parts.append(f"### ❌ {mgr_name}\n오류가 발생했습니다: {str(result)[:100]}")
+        elif "error" in result:
+            compiled_parts.append(f"### ❌ {mgr_name}\n{result['error'][:200]}")
+        else:
+            compiled_parts.append(f"### 📋 {mgr_name}\n{result.get('content', '응답 없음')}")
+            total_cost += result.get("cost_usd", 0)
+            total_time = max(total_time, result.get("time_seconds", 0))
+            success_count += 1
+
+    # 비서실장 완료
+    await _broadcast_status("chief_of_staff", "done", 1.0, "종합 완료")
+
+    compiled_content = (
+        f"📢 **전체 부서 브로드캐스트 결과** ({success_count}/6개 부서 응답)\n\n"
+        f"비서실장이 6개 부서에 동시에 전달했습니다.\n\n---\n\n"
+        + "\n\n---\n\n".join(compiled_parts)
+    )
+
+    # DB 업데이트
+    update_task(task_id, status="completed",
+                result_summary=f"6개 부서 브로드캐스트 완료 ({success_count}/6 응답)",
+                result_data=compiled_content,
+                success=1,
+                cost_usd=total_cost,
+                time_seconds=round(total_time, 2),
+                agent_id="chief_of_staff")
+
+    return {
+        "content": compiled_content,
+        "agent_id": "chief_of_staff",
+        "handled_by": "비서실장 (전체 브로드캐스트)",
+        "delegation": "비서실장 → 전체 6개 부서",
+        "total_cost_usd": round(total_cost, 6),
+        "time_seconds": round(total_time, 2),
+        "model": "multi-agent",
+        "routing_method": "브로드캐스트",
+    }
+
 
 def _classify_by_keywords(text: str) -> str | None:
     """키워드 기반 빠른 분류. 매칭 실패 시 None 반환."""
@@ -1740,7 +1889,12 @@ def _get_model_override(agent_id: str) -> str | None:
 async def _process_ai_command(text: str, task_id: str) -> dict:
     """CEO 명령을 적합한 에이전트에게 위임하고 AI 결과를 반환합니다.
 
-    흐름: 예산 확인 → 라우팅(분류) → 소울 로드 → 모델 선택 → AI 호출 → DB 저장
+    흐름:
+      예산 확인 → 브로드캐스트 확인 → 라우팅(분류) → 상태 전송
+      → 소울 로드 → 모델 선택 → AI 호출 → 검수 → DB 저장
+
+    브로드캐스트 모드: "전체", "출석체크" 등 → 6개 부서 동시 호출
+    단일 위임 모드: 키워드/AI 분류 → 해당 부서 처장 호출
     """
     # 1) 예산 확인
     limit = float(load_setting("daily_budget_usd") or 7.0)
@@ -1751,35 +1905,53 @@ async def _process_ai_command(text: str, task_id: str) -> dict:
                     success=0)
         return {"error": f"일일 예산을 초과했습니다 (${today:.2f}/${limit:.0f})"}
 
-    # 2) 라우팅 — 적합한 에이전트 결정
+    # 2) 브로드캐스트 명령 확인 → 6개 부서 동시 호출
+    if _is_broadcast_command(text):
+        return await _broadcast_to_managers(text, task_id)
+
+    # 3) 라우팅 — 적합한 에이전트 결정
     routing = await _route_task(text)
     target_id = routing["agent_id"]
     routing_cost = routing.get("cost_usd", 0)
 
-    # 3) 에이전트 소울(성격) 로드
+    # 4) 상태 표시등 전송 — 프론트엔드의 초록불이 깜빡이기 시작
+    await _broadcast_status(target_id, "working", 0.2, "처리 중...")
+    if target_id != "chief_of_staff":
+        target_name_for_status = _AGENT_NAMES.get(target_id, target_id)
+        await _broadcast_status("chief_of_staff", "working", 0.1, f"{target_name_for_status}에게 위임 중...")
+
+    # 5) 에이전트 소울(성격) 로드
     if target_id == "chief_of_staff" and _chief_prompt:
         soul = _chief_prompt  # 캐시된 비서실장 프롬프트 사용
     else:
         soul = _load_agent_prompt(target_id)
 
-    # 4) 모델 결정 (수동: 에이전트별 지정 모델 / 자동: 질문에 따라 선택)
+    # 6) 모델 결정 (수동: 에이전트별 지정 모델 / 자동: 질문에 따라 선택)
     override = _get_model_override(target_id)
     model = select_model(text, override=override)
 
-    # 5) AI 호출
+    # 7) AI 호출
     result = await ask_ai(text, system_prompt=soul, model=model)
 
     if "error" in result:
+        await _broadcast_status(target_id, "done", 1.0, "오류 발생")
+        if target_id != "chief_of_staff":
+            await _broadcast_status("chief_of_staff", "done", 1.0)
         update_task(task_id, status="failed",
                     result_summary=f"AI 오류: {result['error'][:100]}",
                     success=0, agent_id=target_id)
         result["handled_by"] = _AGENT_NAMES.get(target_id, target_id)
         return result
 
-    # 6) 총 비용 = 라우팅 비용 + AI 호출 비용
+    # 8) 상태 완료 전송 — 초록불이 안정 상태로 전환
+    await _broadcast_status(target_id, "done", 1.0, "완료")
+    if target_id != "chief_of_staff":
+        await _broadcast_status("chief_of_staff", "done", 1.0, "위임 완료")
+
+    # 9) 총 비용 = 라우팅 비용 + AI 호출 비용
     total_cost = routing_cost + result.get("cost_usd", 0)
 
-    # 7) DB 업데이트 (에이전트 ID 포함)
+    # 10) DB 업데이트 (에이전트 ID 포함)
     update_task(task_id, status="completed",
                 result_summary=result["content"][:500],
                 result_data=result["content"],
@@ -1789,7 +1961,7 @@ async def _process_ai_command(text: str, task_id: str) -> dict:
                 time_seconds=result.get("time_seconds", 0),
                 agent_id=target_id)
 
-    # 8) 응답에 라우팅 정보 추가 — 비서실장 명령체계 반영
+    # 11) 응답에 라우팅 정보 추가 — 비서실장 명령체계 반영
     target_name = _AGENT_NAMES.get(target_id, target_id)
     if target_id == "chief_of_staff":
         # 비서실장이 직접 처리
