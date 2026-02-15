@@ -410,6 +410,7 @@ async def get_agents() -> list[dict]:
             "role": agent.config.role,
             "division": agent.config.division,
             "model_name": agent.config.model_name,
+            "reasoning_effort": agent.config.reasoning_effort,
             "capabilities": agent.config.capabilities,
             "subordinate_ids": agent.config.subordinate_ids,
             "superior_id": agent.config.superior_id,
