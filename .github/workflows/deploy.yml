@@ -70,8 +70,25 @@ jobs:
             # 5단계: Python 의존성 설치 (PyYAML + 텔레그램 봇)
             echo "📦 Python 패키지 설치 중..."
             sudo apt-get install -y python3-yaml python3-pip 2>/dev/null || echo "⚠️ apt 패키지 설치 실패"
-            # ⚠️ sudo 필수! ubuntu 사용자는 시스템 Python 패키지 폴더에 쓸 권한이 없음
-            sudo python3 -m pip install --break-system-packages python-telegram-bot 2>&1 || echo "⚠️ python-telegram-bot 설치 실패"
+            # 서비스가 사용하는 Python 환경 확인
+            echo "🔍 corthex.service 설정:"
+            cat /etc/systemd/system/corthex.service 2>/dev/null || echo "(서비스 파일 없음)"
+            echo ""
+            echo "🔍 Python/uvicorn 경로:"
+            which python3 && which uvicorn 2>/dev/null || echo "(uvicorn 경로 불명)"
+            # 서비스의 실행 Python에 맞게 설치
+            # systemd 서비스가 venv를 사용하면 그 venv의 pip로 설치해야 함
+            UVICORN_PATH=$(which uvicorn 2>/dev/null)
+            if [ -n "$UVICORN_PATH" ] && echo "$UVICORN_PATH" | grep -q "venv\|virtualenv\|\.local"; then
+              echo "📦 가상환경 감지: $UVICORN_PATH"
+              VENV_PIP=$(dirname "$UVICORN_PATH")/pip
+              if [ -x "$VENV_PIP" ]; then
+                echo "📦 가상환경 pip로 설치: $VENV_PIP"
+                "$VENV_PIP" install python-telegram-bot 2>&1
+              fi
+            fi
+            # 시스템 Python에도 설치 (폴백)
+            sudo python3 -m pip install --break-system-packages python-telegram-bot 2>&1 || echo "⚠️ 시스템 pip 설치 실패"
             # 설치 확인
             python3 -c "import telegram; print(f'✅ python-telegram-bot v{telegram.__version__} 설치됨')" 2>&1 || echo "❌ telegram 모듈 임포트 실패!"
 
