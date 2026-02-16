@@ -605,7 +605,7 @@ def list_archives(division: str = None, limit: int = 100) -> list:
     """아카이브 목록을 조회합니다."""
     conn = get_connection()
     try:
-        query = "SELECT division, filename, created_at, size FROM archives"
+        query = "SELECT division, filename, agent_id, created_at, size FROM archives"
         params = []
         if division and division != "all":
             query += " WHERE division = ?"
