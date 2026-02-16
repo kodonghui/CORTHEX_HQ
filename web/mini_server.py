@@ -5127,38 +5127,47 @@ async def _process_ai_command(text: str, task_id: str) -> dict:
                     success=0)
         return {"error": f"일일 예산을 초과했습니다 (${today:.2f}/${limit:.0f})"}
 
-    # 1.5) 배치 특수 명령 처리
+    # ── 슬래시 명령어 시스템 ──
     text_lower = text.strip().lower()
-    if text_lower in ("/배치실행", "/batch_flush", "배치실행", "배치 실행"):
-        result = await _flush_batch_api_queue()
-        content = f"📦 **배치 실행 결과**\n\n"
-        if "error" in result:
-            content += f"❌ 실패: {result['error']}"
-        elif result.get("batch_id"):
-            content += f"✅ Batch API 제출 완료\n- batch_id: `{result['batch_id']}`\n- 건수: {result.get('count', 0)}건\n- 프로바이더: {result.get('provider', '?')}"
-        else:
-            content += result.get("message", "처리 완료")
+    text_stripped = text.strip()
+
+    # /명령어 또는 /도움말 — 사용 가능한 명령어 목록
+    if text_lower in ("/명령어", "/도움말", "/help", "/commands"):
+        content = (
+            "📋 **사용 가능한 명령어**\n\n"
+            "| 명령어 | 설명 |\n"
+            "|--------|------|\n"
+            "| `/전체 [메시지]` | 29명 에이전트 동시 가동 (브로드캐스트) |\n"
+            "| `/순차 [메시지]` | 에이전트 릴레이 (순서대로 작업) |\n"
+            "| `/도구점검` | 111개 도구 상태 점검 |\n"
+            "| `/배치실행` | 대기 중인 배치 작업 실행 |\n"
+            "| `/배치상태` | 배치 처리 현황 |\n"
+            "| `/명령어` | 이 도움말 |\n\n"
+            "**일반 메시지**는 비서실장이 자동으로 적합한 부서에 위임합니다."
+        )
         update_task(task_id, status="completed", result_summary=content[:500], success=1)
         return {"content": content, "handled_by": "비서실장", "agent_id": "chief_of_staff"}
 
-    if text_lower in ("/배치상태", "/batch_status", "배치상태", "배치 상태"):
-        pending_batches = load_setting("pending_batches") or []
-        active = [b for b in pending_batches if b.get("status") in ("pending", "processing")]
-        queue_count = len(_batch_api_queue)
-        content = f"📦 **배치 상태**\n\n"
-        content += f"- 대기열: {queue_count}건\n"
-        content += f"- 처리 중인 배치: {len(active)}건\n"
-        for b in active:
-            prog = b.get("progress", {})
-            content += f"  - `{b['batch_id'][:20]}...` ({b['provider']}) — {prog.get('completed', '?')}/{prog.get('total', '?')} 완료\n"
-        update_task(task_id, status="completed", result_summary=content[:500], success=1)
-        return {"content": content, "handled_by": "비서실장", "agent_id": "chief_of_staff"}
+    # /전체 [메시지] — 브로드캐스트 (29명 동시 가동)
+    if text_stripped.startswith("/전체"):
+        broadcast_text = text_stripped[len("/전체"):].strip()
+        if not broadcast_text:
+            broadcast_text = "전체 출석 보고"
+        return await _broadcast_to_managers(broadcast_text, task_id)
 
-    # 1.5) "전체 도구 점검" 명령
-    if text_lower in ("전체 도구 점검", "도구 점검", "도구 상태", "/tools_health"):
+    # /순차 [메시지] — 순차 협업 (에이전트 릴레이)
+    if text_stripped.startswith("/순차"):
+        seq_text = text_stripped[len("/순차"):].strip()
+        if not seq_text:
+            content = "⚠️ `/순차` 뒤에 작업 내용을 입력해주세요.\n\n예: `/순차 CORTHEX 웹사이트 기술→보안→사업성 분석`"
+            update_task(task_id, status="completed", result_summary=content[:500], success=1)
+            return {"content": content, "handled_by": "비서실장", "agent_id": "chief_of_staff"}
+        return await _sequential_collaboration(seq_text, task_id)
+
+    # /도구점검 — 도구 건강 점검
+    if text_lower in ("/도구점검", "/도구상태", "/tools_health", "전체 도구 점검", "도구 점검", "도구 상태"):
         import urllib.request as _ur
         try:
-            # 자기 자신의 /api/tools/health API 호출
             req = _ur.Request("http://127.0.0.1:8000/api/tools/health")
             with _ur.urlopen(req, timeout=10) as resp:
                 health = json.loads(resp.read().decode("utf-8"))
@@ -5173,14 +5182,12 @@ async def _process_ai_command(text: str, task_id: str) -> dict:
         content += f"| 미로드 | {health.get('not_loaded', 0)}개 |\n"
         content += f"| ToolPool | {health.get('pool_status', 'unknown')} |\n\n"
 
-        # API 키 미설정 도구 목록
         missing = [t for t in health.get("tools", []) if t.get("status") == "missing_key"]
         if missing:
             content += "### ⚠️ API 키 필요한 도구\n"
             for t in missing[:10]:
                 content += f"- **{t['name']}** (`{t['tool_id']}`) — 환경변수: `{t.get('api_key_env', '?')}`\n"
 
-        # 정상 도구 상위 10개
         ready = [t for t in health.get("tools", []) if t.get("status") == "ready"]
         if ready:
             content += f"\n### ✅ 정상 작동 도구 ({len(ready)}개 중 상위 10개)\n"
@@ -5190,11 +5197,35 @@ async def _process_ai_command(text: str, task_id: str) -> dict:
         update_task(task_id, status="completed", result_summary=content[:500], success=1)
         return {"content": content, "handled_by": "비서실장", "agent_id": "chief_of_staff"}
 
-    # 1.7) 순차 협업 명령 확인 → 에이전트 릴레이 실행
-    if _is_sequential_command(text):
-        return await _sequential_collaboration(text, task_id)
+    # /배치실행 — 배치 작업 실행
+    if text_lower in ("/배치실행", "/batch_flush", "배치실행", "배치 실행"):
+        result = await _flush_batch_api_queue()
+        content = f"📦 **배치 실행 결과**\n\n"
+        if "error" in result:
+            content += f"❌ 실패: {result['error']}"
+        elif result.get("batch_id"):
+            content += f"✅ Batch API 제출 완료\n- batch_id: `{result['batch_id']}`\n- 건수: {result.get('count', 0)}건\n- 프로바이더: {result.get('provider', '?')}"
+        else:
+            content += result.get("message", "처리 완료")
+        update_task(task_id, status="completed", result_summary=content[:500], success=1)
+        return {"content": content, "handled_by": "비서실장", "agent_id": "chief_of_staff"}
 
-    # 2) 브로드캐스트 명령 확인 → 29명 동시 가동
+    # /배치상태 — 배치 현황
+    if text_lower in ("/배치상태", "/batch_status", "배치상태", "배치 상태"):
+        pending_batches = load_setting("pending_batches") or []
+        active = [b for b in pending_batches if b.get("status") in ("pending", "processing")]
+        queue_count = len(_batch_api_queue)
+        content = f"📦 **배치 상태**\n\n"
+        content += f"- 대기열: {queue_count}건\n"
+        content += f"- 처리 중인 배치: {len(active)}건\n"
+        for b in active:
+            prog = b.get("progress", {})
+            content += f"  - `{b['batch_id'][:20]}...` ({b['provider']}) — {prog.get('completed', '?')}/{prog.get('total', '?')} 완료\n"
+        update_task(task_id, status="completed", result_summary=content[:500], success=1)
+        return {"content": content, "handled_by": "비서실장", "agent_id": "chief_of_staff"}
+
+    # ── 슬래시 명령어 이외: 키워드 기반 브로드캐스트 (기존 호환) ──
+    # "전체", "출석체크" 등의 키워드는 계속 작동 (자주 쓰는 기능이므로)
     if _is_broadcast_command(text):
         return await _broadcast_to_managers(text, task_id)
 
