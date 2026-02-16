@@ -667,10 +667,18 @@ async def get_performance():
                     "total_tokens": 0,
                 })
 
+        # agent_calls 테이블에서도 통계 가져오기
+        try:
+            from db import get_agent_performance
+            agent_perf = get_agent_performance()
+        except Exception:
+            agent_perf = []
+
         return {
             "agents": agents_perf,
             "total_llm_calls": total_llm_calls,
             "total_cost_usd": round(total_cost, 6),
+            "agent_calls": agent_perf,
         }
     except Exception as e:
         logger.error("성능 통계 조회 실패: %s", e)
@@ -682,6 +690,7 @@ async def get_performance():
                        for a in AGENTS],
             "total_llm_calls": 0,
             "total_cost_usd": 0,
+            "agent_calls": [],
         }
     finally:
         conn.close()
@@ -1407,7 +1416,7 @@ async def _start_batch_chain(text: str, task_id: str) -> dict:
 
         await _broadcast_chain_status(chain, "📦 배치 체인 시작 (브로드캐스트: 6개 부서)")
         await _chain_submit_specialists_broadcast(chain)
-        return {"chain_id": chain_id, "status": "started", "mode": "broadcast"}
+        return {"chain_id": chain_id, "status": "started", "mode": "broadcast", "step": chain["step"]}
 
     # ── 키워드 분류 시도 (무료, 즉시) ──
     keyword_match = _classify_by_keywords(text)
@@ -4401,6 +4410,21 @@ async def _call_agent(agent_id: str, text: str) -> dict:
 
     result = await ask_ai(text, system_prompt=soul, model=model,
                           tools=tool_schemas, tool_executor=tool_executor_fn)
+
+    # agent_calls 테이블에 AI 호출 기록 저장
+    try:
+        from db import save_agent_call
+        save_agent_call(
+            agent_id=agent_id,
+            model=result.get("model", "") if isinstance(result, dict) else "",
+            provider=result.get("provider", "") if isinstance(result, dict) else "",
+            cost_usd=result.get("cost_usd", 0) if isinstance(result, dict) else 0,
+            input_tokens=result.get("input_tokens", 0) if isinstance(result, dict) else 0,
+            output_tokens=result.get("output_tokens", 0) if isinstance(result, dict) else 0,
+            time_seconds=result.get("time_seconds", 0) if isinstance(result, dict) else 0,
+        )
+    except Exception as e:
+        _log(f"[AGENT_CALL] 기록 실패: {e}")
 
     if "error" in result:
         await _broadcast_status(agent_id, "done", 1.0, "오류 발생")
