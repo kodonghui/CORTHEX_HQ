@@ -2866,6 +2866,17 @@ async def get_trading_signals():
     return _load_data("trading_signals", [])
 
 
+@app.delete("/api/trading/signals/{signal_id}")
+async def delete_trading_signal(signal_id: str):
+    """개별 매매 시그널 삭제."""
+    signals = _load_data("trading_signals", [])
+    new_signals = [s for s in signals if s.get("id") != signal_id]
+    if len(new_signals) == len(signals):
+        return {"success": False, "error": "시그널을 찾을 수 없습니다"}
+    _save_data("trading_signals", new_signals)
+    return {"success": True}
+
+
 @app.post("/api/trading/signals/generate")
 async def generate_trading_signals():
     """CIO(투자분석처장) + 4명 전문가가 관심종목을 분석 → 매매 시그널 생성.
