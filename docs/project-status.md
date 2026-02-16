@@ -9,10 +9,10 @@
 ## 마지막 업데이트
 
 - **날짜**: 2026-02-16
-- **버전**: `1.00.000`
+- **버전**: `1.01.000`
 - **작업 브랜치**: claude/fix-multi-provider-ai-chat
-- **작업 내용**: v1.0 — ARM 24GB 서버 이전 + 배치 체인 + 방화벽 설정 + 61개 도구 로드
-- **빌드 번호**: #145+
+- **작업 내용**: 비서실장 종합 보고서 시스템 + Gemini Batch API 개선
+- **빌드 번호**: #146
 
 ---
 
@@ -81,6 +81,8 @@
 44. **AI 도구 자동호출 (Function Calling)** (2026-02-16) - 111개 도구를 AI가 스스로 호출 가능. Claude(tool_use), GPT(tool_calls), Gemini(function_call) 3개 프로바이더 지원. 에이전트별 허용 도구 제한(CIO→투자도구, CTO→기술도구). 최대 5회 도구 호출 루프
 45. **AI Batch API 시스템** (2026-02-16) - Anthropic/OpenAI/Gemini 3사 모두 진짜 Batch API 사용. Anthropic(Message Batches), OpenAI(Batch JSONL), Gemini(client.batches.create). 실시간 대비 ~50% 비용 절감. PENDING 추적(SQLite DB), 60초 간격 자동 폴러로 결과 수집, 완료 시 에이전트 자동 위임+아카이브 저장+WebSocket 실시간 알림
 46. **배치 체인 오케스트레이터** (2026-02-16) - 위임 체인 전체(분류→전문가→종합→전달)를 Batch API로 처리. 프로바이더별 자동 그룹화(Claude/GPT/Gemini 각각의 배치로 분리). CIO 종합보고서 작성 단계 포함. 6개 부서 동시 브로드캐스트 지원. SQLite에 체인 상태 저장, 60초 폴러로 자동 진행
+47. **비서실장 종합 보고서 시스템** (2026-02-16) - 브로드캐스트 시 비서실장이 6개 처장+보좌관 3명의 보고를 종합하여 CEO용 보고서 작성. 구조: 핵심요약(1~2문장) → 부서별 한줄요약(표) → CEO 결재/결정 체크리스트 → 특이사항/리스크 → 보좌관 보고. 사령실/텔레그램에는 종합 보고서만 표시, 상세 보고서는 기밀문서 탭에서 확인. 비서실 보좌관 3명(총괄/전략/소통)도 브로드캐스트 대상에 포함
+48. **Gemini Batch API 개선** (2026-02-16) - Gemini 배치 요청에 generationConfig 추가(temperature: 0.3, max_output_tokens: 4096). CEO 제공 Google Apps Script 코드 참고하여 누락된 설정 보완
 
 ---
 
