@@ -22,6 +22,7 @@ jobs:
         uses: appleboy/ssh-action@v1
         env:
           BUILD_NUMBER: ${{ github.run_number }}
+          SERVER_IP: ${{ secrets.SERVER_IP }}
           TG_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TG_CEO_CHAT_ID: ${{ secrets.TELEGRAM_CEO_CHAT_ID }}
           ANTHROPIC_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -32,9 +33,65 @@ jobs:
           host: ${{ secrets.SERVER_IP }}
           username: ubuntu
           key: ${{ secrets.SERVER_SSH_KEY }}
-          envs: BUILD_NUMBER,TG_BOT_TOKEN,TG_CEO_CHAT_ID,ANTHROPIC_KEY,OPENAI_KEY,GOOGLE_KEY,NOTION_KEY
+          envs: BUILD_NUMBER,SERVER_IP,TG_BOT_TOKEN,TG_CEO_CHAT_ID,ANTHROPIC_KEY,OPENAI_KEY,GOOGLE_KEY,NOTION_KEY
           script: |
             echo "🚀 배포 시작... (빌드 #${BUILD_NUMBER})"
+
+            # 0단계: 새 서버 초기 설정 (처음 한 번만 실행)
+            if [ ! -f /home/ubuntu/venv/bin/python ]; then
+              echo "🔧 새 서버 초기 설정 중..."
+              sudo apt-get update -y
+              sudo apt-get install -y python3-venv python3-pip nginx
+              python3 -m venv /home/ubuntu/venv
+              /home/ubuntu/venv/bin/pip install uvicorn fastapi httpx aiofiles
+              # corthex.service 생성
+              sudo tee /etc/systemd/system/corthex.service > /dev/null <<SVCEOF
+            [Unit]
+            Description=CORTHEX HQ Mini Server
+            After=network.target
+
+            [Service]
+            Type=simple
+            User=ubuntu
+            WorkingDirectory=/home/ubuntu/CORTHEX_HQ/web
+            ExecStart=/home/ubuntu/venv/bin/uvicorn mini_server:app --host 0.0.0.0 --port 8000
+            EnvironmentFile=/home/ubuntu/corthex.env
+            Restart=always
+            RestartSec=5
+
+            [Install]
+            WantedBy=multi-user.target
+            SVCEOF
+              sudo systemctl daemon-reload
+              sudo systemctl enable corthex
+              # nginx 기본 설정
+              sudo tee /etc/nginx/sites-available/default > /dev/null <<NGXEOF
+            server {
+                listen 80 default_server;
+                root /var/www/html;
+                index index.html;
+                location / {
+                    try_files \$uri \$uri/ =404;
+                    add_header Cache-Control "no-cache, no-store, must-revalidate";
+                    add_header Pragma "no-cache";
+                    add_header Expires "0";
+                }
+                location /api/ {
+                    proxy_pass http://127.0.0.1:8000;
+                    proxy_http_version 1.1;
+                    proxy_set_header Upgrade \$http_upgrade;
+                    proxy_set_header Connection "upgrade";
+                    proxy_set_header Host \$host;
+                    proxy_read_timeout 300s;
+                }
+            }
+            NGXEOF
+              sudo nginx -t && sudo systemctl restart nginx
+              sudo mkdir -p /var/www/html
+              # corthex.env 파일 생성 (없으면)
+              touch /home/ubuntu/corthex.env
+              echo "✅ 새 서버 초기 설정 완료"
+            fi
 
             # 1단계: GitHub에서 최신 코드 가져오기
             cd /home/ubuntu
@@ -176,4 +233,4 @@ jobs:
               sudo nginx -t 2>/dev/null && sudo systemctl reload nginx 2>/dev/null || echo "⚠️ nginx 리로드 건너뜀"
             fi
 
-            echo "🎉 배포 성공! http://168.107.28.100 에서 확인 가능 (빌드 #${BUILD_NUMBER})"
+            echo "🎉 배포 성공! http://${SERVER_IP} 에서 확인 가능 (빌드 #${BUILD_NUMBER})"

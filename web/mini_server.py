@@ -30,7 +30,11 @@ from db import (
     set_task_tags, mark_task_read, bulk_mark_read,
 )
 try:
-    from ai_handler import init_ai_client, is_ai_ready, ask_ai, select_model, classify_task, get_available_providers
+    from ai_handler import (
+        init_ai_client, is_ai_ready, ask_ai, select_model,
+        classify_task, get_available_providers,
+        _load_tool_schemas,  # 도구 스키마 로딩 (function calling용)
+    )
 except ImportError:
     def init_ai_client(): return False
     def is_ai_ready(): return False
@@ -38,6 +42,7 @@ except ImportError:
     def select_model(t, override=None): return override or "claude-haiku-4-5-20251001"
     async def classify_task(t): return {"agent_id": "chief_of_staff", "reason": "ai_handler 미설치", "cost_usd": 0}
     def get_available_providers(): return {"anthropic": False, "google": False, "openai": False}
+    def _load_tool_schemas(allowed_tools=None): return {}
 
 # Python 출력 버퍼링 비활성화 (systemd에서 로그가 바로 보이도록)
 os.environ["PYTHONUNBUFFERED"] = "1"
@@ -3090,7 +3095,7 @@ async def _broadcast_status(agent_id: str, status: str, progress: float, detail:
 
 
 async def _call_agent(agent_id: str, text: str) -> dict:
-    """단일 에이전트에게 AI 호출을 수행합니다 (상태 이벤트 + 활동 로그 포함)."""
+    """단일 에이전트에게 AI 호출을 수행합니다 (상태 이벤트 + 활동 로그 + 도구 자동호출 포함)."""
     agent_name = _AGENT_NAMES.get(agent_id, _SPECIALIST_NAMES.get(agent_id, agent_id))
     await _broadcast_status(agent_id, "working", 0.2, f"{agent_name} 분석 중...")
 
@@ -3106,7 +3111,35 @@ async def _call_agent(agent_id: str, text: str) -> dict:
     override = _get_model_override(agent_id)
     model = select_model(text, override=override)
 
-    result = await ask_ai(text, system_prompt=soul, model=model)
+    # ── 도구 자동호출 (Function Calling) ──
+    # 에이전트별 허용 도구 목록으로 스키마를 로드하고, 도구 실행 함수를 전달
+    tool_schemas = None
+    tool_executor_fn = None
+    detail = _AGENTS_DETAIL.get(agent_id, {})
+    allowed = detail.get("allowed_tools", [])
+    if allowed:
+        schemas = _load_tool_schemas(allowed_tools=allowed)
+        if schemas.get("anthropic"):
+            tool_schemas = schemas["anthropic"]  # ask_ai 내부에서 프로바이더별 변환
+
+            async def _tool_executor(tool_name: str, tool_input: dict):
+                """ToolPool을 통해 도구를 실행합니다."""
+                pool = _init_tool_pool()
+                if pool and hasattr(pool, '_tools') and tool_name in pool._tools:
+                    await _broadcast_status(agent_id, "working", 0.5, f"🔧 {tool_name} 도구 실행 중...")
+                    tool_obj = pool._tools[tool_name]
+                    # 도구의 execute 메서드 호출
+                    if asyncio.iscoroutinefunction(getattr(tool_obj, 'execute', None)):
+                        return await tool_obj.execute(**tool_input)
+                    elif hasattr(tool_obj, 'execute'):
+                        return await asyncio.to_thread(tool_obj.execute, **tool_input)
+                # ToolPool에 없으면 단순 설명 반환
+                return f"도구 '{tool_name}'을(를) 찾을 수 없습니다."
+
+            tool_executor_fn = _tool_executor
+
+    result = await ask_ai(text, system_prompt=soul, model=model,
+                          tools=tool_schemas, tool_executor=tool_executor_fn)
 
     if "error" in result:
         await _broadcast_status(agent_id, "done", 1.0, "오류 발생")
