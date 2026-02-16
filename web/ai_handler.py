@@ -13,6 +13,8 @@ import json
 import os
 import time
 import logging
+import asyncio
+from pathlib import Path
 
 logger = logging.getLogger("corthex.ai")
 
@@ -86,6 +88,128 @@ CEO의 명령을 읽고 어느 부서가 처리해야 하는지 판단하세요.
 ## 출력 형식
 반드시 아래 JSON 형식으로만 답하세요. 다른 텍스트는 쓰지 마세요.
 {"agent_id": "부서ID", "reason": "한줄 이유"}"""
+
+
+# ── 도구 스키마 로딩 & 변환 ──
+
+# 프로젝트 루트 경로 (config/ 폴더가 있는 곳)
+_PROJECT_ROOT = Path(__file__).resolve().parent.parent
+
+
+def _build_tool_schemas(tool_configs: list, allowed_tools: list | None = None) -> list:
+    """tools.yaml의 도구 정의를 Anthropic tool_use 포맷으로 변환합니다.
+
+    tools.yaml의 도구는 파라미터(입력값) 정의가 없으므로,
+    범용적인 'query' (질문/명령) 파라미터를 기본으로 넣어줍니다.
+
+    반환 예시:
+    [
+        {
+            "name": "web_search",
+            "description": "실시간 웹 검색 및 정보 수집",
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "query": {"type": "string", "description": "도구에 전달할 질문 또는 명령"}
+                },
+                "required": ["query"]
+            }
+        },
+        ...
+    ]
+    """
+    schemas = []
+    for tool in tool_configs:
+        tool_id = tool.get("tool_id", "")
+        if not tool_id:
+            continue
+        if allowed_tools and tool_id not in allowed_tools:
+            continue
+
+        # 도구에 parameters가 정의되어 있으면 사용, 없으면 기본 query 파라미터
+        params = tool.get("parameters")
+        if not params:
+            params = {
+                "type": "object",
+                "properties": {
+                    "query": {
+                        "type": "string",
+                        "description": "도구에 전달할 질문 또는 명령",
+                    }
+                },
+                "required": ["query"],
+            }
+
+        schema = {
+            "name": tool_id,
+            "description": tool.get("description", tool.get("name_ko", tool_id)),
+            "input_schema": params,
+        }
+        schemas.append(schema)
+    return schemas
+
+
+def _load_tool_schemas(allowed_tools: list | None = None) -> dict:
+    """config/tools.yaml (또는 tools.json)에서 도구 정의를 읽어서
+    프로바이더별 포맷으로 변환합니다.
+
+    반환: {
+        "anthropic": [Anthropic tool 포맷 리스트],
+        "openai":    [OpenAI function calling 포맷 리스트],
+        "google":    [Google Gemini 포맷용 원본 리스트],
+    }
+
+    파일을 읽지 못하면 빈 dict를 반환합니다.
+    """
+    # 1) tools.json 우선 시도 (서버에는 yaml2json.py가 미리 변환해둠)
+    json_path = _PROJECT_ROOT / "config" / "tools.json"
+    yaml_path = _PROJECT_ROOT / "config" / "tools.yaml"
+    tool_configs = []
+
+    if json_path.exists():
+        try:
+            with open(json_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            tool_configs = data.get("tools", [])
+        except Exception as e:
+            logger.warning("tools.json 읽기 실패: %s", e)
+
+    if not tool_configs and yaml_path.exists():
+        try:
+            import yaml
+            with open(yaml_path, "r", encoding="utf-8") as f:
+                data = yaml.safe_load(f)
+            tool_configs = data.get("tools", [])
+        except ImportError:
+            logger.warning("PyYAML 미설치 — tools.yaml을 읽을 수 없습니다")
+        except Exception as e:
+            logger.warning("tools.yaml 읽기 실패: %s", e)
+
+    if not tool_configs:
+        logger.warning("도구 설정을 로드하지 못했습니다 (tools.json/yaml 모두 실패)")
+        return {}
+
+    # 2) Anthropic 포맷으로 빌드 (기준 포맷)
+    anthropic_schemas = _build_tool_schemas(tool_configs, allowed_tools)
+
+    # 3) OpenAI 포맷으로 변환
+    openai_schemas = []
+    for t in anthropic_schemas:
+        openai_schemas.append({
+            "type": "function",
+            "function": {
+                "name": t["name"],
+                "description": t.get("description", ""),
+                "parameters": t.get("input_schema", {"type": "object", "properties": {}}),
+            },
+        })
+
+    # 4) Google (Gemini) 포맷은 API 호출 시 직접 변환하므로 원본(Anthropic 포맷)을 그대로 전달
+    return {
+        "anthropic": anthropic_schemas,
+        "openai": openai_schemas,
+        "google": anthropic_schemas,  # _call_google_with_tools 내부에서 Gemini 포맷으로 변환
+    }
 
 
 def _get_provider(model: str) -> str:
@@ -255,8 +379,18 @@ async def classify_task(text: str) -> dict:
 
 # ── 프로바이더별 API 호출 ──
 
-async def _call_anthropic(user_message: str, system_prompt: str, model: str) -> dict:
-    """Anthropic (Claude) API 호출."""
+async def _call_anthropic(
+    user_message: str,
+    system_prompt: str,
+    model: str,
+    tools: list | None = None,
+    tool_executor: callable | None = None,
+) -> dict:
+    """Anthropic (Claude) API 호출.
+
+    tools가 주어지면 tool_use 블록을 처리하는 루프를 실행합니다.
+    tool_executor는 async 함수로, (tool_name, tool_input) -> result를 반환해야 합니다.
+    """
     messages = [{"role": "user", "content": user_message}]
     kwargs = {"model": model, "max_tokens": 4096, "messages": messages}
     if system_prompt:
@@ -266,75 +400,264 @@ async def _call_anthropic(user_message: str, system_prompt: str, model: str) -> 
     else:
         kwargs["temperature"] = 0.3
 
+    # 도구 스키마가 있으면 API에 포함
+    if tools:
+        kwargs["tools"] = tools
+
     resp = await _anthropic_client.messages.create(**kwargs)
 
-    content = ""
-    for block in resp.content:
-        if block.type == "text":
-            content = block.text
-            break
+    total_input_tokens = resp.usage.input_tokens
+    total_output_tokens = resp.usage.output_tokens
+
+    # tool_use 블록 처리 루프 (최대 5회 반복)
+    if tools and tool_executor:
+        for _ in range(5):
+            tool_calls = [b for b in resp.content if b.type == "tool_use"]
+            if not tool_calls:
+                break
+
+            # 도구 실행
+            tool_results = []
+            for tc in tool_calls:
+                try:
+                    result = await tool_executor(tc.name, tc.input)
+                    tool_results.append({
+                        "type": "tool_result",
+                        "tool_use_id": tc.id,
+                        "content": str(result)[:4000],
+                    })
+                except Exception as e:
+                    logger.warning("도구 실행 실패 (%s): %s", tc.name, e)
+                    tool_results.append({
+                        "type": "tool_result",
+                        "tool_use_id": tc.id,
+                        "content": f"오류: {e}",
+                        "is_error": True,
+                    })
+
+            # 어시스턴트 응답을 대화에 추가 (모든 블록을 직렬화)
+            assistant_content = []
+            for b in resp.content:
+                if b.type == "text":
+                    assistant_content.append({"type": "text", "text": b.text})
+                elif b.type == "tool_use":
+                    assistant_content.append({
+                        "type": "tool_use",
+                        "id": b.id,
+                        "name": b.name,
+                        "input": b.input,
+                    })
+            messages.append({"role": "assistant", "content": assistant_content})
+            messages.append({"role": "user", "content": tool_results})
+
+            # 다시 AI 호출
+            kwargs["messages"] = messages
+            resp = await _anthropic_client.messages.create(**kwargs)
+            total_input_tokens += resp.usage.input_tokens
+            total_output_tokens += resp.usage.output_tokens
+
+    # 최종 텍스트 응답 추출
+    text_blocks = [b.text for b in resp.content if b.type == "text"]
+    content = "\n".join(text_blocks) if text_blocks else ""
 
     return {
         "content": content,
-        "input_tokens": resp.usage.input_tokens,
-        "output_tokens": resp.usage.output_tokens,
+        "input_tokens": total_input_tokens,
+        "output_tokens": total_output_tokens,
     }
 
 
-async def _call_google(user_message: str, system_prompt: str, model: str) -> dict:
-    """Google Gemini API 호출 (google-genai SDK 사용)."""
-    import asyncio
+async def _call_google(
+    user_message: str,
+    system_prompt: str,
+    model: str,
+    tools: list | None = None,
+    tool_executor: callable | None = None,
+) -> dict:
+    """Google Gemini API 호출 (google-genai SDK 사용).
 
+    tools가 주어지면 function calling을 처리합니다.
+    tools는 Anthropic 포맷 리스트이며, 내부에서 Gemini 포맷으로 변환합니다.
+    """
     config = {"max_output_tokens": 4096, "temperature": 0.3}
     if system_prompt:
         config["system_instruction"] = system_prompt
 
+    # Gemini function calling용 도구 변환
+    gemini_tools = None
+    if tools and _google_available:
+        try:
+            from google.genai import types
+            func_declarations = []
+            for t in tools:
+                params = t.get("input_schema", {"type": "object", "properties": {}})
+                func_declarations.append(
+                    types.FunctionDeclaration(
+                        name=t["name"],
+                        description=t.get("description", ""),
+                        parameters=params,
+                    )
+                )
+            gemini_tools = [types.Tool(function_declarations=func_declarations)]
+        except Exception as e:
+            logger.warning("Gemini 도구 스키마 변환 실패: %s", e)
+
+    total_input_tokens = 0
+    total_output_tokens = 0
+
     # google-genai SDK는 동기 API → asyncio.to_thread로 비동기 실행
-    def _sync_call():
-        response = _google_client.models.generate_content(
-            model=model,
-            contents=user_message,
-            config=config,
-        )
+    def _sync_call(contents, cfg, g_tools=None):
+        call_kwargs = {"model": model, "contents": contents, "config": cfg}
+        if g_tools:
+            call_kwargs["config"]["tools"] = g_tools
+        response = _google_client.models.generate_content(**call_kwargs)
         return response
 
-    resp = await asyncio.to_thread(_sync_call)
+    resp = await asyncio.to_thread(_sync_call, user_message, config.copy(), gemini_tools)
 
-    content = resp.text or ""
-    # 토큰 사용량 추출
     usage = getattr(resp, "usage_metadata", None)
-    input_tokens = getattr(usage, "prompt_token_count", 0) if usage else 0
-    output_tokens = getattr(usage, "candidates_token_count", 0) if usage else 0
+    total_input_tokens += getattr(usage, "prompt_token_count", 0) if usage else 0
+    total_output_tokens += getattr(usage, "candidates_token_count", 0) if usage else 0
+
+    # function call 처리 루프 (최대 5회)
+    if gemini_tools and tool_executor:
+        for _ in range(5):
+            # Gemini 응답에서 function_call 파트 추출
+            func_calls = []
+            if resp.candidates and resp.candidates[0].content and resp.candidates[0].content.parts:
+                for part in resp.candidates[0].content.parts:
+                    fc = getattr(part, "function_call", None)
+                    if fc:
+                        func_calls.append(fc)
+
+            if not func_calls:
+                break
+
+            # 도구 실행 및 결과 수집
+            from google.genai import types
+            func_responses = []
+            for fc in func_calls:
+                try:
+                    args = dict(fc.args) if fc.args else {}
+                    result = await tool_executor(fc.name, args)
+                    func_responses.append(
+                        types.FunctionResponse(
+                            name=fc.name,
+                            response={"result": str(result)[:4000]},
+                        )
+                    )
+                except Exception as e:
+                    logger.warning("도구 실행 실패 (%s): %s", fc.name, e)
+                    func_responses.append(
+                        types.FunctionResponse(
+                            name=fc.name,
+                            response={"error": str(e)},
+                        )
+                    )
+
+            # 대화를 이어서 재호출 (function_response를 포함)
+            contents = [
+                user_message,
+                resp.candidates[0].content,
+                types.Content(parts=[types.Part(function_response=fr) for fr in func_responses]),
+            ]
+
+            def _sync_followup(c, cfg, g_tools=None):
+                call_kwargs = {"model": model, "contents": c, "config": cfg}
+                if g_tools:
+                    call_kwargs["config"]["tools"] = g_tools
+                return _google_client.models.generate_content(**call_kwargs)
+
+            resp = await asyncio.to_thread(_sync_followup, contents, config.copy(), gemini_tools)
+            usage = getattr(resp, "usage_metadata", None)
+            total_input_tokens += getattr(usage, "prompt_token_count", 0) if usage else 0
+            total_output_tokens += getattr(usage, "candidates_token_count", 0) if usage else 0
+
+    # 최종 텍스트 추출
+    content = ""
+    if resp.candidates and resp.candidates[0].content and resp.candidates[0].content.parts:
+        text_parts = []
+        for part in resp.candidates[0].content.parts:
+            if hasattr(part, "text") and part.text:
+                text_parts.append(part.text)
+        content = "\n".join(text_parts)
+    if not content:
+        content = getattr(resp, "text", "") or ""
 
     return {
         "content": content,
-        "input_tokens": input_tokens,
-        "output_tokens": output_tokens,
+        "input_tokens": total_input_tokens,
+        "output_tokens": total_output_tokens,
     }
 
 
-async def _call_openai(user_message: str, system_prompt: str, model: str) -> dict:
-    """OpenAI (GPT) API 호출."""
+async def _call_openai(
+    user_message: str,
+    system_prompt: str,
+    model: str,
+    tools: list | None = None,
+    tool_executor: callable | None = None,
+) -> dict:
+    """OpenAI (GPT) API 호출.
+
+    tools가 주어지면 function calling을 처리합니다.
+    tools는 OpenAI 포맷 리스트 ({"type": "function", "function": {...}}).
+    """
     messages = []
     if system_prompt:
         messages.append({"role": "system", "content": system_prompt})
     messages.append({"role": "user", "content": user_message})
 
-    resp = await _openai_client.chat.completions.create(
-        model=model,
-        messages=messages,
-        max_tokens=4096,
-        temperature=0.3,
-    )
+    kwargs = {"model": model, "messages": messages, "max_tokens": 4096, "temperature": 0.3}
+    if tools:
+        kwargs["tools"] = tools
+
+    resp = await _openai_client.chat.completions.create(**kwargs)
+
+    total_input_tokens = resp.usage.prompt_tokens if resp.usage else 0
+    total_output_tokens = resp.usage.completion_tokens if resp.usage else 0
+
+    # tool_calls 처리 루프 (최대 5회)
+    if tools and tool_executor:
+        for _ in range(5):
+            msg = resp.choices[0].message
+            if not msg.tool_calls:
+                break
+
+            # 어시스턴트 메시지를 대화에 추가
+            messages.append(msg)
+
+            # 각 도구 호출 실행
+            for tc in msg.tool_calls:
+                try:
+                    args = json.loads(tc.function.arguments) if tc.function.arguments else {}
+                    result = await tool_executor(tc.function.name, args)
+                    messages.append({
+                        "role": "tool",
+                        "tool_call_id": tc.id,
+                        "content": str(result)[:4000],
+                    })
+                except Exception as e:
+                    logger.warning("도구 실행 실패 (%s): %s", tc.function.name, e)
+                    messages.append({
+                        "role": "tool",
+                        "tool_call_id": tc.id,
+                        "content": f"오류: {e}",
+                    })
+
+            # 다시 AI 호출
+            kwargs["messages"] = messages
+            resp = await _openai_client.chat.completions.create(**kwargs)
+            if resp.usage:
+                total_input_tokens += resp.usage.prompt_tokens
+                total_output_tokens += resp.usage.completion_tokens
 
     content = resp.choices[0].message.content or ""
-    input_tokens = resp.usage.prompt_tokens if resp.usage else 0
-    output_tokens = resp.usage.completion_tokens if resp.usage else 0
 
     return {
         "content": content,
-        "input_tokens": input_tokens,
-        "output_tokens": output_tokens,
+        "input_tokens": total_input_tokens,
+        "output_tokens": total_output_tokens,
     }
 
 
@@ -342,8 +665,22 @@ async def ask_ai(
     user_message: str,
     system_prompt: str = "",
     model: str | None = None,
+    tools: list | None = None,
+    tool_executor: callable | None = None,
 ) -> dict:
     """AI에게 질문합니다 (프로바이더 자동 판별).
+
+    Args:
+        user_message: 사용자 메시지 (질문/명령)
+        system_prompt: 시스템 프롬프트 (AI의 역할/맥락 설정)
+        model: 사용할 AI 모델명 (None이면 자동 선택)
+        tools: 도구 스키마 리스트 (Anthropic 포맷 기준).
+            _load_tool_schemas()["anthropic"] 또는 _build_tool_schemas()의 반환값을 전달.
+            프로바이더별 변환은 내부에서 자동 처리됩니다.
+            None이면 도구 없이 기존과 동일하게 텍스트만 반환합니다.
+        tool_executor: 도구 실행 함수 (async callable).
+            시그니처: async def executor(tool_name: str, tool_input: dict) -> Any
+            예: ToolPool.invoke를 래핑한 함수
 
     반환: {"content", "model", "input_tokens", "output_tokens", "cost_usd", "time_seconds"}
     AI 불가 시: {"error": "사유"}
@@ -367,14 +704,45 @@ async def ask_ai(
         else:
             return {"error": f"{provider} API 키가 설정되지 않았습니다"}
 
+    # 프로바이더별 도구 스키마 변환
+    provider_tools = None
+    if tools and tool_executor:
+        if provider == "anthropic":
+            # Anthropic 포맷은 그대로 사용
+            provider_tools = tools
+        elif provider == "openai":
+            # OpenAI function calling 포맷으로 변환
+            provider_tools = []
+            for t in tools:
+                provider_tools.append({
+                    "type": "function",
+                    "function": {
+                        "name": t["name"],
+                        "description": t.get("description", ""),
+                        "parameters": t.get("input_schema", {"type": "object", "properties": {}}),
+                    },
+                })
+        elif provider == "google":
+            # Google Gemini 포맷은 _call_google 내부에서 변환
+            provider_tools = tools
+
     start = time.time()
     try:
         if provider == "anthropic":
-            result = await _call_anthropic(user_message, system_prompt, model)
+            result = await _call_anthropic(
+                user_message, system_prompt, model,
+                tools=provider_tools, tool_executor=tool_executor,
+            )
         elif provider == "google":
-            result = await _call_google(user_message, system_prompt, model)
+            result = await _call_google(
+                user_message, system_prompt, model,
+                tools=provider_tools, tool_executor=tool_executor,
+            )
         elif provider == "openai":
-            result = await _call_openai(user_message, system_prompt, model)
+            result = await _call_openai(
+                user_message, system_prompt, model,
+                tools=provider_tools, tool_executor=tool_executor,
+            )
         else:
             return {"error": f"알 수 없는 프로바이더: {provider}"}
     except Exception as e:
