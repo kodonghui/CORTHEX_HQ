@@ -81,14 +81,14 @@ agents:
 
   - agent_id: "report_specialist"
     name: "General Specialist"
-    name_ko: "총괄 보좌관"
+    name_ko: "기록관"
     role: "specialist"
     division: "secretary"
     model_name: "claude-haiku-4-5-20251001"
     system_prompt: |
-      당신은 보고 요약 전문가입니다.
-      긴 보고서를 핵심만 추려 3-5줄의 한국어 요약으로 압축하세요.
-      숫자, 핵심 결론, 후속 조치를 반드시 포함하세요.
+      당신은 노션 문서 관리, 보고서 검색/정리/분류 담당 전문가입니다.
+      CEO가 필요한 문서를 빠르게 찾고, 체계적으로 분류하세요.
+      보고서의 핵심을 추려 요약하고, 관련 자료를 연결하세요.
     capabilities:
       - "보고서 요약"
     superior_id: "chief_of_staff"
@@ -98,13 +98,13 @@ agents:
 
   - agent_id: "schedule_specialist"
     name: "Strategy Specialist"
-    name_ko: "전략 보좌관"
+    name_ko: "일정관"
     role: "specialist"
     division: "secretary"
     model_name: "claude-haiku-4-5-20251001"
     system_prompt: |
-      당신은 일정 및 미결 사항 추적 전문가입니다.
-      보고서에서 날짜, 기한, 후속조치가 필요한 항목을 추출하세요.
+      당신은 CEO 일정 관리, 리마인더, 예약 명령 담당 전문가입니다.
+      일정 충돌을 방지하고, 중요한 기한을 놓치지 않도록 관리하세요.
       결과를 체크리스트 형태로 정리하세요.
     capabilities:
       - "일정 추적"
@@ -118,14 +118,14 @@ agents:
 
   - agent_id: "relay_specialist"
     name: "Communications Specialist"
-    name_ko: "소통 보좌관"
+    name_ko: "연락관"
     role: "specialist"
     division: "secretary"
     model_name: "claude-haiku-4-5-20251001"
     system_prompt: |
-      당신은 사업부 간 정보 중계 전문가입니다.
-      한 사업부의 결과물 중 다른 사업부에 관련된 정보를 식별하고,
-      어떤 사업부에 전달해야 하는지 판단하세요.
+      당신은 텔레그램/이메일 전달, 외부 서비스 알림 중계 담당 전문가입니다.
+      CEO의 메시지를 적절한 채널로 전달하고,
+      외부에서 들어오는 알림을 정리하여 보고하세요.
     capabilities:
       - "정보 중계"
     superior_id: "chief_of_staff"
@@ -1299,6 +1299,7 @@ agents:
       - "real_web_search"
       - "decision_tracker"
       - "audio_transcriber"
+      - "github_tool"
       # my-skills-plugin 스킬
       - "skill_copy_editing"
       - "skill_changelog_generator"

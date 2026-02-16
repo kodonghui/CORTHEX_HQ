@@ -141,6 +141,24 @@ CREATE TABLE IF NOT EXISTS conversation_messages (
 );
 
 CREATE INDEX IF NOT EXISTS idx_conversation_created_at ON conversation_messages(created_at);
+
+-- 에이전트별 AI 호출 기록 테이블: 전력분석용
+CREATE TABLE IF NOT EXISTS agent_calls (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    agent_id        TEXT NOT NULL,
+    task_id         TEXT,
+    model           TEXT,
+    provider        TEXT,
+    cost_usd        REAL NOT NULL DEFAULT 0.0,
+    input_tokens    INTEGER NOT NULL DEFAULT 0,
+    output_tokens   INTEGER NOT NULL DEFAULT 0,
+    time_seconds    REAL NOT NULL DEFAULT 0.0,
+    success         INTEGER NOT NULL DEFAULT 1,
+    created_at      TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_agent_calls_agent_id ON agent_calls(agent_id);
+CREATE INDEX IF NOT EXISTS idx_agent_calls_created_at ON agent_calls(created_at);
 """
 
 
@@ -716,7 +734,7 @@ def load_conversation_messages(limit: int = 100) -> list:
 
         messages = []
         for row in rows:
-            msg = {"type": row["type"]}
+            msg = {"type": row["type"], "timestamp": row["created_at"]}
             # type에 따라 필요한 필드만 추가
             if row["type"] == "user":
                 msg["text"] = row["text"]
@@ -755,5 +773,62 @@ def clear_conversation_messages() -> None:
         conn.commit()
     except sqlite3.OperationalError:
         pass
+    finally:
+        conn.close()
+
+
+# ── Agent Calls CRUD ──
+
+def save_agent_call(agent_id: str, task_id: str | None = None,
+                    model: str | None = None, provider: str | None = None,
+                    cost_usd: float = 0.0, input_tokens: int = 0,
+                    output_tokens: int = 0, time_seconds: float = 0.0,
+                    success: int = 1) -> int:
+    """에이전트 AI 호출 1건을 기록합니다."""
+    conn = get_connection()
+    try:
+        cur = conn.execute(
+            """INSERT INTO agent_calls
+               (agent_id, task_id, model, provider, cost_usd,
+                input_tokens, output_tokens, time_seconds, success, created_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (agent_id, task_id, model, provider, cost_usd,
+             input_tokens, output_tokens, time_seconds, success,
+             datetime.now(timezone.utc).isoformat()),
+        )
+        conn.commit()
+        return cur.lastrowid
+    finally:
+        conn.close()
+
+
+def get_agent_performance() -> list[dict]:
+    """agent_calls 테이블에서 에이전트별 통계를 집계합니다."""
+    conn = get_connection()
+    try:
+        rows = conn.execute("""
+            SELECT agent_id,
+                   COUNT(*) as call_count,
+                   COALESCE(SUM(cost_usd), 0) as total_cost,
+                   COALESCE(AVG(time_seconds), 0) as avg_time,
+                   COALESCE(SUM(input_tokens), 0) as total_input,
+                   COALESCE(SUM(output_tokens), 0) as total_output,
+                   ROUND(AVG(success) * 100, 1) as success_rate
+            FROM agent_calls
+            GROUP BY agent_id
+            ORDER BY total_cost DESC
+        """).fetchall()
+        return [
+            {
+                "agent_id": r[0],
+                "call_count": r[1],
+                "total_cost": round(r[2], 6),
+                "avg_time": round(r[3], 2),
+                "total_input_tokens": r[4],
+                "total_output_tokens": r[5],
+                "success_rate": r[6],
+            }
+            for r in rows
+        ]
     finally:
         conn.close()

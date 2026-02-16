@@ -1606,10 +1606,10 @@
            x-transition:enter="transition ease-out duration-200"
            x-transition:enter-start="opacity-0 translate-y-2"
            x-transition:enter-end="opacity-100 translate-y-0"
-           class="flex-1 flex flex-col overflow-hidden">
+           class="flex-1 flex flex-col overflow-hidden relative">
 
         <!-- Chat Messages -->
-        <div class="flex-1 overflow-y-auto scrollbar-thin px-6 pt-8 pb-6 space-y-4 bg-grid" id="chatArea" x-ref="chatArea">
+        <div class="flex-1 overflow-y-auto scrollbar-thin px-6 pt-8 pb-6 space-y-4 bg-grid" id="chatArea" x-ref="chatArea" @scroll="onChatScroll($event)">
 
           <!-- ═══ Welcome Screen ═══ -->
           <template x-if="messages.length === 0 && viewMode === 'chat'">
@@ -1699,6 +1699,15 @@
           <template x-for="(msg, i) in messages" :key="i">
             <div>
 
+              <!-- 날짜 구분선 (카카오톡 스타일) -->
+              <template x-if="shouldShowDateSeparator(messages, i)">
+                <div class="flex items-center my-4 gap-3">
+                  <div class="flex-1 h-px bg-hq-muted/20"></div>
+                  <span class="text-xs text-hq-muted/60 whitespace-nowrap" x-text="formatDate(msg.timestamp)"></span>
+                  <div class="flex-1 h-px bg-hq-muted/20"></div>
+                </div>
+              </template>
+
               <!-- User message -->
               <template x-if="msg.type === 'user'">
                 <div class="flex justify-end mb-4 msg-user">
@@ -1711,6 +1720,7 @@
                         <span class="text-[11px] font-bold text-hq-accent uppercase tracking-wider" x-text="msg.source === 'telegram' ? 'CEO 명령 (텔레그램)' : 'CEO 명령'"></span>
                       </div>
                       <div class="text-hq-text text-sm leading-relaxed whitespace-pre-wrap" x-text="msg.text"></div>
+                      <span class="text-[10px] text-hq-muted/40 ml-2 shrink-0 self-end block text-right mt-1" x-text="formatTime(msg.timestamp)"></span>
                     </div>
                   </div>
                 </div>
@@ -1812,6 +1822,9 @@
                       <div x-show="msg.collapsed" class="px-5 py-3">
                         <div class="text-sm text-hq-muted italic">결과가 접혀있습니다. 위 버튼을 클릭하면 펼칩니다. <span class="text-[11px] font-mono ml-2" x-text="'(' + (msg.content?.length || 0) + '자)'"></span></div>
                       </div>
+                      <div class="px-5 pb-2 text-right">
+                        <span class="text-[10px] text-hq-muted/40" x-text="formatTime(msg.timestamp)"></span>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1827,6 +1840,7 @@
                         <span class="text-xs font-bold text-hq-red uppercase tracking-wider">오류</span>
                       </div>
                       <div class="text-sm text-hq-text/80" x-text="msg.text"></div>
+                      <span class="text-[10px] text-hq-muted/40 block text-right mt-1" x-text="formatTime(msg.timestamp)"></span>
                     </div>
                   </div>
                 </div>
@@ -1835,6 +1849,14 @@
             </div>
           </template>
         </div>
+
+        <!-- 스크롤 다운 버튼 -->
+        <button x-show="showScrollBtn" x-transition @click="scrollToBottomSmooth()"
+          class="absolute bottom-20 right-6 z-30 w-10 h-10 rounded-full bg-hq-accent/80 hover:bg-hq-accent text-white shadow-lg flex items-center justify-center backdrop-blur-sm transition-all">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"/></svg>
+          <span x-show="newMsgCount > 0" x-text="newMsgCount"
+            class="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold rounded-full w-5 h-5 flex items-center justify-center"></span>
+        </button>
 
         <!-- ═══ Input Bar ═══ -->
         <div class="border-t-2 border-hq-accent/20 bg-hq-surface/90 backdrop-blur-md p-4 shrink-0 shadow-[0_-4px_16px_rgb(var(--hq-shadow)/0.08)]">
@@ -4435,23 +4457,23 @@
         <!-- Tab: Info -->
         <div x-show="agentConfigTab === 'info'">
           <div class="bg-hq-bg rounded-xl p-4 space-y-3">
-            <div class="flex justify-between"><span class="text-xs text-hq-muted">에이전트 ID</span><span class="text-xs font-mono text-hq-text" x-text="agentConfigId"></span></div>
-            <div class="flex justify-between"><span class="text-xs text-hq-muted">이름 (한국어)</span><span class="text-xs text-hq-text" x-text="agentConfigData?.name_ko || '-'"></span></div>
-            <div class="flex justify-between"><span class="text-xs text-hq-muted">역할</span><span class="text-xs text-hq-text" x-text="agentConfigData?.role || '-'"></span></div>
-            <div class="flex justify-between"><span class="text-xs text-hq-muted">부서</span><span class="text-xs text-hq-text" x-text="agentConfigData?.division || '-'"></span></div>
+            <div class="flex justify-between"><span class="text-sm text-hq-muted">에이전트 ID</span><span class="text-xs font-mono text-hq-text" x-text="agentConfigId"></span></div>
+            <div class="flex justify-between"><span class="text-sm text-hq-muted">이름 (한국어)</span><span class="text-sm text-hq-text" x-text="agentConfigData?.name_ko || '-'"></span></div>
+            <div class="flex justify-between"><span class="text-sm text-hq-muted">역할</span><span class="text-sm text-hq-text" x-text="agentConfigData?.role || '-'"></span></div>
+            <div class="flex justify-between"><span class="text-sm text-hq-muted">부서</span><span class="text-sm text-hq-text" x-text="agentConfigData?.division || '-'"></span></div>
             <div class="flex justify-between items-center">
-              <span class="text-xs text-hq-muted">현재 모델</span>
+              <span class="text-sm text-hq-muted">현재 모델</span>
               <span class="text-xs font-mono text-hq-cyan font-semibold"
                     x-text="getModelDisplayName(agentConfigData?.model_name) + (agentConfigData?.reasoning_effort ? ' (' + agentConfigData.reasoning_effort + ')' : '')"></span>
             </div>
             <div class="flex justify-between items-center">
-              <span class="text-xs text-hq-muted">추론 정도</span>
-              <span class="text-xs font-semibold"
+              <span class="text-sm text-hq-muted">추론 정도</span>
+              <span class="text-sm font-semibold"
                     :class="({'none':'text-hq-muted','minimal':'text-hq-cyan','low':'text-hq-green','medium':'text-hq-yellow','high':'text-hq-purple','xhigh':'text-hq-red'})[agentConfigData?.reasoning_effort] || 'text-hq-text'"
                     x-text="agentConfigData?.reasoning_effort ? (({'none':'⛔ none','minimal':'💨 minimal','low':'⚡ low','medium':'🧠 medium','high':'🔬 high','xhigh':'🔥 xhigh'})[agentConfigData.reasoning_effort] || agentConfigData.reasoning_effort) : 'default'"></span>
             </div>
             <div x-show="agentConfigData?.capabilities?.length > 0">
-              <span class="text-xs text-hq-muted block mb-1">능력치</span>
+              <span class="text-sm text-hq-muted block mb-1">능력치</span>
               <div class="flex flex-wrap gap-1">
                 <template x-for="cap in (agentConfigData?.capabilities || [])" :key="cap">
                   <span class="text-[10px] bg-hq-accent/10 text-hq-accent border border-hq-accent/20 rounded-md px-2 py-0.5" x-text="cap"></span>
@@ -4460,7 +4482,7 @@
             </div>
             <!-- 상관 -->
             <div x-show="agentConfigData?.superior_id">
-              <span class="text-xs text-hq-muted block mb-1">상관</span>
+              <span class="text-sm text-hq-muted block mb-1">상관</span>
               <div @click="openAgentConfig(agentConfigData?.superior_id)" class="inline-flex items-center gap-2 bg-hq-purple/10 border border-hq-purple/20 rounded-lg px-3 py-1.5 cursor-pointer hover:bg-hq-purple/20 transition">
                 <div class="w-5 h-5 rounded-md flex items-center justify-center text-[8px] font-bold" :class="getAgentAvatarClass(agentConfigData?.superior_id)" x-text="getAgentInitials(agentConfigData?.superior_id)"></div>
                 <span class="text-xs text-hq-text" x-text="getAgentName(agentConfigData?.superior_id)"></span>
@@ -4468,7 +4490,7 @@
             </div>
             <!-- 부하직원 -->
             <div x-show="agentConfigData?.subordinate_ids?.length > 0">
-              <span class="text-xs text-hq-muted block mb-1">부하직원</span>
+              <span class="text-sm text-hq-muted block mb-1">부하직원</span>
               <div class="flex flex-wrap gap-1.5">
                 <template x-for="subId in (agentConfigData?.subordinate_ids || [])" :key="subId">
                   <div @click="openAgentConfig(subId)" class="inline-flex items-center gap-2 bg-hq-cyan/10 border border-hq-cyan/20 rounded-lg px-3 py-1.5 cursor-pointer hover:bg-hq-cyan/20 transition">
@@ -4804,6 +4826,8 @@
         // State
         inputText: '',
         messages: [],
+        showScrollBtn: false,
+        newMsgCount: 0,
         systemStatus: 'idle',
         wsConnected: false,
         totalCost: 0,
@@ -4818,7 +4842,7 @@
         activeTab: 'home',
         tabs: [
           { id: 'home', label: '작전현황', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0a1 1 0 01-1-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 01-1 1"/></svg>' },
-          { id: 'command', label: '사령실', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>' },
+          { id: 'command', label: '사령관실', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>' },
           { id: 'performance', label: '전력분석', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>' },
           { id: 'history', label: '작전일지', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>' },
           { id: 'schedule', label: '크론기지', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>' },
@@ -5246,7 +5270,7 @@
               this.systemStatus = 'working';
               if (msg.data?.task_id) this.currentTaskId = msg.data.task_id;
               if (!this.messages.some(m => m.type === 'processing')) {
-                this.messages.push({ type: 'processing', id: Date.now() });
+                this.messages.push({ type: 'processing', id: Date.now(), timestamp: new Date().toISOString() });
               }
               break;
 
@@ -5291,7 +5315,8 @@
 
             case 'telegram_message':
               // 텔레그램에서 온 CEO 메시지를 웹 채팅에 표시
-              this.messages.push({ type: 'user', text: msg.data.text, source: 'telegram' });
+              this.messages.push({ type: 'user', text: msg.data.text, source: 'telegram', timestamp: new Date().toISOString() });
+              if (this.showScrollBtn) this.newMsgCount++;
               this.$nextTick(() => this.scrollToBottom());
               break;
 
@@ -5313,8 +5338,10 @@
                 feedbackSent: false,
                 feedbackRating: null,
                 source: msg.data.source || 'web',
+                timestamp: new Date().toISOString(),
               };
               this.messages.push(resultMsg);
+              if (this.showScrollBtn) this.newMsgCount++;
 
               // DB에 AI 응답 저장
               (async () => {
@@ -5373,7 +5400,8 @@
 
             case 'error':
               this.messages = this.messages.filter(m => m.type !== 'processing');
-              this.messages.push({ type: 'error', text: msg.data.message });
+              this.messages.push({ type: 'error', text: msg.data.message, timestamp: new Date().toISOString() });
+              if (this.showScrollBtn) this.newMsgCount++;
               this.systemStatus = 'error';
               this.currentTaskId = null;
               this.errorAlert = { visible: true, message: msg.data.message || '오류가 발생했습니다', severity: 'error' };
@@ -5415,7 +5443,7 @@
           if (this.commandHistory.length > 50) this.commandHistory.shift();
           this.historyIndex = -1;
 
-          this.messages.push({ type: 'user', text });
+          this.messages.push({ type: 'user', text, timestamp: new Date().toISOString() });
           this.inputText = '';
           this.activeAgents = {};
 
@@ -5647,6 +5675,7 @@
           if (!status) return 'bg-hq-muted/40';
           switch (status.status) {
             case 'working': return 'bg-hq-green pulse-dot';
+            case 'waiting': return 'bg-amber-400 animate-pulse shadow-[0_0_10px_rgba(251,191,36,0.6)]';
             case 'done': return 'bg-hq-green';
             case 'idle': return 'bg-hq-muted/40';
             default: return 'bg-hq-muted/30';
@@ -7219,6 +7248,17 @@
                 this.agentModels[a] = this.bulkReasoningSelection ? `${displayName} (${this.bulkReasoningSelection})` : displayName;
               }
               this.showToast(`${res.changed}명 에이전트 → ${label} 변경 완료`, 'success');
+              // 모달이 열려있으면 데이터 재로드
+              if (this.showAgentConfig && this.agentConfigId) {
+                try {
+                  const updatedAgent = await fetch(`/api/agents/${this.agentConfigId}`).then(r => r.json());
+                  if (!updatedAgent.error) {
+                    this.agentConfigData = updatedAgent;
+                    this.agentModelSelection = updatedAgent.model_name || '';
+                    this.agentReasoningSelection = updatedAgent.reasoning_effort || '';
+                  }
+                } catch (e) { /* 무시 */ }
+              }
             }
           } catch (e) {
             this.showToast('일괄 변경 실패: ' + (e.message || '서버 연결 오류'), 'error');
@@ -7381,6 +7421,40 @@
             'daum_cafe': '다음 카페',
           };
           return names[platform] || platform;
+        },
+
+        shouldShowDateSeparator(messages, i) {
+          if (i === 0) return true;
+          const prev = messages[i-1]?.timestamp;
+          const curr = messages[i]?.timestamp;
+          if (!prev || !curr) return i === 0;
+          return new Date(prev).toDateString() !== new Date(curr).toDateString();
+        },
+        formatDate(ts) {
+          if (!ts) return '';
+          const d = new Date(ts);
+          const days = ['일요일','월요일','화요일','수요일','목요일','금요일','토요일'];
+          return `${d.getFullYear()}년 ${d.getMonth()+1}월 ${d.getDate()}일 ${days[d.getDay()]}`;
+        },
+        formatTime(ts) {
+          if (!ts) return '';
+          const d = new Date(ts);
+          const h = d.getHours();
+          const m = d.getMinutes().toString().padStart(2,'0');
+          return `${h < 12 ? '오전' : '오후'} ${h % 12 || 12}:${m}`;
+        },
+
+        onChatScroll(e) {
+          const el = e.target;
+          const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 100;
+          this.showScrollBtn = !atBottom;
+          if (atBottom) this.newMsgCount = 0;
+        },
+        scrollToBottomSmooth() {
+          const el = this.$refs.chatArea;
+          if (el) el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
+          this.showScrollBtn = false;
+          this.newMsgCount = 0;
         },
 
         scrollToBottom() {
