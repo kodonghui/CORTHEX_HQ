@@ -98,7 +98,24 @@ jobs:
               sudo mkdir -p /var/www/html
               # corthex.env 파일 생성 (없으면)
               touch /home/ubuntu/corthex.env
+              # Oracle Cloud ARM 방화벽 열기 (iptables)
+              echo "🔓 방화벽 포트 열기 중..."
+              sudo iptables -I INPUT -p tcp --dport 80 -j ACCEPT
+              sudo iptables -I INPUT -p tcp --dport 443 -j ACCEPT
+              sudo iptables -I INPUT -p tcp --dport 8000 -j ACCEPT
+              sudo mkdir -p /etc/iptables
+              sudo sh -c 'iptables-save > /etc/iptables/rules.v4'
+              echo "✅ 방화벽 포트 80, 443, 8000 열림"
               echo "✅ 새 서버 초기 설정 완료"
+            fi
+
+            # 0.5단계: 방화벽 확인 (매 배포 시)
+            if ! sudo iptables -C INPUT -p tcp --dport 80 -j ACCEPT 2>/dev/null; then
+              echo "🔓 방화벽 포트 80 다시 열기..."
+              sudo iptables -I INPUT -p tcp --dport 80 -j ACCEPT
+              sudo iptables -I INPUT -p tcp --dport 443 -j ACCEPT
+              sudo iptables -I INPUT -p tcp --dport 8000 -j ACCEPT
+              sudo sh -c 'iptables-save > /etc/iptables/rules.v4'
             fi
 
             # 1단계: GitHub에서 최신 코드 가져오기
