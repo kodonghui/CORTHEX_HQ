@@ -178,9 +178,9 @@ jobs:
             "$VENV_PYTHON" -c "from google import genai; print('✅ google-genai 설치됨')" 2>&1 || echo "❌ google-genai 모듈 임포트 실패!"
             "$VENV_PYTHON" -c "import openai; print(f'✅ openai v{openai.__version__} 설치됨')" 2>&1 || echo "❌ openai 모듈 임포트 실패!"
 
-            # 5.5단계: YAML → JSON 변환 (서버의 Python에 PyYAML이 없어도 동작하도록)
+            # 5.5단계: YAML → JSON 변환 (venv Python 사용 — PyYAML이 venv에 설치됨)
             echo "🔄 설정 파일 JSON 변환 중..."
-            /usr/bin/python3 /home/ubuntu/CORTHEX_HQ/config/yaml2json.py 2>&1 || echo "⚠️ JSON 변환 건너뜀"
+            "$VENV_PYTHON" /home/ubuntu/CORTHEX_HQ/config/yaml2json.py 2>&1 || echo "⚠️ JSON 변환 건너뜀"
 
             # 5.6단계: 텔레그램 봇 환경변수 설정
             if [ -n "${TG_BOT_TOKEN}" ]; then
