@@ -342,8 +342,8 @@
       letter-spacing: 0.02em;
     }
 
-    /* Markdown body — 보고서 스타일 (Noto Serif KR 본문, Pretendard 제목) */
-    .markdown-body { line-height: 1.85; font-family: 'Noto Serif KR', 'Pretendard Variable', serif; font-size: 0.9rem; letter-spacing: -0.01em; }
+    /* Markdown body — 보고서 스타일 (Pretendard 통일) */
+    .markdown-body { line-height: 1.85; font-family: 'Pretendard Variable', 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif; font-size: 0.9rem; letter-spacing: -0.01em; }
     .markdown-body h1 { font-size: 1.3rem; font-weight: 700; margin: 1.2rem 0 0.6rem; color: rgb(var(--hq-text)); font-family: 'Pretendard Variable', sans-serif; border-bottom: 1px solid rgb(var(--hq-border) / 0.3); padding-bottom: 0.4rem; }
     .markdown-body h2 { font-size: 1.15rem; font-weight: 600; margin: 1rem 0 0.5rem; color: rgb(var(--hq-accent)); font-family: 'Pretendard Variable', sans-serif; }
     .markdown-body h3 { font-size: 1.02rem; font-weight: 600; margin: 0.8rem 0 0.3rem; color: rgb(var(--hq-cyan)); font-family: 'Pretendard Variable', sans-serif; }
@@ -362,6 +362,19 @@
     .markdown-body blockquote { border-left: 3px solid rgb(var(--hq-accent)); padding: 0.5rem 1rem; margin: 0.6rem 0; color: rgb(var(--hq-muted)); background: rgb(var(--hq-surface) / 0.4); border-radius: 0 8px 8px 0; }
     .markdown-body a { color: rgb(var(--hq-accent)); text-decoration: underline; text-underline-offset: 2px; }
     .markdown-body hr { border-color: rgb(var(--hq-border) / 0.3); margin: 1.2rem 0; }
+    .markdown-body img { max-width: 100%; height: auto; border-radius: 8px; margin: 1em 0; border: 1px solid rgba(255,255,255,0.1); }
+
+    /* ■ 네모 배지 — 계층별 색상 구분 */
+    .badge-marker { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 6px; vertical-align: middle; }
+    .badge-marker-primary { background: linear-gradient(135deg, #8c64ff, #a78bfa); box-shadow: 0 0 6px rgba(140, 100, 255, 0.5); }
+    /* 2단계 중첩: 시안색 */
+    .markdown-body ul ul .badge-marker,
+    .markdown-body ol ul .badge-marker,
+    .markdown-body li li .badge-marker { background: linear-gradient(135deg, #00e6ff, #06b6d4); box-shadow: 0 0 6px rgba(0, 230, 255, 0.5); }
+    /* 3단계 중첩: 초록색 */
+    .markdown-body ul ul ul .badge-marker,
+    .markdown-body ol ol ul .badge-marker,
+    .markdown-body li li li .badge-marker { background: linear-gradient(135deg, #00ff88, #34d399); box-shadow: 0 0 6px rgba(0, 255, 136, 0.5); }
 
     /* Typing effect for welcome */
     .typing-text {
@@ -1777,12 +1790,12 @@
                           <!-- Feedback Buttons -->
                           <div class="flex items-center gap-0.5 border-l border-hq-border/40 pl-2 ml-1">
                             <button @click="sendFeedback(msg, 'good')"
-                              :class="msg.feedbackRating === 'good' ? 'text-hq-green scale-110' : 'text-hq-muted hover:text-hq-green'"
+                              :class="msg.feedbackRating === 'good' ? 'text-hq-green scale-110 bg-green-500/20 ring-1 ring-green-400/50 rounded' : 'text-hq-muted hover:text-hq-green'"
                               class="transition-all duration-200 p-1" :title="msg.feedbackRating === 'good' ? '좋아요 취소' : '좋아요'">
                               <svg class="w-4 h-4" :fill="msg.feedbackRating === 'good' ? 'currentColor' : 'none'" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 10h4.764a2 2 0 011.789 2.894l-3.5 7A2 2 0 0115.263 21h-4.017c-.163 0-.326-.02-.485-.06L7 20m7-10V5a2 2 0 00-2-2h-.095c-.5 0-.905.405-.905.905 0 .714-.211 1.412-.608 2.006L7 11v9m7-10h-2M7 20H5a2 2 0 01-2-2v-6a2 2 0 012-2h2.5"/></svg>
                             </button>
                             <button @click="sendFeedback(msg, 'bad')"
-                              :class="msg.feedbackRating === 'bad' ? 'text-hq-red scale-110' : 'text-hq-muted hover:text-hq-red'"
+                              :class="msg.feedbackRating === 'bad' ? 'text-hq-red scale-110 bg-red-500/20 ring-1 ring-red-400/50 rounded' : 'text-hq-muted hover:text-hq-red'"
                               class="transition-all duration-200 p-1" :title="msg.feedbackRating === 'bad' ? '아쉬워요 취소' : '아쉬워요'">
                               <svg class="w-4 h-4" :fill="msg.feedbackRating === 'bad' ? 'currentColor' : 'none'" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14H5.236a2 2 0 01-1.789-2.894l3.5-7A2 2 0 018.736 3h4.018c.163 0 .326.02.485.06L17 4m-7 10v2a3.5 3.5 0 003.5 3.5h.5a2 2 0 002-2v-.5c0-.966-.393-1.84-1.027-2.472L17 13V4m-7 10h2M17 4h2a2 2 0 012 2v6a2 2 0 01-2 2h-2.5"/></svg>
                             </button>
@@ -2873,14 +2886,15 @@
         </div>
       </div>
 
-      <!-- ═══ Archive View (아카이브) ═══ -->
+      <!-- ═══ Archive View (아카이브) — 2단 레이아웃 ═══ -->
       <div x-show="viewMode === 'chat' && activeTab === 'archive'"
            x-transition:enter="transition ease-out duration-200"
            x-transition:enter-start="opacity-0 translate-y-2"
            x-transition:enter-end="opacity-100 translate-y-0"
-           class="flex-1 overflow-y-auto scrollbar-thin p-6 bg-grid">
-        <div class="max-w-5xl mx-auto fade-in-up">
-          <div class="flex items-center justify-between mb-4">
+           class="flex-1 overflow-hidden p-6 bg-grid">
+        <div class="max-w-7xl mx-auto fade-in-up h-full flex flex-col">
+          <!-- 상단: 제목 + 검색 -->
+          <div class="flex items-center justify-between mb-3">
             <h2 class="text-lg font-bold text-hq-text flex items-center gap-2 font-mono tracking-wider">
               <svg class="w-5 h-5 text-hq-purple" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/></svg>
               CLASSIFIED
@@ -2892,58 +2906,81 @@
               <button @click="searchArchiveByCorrelation()" class="bg-hq-accent text-white rounded-lg px-3 py-1.5 text-xs">검색</button>
             </div>
           </div>
-          <!-- Division Filter -->
-          <div class="flex gap-2 mb-4">
-            <button @click="archive.filterDivision = 'all'; loadArchive()"
-              :class="archive.filterDivision === 'all' ? 'bg-hq-accent/20 text-hq-accent' : 'text-hq-muted'"
-              class="px-3 py-1 text-xs font-semibold rounded-lg transition">전체</button>
-            <template x-for="div in ['secretary','leet_master.tech','leet_master.strategy','leet_master.legal','leet_master.marketing','finance.investment']" :key="div">
-              <button @click="archive.filterDivision = div; loadArchive()"
-                :class="archive.filterDivision === div ? 'bg-hq-accent/20 text-hq-accent' : 'text-hq-muted'"
-                class="px-3 py-1 text-xs font-semibold rounded-lg transition" x-text="getDivisionLabel(div)"></button>
-            </template>
-          </div>
-          <template x-if="archive.loading">
-            <div class="text-center py-8 text-hq-muted">로딩 중...</div>
-          </template>
-          <!-- Report List (카드형 그리드) -->
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-6" x-show="!archive.loading && archive.files.filter(f => archive.filterDivision === 'all' || f.division === archive.filterDivision).length > 0">
-            <template x-for="file in archive.files.filter(f => archive.filterDivision === 'all' || f.division === archive.filterDivision)" :key="file.division + '/' + file.filename">
-              <div @click="readArchiveReport(file)"
-                :class="archive.selectedReport && archive.selectedReport.filename === file.filename ? 'border-hq-accent/40 bg-hq-accent/5 shadow-lg shadow-hq-accent/10' : 'border-hq-border hover:border-hq-accent/30'"
-                class="glass border rounded-xl p-4 cursor-pointer hover:translate-y-[-2px] transition-all duration-200">
-                <div class="flex items-center gap-2 mb-2">
-                  <span class="status-badge text-[9px]"
-                    :class="file.division?.includes('tech') ? 'bg-hq-cyan/10 text-hq-cyan' :
-                            file.division?.includes('strategy') ? 'bg-hq-purple/10 text-hq-purple' :
-                            file.division?.includes('legal') ? 'bg-hq-red/10 text-hq-red' :
-                            file.division?.includes('marketing') ? 'bg-hq-green/10 text-hq-green' :
-                            file.division?.includes('finance') ? 'bg-hq-yellow/10 text-hq-yellow' :
-                            'bg-hq-accent/10 text-hq-accent'"
-                    x-text="getDivisionLabel(file.division)"></span>
-                  <span class="text-[10px] text-hq-muted font-mono ml-auto" x-text="file.modified ? new Date(file.modified).toLocaleDateString('ko-KR') : ''"></span>
-                </div>
-                <div class="text-sm font-medium text-hq-text truncate mb-1" x-text="file.filename"></div>
-                <div class="text-[10px] text-hq-muted font-mono" x-text="file.size ? (file.size / 1024).toFixed(1) + 'KB' : ''"></div>
+
+          <!-- 2단 레이아웃 -->
+          <div class="flex gap-4 flex-1 min-h-0">
+            <!-- 왼쪽: 카드 목록 (1/3) -->
+            <div class="w-1/3 min-w-[280px] overflow-y-auto scrollbar-thin pr-1 flex flex-col">
+              <!-- 부서 필터 (sticky) -->
+              <div class="flex flex-wrap gap-1.5 mb-3 sticky top-0 z-10 pb-2" style="background: rgb(var(--hq-bg));">
+                <button @click="archive.filterDivision = 'all'; loadArchive()"
+                  :class="archive.filterDivision === 'all' ? 'bg-hq-accent/20 text-hq-accent' : 'text-hq-muted'"
+                  class="px-2.5 py-1 text-[11px] font-semibold rounded-lg transition">전체</button>
+                <template x-for="div in ['secretary','leet_master.tech','leet_master.strategy','leet_master.legal','leet_master.marketing','finance.investment']" :key="div">
+                  <button @click="archive.filterDivision = div; loadArchive()"
+                    :class="archive.filterDivision === div ? 'bg-hq-accent/20 text-hq-accent' : 'text-hq-muted'"
+                    class="px-2.5 py-1 text-[11px] font-semibold rounded-lg transition" x-text="getDivisionLabel(div)"></button>
+                </template>
               </div>
-            </template>
-          </div>
-          <!-- 빈 화면 안내 -->
-          <div x-show="!archive.loading && archive.files.filter(f => archive.filterDivision === 'all' || f.division === archive.filterDivision).length === 0"
-               class="flex flex-col items-center justify-center py-20 text-center">
-            <div class="w-20 h-20 rounded-2xl bg-hq-purple/10 flex items-center justify-center mb-4 float-anim">
-              <svg class="w-10 h-10 text-hq-purple/50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/></svg>
+
+              <template x-if="archive.loading">
+                <div class="text-center py-8 text-hq-muted">로딩 중...</div>
+              </template>
+
+              <!-- 보고서 카드 목록 (세로) -->
+              <div class="space-y-2 flex-1" x-show="!archive.loading">
+                <template x-for="file in archive.files.filter(f => archive.filterDivision === 'all' || f.division === archive.filterDivision)" :key="file.division + '/' + file.filename">
+                  <div @click="readArchiveReport(file)"
+                    :class="archive.selectedReport && archive.selectedReport.filename === file.filename ? 'border-hq-accent/50 bg-hq-accent/10 shadow-lg shadow-hq-accent/10' : 'border-hq-border/50 hover:border-hq-accent/30'"
+                    class="glass border rounded-xl p-3 cursor-pointer transition-all duration-200">
+                    <div class="flex items-center gap-2 mb-1.5">
+                      <span class="status-badge text-[9px]"
+                        :class="file.division?.includes('tech') ? 'bg-hq-cyan/10 text-hq-cyan' :
+                                file.division?.includes('strategy') ? 'bg-hq-purple/10 text-hq-purple' :
+                                file.division?.includes('legal') ? 'bg-hq-red/10 text-hq-red' :
+                                file.division?.includes('marketing') ? 'bg-hq-green/10 text-hq-green' :
+                                file.division?.includes('finance') ? 'bg-hq-yellow/10 text-hq-yellow' :
+                                'bg-hq-accent/10 text-hq-accent'"
+                        x-text="getDivisionLabel(file.division)"></span>
+                      <span class="text-[10px] text-hq-muted font-mono ml-auto" x-text="file.modified ? new Date(file.modified).toLocaleDateString('ko-KR') : ''"></span>
+                    </div>
+                    <div class="text-sm font-medium text-hq-text truncate" x-text="file.filename"></div>
+                    <div class="text-[10px] text-hq-muted font-mono mt-0.5" x-text="file.size ? (file.size / 1024).toFixed(1) + 'KB' : ''"></div>
+                  </div>
+                </template>
+
+                <!-- 빈 화면 안내 -->
+                <div x-show="archive.files.filter(f => archive.filterDivision === 'all' || f.division === archive.filterDivision).length === 0"
+                     class="flex flex-col items-center justify-center py-12 text-center">
+                  <div class="w-16 h-16 rounded-2xl bg-hq-purple/10 flex items-center justify-center mb-3 float-anim">
+                    <svg class="w-8 h-8 text-hq-purple/50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/></svg>
+                  </div>
+                  <div class="text-xs font-semibold text-hq-text/60 mb-1">보관된 보고서 없음</div>
+                  <div class="text-[11px] text-hq-muted">에이전트 작업 완료 시 자동 저장됩니다</div>
+                </div>
+              </div>
             </div>
-            <div class="text-sm font-semibold text-hq-text/60 mb-1">아직 보관된 보고서가 없습니다</div>
-            <div class="text-xs text-hq-muted">에이전트가 작업을 완료하면 여기에 보고서가 자동 저장됩니다</div>
-          </div>
-          <!-- Report Content -->
-          <div x-show="archive.content" class="glass border border-hq-border rounded-xl p-5">
-            <div class="flex items-center justify-between mb-3">
-              <h3 class="text-sm font-bold text-hq-text" x-text="archive.selectedReport?.filename || ''"></h3>
-              <button @click="copyToClipboard(archive.content)" class="text-xs text-hq-muted hover:text-hq-green">복사</button>
+
+            <!-- 오른쪽: 보고서 내용 (2/3) -->
+            <div class="w-2/3 overflow-y-auto scrollbar-thin">
+              <template x-if="archive.content">
+                <div class="glass border border-hq-border/50 rounded-xl p-6 h-full">
+                  <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-sm font-bold text-hq-text" x-text="archive.selectedReport?.filename || ''"></h3>
+                    <button @click="copyToClipboard(archive.content)" class="text-xs text-hq-muted hover:text-hq-green transition">복사</button>
+                  </div>
+                  <div class="text-sm leading-relaxed markdown-body" x-html="renderMarkdown(archive.content)"></div>
+                </div>
+              </template>
+              <template x-if="!archive.content">
+                <div class="flex items-center justify-center h-full text-hq-muted">
+                  <div class="text-center">
+                    <svg class="w-12 h-12 mx-auto mb-3 text-hq-purple/30" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                    <div class="text-sm text-hq-muted">왼쪽에서 보고서를 선택하세요</div>
+                  </div>
+                </div>
+              </template>
             </div>
-            <div class="text-sm leading-relaxed markdown-body" x-html="renderMarkdown(archive.content)"></div>
           </div>
         </div>
       </div>
@@ -5660,7 +5697,12 @@
         },
 
         renderMarkdown(text) {
-          try { return marked.parse(text || ''); }
+          try {
+            let html = marked.parse(text || '');
+            // ■ 문자를 글로우 배지로 변환 (계층 구분은 CSS에서 처리)
+            html = html.replace(/■\s*/g, '<span class="badge-marker badge-marker-primary"></span>');
+            return html;
+          }
           catch { return text; }
         },
 
@@ -6008,6 +6050,9 @@
           if (tabId === 'archive') this.loadArchive();
           if (tabId === 'sns') this.loadSNS();
           if (tabId === 'trading') this.loadTradingSummary();
+          if (tabId === 'command') {
+            this.$nextTick(() => { this.scrollToBottom(); });
+          }
         },
 
         // ── Dashboard ──
@@ -6677,6 +6722,8 @@
 
         // ── Archive Browser ──
         async loadArchive() {
+          this.archive.content = '';
+          this.archive.selectedReport = null;
           this.archive.loading = true;
           try {
             const res = await fetch('/api/archive');
