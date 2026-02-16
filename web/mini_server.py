@@ -268,8 +268,8 @@ async def deploy_status():
 # ── 에이전트 목록 ──
 AGENTS = [
     {"agent_id": "chief_of_staff", "name_ko": "비서실장", "role": "manager", "division": "secretary", "status": "idle", "model_name": "claude-sonnet-4-5-20250929"},
-    {"agent_id": "report_specialist", "name_ko": "총괄 보좌관", "role": "specialist", "division": "secretary", "status": "idle", "model_name": "claude-haiku-4-5-20251001"},
-    {"agent_id": "schedule_specialist", "name_ko": "전략 보좌관", "role": "specialist", "division": "secretary", "status": "idle", "model_name": "claude-haiku-4-5-20251001"},
+    {"agent_id": "report_specialist", "name_ko": "기록 보좌관", "role": "specialist", "division": "secretary", "status": "idle", "model_name": "claude-haiku-4-5-20251001"},
+    {"agent_id": "schedule_specialist", "name_ko": "일정 보좌관", "role": "specialist", "division": "secretary", "status": "idle", "model_name": "claude-haiku-4-5-20251001"},
     {"agent_id": "relay_specialist", "name_ko": "소통 보좌관", "role": "specialist", "division": "secretary", "status": "idle", "model_name": "claude-haiku-4-5-20251001"},
     {"agent_id": "cto_manager", "name_ko": "기술개발처장 (CTO)", "role": "manager", "division": "leet_master.tech", "status": "idle", "model_name": "claude-sonnet-4-5-20250929"},
     {"agent_id": "frontend_specialist", "name_ko": "프론트엔드 Specialist", "role": "specialist", "division": "leet_master.tech", "status": "idle", "model_name": "claude-haiku-4-5-20251001"},
@@ -1757,6 +1757,13 @@ async def _chain_submit_synthesis(chain: dict):
 
 async def _deliver_chain_result(chain: dict):
     """배치 체인 최종 결과를 CEO에게 전달합니다."""
+    # ── 중복 전달 방지 ──
+    if chain.get("delivered"):
+        _log(f"[CHAIN] {chain.get('chain_id', '?')} — 이미 전달됨, 중복 방지")
+        return
+    chain["delivered"] = True
+    _save_chain(chain)
+
     task_id = chain["task_id"]
     text = chain["text"]
     total_cost = chain.get("total_cost_usd", 0)
@@ -1769,7 +1776,21 @@ async def _deliver_chain_result(chain: dict):
         for mgr_id in all_managers:
             synth = chain["results"]["synthesis"].get(mgr_id, {})
             mgr_name = _AGENT_NAMES.get(mgr_id, mgr_id)
-            content = synth.get("content", "응답 없음")
+            content = synth.get("content", "")
+            # 종합보고서가 비었으면 전문가 원본 결과를 폴백으로 사용
+            if not content or content == "응답 없음":
+                specialists = _MANAGER_SPECIALISTS.get(mgr_id, [])
+                fallback_parts = []
+                for s_id in specialists:
+                    s_res = chain["results"].get("specialists", {}).get(s_id, {})
+                    s_content = s_res.get("content", "")
+                    if s_content:
+                        s_name = _SPECIALIST_NAMES.get(s_id, s_id)
+                        fallback_parts.append(f"**{s_name}**: {s_content[:300]}")
+                if fallback_parts:
+                    content = "(종합 배치 실패 — 전문가 원본 결과)\n" + "\n".join(fallback_parts)
+                else:
+                    content = "응답 없음 (배치 처리 중 오류 발생)"
             specs = len(_MANAGER_SPECIALISTS.get(mgr_id, []))
             total_specialists += specs
             spec_label = f" (전문가 {specs}명 동원)" if specs else ""
@@ -4264,6 +4285,7 @@ async def _save_to_notion(agent_id: str, title: str, content: str,
     if report_type:
         properties["Type"] = {"rich_text": [{"text": {"content": report_type}}]}
     properties["Status"] = {"rich_text": [{"text": {"content": "완료"}}]}
+    properties["Date"] = {"date": {"start": now_str}}
 
     # 본문 → 노션 블록 (최대 2000자, 노션 블록 크기 제한)
     children = []
@@ -4385,6 +4407,7 @@ async def _call_agent(agent_id: str, text: str) -> dict:
     # 에이전트별 허용 도구 목록으로 스키마를 로드하고, 도구 실행 함수를 전달
     tool_schemas = None
     tool_executor_fn = None
+    tools_used: list[str] = []  # 사용한 도구 이름 추적
     detail = _AGENTS_DETAIL.get(agent_id, {})
     allowed = detail.get("allowed_tools", [])
     if allowed:
@@ -4394,6 +4417,7 @@ async def _call_agent(agent_id: str, text: str) -> dict:
 
             async def _tool_executor(tool_name: str, tool_input: dict):
                 """ToolPool을 통해 도구를 실행합니다."""
+                tools_used.append(tool_name)
                 pool = _init_tool_pool()
                 if pool and hasattr(pool, '_tools') and tool_name in pool._tools:
                     await _broadcast_status(agent_id, "working", 0.5, f"🔧 {tool_name} 도구 실행 중...")
@@ -4453,6 +4477,11 @@ async def _call_agent(agent_id: str, text: str) -> dict:
         # 아카이브 DB에 저장 (영구 보관)
         division = _AGENT_DIVISION.get(agent_id, "secretary")
         now_str = datetime.now(KST).strftime("%Y%m%d_%H%M%S")
+        # 사용한 도구 메타데이터를 콘텐츠 맨 아래에 추가
+        if tools_used:
+            unique_tools = list(dict.fromkeys(tools_used))  # 중복 제거, 순서 유지
+            content += f"\n\n---\n🔧 **사용한 도구**: {', '.join(unique_tools)}"
+
         archive_content = f"# [{agent_name}] {text[:60]}\n\n{content}"
         save_archive(
             division=division,
@@ -4470,6 +4499,7 @@ async def _call_agent(agent_id: str, text: str) -> dict:
         "time_seconds": result.get("time_seconds", 0),
         "input_tokens": result.get("input_tokens", 0),
         "output_tokens": result.get("output_tokens", 0),
+        "tools_used": tools_used,
     }
 
 
@@ -4693,8 +4723,8 @@ async def _broadcast_to_managers(text: str, task_id: str) -> dict:
         "### 특이사항 / 리스크\n"
         "(각 보고서에서 리스크 요소만 추출. 없으면 '특이사항 없음')\n\n"
         "### 비서실 보좌관 보고\n"
-        "- 총괄 보좌관: (1줄 요약)\n"
-        "- 전략 보좌관: (1줄 요약)\n"
+        "- 기록 보좌관: (1줄 요약)\n"
+        "- 일정 보좌관: (1줄 요약)\n"
         "- 소통 보좌관: (1줄 요약)\n\n"
         "## 규칙\n"
         "- 한국어로 작성\n"
@@ -4768,6 +4798,166 @@ async def _broadcast_to_managers(text: str, task_id: str) -> dict:
         "model": "multi-agent",
         "routing_method": "브로드캐스트",
     }
+
+
+async def _sequential_collaboration(text: str, task_id: str, agent_order: list[str] | None = None) -> dict:
+    """에이전트 간 순차 협업 — 비서실장이 허브로 부서 간 순차 작업을 오케스트레이션합니다.
+
+    흐름:
+    1) 비서실장이 AI로 작업 순서 결정 (또는 CEO가 직접 지정)
+    2) 첫 번째 에이전트에게 원본 명령 전달
+    3) 이전 에이전트의 결과를 다음 에이전트에게 컨텍스트로 전달
+    4) 모든 에이전트 완료 후 비서실장이 종합 보고
+
+    예: "CPO가 데이터 수집 → CMO가 마케팅 콘텐츠 작성" 같은 순차 작업
+    """
+    await _broadcast_status("chief_of_staff", "working", 0.1, "순차 협업 계획 수립 중...")
+
+    # 에이전트 순서가 지정되지 않았으면 AI가 결정
+    if not agent_order:
+        order_prompt = (
+            f"CEO 명령: {text}\n\n"
+            "이 작업을 처리하기 위해 어떤 부서가 어떤 순서로 작업해야 하는지 결정하세요.\n"
+            "가능한 부서: cto_manager(기술), cso_manager(사업), clo_manager(법무), "
+            "cmo_manager(마케팅), cio_manager(투자), cpo_manager(기획)\n\n"
+            "JSON 형식으로 답변:\n"
+            '{"order": ["첫번째_agent_id", "두번째_agent_id"], "reason": "이유"}\n'
+            "최소 2개, 최대 4개 부서만 선택하세요. 관련 없는 부서는 제외."
+        )
+        soul = _load_agent_prompt("chief_of_staff")
+        override = _get_model_override("chief_of_staff")
+        model = select_model(order_prompt, override=override)
+        plan_result = await ask_ai(order_prompt, system_prompt=soul, model=model)
+
+        if "error" not in plan_result:
+            try:
+                raw = plan_result.get("content", "")
+                if "```" in raw:
+                    raw = raw.split("```")[1]
+                    if raw.startswith("json"):
+                        raw = raw[4:]
+                parsed = json.loads(raw)
+                agent_order = parsed.get("order", [])
+            except (json.JSONDecodeError, IndexError):
+                pass
+
+        if not agent_order:
+            agent_order = ["cto_manager", "cso_manager"]
+
+    # 유효한 에이전트만 필터링
+    valid_agents = set(_AGENT_NAMES.keys())
+    agent_order = [a for a in agent_order if a in valid_agents]
+    if not agent_order:
+        agent_order = ["chief_of_staff"]
+
+    # 순차 실행
+    chain_context = f"CEO 원본 명령: {text}"
+    results = []
+    total_cost = 0.0
+    total_time = 0.0
+
+    for i, agent_id in enumerate(agent_order):
+        agent_name = _AGENT_NAMES.get(agent_id, agent_id)
+        step_label = f"[{i+1}/{len(agent_order)}]"
+
+        await _broadcast_status("chief_of_staff", "working", (i + 0.5) / len(agent_order),
+                                f"순차 협업 {step_label} {agent_name} 작업 중...")
+
+        # 이전 결과를 컨텍스트로 포함하여 호출
+        if i == 0:
+            agent_input = text
+        else:
+            prev_results = "\n\n".join(
+                f"[{r['name']}의 작업 결과]\n{r['content'][:500]}"
+                for r in results
+            )
+            agent_input = (
+                f"{text}\n\n"
+                f"## 이전 단계 작업 결과 (참고하여 작업하세요)\n{prev_results}"
+            )
+
+        result = await _manager_with_delegation(agent_id, agent_input)
+
+        if isinstance(result, Exception):
+            results.append({"agent_id": agent_id, "name": agent_name, "content": f"오류: {result}", "cost_usd": 0})
+        elif "error" in result:
+            results.append({"agent_id": agent_id, "name": agent_name, "content": f"오류: {result['error']}", "cost_usd": 0})
+        else:
+            results.append(result)
+            total_cost += result.get("cost_usd", 0)
+            total_time += result.get("time_seconds", 0)
+
+    # 비서실장 종합
+    await _broadcast_status("chief_of_staff", "working", 0.9, "순차 협업 종합 보고서 작성 중...")
+
+    chain_summary = "\n\n---\n\n".join(
+        f"### {i+1}단계: {r.get('name', r.get('agent_id', '?'))}\n{r.get('content', '결과 없음')}"
+        for i, r in enumerate(results)
+    )
+
+    synthesis_prompt = (
+        f"CEO 명령: {text}\n\n"
+        f"아래는 {len(results)}개 부서가 순차적으로 작업한 결과입니다.\n"
+        f"이전 단계의 결과를 다음 단계가 참고하여 작업했습니다.\n\n"
+        f"{chain_summary}\n\n"
+        f"위 순차 협업 결과를 종합하여 CEO에게 간결한 최종 보고서를 작성하세요."
+    )
+
+    soul = _load_agent_prompt("chief_of_staff")
+    override = _get_model_override("chief_of_staff")
+    model = select_model(synthesis_prompt, override=override)
+    synthesis = await ask_ai(synthesis_prompt, system_prompt=soul, model=model)
+
+    await _broadcast_status("chief_of_staff", "done", 1.0, "순차 협업 완료")
+
+    if "error" in synthesis:
+        chief_content = f"⚠️ 종합 보고서 작성 실패\n\n{chain_summary}"
+    else:
+        chief_content = synthesis.get("content", "")
+        total_cost += synthesis.get("cost_usd", 0)
+
+    order_names = " → ".join(_AGENT_NAMES.get(a, a) for a in agent_order)
+    final_content = (
+        f"🔗 **순차 협업 보고** ({order_names})\n\n"
+        f"{chief_content}\n\n---\n\n"
+        f"📂 상세 보고서 {len(results)}건이 기밀문서에 저장되었습니다."
+    )
+
+    # 아카이브 저장
+    now_str = datetime.now(KST).strftime("%Y%m%d_%H%M%S")
+    save_archive(
+        division="secretary",
+        filename=f"sequential_collab_{now_str}.md",
+        content=f"# [순차 협업] {text[:50]}\n\n작업 순서: {order_names}\n\n{chain_summary}",
+        agent_id="chief_of_staff",
+    )
+
+    update_task(task_id, status="completed",
+                result_summary=f"순차 협업 완료 ({order_names})",
+                result_data=final_content,
+                success=1, cost_usd=total_cost,
+                time_seconds=round(total_time, 2),
+                agent_id="chief_of_staff")
+
+    return {
+        "content": final_content,
+        "agent_id": "chief_of_staff",
+        "handled_by": f"비서실장 → {order_names}",
+        "delegation": f"순차 협업: {order_names}",
+        "total_cost_usd": round(total_cost, 6),
+        "time_seconds": round(total_time, 2),
+        "model": "multi-agent-sequential",
+        "routing_method": "순차 협업",
+    }
+
+
+# 순차 협업 트리거 키워드
+_SEQUENTIAL_KEYWORDS = ["순차", "협업", "순서대로", "단계별", "릴레이", "연계"]
+
+
+def _is_sequential_command(text: str) -> bool:
+    """순차 협업 명령인지 확인합니다."""
+    return any(kw in text for kw in _SEQUENTIAL_KEYWORDS)
 
 
 def _classify_by_keywords(text: str) -> str | None:
@@ -4963,6 +5153,46 @@ async def _process_ai_command(text: str, task_id: str) -> dict:
             content += f"  - `{b['batch_id'][:20]}...` ({b['provider']}) — {prog.get('completed', '?')}/{prog.get('total', '?')} 완료\n"
         update_task(task_id, status="completed", result_summary=content[:500], success=1)
         return {"content": content, "handled_by": "비서실장", "agent_id": "chief_of_staff"}
+
+    # 1.5) "전체 도구 점검" 명령
+    if text_lower in ("전체 도구 점검", "도구 점검", "도구 상태", "/tools_health"):
+        import urllib.request as _ur
+        try:
+            # 자기 자신의 /api/tools/health API 호출
+            req = _ur.Request("http://127.0.0.1:8000/api/tools/health")
+            with _ur.urlopen(req, timeout=10) as resp:
+                health = json.loads(resp.read().decode("utf-8"))
+        except Exception as e:
+            health = {"total": 0, "ready": 0, "missing_key": 0, "not_loaded": 0, "tools": [], "error": str(e)}
+
+        content = f"🔧 **전체 도구 점검 결과**\n\n"
+        content += f"| 항목 | 수량 |\n|------|------|\n"
+        content += f"| 전체 도구 | {health.get('total', 0)}개 |\n"
+        content += f"| 정상 (ready) | {health.get('ready', 0)}개 |\n"
+        content += f"| API 키 미설정 | {health.get('missing_key', 0)}개 |\n"
+        content += f"| 미로드 | {health.get('not_loaded', 0)}개 |\n"
+        content += f"| ToolPool | {health.get('pool_status', 'unknown')} |\n\n"
+
+        # API 키 미설정 도구 목록
+        missing = [t for t in health.get("tools", []) if t.get("status") == "missing_key"]
+        if missing:
+            content += "### ⚠️ API 키 필요한 도구\n"
+            for t in missing[:10]:
+                content += f"- **{t['name']}** (`{t['tool_id']}`) — 환경변수: `{t.get('api_key_env', '?')}`\n"
+
+        # 정상 도구 상위 10개
+        ready = [t for t in health.get("tools", []) if t.get("status") == "ready"]
+        if ready:
+            content += f"\n### ✅ 정상 작동 도구 ({len(ready)}개 중 상위 10개)\n"
+            for t in ready[:10]:
+                content += f"- {t['name']} (`{t['tool_id']}`)\n"
+
+        update_task(task_id, status="completed", result_summary=content[:500], success=1)
+        return {"content": content, "handled_by": "비서실장", "agent_id": "chief_of_staff"}
+
+    # 1.7) 순차 협업 명령 확인 → 에이전트 릴레이 실행
+    if _is_sequential_command(text):
+        return await _sequential_collaboration(text, task_id)
 
     # 2) 브로드캐스트 명령 확인 → 29명 동시 가동
     if _is_broadcast_command(text):
@@ -5175,6 +5405,89 @@ async def get_tools_status():
         "loaded_tools": loaded,
         "loaded_count": len(loaded),
         "total_defined": len(_TOOLS_LIST),
+    }
+
+
+@app.get("/api/tools/health")
+async def get_tools_health():
+    """모든 도구의 건강 상태를 점검합니다.
+
+    각 도구별로:
+    - loaded: ToolPool에 로드 성공 여부
+    - api_key_required: API 키가 필요한 도구인지
+    - api_key_set: 필요한 API 키가 설정되어 있는지
+    - status: ready / missing_key / not_loaded / error
+    """
+    pool = _init_tool_pool()
+    loaded_tools = set(pool._tools.keys()) if pool else set()
+
+    # API 키 환경변수 매핑
+    _API_KEY_MAP = {
+        "anthropic": "ANTHROPIC_API_KEY",
+        "openai": "OPENAI_API_KEY",
+        "google": "GOOGLE_API_KEY",
+        "notion": "NOTION_API_KEY",
+        "telegram": "TELEGRAM_BOT_TOKEN",
+        "serpapi": "SERPAPI_KEY",
+        "newsapi": "NEWSAPI_KEY",
+        "alpha_vantage": "ALPHA_VANTAGE_KEY",
+    }
+
+    # 도구 → 필요한 서비스 매핑 (도구 이름에 키워드 포함 여부로 추정)
+    _TOOL_SERVICE_HINTS = {
+        "notion": "notion", "web_search": "serpapi", "real_web_search": "serpapi",
+        "news": "newsapi", "stock": "alpha_vantage", "market": "alpha_vantage",
+        "telegram": "telegram",
+    }
+
+    results = []
+    for tool_def in _TOOLS_LIST:
+        tid = tool_def.get("tool_id", "")
+        tname = tool_def.get("name_ko", tool_def.get("name", tid))
+
+        is_loaded = tid in loaded_tools
+
+        # API 키 필요 여부 추정
+        required_service = None
+        for hint, service in _TOOL_SERVICE_HINTS.items():
+            if hint in tid.lower():
+                required_service = service
+                break
+
+        api_key_env = _API_KEY_MAP.get(required_service, "") if required_service else ""
+        api_key_set = bool(os.getenv(api_key_env, "")) if api_key_env else True
+
+        if is_loaded and api_key_set:
+            status = "ready"
+        elif is_loaded and not api_key_set:
+            status = "missing_key"
+        elif not is_loaded and required_service:
+            status = "not_loaded"
+        else:
+            status = "not_loaded"
+
+        results.append({
+            "tool_id": tid,
+            "name": tname,
+            "loaded": is_loaded,
+            "api_key_required": required_service or None,
+            "api_key_env": api_key_env or None,
+            "api_key_set": api_key_set,
+            "status": status,
+        })
+
+    # 통계
+    ready_count = sum(1 for r in results if r["status"] == "ready")
+    missing_key = sum(1 for r in results if r["status"] == "missing_key")
+    not_loaded = sum(1 for r in results if r["status"] == "not_loaded")
+
+    return {
+        "total": len(results),
+        "ready": ready_count,
+        "missing_key": missing_key,
+        "not_loaded": not_loaded,
+        "pool_status": "ready" if pool else "unavailable",
+        "tools": results,
     }
 
 
