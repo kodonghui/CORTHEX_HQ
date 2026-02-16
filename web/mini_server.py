@@ -177,6 +177,14 @@ def _load_config(name: str) -> dict:
         try:
             raw = yaml.safe_load(yaml_path.read_text(encoding="utf-8"))
             logger.info("%s.yaml 로드 성공", name)
+            # 보험: YAML 읽은 후 JSON도 자동 생성 (다음 기동 시 1순위로 바로 로드)
+            try:
+                json_path.write_text(
+                    json.dumps(raw, ensure_ascii=False, indent=2), encoding="utf-8"
+                )
+                logger.info("%s.yaml → %s.json 자동 변환 완료", name, name)
+            except Exception:
+                pass  # JSON 생성 실패해도 무시 (YAML 읽기는 성공했으므로)
             return raw
         except Exception as e:
             logger.warning("%s.yaml 로드 실패: %s", name, e)
