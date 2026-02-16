@@ -9,10 +9,10 @@
 ## 마지막 업데이트
 
 - **날짜**: 2026-02-16
-- **버전**: `0.13.000`
+- **버전**: `0.14.000`
 - **작업 브랜치**: claude/fix-multi-provider-ai-chat
-- **작업 내용**: 서버 이전 준비 + AI 도구 자동호출(Function Calling) + UX 전수검사 8개 + 배치 시스템 구현
-- **빌드 번호**: #139+
+- **작업 내용**: ARM 24GB 서버 이전 완료 + 배치 체인 오케스트레이터 구현
+- **빌드 번호**: #143
 
 ---
 
@@ -35,11 +35,11 @@
    - **최종 해결** (2026-02-15): 순수 CSS 색상 시스템 구축 — 194개+ hq-* 클래스를 Tailwind CDN 없이 직접 정의. text/bg/border/hover/focus/gradient/ring/shadow 전부 하드코딩. Tailwind CDN은 레이아웃(flex, grid, padding)만 담당
 6. **줄바꿈 자동 통일 설정** (`.gitattributes`) - 윈도우에서 작업해도 줄바꿈 충돌 안 생기게 설정
 7. **외부 접속 기능** (`CORTHEX_외부접속_시작.bat`) - Cloudflare Tunnel로 어디서든 웹 접속 가능 (회사컴 켜져 있어야 함)
-8. **Oracle Cloud 24시간 서버** - 무료 서버(VM.Standard.E2.1.Micro)에 웹사이트 배포 완료
-   - 서버 IP: `168.107.28.100`
-   - 운영체제: Ubuntu 24.04
-   - 웹서버: nginx + 경량 미니 백엔드(FastAPI)
-   - 회사 컴퓨터 꺼져도 대시보드 화면 접속 가능
+8. **Oracle Cloud 24시간 서버** - ARM 4코어 24GB 서버(Ampere A1, Always Free)에 웹사이트 배포 완료
+   - 서버 IP: GitHub Secrets `SERVER_IP_ARM`에 등록
+   - 운영체제: Ubuntu (ARM aarch64)
+   - 웹서버: nginx + FastAPI 백엔드 (uvicorn)
+   - 이전 서버(168.107.28.100, 1GB) 폐기 → 새 서버로 완전 이전 (빌드 #143부터)
 9. **GitHub Actions 자동 배포** - main에 코드 합쳐지면 서버에 자동 반영
    - `.github/workflows/deploy.yml` 워크플로우
    - **main에 push되면 무조건 실행** (paths 필터 제거됨)
@@ -77,9 +77,10 @@
 40. **키움증권 자동매매 시스템 프레임워크** (2026-02-16) - 전략실(TRADING OPS) 신규 탭. 모의투자 포트폴리오(매수/매도/평단계산), 매매전략 CRUD(RSI/MACD/골든크로스/볼린저/가치/모멘텀), 관심종목 관리, AI 시그널 생성(투자분석팀 연동), 자동매매 봇 엔진(5분 간격 스캔, 장시간 체크), 리스크관리 설정(손절/익절/포지션제한). 백엔드 API 15개 + 프론트엔드 6개 서브탭 + 모달 4개. 키움 API 연결은 추후
 41. **자동매매 CIO 연동 + 미국 주식** (2026-02-16) - 시그널 생성을 CIO(투자분석처장)+전문가 4명 위임 방식으로 변경. 시황분석/종목분석/기술적분석/리스크관리 전문가가 병렬 분석 → CIO가 취합 → 매수/매도/관망 판단. 자동매매 봇이 CIO 시그널 기반으로 자동주문 실행(신뢰도 70% 이상). 미국 주식 지원 추가(관심종목 한국/미국 선택, 미국장 시간 22:30~05:00 KST). 다크모드 밝기 개선
 42. **index.html UX 전수검사 8개 이슈** (2026-02-16) - 부서필터 버그수정(선택 초기화), 사령실 채팅 스크롤(탭 복귀 시 자동), 피드백 버튼 선택 시각효과(ring+배경), 기밀문서 2단 레이아웃(이메일 스타일 좌우분할), 글씨체 Pretendard 통일, 보고서 이미지 CSS(둥근모서리+테두리), 네모(■) 배지 계층별 색상(보라/시안/초록)
-43. **서버 이전 준비** (2026-02-16) - deploy.yml에서 하드코딩 IP 제거 → GitHub Secrets(`SERVER_IP`)로 변경. 새 서버(ARM 4코어 24GB) 초기 설정 자동화(nginx, venv, corthex.service) 추가. 기존 1GB 서버에서 24GB ARM 서버로 이전 준비 완료
+43. **서버 이전 완료** (2026-02-16) - 기존 1GB 마이크로 서버(168.107.28.100) → ARM 4코어 24GB 서버로 완전 이전. deploy.yml에서 `SERVER_IP_ARM`/`SERVER_SSH_KEY_ARM` 시크릿 사용. nginx WebSocket 프록시(/ws) 추가. src/ 디렉토리(100개+ 도구) 배포 추가. Python 3.10 호환성 수정(from __future__ import annotations). 빌드 #143부터 새 서버에서 운영
 44. **AI 도구 자동호출 (Function Calling)** (2026-02-16) - 111개 도구를 AI가 스스로 호출 가능. Claude(tool_use), GPT(tool_calls), Gemini(function_call) 3개 프로바이더 지원. 에이전트별 허용 도구 제한(CIO→투자도구, CTO→기술도구). 최대 5회 도구 호출 루프
-45. **AI Batch API 시스템** (2026-02-16) - Anthropic/OpenAI/Gemini 배치 API 지원. 여러 요청을 한꺼번에 제출하여 실시간 대비 ~50% 비용 절감. PENDING 추적(SQLite DB), 60초 간격 자동 폴러로 결과 수집, 완료 시 에이전트 자동 위임+아카이브 저장+WebSocket 실시간 알림. 사령실에서 📦배치 모드 토글+`/배치실행`+`/배치상태` 명령 지원
+45. **AI Batch API 시스템** (2026-02-16) - Anthropic/OpenAI/Gemini 배치 API 지원. 여러 요청을 한꺼번에 제출하여 실시간 대비 ~50% 비용 절감. PENDING 추적(SQLite DB), 60초 간격 자동 폴러로 결과 수집, 완료 시 에이전트 자동 위임+아카이브 저장+WebSocket 실시간 알림
+46. **배치 체인 오케스트레이터** (2026-02-16) - 위임 체인 전체(분류→전문가→종합→전달)를 Batch API로 처리. 프로바이더별 자동 그룹화(Claude/GPT/Gemini 각각의 배치로 분리). CIO 종합보고서 작성 단계 포함. 6개 부서 동시 브로드캐스트 지원. SQLite에 체인 상태 저장, 60초 폴러로 자동 진행
 
 ---
 
@@ -122,7 +123,7 @@
 9. **SNS API 키 등록** (인스타그램, 유튜브 등) — 실제 게시 기능 활성화
 10. 도메인(corthex.com 등) 연결 → IP 주소 대신 이름으로 접속
 11. HTTPS(보안 연결) 설정 → Let's Encrypt 무료 인증서
-12. ~~서버 업그레이드 검토~~ → **완료** (deploy.yml에 새 서버 설정 추가, GitHub Secrets에 IP 변경하면 바로 이전 가능)
+12. ~~서버 업그레이드 검토~~ → **완료** (빌드 #143에서 ARM 24GB 서버로 완전 이전)
 
 ---
 
@@ -130,11 +131,12 @@
 
 | 항목 | 값 |
 |------|-----|
-| 서버 IP | GitHub Secrets `SERVER_IP`에 등록 (이전 서버: 168.107.28.100, 새 서버: 158.179.165.97) |
+| 서버 IP | GitHub Secrets `SERVER_IP_ARM`에 등록 |
 | 서버 타입 | ARM 4코어 24GB (Ampere A1, 무료 Always Free) |
 | 리전 | ap-chuncheon-1 (춘천) |
-| 운영체제 | Ubuntu 24.04 LTS |
-| SSH 키 | GitHub Secrets `SERVER_SSH_KEY`에 등록 |
+| 운영체제 | Ubuntu (ARM aarch64, Python 3.10) |
+| SSH 키 | GitHub Secrets `SERVER_SSH_KEY_ARM`에 등록 |
+| 이전 서버 | 168.107.28.100 (1GB, 폐기됨) |
 | 웹서버 | nginx |
 | 웹사이트 경로 | `/var/www/html/` |
 
