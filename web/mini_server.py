@@ -34,6 +34,7 @@ try:
         init_ai_client, is_ai_ready, ask_ai, select_model,
         classify_task, get_available_providers,
         _load_tool_schemas,  # 도구 스키마 로딩 (function calling용)
+        batch_submit, batch_check, batch_retrieve,  # Batch API
     )
 except ImportError:
     def init_ai_client(): return False
@@ -43,6 +44,9 @@ except ImportError:
     async def classify_task(t): return {"agent_id": "chief_of_staff", "reason": "ai_handler 미설치", "cost_usd": 0}
     def get_available_providers(): return {"anthropic": False, "google": False, "openai": False}
     def _load_tool_schemas(allowed_tools=None): return {}
+    async def batch_submit(*a, **kw): return {"error": "ai_handler 미설치"}
+    async def batch_check(*a, **kw): return {"error": "ai_handler 미설치"}
+    async def batch_retrieve(*a, **kw): return {"error": "ai_handler 미설치"}
 
 # Python 출력 버퍼링 비활성화 (systemd에서 로그가 바로 보이도록)
 os.environ["PYTHONUNBUFFERED"] = "1"
@@ -318,15 +322,17 @@ async def websocket_endpoint(ws: WebSocket):
             # 메시지를 받으면 DB에 저장 + 응답
             if msg.get("type") == "command":
                 cmd_text = (msg.get("content") or msg.get("text", "")).strip()
+                use_batch = msg.get("batch", False)
                 if cmd_text:
                     # DB에 메시지 + 작업 저장
-                    task = create_task(cmd_text, source="websocket")
+                    task = create_task(cmd_text, source="websocket_batch" if use_batch else "websocket")
                     save_message(cmd_text, source="websocket",
                                  task_id=task["task_id"])
                     # 작업 접수 이벤트 브로드캐스트
+                    mode_label = "📦 배치" if use_batch else "⚡ 실시간"
                     log_entry = save_activity_log(
                         "chief_of_staff",
-                        f"[웹] 명령 접수: {cmd_text[:50]}{'...' if len(cmd_text) > 50 else ''} (#{task['task_id']})",
+                        f"[웹] {mode_label} 명령 접수: {cmd_text[:50]}{'...' if len(cmd_text) > 50 else ''} (#{task['task_id']})",
                     )
                     for c in connected_clients[:]:
                         try:
@@ -335,7 +341,32 @@ async def websocket_endpoint(ws: WebSocket):
                         except Exception:
                             pass
 
-                    # AI 처리
+                    # 배치 모드: Batch API로 접수 (PENDING → 나중에 자동 수집)
+                    if use_batch and is_ai_ready():
+                        update_task(task["task_id"], status="pending",
+                                    result_summary="[PENDING] 배치 대기열에 추가됨")
+                        # 배치 대기열에 추가
+                        _batch_api_queue.append({
+                            "custom_id": task["task_id"],
+                            "message": cmd_text,
+                            "task_id": task["task_id"],
+                        })
+                        await ws.send_json({
+                            "event": "result",
+                            "data": {
+                                "content": f"📦 **배치 접수 완료** — 대기열에 추가되었습니다.\n\n현재 대기: {len(_batch_api_queue)}건\n\n> 대기열이 쌓이면 자동으로 Batch API에 제출됩니다.\n> 또는 `/배치실행` 명령으로 즉시 제출할 수 있습니다.",
+                                "sender_id": "chief_of_staff",
+                                "handled_by": "비서실장",
+                                "time_seconds": 0,
+                                "cost": 0,
+                            }
+                        })
+                        # 5개 이상 쌓이면 자동 제출
+                        if len(_batch_api_queue) >= 5:
+                            asyncio.create_task(_flush_batch_api_queue())
+                        continue
+
+                    # 실시간 모드: AI 즉시 처리
                     if is_ai_ready():
                         update_task(task["task_id"], status="running")
                         result = await _process_ai_command(cmd_text, task["task_id"])
@@ -715,8 +746,9 @@ async def bulk_task_action(request: Request):
 
 # ── 배치 명령 (여러 명령 한번에 실행) ──
 
-_batch_queue: list[dict] = []  # 배치 대기열
+_batch_queue: list[dict] = []  # 배치 대기열 (로컬 순차/병렬 실행용)
 _batch_running = False
+_batch_api_queue: list[dict] = []  # Batch API 대기열 (프로바이더 배치 제출용)
 
 
 @app.get("/api/batch/queue")
@@ -803,6 +835,409 @@ async def clear_batch_queue():
     global _batch_queue
     _batch_queue = [item for item in _batch_queue if item.get("status") == "running"]
     return {"success": True}
+
+
+# ══════════════════════════════════════════════════════════════
+# ── AI Batch API 시스템 (PENDING 추적 + 자동 결과 수집) ──
+# ══════════════════════════════════════════════════════════════
+#
+# CEO가 여러 명령을 AI Batch API로 보내면:
+#   1) 각 명령이 PENDING 상태로 DB에 저장됨
+#   2) 프로바이더의 Batch API에 한꺼번에 제출 (실시간보다 ~50% 저렴)
+#   3) 백그라운드 폴러가 60초마다 상태를 확인
+#   4) 완료되면 자동으로 결과를 수집하고, 에이전트에게 위임하여 보고서 작성
+#   5) WebSocket으로 CEO에게 실시간 알림
+
+_batch_poller_task = None  # 배치 폴러 루프 태스크
+
+
+@app.post("/api/batch/ai")
+async def submit_ai_batch(request: Request):
+    """AI Batch API로 여러 요청을 한꺼번에 제출합니다.
+
+    요청 body:
+    {
+        "requests": [
+            {"message": "삼성전자 분석해줘", "system_prompt": "...", "agent_id": "cio_manager"},
+            {"message": "특허 검색해줘", "system_prompt": "...", "agent_id": "clo_manager"},
+        ],
+        "model": "claude-sonnet-4-5-20250929",  // 기본 모델 (선택)
+        "auto_delegate": true  // 결과를 에이전트에게 자동 위임할지 (기본: true)
+    }
+
+    응답: {"batch_id": "...", "count": N, "status": "submitted"}
+    """
+    body = await request.json()
+    requests_list = body.get("requests", [])
+    model = body.get("model")
+    auto_delegate = body.get("auto_delegate", True)
+
+    if not requests_list:
+        return {"success": False, "error": "요청 목록이 비어있습니다"}
+
+    # 각 요청에 custom_id 자동 부여
+    now_str = datetime.now(KST).strftime('%Y%m%d_%H%M%S')
+    for i, req in enumerate(requests_list):
+        if "custom_id" not in req:
+            req["custom_id"] = f"batch_{now_str}_{i}"
+        # 에이전트 소울(시스템 프롬프트)을 자동으로 로드
+        agent_id = req.get("agent_id")
+        if agent_id and not req.get("system_prompt"):
+            req["system_prompt"] = _load_agent_prompt(agent_id)
+
+    # Batch API 제출
+    result = await batch_submit(requests_list, model=model)
+
+    if "error" in result:
+        return {"success": False, "error": result["error"]}
+
+    batch_id = result["batch_id"]
+    provider = result["provider"]
+
+    # DB에 PENDING 상태로 저장
+    pending_data = {
+        "batch_id": batch_id,
+        "provider": provider,
+        "model": model,
+        "status": "pending",
+        "auto_delegate": auto_delegate,
+        "submitted_at": datetime.now(KST).isoformat(),
+        "requests": [
+            {
+                "custom_id": r.get("custom_id"),
+                "message": r.get("message", "")[:200],
+                "agent_id": r.get("agent_id", ""),
+            }
+            for r in requests_list
+        ],
+        "results": [],
+    }
+
+    # 기존 pending_batches 목록에 추가
+    pending_batches = load_setting("pending_batches") or []
+    pending_batches.append(pending_data)
+    save_setting("pending_batches", pending_batches)
+
+    # 각 요청을 task로도 생성 (PENDING 상태)
+    for req in requests_list:
+        task = create_task(
+            req.get("message", "배치 요청"),
+            source="batch_api",
+            agent_id=req.get("agent_id", "chief_of_staff"),
+        )
+        update_task(task["task_id"], status="pending",
+                    result_summary=f"[PENDING] 배치 처리 중 (batch_id: {batch_id[:20]}...)")
+
+    # WebSocket 알림
+    for c in connected_clients[:]:
+        try:
+            await c.send_json({
+                "event": "batch_submitted",
+                "data": {
+                    "batch_id": batch_id,
+                    "provider": provider,
+                    "count": len(requests_list),
+                },
+            })
+        except Exception:
+            pass
+
+    _log(f"[BATCH] AI 배치 제출 완료: {batch_id} ({len(requests_list)}개 요청, {provider})")
+
+    # 폴러가 안 돌고 있으면 시작
+    _ensure_batch_poller()
+
+    return {
+        "success": True,
+        "batch_id": batch_id,
+        "provider": provider,
+        "count": len(requests_list),
+        "status": "submitted",
+    }
+
+
+@app.get("/api/batch/pending")
+async def get_pending_batches():
+    """PENDING 상태인 배치 목록을 조회합니다."""
+    pending_batches = load_setting("pending_batches") or []
+    # pending과 processing만 반환
+    active = [b for b in pending_batches if b.get("status") in ("pending", "processing")]
+    return {"pending": active, "total": len(pending_batches)}
+
+
+@app.post("/api/batch/check/{batch_id}")
+async def check_batch_status(batch_id: str):
+    """특정 배치의 상태를 수동으로 확인합니다."""
+    pending_batches = load_setting("pending_batches") or []
+    batch_info = next((b for b in pending_batches if b["batch_id"] == batch_id), None)
+
+    if not batch_info:
+        return {"error": f"배치 '{batch_id}'를 찾을 수 없습니다"}
+
+    provider = batch_info["provider"]
+    status_result = await batch_check(batch_id, provider)
+
+    if "error" in status_result:
+        return status_result
+
+    # 상태 업데이트
+    batch_info["status"] = status_result["status"]
+    batch_info["progress"] = status_result.get("progress", {})
+    save_setting("pending_batches", pending_batches)
+
+    # 완료되었으면 결과 수집
+    if status_result["status"] == "completed":
+        await _collect_batch_results(batch_info, pending_batches)
+
+    return status_result
+
+
+@app.post("/api/batch/resume")
+async def resume_all_pending():
+    """모든 PENDING 배치의 상태를 확인하고, 완료된 것은 결과를 수집합니다."""
+    pending_batches = load_setting("pending_batches") or []
+    active = [b for b in pending_batches if b.get("status") in ("pending", "processing")]
+
+    if not active:
+        return {"message": "처리 중인 배치가 없습니다", "checked": 0}
+
+    checked = 0
+    collected = 0
+    for batch_info in active:
+        batch_id = batch_info["batch_id"]
+        provider = batch_info["provider"]
+
+        status_result = await batch_check(batch_id, provider)
+        if "error" not in status_result:
+            batch_info["status"] = status_result["status"]
+            batch_info["progress"] = status_result.get("progress", {})
+            checked += 1
+
+            if status_result["status"] == "completed":
+                await _collect_batch_results(batch_info, pending_batches)
+                collected += 1
+
+    save_setting("pending_batches", pending_batches)
+    return {"checked": checked, "collected": collected, "remaining": len(active) - collected}
+
+
+@app.get("/api/batch/history")
+async def get_batch_history():
+    """모든 배치의 히스토리를 조회합니다 (완료된 것 포함)."""
+    all_batches = load_setting("pending_batches") or []
+    return {"batches": all_batches[-50:], "total": len(all_batches)}  # 최근 50개만
+
+
+async def _collect_batch_results(batch_info: dict, all_batches: list):
+    """완료된 배치의 결과를 수집하고, 필요시 에이전트에게 위임합니다."""
+    batch_id = batch_info["batch_id"]
+    provider = batch_info["provider"]
+
+    _log(f"[BATCH] 결과 수집 시작: {batch_id}")
+
+    # 결과 가져오기
+    result = await batch_retrieve(batch_id, provider)
+    if "error" in result:
+        _log(f"[BATCH] 결과 수집 실패: {result['error']}")
+        return
+
+    results = result.get("results", [])
+    batch_info["results"] = results
+    batch_info["status"] = "completed"
+    batch_info["completed_at"] = datetime.now(KST).isoformat()
+
+    # 총 비용 계산
+    total_cost = sum(r.get("cost_usd", 0) for r in results if r.get("cost_usd"))
+    batch_info["total_cost_usd"] = round(total_cost, 6)
+
+    save_setting("pending_batches", all_batches)
+
+    # 에이전트에게 자동 위임 (auto_delegate=true인 경우)
+    if batch_info.get("auto_delegate"):
+        req_map = {r["custom_id"]: r for r in batch_info.get("requests", [])}
+        for res in results:
+            if res.get("error"):
+                continue
+            custom_id = res.get("custom_id", "")
+            req_info = req_map.get(custom_id, {})
+            agent_id = req_info.get("agent_id")
+            message = req_info.get("message", "")
+
+            if agent_id and res.get("content"):
+                # 결과를 활동 로그에 기록
+                agent_name = _AGENT_NAMES.get(agent_id, agent_id)
+                log_entry = save_activity_log(
+                    agent_id,
+                    f"[배치 완료] {agent_name}: {message[:40]}... → {res['content'][:60]}..."
+                )
+                for c in connected_clients[:]:
+                    try:
+                        await c.send_json({"event": "activity_log", "data": log_entry})
+                    except Exception:
+                        pass
+
+                # 아카이브에 저장
+                division = _AGENT_DIVISION.get(agent_id, "secretary")
+                now_str = datetime.now(KST).strftime("%Y%m%d_%H%M%S")
+                archive_content = f"# [배치] [{agent_name}] {message[:60]}\n\n{res['content']}"
+                save_archive(
+                    division=division,
+                    filename=f"batch_{agent_id}_{now_str}.md",
+                    content=archive_content,
+                    agent_id=agent_id,
+                )
+
+    # WebSocket으로 완료 알림
+    for c in connected_clients[:]:
+        try:
+            await c.send_json({
+                "event": "batch_completed",
+                "data": {
+                    "batch_id": batch_id,
+                    "provider": provider,
+                    "count": len(results),
+                    "total_cost_usd": total_cost,
+                    "succeeded": sum(1 for r in results if not r.get("error")),
+                    "failed": sum(1 for r in results if r.get("error")),
+                },
+            })
+        except Exception:
+            pass
+
+    _log(f"[BATCH] 결과 수집 완료: {batch_id} ({len(results)}개, ${total_cost:.4f})")
+
+
+async def _flush_batch_api_queue():
+    """배치 대기열에 쌓인 요청을 Batch API에 제출합니다."""
+    global _batch_api_queue
+    if not _batch_api_queue:
+        return {"message": "대기열이 비어있습니다"}
+
+    queue_copy = list(_batch_api_queue)
+    _batch_api_queue = []
+
+    _log(f"[BATCH] 대기열 {len(queue_copy)}건 → Batch API 제출 중...")
+
+    # 각 요청에 에이전트 라우팅 (시스템 프롬프트 결정)
+    for req in queue_copy:
+        if not req.get("system_prompt"):
+            routing = await _route_task(req.get("message", ""))
+            agent_id = routing.get("agent_id", "chief_of_staff")
+            req["agent_id"] = agent_id
+            req["system_prompt"] = _load_agent_prompt(agent_id)
+
+    # Batch API 제출
+    result = await batch_submit(queue_copy)
+
+    if "error" in result:
+        _log(f"[BATCH] 제출 실패: {result['error']}")
+        # 실패하면 다시 대기열에 넣기
+        _batch_api_queue.extend(queue_copy)
+        return result
+
+    batch_id = result["batch_id"]
+    provider = result["provider"]
+
+    # DB에 PENDING 상태로 저장
+    pending_data = {
+        "batch_id": batch_id,
+        "provider": provider,
+        "status": "pending",
+        "auto_delegate": True,
+        "submitted_at": datetime.now(KST).isoformat(),
+        "requests": [
+            {
+                "custom_id": r.get("custom_id", r.get("task_id", "")),
+                "message": r.get("message", "")[:200],
+                "agent_id": r.get("agent_id", ""),
+                "task_id": r.get("task_id", ""),
+            }
+            for r in queue_copy
+        ],
+        "results": [],
+    }
+
+    pending_batches = load_setting("pending_batches") or []
+    pending_batches.append(pending_data)
+    save_setting("pending_batches", pending_batches)
+
+    # 각 task를 PENDING 상태로 업데이트
+    for req in queue_copy:
+        task_id = req.get("task_id")
+        if task_id:
+            update_task(task_id, status="pending",
+                        result_summary=f"[PENDING] Batch API 제출됨 ({batch_id[:20]}...)")
+
+    # WebSocket 알림
+    for c in connected_clients[:]:
+        try:
+            await c.send_json({
+                "event": "batch_submitted",
+                "data": {"batch_id": batch_id, "provider": provider, "count": len(queue_copy)},
+            })
+        except Exception:
+            pass
+
+    _ensure_batch_poller()
+    _log(f"[BATCH] Batch API 제출 완료: {batch_id} ({len(queue_copy)}건, {provider})")
+    return result
+
+
+@app.post("/api/batch/flush")
+async def flush_batch_queue():
+    """배치 대기열에 쌓인 요청을 즉시 Batch API에 제출합니다."""
+    if not _batch_api_queue:
+        return {"success": False, "message": "대기열이 비어있습니다"}
+    result = await _flush_batch_api_queue()
+    return {"success": "error" not in result, **result}
+
+
+def _ensure_batch_poller():
+    """배치 폴러가 돌고 있는지 확인하고, 안 돌면 시작합니다."""
+    global _batch_poller_task
+    if _batch_poller_task is None or _batch_poller_task.done():
+        _batch_poller_task = asyncio.create_task(_batch_poller_loop())
+        _log("[BATCH] 배치 폴러 시작됨 (60초 간격)")
+
+
+async def _batch_poller_loop():
+    """백그라운드에서 60초마다 PENDING 배치를 확인합니다."""
+    while True:
+        try:
+            await asyncio.sleep(60)
+
+            pending_batches = load_setting("pending_batches") or []
+            active = [b for b in pending_batches if b.get("status") in ("pending", "processing")]
+
+            if not active:
+                _log("[BATCH] 처리 중인 배치 없음 — 폴러 종료")
+                break
+
+            for batch_info in active:
+                batch_id = batch_info["batch_id"]
+                provider = batch_info["provider"]
+
+                try:
+                    status_result = await batch_check(batch_id, provider)
+                    if "error" not in status_result:
+                        batch_info["status"] = status_result["status"]
+                        batch_info["progress"] = status_result.get("progress", {})
+
+                        if status_result["status"] == "completed":
+                            await _collect_batch_results(batch_info, pending_batches)
+                        elif status_result["status"] in ("failed", "expired"):
+                            batch_info["status"] = status_result["status"]
+                            _log(f"[BATCH] 배치 실패/만료: {batch_id}")
+                except Exception as e:
+                    _log(f"[BATCH] 배치 확인 실패 ({batch_id}): {e}")
+
+            save_setting("pending_batches", pending_batches)
+
+        except asyncio.CancelledError:
+            break
+        except Exception as e:
+            _log(f"[BATCH] 폴러 오류: {e}")
+            await asyncio.sleep(30)  # 에러 시 30초 대기 후 재시도
 
 
 # ── 크론 실행 엔진 (asyncio 기반 스케줄러) ──
@@ -3554,6 +3989,33 @@ async def _process_ai_command(text: str, task_id: str) -> dict:
                     success=0)
         return {"error": f"일일 예산을 초과했습니다 (${today:.2f}/${limit:.0f})"}
 
+    # 1.5) 배치 특수 명령 처리
+    text_lower = text.strip().lower()
+    if text_lower in ("/배치실행", "/batch_flush", "배치실행", "배치 실행"):
+        result = await _flush_batch_api_queue()
+        content = f"📦 **배치 실행 결과**\n\n"
+        if "error" in result:
+            content += f"❌ 실패: {result['error']}"
+        elif result.get("batch_id"):
+            content += f"✅ Batch API 제출 완료\n- batch_id: `{result['batch_id']}`\n- 건수: {result.get('count', 0)}건\n- 프로바이더: {result.get('provider', '?')}"
+        else:
+            content += result.get("message", "처리 완료")
+        update_task(task_id, status="completed", result_summary=content[:500], success=1)
+        return {"content": content, "handled_by": "비서실장", "agent_id": "chief_of_staff"}
+
+    if text_lower in ("/배치상태", "/batch_status", "배치상태", "배치 상태"):
+        pending_batches = load_setting("pending_batches") or []
+        active = [b for b in pending_batches if b.get("status") in ("pending", "processing")]
+        queue_count = len(_batch_api_queue)
+        content = f"📦 **배치 상태**\n\n"
+        content += f"- 대기열: {queue_count}건\n"
+        content += f"- 처리 중인 배치: {len(active)}건\n"
+        for b in active:
+            prog = b.get("progress", {})
+            content += f"  - `{b['batch_id'][:20]}...` ({b['provider']}) — {prog.get('completed', '?')}/{prog.get('total', '?')} 완료\n"
+        update_task(task_id, status="completed", result_summary=content[:500], success=1)
+        return {"content": content, "handled_by": "비서실장", "agent_id": "chief_of_staff"}
+
     # 2) 브로드캐스트 명령 확인 → 29명 동시 가동
     if _is_broadcast_command(text):
         return await _broadcast_to_managers(text, task_id)
@@ -3782,6 +4244,12 @@ async def on_startup():
     _log("[CRON] 크론 실행 엔진 시작 ✅")
     # 도구 실행 엔진 초기화 (비동기 아닌 동기 — 첫 요청 시 lazy 로드도 지원)
     _init_tool_pool()
+    # PENDING 배치가 있으면 폴러 시작
+    pending_batches = load_setting("pending_batches") or []
+    active = [b for b in pending_batches if b.get("status") in ("pending", "processing")]
+    if active:
+        _ensure_batch_poller()
+        _log(f"[BATCH] 미완료 배치 {len(active)}개 감지 — 폴러 자동 시작")
 
 
 @app.on_event("shutdown")

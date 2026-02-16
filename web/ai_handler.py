@@ -764,3 +764,438 @@ async def ask_ai(
         "cost_usd": round(cost, 6),
         "time_seconds": round(elapsed, 2),
     }
+
+
+# ══════════════════════════════════════════════════════════════
+# ── AI Batch API (프로바이더별 대량 요청 — 실시간보다 저렴) ──
+# ══════════════════════════════════════════════════════════════
+
+async def batch_submit(
+    requests: list[dict],
+    model: str | None = None,
+) -> dict:
+    """여러 AI 요청을 Batch API로 한꺼번에 제출합니다.
+
+    각 프로바이더의 배치 API를 사용하여 실시간보다 저렴하게(~50% 할인) 처리합니다.
+    요청이 접수되면 batch_id가 반환되며, 결과는 나중에 batch_retrieve()로 가져옵니다.
+
+    Args:
+        requests: [{"custom_id": "req-1", "message": "...", "system_prompt": "...", "model": "..."}]
+        model: 기본 모델 (개별 요청에 model이 없을 때 사용)
+
+    Returns:
+        {"batch_id": "...", "provider": "...", "status": "submitted", "count": N}
+        실패 시: {"error": "사유"}
+    """
+    if not requests:
+        return {"error": "요청 목록이 비어있습니다"}
+
+    if model is None:
+        model = "claude-sonnet-4-5-20250929"
+
+    provider = _get_provider(model)
+
+    try:
+        if provider == "anthropic":
+            return await _batch_submit_anthropic(requests, model)
+        elif provider == "openai":
+            return await _batch_submit_openai(requests, model)
+        elif provider == "google":
+            return await _batch_submit_google(requests, model)
+        else:
+            return {"error": f"알 수 없는 프로바이더: {provider}"}
+    except Exception as e:
+        logger.error("배치 제출 실패 (%s): %s", provider, e)
+        return {"error": f"배치 제출 실패 ({provider}): {str(e)[:200]}"}
+
+
+async def batch_check(batch_id: str, provider: str) -> dict:
+    """배치 상태를 확인합니다.
+
+    Returns:
+        {"batch_id": "...", "status": "processing|completed|failed|expired",
+         "progress": {"completed": N, "total": M}}
+    """
+    try:
+        if provider == "anthropic":
+            return await _batch_check_anthropic(batch_id)
+        elif provider == "openai":
+            return await _batch_check_openai(batch_id)
+        elif provider == "google":
+            return await _batch_check_google(batch_id)
+        else:
+            return {"error": f"알 수 없는 프로바이더: {provider}"}
+    except Exception as e:
+        logger.error("배치 상태 확인 실패 (%s/%s): %s", provider, batch_id, e)
+        return {"error": str(e)[:200]}
+
+
+async def batch_retrieve(batch_id: str, provider: str) -> dict:
+    """완료된 배치의 결과를 가져옵니다.
+
+    Returns:
+        {"batch_id": "...", "results": [{"custom_id": "...", "content": "...", "error": None}]}
+    """
+    try:
+        if provider == "anthropic":
+            return await _batch_retrieve_anthropic(batch_id)
+        elif provider == "openai":
+            return await _batch_retrieve_openai(batch_id)
+        elif provider == "google":
+            return await _batch_retrieve_google(batch_id)
+        else:
+            return {"error": f"알 수 없는 프로바이더: {provider}"}
+    except Exception as e:
+        logger.error("배치 결과 조회 실패 (%s/%s): %s", provider, batch_id, e)
+        return {"error": str(e)[:200]}
+
+
+# ── Anthropic Batch API ──
+
+async def _batch_submit_anthropic(requests: list[dict], default_model: str) -> dict:
+    """Anthropic Message Batches API로 제출합니다."""
+    if not _anthropic_client:
+        return {"error": "Anthropic API 키가 설정되지 않았습니다"}
+
+    batch_requests = []
+    for req in requests:
+        model = req.get("model", default_model)
+        messages = [{"role": "user", "content": req.get("message", "")}]
+        params = {
+            "model": model,
+            "max_tokens": req.get("max_tokens", 4096),
+            "messages": messages,
+        }
+        if req.get("system_prompt"):
+            params["system"] = req["system_prompt"]
+
+        batch_requests.append({
+            "custom_id": req.get("custom_id", f"req-{len(batch_requests)}"),
+            "params": params,
+        })
+
+    batch = await _anthropic_client.beta.messages.batches.create(
+        requests=batch_requests
+    )
+
+    return {
+        "batch_id": batch.id,
+        "provider": "anthropic",
+        "status": "submitted",
+        "count": len(batch_requests),
+        "processing_status": getattr(batch, "processing_status", "in_progress"),
+    }
+
+
+async def _batch_check_anthropic(batch_id: str) -> dict:
+    """Anthropic 배치 상태를 확인합니다."""
+    if not _anthropic_client:
+        return {"error": "Anthropic API 키가 설정되지 않았습니다"}
+
+    batch = await _anthropic_client.beta.messages.batches.retrieve(batch_id)
+
+    # processing_status: in_progress, ended, canceling, canceled, expired
+    status_map = {
+        "in_progress": "processing",
+        "ended": "completed",
+        "canceling": "processing",
+        "canceled": "failed",
+        "expired": "expired",
+    }
+    status = status_map.get(getattr(batch, "processing_status", ""), "processing")
+
+    counts = getattr(batch, "request_counts", None)
+    progress = {}
+    if counts:
+        progress = {
+            "completed": getattr(counts, "succeeded", 0) + getattr(counts, "errored", 0),
+            "total": getattr(counts, "processing", 0) + getattr(counts, "succeeded", 0)
+                   + getattr(counts, "errored", 0) + getattr(counts, "canceled", 0),
+            "succeeded": getattr(counts, "succeeded", 0),
+            "errored": getattr(counts, "errored", 0),
+        }
+
+    return {"batch_id": batch_id, "provider": "anthropic", "status": status, "progress": progress}
+
+
+async def _batch_retrieve_anthropic(batch_id: str) -> dict:
+    """Anthropic 배치 결과를 가져옵니다."""
+    if not _anthropic_client:
+        return {"error": "Anthropic API 키가 설정되지 않았습니다"}
+
+    results = []
+    async for result in _anthropic_client.beta.messages.batches.results(batch_id):
+        custom_id = result.custom_id
+        if result.result.type == "succeeded":
+            msg = result.result.message
+            text_blocks = [b.text for b in msg.content if b.type == "text"]
+            content = "\n".join(text_blocks) if text_blocks else ""
+            in_tok = msg.usage.input_tokens if msg.usage else 0
+            out_tok = msg.usage.output_tokens if msg.usage else 0
+            model = msg.model or ""
+            results.append({
+                "custom_id": custom_id,
+                "content": content,
+                "model": model,
+                "input_tokens": in_tok,
+                "output_tokens": out_tok,
+                "cost_usd": round(_calc_cost(model, in_tok, out_tok), 6),
+                "error": None,
+            })
+        else:
+            error_msg = str(getattr(result.result, "error", "알 수 없는 오류"))
+            results.append({
+                "custom_id": custom_id,
+                "content": "",
+                "error": error_msg,
+            })
+
+    return {"batch_id": batch_id, "provider": "anthropic", "results": results}
+
+
+# ── OpenAI Batch API ──
+
+async def _batch_submit_openai(requests: list[dict], default_model: str) -> dict:
+    """OpenAI Batch API로 제출합니다."""
+    if not _openai_client:
+        return {"error": "OpenAI API 키가 설정되지 않았습니다"}
+
+    # JSONL 파일 생성
+    lines = []
+    for req in requests:
+        model = req.get("model", default_model)
+        messages = []
+        if req.get("system_prompt"):
+            messages.append({"role": "system", "content": req["system_prompt"]})
+        messages.append({"role": "user", "content": req.get("message", "")})
+
+        line = {
+            "custom_id": req.get("custom_id", f"req-{len(lines)}"),
+            "method": "POST",
+            "url": "/v1/chat/completions",
+            "body": {
+                "model": model,
+                "messages": messages,
+                "max_tokens": req.get("max_tokens", 4096),
+            },
+        }
+        lines.append(json.dumps(line, ensure_ascii=False))
+
+    jsonl_content = "\n".join(lines)
+
+    # 파일 업로드
+    file_obj = await _openai_client.files.create(
+        file=jsonl_content.encode("utf-8"),
+        purpose="batch",
+    )
+
+    # 배치 생성
+    batch = await _openai_client.batches.create(
+        input_file_id=file_obj.id,
+        endpoint="/v1/chat/completions",
+        completion_window="24h",
+    )
+
+    return {
+        "batch_id": batch.id,
+        "provider": "openai",
+        "status": "submitted",
+        "count": len(lines),
+        "input_file_id": file_obj.id,
+    }
+
+
+async def _batch_check_openai(batch_id: str) -> dict:
+    """OpenAI 배치 상태를 확인합니다."""
+    if not _openai_client:
+        return {"error": "OpenAI API 키가 설정되지 않았습니다"}
+
+    batch = await _openai_client.batches.retrieve(batch_id)
+
+    status_map = {
+        "validating": "processing",
+        "in_progress": "processing",
+        "finalizing": "processing",
+        "completed": "completed",
+        "failed": "failed",
+        "expired": "expired",
+        "cancelling": "processing",
+        "cancelled": "failed",
+    }
+    status = status_map.get(batch.status, "processing")
+
+    counts = batch.request_counts or {}
+    progress = {
+        "completed": getattr(counts, "completed", 0),
+        "total": getattr(counts, "total", 0),
+        "failed": getattr(counts, "failed", 0),
+    }
+
+    return {
+        "batch_id": batch_id,
+        "provider": "openai",
+        "status": status,
+        "progress": progress,
+        "output_file_id": getattr(batch, "output_file_id", None),
+    }
+
+
+async def _batch_retrieve_openai(batch_id: str) -> dict:
+    """OpenAI 배치 결과를 가져옵니다."""
+    if not _openai_client:
+        return {"error": "OpenAI API 키가 설정되지 않았습니다"}
+
+    # 배치 상태에서 output_file_id 가져오기
+    batch = await _openai_client.batches.retrieve(batch_id)
+    output_file_id = getattr(batch, "output_file_id", None)
+    if not output_file_id:
+        return {"error": "아직 결과 파일이 없습니다 (배치 진행 중)"}
+
+    # 결과 파일 다운로드
+    content = await _openai_client.files.content(output_file_id)
+    text = content.text if hasattr(content, "text") else content.read().decode("utf-8")
+
+    results = []
+    for line in text.strip().split("\n"):
+        if not line.strip():
+            continue
+        try:
+            obj = json.loads(line)
+            custom_id = obj.get("custom_id", "")
+            response = obj.get("response", {})
+            body = response.get("body", {})
+            choices = body.get("choices", [])
+
+            if choices:
+                msg_content = choices[0].get("message", {}).get("content", "")
+                usage = body.get("usage", {})
+                model = body.get("model", "")
+                in_tok = usage.get("prompt_tokens", 0)
+                out_tok = usage.get("completion_tokens", 0)
+                results.append({
+                    "custom_id": custom_id,
+                    "content": msg_content,
+                    "model": model,
+                    "input_tokens": in_tok,
+                    "output_tokens": out_tok,
+                    "cost_usd": round(_calc_cost(model, in_tok, out_tok), 6),
+                    "error": None,
+                })
+            else:
+                error = obj.get("error", {})
+                results.append({
+                    "custom_id": custom_id,
+                    "content": "",
+                    "error": error.get("message", "결과 없음"),
+                })
+        except json.JSONDecodeError:
+            continue
+
+    return {"batch_id": batch_id, "provider": "openai", "results": results}
+
+
+# ── Google Gemini Batch API ──
+# Gemini Batch API는 Vertex AI 환경에서만 지원되므로,
+# API 키 방식에서는 병렬 실시간 호출로 대체합니다.
+
+async def _batch_submit_google(requests: list[dict], default_model: str) -> dict:
+    """Gemini 배치 — 병렬 실시간 호출로 처리합니다.
+
+    Gemini의 공식 Batch API는 Vertex AI(서비스 계정 인증)에서만 사용 가능합니다.
+    API 키 방식에서는 asyncio.gather로 병렬 호출하여 배치처럼 처리합니다.
+    """
+    if not _google_client:
+        return {"error": "Google API 키가 설정되지 않았습니다"}
+
+    batch_id = f"gemini_batch_{int(time.time())}"
+
+    # 요청을 내부 큐에 저장 (나중에 retrieve에서 사용)
+    _google_batch_store[batch_id] = {
+        "requests": requests,
+        "model": default_model,
+        "status": "processing",
+        "results": [],
+    }
+
+    # 백그라운드에서 병렬 실행
+    asyncio.create_task(_run_google_batch(batch_id, requests, default_model))
+
+    return {
+        "batch_id": batch_id,
+        "provider": "google",
+        "status": "submitted",
+        "count": len(requests),
+    }
+
+
+# Gemini 배치 결과 저장소 (메모리 내)
+_google_batch_store: dict[str, dict] = {}
+
+
+async def _run_google_batch(batch_id: str, requests: list[dict], default_model: str):
+    """Gemini 배치를 병렬 실시간 호출로 실행합니다."""
+    tasks = []
+    for req in requests:
+        model = req.get("model", default_model)
+        tasks.append(_call_google(
+            user_message=req.get("message", ""),
+            system_prompt=req.get("system_prompt", ""),
+            model=model,
+        ))
+
+    raw_results = await asyncio.gather(*tasks, return_exceptions=True)
+
+    results = []
+    for i, (req, res) in enumerate(zip(requests, raw_results)):
+        custom_id = req.get("custom_id", f"req-{i}")
+        if isinstance(res, Exception):
+            results.append({"custom_id": custom_id, "content": "", "error": str(res)})
+        elif isinstance(res, dict) and "error" in res:
+            results.append({"custom_id": custom_id, "content": "", "error": res["error"]})
+        else:
+            model = req.get("model", default_model)
+            in_tok = res.get("input_tokens", 0)
+            out_tok = res.get("output_tokens", 0)
+            results.append({
+                "custom_id": custom_id,
+                "content": res.get("content", ""),
+                "model": model,
+                "input_tokens": in_tok,
+                "output_tokens": out_tok,
+                "cost_usd": round(_calc_cost(model, in_tok, out_tok), 6),
+                "error": None,
+            })
+
+    _google_batch_store[batch_id]["results"] = results
+    _google_batch_store[batch_id]["status"] = "completed"
+
+
+async def _batch_check_google(batch_id: str) -> dict:
+    """Gemini 배치 상태를 확인합니다."""
+    store = _google_batch_store.get(batch_id)
+    if not store:
+        return {"error": f"배치 '{batch_id}'를 찾을 수 없습니다"}
+
+    total = len(store["requests"])
+    completed = len(store["results"])
+    return {
+        "batch_id": batch_id,
+        "provider": "google",
+        "status": store["status"],
+        "progress": {"completed": completed, "total": total},
+    }
+
+
+async def _batch_retrieve_google(batch_id: str) -> dict:
+    """Gemini 배치 결과를 가져옵니다."""
+    store = _google_batch_store.get(batch_id)
+    if not store:
+        return {"error": f"배치 '{batch_id}'를 찾을 수 없습니다"}
+    if store["status"] != "completed":
+        return {"error": "아직 처리 중입니다", "status": store["status"]}
+
+    results = store["results"]
+    # 메모리 정리 (결과 반환 후 1시간 뒤 삭제 예약)
+    asyncio.get_event_loop().call_later(3600, lambda: _google_batch_store.pop(batch_id, None))
+
+    return {"batch_id": batch_id, "provider": "google", "results": results}
