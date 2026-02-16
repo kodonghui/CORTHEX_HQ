@@ -9,6 +9,8 @@ Anthropic (Claude), Google (Gemini), OpenAI (GPT) 3개 프로바이더를 지원
 
 mini_server.py에서 import하여 사용합니다.
 """
+from __future__ import annotations
+
 import json
 import os
 import time
