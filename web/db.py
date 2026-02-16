@@ -641,16 +641,30 @@ def get_archive(division: str, filename: str) -> Optional[dict]:
 # ── Settings (키-값 저장소) ──
 
 def get_today_cost() -> float:
-    """오늘(KST 기준) 사용한 총 AI 비용을 반환합니다 (USD)."""
+    """오늘(KST 기준) 사용한 총 AI 비용을 반환합니다 (USD).
+
+    tasks 테이블과 agent_calls 테이블 양쪽의 비용을 합산합니다.
+    """
     conn = get_connection()
     try:
         today = _now_kst().strftime("%Y-%m-%d")
         today_start = f"{today}T00:00:00"
-        row = conn.execute(
+        # tasks 테이블 비용
+        task_row = conn.execute(
             "SELECT COALESCE(SUM(cost_usd), 0) FROM tasks WHERE created_at >= ?",
             (today_start,),
         ).fetchone()
-        return round(row[0], 6)
+        task_cost = task_row[0]
+        # agent_calls 테이블 비용
+        try:
+            ac_row = conn.execute(
+                "SELECT COALESCE(SUM(cost_usd), 0) FROM agent_calls WHERE created_at >= ?",
+                (today_start,),
+            ).fetchone()
+            agent_cost = ac_row[0]
+        except Exception:
+            agent_cost = 0.0
+        return round(task_cost + agent_cost, 6)
     except Exception:
         return 0.0
     finally:
