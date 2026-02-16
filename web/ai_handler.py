@@ -1097,108 +1097,221 @@ async def _batch_retrieve_openai(batch_id: str) -> dict:
 
 
 # ── Google Gemini Batch API ──
-# Gemini Batch API는 Vertex AI 환경에서만 지원되므로,
-# API 키 방식에서는 병렬 실시간 호출로 대체합니다.
+# google-genai SDK의 client.batches.create()를 사용합니다.
+# API 키 방식으로 사용 가능합니다 (Vertex AI 불필요).
+# 50% 할인된 가격, 24시간 내 처리.
+
+# Gemini 배치 메타 저장소 (custom_id 매핑용 — 메모리 내)
+_google_batch_meta: dict[str, dict] = {}
+
 
 async def _batch_submit_google(requests: list[dict], default_model: str) -> dict:
-    """Gemini 배치 — 병렬 실시간 호출로 처리합니다.
+    """Gemini Batch API로 제출합니다.
 
-    Gemini의 공식 Batch API는 Vertex AI(서비스 계정 인증)에서만 사용 가능합니다.
-    API 키 방식에서는 asyncio.gather로 병렬 호출하여 배치처럼 처리합니다.
+    google-genai SDK의 client.batches.create()를 사용합니다.
+    인라인 요청 방식 (20MB 이하).
     """
     if not _google_client:
         return {"error": "Google API 키가 설정되지 않았습니다"}
 
-    batch_id = f"gemini_batch_{int(time.time())}"
+    # 인라인 요청 포맷으로 변환
+    inline_requests = []
+    custom_id_map = {}  # batch 내 인덱스 → custom_id 매핑
 
-    # 요청을 내부 큐에 저장 (나중에 retrieve에서 사용)
-    _google_batch_store[batch_id] = {
-        "requests": requests,
-        "model": default_model,
-        "status": "processing",
-        "results": [],
+    for i, req in enumerate(requests):
+        request_body = {
+            "contents": [
+                {
+                    "parts": [{"text": req.get("message", "")}],
+                    "role": "user",
+                }
+            ],
+        }
+        # 시스템 프롬프트가 있으면 system_instruction으로 추가
+        if req.get("system_prompt"):
+            request_body["system_instruction"] = {
+                "parts": [{"text": req["system_prompt"]}]
+            }
+
+        inline_requests.append(request_body)
+        custom_id_map[i] = req.get("custom_id", f"req-{i}")
+
+    model = requests[0].get("model", default_model) if requests else default_model
+
+    def _sync_submit():
+        return _google_client.batches.create(
+            model=model,
+            src=inline_requests,
+            config={"display_name": f"corthex_batch_{int(time.time())}"},
+        )
+
+    batch_job = await asyncio.to_thread(_sync_submit)
+
+    # custom_id 매핑 저장 (결과 조회 시 필요)
+    _google_batch_meta[batch_job.name] = {
+        "custom_id_map": custom_id_map,
+        "model": model,
     }
-
-    # 백그라운드에서 병렬 실행
-    asyncio.create_task(_run_google_batch(batch_id, requests, default_model))
 
     return {
-        "batch_id": batch_id,
+        "batch_id": batch_job.name,
         "provider": "google",
         "status": "submitted",
-        "count": len(requests),
+        "count": len(inline_requests),
     }
-
-
-# Gemini 배치 결과 저장소 (메모리 내)
-_google_batch_store: dict[str, dict] = {}
-
-
-async def _run_google_batch(batch_id: str, requests: list[dict], default_model: str):
-    """Gemini 배치를 병렬 실시간 호출로 실행합니다."""
-    tasks = []
-    for req in requests:
-        model = req.get("model", default_model)
-        tasks.append(_call_google(
-            user_message=req.get("message", ""),
-            system_prompt=req.get("system_prompt", ""),
-            model=model,
-        ))
-
-    raw_results = await asyncio.gather(*tasks, return_exceptions=True)
-
-    results = []
-    for i, (req, res) in enumerate(zip(requests, raw_results)):
-        custom_id = req.get("custom_id", f"req-{i}")
-        if isinstance(res, Exception):
-            results.append({"custom_id": custom_id, "content": "", "error": str(res)})
-        elif isinstance(res, dict) and "error" in res:
-            results.append({"custom_id": custom_id, "content": "", "error": res["error"]})
-        else:
-            model = req.get("model", default_model)
-            in_tok = res.get("input_tokens", 0)
-            out_tok = res.get("output_tokens", 0)
-            results.append({
-                "custom_id": custom_id,
-                "content": res.get("content", ""),
-                "model": model,
-                "input_tokens": in_tok,
-                "output_tokens": out_tok,
-                "cost_usd": round(_calc_cost(model, in_tok, out_tok), 6),
-                "error": None,
-            })
-
-    _google_batch_store[batch_id]["results"] = results
-    _google_batch_store[batch_id]["status"] = "completed"
 
 
 async def _batch_check_google(batch_id: str) -> dict:
     """Gemini 배치 상태를 확인합니다."""
-    store = _google_batch_store.get(batch_id)
-    if not store:
-        return {"error": f"배치 '{batch_id}'를 찾을 수 없습니다"}
+    if not _google_client:
+        return {"error": "Google API 키가 설정되지 않았습니다"}
 
-    total = len(store["requests"])
-    completed = len(store["results"])
+    def _sync_get():
+        return _google_client.batches.get(name=batch_id)
+
+    batch_job = await asyncio.to_thread(_sync_get)
+
+    # Gemini 상태 → 우리 표준 상태로 변환
+    state_name = batch_job.state.name if batch_job.state else "UNKNOWN"
+    status_map = {
+        "JOB_STATE_PENDING": "processing",
+        "JOB_STATE_RUNNING": "processing",
+        "JOB_STATE_SUCCEEDED": "completed",
+        "JOB_STATE_FAILED": "failed",
+        "JOB_STATE_CANCELLED": "failed",
+        "JOB_STATE_EXPIRED": "expired",
+    }
+    status = status_map.get(state_name, "processing")
+
     return {
         "batch_id": batch_id,
         "provider": "google",
-        "status": store["status"],
-        "progress": {"completed": completed, "total": total},
+        "status": status,
+        "progress": {"state": state_name},
     }
 
 
 async def _batch_retrieve_google(batch_id: str) -> dict:
     """Gemini 배치 결과를 가져옵니다."""
-    store = _google_batch_store.get(batch_id)
-    if not store:
-        return {"error": f"배치 '{batch_id}'를 찾을 수 없습니다"}
-    if store["status"] != "completed":
-        return {"error": "아직 처리 중입니다", "status": store["status"]}
+    if not _google_client:
+        return {"error": "Google API 키가 설정되지 않았습니다"}
 
-    results = store["results"]
-    # 메모리 정리 (결과 반환 후 1시간 뒤 삭제 예약)
-    asyncio.get_event_loop().call_later(3600, lambda: _google_batch_store.pop(batch_id, None))
+    def _sync_get():
+        return _google_client.batches.get(name=batch_id)
+
+    batch_job = await asyncio.to_thread(_sync_get)
+
+    state_name = batch_job.state.name if batch_job.state else "UNKNOWN"
+    if state_name != "JOB_STATE_SUCCEEDED":
+        return {"error": f"아직 처리 중입니다 (상태: {state_name})"}
+
+    # custom_id 매핑 가져오기
+    meta = _google_batch_meta.get(batch_id, {})
+    custom_id_map = meta.get("custom_id_map", {})
+    model = meta.get("model", "gemini-2.5-flash")
+
+    results = []
+
+    # 인라인 결과 추출
+    dest = getattr(batch_job, "dest", None)
+    inlined = getattr(dest, "inlined_responses", None) if dest else None
+
+    if inlined:
+        for i, resp_item in enumerate(inlined):
+            custom_id = custom_id_map.get(i, f"req-{i}")
+            try:
+                response = getattr(resp_item, "response", None)
+                if response:
+                    # 텍스트 추출
+                    content = ""
+                    if hasattr(response, "text"):
+                        content = response.text
+                    elif hasattr(response, "candidates") and response.candidates:
+                        text_parts = []
+                        for part in response.candidates[0].content.parts:
+                            if hasattr(part, "text") and part.text:
+                                text_parts.append(part.text)
+                        content = "\n".join(text_parts)
+
+                    # 토큰 사용량 추출
+                    usage = getattr(response, "usage_metadata", None)
+                    in_tok = getattr(usage, "prompt_token_count", 0) if usage else 0
+                    out_tok = getattr(usage, "candidates_token_count", 0) if usage else 0
+
+                    results.append({
+                        "custom_id": custom_id,
+                        "content": content,
+                        "model": model,
+                        "input_tokens": in_tok,
+                        "output_tokens": out_tok,
+                        "cost_usd": round(_calc_cost(model, in_tok, out_tok) * 0.5, 6),
+                        "error": None,
+                    })
+                else:
+                    results.append({
+                        "custom_id": custom_id,
+                        "content": "",
+                        "error": "응답이 비어있습니다",
+                    })
+            except Exception as e:
+                results.append({
+                    "custom_id": custom_id,
+                    "content": "",
+                    "error": str(e),
+                })
+
+    # 파일 기반 결과 처리 (대용량 배치일 때)
+    elif dest and getattr(dest, "file_name", None):
+        try:
+            def _sync_download():
+                return _google_client.files.download(file=dest.file_name)
+
+            file_content = await asyncio.to_thread(_sync_download)
+            text = file_content.decode("utf-8") if isinstance(file_content, bytes) else str(file_content)
+
+            for i, line in enumerate(text.strip().split("\n")):
+                if not line.strip():
+                    continue
+                custom_id = custom_id_map.get(i, f"req-{i}")
+                try:
+                    obj = json.loads(line)
+                    candidates = obj.get("candidates", [])
+                    if candidates:
+                        parts = candidates[0].get("content", {}).get("parts", [])
+                        content = "\n".join(p.get("text", "") for p in parts if "text" in p)
+                        usage = obj.get("usageMetadata", {})
+                        in_tok = usage.get("promptTokenCount", 0)
+                        out_tok = usage.get("candidatesTokenCount", 0)
+                        results.append({
+                            "custom_id": custom_id,
+                            "content": content,
+                            "model": model,
+                            "input_tokens": in_tok,
+                            "output_tokens": out_tok,
+                            "cost_usd": round(_calc_cost(model, in_tok, out_tok) * 0.5, 6),
+                            "error": None,
+                        })
+                    else:
+                        error = obj.get("error", {})
+                        results.append({
+                            "custom_id": custom_id,
+                            "content": "",
+                            "error": error.get("message", "결과 없음") if isinstance(error, dict) else str(error),
+                        })
+                except json.JSONDecodeError:
+                    results.append({
+                        "custom_id": custom_id,
+                        "content": "",
+                        "error": f"결과 파싱 실패",
+                    })
+        except Exception as e:
+            return {"error": f"결과 파일 다운로드 실패: {str(e)[:200]}"}
+
+    # 메모리 정리 (결과 반환 후 1시간 뒤 삭제)
+    try:
+        asyncio.get_event_loop().call_later(3600, lambda: _google_batch_meta.pop(batch_id, None))
+    except Exception:
+        pass
 
     return {"batch_id": batch_id, "provider": "google", "results": results}
 
