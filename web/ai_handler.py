@@ -1199,3 +1199,78 @@ async def _batch_retrieve_google(batch_id: str) -> dict:
     asyncio.get_event_loop().call_later(3600, lambda: _google_batch_store.pop(batch_id, None))
 
     return {"batch_id": batch_id, "provider": "google", "results": results}
+
+
+# ══════════════════════════════════════════════════════════════
+# ── 프로바이더별 그룹 배치 제출 (배치 체인용) ──
+# ══════════════════════════════════════════════════════════════
+
+async def batch_submit_grouped(
+    requests: list[dict],
+) -> list[dict]:
+    """여러 AI 요청을 프로바이더별로 자동 그룹화하여 각각의 Batch API에 제출합니다.
+
+    각 요청에 "model"이 있으면 해당 모델의 프로바이더로 분류됩니다.
+    같은 프로바이더끼리 모아서 하나의 Batch API 호출로 제출합니다.
+
+    예: Claude 에이전트 2명 + GPT 에이전트 1명 + Gemini 에이전트 1명
+        → Anthropic Batch (2건) + OpenAI Batch (1건) + Google Batch (1건)
+        → 3개 배치가 각각 제출됨
+
+    Args:
+        requests: [
+            {
+                "custom_id": "agent_stock_analysis",
+                "message": "삼성전자 주가 분석",
+                "system_prompt": "당신은 주식 분석 전문가입니다...",
+                "model": "claude-sonnet-4-5-20250929",
+            },
+            ...
+        ]
+
+    Returns:
+        [
+            {
+                "batch_id": "batch_abc123",
+                "provider": "anthropic",
+                "status": "submitted",
+                "count": 2,
+                "custom_ids": ["agent_1", "agent_2"],
+            },
+            {
+                "batch_id": "batch_xyz789",
+                "provider": "openai",
+                "status": "submitted",
+                "count": 1,
+                "custom_ids": ["agent_3"],
+            },
+        ]
+        실패한 프로바이더는 {"provider": "...", "error": "..."} 형태로 포함됩니다.
+    """
+    if not requests:
+        return [{"error": "요청 목록이 비어있습니다"}]
+
+    # 프로바이더별 그룹화
+    groups: dict[str, list[dict]] = {}
+    for req in requests:
+        model = req.get("model", "claude-sonnet-4-5-20250929")
+        provider = _get_provider(model)
+        groups.setdefault(provider, []).append(req)
+
+    results = []
+    for provider, group_reqs in groups.items():
+        default_model = group_reqs[0].get("model", "claude-sonnet-4-5-20250929")
+        try:
+            result = await batch_submit(group_reqs, model=default_model)
+            if "error" not in result:
+                result["custom_ids"] = [r.get("custom_id", "") for r in group_reqs]
+            results.append(result)
+        except Exception as e:
+            logger.error("배치 그룹 제출 실패 (%s): %s", provider, e)
+            results.append({
+                "provider": provider,
+                "error": f"제출 실패: {str(e)[:200]}",
+                "custom_ids": [r.get("custom_id", "") for r in group_reqs],
+            })
+
+    return results

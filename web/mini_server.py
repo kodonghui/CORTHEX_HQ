@@ -35,6 +35,7 @@ try:
         classify_task, get_available_providers,
         _load_tool_schemas,  # 도구 스키마 로딩 (function calling용)
         batch_submit, batch_check, batch_retrieve,  # Batch API
+        batch_submit_grouped,  # 프로바이더별 그룹 배치 제출 (배치 체인용)
     )
 except ImportError:
     def init_ai_client(): return False
@@ -47,6 +48,7 @@ except ImportError:
     async def batch_submit(*a, **kw): return {"error": "ai_handler 미설치"}
     async def batch_check(*a, **kw): return {"error": "ai_handler 미설치"}
     async def batch_retrieve(*a, **kw): return {"error": "ai_handler 미설치"}
+    async def batch_submit_grouped(*a, **kw): return [{"error": "ai_handler 미설치"}]
 
 # Python 출력 버퍼링 비활성화 (systemd에서 로그가 바로 보이도록)
 os.environ["PYTHONUNBUFFERED"] = "1"
@@ -341,29 +343,46 @@ async def websocket_endpoint(ws: WebSocket):
                         except Exception:
                             pass
 
-                    # 배치 모드: Batch API로 접수 (PENDING → 나중에 자동 수집)
+                    # 배치 모드: 위임 체인 전체를 Batch API로 실행
                     if use_batch and is_ai_ready():
                         update_task(task["task_id"], status="pending",
-                                    result_summary="[PENDING] 배치 대기열에 추가됨")
-                        # 배치 대기열에 추가
-                        _batch_api_queue.append({
-                            "custom_id": task["task_id"],
-                            "message": cmd_text,
-                            "task_id": task["task_id"],
-                        })
-                        await ws.send_json({
-                            "event": "result",
-                            "data": {
-                                "content": f"📦 **배치 접수 완료** — 대기열에 추가되었습니다.\n\n현재 대기: {len(_batch_api_queue)}건\n\n> 대기열이 쌓이면 자동으로 Batch API에 제출됩니다.\n> 또는 `/배치실행` 명령으로 즉시 제출할 수 있습니다.",
-                                "sender_id": "chief_of_staff",
-                                "handled_by": "비서실장",
-                                "time_seconds": 0,
-                                "cost": 0,
-                            }
-                        })
-                        # 5개 이상 쌓이면 자동 제출
-                        if len(_batch_api_queue) >= 5:
-                            asyncio.create_task(_flush_batch_api_queue())
+                                    result_summary="📦 [배치 체인] 시작 중...")
+                        # 배치 체인 시작 (분류 → 전문가 → 종합보고서 → CEO 전달)
+                        chain_result = await _start_batch_chain(cmd_text, task["task_id"])
+                        if "error" in chain_result:
+                            await ws.send_json({
+                                "event": "result",
+                                "data": {
+                                    "content": f"❌ 배치 체인 시작 실패: {chain_result['error']}",
+                                    "sender_id": "chief_of_staff",
+                                    "handled_by": "비서실장",
+                                    "time_seconds": 0,
+                                    "cost": 0,
+                                }
+                            })
+                        else:
+                            chain_id = chain_result.get("chain_id", "?")
+                            step = chain_result.get("step", "?")
+                            mode = chain_result.get("mode", "single")
+                            mode_label = "브로드캐스트 (6개 부서)" if mode == "broadcast" else "단일 부서 위임"
+                            await ws.send_json({
+                                "event": "result",
+                                "data": {
+                                    "content": (
+                                        f"📦 **배치 체인 시작됨**\n\n"
+                                        f"- 모드: {mode_label}\n"
+                                        f"- 현재 단계: {step}\n"
+                                        f"- 체인 ID: `{chain_id[:30]}`\n\n"
+                                        f"위임 체인 전체가 Batch API로 처리됩니다 (비용 ~50% 절감).\n"
+                                        f"각 단계 완료 시 자동으로 다음 단계로 진행되며, "
+                                        f"최종 보고서가 완성되면 알려드리겠습니다."
+                                    ),
+                                    "sender_id": "chief_of_staff",
+                                    "handled_by": "비서실장",
+                                    "time_seconds": 0,
+                                    "cost": 0,
+                                }
+                            })
                         continue
 
                     # 실시간 모드: AI 즉시 처리
@@ -1201,43 +1220,849 @@ def _ensure_batch_poller():
 
 
 async def _batch_poller_loop():
-    """백그라운드에서 60초마다 PENDING 배치를 확인합니다."""
+    """백그라운드에서 60초마다 PENDING 배치 + 배치 체인을 확인합니다."""
     while True:
         try:
             await asyncio.sleep(60)
 
+            has_work = False
+
+            # ── (A) 기존 단독 배치 확인 ──
             pending_batches = load_setting("pending_batches") or []
             active = [b for b in pending_batches if b.get("status") in ("pending", "processing")]
 
-            if not active:
-                _log("[BATCH] 처리 중인 배치 없음 — 폴러 종료")
-                break
+            if active:
+                has_work = True
+                for batch_info in active:
+                    batch_id = batch_info["batch_id"]
+                    provider = batch_info["provider"]
 
-            for batch_info in active:
-                batch_id = batch_info["batch_id"]
-                provider = batch_info["provider"]
-
-                try:
-                    status_result = await batch_check(batch_id, provider)
-                    if "error" not in status_result:
-                        batch_info["status"] = status_result["status"]
-                        batch_info["progress"] = status_result.get("progress", {})
-
-                        if status_result["status"] == "completed":
-                            await _collect_batch_results(batch_info, pending_batches)
-                        elif status_result["status"] in ("failed", "expired"):
+                    try:
+                        status_result = await batch_check(batch_id, provider)
+                        if "error" not in status_result:
                             batch_info["status"] = status_result["status"]
-                            _log(f"[BATCH] 배치 실패/만료: {batch_id}")
-                except Exception as e:
-                    _log(f"[BATCH] 배치 확인 실패 ({batch_id}): {e}")
+                            batch_info["progress"] = status_result.get("progress", {})
 
-            save_setting("pending_batches", pending_batches)
+                            if status_result["status"] == "completed":
+                                await _collect_batch_results(batch_info, pending_batches)
+                            elif status_result["status"] in ("failed", "expired"):
+                                batch_info["status"] = status_result["status"]
+                                _log(f"[BATCH] 배치 실패/만료: {batch_id}")
+                    except Exception as e:
+                        _log(f"[BATCH] 배치 확인 실패 ({batch_id}): {e}")
+
+                save_setting("pending_batches", pending_batches)
+
+            # ── (B) 배치 체인 확인 + 자동 진행 ──
+            chains = load_setting("batch_chains") or []
+            active_chains = [c for c in chains if c.get("status") in ("running", "pending")]
+
+            if active_chains:
+                has_work = True
+                for chain in active_chains:
+                    try:
+                        await _advance_batch_chain(chain["chain_id"])
+                    except Exception as e:
+                        _log(f"[CHAIN] 체인 진행 오류 ({chain['chain_id']}): {e}")
+
+            if not has_work:
+                _log("[BATCH] 처리 중인 배치/체인 없음 — 폴러 종료")
+                break
 
         except asyncio.CancelledError:
             break
         except Exception as e:
             _log(f"[BATCH] 폴러 오류: {e}")
             await asyncio.sleep(30)  # 에러 시 30초 대기 후 재시도
+
+
+# ══════════════════════════════════════════════════════════════
+# ── 배치 체인 오케스트레이터 ──
+# ══════════════════════════════════════════════════════════════
+#
+# CEO가 📦 배치 모드로 명령을 보내면 위임 체인 전체가 Batch API로 돌아감:
+#
+#   [1단계] 비서실장 분류 → Batch 제출 → PENDING → 결과: "CIO에게 위임"
+#   [2단계] 전문가 N명 → 프로바이더별 묶어서 Batch 제출 → PENDING → 전부 대기
+#   [3단계] 처장 종합보고서 → Batch 제출 → PENDING → 결과: 종합 보고서
+#   [4단계] CEO에게 전달 + 아카이브 저장
+#
+# 매 단계마다 Batch API 사용 → 비용 ~50% 절감
+# 프로바이더별 자동 그룹화 (Claude + GPT + Gemini 에이전트 혼합 가능)
+
+# 분류용 시스템 프롬프트 (배치 체인에서 사용)
+_BATCH_CLASSIFY_PROMPT = """당신은 업무 분류 전문가입니다.
+CEO의 명령을 읽고 어느 부서가 처리해야 하는지 판단하세요.
+
+## 부서 목록
+- cto_manager: 기술개발 (코드, 웹사이트, API, 서버, 배포, 프론트엔드, 백엔드, 버그, UI, 디자인, 데이터베이스)
+- cso_manager: 사업기획 (시장조사, 사업계획, 매출 예측, 비즈니스모델, 수익, 경쟁사)
+- clo_manager: 법무IP (저작권, 특허, 상표, 약관, 계약, 법률, 소송)
+- cmo_manager: 마케팅고객 (마케팅, 광고, SNS, 인스타그램, 유튜브, 콘텐츠, 브랜딩, 설문)
+- cio_manager: 투자분석 (주식, 투자, 종목, 시황, 포트폴리오, 코스피, 나스닥, 차트, 금리)
+- cpo_manager: 출판기록 (회사기록, 연대기, 블로그, 출판, 편집, 회고, 빌딩로그)
+- chief_of_staff: 일반 질문, 요약, 일정 관리, 기타 (위 부서에 해당하지 않는 경우)
+
+## 출력 형식
+반드시 아래 JSON 형식으로만 답하세요. 다른 텍스트는 쓰지 마세요.
+{"agent_id": "부서ID", "reason": "한줄 이유"}"""
+
+
+def _save_chain(chain: dict):
+    """배치 체인 상태를 DB에 저장합니다."""
+    chains = load_setting("batch_chains") or []
+    # 같은 chain_id가 있으면 업데이트, 없으면 추가
+    found = False
+    for i, c in enumerate(chains):
+        if c["chain_id"] == chain["chain_id"]:
+            chains[i] = chain
+            found = True
+            break
+    if not found:
+        chains.append(chain)
+    # 최근 50개만 유지 (오래된 완료/실패 체인 정리)
+    if len(chains) > 50:
+        active = [c for c in chains if c.get("status") in ("running", "pending")]
+        done = [c for c in chains if c.get("status") not in ("running", "pending")]
+        chains = active + done[-20:]
+    save_setting("batch_chains", chains)
+
+
+def _load_chain(chain_id: str) -> dict | None:
+    """DB에서 배치 체인 상태를 로드합니다."""
+    chains = load_setting("batch_chains") or []
+    for c in chains:
+        if c["chain_id"] == chain_id:
+            return c
+    return None
+
+
+async def _broadcast_chain_status(chain: dict, message: str):
+    """배치 체인 진행 상황을 WebSocket으로 CEO에게 알립니다."""
+    step_labels = {
+        "classify": "1단계: 분류",
+        "specialists": "2단계: 전문가 분석",
+        "synthesis": "3단계: 종합 보고서",
+        "completed": "완료",
+        "failed": "실패",
+        "direct": "비서실장 직접 처리",
+    }
+    step_label = step_labels.get(chain.get("step", ""), chain.get("step", ""))
+    for c in connected_clients[:]:
+        try:
+            await c.send_json({
+                "event": "batch_chain_progress",
+                "data": {
+                    "chain_id": chain["chain_id"],
+                    "step": chain.get("step", ""),
+                    "step_label": step_label,
+                    "status": chain.get("status", ""),
+                    "message": message,
+                    "mode": chain.get("mode", "single"),
+                    "target_id": chain.get("target_id"),
+                },
+            })
+        except Exception:
+            pass
+
+
+async def _start_batch_chain(text: str, task_id: str) -> dict:
+    """배치 체인을 시작합니다.
+
+    CEO 명령을 받아서 위임 체인 전체를 Batch API로 처리합니다.
+    키워드 매칭이 되면 분류 단계를 건너뛰고 바로 전문가 단계로 진행합니다.
+    """
+    chain_id = f"chain_{datetime.now(KST).strftime('%Y%m%d_%H%M%S')}_{task_id[:8]}"
+
+    chain = {
+        "chain_id": chain_id,
+        "task_id": task_id,
+        "text": text,
+        "mode": "broadcast" if _is_broadcast_command(text) else "single",
+        "step": "classify",
+        "status": "running",
+        "target_id": None,
+        "batches": {"classify": None, "specialists": [], "synthesis": []},
+        "results": {"classify": None, "specialists": {}, "synthesis": {}},
+        "custom_id_map": {},  # custom_id → {"agent_id", "step"} 역매핑
+        "total_cost_usd": 0.0,
+        "created_at": datetime.now(KST).isoformat(),
+        "completed_at": None,
+    }
+
+    # 예산 확인
+    limit = float(load_setting("daily_budget_usd") or 7.0)
+    today = get_today_cost()
+    if today >= limit:
+        update_task(task_id, status="failed",
+                    result_summary=f"일일 예산 초과 (${today:.2f}/${limit:.0f})",
+                    success=0)
+        return {"error": f"일일 예산을 초과했습니다 (${today:.2f}/${limit:.0f})"}
+
+    # ── 브로드캐스트 모드 → 분류 건너뛰고 바로 전 부서 전문가 ──
+    if chain["mode"] == "broadcast":
+        chain["step"] = "specialists"
+        chain["target_id"] = "broadcast"
+        _save_chain(chain)
+
+        await _broadcast_chain_status(chain, "📦 배치 체인 시작 (브로드캐스트: 6개 부서)")
+        await _chain_submit_specialists_broadcast(chain)
+        return {"chain_id": chain_id, "status": "started", "mode": "broadcast"}
+
+    # ── 키워드 분류 시도 (무료, 즉시) ──
+    keyword_match = _classify_by_keywords(text)
+    if keyword_match:
+        chain["target_id"] = keyword_match
+        chain["results"]["classify"] = {
+            "agent_id": keyword_match,
+            "method": "키워드",
+            "cost_usd": 0,
+        }
+
+        if keyword_match == "chief_of_staff":
+            # 비서실장 직접 처리 → 바로 종합(=직접 답변) 단계
+            chain["step"] = "synthesis"
+            _save_chain(chain)
+            await _broadcast_chain_status(chain, "📦 키워드 분류 → 비서실장 직접 처리")
+            await _chain_submit_synthesis(chain)
+        else:
+            # 처장 부서로 위임 → 전문가 호출 단계
+            chain["step"] = "specialists"
+            _save_chain(chain)
+            target_name = _AGENT_NAMES.get(keyword_match, keyword_match)
+            await _broadcast_chain_status(chain, f"📦 키워드 분류 → {target_name}에게 위임")
+            await _chain_submit_specialists(chain)
+
+        return {"chain_id": chain_id, "status": "started", "step": chain["step"]}
+
+    # ── AI 분류가 필요 → Batch API로 분류 요청 제출 ──
+    # 가장 저렴한 사용 가능 모델 선택
+    providers = get_available_providers()
+    if providers.get("anthropic"):
+        classify_model = "claude-haiku-4-5-20251001"
+    elif providers.get("google"):
+        classify_model = "gemini-2.5-flash"
+    elif providers.get("openai"):
+        classify_model = "gpt-5-mini"
+    else:
+        # AI 없음 → 비서실장 직접
+        chain["target_id"] = "chief_of_staff"
+        chain["step"] = "synthesis"
+        chain["results"]["classify"] = {"agent_id": "chief_of_staff", "method": "폴백"}
+        _save_chain(chain)
+        await _chain_submit_synthesis(chain)
+        return {"chain_id": chain_id, "status": "started", "step": "synthesis"}
+
+    classify_custom_id = f"{chain_id}_classify"
+    classify_req = {
+        "custom_id": classify_custom_id,
+        "message": text,
+        "system_prompt": _BATCH_CLASSIFY_PROMPT,
+        "model": classify_model,
+    }
+
+    result = await batch_submit([classify_req], model=classify_model)
+
+    if "error" in result:
+        # 배치 실패 → 폴백으로 비서실장 직접 처리
+        _log(f"[CHAIN] 분류 배치 실패: {result['error']} → 비서실장 폴백")
+        chain["target_id"] = "chief_of_staff"
+        chain["step"] = "synthesis"
+        chain["results"]["classify"] = {"agent_id": "chief_of_staff", "method": "폴백", "error": result["error"]}
+        _save_chain(chain)
+        await _chain_submit_synthesis(chain)
+        return {"chain_id": chain_id, "status": "started", "step": "synthesis"}
+
+    chain["batches"]["classify"] = {
+        "batch_id": result["batch_id"],
+        "provider": result["provider"],
+        "status": "pending",
+    }
+    chain["status"] = "pending"
+    chain["custom_id_map"][classify_custom_id] = {"agent_id": "classify", "step": "classify"}
+    _save_chain(chain)
+
+    _ensure_batch_poller()
+    update_task(task_id, status="pending",
+                result_summary="📦 [배치 체인] 1단계: 분류 요청 제출됨")
+    await _broadcast_chain_status(chain, "📦 배치 체인 시작 — 1단계: 분류 요청 제출됨")
+
+    _log(f"[CHAIN] 시작: {chain_id} — 분류 배치 제출 (batch_id: {result['batch_id']})")
+    return {"chain_id": chain_id, "status": "pending", "step": "classify"}
+
+
+async def _chain_submit_specialists(chain: dict):
+    """배치 체인 — 단일 부서의 전문가들에게 배치 제출합니다."""
+    target_id = chain["target_id"]
+    text = chain["text"]
+    specialists = _MANAGER_SPECIALISTS.get(target_id, [])
+
+    if not specialists:
+        # 전문가 없음 → 바로 종합(처장 직접 처리) 단계
+        chain["step"] = "synthesis"
+        _save_chain(chain)
+        await _chain_submit_synthesis(chain)
+        return
+
+    requests = []
+    for spec_id in specialists:
+        soul = _load_agent_prompt(spec_id)
+        override = _get_model_override(spec_id)
+        model = select_model(text, override=override)
+        custom_id = f"{chain['chain_id']}_spec_{spec_id}"
+
+        requests.append({
+            "custom_id": custom_id,
+            "message": text,
+            "system_prompt": soul,
+            "model": model,
+        })
+        chain["custom_id_map"][custom_id] = {"agent_id": spec_id, "step": "specialists"}
+
+    # 프로바이더별 그룹화하여 배치 제출
+    batch_results = await batch_submit_grouped(requests)
+
+    chain["batches"]["specialists"] = []
+    for br in batch_results:
+        chain["batches"]["specialists"].append({
+            "batch_id": br.get("batch_id", ""),
+            "provider": br.get("provider", ""),
+            "status": "pending" if "error" not in br else "failed",
+            "custom_ids": br.get("custom_ids", []),
+            "error": br.get("error"),
+        })
+
+    chain["status"] = "pending"
+    _save_chain(chain)
+
+    _ensure_batch_poller()
+    spec_count = len(specialists)
+    provider_count = len(batch_results)
+    target_name = _AGENT_NAMES.get(target_id, target_id)
+    update_task(chain["task_id"], status="pending",
+                result_summary=f"📦 [배치 체인] 2단계: {target_name} 전문가 {spec_count}명 배치 제출 ({provider_count}개 프로바이더)")
+    await _broadcast_chain_status(chain, f"📦 2단계: {target_name} 전문가 {spec_count}명 → {provider_count}개 프로바이더별 배치 제출")
+
+    _log(f"[CHAIN] {chain['chain_id']} — 전문가 {spec_count}명 배치 제출 ({provider_count}개 프로바이더)")
+
+
+async def _chain_submit_specialists_broadcast(chain: dict):
+    """배치 체인 — 브로드캐스트: 6개 부서 전체 전문가에게 배치 제출합니다."""
+    text = chain["text"]
+    all_managers = ["cto_manager", "cso_manager", "clo_manager", "cmo_manager", "cio_manager", "cpo_manager"]
+
+    requests = []
+    for mgr_id in all_managers:
+        specialists = _MANAGER_SPECIALISTS.get(mgr_id, [])
+        for spec_id in specialists:
+            soul = _load_agent_prompt(spec_id)
+            override = _get_model_override(spec_id)
+            model = select_model(text, override=override)
+            custom_id = f"{chain['chain_id']}_spec_{spec_id}"
+
+            requests.append({
+                "custom_id": custom_id,
+                "message": text,
+                "system_prompt": soul,
+                "model": model,
+            })
+            chain["custom_id_map"][custom_id] = {"agent_id": spec_id, "step": "specialists"}
+
+    if not requests:
+        chain["step"] = "synthesis"
+        _save_chain(chain)
+        await _chain_submit_synthesis(chain)
+        return
+
+    # 프로바이더별 그룹화하여 배치 제출
+    batch_results = await batch_submit_grouped(requests)
+
+    chain["batches"]["specialists"] = []
+    for br in batch_results:
+        chain["batches"]["specialists"].append({
+            "batch_id": br.get("batch_id", ""),
+            "provider": br.get("provider", ""),
+            "status": "pending" if "error" not in br else "failed",
+            "custom_ids": br.get("custom_ids", []),
+            "error": br.get("error"),
+        })
+
+    chain["status"] = "pending"
+    _save_chain(chain)
+
+    _ensure_batch_poller()
+    spec_count = len(requests)
+    provider_count = len(batch_results)
+    update_task(chain["task_id"], status="pending",
+                result_summary=f"📦 [배치 체인] 2단계: 전체 {spec_count}명 전문가 배치 제출 ({provider_count}개 프로바이더)")
+    await _broadcast_chain_status(chain, f"📦 2단계: 6개 부서 전문가 {spec_count}명 → {provider_count}개 프로바이더별 배치 제출")
+
+    _log(f"[CHAIN] {chain['chain_id']} — 브로드캐스트 전문가 {spec_count}명 배치 제출")
+
+
+async def _chain_submit_synthesis(chain: dict):
+    """배치 체인 — 처장(들)이 전문가 결과를 종합하는 배치를 제출합니다."""
+    text = chain["text"]
+
+    requests = []
+
+    if chain["mode"] == "broadcast":
+        # 브로드캐스트: 6개 처장이 각각 자기 팀 결과를 종합
+        all_managers = ["cto_manager", "cso_manager", "clo_manager", "cmo_manager", "cio_manager", "cpo_manager"]
+        for mgr_id in all_managers:
+            specialists = _MANAGER_SPECIALISTS.get(mgr_id, [])
+            spec_parts = []
+            for s_id in specialists:
+                s_res = chain["results"]["specialists"].get(s_id, {})
+                name = _SPECIALIST_NAMES.get(s_id, s_id)
+                content = s_res.get("content", "응답 없음")
+                if s_res.get("error"):
+                    content = f"오류: {s_res['error'][:100]}"
+                spec_parts.append(f"[{name}]\n{content}")
+
+            mgr_name = _AGENT_NAMES.get(mgr_id, mgr_id)
+            synthesis_prompt = (
+                f"당신은 {mgr_name}입니다. 소속 전문가들이 아래 분석 결과를 제출했습니다.\n"
+                f"이를 검수하고 종합하여 CEO에게 보고할 간결한 보고서를 작성하세요.\n"
+                f"전문가 의견 중 부족하거나 잘못된 부분이 있으면 지적하고 보완하세요.\n\n"
+                f"## CEO 원본 명령\n{text}\n\n"
+                f"## 전문가 분석 결과\n" + "\n\n".join(spec_parts)
+            )
+
+            soul = _load_agent_prompt(mgr_id)
+            override = _get_model_override(mgr_id)
+            model = select_model(synthesis_prompt, override=override)
+            custom_id = f"{chain['chain_id']}_synth_{mgr_id}"
+
+            requests.append({
+                "custom_id": custom_id,
+                "message": synthesis_prompt,
+                "system_prompt": soul,
+                "model": model,
+            })
+            chain["custom_id_map"][custom_id] = {"agent_id": mgr_id, "step": "synthesis"}
+
+    elif chain["target_id"] == "chief_of_staff":
+        # 비서실장 직접 처리 (분류 결과가 chief_of_staff인 경우)
+        soul = _load_agent_prompt("chief_of_staff")
+        override = _get_model_override("chief_of_staff")
+        model = select_model(text, override=override)
+        custom_id = f"{chain['chain_id']}_synth_chief_of_staff"
+
+        requests.append({
+            "custom_id": custom_id,
+            "message": text,
+            "system_prompt": soul,
+            "model": model,
+        })
+        chain["custom_id_map"][custom_id] = {"agent_id": "chief_of_staff", "step": "synthesis"}
+
+    else:
+        # 단일 부서: 처장이 전문가 결과를 종합
+        target_id = chain["target_id"]
+        specialists = _MANAGER_SPECIALISTS.get(target_id, [])
+
+        if not specialists or not chain["results"]["specialists"]:
+            # 전문가 결과 없음 → 처장이 직접 답변
+            soul = _load_agent_prompt(target_id)
+            override = _get_model_override(target_id)
+            model = select_model(text, override=override)
+            custom_id = f"{chain['chain_id']}_synth_{target_id}"
+
+            requests.append({
+                "custom_id": custom_id,
+                "message": text,
+                "system_prompt": soul,
+                "model": model,
+            })
+            chain["custom_id_map"][custom_id] = {"agent_id": target_id, "step": "synthesis"}
+        else:
+            # 전문가 결과 취합 → 처장에게 종합 요청
+            spec_parts = []
+            for s_id in specialists:
+                s_res = chain["results"]["specialists"].get(s_id, {})
+                name = _SPECIALIST_NAMES.get(s_id, s_id)
+                content = s_res.get("content", "응답 없음")
+                if s_res.get("error"):
+                    content = f"오류: {s_res['error'][:100]}"
+                spec_parts.append(f"[{name}]\n{content}")
+
+            mgr_name = _AGENT_NAMES.get(target_id, target_id)
+            synthesis_prompt = (
+                f"당신은 {mgr_name}입니다. 소속 전문가들이 아래 분석 결과를 제출했습니다.\n"
+                f"이를 검수하고 종합하여 CEO에게 보고할 간결한 보고서를 작성하세요.\n"
+                f"전문가 의견 중 부족하거나 잘못된 부분이 있으면 지적하고 보완하세요.\n\n"
+                f"## CEO 원본 명령\n{text}\n\n"
+                f"## 전문가 분석 결과\n" + "\n\n".join(spec_parts)
+            )
+
+            soul = _load_agent_prompt(target_id)
+            override = _get_model_override(target_id)
+            model = select_model(synthesis_prompt, override=override)
+            custom_id = f"{chain['chain_id']}_synth_{target_id}"
+
+            requests.append({
+                "custom_id": custom_id,
+                "message": synthesis_prompt,
+                "system_prompt": soul,
+                "model": model,
+            })
+            chain["custom_id_map"][custom_id] = {"agent_id": target_id, "step": "synthesis"}
+
+    if not requests:
+        # 요청 없음 → 바로 완료
+        await _deliver_chain_result(chain)
+        return
+
+    # 프로바이더별 그룹화하여 배치 제출
+    batch_results = await batch_submit_grouped(requests)
+
+    chain["batches"]["synthesis"] = []
+    for br in batch_results:
+        chain["batches"]["synthesis"].append({
+            "batch_id": br.get("batch_id", ""),
+            "provider": br.get("provider", ""),
+            "status": "pending" if "error" not in br else "failed",
+            "custom_ids": br.get("custom_ids", []),
+            "error": br.get("error"),
+        })
+
+    chain["step"] = "synthesis"
+    chain["status"] = "pending"
+    _save_chain(chain)
+
+    _ensure_batch_poller()
+
+    if chain["mode"] == "broadcast":
+        update_task(chain["task_id"], status="pending",
+                    result_summary="📦 [배치 체인] 3단계: 6개 처장 종합보고서 배치 제출")
+        await _broadcast_chain_status(chain, "📦 3단계: 6개 처장이 종합보고서 작성 중 (배치)")
+    else:
+        target_name = _AGENT_NAMES.get(chain["target_id"], chain["target_id"])
+        update_task(chain["task_id"], status="pending",
+                    result_summary=f"📦 [배치 체인] 3단계: {target_name} 종합보고서 배치 제출")
+        await _broadcast_chain_status(chain, f"📦 3단계: {target_name} 종합보고서 작성 중 (배치)")
+
+    _log(f"[CHAIN] {chain['chain_id']} — 종합보고서 배치 제출 ({len(requests)}건)")
+
+
+async def _deliver_chain_result(chain: dict):
+    """배치 체인 최종 결과를 CEO에게 전달합니다."""
+    task_id = chain["task_id"]
+    text = chain["text"]
+    total_cost = chain.get("total_cost_usd", 0)
+
+    if chain["mode"] == "broadcast":
+        # 브로드캐스트: 6개 처장 종합 결과를 모아서 전달
+        all_managers = ["cto_manager", "cso_manager", "clo_manager", "cmo_manager", "cio_manager", "cpo_manager"]
+        parts = []
+        total_specialists = 0
+        for mgr_id in all_managers:
+            synth = chain["results"]["synthesis"].get(mgr_id, {})
+            mgr_name = _AGENT_NAMES.get(mgr_id, mgr_id)
+            content = synth.get("content", "응답 없음")
+            specs = len(_MANAGER_SPECIALISTS.get(mgr_id, []))
+            total_specialists += specs
+            spec_label = f" (전문가 {specs}명 동원)" if specs else ""
+            parts.append(f"### 📋 {mgr_name}{spec_label}\n{content}")
+
+        compiled = (
+            f"📢 **배치 체인 결과** (6개 부서 + 전문가 {total_specialists}명 동원)\n"
+            f"💰 총 비용: ${total_cost:.4f} (배치 할인 ~50% 적용)\n\n---\n\n"
+            + "\n\n---\n\n".join(parts)
+        )
+
+        update_task(task_id, status="completed",
+                    result_summary=compiled[:500],
+                    result_data=compiled,
+                    success=1, cost_usd=total_cost,
+                    agent_id="chief_of_staff")
+
+        # WebSocket으로 최종 결과 전달
+        for c in connected_clients[:]:
+            try:
+                await c.send_json({
+                    "event": "result",
+                    "data": {
+                        "content": compiled,
+                        "sender_id": "chief_of_staff",
+                        "handled_by": "비서실장 → 6개 처장",
+                        "delegation": "비서실장 → 처장 → 전문가 (배치)",
+                        "time_seconds": 0,
+                        "cost": total_cost,
+                        "model": "multi-agent-batch",
+                        "routing_method": "배치 체인 (브로드캐스트)",
+                    }
+                })
+            except Exception:
+                pass
+
+    else:
+        # 단일 부서 결과
+        target_id = chain.get("target_id", "chief_of_staff")
+        synth = chain["results"]["synthesis"].get(
+            target_id,
+            chain["results"]["synthesis"].get("chief_of_staff", {})
+        )
+        content = synth.get("content", "")
+        target_name = _AGENT_NAMES.get(target_id, target_id)
+
+        # 위임 정보 구성
+        specs_count = len(_MANAGER_SPECIALISTS.get(target_id, []))
+        if target_id == "chief_of_staff":
+            delegation = ""
+            handled_by = "비서실장"
+            header = "📋 **비서실장** (배치 처리)"
+        else:
+            delegation = f"비서실장 → {target_name}"
+            if specs_count:
+                delegation += f" → 전문가 {specs_count}명"
+            handled_by = target_name
+            header = f"📋 **{target_name}** 보고 (배치 체인)"
+            if specs_count:
+                header += f" (소속 전문가 {specs_count}명 동원)"
+
+        final_content = f"{header}\n💰 비용: ${total_cost:.4f} (배치 할인 ~50% 적용)\n\n---\n\n{content}"
+
+        update_task(task_id, status="completed",
+                    result_summary=final_content[:500],
+                    result_data=final_content,
+                    success=1, cost_usd=total_cost,
+                    agent_id=target_id)
+
+        # WebSocket으로 최종 결과 전달
+        for c in connected_clients[:]:
+            try:
+                await c.send_json({
+                    "event": "result",
+                    "data": {
+                        "content": final_content,
+                        "sender_id": target_id,
+                        "handled_by": handled_by,
+                        "delegation": delegation,
+                        "time_seconds": 0,
+                        "cost": total_cost,
+                        "model": synth.get("model", "batch"),
+                        "routing_method": "배치 체인",
+                    }
+                })
+            except Exception:
+                pass
+
+    # 아카이브에 저장
+    synth_content = ""
+    if chain["mode"] == "broadcast":
+        synth_content = compiled
+    else:
+        synth_content = content
+
+    if synth_content and len(synth_content) > 20:
+        division = _AGENT_DIVISION.get(chain.get("target_id", "chief_of_staff"), "secretary")
+        now_str = datetime.now(KST).strftime("%Y%m%d_%H%M%S")
+        save_archive(
+            division=division,
+            filename=f"batch_chain_{now_str}.md",
+            content=f"# [배치 체인] {text[:60]}\n\n{synth_content}",
+            agent_id=chain.get("target_id", "chief_of_staff"),
+        )
+
+    chain["step"] = "completed"
+    chain["status"] = "completed"
+    chain["completed_at"] = datetime.now(KST).isoformat()
+    _save_chain(chain)
+
+    await _broadcast_chain_status(chain, "✅ 배치 체인 완료 — 최종 보고서 전달됨")
+    _log(f"[CHAIN] {chain['chain_id']} — 완료! 비용: ${total_cost:.4f}")
+
+
+async def _advance_batch_chain(chain_id: str):
+    """배치 체인의 현재 단계를 확인하고, 완료되었으면 다음 단계로 진행합니다.
+
+    배치 폴러(_batch_poller_loop)에서 60초마다 호출됩니다.
+    """
+    chain = _load_chain(chain_id)
+    if not chain or chain.get("status") not in ("running", "pending"):
+        return
+
+    step = chain.get("step", "")
+
+    # ── 1단계: 분류 ──
+    if step == "classify":
+        batch_info = chain["batches"].get("classify")
+        if not batch_info:
+            return
+
+        status_result = await batch_check(batch_info["batch_id"], batch_info["provider"])
+        if "error" in status_result:
+            return
+
+        batch_info["status"] = status_result["status"]
+
+        if status_result["status"] == "completed":
+            # 분류 결과 가져오기
+            result = await batch_retrieve(batch_info["batch_id"], batch_info["provider"])
+            if "error" in result:
+                chain["status"] = "failed"
+                _save_chain(chain)
+                return
+
+            # JSON 파싱 — {"agent_id": "cio_manager", "reason": "..."}
+            results_list = result.get("results", [])
+            if results_list:
+                raw_content = results_list[0].get("content", "").strip()
+                cost = results_list[0].get("cost_usd", 0)
+                chain["total_cost_usd"] += cost
+
+                try:
+                    if "```" in raw_content:
+                        raw_content = raw_content.split("```")[1]
+                        if raw_content.startswith("json"):
+                            raw_content = raw_content[4:]
+                    parsed = json.loads(raw_content)
+                    target_id = parsed.get("agent_id", "chief_of_staff")
+                    reason = parsed.get("reason", "")
+                except (json.JSONDecodeError, IndexError):
+                    _log(f"[CHAIN] 분류 JSON 파싱 실패: {raw_content[:100]}")
+                    target_id = "chief_of_staff"
+                    reason = "분류 결과 파싱 실패"
+            else:
+                target_id = "chief_of_staff"
+                reason = "분류 결과 없음"
+
+            chain["target_id"] = target_id
+            chain["results"]["classify"] = {
+                "agent_id": target_id,
+                "reason": reason,
+                "method": "AI분류 (배치)",
+                "cost_usd": cost if results_list else 0,
+            }
+
+            target_name = _AGENT_NAMES.get(target_id, target_id)
+            _log(f"[CHAIN] {chain['chain_id']} — 분류 완료: {target_name} ({reason})")
+
+            if target_id == "chief_of_staff":
+                # 비서실장 직접 → 종합 단계
+                chain["step"] = "synthesis"
+                _save_chain(chain)
+                await _broadcast_chain_status(chain, f"📦 분류 완료: 비서실장 직접 처리")
+                await _chain_submit_synthesis(chain)
+            else:
+                # 전문가 단계로 진행
+                chain["step"] = "specialists"
+                _save_chain(chain)
+                await _broadcast_chain_status(chain, f"📦 분류 완료: {target_name}에게 위임 → 전문가 호출")
+                await _chain_submit_specialists(chain)
+
+        elif status_result["status"] in ("failed", "expired"):
+            # 분류 배치 실패 → 비서실장 폴백
+            chain["target_id"] = "chief_of_staff"
+            chain["step"] = "synthesis"
+            chain["results"]["classify"] = {"agent_id": "chief_of_staff", "method": "폴백"}
+            _save_chain(chain)
+            await _chain_submit_synthesis(chain)
+
+    # ── 2단계: 전문가 ──
+    elif step == "specialists":
+        all_done = True
+        for batch_info in chain["batches"].get("specialists", []):
+            if batch_info.get("status") in ("pending", "processing"):
+                try:
+                    status_result = await batch_check(batch_info["batch_id"], batch_info["provider"])
+                    if "error" not in status_result:
+                        batch_info["status"] = status_result["status"]
+                except Exception as e:
+                    _log(f"[CHAIN] 전문가 배치 확인 오류: {e}")
+
+            if batch_info.get("status") not in ("completed", "failed"):
+                all_done = False
+
+        _save_chain(chain)
+
+        if all_done:
+            # 모든 전문가 배치 완료 → 결과 수집
+            for batch_info in chain["batches"]["specialists"]:
+                if batch_info.get("status") != "completed":
+                    continue
+
+                result = await batch_retrieve(batch_info["batch_id"], batch_info["provider"])
+                if "error" in result:
+                    continue
+
+                for r in result.get("results", []):
+                    custom_id = r.get("custom_id", "")
+                    mapping = chain["custom_id_map"].get(custom_id, {})
+                    agent_id = mapping.get("agent_id", custom_id)
+
+                    chain["results"]["specialists"][agent_id] = {
+                        "content": r.get("content", ""),
+                        "model": r.get("model", ""),
+                        "cost_usd": r.get("cost_usd", 0),
+                        "error": r.get("error"),
+                    }
+                    chain["total_cost_usd"] += r.get("cost_usd", 0)
+
+            spec_count = len(chain["results"]["specialists"])
+            _log(f"[CHAIN] {chain['chain_id']} — 전문가 {spec_count}명 결과 수집 완료")
+
+            # 종합 단계로 진행
+            chain["step"] = "synthesis"
+            _save_chain(chain)
+            await _broadcast_chain_status(chain, f"📦 전문가 {spec_count}명 완료 → 종합보고서 작성 시작")
+            await _chain_submit_synthesis(chain)
+
+    # ── 3단계: 종합보고서 ──
+    elif step == "synthesis":
+        all_done = True
+        for batch_info in chain["batches"].get("synthesis", []):
+            if batch_info.get("status") in ("pending", "processing"):
+                try:
+                    status_result = await batch_check(batch_info["batch_id"], batch_info["provider"])
+                    if "error" not in status_result:
+                        batch_info["status"] = status_result["status"]
+                except Exception as e:
+                    _log(f"[CHAIN] 종합 배치 확인 오류: {e}")
+
+            if batch_info.get("status") not in ("completed", "failed"):
+                all_done = False
+
+        _save_chain(chain)
+
+        if all_done:
+            # 종합보고서 결과 수집
+            for batch_info in chain["batches"]["synthesis"]:
+                if batch_info.get("status") != "completed":
+                    continue
+
+                result = await batch_retrieve(batch_info["batch_id"], batch_info["provider"])
+                if "error" in result:
+                    continue
+
+                for r in result.get("results", []):
+                    custom_id = r.get("custom_id", "")
+                    mapping = chain["custom_id_map"].get(custom_id, {})
+                    agent_id = mapping.get("agent_id", custom_id)
+
+                    chain["results"]["synthesis"][agent_id] = {
+                        "content": r.get("content", ""),
+                        "model": r.get("model", ""),
+                        "cost_usd": r.get("cost_usd", 0),
+                        "error": r.get("error"),
+                    }
+                    chain["total_cost_usd"] += r.get("cost_usd", 0)
+
+            _log(f"[CHAIN] {chain['chain_id']} — 종합보고서 완료")
+
+            # 최종 전달
+            await _deliver_chain_result(chain)
+
+
+@app.get("/api/batch/chains")
+async def get_batch_chains():
+    """진행 중인 배치 체인 목록을 조회합니다."""
+    chains = load_setting("batch_chains") or []
+    active = [c for c in chains if c.get("status") in ("running", "pending")]
+    recent_done = [c for c in chains if c.get("status") in ("completed", "failed")][-10:]
+    return {"active": active, "recent": recent_done}
 
 
 # ── 크론 실행 엔진 (asyncio 기반 스케줄러) ──
@@ -4244,12 +5069,14 @@ async def on_startup():
     _log("[CRON] 크론 실행 엔진 시작 ✅")
     # 도구 실행 엔진 초기화 (비동기 아닌 동기 — 첫 요청 시 lazy 로드도 지원)
     _init_tool_pool()
-    # PENDING 배치가 있으면 폴러 시작
+    # PENDING 배치 또는 진행 중인 체인이 있으면 폴러 시작
     pending_batches = load_setting("pending_batches") or []
-    active = [b for b in pending_batches if b.get("status") in ("pending", "processing")]
-    if active:
+    active_batches = [b for b in pending_batches if b.get("status") in ("pending", "processing")]
+    chains = load_setting("batch_chains") or []
+    active_chains = [c for c in chains if c.get("status") in ("running", "pending")]
+    if active_batches or active_chains:
         _ensure_batch_poller()
-        _log(f"[BATCH] 미완료 배치 {len(active)}개 감지 — 폴러 자동 시작")
+        _log(f"[BATCH] 미완료 배치 {len(active_batches)}개 + 체인 {len(active_chains)}개 감지 — 폴러 자동 시작")
 
 
 @app.on_event("shutdown")
