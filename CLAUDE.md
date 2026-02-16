@@ -131,32 +131,38 @@
 - **중요한 결정이 내려졌을 때**: `docs/project-status.md`의 "중요한 결정 사항" 섹션에 즉시 기록할 것
 - 이 규칙의 목적: CEO와 대화 중에 클로드가 맥락을 잃어버리는 것을 방지하기 위함
 
-## 서버 배포 규칙 (Oracle Cloud)
-- **서버 주소**: GitHub Secrets `SERVER_IP`에 등록 (ARM 4코어 24GB, Oracle Cloud 춘천 리전, 무료 서버)
-- **이전 서버**: `168.107.28.100` (VM.Standard.E2.1.Micro, 1GB — 폐기 예정)
+## 서버 배포 규칙 (Oracle Cloud — ARM 24GB 서버)
+- **서버 스펙**: ARM Ampere A1, 4코어 24GB RAM (Oracle Cloud 춘천 리전, 무료 Always Free)
+- **서버 접속 정보**:
+  - IP: GitHub Secrets `SERVER_IP_ARM`에 등록
+  - SSH 키: GitHub Secrets `SERVER_SSH_KEY_ARM`에 등록
+  - 사용자: `ubuntu`
+- **이전 서버 (폐기됨)**: `168.107.28.100` (1GB 마이크로 — 더 이상 사용 안 함)
 - **자동 배포 흐름** (전체 과정):
   1. claude/ 브랜치에 [완료] 커밋 push
   2. `auto-merge-claude.yml`이 PR 생성 + main에 자동 머지
   3. 머지 성공 후 → `deploy.yml`을 **직접 실행(trigger)**시킴
-  4. 서버에서 `git fetch + git reset --hard` → 파일 복사 → 미니 서버 재시작
+  4. 새 서버에 SSH 접속 → `git fetch + git reset --hard` → 파일 복사 → 서버 재시작
   - **중요**: GitHub 보안 정책상, 워크플로우가 만든 push는 다른 워크플로우를 자동 실행시키지 않음. 그래서 auto-merge에서 `gh workflow run deploy.yml`로 직접 실행시키는 구조
-  - **중요**: 서버에서 `git pull`을 쓰면 안 됨! 반드시 `git fetch + git reset --hard` 사용 (아래 "과거 사고" 참고)
+  - **중요**: 서버에서 `git pull`을 쓰면 안 됨! 반드시 `git fetch + git reset --hard` 사용
 - **워크플로우 파일**:
   - `.github/workflows/auto-merge-claude.yml` — 자동 머지 + 배포 트리거
   - `.github/workflows/deploy.yml` — 실제 서버 배포 (SSH로 접속해서 파일 복사)
 - **수동 배포**: GitHub → Actions 탭 → "Deploy to Oracle Cloud Server" → "Run workflow" 버튼 클릭
-- **서버 SSH 접속 정보**:
-  - 사용자: `ubuntu`
-  - SSH 키: GitHub Secrets에 `SERVER_SSH_KEY`로 등록됨
-  - 서버 IP: GitHub Secrets에 `SERVER_IP`로 등록됨
 - **주의사항**:
   - 서버 파일을 직접 수정하지 말 것 (GitHub에서 코드 수정 → 자동 배포가 정상 흐름)
   - 배포 실패 시 GitHub Actions 로그를 먼저 확인할 것
+  - ARM 아키텍처(aarch64) — 대부분의 Python 패키지 호환됨
+- **서버 디렉토리 구조**:
+  - `/home/ubuntu/CORTHEX_HQ/` — git 저장소 (전체 코드)
+  - `/home/ubuntu/CORTHEX_HQ/web/` — 백엔드 서버 (mini_server.py 실행됨)
+  - `/home/ubuntu/CORTHEX_HQ/src/` — 도구 모듈, 에이전트 모듈 (100개+ 도구)
+  - `/home/ubuntu/CORTHEX_HQ/config/` — 설정 파일 (agents.yaml, tools.yaml 등)
+  - `/home/ubuntu/corthex.db` — SQLite DB (git 저장소 밖 → 배포해도 데이터 안 날아감)
+  - `/home/ubuntu/corthex.env` — API 키 등 환경변수 (배포 시 자동 업데이트)
+  - `/var/www/html/` — nginx가 서빙하는 정적 파일 (index.html)
 - **서버 설정 파일 규칙 (중요!)**:
-  - 서버의 미니 서버(corthex 서비스)는 **`/home/ubuntu/CORTHEX_HQ/web/`**(git 저장소)에서 실행됨
-  - 따라서 설정 파일 경로는 **`/home/ubuntu/CORTHEX_HQ/config/`** (git 저장소의 config 폴더)
-  - 서버의 Python 환경에 **PyYAML이 없음** → YAML 파일을 직접 못 읽음
-  - 해결: 배포 시 `config/yaml2json.py`가 YAML → JSON 자동 변환. mini_server.py는 JSON을 우선 읽음
+  - 배포 시 `config/yaml2json.py`가 YAML → JSON 자동 변환
   - **config/agents.yaml 또는 config/tools.yaml을 수정하면 자동 배포 후 JSON이 재생성됨** (별도 작업 불필요)
   - `deploy.yml` 안에 Python 코드를 직접 넣으면 YAML 들여쓰기 문제가 생김 → **반드시 별도 .py 파일로 분리**할 것
 
@@ -170,7 +176,7 @@
 | 배포 성공인데 화면이 안 바뀜 (2) | **nginx 캐시** — 서버가 브라우저에 캐시 허용 | deploy.yml이 자동으로 nginx에 `no-cache` 헤더 설정 (2026-02-15 추가) |
 | 배포 성공인데 화면이 안 바뀜 (3) | **서버 git pull 실패** — 이전 배포가 서버 파일을 수정해서 git pull이 충돌 에러를 냄 | `git pull` 대신 `git fetch + git reset --hard` 사용 (deploy.yml에 이미 반영됨). **Actions 로그에서 "error: Your local changes would be overwritten" 메시지가 있으면 이 문제** |
 | GitHub Actions "success"인데 서버 접속 안됨 | **서버 다운** 또는 **방화벽 차단** | Oracle Cloud 콘솔에서 인스턴스 상태 확인 → Security List에서 포트 80 열려있는지 확인 |
-| `pip 설치 실패` 경고 | PyYAML 패키지 설치 실패 | 무시 가능 (yaml 없이도 미니 서버 동작함) |
+| `pip 설치 실패` 경고 | PyYAML 패키지 설치 실패 | 무시 가능 (yaml 없이도 서버 동작함) |
 | 빌드 번호가 `BUILD_NUMBER_PLACEHOLDER`로 표시 | HTML을 로컬에서 직접 열었음 (서버 아님) | 반드시 `http://{SERVER_IP}`으로 접속해야 함. 로컬 파일을 브라우저로 열면 빌드 번호가 주입 안됨 |
 
 ### 배포 확인하는 3가지 방법

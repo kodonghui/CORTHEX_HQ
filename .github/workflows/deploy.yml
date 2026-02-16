@@ -22,7 +22,7 @@ jobs:
         uses: appleboy/ssh-action@v1
         env:
           BUILD_NUMBER: ${{ github.run_number }}
-          SERVER_IP: ${{ secrets.SERVER_IP }}
+          SERVER_IP: ${{ secrets.SERVER_IP_ARM }}
           TG_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TG_CEO_CHAT_ID: ${{ secrets.TELEGRAM_CEO_CHAT_ID }}
           ANTHROPIC_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -30,9 +30,9 @@ jobs:
           GOOGLE_KEY: ${{ secrets.GOOGLE_API_KEY }}
           NOTION_KEY: ${{ secrets.NOTION_API_KEY }}
         with:
-          host: ${{ secrets.SERVER_IP }}
+          host: ${{ secrets.SERVER_IP_ARM }}
           username: ubuntu
-          key: ${{ secrets.SERVER_SSH_KEY }}
+          key: ${{ secrets.SERVER_SSH_KEY_ARM }}
           envs: BUILD_NUMBER,SERVER_IP,TG_BOT_TOKEN,TG_CEO_CHAT_ID,ANTHROPIC_KEY,OPENAI_KEY,GOOGLE_KEY,NOTION_KEY
           script: |
             echo "🚀 배포 시작... (빌드 #${BUILD_NUMBER})"
@@ -47,7 +47,7 @@ jobs:
               # corthex.service 생성
               sudo tee /etc/systemd/system/corthex.service > /dev/null <<SVCEOF
             [Unit]
-            Description=CORTHEX HQ Mini Server
+            Description=CORTHEX HQ Server (ARM 24GB)
             After=network.target
 
             [Service]
@@ -84,6 +84,14 @@ jobs:
                     proxy_set_header Host \$host;
                     proxy_read_timeout 300s;
                 }
+                location /ws {
+                    proxy_pass http://127.0.0.1:8000;
+                    proxy_http_version 1.1;
+                    proxy_set_header Upgrade \$http_upgrade;
+                    proxy_set_header Connection "upgrade";
+                    proxy_set_header Host \$host;
+                    proxy_read_timeout 600s;
+                }
             }
             NGXEOF
               sudo nginx -t && sudo systemctl restart nginx
@@ -117,9 +125,9 @@ jobs:
             echo "📄 대시보드 파일 복사 중..."
             sudo cp /tmp/index.html /var/www/html/index.html
 
-            # 4단계: 미니 서버 파일 복사
-            # 주의: corthex 서비스는 /home/ubuntu/CORTHEX_HQ/web/ (git 저장소)에서 실행됨
-            echo "🐍 미니 서버 파일 복사 중..."
+            # 4단계: 서버 파일 복사
+            # corthex 서비스는 /home/ubuntu/CORTHEX_HQ/web/ (git 저장소)에서 실행됨
+            echo "🐍 서버 파일 복사 중..."
             mkdir -p /home/ubuntu/web/templates
             mkdir -p /home/ubuntu/config
             cp web/mini_server.py /home/ubuntu/web/mini_server.py
@@ -129,6 +137,12 @@ jobs:
             cp -r config/* /home/ubuntu/config/ 2>/dev/null || echo "⚠️ config 파일 없음 (무시)"
             # git 저장소의 templates에도 빌드번호 주입된 HTML 복사 (서버가 여기서 읽음)
             cp /tmp/index.html /home/ubuntu/CORTHEX_HQ/web/templates/index.html
+            # src/ 디렉토리 (100개+ 도구, 에이전트 모듈) — 새 서버(24GB)에서는 전부 사용 가능
+            echo "🔧 도구/에이전트 모듈 복사 중..."
+            if [ -d "src" ]; then
+              cp -r src /home/ubuntu/CORTHEX_HQ/src 2>/dev/null || echo "⚠️ src 이미 존재 (git 저장소에서 사용)"
+              echo "✅ src/ 디렉토리 (도구 모듈) 배포 완료"
+            fi
 
             # 5단계: Python 의존성 설치
             echo "📦 Python 패키지 설치 중..."
@@ -199,8 +213,8 @@ jobs:
             fi
             echo "📋 등록된 API 키 수: $(grep -c '_KEY=' "$ENV_FILE" || echo 0)개"
 
-            # 6단계: 미니 서버 재시작
-            echo "🔁 미니 서버 재시작 중..."
+            # 6단계: 서버 재시작
+            echo "🔁 서버 재시작 중..."
             # corthex.service가 올바른 경로로 mini_server.py를 실행하도록 강제 설정
             echo "♻️ corthex.service ExecStart 복원 중..."
             sudo sed -i 's|ExecStart=.*|ExecStart=/home/ubuntu/venv/bin/uvicorn mini_server:app --host 0.0.0.0 --port 8000|' /etc/systemd/system/corthex.service
@@ -211,7 +225,7 @@ jobs:
             # 7단계: 상태 확인
             sleep 5
             if sudo systemctl is-active --quiet corthex; then
-              echo "✅ 배포 완료! 미니 서버 정상 실행 중 (빌드 #${BUILD_NUMBER})"
+              echo "✅ 배포 완료! 서버 정상 실행 중 (빌드 #${BUILD_NUMBER})"
               echo "📋 최근 서버 로그:"
               sudo journalctl -u corthex --no-pager -n 20 --no-hostname
               echo ""
@@ -219,7 +233,7 @@ jobs:
               curl -s http://localhost:8000/api/telegram-status 2>/dev/null || echo "⚠️ 진단 API 호출 실패"
               echo ""
             else
-              echo "❌ 미니 서버 시작 실패"
+              echo "❌ 서버 시작 실패"
               sudo journalctl -u corthex --no-pager -n 30
               exit 1
             fi
