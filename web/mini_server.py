@@ -416,9 +416,20 @@ async def get_agent(agent_id: str):
         if a["agent_id"] == agent_id:
             # agents.yaml에서 상세 정보 보충 (allowed_tools, capabilities 등)
             detail = _AGENTS_DETAIL.get(agent_id, {})
-            # DB에 저장된 소울 오버라이드 확인
+            # 소울 로드 우선순위: 1) DB 오버라이드 → 2) souls/*.md 파일 → 3) agents.yaml
             soul_override = load_setting(f"soul_{agent_id}")
-            system_prompt = soul_override if soul_override is not None else detail.get("system_prompt", "")
+            if soul_override is not None:
+                system_prompt = soul_override
+            else:
+                # souls/agents/{agent_id}.md 파일에서 소울 로드
+                soul_md = Path(BASE_DIR).parent / "souls" / "agents" / f"{agent_id}.md"
+                if soul_md.exists():
+                    try:
+                        system_prompt = soul_md.read_text(encoding="utf-8")
+                    except Exception:
+                        system_prompt = detail.get("system_prompt", "")
+                else:
+                    system_prompt = detail.get("system_prompt", "")
             return {
                 **a,
                 "system_prompt": system_prompt,

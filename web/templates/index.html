@@ -35,6 +35,7 @@
   <style>
     @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css');
     @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;500;600;700&display=swap');
 
     /* ═══ 사이버 사령부 팔레트 (Cyber Command Center — 네온 다크) ═══ */
     :root, .dark {
@@ -341,23 +342,26 @@
       letter-spacing: 0.02em;
     }
 
-    /* Markdown body */
-    .markdown-body { line-height: 1.7; }
-    .markdown-body h1 { font-size: 1.25rem; font-weight: 700; margin: 1rem 0 0.5rem; color: rgb(var(--hq-text)); }
-    .markdown-body h2 { font-size: 1.1rem; font-weight: 600; margin: 0.8rem 0 0.4rem; color: rgb(var(--hq-text) / 0.85); }
-    .markdown-body h3 { font-size: 1rem; font-weight: 600; margin: 0.6rem 0 0.3rem; color: rgb(var(--hq-muted)); }
-    .markdown-body p { margin: 0.4rem 0; color: rgb(var(--hq-text) / 0.85); }
-    .markdown-body ul, .markdown-body ol { margin: 0.3rem 0; padding-left: 1.5rem; }
-    .markdown-body li { margin: 0.2rem 0; color: rgb(var(--hq-text) / 0.85); }
-    .markdown-body code { background: rgb(var(--hq-bg)); padding: 0.15rem 0.5rem; border-radius: 6px; font-size: 0.85rem; font-family: 'JetBrains Mono', monospace; color: rgb(var(--hq-cyan)); border: 1px solid rgb(var(--hq-border) / 0.5); }
-    .markdown-body pre { background: rgb(var(--hq-bg) / 0.8); padding: 1rem; border-radius: 10px; overflow-x: auto; margin: 0.5rem 0; border: 1px solid rgb(var(--hq-border) / 0.5); }
-    .markdown-body pre code { background: transparent; padding: 0; border: none; color: rgb(var(--hq-text)); }
-    .markdown-body table { border-collapse: collapse; width: 100%; margin: 0.5rem 0; }
-    .markdown-body th, .markdown-body td { border: 1px solid rgb(var(--hq-border) / 0.5); padding: 0.5rem 0.8rem; text-align: left; }
-    .markdown-body th { background: rgb(var(--hq-bg)); color: rgb(var(--hq-muted)); font-weight: 600; }
-    .markdown-body blockquote { border-left: 3px solid rgb(var(--hq-accent)); padding-left: 1rem; margin: 0.5rem 0; color: rgb(var(--hq-muted)); }
+    /* Markdown body — 보고서 스타일 (Noto Serif KR 본문, Pretendard 제목) */
+    .markdown-body { line-height: 1.85; font-family: 'Noto Serif KR', 'Pretendard Variable', serif; font-size: 0.9rem; letter-spacing: -0.01em; }
+    .markdown-body h1 { font-size: 1.3rem; font-weight: 700; margin: 1.2rem 0 0.6rem; color: rgb(var(--hq-text)); font-family: 'Pretendard Variable', sans-serif; border-bottom: 1px solid rgb(var(--hq-border) / 0.3); padding-bottom: 0.4rem; }
+    .markdown-body h2 { font-size: 1.15rem; font-weight: 600; margin: 1rem 0 0.5rem; color: rgb(var(--hq-accent)); font-family: 'Pretendard Variable', sans-serif; }
+    .markdown-body h3 { font-size: 1.02rem; font-weight: 600; margin: 0.8rem 0 0.3rem; color: rgb(var(--hq-cyan)); font-family: 'Pretendard Variable', sans-serif; }
+    .markdown-body p { margin: 0.5rem 0; color: rgb(var(--hq-text) / 0.88); }
+    .markdown-body ul, .markdown-body ol { margin: 0.4rem 0; padding-left: 1.5rem; }
+    .markdown-body li { margin: 0.25rem 0; color: rgb(var(--hq-text) / 0.88); }
+    .markdown-body li::marker { color: rgb(var(--hq-accent) / 0.6); }
+    .markdown-body strong { color: rgb(var(--hq-text)); font-weight: 600; }
+    .markdown-body em { color: rgb(var(--hq-cyan) / 0.9); font-style: italic; }
+    .markdown-body code { background: rgb(var(--hq-bg)); padding: 0.15rem 0.5rem; border-radius: 6px; font-size: 0.82rem; font-family: 'JetBrains Mono', monospace; color: rgb(var(--hq-cyan)); border: 1px solid rgb(var(--hq-border) / 0.5); }
+    .markdown-body pre { background: rgb(var(--hq-bg) / 0.8); padding: 1rem; border-radius: 10px; overflow-x: auto; margin: 0.6rem 0; border: 1px solid rgb(var(--hq-border) / 0.5); }
+    .markdown-body pre code { background: transparent; padding: 0; border: none; color: rgb(var(--hq-text)); font-size: 0.82rem; }
+    .markdown-body table { border-collapse: collapse; width: 100%; margin: 0.6rem 0; font-family: 'Pretendard Variable', sans-serif; font-size: 0.85rem; }
+    .markdown-body th, .markdown-body td { border: 1px solid rgb(var(--hq-border) / 0.4); padding: 0.5rem 0.8rem; text-align: left; }
+    .markdown-body th { background: rgb(var(--hq-surface)); color: rgb(var(--hq-cyan)); font-weight: 600; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.03em; }
+    .markdown-body blockquote { border-left: 3px solid rgb(var(--hq-accent)); padding: 0.5rem 1rem; margin: 0.6rem 0; color: rgb(var(--hq-muted)); background: rgb(var(--hq-surface) / 0.4); border-radius: 0 8px 8px 0; }
     .markdown-body a { color: rgb(var(--hq-accent)); text-decoration: underline; text-underline-offset: 2px; }
-    .markdown-body hr { border-color: rgb(var(--hq-border) / 0.5); margin: 1rem 0; }
+    .markdown-body hr { border-color: rgb(var(--hq-border) / 0.3); margin: 1.2rem 0; }
 
     /* Typing effect for welcome */
     .typing-text {
@@ -1624,10 +1628,10 @@
                   <div class="text-lg font-bold text-hq-green font-mono">7</div><div class="text-[10px] text-hq-green/50 uppercase tracking-wider font-mono">DIVISION</div>
                 </div>
                 <div class="glass border border-hq-cyan/30 rounded-xl px-4 py-3 hover-glow cursor-default bounce-in" style="animation-delay:0.2s">
-                  <div class="text-lg font-bold text-hq-cyan font-mono" x-text="agents.length || 29"></div><div class="text-[10px] text-hq-cyan/50 uppercase tracking-wider font-mono">AGENTS</div>
+                  <div class="text-lg font-bold text-hq-cyan font-mono" x-text="agentsList.length || 29"></div><div class="text-[10px] text-hq-cyan/50 uppercase tracking-wider font-mono">AGENTS</div>
                 </div>
                 <div class="glass border border-hq-purple/30 rounded-xl px-4 py-3 hover-glow cursor-default bounce-in" style="animation-delay:0.3s">
-                  <div class="text-lg font-bold text-hq-purple font-mono" x-text="tools.length || 103"></div><div class="text-[10px] text-hq-purple/50 uppercase tracking-wider font-mono">WEAPONS</div>
+                  <div class="text-lg font-bold text-hq-purple font-mono" x-text="toolsList.length || 103"></div><div class="text-[10px] text-hq-purple/50 uppercase tracking-wider font-mono">WEAPONS</div>
                 </div>
                 <div class="glass border border-hq-accent/30 rounded-xl px-4 py-3 hover-glow cursor-default bounce-in" style="animation-delay:0.4s">
                   <div class="text-lg font-bold text-hq-accent font-mono">3</div><div class="text-[10px] text-hq-accent/50 uppercase tracking-wider font-mono">AI ENGINE</div>
@@ -2562,8 +2566,9 @@
                           :class="task.bookmarked ? 'text-hq-yellow' : 'text-hq-muted/70 hover:text-hq-yellow/50'">
                     &#9733;
                   </button>
-                  <!-- Content -->
-                  <div class="flex-1 min-w-0">
+                  <!-- Content (클릭하면 펼치기/접기) -->
+                  <div class="flex-1 min-w-0 cursor-pointer"
+                       @click="taskHistory.expandedId = taskHistory.expandedId === task.task_id ? null : task.task_id; if(taskHistory.expandedId === task.task_id) loadTaskDetail(task.task_id)">
                     <div class="flex items-center gap-2 mb-1">
                       <span class="status-badge"
                             :class="task.status === 'completed' ? 'bg-hq-green/15 text-hq-green border border-hq-green/20' :
@@ -2572,15 +2577,21 @@
                                     'bg-hq-muted/15 text-hq-muted border border-hq-border'"
                             x-text="task.status === 'completed' ? '완료' : task.status === 'failed' ? '실패' : task.status === 'running' ? '진행중' : '대기'"></span>
                       <span class="text-[11px] text-hq-muted" x-text="new Date(task.created_at).toLocaleString('ko-KR', {timeZone:'Asia/Seoul'})"></span>
+                      <!-- 태그 표시 -->
+                      <template x-for="tag in (task.tags || [])" :key="tag">
+                        <span class="text-[9px] px-1.5 py-0.5 rounded-full bg-hq-accent/10 text-hq-accent border border-hq-accent/20" x-text="tag"></span>
+                      </template>
                     </div>
-                    <div class="text-sm text-hq-text mb-1" x-text="task.command"></div>
-                    <div x-show="task.summary" class="text-[12px] text-hq-muted truncate" x-text="task.summary"></div>
+                    <div class="text-sm text-hq-text mb-1 hover:text-hq-accent transition" x-text="task.command"></div>
+                    <div x-show="task.summary && taskHistory.expandedId !== task.task_id" class="text-[12px] text-hq-muted truncate" x-text="task.summary"></div>
+                    <!-- 펼침 표시 화살표 -->
+                    <div class="text-[10px] text-hq-muted/50 mt-0.5" x-text="taskHistory.expandedId === task.task_id ? '▲ 접기' : '▼ 눌러서 상세 보기'"></div>
                     <!-- Expandable Detail -->
-                    <div x-show="taskHistory.expandedId === task.task_id" class="mt-3 pt-3 border-t border-hq-border/50">
+                    <div x-show="taskHistory.expandedId === task.task_id" class="mt-3 pt-3 border-t border-hq-border/50" @click.stop>
                       <div class="text-sm markdown-body max-h-96 overflow-y-auto" x-html="renderMarkdown(task._fullResult || '')"></div>
                       <!-- Replay Button -->
                       <button x-show="task.correlation_id"
-                              @click="loadReplay(task.correlation_id, task.task_id)"
+                              @click.stop="loadReplay(task.correlation_id, task.task_id)"
                               class="mt-3 text-xs text-hq-accent hover:text-hq-accent/80 flex items-center gap-1">
                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
                         내부 대화 보기
@@ -2592,8 +2603,8 @@
                       </div>
                     </div>
                   </div>
-                  <!-- Meta -->
-                  <div class="flex items-center gap-3 shrink-0">
+                  <!-- Meta + 삭제 버튼 -->
+                  <div class="flex items-center gap-2 shrink-0">
                     <span class="text-[11px] font-mono text-hq-muted" x-text="task.time_seconds ? task.time_seconds + '초' : ''"></span>
                     <span class="text-[11px] font-mono text-hq-green" x-text="task.cost ? '$' + task.cost.toFixed(4) : ''"></span>
                     <button x-show="task.correlation_id"
@@ -2601,9 +2612,9 @@
                             class="text-hq-cyan hover:text-hq-cyan/80 transition text-xs" title="에이전트 간 대화 보기">
                       💬
                     </button>
-                    <button @click="taskHistory.expandedId = taskHistory.expandedId === task.task_id ? null : task.task_id; if(taskHistory.expandedId === task.task_id) loadTaskDetail(task.task_id)"
-                            class="text-hq-muted hover:text-hq-text transition text-xs">
-                      <span x-text="taskHistory.expandedId === task.task_id ? '접기' : '펼치기'"></span>
+                    <button @click="deleteTask(task.task_id)"
+                            class="text-hq-muted/40 hover:text-hq-red transition text-xs" title="삭제">
+                      🗑️
                     </button>
                   </div>
                 </div>
@@ -2632,7 +2643,7 @@
                   <div class="absolute -bottom-1 -left-3 w-2 h-2 rounded-full bg-hq-accent/30 float-anim" style="animation-delay:1s"></div>
                   <div class="absolute top-1/2 -right-5 w-2 h-2 rounded-full bg-hq-yellow/30 float-anim" style="animation-delay:1.5s"></div>
                 </div>
-                <div class="text-base font-semibold text-hq-text mb-1 font-mono">UNITS STANDING BY</div>
+                <div class="text-base font-semibold text-hq-text mb-1 font-mono">에이전트 대기 중</div>
                 <div class="text-xs text-hq-muted/70 mb-6 font-mono">명령을 내리면 작전 기록이 쌓입니다</div>
                 <!-- 빠른 명령 버튼 -->
                 <div class="flex flex-wrap justify-center gap-2">
@@ -2808,7 +2819,7 @@
         <!-- Left: File Tree -->
         <div class="w-64 border-r border-hq-border overflow-y-auto scrollbar-thin p-4 bg-hq-surface shrink-0">
           <div class="flex items-center justify-between mb-3">
-            <h3 class="text-xs font-bold text-hq-text uppercase tracking-wider font-mono">INTEL FILES</h3>
+            <h3 class="text-xs font-bold text-hq-text uppercase tracking-wider font-mono">참고 자료</h3>
             <button @click="knowledge.showCreateForm = !knowledge.showCreateForm" class="text-hq-accent text-xs hover:text-hq-accent/80">+ 새 파일</button>
           </div>
           <div x-show="knowledge.showCreateForm" x-transition class="mb-3 space-y-1">
@@ -3128,8 +3139,8 @@
               <div class="flex items-center gap-3">
                 <div class="w-3 h-3 rounded-full" :class="trading.botActive ? 'bg-hq-green animate-pulse' : 'bg-hq-muted/30'"></div>
                 <div>
-                  <span class="text-sm font-bold font-mono" :class="trading.botActive ? 'text-hq-green' : 'text-hq-muted'" x-text="trading.botActive ? 'AUTO TRADING : ACTIVE' : 'AUTO TRADING : STANDBY'"></span>
-                  <p class="text-[10px] text-hq-muted" x-text="trading.botActive ? '매 5분마다 전략 스캔 중 (장 시간에만 작동)' : '자동매매 봇이 꺼져 있습니다'"></p>
+                  <span class="text-sm font-bold font-mono" :class="trading.botActive ? 'text-hq-green' : 'text-hq-muted'" x-text="trading.botActive ? 'CIO 자동매매 : 가동 중' : 'CIO 자동매매 : 대기'"></span>
+                  <p class="text-[10px] text-hq-muted" x-text="trading.botActive ? 'CIO + 전문가 4명이 매 5분마다 관심종목 분석 중 (장 시간에만 작동)' : 'CIO 자동매매가 꺼져 있습니다. 설정에서 켜세요.'"></p>
                 </div>
               </div>
               <div class="flex items-center gap-3">
@@ -3146,28 +3157,28 @@
             <!-- 포트폴리오 요약 카드 4개 -->
             <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
               <!-- 총 자산 -->
-              <div class="glass border border-hq-border rounded-xl p-4 hover-glow">
-                <div class="text-[10px] text-hq-muted uppercase tracking-wider mb-1 font-mono">TOTAL ASSET</div>
+              <div class="glass border border-hq-green/20 rounded-xl p-4 hover-glow">
+                <div class="text-[10px] text-hq-green/60 uppercase tracking-wider mb-1 font-mono">총 자산</div>
                 <div class="text-xl font-bold text-hq-text" x-text="formatKRW((trading.summary.portfolio||{}).total_asset || 0) + '원'"></div>
                 <div class="text-[11px] mt-1" :class="tradingPnlColor((trading.summary.portfolio||{}).total_pnl || 0)"
                      x-text="((trading.summary.portfolio||{}).total_pnl >= 0 ? '+' : '') + formatKRW((trading.summary.portfolio||{}).total_pnl || 0) + '원 (' + ((trading.summary.portfolio||{}).pnl_pct || 0) + '%)'"></div>
               </div>
               <!-- 보유 현금 -->
-              <div class="glass border border-hq-border rounded-xl p-4 hover-glow">
-                <div class="text-[10px] text-hq-muted uppercase tracking-wider mb-1 font-mono">CASH</div>
+              <div class="glass border border-hq-cyan/20 rounded-xl p-4 hover-glow">
+                <div class="text-[10px] text-hq-cyan/60 uppercase tracking-wider mb-1 font-mono">보유 현금</div>
                 <div class="text-xl font-bold text-hq-text" x-text="formatKRW((trading.summary.portfolio||{}).cash || 0) + '원'"></div>
                 <div class="text-[11px] text-hq-muted mt-1" x-text="(trading.summary.portfolio||{}).holdings_count + '종목 보유'"></div>
               </div>
               <!-- 오늘 거래 -->
-              <div class="glass border border-hq-border rounded-xl p-4 hover-glow">
-                <div class="text-[10px] text-hq-muted uppercase tracking-wider mb-1 font-mono">TODAY TRADES</div>
+              <div class="glass border border-hq-purple/20 rounded-xl p-4 hover-glow">
+                <div class="text-[10px] text-hq-purple/60 uppercase tracking-wider mb-1 font-mono">오늘 거래</div>
                 <div class="text-xl font-bold text-hq-text" x-text="(trading.summary.today||{}).trades || 0"></div>
                 <div class="text-[11px] mt-1" :class="tradingPnlColor((trading.summary.today||{}).pnl || 0)"
                      x-text="'손익 ' + formatKRW((trading.summary.today||{}).pnl || 0) + '원'"></div>
               </div>
               <!-- 활성 전략 -->
-              <div class="glass border border-hq-border rounded-xl p-4 hover-glow">
-                <div class="text-[10px] text-hq-muted uppercase tracking-wider mb-1 font-mono">STRATEGIES</div>
+              <div class="glass border border-hq-accent/20 rounded-xl p-4 hover-glow">
+                <div class="text-[10px] text-hq-accent/60 uppercase tracking-wider mb-1 font-mono">매매 전략</div>
                 <div class="text-xl font-bold text-hq-text" x-text="(trading.summary.strategies||{}).active + '/' + (trading.summary.strategies||{}).total"></div>
                 <div class="text-[11px] text-hq-muted mt-1" x-text="'관심종목 ' + (trading.summary.watchlist_count || 0) + '개'"></div>
               </div>
@@ -3176,8 +3187,8 @@
             <!-- 2단 레이아웃: 보유종목 + 최근거래 -->
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
               <!-- 보유 종목 -->
-              <div class="glass border border-hq-border rounded-xl p-4">
-                <h3 class="text-sm font-bold text-hq-text mb-3 font-mono">HOLDINGS</h3>
+              <div class="glass border border-hq-green/15 rounded-xl p-4 hover-glow">
+                <h3 class="text-sm font-bold text-hq-green/80 mb-3 font-mono">보유 종목</h3>
                 <template x-if="(trading.portfolio.holdings||[]).length === 0">
                   <div class="text-center text-hq-muted/70 py-6 text-xs">보유 종목이 없습니다</div>
                 </template>
@@ -3199,8 +3210,8 @@
               </div>
 
               <!-- 최근 거래 -->
-              <div class="glass border border-hq-border rounded-xl p-4">
-                <h3 class="text-sm font-bold text-hq-text mb-3 font-mono">RECENT TRADES</h3>
+              <div class="glass border border-hq-cyan/15 rounded-xl p-4 hover-glow">
+                <h3 class="text-sm font-bold text-hq-cyan/80 mb-3 font-mono">최근 거래</h3>
                 <template x-if="trading.history.length === 0">
                   <div class="text-center text-hq-muted/70 py-6 text-xs">거래 내역이 없습니다</div>
                 </template>
@@ -3226,9 +3237,9 @@
             </div>
 
             <!-- 시그널 미리보기 -->
-            <div class="glass border border-hq-border rounded-xl p-4">
+            <div class="glass border border-hq-purple/15 rounded-xl p-4 hover-glow">
               <div class="flex items-center justify-between mb-3">
-                <h3 class="text-sm font-bold text-hq-text font-mono">RECENT SIGNALS</h3>
+                <h3 class="text-sm font-bold text-hq-purple/80 font-mono">최근 CIO 시그널</h3>
                 <span class="text-[10px] text-hq-muted" x-text="trading.signals.length + '개 시그널'"></span>
               </div>
               <template x-if="trading.signals.length === 0">
@@ -3252,7 +3263,7 @@
           <div x-show="trading.tab === 'portfolio' && !trading.loading">
             <div class="glass border border-hq-border rounded-xl p-5 mb-6">
               <div class="flex items-center justify-between mb-4">
-                <h3 class="text-sm font-bold text-hq-text font-mono">PORTFOLIO DETAIL</h3>
+                <h3 class="text-sm font-bold text-hq-text font-mono">포트폴리오 상세</h3>
                 <div class="flex items-center gap-2">
                   <input type="number" x-model.number="trading.initialCashInput" class="bg-hq-bg border border-hq-border rounded-lg px-2 py-1 text-xs text-hq-text w-36 text-right" placeholder="초기자금">
                   <button @click="resetTradingPortfolio()" class="bg-hq-red/10 text-hq-red hover:bg-hq-red/20 rounded-lg px-3 py-1 text-xs font-semibold transition">초기화</button>
@@ -3325,7 +3336,7 @@
           <!-- ▸ 서브탭 3: 매매 전략 -->
           <div x-show="trading.tab === 'strategies' && !trading.loading">
             <div class="flex items-center justify-between mb-4">
-              <h3 class="text-sm font-bold text-hq-text font-mono">TRADING STRATEGIES</h3>
+              <h3 class="text-sm font-bold text-hq-text font-mono">매매 전략</h3>
               <button @click="trading.showStrategyModal = true" class="bg-hq-accent/20 text-hq-accent hover:bg-hq-accent/30 rounded-lg px-3 py-1.5 text-xs font-semibold transition">+ 전략 추가</button>
             </div>
             <template x-if="trading.strategies.length === 0">
@@ -3370,7 +3381,7 @@
           <div x-show="trading.tab === 'watchlist' && !trading.loading">
             <div class="flex items-center justify-between mb-4">
               <div class="flex items-center gap-3">
-                <h3 class="text-sm font-bold text-hq-text font-mono">WATCHLIST</h3>
+                <h3 class="text-sm font-bold text-hq-text font-mono">관심종목</h3>
                 <button @click="loadWatchlistPrices()" :disabled="trading.watchPricesLoading"
                         class="text-[10px] px-2 py-0.5 rounded bg-hq-cyan/10 text-hq-cyan hover:bg-hq-cyan/20 transition disabled:opacity-50">
                   <span x-show="!trading.watchPricesLoading">🔄 시세 새로고침</span>
@@ -3477,7 +3488,7 @@
 
           <!-- ▸ 서브탭 5: 거래내역 -->
           <div x-show="trading.tab === 'history' && !trading.loading">
-            <h3 class="text-sm font-bold text-hq-text mb-4 font-mono">TRADE HISTORY</h3>
+            <h3 class="text-sm font-bold text-hq-text mb-4 font-mono">거래 내역</h3>
             <template x-if="trading.history.length === 0">
               <div class="glass border border-hq-border rounded-xl p-8 text-center text-hq-muted/70 text-xs">거래 내역이 없습니다</div>
             </template>
@@ -3522,7 +3533,7 @@
           <div x-show="trading.tab === 'signals' && !trading.loading">
             <div class="flex items-center justify-between mb-4">
               <div>
-                <h3 class="text-sm font-bold text-hq-text font-mono">CIO SIGNALS</h3>
+                <h3 class="text-sm font-bold text-hq-text font-mono">CIO 매매 시그널</h3>
                 <p class="text-[10px] text-hq-muted mt-0.5">CIO(투자분석처장) + 전문가 4명이 분석한 매매 시그널</p>
               </div>
               <button @click="generateTradingSignals()" class="bg-hq-purple/20 text-hq-purple hover:bg-hq-purple/30 rounded-lg px-3 py-1.5 text-xs font-semibold transition">📊 CIO 분석 요청</button>
@@ -3592,7 +3603,7 @@
        @click.self="trading.showOrderModal = false" style="display: none;">
     <div class="bg-hq-panel border border-hq-border rounded-2xl w-full max-w-[420px] mx-4 p-6" @click.stop>
       <div class="flex items-center justify-between mb-5">
-        <h2 class="text-lg font-bold text-hq-text font-mono">ORDER</h2>
+        <h2 class="text-lg font-bold text-hq-text font-mono">주문 실행</h2>
         <button @click="trading.showOrderModal = false" class="text-hq-muted hover:text-hq-text text-xl">&times;</button>
       </div>
       <div class="space-y-3">
@@ -3637,7 +3648,7 @@
        @click.self="trading.showStrategyModal = false" style="display: none;">
     <div class="bg-hq-panel border border-hq-border rounded-2xl w-full max-w-[500px] mx-4 p-6" @click.stop>
       <div class="flex items-center justify-between mb-5">
-        <h2 class="text-lg font-bold text-hq-text font-mono">NEW STRATEGY</h2>
+        <h2 class="text-lg font-bold text-hq-text font-mono">새 매매 전략</h2>
         <button @click="trading.showStrategyModal = false" class="text-hq-muted hover:text-hq-text text-xl">&times;</button>
       </div>
       <div class="space-y-3">
@@ -3702,7 +3713,7 @@
        @click.self="trading.showWatchModal = false" style="display: none;">
     <div class="bg-hq-panel border border-hq-border rounded-2xl w-full max-w-[420px] mx-4 p-6" @click.stop>
       <div class="flex items-center justify-between mb-5">
-        <h2 class="text-lg font-bold text-hq-text font-mono">ADD WATCHLIST</h2>
+        <h2 class="text-lg font-bold text-hq-text font-mono">관심종목 추가</h2>
         <button @click="trading.showWatchModal = false" class="text-hq-muted hover:text-hq-text text-xl">&times;</button>
       </div>
       <div class="space-y-3">
@@ -3825,7 +3836,7 @@
        @click.self="trading.showSettingsModal = false" style="display: none;">
     <div class="bg-hq-panel border border-hq-border rounded-2xl w-full max-w-[500px] mx-4 p-6" @click.stop>
       <div class="flex items-center justify-between mb-5">
-        <h2 class="text-lg font-bold text-hq-text font-mono">TRADING SETTINGS</h2>
+        <h2 class="text-lg font-bold text-hq-text font-mono">자동매매 설정</h2>
         <button @click="trading.showSettingsModal = false" class="text-hq-muted hover:text-hq-text text-xl">&times;</button>
       </div>
       <div class="space-y-4">
@@ -5071,7 +5082,8 @@
         agentModelRaw: {},
         agentReasonings: {},
 
-        // Dynamic tools list (#5)
+        // Dynamic agents/tools list (#5)
+        agentsList: [],
         toolsList: [],
 
         // Feedback stats (#7)
@@ -6152,6 +6164,15 @@
           } catch (e) { console.error('Bookmark toggle failed:', e); }
         },
 
+        async deleteTask(taskId) {
+          if (!confirm('이 작업 기록을 삭제하시겠습니까?')) return;
+          try {
+            await fetch(`/api/tasks/${taskId}`, { method: 'DELETE' });
+            this.taskHistory.items = this.taskHistory.items.filter(t => t.task_id !== taskId);
+            this.showToast('작업 기록 삭제됨', 'success');
+          } catch (e) { this.showToast('삭제 실패', 'error'); }
+        },
+
         toggleTaskSelect(taskId) {
           const idx = this.taskHistory.selectedIds.indexOf(taskId);
           if (idx >= 0) {
@@ -6432,6 +6453,9 @@
               fetch('/api/agents').then(r => r.ok ? r.json() : []),
               fetch('/api/tools').then(r => r.ok ? r.json() : []),
             ]);
+            // 대시보드 통계 카드용 배열 저장
+            this.agentsList = Array.isArray(agents) ? agents : [];
+            this.toolsList = Array.isArray(tools) ? tools : [];
             if (Array.isArray(agents) && agents.length > 0) {
               agents.forEach(a => {
                 this.agentNames[a.agent_id] = a.name_ko || a.agent_id;
@@ -6972,7 +6996,7 @@
             const res = await fetch('/api/trading/bot/toggle', {method:'POST'}).then(r => r.json());
             if (res.success) {
               this.trading.botActive = res.bot_active;
-              this.showToast(res.bot_active ? '자동매매 봇 가동!' : '자동매매 봇 중지', res.bot_active ? 'success' : 'info');
+              this.showToast(res.bot_active ? 'CIO 자동매매 가동!' : 'CIO 자동매매 중지', res.bot_active ? 'success' : 'info');
             }
           } catch { this.showToast('봇 토글 실패', 'error'); }
         },
