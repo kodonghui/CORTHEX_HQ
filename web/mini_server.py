@@ -545,7 +545,7 @@ async def get_budget():
     today = get_today_cost()
     return {
         "daily_limit": limit, "daily_used": today,
-        "today_cost": today,
+        "today_spent": today, "today_cost": today,
         "remaining": round(limit - today, 6),
         "exceeded": today >= limit,
         "monthly_limit": 300.0, "monthly_used": today,
@@ -675,18 +675,59 @@ async def get_performance():
                     "total_tokens": 0,
                 })
 
-        # agent_calls 테이블에서도 통계 가져오기
+        # agent_calls 테이블 데이터를 agents_perf에 병합
+        # (스페셜리스트 등 tasks에 없는 에이전트도 포함시키기 위함)
         try:
             from db import get_agent_performance
             agent_perf = get_agent_performance()
         except Exception:
             agent_perf = []
 
+        perf_map = {ap["agent_id"]: ap for ap in agents_perf}
+        for ap in agent_perf:
+            aid = ap["agent_id"]
+            if aid in perf_map:
+                # tasks에 이미 있는 에이전트 → agent_calls 수치 합산
+                existing = perf_map[aid]
+                existing["llm_calls"] += ap.get("call_count", 0)
+                existing["cost_usd"] = round(
+                    existing["cost_usd"] + ap.get("total_cost", 0), 6
+                )
+                existing["total_tokens"] += (
+                    ap.get("total_input_tokens", 0) + ap.get("total_output_tokens", 0)
+                )
+                total_llm_calls += ap.get("call_count", 0)
+                total_cost += ap.get("total_cost", 0)
+            else:
+                # tasks에 없는 에이전트 (스페셜리스트 등) → 새로 추가
+                info = agent_map.get(aid, {})
+                call_count = ap.get("call_count", 0)
+                cost = ap.get("total_cost", 0)
+                new_entry = {
+                    "agent_id": aid,
+                    "name_ko": info.get("name_ko", aid),
+                    "role": info.get("role", "unknown"),
+                    "division": info.get("division", ""),
+                    "llm_calls": call_count,
+                    "tasks_completed": 0,
+                    "tasks_failed": 0,
+                    "success_rate": ap.get("success_rate", 0),
+                    "cost_usd": round(cost, 6),
+                    "avg_execution_seconds": ap.get("avg_time", 0),
+                    "total_tokens": (
+                        ap.get("total_input_tokens", 0)
+                        + ap.get("total_output_tokens", 0)
+                    ),
+                }
+                agents_perf.append(new_entry)
+                perf_map[aid] = new_entry
+                total_llm_calls += call_count
+                total_cost += cost
+
         return {
             "agents": agents_perf,
             "total_llm_calls": total_llm_calls,
             "total_cost_usd": round(total_cost, 6),
-            "agent_calls": agent_perf,
         }
     except Exception as e:
         logger.error("성능 통계 조회 실패: %s", e)
@@ -5147,7 +5188,7 @@ async def _process_ai_command(text: str, task_id: str) -> dict:
             "|--------|------|\n"
             "| `/전체 [메시지]` | 29명 에이전트 동시 가동 (브로드캐스트) |\n"
             "| `/순차 [메시지]` | 에이전트 릴레이 (순서대로 작업) |\n"
-            "| `/도구점검` | 111개 도구 상태 점검 |\n"
+            f"| `/도구점검` | {len(_TOOLS_LIST)}개 도구 상태 점검 |\n"
             "| `/배치실행` | 대기 중인 배치 작업 실행 |\n"
             "| `/배치상태` | 배치 처리 현황 |\n"
             "| `/명령어` | 이 도움말 |\n\n"
