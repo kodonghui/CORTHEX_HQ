@@ -16,7 +16,7 @@
 - 작업 결과를 보고할 때는 "뭘 했는지 → 왜 했는지 → 현재 상태 → 다음에 할 일" 순서로 정리할 것
 - 존댓말로 할것
 - **뻔한 질문 금지**: 당연히 해야 하는 것을 CEO에게 물어보지 말 것. "커밋할까요?", "배포할까요?", "푸시할까요?" 같은 질문은 하지 말고 바로 실행할 것. CEO의 시간을 아낄 것
-- **"로컬에서 확인" 금지**: 이 프로젝트는 Oracle Cloud 서버(http://168.107.28.100)에 배포되어 있음. "로컬에서 확인해보세요" 같은 말은 절대 하지 말 것. 확인은 항상 서버에서. 작업 완료 = 커밋 + 푸시 + 배포 + 서버에서 확인까지 끝낸 것
+- **"로컬에서 확인" 금지**: 이 프로젝트는 Oracle Cloud 서버에 배포되어 있음 (서버 IP는 GitHub Secrets `SERVER_IP` 참조). "로컬에서 확인해보세요" 같은 말은 절대 하지 말 것. 확인은 항상 서버에서. 작업 완료 = 커밋 + 푸시 + 배포 + 서버에서 확인까지 끝낸 것
 
 ## Git 작업 규칙
 - 깃허브의 Claude.md를 매번 반드시 참고할것
@@ -68,8 +68,7 @@
   - `X` (메이저): 프로젝트의 큰 단계. 0 = 개발 중, 1 = 정식 출시
   - `YY` (마이너): 주요 기능 추가 시 올림 (예: 새 탭 추가, 새 시스템 구현)
   - `ZZZ` (패치): 버그 수정, 소소한 개선, 설정 변경 등 작은 변경 시 올림
-- **현재 버전**: `0.05.048` (개발 중, 5번째 주요 기능 단계, 48번째 패치)
-  - 이 숫자는 `docs/updates/` 파일 수를 기반으로 추정한 초기값
+- **현재 버전**: `0.13.000` (개발 중, 13번째 주요 기능 단계)
 - **버전 올리는 규칙**:
   - 새 탭, 새 시스템, 새 부서 추가 등 **큰 변경** → 마이너(YY) 올리고 패치(ZZZ) 000으로 리셋
   - 버그 수정, UI 개선, 설정 변경 등 **작은 변경** → 패치(ZZZ)만 올림
@@ -100,10 +99,10 @@
      - 이번 세션에서 뭘 바꿨는지, 웹 화면 어디서 확인할 수 있는지 한눈에 정리
      - CEO가 대화 위로 스크롤해서 찾아볼 필요 없게, 마지막에 모든 확인 사항을 모아서 보여줄 것
   3. `docs/project-status.md`를 최신 상태로 갱신
-  4. 배포 완료 후 웹 화면 좌측 상단에서 빌드 번호 확인 가능 (http://168.107.28.100)
+  4. 배포 완료 후 웹 화면 좌측 상단에서 빌드 번호 확인 가능 (http://{SERVER_IP})
 - **빌드 번호 확인 방법**:
   - 웹 화면: 좌측 상단에 "빌드 #XX" 표시
-  - 배포 상태 JSON: `http://168.107.28.100/deploy-status.json` 접속
+  - 배포 상태 JSON: `http://{SERVER_IP}/deploy-status.json` 접속
   - GitHub Actions: https://github.com/kodonghui/CORTHEX_HQ/actions 에서 "Deploy to Oracle Cloud Server" 실행 번호 확인
 - **예시** (반드시 이 형식으로):
   ```
@@ -115,7 +114,7 @@
   | 2 | 설정 > 품질 검수 | 부서별 검수 기준 7개 부서 표시 | 빈 화면 | 7개 부서 목록 |
   | 3 | 설정 > 품질 검수 | "(루브릭)" 텍스트 삭제됨 | "부서별 검수 기준 (루브릭)" | "부서별 검수 기준" |
 
-  확인 방법: http://168.107.28.100 접속 후 위 표대로 확인해주세요.
+  확인 방법: http://{SERVER_IP} 접속 후 위 표대로 확인해주세요.
   안 바뀌었으면 Ctrl+Shift+R (강력 새로고침) 해보세요.
   ```
 
@@ -133,7 +132,8 @@
 - 이 규칙의 목적: CEO와 대화 중에 클로드가 맥락을 잃어버리는 것을 방지하기 위함
 
 ## 서버 배포 규칙 (Oracle Cloud)
-- **서버 주소**: `168.107.28.100` (Oracle Cloud 춘천 리전, 무료 서버)
+- **서버 주소**: GitHub Secrets `SERVER_IP`에 등록 (ARM 4코어 24GB, Oracle Cloud 춘천 리전, 무료 서버)
+- **이전 서버**: `168.107.28.100` (VM.Standard.E2.1.Micro, 1GB — 폐기 예정)
 - **자동 배포 흐름** (전체 과정):
   1. claude/ 브랜치에 [완료] 커밋 push
   2. `auto-merge-claude.yml`이 PR 생성 + main에 자동 머지
@@ -171,11 +171,11 @@
 | 배포 성공인데 화면이 안 바뀜 (3) | **서버 git pull 실패** — 이전 배포가 서버 파일을 수정해서 git pull이 충돌 에러를 냄 | `git pull` 대신 `git fetch + git reset --hard` 사용 (deploy.yml에 이미 반영됨). **Actions 로그에서 "error: Your local changes would be overwritten" 메시지가 있으면 이 문제** |
 | GitHub Actions "success"인데 서버 접속 안됨 | **서버 다운** 또는 **방화벽 차단** | Oracle Cloud 콘솔에서 인스턴스 상태 확인 → Security List에서 포트 80 열려있는지 확인 |
 | `pip 설치 실패` 경고 | PyYAML 패키지 설치 실패 | 무시 가능 (yaml 없이도 미니 서버 동작함) |
-| 빌드 번호가 `BUILD_NUMBER_PLACEHOLDER`로 표시 | HTML을 로컬에서 직접 열었음 (서버 아님) | 반드시 `http://168.107.28.100`으로 접속해야 함. 로컬 파일을 브라우저로 열면 빌드 번호가 주입 안됨 |
+| 빌드 번호가 `BUILD_NUMBER_PLACEHOLDER`로 표시 | HTML을 로컬에서 직접 열었음 (서버 아님) | 반드시 `http://{SERVER_IP}`으로 접속해야 함. 로컬 파일을 브라우저로 열면 빌드 번호가 주입 안됨 |
 
 ### 배포 확인하는 3가지 방법
-1. **웹 화면**: `http://168.107.28.100` 접속 → 좌측 상단 "빌드 #XX" 확인
-2. **배포 상태 JSON**: `http://168.107.28.100/deploy-status.json` 직접 접속 → 빌드 번호와 시간 확인
+1. **웹 화면**: `http://{SERVER_IP}` 접속 → 좌측 상단 "빌드 #XX" 확인
+2. **배포 상태 JSON**: `http://{SERVER_IP}/deploy-status.json` 직접 접속 → 빌드 번호와 시간 확인
 3. **GitHub Actions**: https://github.com/kodonghui/CORTHEX_HQ/actions → "Deploy to Oracle Cloud Server" 워크플로우 확인
 
 ### 배포 흐름 상세 (디버깅용)
@@ -190,7 +190,7 @@
 ### nginx 캐시 방지 (2026-02-15 추가)
 - deploy.yml이 첫 배포 시 nginx 설정에 `Cache-Control: no-cache` 헤더를 자동 추가
 - 이후 배포부터는 브라우저가 항상 최신 파일을 받아감
-- 수동으로 확인: `curl -I http://168.107.28.100` → `Cache-Control: no-cache` 헤더 있으면 정상
+- 수동으로 확인: `curl -I http://{SERVER_IP}` → `Cache-Control: no-cache` 헤더 있으면 정상
 
 ## 과거 사고 기록 (같은 실수 반복 금지!)
 
@@ -260,6 +260,18 @@
   - **새 설정 파일(`.yaml`)을 추가하면 반드시 `yaml2json.py`의 변환 목록에도 추가할 것**
   - **미니서버 API가 빈 데이터를 반환하면 프론트엔드가 작동 안 함** → API 추가/수정 시 실제 데이터를 반환하는지 반드시 확인
   - 프론트엔드가 빈 화면이면 → 브라우저 개발자 도구(F12)에서 API 응답부터 확인할 것
+
+## AI 도구 자동호출 규칙 (Function Calling)
+- **ai_handler.py**의 `ask_ai()`가 `tools` + `tool_executor` 파라미터를 받아서 3개 프로바이더 모두 도구 자동호출 지원
+- **도구 스키마**: `config/tools.yaml` (또는 `tools.json`)에서 `_load_tool_schemas()`로 로드
+- **에이전트별 도구 제한**: `config/agents.yaml`의 `allowed_tools` 필드로 에이전트마다 사용 가능한 도구를 제한
+  - CIO(투자분석): 투자 관련 도구만, CTO(기술개발): 기술 도구만
+- **프로바이더별 차이**:
+  - Anthropic: `tools` 파라미터 → `tool_use` 블록 처리
+  - OpenAI: `tools` 파라미터 (function 포맷) → `tool_calls` 응답 처리
+  - Google Gemini: `FunctionDeclaration` → `function_call` 파트 처리 (google-genai SDK 사용)
+- **도구 실행**: `mini_server.py`의 `_call_agent()`에서 ToolPool을 통해 도구 실행
+- **최대 루프**: 도구 호출 루프는 최대 5회 반복 (무한 루프 방지)
 
 ## 환경 설정
 - gh CLI가 없으면 세션 시작 시 설치: `(type gh > /dev/null 2>&1) || (curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null && sudo apt update && sudo apt install gh -y)`
