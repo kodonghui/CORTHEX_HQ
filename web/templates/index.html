@@ -1776,15 +1776,15 @@
                           </button>
                           <!-- Feedback Buttons -->
                           <div class="flex items-center gap-0.5 border-l border-hq-border/40 pl-2 ml-1">
-                            <button @click="sendFeedback(msg, 'good')" :disabled="msg.feedbackSent"
-                              :class="msg.feedbackRating === 'good' ? 'text-hq-green' : 'text-hq-muted hover:text-hq-green'"
-                              class="transition p-1 disabled:opacity-50" title="좋아요">
-                              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 10h4.764a2 2 0 011.789 2.894l-3.5 7A2 2 0 0115.263 21h-4.017c-.163 0-.326-.02-.485-.06L7 20m7-10V5a2 2 0 00-2-2h-.095c-.5 0-.905.405-.905.905 0 .714-.211 1.412-.608 2.006L7 11v9m7-10h-2M7 20H5a2 2 0 01-2-2v-6a2 2 0 012-2h2.5"/></svg>
+                            <button @click="sendFeedback(msg, 'good')"
+                              :class="msg.feedbackRating === 'good' ? 'text-hq-green scale-110' : 'text-hq-muted hover:text-hq-green'"
+                              class="transition-all duration-200 p-1" :title="msg.feedbackRating === 'good' ? '좋아요 취소' : '좋아요'">
+                              <svg class="w-4 h-4" :fill="msg.feedbackRating === 'good' ? 'currentColor' : 'none'" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 10h4.764a2 2 0 011.789 2.894l-3.5 7A2 2 0 0115.263 21h-4.017c-.163 0-.326-.02-.485-.06L7 20m7-10V5a2 2 0 00-2-2h-.095c-.5 0-.905.405-.905.905 0 .714-.211 1.412-.608 2.006L7 11v9m7-10h-2M7 20H5a2 2 0 01-2-2v-6a2 2 0 012-2h2.5"/></svg>
                             </button>
-                            <button @click="sendFeedback(msg, 'bad')" :disabled="msg.feedbackSent"
-                              :class="msg.feedbackRating === 'bad' ? 'text-hq-red' : 'text-hq-muted hover:text-hq-red'"
-                              class="transition p-1 disabled:opacity-50" title="아쉬워요">
-                              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14H5.236a2 2 0 01-1.789-2.894l3.5-7A2 2 0 018.736 3h4.018c.163 0 .326.02.485.06L17 4m-7 10v2a3.5 3.5 0 003.5 3.5h.5a2 2 0 002-2v-.5c0-.966-.393-1.84-1.027-2.472L17 13V4m-7 10h2M17 4h2a2 2 0 012 2v6a2 2 0 01-2 2h-2.5"/></svg>
+                            <button @click="sendFeedback(msg, 'bad')"
+                              :class="msg.feedbackRating === 'bad' ? 'text-hq-red scale-110' : 'text-hq-muted hover:text-hq-red'"
+                              class="transition-all duration-200 p-1" :title="msg.feedbackRating === 'bad' ? '아쉬워요 취소' : '아쉬워요'">
+                              <svg class="w-4 h-4" :fill="msg.feedbackRating === 'bad' ? 'currentColor' : 'none'" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14H5.236a2 2 0 01-1.789-2.894l3.5-7A2 2 0 018.736 3h4.018c.163 0 .326.02.485.06L17 4m-7 10v2a3.5 3.5 0 003.5 3.5h.5a2 2 0 002-2v-.5c0-.966-.393-1.84-1.027-2.472L17 13V4m-7 10h2M17 4h2a2 2 0 012 2v6a2 2 0 01-2 2h-2.5"/></svg>
                             </button>
                           </div>
                           <button x-show="isLongContent(msg.content)" @click="msg.collapsed = !msg.collapsed"
@@ -6502,18 +6502,48 @@
         },
 
         async sendFeedback(msg, rating) {
-          if (msg.feedbackSent) return;
+          // 토글 로직: 같은 버튼 다시 누르면 취소, 다른 버튼 누르면 변경
+          let action = 'send';
+          let previous_rating = null;
+
+          if (msg.feedbackSent && msg.feedbackRating === rating) {
+            // 같은 버튼 다시 클릭 → 피드백 취소
+            action = 'cancel';
+          } else if (msg.feedbackSent && msg.feedbackRating !== rating) {
+            // 다른 버튼 클릭 → 피드백 변경
+            action = 'change';
+            previous_rating = msg.feedbackRating;
+          }
+
           try {
             const res = await fetch('/api/feedback', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ correlation_id: msg.task_id || '', rating, agent_id: msg.sender_id || '' }),
+              body: JSON.stringify({
+                correlation_id: msg.task_id || '',
+                rating,
+                action,
+                previous_rating,
+                agent_id: msg.sender_id || '',
+              }),
             });
             const data = await res.json();
             if (data.success) {
-              msg.feedbackSent = true;
-              msg.feedbackRating = rating;
-              this.showToast(rating === 'good' ? '긍정 피드백을 보냈습니다.' : '부정 피드백을 보냈습니다.', 'success');
+              if (action === 'cancel') {
+                // 취소: 피드백 상태 초기화
+                msg.feedbackSent = false;
+                msg.feedbackRating = null;
+                this.showToast('피드백을 취소했습니다.', 'success');
+              } else {
+                // 보내기 또는 변경
+                msg.feedbackSent = true;
+                msg.feedbackRating = rating;
+                if (action === 'change') {
+                  this.showToast(rating === 'good' ? '긍정 피드백으로 변경했습니다.' : '부정 피드백으로 변경했습니다.', 'success');
+                } else {
+                  this.showToast(rating === 'good' ? '긍정 피드백을 보냈습니다.' : '부정 피드백을 보냈습니다.', 'success');
+                }
+              }
             } else {
               this.showToast(data.error || '피드백 전송 실패', 'error');
             }
