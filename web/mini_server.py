@@ -1065,9 +1065,13 @@ def _default_trading_settings() -> dict:
         "default_stop_loss_pct": -5,  # 기본 손절 (%)
         "default_take_profit_pct": 10, # 기본 익절 (%)
         "order_size": 1_000_000,      # 기본 주문 금액 (원)
-        "trading_hours": {"start": "09:00", "end": "15:20"},  # 장 시간
+        "trading_hours_kr": {"start": "09:00", "end": "15:20"},   # 한국 장 시간
+        "trading_hours_us": {"start": "22:30", "end": "05:00"},   # 미국 장 시간 (KST 기준, 서머타임 시 23:30)
+        "trading_hours": {"start": "09:00", "end": "15:20"},      # 하위호환
         "auto_stop_loss": True,       # 자동 손절 활성화
         "auto_take_profit": True,     # 자동 익절 활성화
+        "auto_execute": False,        # CIO 시그널 기반 자동 주문 실행 (안전장치: 기본 OFF)
+        "min_confidence": 70,         # 자동매매 최소 신뢰도 (%)
         "kiwoom_connected": False,    # 키움증권 API 연결 여부
         "paper_trading": True,        # 모의투자 모드 (실거래 전)
     }
@@ -1370,7 +1374,15 @@ async def get_trading_signals():
 
 @app.post("/api/trading/signals/generate")
 async def generate_trading_signals():
-    """AI가 현재 관심종목/전략 기반으로 매매 시그널을 생성합니다."""
+    """CIO(투자분석처장) + 4명 전문가가 관심종목을 분석 → 매매 시그널 생성.
+
+    흐름:
+    1. 시황분석 Specialist → 거시경제/시장 분위기 분석
+    2. 종목분석 Specialist → 재무제표/실적/밸류에이션 분석
+    3. 기술적분석 Specialist → RSI/MACD/볼린저밴드/이평선 분석
+    4. 리스크관리 Specialist → 손절/포지션/리스크 평가
+    5. CIO가 4명 결과 취합 → 종목별 매수/매도/관망 판단
+    """
     watchlist = _load_data("trading_watchlist", [])
     strategies = _load_data("trading_strategies", [])
     active_strategies = [s for s in strategies if s.get("active")]
@@ -1378,19 +1390,37 @@ async def generate_trading_signals():
     if not watchlist and not active_strategies:
         return {"success": False, "error": "관심종목이나 활성 전략이 없습니다"}
 
+    # 종목 정보 정리 (한국/미국 구분)
+    kr_tickers = [w for w in watchlist if w.get("market", "KR") == "KR"]
+    us_tickers = [w for w in watchlist if w.get("market") == "US"]
     tickers_info = ", ".join([f"{w['name']}({w['ticker']})" for w in watchlist[:10]])
     strats_info = ", ".join([s["name"] for s in active_strategies[:5]])
 
-    prompt = f"""다음 종목들에 대해 매매 시그널을 생성해주세요.
+    # CIO에게 보내는 분석 명령
+    prompt = f"""[자동매매 시스템] 관심종목 종합 분석을 요청합니다.
 
-관심종목: {tickers_info or '없음'}
-활성전략: {strats_info or '없음'}
+## 관심종목 ({len(watchlist)}개)
+{tickers_info or '없음'}
+{f'- 한국 주식: {len(kr_tickers)}개' if kr_tickers else ''}
+{f'- 미국 주식: {len(us_tickers)}개' if us_tickers else ''}
 
-각 종목에 대해 다음 형식으로 분석해주세요:
-- 종목명 (종목코드): 매수/매도/관망 | 신뢰도(%) | 근거 한줄"""
+## 활성 매매 전략
+{strats_info or '기본 전략 (RSI/MACD 기반)'}
+
+## 분석 요청사항
+각 전문가에게 아래 분석을 지시하세요:
+- **시황분석**: 현재 시장 분위기, 금리/환율 동향, 업종별 흐름
+- **종목분석**: 각 관심종목의 재무 건전성, PER/PBR, 실적 전망
+- **기술적분석**: 각 관심종목의 RSI, MACD, 이동평균선, 볼린저밴드 지표 확인
+- **리스크관리**: 포지션 크기 적정성, 손절가, 전체 포트폴리오 리스크
+
+## 최종 산출물 (반드시 이 형식으로)
+각 종목에 대해 다음 형식의 결론을 포함해주세요:
+[시그널] 종목명 (종목코드) | 매수/매도/관망 | 신뢰도 0~100% | 근거 한줄
+[시그널] 종목명 (종목코드) | 매수/매도/관망 | 신뢰도 0~100% | 근거 한줄"""
 
     if not is_ai_ready():
-        # AI 미연결 시 더미 시그널 생성
+        # AI 미연결 시 더미 시그널
         signals = _load_data("trading_signals", [])
         for w in watchlist[:5]:
             signal = {
@@ -1398,10 +1428,12 @@ async def generate_trading_signals():
                 "date": datetime.now(KST).isoformat(),
                 "ticker": w["ticker"],
                 "name": w["name"],
+                "market": w.get("market", "KR"),
                 "action": "hold",
                 "confidence": 50,
                 "reason": "AI 미연결 — 분석 불가 (API 키 등록 필요)",
                 "strategy": "auto",
+                "analyzed_by": "system",
             }
             signals.insert(0, signal)
         if len(signals) > 200:
@@ -1409,8 +1441,16 @@ async def generate_trading_signals():
         _save_data("trading_signals", signals)
         return {"success": True, "signals": signals[:20]}
 
-    result = await ask_ai(prompt, "당신은 투자분석 AI입니다. 기술적/펀더멘털 분석을 기반으로 매매 시그널을 생성합니다.", "claude-haiku-4-5-20251001")
-    content = result.get("content", "")
+    # CIO + 4명 전문가에게 위임 (실제 도구 사용 + 병렬 분석)
+    save_activity_log("cio_manager", f"📊 자동매매 시그널 생성 — {len(watchlist)}개 종목 분석 시작", "info")
+    cio_result = await _manager_with_delegation("cio_manager", prompt)
+
+    content = cio_result.get("content", "")
+    cost = cio_result.get("cost_usd", 0)
+    specialists_used = cio_result.get("specialists_used", 0)
+
+    # CIO 분석 결과에서 시그널 파싱
+    parsed_signals = _parse_cio_signals(content, watchlist)
 
     signals = _load_data("trading_signals", [])
     new_signal = {
@@ -1418,16 +1458,75 @@ async def generate_trading_signals():
         "date": datetime.now(KST).isoformat(),
         "analysis": content,
         "tickers": [w["ticker"] for w in watchlist[:10]],
-        "strategy": "ai_analysis",
-        "cost_usd": result.get("cost_usd", 0),
+        "parsed_signals": parsed_signals,
+        "strategy": "cio_analysis",
+        "analyzed_by": f"CIO + 전문가 {specialists_used}명",
+        "cost_usd": cost,
     }
     signals.insert(0, new_signal)
     if len(signals) > 200:
         signals = signals[:200]
     _save_data("trading_signals", signals)
-    save_activity_log("system", f"🤖 AI 매매 시그널 생성: {len(watchlist)}개 종목 분석", "info")
 
-    return {"success": True, "signal": new_signal}
+    buy_count = len([s for s in parsed_signals if s.get("action") == "buy"])
+    sell_count = len([s for s in parsed_signals if s.get("action") == "sell"])
+    save_activity_log("cio_manager",
+        f"📊 CIO 시그널 완료: {len(watchlist)}개 종목 (매수 {buy_count}, 매도 {sell_count}, 비용 ${cost:.4f})",
+        "info")
+
+    return {"success": True, "signal": new_signal, "parsed_signals": parsed_signals}
+
+
+def _parse_cio_signals(content: str, watchlist: list) -> list:
+    """CIO 분석 결과에서 종목별 매수/매도/관망 시그널을 추출합니다."""
+    import re
+    parsed = []
+
+    # [시그널] 패턴 매칭
+    pattern = r'\[시그널\]\s*(.+?)\s*\((.+?)\)\s*\|\s*(매수|매도|관망|buy|sell|hold)\s*\|\s*(\d+)%?\s*\|\s*(.+)'
+    matches = re.findall(pattern, content, re.IGNORECASE)
+
+    for name, ticker, action, confidence, reason in matches:
+        action_map = {"매수": "buy", "매도": "sell", "관망": "hold", "buy": "buy", "sell": "sell", "hold": "hold"}
+        market = "US" if any(c.isalpha() and c.isupper() for c in ticker) and not ticker.isdigit() else "KR"
+        parsed.append({
+            "ticker": ticker.strip(),
+            "name": name.strip(),
+            "market": market,
+            "action": action_map.get(action.lower(), "hold"),
+            "confidence": int(confidence),
+            "reason": reason.strip(),
+        })
+
+    # [시그널] 패턴이 없으면 관심종목 기반으로 키워드 파싱
+    if not parsed:
+        for w in watchlist:
+            action = "hold"
+            confidence = 50
+            reason = ""
+            name = w.get("name", w["ticker"])
+            if name in content or w["ticker"] in content:
+                lower_content = content.lower()
+                if any(k in content for k in ["매수", "적극 매수", "buy", "진입"]):
+                    action = "buy"
+                    confidence = 65
+                elif any(k in content for k in ["매도", "sell", "청산", "익절"]):
+                    action = "sell"
+                    confidence = 65
+                # 근거 추출 (종목명 주변 문장)
+                idx = content.find(name)
+                if idx >= 0:
+                    reason = content[idx:idx+100].split("\n")[0]
+            parsed.append({
+                "ticker": w["ticker"],
+                "name": name,
+                "market": w.get("market", "KR"),
+                "action": action,
+                "confidence": confidence,
+                "reason": reason or "CIO 종합 분석 참조",
+            })
+
+    return parsed
 
 
 @app.get("/api/trading/settings")
@@ -1476,14 +1575,40 @@ async def get_trading_bot_status():
     }
 
 
-async def _trading_bot_loop():
-    """자동매매 봇 루프 — 매 5분마다 전략 체크 및 시그널 생성.
+def _is_market_open(settings: dict) -> tuple[bool, str]:
+    """한국/미국 장 시간인지 확인합니다. (둘 중 하나라도 열려있으면 True)"""
+    now = datetime.now(KST)
+    now_min = now.hour * 60 + now.minute
 
-    현재는 모의투자 모드(paper_trading=True)로 작동합니다.
-    키움증권 API가 연결되면 실제 주문으로 전환 가능합니다.
+    # 한국 장 (09:00 ~ 15:20 KST)
+    kr = settings.get("trading_hours_kr", settings.get("trading_hours", {}))
+    kr_start = sum(int(x) * m for x, m in zip(kr.get("start", "09:00").split(":"), [60, 1]))
+    kr_end = sum(int(x) * m for x, m in zip(kr.get("end", "15:20").split(":"), [60, 1]))
+    if kr_start <= now_min < kr_end:
+        return True, "KR"
+
+    # 미국 장 (22:30 ~ 05:00 KST, 다음날로 넘어감)
+    us = settings.get("trading_hours_us", {})
+    us_start = sum(int(x) * m for x, m in zip(us.get("start", "22:30").split(":"), [60, 1]))
+    us_end = sum(int(x) * m for x, m in zip(us.get("end", "05:00").split(":"), [60, 1]))
+    if us_start <= now_min or now_min < us_end:  # 자정 넘김 처리
+        return True, "US"
+
+    return False, ""
+
+
+async def _trading_bot_loop():
+    """자동매매 봇 루프 — CIO(투자분석처장) + 4명 전문가가 분석 → 자동 매매.
+
+    흐름:
+    1. 5분마다 장 시간 체크 (한국 09:00~15:20, 미국 22:30~05:00 KST)
+    2. 관심종목이 있으면 CIO 팀에게 분석 위임
+    3. CIO가 4명 전문가 결과를 취합하여 매수/매도/관망 판단
+    4. 신뢰도 70% 이상 시그널만 자동 주문 실행 (auto_execute=True일 때만)
+    5. 모의투자 모드(paper_trading=True)에서는 가상 포트폴리오만 업데이트
     """
     logger = logging.getLogger("corthex.trading")
-    logger.info("자동매매 봇 루프 시작")
+    logger.info("자동매매 봇 루프 시작 (CIO 연동)")
 
     while _trading_bot_active:
         try:
@@ -1492,26 +1617,168 @@ async def _trading_bot_loop():
                 break
 
             settings = _load_data("trading_settings", _default_trading_settings())
-            now = datetime.now(KST)
-            now_time = now.strftime("%H:%M")
+            is_open, market = _is_market_open(settings)
 
-            # 장 시간 체크
-            start_time = settings.get("trading_hours", {}).get("start", "09:00")
-            end_time = settings.get("trading_hours", {}).get("end", "15:20")
-            if not (start_time <= now_time <= end_time):
+            if not is_open:
                 continue
 
-            # 활성 전략 확인
+            # 관심종목 확인
+            watchlist = _load_data("trading_watchlist", [])
+            if not watchlist:
+                continue
+
+            # 해당 시장의 관심종목만 필터 (한국 장이면 한국 종목, 미국 장이면 미국 종목)
+            market_watchlist = [w for w in watchlist if w.get("market", "KR") == market]
+            if not market_watchlist:
+                continue
+
+            market_name = "한국" if market == "KR" else "미국"
+            logger.info("[TRADING BOT] %s장 오픈 — %d개 종목 CIO 분석 시작", market_name, len(market_watchlist))
+            save_activity_log("cio_manager",
+                f"🤖 자동매매 봇: {market_name}장 {len(market_watchlist)}개 종목 CIO 분석 시작",
+                "info")
+
+            # CIO + 전문가 팀에게 분석 위임
+            tickers_info = ", ".join([f"{w['name']}({w['ticker']})" for w in market_watchlist[:10]])
             strategies = _load_data("trading_strategies", [])
             active = [s for s in strategies if s.get("active")]
-            if not active:
-                continue
+            strats_info = ", ".join([s["name"] for s in active[:5]]) or "기본 전략"
 
-            logger.info("[TRADING BOT] 전략 스캔: %d개 활성 전략", len(active))
-            save_activity_log("system", f"🔍 자동매매 스캔: {len(active)}개 전략 확인 중...", "info")
+            prompt = f"""[자동매매 봇 — {market_name}장 정기 분석]
 
-            # 여기서 실제 시그널 생성 + 자동 주문 로직이 들어갑니다
-            # 현재는 로그만 남기고, 키움증권 API 연결 후 실제 매매 로직 추가 예정
+## 분석 대상 ({len(market_watchlist)}개 종목)
+{tickers_info}
+
+## 활성 전략: {strats_info}
+
+## 분석 요청
+각 전문가에게 아래 분석을 지시하세요:
+- **시황분석**: {'코스피/코스닥 지수 흐름, 외국인/기관 동향, 금리/환율' if market == 'KR' else 'S&P500/나스닥 지수, 미국 금리/고용지표, 달러 강세'}
+- **종목분석**: 각 종목 재무 건전성, PER/PBR, 최근 실적
+- **기술적분석**: RSI, MACD, 이동평균선, 볼린저밴드
+- **리스크관리**: 손절가, 적정 포지션 크기, 전체 포트폴리오 리스크
+
+## 최종 산출물 (반드시 이 형식으로)
+[시그널] 종목명 (종목코드) | 매수/매도/관망 | 신뢰도 0~100% | 근거 한줄"""
+
+            cio_result = await _manager_with_delegation("cio_manager", prompt)
+            content = cio_result.get("content", "")
+            cost = cio_result.get("cost_usd", 0)
+
+            # 시그널 파싱
+            parsed_signals = _parse_cio_signals(content, market_watchlist)
+
+            # 시그널 저장
+            signals = _load_data("trading_signals", [])
+            new_signal = {
+                "id": f"sig_{datetime.now(KST).strftime('%Y%m%d%H%M%S')}",
+                "date": datetime.now(KST).isoformat(),
+                "market": market,
+                "analysis": content,
+                "tickers": [w["ticker"] for w in market_watchlist[:10]],
+                "parsed_signals": parsed_signals,
+                "strategy": "cio_bot_analysis",
+                "analyzed_by": f"CIO + 전문가 {cio_result.get('specialists_used', 0)}명",
+                "cost_usd": cost,
+                "auto_bot": True,
+            }
+            signals.insert(0, new_signal)
+            if len(signals) > 200:
+                signals = signals[:200]
+            _save_data("trading_signals", signals)
+
+            # 자동 주문 실행 (auto_execute=True + 신뢰도 충족 시)
+            auto_execute = settings.get("auto_execute", False)
+            min_confidence = settings.get("min_confidence", 70)
+            order_size = settings.get("order_size", 1_000_000)
+
+            if auto_execute:
+                for sig in parsed_signals:
+                    if sig["action"] in ("buy", "sell") and sig.get("confidence", 0) >= min_confidence:
+                        # 주문 가격은 현재가 기준 (모의투자이므로 목표가 또는 기본가 사용)
+                        target_w = next((w for w in market_watchlist if w["ticker"] == sig["ticker"]), None)
+                        price = target_w.get("target_price", 0) if target_w else 0
+                        if price <= 0:
+                            price = 50000  # 가격 미설정 시 기본값
+
+                        qty = max(1, int(order_size / price))
+
+                        # 내부적으로 주문 실행 (모의투자)
+                        from starlette.testclient import TestClient  # noqa
+                        try:
+                            portfolio = _load_data("trading_portfolio", _default_portfolio())
+                            if sig["action"] == "buy" and portfolio["cash"] >= price * qty:
+                                # 매수 로직 (execute_trading_order와 동일)
+                                holding = next((h for h in portfolio["holdings"] if h["ticker"] == sig["ticker"]), None)
+                                total_amount = qty * price
+                                if holding:
+                                    old_total = holding["avg_price"] * holding["qty"]
+                                    new_total = old_total + total_amount
+                                    holding["qty"] += qty
+                                    holding["avg_price"] = int(new_total / holding["qty"])
+                                    holding["current_price"] = price
+                                else:
+                                    portfolio["holdings"].append({
+                                        "ticker": sig["ticker"], "name": sig["name"],
+                                        "qty": qty, "avg_price": price, "current_price": price,
+                                        "market": sig.get("market", market),
+                                    })
+                                portfolio["cash"] -= total_amount
+                                portfolio["updated_at"] = datetime.now(KST).isoformat()
+                                _save_data("trading_portfolio", portfolio)
+
+                                # 거래 내역 저장
+                                history = _load_data("trading_history", [])
+                                history.insert(0, {
+                                    "id": f"auto_{datetime.now(KST).strftime('%Y%m%d%H%M%S')}_{sig['ticker']}",
+                                    "date": datetime.now(KST).isoformat(),
+                                    "ticker": sig["ticker"], "name": sig["name"],
+                                    "action": "buy", "qty": qty, "price": price,
+                                    "total": total_amount, "pnl": 0,
+                                    "strategy": f"CIO 자동매매 (신뢰도 {sig['confidence']}%)",
+                                    "status": "executed", "market": sig.get("market", market),
+                                })
+                                _save_data("trading_history", history)
+
+                                save_activity_log("cio_manager",
+                                    f"📈 자동매수: {sig['name']} {qty}주 × {price:,.0f}원 (신뢰도 {sig['confidence']}%)",
+                                    "info")
+
+                            elif sig["action"] == "sell":
+                                holding = next((h for h in portfolio["holdings"] if h["ticker"] == sig["ticker"]), None)
+                                if holding and holding["qty"] > 0:
+                                    sell_qty = min(qty, holding["qty"])
+                                    total_amount = sell_qty * price
+                                    pnl = (price - holding["avg_price"]) * sell_qty
+                                    holding["qty"] -= sell_qty
+                                    if holding["qty"] == 0:
+                                        portfolio["holdings"] = [h for h in portfolio["holdings"] if h["ticker"] != sig["ticker"]]
+                                    portfolio["cash"] += total_amount
+                                    portfolio["updated_at"] = datetime.now(KST).isoformat()
+                                    _save_data("trading_portfolio", portfolio)
+
+                                    history = _load_data("trading_history", [])
+                                    history.insert(0, {
+                                        "id": f"auto_{datetime.now(KST).strftime('%Y%m%d%H%M%S')}_{sig['ticker']}",
+                                        "date": datetime.now(KST).isoformat(),
+                                        "ticker": sig["ticker"], "name": sig["name"],
+                                        "action": "sell", "qty": sell_qty, "price": price,
+                                        "total": total_amount, "pnl": pnl,
+                                        "strategy": f"CIO 자동매매 (신뢰도 {sig['confidence']}%)",
+                                        "status": "executed", "market": sig.get("market", market),
+                                    })
+                                    _save_data("trading_history", history)
+
+                                    pnl_str = f"{'+'if pnl>=0 else ''}{pnl:,.0f}원"
+                                    save_activity_log("cio_manager",
+                                        f"📉 자동매도: {sig['name']} {sell_qty}주 × {price:,.0f}원 (손익 {pnl_str})",
+                                        "info")
+                        except Exception as order_err:
+                            logger.error("[TRADING BOT] 자동주문 오류: %s", order_err)
+
+            buy_count = len([s for s in parsed_signals if s.get("action") == "buy"])
+            sell_count = len([s for s in parsed_signals if s.get("action") == "sell"])
+            logger.info("[TRADING BOT] CIO 분석 완료: 매수 %d, 매도 %d (비용 $%.4f)", buy_count, sell_count, cost)
 
         except Exception as e:
             logger.error("[TRADING BOT] 에러: %s", e)
