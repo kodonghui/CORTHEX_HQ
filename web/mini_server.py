@@ -1250,6 +1250,7 @@ async def add_trading_watchlist(request: Request):
     item = {
         "ticker": ticker,
         "name": body.get("name", ticker),
+        "market": body.get("market", "KR"),
         "target_price": body.get("target_price", 0),
         "alert_type": body.get("alert_type", "above"),
         "notes": body.get("notes", ""),
@@ -1268,6 +1269,144 @@ async def remove_trading_watchlist(ticker: str):
     watchlist = [w for w in watchlist if w.get("ticker") != ticker]
     _save_data("trading_watchlist", watchlist)
     return {"success": True}
+
+
+@app.get("/api/trading/watchlist/prices")
+async def get_watchlist_prices():
+    """관심종목의 실시간 현재가를 조회.
+
+    한국 주식: pykrx 라이브러리 (한국거래소 무료 데이터)
+    미국 주식: yfinance 라이브러리 (Yahoo Finance 무료 데이터)
+    """
+    watchlist = _load_data("trading_watchlist", [])
+    if not watchlist:
+        return {"prices": {}, "updated_at": datetime.now(KST).isoformat()}
+
+    prices = {}
+
+    # --- 한국 주식 (pykrx) ---
+    kr_tickers = [w for w in watchlist if w.get("market", "KR") == "KR"]
+    if kr_tickers:
+        try:
+            from pykrx import stock as pykrx_stock
+            today = datetime.now(KST).strftime("%Y%m%d")
+            # 최근 5영업일 범위로 조회 (주말/공휴일 대비)
+            start = (datetime.now(KST) - timedelta(days=7)).strftime("%Y%m%d")
+            for w in kr_tickers:
+                try:
+                    df = await asyncio.to_thread(
+                        pykrx_stock.get_market_ohlcv_by_date, start, today, w["ticker"]
+                    )
+                    if df is not None and not df.empty:
+                        latest = df.iloc[-1]
+                        prev = df.iloc[-2] if len(df) >= 2 else latest
+                        close = int(latest["종가"])
+                        prev_close = int(prev["종가"])
+                        change = close - prev_close
+                        change_pct = round((change / prev_close) * 100, 2) if prev_close else 0
+                        prices[w["ticker"]] = {
+                            "current_price": close,
+                            "prev_close": prev_close,
+                            "change": change,
+                            "change_pct": change_pct,
+                            "volume": int(latest.get("거래량", 0)),
+                            "high": int(latest.get("고가", 0)),
+                            "low": int(latest.get("저가", 0)),
+                            "currency": "KRW",
+                        }
+                except Exception as e:
+                    logger.warning("한국 주가 조회 실패 %s: %s", w["ticker"], e)
+                    prices[w["ticker"]] = {"error": str(e)}
+        except ImportError:
+            for w in kr_tickers:
+                prices[w["ticker"]] = {"error": "pykrx 미설치"}
+
+    # --- 미국 주식 (yfinance) ---
+    us_tickers = [w for w in watchlist if w.get("market") == "US"]
+    if us_tickers:
+        try:
+            import yfinance as yf
+            for w in us_tickers:
+                try:
+                    ticker_obj = yf.Ticker(w["ticker"])
+                    hist = await asyncio.to_thread(
+                        lambda t=ticker_obj: t.history(period="5d")
+                    )
+                    if hist is not None and not hist.empty:
+                        latest = hist.iloc[-1]
+                        prev = hist.iloc[-2] if len(hist) >= 2 else latest
+                        close = round(float(latest["Close"]), 2)
+                        prev_close = round(float(prev["Close"]), 2)
+                        change = round(close - prev_close, 2)
+                        change_pct = round((change / prev_close) * 100, 2) if prev_close else 0
+                        prices[w["ticker"]] = {
+                            "current_price": close,
+                            "prev_close": prev_close,
+                            "change": change,
+                            "change_pct": change_pct,
+                            "volume": int(latest.get("Volume", 0)),
+                            "high": round(float(latest.get("High", 0)), 2),
+                            "low": round(float(latest.get("Low", 0)), 2),
+                            "currency": "USD",
+                        }
+                except Exception as e:
+                    logger.warning("미국 주가 조회 실패 %s: %s", w["ticker"], e)
+                    prices[w["ticker"]] = {"error": str(e)}
+        except ImportError:
+            for w in us_tickers:
+                prices[w["ticker"]] = {"error": "yfinance 미설치"}
+
+    return {"prices": prices, "updated_at": datetime.now(KST).isoformat()}
+
+
+@app.get("/api/trading/watchlist/chart/{ticker}")
+async def get_watchlist_chart(ticker: str, market: str = "KR", days: int = 30):
+    """관심종목의 일별 가격 데이터 (차트용).
+
+    간단한 일별 종가 데이터를 반환하여 프론트엔드에서 선 그래프를 그릴 수 있게 합니다.
+    """
+    chart_data = []
+
+    if market == "KR":
+        try:
+            from pykrx import stock as pykrx_stock
+            end = datetime.now(KST).strftime("%Y%m%d")
+            start = (datetime.now(KST) - timedelta(days=days + 10)).strftime("%Y%m%d")
+            df = await asyncio.to_thread(
+                pykrx_stock.get_market_ohlcv_by_date, start, end, ticker
+            )
+            if df is not None and not df.empty:
+                for date, row in df.tail(days).iterrows():
+                    chart_data.append({
+                        "date": date.strftime("%m/%d"),
+                        "close": int(row["종가"]),
+                        "volume": int(row.get("거래량", 0)),
+                    })
+        except ImportError:
+            return {"ticker": ticker, "chart": [], "error": "pykrx 미설치"}
+        except Exception as e:
+            return {"ticker": ticker, "chart": [], "error": str(e)}
+    else:
+        try:
+            import yfinance as yf
+            ticker_obj = yf.Ticker(ticker)
+            period = "1mo" if days <= 30 else "3mo"
+            hist = await asyncio.to_thread(
+                lambda t=ticker_obj, p=period: t.history(period=p)
+            )
+            if hist is not None and not hist.empty:
+                for date, row in hist.tail(days).iterrows():
+                    chart_data.append({
+                        "date": date.strftime("%m/%d"),
+                        "close": round(float(row["Close"]), 2),
+                        "volume": int(row.get("Volume", 0)),
+                    })
+        except ImportError:
+            return {"ticker": ticker, "chart": [], "error": "yfinance 미설치"}
+        except Exception as e:
+            return {"ticker": ticker, "chart": [], "error": str(e)}
+
+    return {"ticker": ticker, "chart": chart_data}
 
 
 @app.post("/api/trading/order")

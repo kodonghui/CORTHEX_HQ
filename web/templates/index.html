@@ -3096,8 +3096,8 @@
               <p class="text-xs text-hq-muted">키움증권 자동매매 시스템 — 모의투자 모드</p>
             </div>
             <div class="flex items-center gap-3">
-              <button @click="generateTradingSignals()" class="bg-hq-purple/20 text-hq-purple hover:bg-hq-purple/30 rounded-lg px-3 py-1.5 text-xs font-semibold transition">
-                🤖 AI 시그널 생성
+              <button @click="trading.tab='signals'; generateTradingSignals()" class="bg-hq-purple/20 text-hq-purple hover:bg-hq-purple/30 rounded-lg px-3 py-1.5 text-xs font-semibold transition">
+                📊 CIO 분석 요청
               </button>
               <button @click="trading.showOrderModal = true" class="bg-hq-green/20 text-hq-green hover:bg-hq-green/30 rounded-lg px-3 py-1.5 text-xs font-semibold transition">
                 📈 주문 실행
@@ -3232,7 +3232,7 @@
                 <span class="text-[10px] text-hq-muted" x-text="trading.signals.length + '개 시그널'"></span>
               </div>
               <template x-if="trading.signals.length === 0">
-                <div class="text-center text-hq-muted/70 py-6 text-xs">시그널이 없습니다 — "AI 시그널 생성" 버튼을 눌러보세요</div>
+                <div class="text-center text-hq-muted/70 py-6 text-xs">시그널이 없습니다 — "CIO 분석 요청" 버튼을 눌러보세요</div>
               </template>
               <div class="space-y-2">
                 <template x-for="s in trading.signals.slice(0, 5)" :key="s.id">
@@ -3369,7 +3369,16 @@
           <!-- ▸ 서브탭 4: 관심종목 -->
           <div x-show="trading.tab === 'watchlist' && !trading.loading">
             <div class="flex items-center justify-between mb-4">
-              <h3 class="text-sm font-bold text-hq-text font-mono">WATCHLIST</h3>
+              <div class="flex items-center gap-3">
+                <h3 class="text-sm font-bold text-hq-text font-mono">WATCHLIST</h3>
+                <button @click="loadWatchlistPrices()" :disabled="trading.watchPricesLoading"
+                        class="text-[10px] px-2 py-0.5 rounded bg-hq-cyan/10 text-hq-cyan hover:bg-hq-cyan/20 transition disabled:opacity-50">
+                  <span x-show="!trading.watchPricesLoading">🔄 시세 새로고침</span>
+                  <span x-show="trading.watchPricesLoading">⏳ 조회 중...</span>
+                </button>
+                <span x-show="trading.watchPricesUpdatedAt" class="text-[9px] text-hq-muted"
+                      x-text="'최근 갱신: ' + trading.watchPricesUpdatedAt"></span>
+              </div>
               <button @click="trading.showWatchModal = true" class="bg-hq-accent/20 text-hq-accent hover:bg-hq-accent/30 rounded-lg px-3 py-1.5 text-xs font-semibold transition">+ 종목 추가</button>
             </div>
             <template x-if="trading.watchlist.length === 0">
@@ -3381,6 +3390,7 @@
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
               <template x-for="w in trading.watchlist" :key="w.ticker">
                 <div class="glass border border-hq-border rounded-xl p-4 hover-glow">
+                  <!-- 헤더: 종목명 + 삭제 -->
                   <div class="flex items-center justify-between mb-2">
                     <div class="flex items-center gap-2">
                       <span class="text-xs" x-text="(w.market||'KR')==='US' ? '🇺🇸' : '🇰🇷'"></span>
@@ -3389,16 +3399,75 @@
                         <div class="text-[10px] text-hq-muted font-mono" x-text="w.ticker"></div>
                       </div>
                     </div>
-                    <button @click="removeWatchlistItem(w.ticker)" class="text-hq-muted/50 hover:text-hq-red text-sm transition">&times;</button>
+                    <div class="flex items-center gap-1">
+                      <button @click="openWatchlistChart(w)" class="text-hq-muted/50 hover:text-hq-cyan text-xs transition" title="차트 보기">📈</button>
+                      <button @click="removeWatchlistItem(w.ticker)" class="text-hq-muted/50 hover:text-hq-red text-sm transition">&times;</button>
+                    </div>
                   </div>
-                  <div x-show="w.target_price" class="text-[10px] text-hq-cyan mb-1">
-                    <span x-text="(w.alert_type === 'above' ? '↑ ' : '↓ ') + '목표: ' + (w.target_price||0).toLocaleString() + ((w.market||'KR')==='US' ? '$' : '원')"></span>
-                  </div>
-                  <div x-show="w.notes" class="text-[10px] text-hq-muted/80 truncate" x-text="w.notes"></div>
+
+                  <!-- 현재가 + 등락률 (실시간 데이터) -->
+                  <template x-if="trading.watchPrices[w.ticker] && !trading.watchPrices[w.ticker].error">
+                    <div class="mb-2">
+                      <div class="flex items-baseline gap-2">
+                        <span class="text-lg font-bold"
+                              :class="trading.watchPrices[w.ticker].change >= 0 ? 'text-hq-red' : 'text-blue-400'"
+                              x-text="(trading.watchPrices[w.ticker].currency === 'USD' ? '$' : '') + (trading.watchPrices[w.ticker].current_price||0).toLocaleString() + (trading.watchPrices[w.ticker].currency === 'KRW' ? '원' : '')"></span>
+                        <span class="text-xs font-bold px-1.5 py-0.5 rounded"
+                              :class="trading.watchPrices[w.ticker].change >= 0 ? 'bg-hq-red/15 text-hq-red' : 'bg-blue-500/15 text-blue-400'"
+                              x-text="(trading.watchPrices[w.ticker].change >= 0 ? '▲' : '▼') + ' ' + Math.abs(trading.watchPrices[w.ticker].change).toLocaleString() + ' (' + (trading.watchPrices[w.ticker].change_pct >= 0 ? '+' : '') + trading.watchPrices[w.ticker].change_pct + '%)'"></span>
+                      </div>
+                      <div class="flex gap-3 mt-1 text-[9px] text-hq-muted">
+                        <span x-text="'고가 ' + (trading.watchPrices[w.ticker].high||0).toLocaleString()"></span>
+                        <span x-text="'저가 ' + (trading.watchPrices[w.ticker].low||0).toLocaleString()"></span>
+                        <span x-text="'거래량 ' + (trading.watchPrices[w.ticker].volume||0).toLocaleString()"></span>
+                      </div>
+                    </div>
+                  </template>
+                  <!-- 가격 데이터 없을 때 -->
+                  <template x-if="!trading.watchPrices[w.ticker]">
+                    <div class="mb-2 text-[10px] text-hq-muted/60 italic">
+                      🔄 시세 새로고침을 눌러 현재가를 확인하세요
+                    </div>
+                  </template>
+                  <!-- 가격 조회 에러 -->
+                  <template x-if="trading.watchPrices[w.ticker] && trading.watchPrices[w.ticker].error">
+                    <div class="mb-2 text-[10px] text-hq-yellow/70">
+                      ⚠️ 시세 조회 실패
+                    </div>
+                  </template>
+
+                  <!-- 목표가 vs 현재가 비교 -->
+                  <template x-if="w.target_price && trading.watchPrices[w.ticker] && !trading.watchPrices[w.ticker].error">
+                    <div class="mb-2">
+                      <div class="flex items-center justify-between text-[10px] mb-1">
+                        <span class="text-hq-muted">현재가 → 목표가</span>
+                        <span class="font-mono"
+                              :class="trading.watchPrices[w.ticker].current_price >= w.target_price ? 'text-hq-green' : 'text-hq-cyan'"
+                              x-text="(() => { const cur = trading.watchPrices[w.ticker].current_price; const tgt = w.target_price; const diff = ((tgt - cur) / cur * 100).toFixed(1); return (diff > 0 ? '+' : '') + diff + '%'; })()"></span>
+                      </div>
+                      <div class="w-full bg-hq-surface rounded-full h-1.5">
+                        <div class="h-1.5 rounded-full transition-all"
+                             :class="trading.watchPrices[w.ticker].current_price >= w.target_price ? 'bg-hq-green' : 'bg-hq-cyan'"
+                             :style="'width:' + Math.min(100, Math.max(5, (trading.watchPrices[w.ticker].current_price / w.target_price * 100))) + '%'"></div>
+                      </div>
+                      <div class="flex justify-between text-[9px] text-hq-muted mt-0.5">
+                        <span x-text="(trading.watchPrices[w.ticker].current_price||0).toLocaleString()"></span>
+                        <span x-text="'목표 ' + (w.target_price||0).toLocaleString() + ((w.market||'KR')==='US' ? '$' : '원')"></span>
+                      </div>
+                    </div>
+                  </template>
+                  <!-- 목표가만 있고 현재가 없을 때 -->
+                  <template x-if="w.target_price && (!trading.watchPrices[w.ticker] || trading.watchPrices[w.ticker].error)">
+                    <div class="text-[10px] text-hq-cyan mb-1">
+                      <span x-text="(w.alert_type === 'above' ? '↑ ' : '↓ ') + '목표: ' + (w.target_price||0).toLocaleString() + ((w.market||'KR')==='US' ? '$' : '원')"></span>
+                    </div>
+                  </template>
+
+                  <div x-show="w.notes" class="text-[10px] text-hq-muted/80 truncate mb-1" x-text="w.notes"></div>
                   <div class="flex gap-2 mt-2">
-                    <button @click="trading.orderForm = {action:'buy', ticker:w.ticker, name:w.name, qty:0, price:0}; trading.showOrderModal = true;"
+                    <button @click="trading.orderForm = {action:'buy', ticker:w.ticker, name:w.name, qty:0, price:(trading.watchPrices[w.ticker]||{}).current_price||0}; trading.showOrderModal = true;"
                             class="flex-1 bg-hq-green/10 text-hq-green hover:bg-hq-green/20 rounded-lg py-1 text-[10px] font-bold transition">매수</button>
-                    <button @click="trading.orderForm = {action:'sell', ticker:w.ticker, name:w.name, qty:0, price:0}; trading.showOrderModal = true;"
+                    <button @click="trading.orderForm = {action:'sell', ticker:w.ticker, name:w.name, qty:0, price:(trading.watchPrices[w.ticker]||{}).current_price||0}; trading.showOrderModal = true;"
                             class="flex-1 bg-hq-red/10 text-hq-red hover:bg-hq-red/20 rounded-lg py-1 text-[10px] font-bold transition">매도</button>
                   </div>
                 </div>
@@ -3669,6 +3738,83 @@
           <input x-model="trading.watchForm.notes" placeholder="메모 (선택)" class="w-full bg-hq-bg border border-hq-border rounded-lg px-3 py-2 text-sm text-hq-text">
         </div>
         <button @click="addWatchlistItem()" class="w-full bg-hq-accent/20 text-hq-accent hover:bg-hq-accent/30 rounded-lg py-2.5 text-sm font-bold transition">관심종목 추가</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ Trading Chart Modal (종목 차트) ═══ -->
+  <div x-show="trading.showChartModal" x-transition.opacity
+       class="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
+       @click.self="trading.showChartModal = false" style="display: none;">
+    <div class="bg-hq-panel border border-hq-border rounded-2xl w-full max-w-[600px] mx-4 p-6" @click.stop>
+      <div class="flex items-center justify-between mb-4">
+        <div>
+          <h2 class="text-lg font-bold text-hq-text font-mono" x-text="trading.chartName + ' (' + trading.chartTicker + ')'"></h2>
+          <p class="text-[10px] text-hq-muted mt-0.5">최근 30일 일별 종가 차트</p>
+        </div>
+        <button @click="trading.showChartModal = false" class="text-hq-muted hover:text-hq-text text-xl">&times;</button>
+      </div>
+      <!-- 차트 영역 -->
+      <div class="relative">
+        <div x-show="trading.chartLoading" class="flex items-center justify-center py-20">
+          <span class="text-hq-muted text-xs">📊 차트 데이터 불러오는 중...</span>
+        </div>
+        <div x-show="!trading.chartLoading && trading.chartData.length === 0" class="text-center py-20 text-hq-muted/70 text-xs">
+          차트 데이터가 없습니다
+        </div>
+        <div x-show="!trading.chartLoading && trading.chartData.length > 0">
+          <!-- SVG 선 그래프 -->
+          <div class="bg-hq-bg rounded-xl p-4 border border-hq-border/50">
+            <svg viewBox="0 0 560 200" class="w-full" style="height: 200px;">
+              <!-- 배경 가로선 (격자) -->
+              <line x1="40" y1="10" x2="550" y2="10" stroke="rgb(var(--hq-border))" stroke-width="0.5" opacity="0.3"/>
+              <line x1="40" y1="60" x2="550" y2="60" stroke="rgb(var(--hq-border))" stroke-width="0.5" opacity="0.3"/>
+              <line x1="40" y1="110" x2="550" y2="110" stroke="rgb(var(--hq-border))" stroke-width="0.5" opacity="0.3"/>
+              <line x1="40" y1="160" x2="550" y2="160" stroke="rgb(var(--hq-border))" stroke-width="0.5" opacity="0.3"/>
+              <!-- 그래프 영역 (그라데이션) -->
+              <defs>
+                <linearGradient id="chartGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="rgb(var(--hq-cyan))" stop-opacity="0.3"/>
+                  <stop offset="100%" stop-color="rgb(var(--hq-cyan))" stop-opacity="0.02"/>
+                </linearGradient>
+              </defs>
+              <!-- 영역 (면) -->
+              <polygon :points="getChartAreaPoints()" fill="url(#chartGrad)"/>
+              <!-- 선 -->
+              <polyline :points="getChartLinePoints()" fill="none" stroke="rgb(var(--hq-cyan))" stroke-width="2" stroke-linejoin="round"/>
+              <!-- Y축 라벨 -->
+              <text x="36" y="14" fill="rgb(var(--hq-muted))" font-size="8" text-anchor="end" x-text="getChartYLabel(1)"></text>
+              <text x="36" y="64" fill="rgb(var(--hq-muted))" font-size="8" text-anchor="end" x-text="getChartYLabel(0.67)"></text>
+              <text x="36" y="114" fill="rgb(var(--hq-muted))" font-size="8" text-anchor="end" x-text="getChartYLabel(0.33)"></text>
+              <text x="36" y="164" fill="rgb(var(--hq-muted))" font-size="8" text-anchor="end" x-text="getChartYLabel(0)"></text>
+            </svg>
+            <!-- X축 날짜 라벨 -->
+            <div class="flex justify-between px-10 text-[8px] text-hq-muted -mt-1">
+              <span x-text="trading.chartData.length > 0 ? trading.chartData[0].date : ''"></span>
+              <span x-text="trading.chartData.length > 10 ? trading.chartData[Math.floor(trading.chartData.length/2)].date : ''"></span>
+              <span x-text="trading.chartData.length > 0 ? trading.chartData[trading.chartData.length-1].date : ''"></span>
+            </div>
+          </div>
+          <!-- 가격 요약 -->
+          <div class="grid grid-cols-4 gap-2 mt-3">
+            <div class="bg-hq-surface rounded-lg p-2 text-center">
+              <div class="text-[9px] text-hq-muted">시작가</div>
+              <div class="text-xs font-bold text-hq-text" x-text="trading.chartData.length > 0 ? trading.chartData[0].close.toLocaleString() : '-'"></div>
+            </div>
+            <div class="bg-hq-surface rounded-lg p-2 text-center">
+              <div class="text-[9px] text-hq-muted">최고가</div>
+              <div class="text-xs font-bold text-hq-red" x-text="trading.chartData.length > 0 ? Math.max(...trading.chartData.map(d=>d.close)).toLocaleString() : '-'"></div>
+            </div>
+            <div class="bg-hq-surface rounded-lg p-2 text-center">
+              <div class="text-[9px] text-hq-muted">최저가</div>
+              <div class="text-xs font-bold text-blue-400" x-text="trading.chartData.length > 0 ? Math.min(...trading.chartData.map(d=>d.close)).toLocaleString() : '-'"></div>
+            </div>
+            <div class="bg-hq-surface rounded-lg p-2 text-center">
+              <div class="text-[9px] text-hq-muted">현재가</div>
+              <div class="text-xs font-bold text-hq-cyan" x-text="trading.chartData.length > 0 ? trading.chartData[trading.chartData.length-1].close.toLocaleString() : '-'"></div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -4795,6 +4941,17 @@
           // 관심종목 추가 폼
           watchForm: { ticker: '', name: '', target_price: 0, notes: '', market: 'KR' },
           showWatchModal: false,
+          // 관심종목 실시간 가격
+          watchPrices: {},
+          watchPricesLoading: false,
+          watchPricesUpdatedAt: '',
+          // 관심종목 차트
+          showChartModal: false,
+          chartTicker: '',
+          chartName: '',
+          chartMarket: 'KR',
+          chartData: [],
+          chartLoading: false,
           // 초기자금 설정
           initialCashInput: 50000000,
         },
@@ -6642,6 +6799,10 @@
             this.trading.signals = Array.isArray(signals) ? signals : [];
             this.trading.botActive = summary.bot_active || false;
             this.trading.settings = summary.settings || {};
+            // 관심종목이 있으면 시세도 자동 조회 (캐시가 비어있을 때만)
+            if (this.trading.watchlist.length > 0 && Object.keys(this.trading.watchPrices).length === 0) {
+              this.loadWatchlistPrices();
+            }
           } catch(e) { console.error('Trading load error:', e); }
           finally { this.trading.loading = false; }
         },
@@ -6710,6 +6871,7 @@
               this.trading.showWatchModal = false;
               this.trading.watchForm = {ticker:'', name:'', target_price:0, notes:'', market:'KR'};
               await this.loadTradingSummary();
+              this.loadWatchlistPrices();  // 새 종목 가격도 바로 조회
             } else { this.showToast(res.error || '추가 실패', 'error'); }
           } catch { this.showToast('관심종목 추가 오류', 'error'); }
         },
@@ -6717,9 +6879,92 @@
         async removeWatchlistItem(ticker) {
           try {
             await fetch(`/api/trading/watchlist/${ticker}`, {method:'DELETE'});
+            delete this.trading.watchPrices[ticker];
             await this.loadTradingSummary();
             this.showToast('관심종목 삭제됨', 'success');
           } catch { this.showToast('삭제 실패', 'error'); }
+        },
+
+        // 관심종목 실시간 가격 조회
+        async loadWatchlistPrices() {
+          if (this.trading.watchlist.length === 0) return;
+          this.trading.watchPricesLoading = true;
+          try {
+            const res = await fetch('/api/trading/watchlist/prices').then(r => r.ok ? r.json() : {prices:{}});
+            this.trading.watchPrices = res.prices || {};
+            if (res.updated_at) {
+              const d = new Date(res.updated_at);
+              this.trading.watchPricesUpdatedAt = d.toLocaleTimeString('ko-KR', {hour:'2-digit', minute:'2-digit'});
+            }
+          } catch(e) { console.error('Price load error:', e); }
+          finally { this.trading.watchPricesLoading = false; }
+        },
+
+        // 종목 차트 열기
+        async openWatchlistChart(w) {
+          this.trading.chartTicker = w.ticker;
+          this.trading.chartName = w.name;
+          this.trading.chartMarket = w.market || 'KR';
+          this.trading.chartData = [];
+          this.trading.chartLoading = true;
+          this.trading.showChartModal = true;
+          try {
+            const res = await fetch(`/api/trading/watchlist/chart/${w.ticker}?market=${w.market||'KR'}&days=30`).then(r => r.ok ? r.json() : {chart:[]});
+            this.trading.chartData = res.chart || [];
+          } catch(e) { console.error('Chart load error:', e); }
+          finally { this.trading.chartLoading = false; }
+        },
+
+        // SVG 차트: 선 좌표 계산
+        getChartLinePoints() {
+          const data = this.trading.chartData;
+          if (!data || data.length === 0) return '';
+          const closes = data.map(d => d.close);
+          const min = Math.min(...closes);
+          const max = Math.max(...closes);
+          const range = max - min || 1;
+          const xStart = 45, xEnd = 550, yStart = 10, yEnd = 170;
+          const xStep = (xEnd - xStart) / Math.max(data.length - 1, 1);
+          return data.map((d, i) => {
+            const x = xStart + i * xStep;
+            const y = yEnd - ((d.close - min) / range) * (yEnd - yStart);
+            return `${x},${y}`;
+          }).join(' ');
+        },
+
+        // SVG 차트: 영역(면) 좌표 계산
+        getChartAreaPoints() {
+          const data = this.trading.chartData;
+          if (!data || data.length === 0) return '';
+          const closes = data.map(d => d.close);
+          const min = Math.min(...closes);
+          const max = Math.max(...closes);
+          const range = max - min || 1;
+          const xStart = 45, xEnd = 550, yStart = 10, yEnd = 170;
+          const xStep = (xEnd - xStart) / Math.max(data.length - 1, 1);
+          let pts = data.map((d, i) => {
+            const x = xStart + i * xStep;
+            const y = yEnd - ((d.close - min) / range) * (yEnd - yStart);
+            return `${x},${y}`;
+          });
+          // 아래쪽 닫기
+          const lastX = xStart + (data.length - 1) * xStep;
+          pts.push(`${lastX},${yEnd}`);
+          pts.push(`${xStart},${yEnd}`);
+          return pts.join(' ');
+        },
+
+        // SVG 차트: Y축 라벨
+        getChartYLabel(ratio) {
+          const data = this.trading.chartData;
+          if (!data || data.length === 0) return '';
+          const closes = data.map(d => d.close);
+          const min = Math.min(...closes);
+          const max = Math.max(...closes);
+          const val = min + (max - min) * ratio;
+          if (val >= 1000000) return (val / 10000).toFixed(0) + '만';
+          if (val >= 1000) return val.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+          return val.toFixed(2);
         },
 
         async toggleTradingBot() {
