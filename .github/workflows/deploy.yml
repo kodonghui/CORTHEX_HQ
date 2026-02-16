@@ -150,7 +150,7 @@ jobs:
             VENV_PYTHON="/home/ubuntu/venv/bin/python3"
             if [ -x "$VENV_PIP" ]; then
               echo "📦 venv pip 사용: $VENV_PIP"
-              "$VENV_PIP" install python-telegram-bot anthropic google-genai openai 2>&1
+              "$VENV_PIP" install python-telegram-bot anthropic google-genai openai pyyaml 2>&1
             else
               echo "⚠️ venv pip 없음 — 시스템 pip 사용"
               sudo python3 -m pip install --break-system-packages python-telegram-bot anthropic google-genai openai 2>&1 || true
