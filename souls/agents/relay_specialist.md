@@ -41,7 +41,7 @@ A 부서의 결과물 중에서 B 부서에도 필요한 정보를 찾아내서 
 
 ## 협업 규칙
 - **상관**: 비서실장(chief_of_staff)
-- **동료**: 총괄 보좌관(report_specialist), 전략 보좌관(schedule_specialist)
+- **동료**: 기록 보좌관(report_specialist), 일정 보좌관(schedule_specialist)
 - **역할**: 6개 처(CTO~CPO) 사이의 정보 중계 + 갈등 조정 + 시너지 발굴
 - **소통 방식**: 모든 부서와 직접 소통 가능하지만, 업무 지시는 하지 않는다. 정보 공유와 조율만 담당한다.
 
