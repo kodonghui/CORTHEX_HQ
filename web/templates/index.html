@@ -38,19 +38,19 @@
 
     /* ═══ 사이버 사령부 팔레트 (Cyber Command Center — 네온 다크) ═══ */
     :root, .dark {
-      --hq-bg: 10 12 18;
-      --hq-surface: 16 20 30;
-      --hq-panel: 22 28 40;
-      --hq-border: 40 50 70;
-      --hq-border-light: 55 65 90;
+      --hq-bg: 18 22 32;
+      --hq-surface: 26 32 46;
+      --hq-panel: 34 42 58;
+      --hq-border: 55 65 88;
+      --hq-border-light: 70 82 108;
       --hq-accent: 0 200 150;
       --hq-cyan: 0 230 255;
       --hq-purple: 140 100 255;
       --hq-green: 0 255 136;
       --hq-yellow: 255 210 0;
       --hq-red: 255 60 80;
-      --hq-text: 220 235 240;
-      --hq-muted: 120 140 160;
+      --hq-text: 225 238 245;
+      --hq-muted: 135 155 175;
       --hq-shadow: 0 0 0;
     }
     /* ═══ 라이트모드 팔레트 (따뜻한 연보라 기반) ═══ */
@@ -76,7 +76,7 @@
 
     /* ═══ 사이버 사령부 배경 (딥 다크 + 네온 글로우) ═══ */
     .dark body {
-      background: linear-gradient(145deg, #060810 0%, #0A0E1A 30%, #081018 60%, #0C0A16 100%);
+      background: linear-gradient(145deg, #10141E 0%, #141A28 30%, #121820 60%, #161222 100%);
       background-attachment: fixed;
     }
     /* 네온 글로우 — 사이버 그린 (왼쪽 위) */
@@ -87,7 +87,7 @@
       left: -15%;
       width: 65%;
       height: 65%;
-      background: radial-gradient(ellipse at center, rgba(0,255,136,0.04) 0%, transparent 65%);
+      background: radial-gradient(ellipse at center, rgba(0,255,136,0.06) 0%, transparent 65%);
       pointer-events: none;
       z-index: 0;
     }
@@ -99,7 +99,7 @@
       right: -15%;
       width: 65%;
       height: 65%;
-      background: radial-gradient(ellipse at center, rgba(0,230,255,0.03) 0%, transparent 65%);
+      background: radial-gradient(ellipse at center, rgba(0,230,255,0.05) 0%, transparent 65%);
       pointer-events: none;
       z-index: 0;
     }
@@ -483,36 +483,36 @@
 
     /* --- 다크모드 구조 요소 (Glass 효과) --- */
     .dark .glass {
-      background-color: rgb(var(--hq-surface) / 0.55) !important;
+      background-color: rgb(var(--hq-surface) / 0.65) !important;
       backdrop-filter: blur(20px) saturate(1.4) !important;
       -webkit-backdrop-filter: blur(20px) saturate(1.4) !important;
-      border-color: rgb(255 255 255 / 0.06) !important;
+      border-color: rgb(255 255 255 / 0.08) !important;
       color: rgb(var(--hq-text)) !important;
     }
     .dark aside {
-      background-color: rgb(var(--hq-surface) / 0.45) !important;
+      background-color: rgb(var(--hq-surface) / 0.55) !important;
       backdrop-filter: blur(24px) saturate(1.5) !important;
       -webkit-backdrop-filter: blur(24px) saturate(1.5) !important;
-      border-color: rgb(255 255 255 / 0.05) !important;
+      border-color: rgb(255 255 255 / 0.07) !important;
       color: rgb(var(--hq-text)) !important;
     }
     .dark .desk-card {
-      background: rgb(var(--hq-surface) / 0.45) !important;
+      background: rgb(var(--hq-surface) / 0.55) !important;
       backdrop-filter: blur(12px) saturate(1.3) !important;
       -webkit-backdrop-filter: blur(12px) saturate(1.3) !important;
-      border-color: rgb(255 255 255 / 0.06) !important;
+      border-color: rgb(255 255 255 / 0.08) !important;
     }
     .dark .office-room {
-      background: rgb(var(--hq-bg) / 0.5) !important;
+      background: rgb(var(--hq-bg) / 0.6) !important;
       backdrop-filter: blur(8px) !important;
       -webkit-backdrop-filter: blur(8px) !important;
-      border-color: rgb(255 255 255 / 0.04) !important;
+      border-color: rgb(255 255 255 / 0.06) !important;
     }
     .dark input, .dark textarea, .dark select {
-      background-color: rgb(var(--hq-bg) / 0.6) !important;
+      background-color: rgb(var(--hq-bg) / 0.7) !important;
       backdrop-filter: blur(8px) !important;
       -webkit-backdrop-filter: blur(8px) !important;
-      border-color: rgb(255 255 255 / 0.08) !important;
+      border-color: rgb(255 255 255 / 0.10) !important;
       color: rgb(var(--hq-text)) !important;
     }
     .dark input::placeholder, .dark textarea::placeholder {
