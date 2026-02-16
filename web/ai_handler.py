@@ -1133,6 +1133,12 @@ async def _batch_submit_google(requests: list[dict], default_model: str) -> dict
                 "parts": [{"text": req["system_prompt"]}]
             }
 
+        # generationConfig 추가 (temperature, max_output_tokens)
+        request_body["generation_config"] = {
+            "temperature": req.get("temperature", 0.3),
+            "max_output_tokens": req.get("max_output_tokens", 4096),
+        }
+
         inline_requests.append(request_body)
         custom_id_map[i] = req.get("custom_id", f"req-{i}")
 
