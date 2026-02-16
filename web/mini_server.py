@@ -4311,8 +4311,9 @@ _BROADCAST_KEYWORDS = [
     "총괄", "전원", "각 부서", "출석체크", "브리핑",
 ]
 
-# 처장 → 소속 전문가 매핑
+# 처장/비서실장 → 소속 전문가 매핑
 _MANAGER_SPECIALISTS: dict[str, list[str]] = {
+    "chief_of_staff": ["report_specialist", "schedule_specialist", "relay_specialist"],
     "cto_manager": ["frontend_specialist", "backend_specialist", "infra_specialist", "ai_model_specialist"],
     "cso_manager": ["market_research_specialist", "business_plan_specialist", "financial_model_specialist"],
     "clo_manager": ["copyright_specialist", "patent_specialist"],
@@ -4570,75 +4571,173 @@ async def _manager_with_delegation(manager_id: str, text: str) -> dict:
 
 
 async def _broadcast_to_managers(text: str, task_id: str) -> dict:
-    """전체 부서 브로드캐스트.
+    """전체 부서 브로드캐스트 — 비서실장 종합 보고서 시스템.
 
-    비서실장 → 6개 처장에게 명령 전달.
-    각 처장은 자기 소속 전문가들에게 위임 → 결과 검수 → 종합 보고서 작성.
-    비서실장은 처장만 호출하고, 전문가는 처장이 알아서 호출합니다.
+    흐름:
+    1) 비서실 보좌관 3명 + 6개 처장 동시 호출
+    2) 각 처장 보고서는 기밀문서(아카이브)에만 저장 (사령실에 전체 안 보여줌)
+    3) 비서실장이 AI로 종합 보고서 작성 (핵심 요약 + 부서별 한줄 + CEO 결재 체크리스트)
+    4) 사령실/텔레그램에는 비서실장 종합 보고서만 표시
+    5) "상세 보고서는 기밀문서에서 확인" 안내
     """
     managers = ["cto_manager", "cso_manager", "clo_manager", "cmo_manager", "cio_manager", "cpo_manager"]
+    staff_specialists = ["report_specialist", "schedule_specialist", "relay_specialist"]
 
     # 비서실장 상태: 전달 중
-    await _broadcast_status("chief_of_staff", "working", 0.1, "6개 부서 처장에게 명령 하달 중...")
+    await _broadcast_status("chief_of_staff", "working", 0.1, "6개 부서 + 비서실 보좌관에게 명령 하달 중...")
 
-    # 활동 로그 — 비서실장이 처장들에게 전달
-    log_entry = save_activity_log("chief_of_staff", f"[비서실장] 6개 처장에게 명령 전달: {text[:40]}...")
+    # 활동 로그
+    log_entry = save_activity_log("chief_of_staff", f"[비서실장] 6개 처장 + 보좌관 3명에게 명령 전달: {text[:40]}...")
     for c in connected_clients[:]:
         try:
             await c.send_json({"event": "activity_log", "data": log_entry})
         except Exception:
             pass
 
-    # 6개 처장 동시 호출 (각 처장이 자기 전문가를 알아서 호출 + 검수)
-    tasks = [_manager_with_delegation(mgr_id, text) for mgr_id in managers]
-    results = await asyncio.gather(*tasks, return_exceptions=True)
+    # ── 1단계: 6개 처장 + 비서실 보좌관 3명 동시 호출 ──
+    mgr_tasks = [_manager_with_delegation(mgr_id, text) for mgr_id in managers]
+    staff_tasks = [_call_agent(spec_id, text) for spec_id in staff_specialists]
+    all_results = await asyncio.gather(*(mgr_tasks + staff_tasks), return_exceptions=True)
 
-    # 결과 종합
-    compiled_parts = []
+    mgr_results = all_results[:6]
+    staff_results = all_results[6:]
+
+    # ── 2단계: 처장 결과 정리 (기밀문서에는 이미 _manager_with_delegation에서 저장됨) ──
+    mgr_summaries = []  # 비서실장에게 전달할 요약
     total_cost = 0.0
     total_time = 0.0
     success_count = 0
     total_specialists = 0
 
-    for i, result in enumerate(results):
+    for i, result in enumerate(mgr_results):
         mgr_id = managers[i]
         mgr_name = _AGENT_NAMES.get(mgr_id, mgr_id)
 
         if isinstance(result, Exception):
-            compiled_parts.append(f"### ❌ {mgr_name}\n오류: {str(result)[:100]}")
+            mgr_summaries.append(f"[{mgr_name}] 오류: {str(result)[:100]}")
         elif "error" in result:
-            compiled_parts.append(f"### ❌ {mgr_name}\n{result['error'][:200]}")
+            mgr_summaries.append(f"[{mgr_name}] 오류: {result['error'][:200]}")
         else:
             specs = result.get("specialists_used", 0)
             total_specialists += specs
-            spec_label = f" (전문가 {specs}명 동원)" if specs else ""
-            compiled_parts.append(f"### 📋 {mgr_name}{spec_label}\n{result.get('content', '응답 없음')}")
+            mgr_summaries.append(f"[{mgr_name}] (전문가 {specs}명)\n{result.get('content', '응답 없음')}")
             total_cost += result.get("cost_usd", 0)
             total_time = max(total_time, result.get("time_seconds", 0))
             success_count += 1
 
-    # 비서실장 완료
-    await _broadcast_status("chief_of_staff", "done", 1.0, "종합 완료")
+    # 보좌관 결과 정리
+    staff_summaries = []
+    for i, result in enumerate(staff_results):
+        spec_id = staff_specialists[i]
+        spec_name = _SPECIALIST_NAMES.get(spec_id, spec_id)
 
-    compiled_content = (
-        f"📢 **전체 부서 브로드캐스트 결과** (6개 처장 + 전문가 {total_specialists}명 동원)\n\n"
-        f"비서실장 → 6개 처장에게 명령 전달 → 각 처장이 소속 전문가를 호출하여 결과를 종합했습니다.\n\n---\n\n"
-        + "\n\n---\n\n".join(compiled_parts)
+        if isinstance(result, Exception):
+            staff_summaries.append(f"[{spec_name}] 오류: {str(result)[:100]}")
+        elif "error" in result:
+            staff_summaries.append(f"[{spec_name}] 오류: {result['error'][:200]}")
+        else:
+            staff_summaries.append(f"[{spec_name}]\n{result.get('content', '응답 없음')}")
+            total_cost += result.get("cost_usd", 0)
+            total_time = max(total_time, result.get("time_seconds", 0))
+
+    # ── 3단계: 비서실장이 AI로 종합 보고서 작성 ──
+    await _broadcast_status("chief_of_staff", "working", 0.8, "종합 보고서 작성 중...")
+
+    synthesis_input = (
+        f"CEO 원본 명령: {text}\n\n"
+        f"## 6개 부서 처장 보고서\n\n"
+        + "\n\n---\n\n".join(mgr_summaries)
+        + f"\n\n## 비서실 보좌관 보고\n\n"
+        + "\n\n".join(staff_summaries)
+    )
+
+    synthesis_system = (
+        "당신은 비서실장입니다. 6개 부서 처장과 비서실 보좌관 3명의 보고를 검토하고, "
+        "CEO에게 종합 보고서를 작성하세요.\n\n"
+        "## 반드시 아래 구조를 따를 것\n\n"
+        "### 핵심 요약\n"
+        "(전체 상황을 1~2문장으로 요약)\n\n"
+        "### 부서별 한줄 요약\n"
+        "| 부서 | 핵심 내용 | 상태 |\n"
+        "|------|----------|------|\n"
+        "| CTO (기술개발) | ... | 정상/주의/위험 |\n"
+        "(6개 부서 전부)\n\n"
+        "### CEO 결재/결정 필요 사항\n"
+        "(각 처장 보고서에서 CEO가 결정해야 할 것만 추출. 체크리스트 형태)\n"
+        "- [ ] 부서명: 결정 사항 — 배경 설명\n"
+        "(결재할 것이 없으면 '현재 결재 대기 사항 없음')\n\n"
+        "### 특이사항 / 리스크\n"
+        "(각 보고서에서 리스크 요소만 추출. 없으면 '특이사항 없음')\n\n"
+        "### 비서실 보좌관 보고\n"
+        "- 총괄 보좌관: (1줄 요약)\n"
+        "- 전략 보좌관: (1줄 요약)\n"
+        "- 소통 보좌관: (1줄 요약)\n\n"
+        "## 규칙\n"
+        "- 한국어로 작성\n"
+        "- 간결하게. CEO가 30초 안에 핵심을 파악할 수 있게\n"
+        "- 중요한 숫자/데이터는 반드시 포함\n"
+        "- 처장 보고서를 그대로 복사하지 말고, 핵심만 추출하여 재구성\n"
+    )
+
+    soul = _load_agent_prompt("chief_of_staff")
+    override = _get_model_override("chief_of_staff")
+    model = select_model(synthesis_input, override=override)
+
+    chief_synthesis = await ask_ai(
+        synthesis_input,
+        system_prompt=synthesis_system + "\n\n" + soul,
+        model=model,
+    )
+
+    await _broadcast_status("chief_of_staff", "done", 1.0, "종합 보고 완료")
+
+    # 종합 보고서 비용 추가
+    if "error" not in chief_synthesis:
+        total_cost += chief_synthesis.get("cost_usd", 0)
+
+    # ── 4단계: 최종 출력 = 비서실장 종합 보고서만 ──
+    if "error" in chief_synthesis:
+        # 종합 실패 시 처장 요약만 간단히 표시
+        chief_content = "⚠️ 비서실장 종합 보고서 작성 실패\n\n" + "\n\n---\n\n".join(
+            f"**{_AGENT_NAMES.get(managers[i], managers[i])}**: "
+            + (mgr_results[i].get("content", "")[:100] + "..." if not isinstance(mgr_results[i], Exception) else "오류")
+            for i in range(6)
+        )
+    else:
+        chief_content = chief_synthesis.get("content", "")
+
+    # 맨 아래 안내 추가
+    final_content = (
+        f"📋 **비서실장 종합 보고** "
+        f"(6개 처장 + 전문가 {total_specialists}명 + 보좌관 3명 동원)\n\n"
+        f"{chief_content}\n\n"
+        f"---\n\n"
+        f"📂 **상세 보고서 {success_count}건이 기밀문서에 저장되었습니다.** "
+        f"기밀문서 탭에서 부서별 필터로 각 처장의 전체 보고서를 확인할 수 있습니다."
+    )
+
+    # 비서실장 종합 보고서도 아카이브에 저장
+    now_str = datetime.now(KST).strftime("%Y%m%d_%H%M%S")
+    save_archive(
+        division="secretary",
+        filename=f"chief_of_staff_broadcast_{now_str}.md",
+        content=f"# [비서실장] 종합 보고: {text[:50]}\n\n{chief_content}",
+        agent_id="chief_of_staff",
     )
 
     # DB 업데이트
     update_task(task_id, status="completed",
-                result_summary=f"브로드캐스트 완료 ({success_count}/6 부서 보고, 전문가 {total_specialists}명)",
-                result_data=compiled_content,
+                result_summary=f"브로드캐스트 완료 ({success_count}/6 부서, 전문가 {total_specialists}명, 보좌관 3명)",
+                result_data=final_content,
                 success=1,
                 cost_usd=total_cost,
                 time_seconds=round(total_time, 2),
                 agent_id="chief_of_staff")
 
     return {
-        "content": compiled_content,
+        "content": final_content,
         "agent_id": "chief_of_staff",
-        "handled_by": "비서실장 → 6개 처장",
+        "handled_by": "비서실장 → 6개 처장 + 보좌관 3명",
         "delegation": "비서실장 → 처장 → 전문가",
         "total_cost_usd": round(total_cost, 6),
         "time_seconds": round(total_time, 2),

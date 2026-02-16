@@ -79,7 +79,7 @@
 42. **index.html UX 전수검사 8개 이슈** (2026-02-16) - 부서필터 버그수정(선택 초기화), 사령실 채팅 스크롤(탭 복귀 시 자동), 피드백 버튼 선택 시각효과(ring+배경), 기밀문서 2단 레이아웃(이메일 스타일 좌우분할), 글씨체 Pretendard 통일, 보고서 이미지 CSS(둥근모서리+테두리), 네모(■) 배지 계층별 색상(보라/시안/초록)
 43. **서버 이전 완료** (2026-02-16) - 기존 1GB 마이크로 서버(168.107.28.100) → ARM 4코어 24GB 서버로 완전 이전. deploy.yml에서 `SERVER_IP_ARM`/`SERVER_SSH_KEY_ARM` 시크릿 사용. nginx WebSocket 프록시(/ws) 추가. src/ 디렉토리(100개+ 도구) 배포 추가. Python 3.10 호환성 수정(from __future__ import annotations). 빌드 #143부터 새 서버에서 운영
 44. **AI 도구 자동호출 (Function Calling)** (2026-02-16) - 111개 도구를 AI가 스스로 호출 가능. Claude(tool_use), GPT(tool_calls), Gemini(function_call) 3개 프로바이더 지원. 에이전트별 허용 도구 제한(CIO→투자도구, CTO→기술도구). 최대 5회 도구 호출 루프
-45. **AI Batch API 시스템** (2026-02-16) - Anthropic/OpenAI/Gemini 배치 API 지원. 여러 요청을 한꺼번에 제출하여 실시간 대비 ~50% 비용 절감. PENDING 추적(SQLite DB), 60초 간격 자동 폴러로 결과 수집, 완료 시 에이전트 자동 위임+아카이브 저장+WebSocket 실시간 알림
+45. **AI Batch API 시스템** (2026-02-16) - Anthropic/OpenAI/Gemini 3사 모두 진짜 Batch API 사용. Anthropic(Message Batches), OpenAI(Batch JSONL), Gemini(client.batches.create). 실시간 대비 ~50% 비용 절감. PENDING 추적(SQLite DB), 60초 간격 자동 폴러로 결과 수집, 완료 시 에이전트 자동 위임+아카이브 저장+WebSocket 실시간 알림
 46. **배치 체인 오케스트레이터** (2026-02-16) - 위임 체인 전체(분류→전문가→종합→전달)를 Batch API로 처리. 프로바이더별 자동 그룹화(Claude/GPT/Gemini 각각의 배치로 분리). CIO 종합보고서 작성 단계 포함. 6개 부서 동시 브로드캐스트 지원. SQLite에 체인 상태 저장, 60초 폴러로 자동 진행
 
 ---
