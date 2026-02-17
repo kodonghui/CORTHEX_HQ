@@ -401,6 +401,62 @@ async def websocket_endpoint(ws: WebSocket):
                         asyncio.create_task(_run_batch_chain(cmd_text, task["task_id"], ws))
                         continue
 
+                    # 토론 명령: 백그라운드 실행 (채팅 차단 없음)
+                    _stripped = cmd_text.strip()
+                    is_debate_cmd = _stripped.startswith("/토론") or _stripped.startswith("/심층토론")
+                    if is_ai_ready() and is_debate_cmd:
+                        debate_rounds = 3 if _stripped.startswith("/심층토론") else 2
+                        await ws.send_json({
+                            "event": "result",
+                            "data": {
+                                "content": (
+                                    f"🗣️ **임원 토론을 시작합니다** ({debate_rounds}라운드)\n\n"
+                                    f"처장 6명이 토론 중입니다. 2~5분 소요됩니다.\n"
+                                    f"**토론이 완료되면 자동으로 결과를 전달해드립니다.**\n"
+                                    f"💡 토론이 진행되는 동안 채팅을 계속 사용할 수 있습니다."
+                                ),
+                                "sender_id": "chief_of_staff",
+                                "handled_by": f"임원 토론 시작 ({debate_rounds}라운드)",
+                                "time_seconds": 0,
+                                "cost": 0,
+                            }
+                        })
+
+                        async def _run_debate_bg(text, task_id):
+                            try:
+                                update_task(task_id, status="running")
+                                debate_result = await _process_ai_command(text, task_id)
+                                for c in connected_clients[:]:
+                                    try:
+                                        if "error" in debate_result:
+                                            await c.send_json({
+                                                "event": "result",
+                                                "data": {
+                                                    "content": f"❌ 토론 실패: {debate_result['error']}",
+                                                    "sender_id": "chief_of_staff",
+                                                    "time_seconds": 0,
+                                                    "cost": 0,
+                                                }
+                                            })
+                                        else:
+                                            await c.send_json({
+                                                "event": "result",
+                                                "data": {
+                                                    "content": debate_result.get("content", ""),
+                                                    "sender_id": debate_result.get("agent_id", "chief_of_staff"),
+                                                    "handled_by": debate_result.get("handled_by", "임원 토론"),
+                                                    "time_seconds": debate_result.get("time_seconds", 0),
+                                                    "cost": debate_result.get("total_cost_usd", debate_result.get("cost_usd", 0)),
+                                                }
+                                            })
+                                    except Exception:
+                                        pass
+                            except Exception as e:
+                                _log(f"[DEBATE] 백그라운드 토론 오류: {e}")
+
+                        asyncio.create_task(_run_debate_bg(cmd_text, task["task_id"]))
+                        continue
+
                     # 실시간 모드: AI 즉시 처리
                     if is_ai_ready():
                         update_task(task["task_id"], status="running")
