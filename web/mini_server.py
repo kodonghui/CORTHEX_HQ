@@ -4638,7 +4638,7 @@ async def get_available_models():
             "reasoning_levels": ["low", "medium", "high"],
         },
         {
-            "name": "claude-haiku-4-6",
+            "name": "claude-haiku-4-5-20251001",
             "provider": "anthropic",
             "tier": "specialist",
             "cost_input": 0.25,
@@ -4973,7 +4973,7 @@ async def _start_telegram_bot() -> None:
             "Anthropic": [
                 ("claude-opus-4-6", "Opus 4.6", ["xhigh", "high", "low", "없음"]),
                 ("claude-sonnet-4-6", "Sonnet 4.6", ["high", "medium", "low", "없음"]),
-                ("claude-haiku-4-6", "Haiku 4.6", []),
+                ("claude-haiku-4-5-20251001", "Claude Haiku 4.5", []),
             ],
             "OpenAI": [
                 ("gpt-5.2-pro", "GPT-5.2 Pro", ["xhigh", "high", "medium", "없음"]),

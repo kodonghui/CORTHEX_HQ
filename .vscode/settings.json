@@ -1,1 +1,12 @@
-{}
+{
+  "claude.model": "claude-sonnet-4-6",
+  "claude.mcpServers": {
+    "notion": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-notion"],
+      "env": {
+        "NOTION_API_KEY": "${NOTION_API_KEY}"
+      }
+    }
+  }
+}
