@@ -1115,16 +1115,21 @@ async def _batch_submit_google(requests: list[dict], default_model: str) -> dict
         return {"error": "Google API 키가 설정되지 않았습니다"}
 
     # 인라인 요청 포맷으로 변환
-    # google-genai SDK 배치 API: { contents, system_instruction, generation_config }
-    # system_instruction과 generation_config는 각각 최상위 필드로 넣어야 함
+    # system_instruction은 SDK 배치에서 인식 안 됨 → 메시지에 합쳐서 보냄
+    # (CEO Apps Script 코드 패턴: basePrompt + "\n\n---\n\n" + userText)
     inline_requests = []
     custom_id_map = {}  # batch 내 인덱스 → custom_id 매핑
 
     for i, req in enumerate(requests):
+        # 시스템 프롬프트를 사용자 메시지 앞에 합침
+        user_text = req.get("message", "")
+        if req.get("system_prompt"):
+            user_text = req["system_prompt"] + "\n\n---\n\n" + user_text
+
         request_body = {
             "contents": [
                 {
-                    "parts": [{"text": req.get("message", "")}],
+                    "parts": [{"text": user_text}],
                     "role": "user",
                 }
             ],
@@ -1133,9 +1138,6 @@ async def _batch_submit_google(requests: list[dict], default_model: str) -> dict
                 "max_output_tokens": req.get("max_output_tokens", 4096),
             },
         }
-        # 시스템 프롬프트는 최상위 필드로 추가
-        if req.get("system_prompt"):
-            request_body["system_instruction"] = req["system_prompt"]
 
         inline_requests.append(request_body)
         custom_id_map[i] = req.get("custom_id", f"req-{i}")
