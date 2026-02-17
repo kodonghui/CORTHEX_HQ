@@ -2086,6 +2086,61 @@
                 </button>
               </template>
             </div>
+            <!-- 수신자 선택 드롭다운 -->
+            <div class="flex items-center gap-1.5 mb-1 flex-wrap">
+              <select
+                x-model="targetAgentId"
+                class="text-xs px-2 py-1.5 rounded-lg border border-hq-border bg-hq-panel text-hq-muted
+                       focus:outline-none focus:border-hq-accent/60 transition-colors cursor-pointer shrink-0
+                       dark:bg-hq-panel dark:text-hq-muted"
+                title="메시지 수신자 선택"
+              >
+                <option value="">🤖 전체 자동 라우팅</option>
+                <optgroup label="── 비서실 ──">
+                  <option value="chief_of_staff">비서실장 (직접)</option>
+                </optgroup>
+                <optgroup label="── 처장 직접 ──">
+                  <option value="cto_manager">CTO처장 (기술개발)</option>
+                  <option value="cso_manager">CSO처장 (사업기획)</option>
+                  <option value="clo_manager">CLO처장 (법무·IP)</option>
+                  <option value="cmo_manager">CMO처장 (마케팅)</option>
+                  <option value="cio_manager">CIO처장 (투자분석)</option>
+                  <option value="cpo_manager">CPO처장 (출판·기록)</option>
+                </optgroup>
+                <optgroup label="── 전문가 직접 ──">
+                  <option value="report_specialist">기록 보좌관</option>
+                  <option value="schedule_specialist">일정 보좌관</option>
+                  <option value="relay_specialist">소통 보좌관</option>
+                  <option value="frontend_specialist">프론트엔드 전문가</option>
+                  <option value="backend_specialist">백엔드 전문가</option>
+                  <option value="infra_specialist">인프라 전문가</option>
+                  <option value="ai_model_specialist">AI모델 전문가</option>
+                  <option value="market_research_specialist">시장조사 전문가</option>
+                  <option value="business_plan_specialist">사업계획 전문가</option>
+                  <option value="financial_model_specialist">재무모델 전문가</option>
+                  <option value="copyright_specialist">저작권 전문가</option>
+                  <option value="patent_specialist">특허 전문가</option>
+                  <option value="survey_specialist">설문 전문가</option>
+                  <option value="content_specialist">콘텐츠 전문가</option>
+                  <option value="community_specialist">커뮤니티 전문가</option>
+                  <option value="market_condition_specialist">시황분석 전문가</option>
+                  <option value="stock_analysis_specialist">종목분석 전문가</option>
+                  <option value="technical_analysis_specialist">기술적분석 전문가</option>
+                  <option value="risk_management_specialist">리스크관리 전문가</option>
+                  <option value="chronicle_specialist">연대기 전문가</option>
+                  <option value="editor_specialist">편집 전문가</option>
+                  <option value="archive_specialist">아카이브 전문가</option>
+                </optgroup>
+              </select>
+              <!-- 직접 전달 모드 안내 -->
+              <p x-show="targetAgentId"
+                 x-transition:enter="transition ease-out duration-150"
+                 x-transition:enter-start="opacity-0 translate-y-1"
+                 x-transition:enter-end="opacity-100 translate-y-0"
+                 class="text-[11px] text-hq-yellow font-medium">
+                📌 직접 전달: <span x-text="targetAgentId"></span>에게 바로 전송
+              </p>
+            </div>
             <div class="flex items-end gap-3">
               <!-- Batch/실시간 세그먼트 토글 -->
               <div class="flex rounded-xl border border-hq-border/40 overflow-hidden shrink-0 self-stretch">
@@ -5406,6 +5461,7 @@
       return {
         // State
         inputText: '',
+        targetAgentId: '',  // 수신자 선택 (빈 문자열 = 자동 라우팅)
         messages: [],
         showScrollBtn: false,
         newMsgCount: 0,
@@ -6107,7 +6163,12 @@
           }
 
           if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-            this.ws.send(JSON.stringify({ type: 'command', text, batch: this.useBatch }));
+            this.ws.send(JSON.stringify({
+              type: 'command',
+              text,
+              batch: this.useBatch,
+              target_agent_id: this.targetAgentId || null,
+            }));
           }
 
           this.$nextTick(() => this.scrollToBottom());
