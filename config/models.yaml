@@ -56,8 +56,8 @@ providers:
         tier: "executive"
         reasoning_levels: ["low", "medium", "high"]
 
-      # ── Claude 4.5 ──
-      - name: "claude-sonnet-4-5-20250929"
+      # ── Claude 4.6 (최신) ──
+      - name: "claude-sonnet-4-6"
         cost_per_1m_input: 3.00
         cost_per_1m_output: 15.00
         max_tokens: 8192
