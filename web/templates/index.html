@@ -3572,17 +3572,17 @@
               SNS 플랫폼을 연결하려면 각 플랫폼의 API 키가 필요합니다. <code class="bg-hq-bg px-1 rounded text-hq-cyan">.env</code> 파일에 해당 플랫폼의 API 키를 설정한 뒤 "연결하기"를 누르세요.
             </div>
             <div class="grid grid-cols-2 gap-4">
-              <template x-for="platform in ['instagram','youtube','linkedin','threads','tistory','naver_blog','naver_cafe','daum_cafe']" :key="platform">
+              <template x-for="platform in Object.keys(sns.status)" :key="platform">
                 <div class="glass border border-hq-border rounded-xl p-4">
                   <div class="flex items-center justify-between mb-3">
                     <span class="text-sm font-bold text-hq-text" x-text="getSNSPlatformName(platform)"></span>
                     <span class="status-badge text-[9px]"
-                      :class="(sns.oauthStatus?.platforms || {})[platform]?.connected ? 'bg-hq-green/10 text-hq-green' : 'bg-hq-muted/10 text-hq-muted'"
-                      x-text="(sns.oauthStatus?.platforms || {})[platform]?.connected ? '연결됨' : '미연결'"></span>
+                      :class="(sns.status || {})[platform]?.connected ? 'bg-hq-green/10 text-hq-green' : 'bg-hq-muted/10 text-hq-muted'"
+                      x-text="(sns.status || {})[platform]?.connected ? '연결됨' : '미연결'"></span>
                   </div>
                   <button @click="connectPlatform(platform)"
                     class="w-full bg-hq-accent/10 border border-hq-accent/20 hover:bg-hq-accent/20 text-hq-accent rounded-lg px-3 py-2 text-xs transition"
-                    x-text="(sns.oauthStatus?.platforms || {})[platform]?.connected ? '재연결' : '연결하기'"></button>
+                    x-text="(sns.status || {})[platform]?.connected ? '재연결' : '연결하기'"></button>
                 </div>
               </template>
             </div>
@@ -7857,7 +7857,7 @@
         },
 
         async connectPlatform(platform) {
-          const platformNames = {instagram:'Instagram',youtube:'YouTube',linkedin:'LinkedIn',tistory:'Tistory',naver_blog:'네이버 블로그',naver_cafe:'네이버 카페',daum_cafe:'다음 카페'};
+          const platformNames = {instagram:'Instagram',youtube:'YouTube',tistory:'Tistory',naver_blog:'네이버 블로그',naver_cafe:'네이버 카페',daum_cafe:'다음 카페'};
           const name = platformNames[platform] || platform;
           try {
             const res = await fetch(`/api/sns/auth/${platform}`);
@@ -8549,8 +8549,6 @@
           const names = {
             'instagram': 'Instagram',
             'youtube': 'YouTube',
-            'linkedin': 'LinkedIn',
-            'threads': 'Threads',
             'tistory': 'Tistory',
             'naver_blog': '네이버 블로그',
             'naver_cafe': '네이버 카페',
