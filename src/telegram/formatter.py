@@ -336,6 +336,107 @@ def format_health(health_data: dict) -> str:
     return "\n".join(lines)
 
 
+# ─── 모델 목록 포맷 ───
+
+
+# CLAUDE.md 기준 실제 존재하는 모델 목록
+_AVAILABLE_MODELS = [
+    ("claude-sonnet-4-6", "Claude Sonnet 4.6", "기본 (대부분 에이전트)"),
+    ("claude-opus-4-6", "Claude Opus 4.6", "최고급 (CLO, CSO)"),
+    ("claude-haiku-4-5-20251001", "Claude Haiku 4.5", "경량 Anthropic"),
+    ("gpt-5.2-pro", "GPT-5.2 Pro", "CIO (투자분석처장)"),
+    ("gpt-5.2", "GPT-5.2", "투자 분석가들"),
+    ("gpt-5", "GPT-5", "일반 OpenAI"),
+    ("gpt-5-mini", "GPT-5 Mini", "경량 OpenAI"),
+    ("gemini-3-pro-preview", "Gemini 3.0 Pro", "CMO, 콘텐츠, 설문"),
+    ("gemini-2.5-pro", "Gemini 2.5 Pro", "Gemini 고급"),
+    ("gemini-2.5-flash", "Gemini 2.5 Flash", "경량 Gemini"),
+]
+
+
+def format_models_list() -> str:
+    """사용 가능한 모델 목록을 텔레그램 메시지로 포맷."""
+    lines = ["*\U0001f916 사용 가능한 AI 모델*\n"]
+
+    lines.append("*Anthropic*")
+    for mid, name, usage in _AVAILABLE_MODELS:
+        if mid.startswith("claude"):
+            lines.append(f"  \u2022 `{mid}`\n    {name} \u2014 {usage}")
+
+    lines.append("\n*OpenAI*")
+    for mid, name, usage in _AVAILABLE_MODELS:
+        if mid.startswith("gpt"):
+            lines.append(f"  \u2022 `{mid}`\n    {name} \u2014 {usage}")
+
+    lines.append("\n*Google*")
+    for mid, name, usage in _AVAILABLE_MODELS:
+        if mid.startswith("gemini"):
+            lines.append(f"  \u2022 `{mid}`\n    {name} \u2014 {usage}")
+
+    lines.append(f"\n\uc804\uccb4 {len(_AVAILABLE_MODELS)}\uac1c \ubaa8\ub378")
+    return "\n".join(lines)
+
+
+def format_running_tasks(tasks: list) -> str:
+    """현재 실행 중인 작업 목록을 텔레그램 메시지로 포맷."""
+    if not tasks:
+        return "\u2699\ufe0f \ud604\uc7ac \uc2e4\ud589 \uc911\uc778 \uc791\uc5c5\uc774 \uc5c6\uc2b5\ub2c8\ub2e4."
+
+    lines = ["*\u2699\ufe0f \uc2e4\ud589 \uc911\uc778 \uc791\uc5c5*\n"]
+    for t in tasks[:10]:
+        task_id = t.task_id if hasattr(t, "task_id") else str(t.get("task_id", "?"))
+        cmd = t.command if hasattr(t, "command") else str(t.get("command", ""))
+        cmd_preview = cmd[:40] + ("..." if len(cmd) > 40 else "")
+        lines.append(f"\u2699\ufe0f `{task_id}` {cmd_preview}")
+
+    lines.append(f"\n\U0001f50d \uc0c1\uc138 \ubcf4\uae30: /result [\uc791\uc5c5ID]")
+    return "\n".join(lines)
+
+
+def format_debate_start(topic: str, models: list[str]) -> str:
+    """토론 시작 메시지를 포맷."""
+    lines = [
+        f"\U0001f4ac *AI \ud1a0\ub860 \uc2dc\uc791*",
+        f"\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500",
+        f"\U0001f4dd \uc8fc\uc81c: {topic}",
+        f"\U0001f916 \ucc38\uc5ec AI: {len(models)}\uac1c",
+    ]
+    for m in models:
+        lines.append(f"  \u2022 `{m}`")
+    lines.append(f"\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500")
+    lines.append("\u23f3 \uac01 AI\uc758 \uc758\uacac\uc744 \uc218\uc9d1 \uc911...")
+    return "\n".join(lines)
+
+
+def format_debate_result(topic: str, opinions: list[dict]) -> list[str]:
+    """토론 결과를 텔레그램 메시지 리스트로 포맷.
+
+    Args:
+        topic: 토론 주제
+        opinions: [{"model": "...", "opinion": "..."}, ...]
+    """
+    header = (
+        f"\U0001f4ac *AI \ud1a0\ub860 \uacb0\uacfc*\n"
+        f"\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n"
+        f"\U0001f4dd \uc8fc\uc81c: {topic}\n"
+        f"\U0001f916 \ucc38\uc5ec AI: {len(opinions)}\uac1c\n"
+        f"\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500"
+    )
+    messages = [header]
+
+    for op in opinions:
+        model = op.get("model", "?")
+        opinion = op.get("opinion", "(응답 없음)")
+        # 의견이 너무 길면 자르기
+        if len(opinion) > 1500:
+            opinion = opinion[:1500] + "\n..."
+        msg = f"\U0001f4a1 *{model}*\n{opinion}"
+        for part in _split_message(msg):
+            messages.append(part)
+
+    return messages
+
+
 # ─── 유틸리티 ───
 
 
