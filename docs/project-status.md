@@ -9,39 +9,22 @@
 ## 마지막 업데이트
 
 - **날짜**: 2026-02-18
-- **버전**: `3.01.001` (전수검사 + Soul 갈아엎기 진행 중)
+- **버전**: `3.01.001` (전수검사 + Soul 전면 갱신 완료)
 - **작업 브랜치**: claude/autonomous-system-v3
-- **최근 커밋**: 173f99a — 전수검사 gpt-5.1 제거 3파일 + deploy.yml 환경변수 + CLAUDE.md Soul/컴팩트 가이드
+- **최근 커밋**: community_specialist soul 추가 + 전체 작업 기록 [완료]
 - **빌드 번호**: GitHub Actions 확인: https://github.com/kodonghui/CORTHEX_HQ/actions
 - **접속 주소**: https://corthex-hq.com
 
-## ⚠️ 현재 진행 중인 작업 (컴팩트 후 반드시 이어서 할 것!)
+## ✅ 전수검사 + Soul 전면 갱신 완료 (2026-02-18)
 
-### Soul 갈아엎기 — 4개 백그라운드 에이전트 작업 중
-각 에이전트가 아래 파일에 결과를 저장 중. 컴팩트 후 이 파일들을 읽고 agents.yaml에 적용할 것:
+### 완료된 내용
+- **전수검사 8개 영역**: 배치 시스템, 텔레그램 봇, LLM 모델명, 배포(deploy.yml) 등 버그 수정
+- **Soul 전면 갱신 29/29명**: 모든 에이전트에 직무 방법론 스택 방식 system_prompt 교체 완료
+  - community_specialist: Orbit Model, Dunbar's Number, Community Maturity Model, Superuser Program
+- **agents.json 재생성 완료**: config/yaml2json.py 실행 완료
 
-| 파일 | 담당 에이전트 | 내용 |
-|------|------------|------|
-| `docs/updates/new_souls_groupA.yaml` | Soul-A팀 | 비서실 4명 + 출판기록처 4명 새 soul |
-| `docs/updates/new_souls_groupB.yaml` | Soul-B팀 | 투자분석처 5명 (Kelly Criterion, Wyckoff 등) |
-| `docs/updates/new_souls_groupC.yaml` | Soul-C팀 | 기술개발처 5명 + 법무처 3명 |
-| `docs/updates/new_souls_groupD.yaml` | Soul-D팀 | 사업기획처 4명 + 마케팅처 3명 |
-
-### 컴팩트 후 작업 순서
-1. `docs/updates/new_souls_group*.yaml` 파일 4개 존재 여부 확인
-2. 각 파일 읽어서 `config/agents.yaml`의 해당 에이전트 system_prompt 교체
-3. `python config/yaml2json.py` 실행 (JSON 재생성)
-4. community_specialist (커뮤니티 보좌관) soul도 업데이트 필요 (Soul-D팀이 빠뜨림)
-5. 최종 커밋/배포 ([완료] 태그)
-6. `docs/updates/2026-02-18_전수검사-soul갈아엎기.md` 작성
-
-### 전수검사 결과 요약 (이미 커밋됨)
-- `gpt-5.1` 4개 파일에서 제거 (mini_server.py, models.yaml, token_counter.py, index.html)
-- deploy.yml에 YouTube 3개 + INSTAGRAM_USER_ID 환경변수 추가
-- 배치 버그 3건 수정 (batch_collector.py)
-- 텔레그램 봇 대폭 강화 (bot.py +243줄)
-- CLAUDE.md에 Soul 관리 규칙 + 컴팩트 대비 가이드 추가
-- memory.py가 JSON 파일로 에이전트 기억 저장 → 배포 시 날아감 (미수정, 향후 SQLite로 이전 필요)
+### 미수정 이슈 (다음 세션에서 처리)
+- memory.py가 에이전트 기억을 JSON 파일로 저장 → 배포 시 날아감 (SQLite 이전 필요)
 
 ---
 
