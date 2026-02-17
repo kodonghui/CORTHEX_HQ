@@ -3387,7 +3387,13 @@
                 })" :key="file.division + '/' + file.filename">
                   <div @click="readArchiveReport(file)"
                     :class="archive.selectedReport && archive.selectedReport.filename === file.filename ? 'border-hq-accent/50 bg-hq-accent/10 shadow-lg shadow-hq-accent/10' : 'border-hq-border/50 hover:border-hq-accent/30'"
-                    class="glass border rounded-xl p-3 cursor-pointer transition-all duration-200">
+                    class="group glass border rounded-xl p-3 cursor-pointer transition-all duration-200 relative">
+                    <!-- 삭제 버튼 (호버 시 표시) -->
+                    <button @click.stop="deleteArchiveReport(file)"
+                            class="absolute top-2 right-2 w-6 h-6 rounded-md flex items-center justify-center opacity-0 group-hover:opacity-100 text-hq-muted/30 hover:text-hq-red hover:bg-hq-red/8 transition z-10"
+                            title="삭제">
+                      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0"/></svg>
+                    </button>
                     <div class="flex items-center gap-2 mb-1">
                       <span class="status-badge text-[9px]"
                         :class="file.division?.includes('tech') ? 'bg-hq-cyan/10 text-hq-cyan' :
@@ -3434,7 +3440,10 @@
                 <div class="glass border border-hq-border/50 rounded-xl p-6 h-full">
                   <div class="flex items-center justify-between mb-4">
                     <h3 class="text-sm font-bold text-hq-text" x-text="archive.selectedReport?.filename || ''"></h3>
-                    <button @click="copyToClipboard(archive.content)" class="text-xs text-hq-muted hover:text-hq-green transition">복사</button>
+                    <div class="flex items-center gap-3">
+                      <button @click="copyToClipboard(archive.content)" class="text-xs text-hq-muted hover:text-hq-green transition">복사</button>
+                      <button @click="deleteArchiveReport(archive.selectedReport)" class="text-xs text-hq-muted hover:text-hq-red transition">삭제</button>
+                    </div>
                   </div>
                   <div class="text-sm leading-relaxed markdown-body" x-html="renderMarkdown(archive.content)"></div>
                 </div>
@@ -7665,6 +7674,25 @@
               }
             }
           } catch { this.showToast('검색에 실패했습니다.', 'error'); }
+        },
+
+        async deleteArchiveReport(file) {
+          if (!file || !file.division || !file.filename) return;
+          if (!confirm(`이 보고서를 삭제하시겠습니까?\n${file.filename}`)) return;
+          try {
+            const res = await fetch(`/api/archive/${encodeURIComponent(file.division)}/${encodeURIComponent(file.filename)}`, { method: 'DELETE' });
+            const data = await res.json();
+            if (data.success) {
+              this.archive.files = this.archive.files.filter(f => !(f.division === file.division && f.filename === file.filename));
+              if (this.archive.selectedReport?.filename === file.filename) {
+                this.archive.selectedReport = null;
+                this.archive.content = '';
+              }
+              this.showToast('보고서가 삭제되었습니다', 'success');
+            } else {
+              this.showToast(data.error || '삭제 실패', 'error');
+            }
+          } catch { this.showToast('삭제 중 오류가 발생했습니다.', 'error'); }
         },
 
         // ── SNS Management ──

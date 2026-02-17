@@ -638,6 +638,20 @@ def get_archive(division: str, filename: str) -> Optional[dict]:
         conn.close()
 
 
+def delete_archive(division: str, filename: str) -> bool:
+    """아카이브 보고서를 삭제합니다. 반환: 삭제 성공 여부."""
+    conn = get_connection()
+    try:
+        cur = conn.execute(
+            "DELETE FROM archives WHERE division = ? AND filename = ?",
+            (division, filename),
+        )
+        conn.commit()
+        return cur.rowcount > 0
+    finally:
+        conn.close()
+
+
 # ── Settings (키-값 저장소) ──
 
 def get_today_cost() -> float:

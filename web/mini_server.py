@@ -23,7 +23,7 @@ from db import (
     init_db, save_message, create_task, get_task as db_get_task,
     update_task, list_tasks, toggle_bookmark as db_toggle_bookmark,
     get_dashboard_stats, save_activity_log, list_activity_logs,
-    save_archive, list_archives, get_archive as db_get_archive,
+    save_archive, list_archives, get_archive as db_get_archive, delete_archive as db_delete_archive,
     save_setting, load_setting, get_today_cost,
     save_conversation_message, load_conversation_messages, clear_conversation_messages,
     delete_task as db_delete_task, bulk_delete_tasks, bulk_archive_tasks,
@@ -3098,7 +3098,7 @@ async def _broadcast_workflow_progress(step_index: int, total_steps: int, status
             "final_result": result if workflow_done else "",
         },
     }
-    for ws in list(_ws_clients):
+    for ws in list(connected_clients):
         try:
             await ws.send_json(msg)
         except Exception:
@@ -4646,6 +4646,16 @@ async def get_archive_file(division: str, filename: str):
     if not doc:
         return {"error": "not found"}
     return doc
+
+
+@app.delete("/api/archive/{division}/{filename}")
+async def delete_archive_api(division: str, filename: str):
+    """기밀문서 보고서를 삭제합니다."""
+    ok = db_delete_archive(division, filename)
+    if not ok:
+        return {"success": False, "error": "보고서를 찾을 수 없습니다"}
+    save_activity_log("system", f"🗑 기밀문서 삭제: {division}/{filename}", "info")
+    return {"success": True}
 
 
 # ── 진단 API (텔레그램 봇 디버깅용) ──
