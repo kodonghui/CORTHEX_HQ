@@ -12,14 +12,12 @@ logger = logging.getLogger("corthex.llm.openai")
 
 # Cost per 1M tokens (input / output)
 _PRICING: dict[str, dict[str, float]] = {
-    # GPT-4o 시리즈
-    "gpt-4o": {"input": 2.50, "output": 10.00},
-    "gpt-4o-mini": {"input": 0.15, "output": 0.60},
-    # GPT-5 시리즈
-    "gpt-5-mini": {"input": 0.25, "output": 2.00},
-    "gpt-5": {"input": 1.25, "output": 10.00},
-    "gpt-5-2": {"input": 1.75, "output": 14.00},
-    "gpt-5-2-pro": {"input": 21.00, "output": 168.00},
+    # GPT-5 시리즈 (현재 사용 중)
+    "gpt-5-mini": {"input": 0.50, "output": 2.00},
+    "gpt-5": {"input": 2.50, "output": 10.00},
+    "gpt-5.1": {"input": 4.00, "output": 20.00},
+    "gpt-5.2": {"input": 5.00, "output": 25.00},
+    "gpt-5.2-pro": {"input": 18.00, "output": 90.00},
 }
 
 

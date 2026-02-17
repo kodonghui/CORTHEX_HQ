@@ -25,13 +25,12 @@ def _get_tiktoken():
 _MODEL_ENCODINGS: dict[str, str] = {
     "gpt-5-mini": "o200k_base",
     "gpt-5": "o200k_base",
-    "gpt-5-2": "o200k_base",
-    "gpt-5-2-pro": "o200k_base",
-    "gpt-4o-mini": "o200k_base",
-    "gpt-4o": "o200k_base",
+    "gpt-5.1": "o200k_base",
+    "gpt-5.2": "o200k_base",
+    "gpt-5.2-pro": "o200k_base",
     "claude-opus-4-6": "cl100k_base",
-    "claude-sonnet-4-5-20250929": "cl100k_base",
-    "claude-haiku-4-5-20251001": "cl100k_base",
+    "claude-sonnet-4-6": "cl100k_base",
+    "claude-haiku-4-6": "cl100k_base",
 }
 
 
@@ -200,7 +199,7 @@ class TokenCounterTool(BaseTool):
     async def _compare(self, kwargs: dict) -> str:
         """여러 모델의 토큰화 차이 비교."""
         text = kwargs.get("text", "")
-        models = kwargs.get("models", ["gpt-5-mini", "claude-sonnet-4-5-20250929"])
+        models = kwargs.get("models", ["gpt-5-mini", "claude-sonnet-4-6"])
 
         if not text:
             return "텍스트(text)를 입력해주세요."

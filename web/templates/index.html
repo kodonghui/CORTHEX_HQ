@@ -1128,7 +1128,7 @@
             </div>
           </button>
           <div x-show="expanded.secretary" x-collapse class="ml-3 mt-1 pl-8 border-l border-amber-500/20 space-y-0.5">
-            <template x-for="id in ['chief_of_staff', 'report_specialist', 'schedule_specialist', 'relay_specialist']" :key="id">
+            <template x-for="id in getSectionAgentIds('secretary')" :key="id">
               <div :id="'agent-' + id" @click="openAgentConfig(id)" class="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-amber-500/10 transition-all duration-300 cursor-pointer" title="클릭하면 모델·추론·소울 설정 가능">
                 <span class="w-1.5 h-1.5 rounded-full transition-colors shrink-0 mt-0.5" :class="[getAgentDotClass(id), activeAgents[id]?.status==='working' ? 'agent-working-glow' : '']"></span>
                 <div class="flex-1 min-w-0">
@@ -1177,7 +1177,7 @@
                 </div>
               </button>
               <div x-show="expanded.tech" x-collapse class="ml-3 mt-1 pl-8 border-l border-cyan-500/20 space-y-0.5">
-                <template x-for="id in ['cto_manager','frontend_specialist','backend_specialist','infra_specialist','ai_model_specialist']" :key="id">
+                <template x-for="id in getSectionAgentIds('tech')" :key="id">
                   <div :id="'agent-' + id" @click="openAgentConfig(id)" class="flex items-center gap-2 px-2 py-1 rounded-md hover:bg-cyan-500/10 transition-all duration-300 cursor-pointer" title="클릭하면 모델·추론·소울 설정 가능">
                     <span class="w-1.5 h-1.5 rounded-full transition-colors" :class="[getAgentDotClass(id), activeAgents[id]?.status==='working' ? 'agent-working-glow' : '']"></span>
                     <span class="text-xs text-hq-muted" x-text="getAgentName(id)"></span>
@@ -1205,7 +1205,7 @@
                 </div>
               </button>
               <div x-show="expanded.strategy" x-collapse class="ml-3 mt-1 pl-8 border-l border-purple-500/20 space-y-0.5">
-                <template x-for="id in ['cso_manager','market_research_specialist','business_plan_specialist','financial_model_specialist']" :key="id">
+                <template x-for="id in getSectionAgentIds('strategy')" :key="id">
                   <div :id="'agent-' + id" @click="openAgentConfig(id)" class="flex items-center gap-2 px-2 py-1 rounded-md hover:bg-purple-500/10 transition-all duration-300 cursor-pointer" title="클릭하면 모델·추론·소울 설정 가능">
                     <span class="w-1.5 h-1.5 rounded-full transition-colors" :class="[getAgentDotClass(id), activeAgents[id]?.status==='working' ? 'agent-working-glow' : '']"></span>
                     <span class="text-xs text-hq-muted" x-text="getAgentName(id)"></span>
@@ -1233,7 +1233,7 @@
                 </div>
               </button>
               <div x-show="expanded.legal" x-collapse class="ml-3 mt-1 pl-8 border-l border-emerald-500/20 space-y-0.5">
-                <template x-for="id in ['clo_manager','copyright_specialist','patent_specialist']" :key="id">
+                <template x-for="id in getSectionAgentIds('legal')" :key="id">
                   <div :id="'agent-' + id" @click="openAgentConfig(id)" class="flex items-center gap-2 px-2 py-1 rounded-md hover:bg-emerald-500/10 transition-all duration-300 cursor-pointer" title="클릭하면 모델·추론·소울 설정 가능">
                     <span class="w-1.5 h-1.5 rounded-full transition-colors" :class="[getAgentDotClass(id), activeAgents[id]?.status==='working' ? 'agent-working-glow' : '']"></span>
                     <span class="text-xs text-hq-muted" x-text="getAgentName(id)"></span>
@@ -1261,7 +1261,7 @@
                 </div>
               </button>
               <div x-show="expanded.marketing" x-collapse class="ml-3 mt-1 pl-8 border-l border-orange-500/20 space-y-0.5">
-                <template x-for="id in ['cmo_manager','survey_specialist','content_specialist','community_specialist']" :key="id">
+                <template x-for="id in getSectionAgentIds('marketing')" :key="id">
                   <div :id="'agent-' + id" @click="openAgentConfig(id)" class="flex items-center gap-2 px-2 py-1 rounded-md hover:bg-orange-500/10 transition-all duration-300 cursor-pointer" title="클릭하면 모델·추론·소울 설정 가능">
                     <span class="w-1.5 h-1.5 rounded-full transition-colors" :class="[getAgentDotClass(id), activeAgents[id]?.status==='working' ? 'agent-working-glow' : '']"></span>
                     <span class="text-xs text-hq-muted" x-text="getAgentName(id)"></span>
@@ -1292,7 +1292,7 @@
             </div>
           </button>
           <div x-show="expanded.finance" x-collapse class="ml-3 mt-1 pl-8 border-l border-red-500/20 space-y-0.5">
-            <template x-for="id in ['cio_manager','market_condition_specialist','stock_analysis_specialist','technical_analysis_specialist','risk_management_specialist']" :key="id">
+            <template x-for="id in getSectionAgentIds('finance')" :key="id">
               <div :id="'agent-' + id" @click="openAgentConfig(id)" class="flex items-center gap-2 px-2 py-1 rounded-md hover:bg-red-500/10 transition-all duration-300 cursor-pointer" title="클릭하면 모델·추론·소울 설정 가능">
                 <span class="w-1.5 h-1.5 rounded-full transition-colors" :class="[getAgentDotClass(id), activeAgents[id]?.status==='working' ? 'agent-working-glow' : '']"></span>
                 <span class="text-xs text-hq-muted" x-text="getAgentName(id)"></span>
@@ -1317,7 +1317,7 @@
             </div>
           </button>
           <div x-show="expanded.publishing" x-collapse class="ml-3 mt-1 pl-8 border-l border-fuchsia-500/20 space-y-0.5">
-            <template x-for="id in ['cpo_manager', 'chronicle_specialist', 'editor_specialist', 'archive_specialist']" :key="id">
+            <template x-for="id in getSectionAgentIds('publishing')" :key="id">
               <div :id="'agent-' + id" @click="openAgentConfig(id)" class="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-fuchsia-500/10 transition-all duration-300 cursor-pointer" title="클릭하면 모델·추론·소울 설정 가능">
                 <span class="w-1.5 h-1.5 rounded-full transition-colors shrink-0 mt-0.5" :class="[getAgentDotClass(id), activeAgents[id]?.status==='working' ? 'agent-working-glow' : '']"></span>
                 <div class="flex-1 min-w-0">
@@ -2333,7 +2333,7 @@
               <span class="text-[10px] text-hq-muted ml-auto">4명</span>
             </div>
             <div class="grid grid-cols-4 gap-3">
-              <template x-for="id in ['chief_of_staff', 'report_specialist', 'schedule_specialist', 'relay_specialist']" :key="id">
+              <template x-for="id in getSectionAgentIds('secretary')" :key="id">
                 <div class="desk-card glass border border-hq-border hover:border-amber-500/30" @click="openAgentConfig(id)">
                   <div class="flex items-center justify-between mb-2">
                     <div class="agent-avatar bg-amber-500/20 text-amber-500 text-[9px]" x-text="getAgentInitials(id)"></div>
@@ -2362,7 +2362,7 @@
                   <span class="text-xs font-bold text-cyan-500">기술개발처 (CTO)</span>
                 </div>
                 <div class="grid grid-cols-2 gap-2">
-                  <template x-for="id in ['cto_manager','frontend_specialist','backend_specialist','infra_specialist','ai_model_specialist']" :key="id">
+                  <template x-for="id in getSectionAgentIds('tech')" :key="id">
                     <div class="desk-card bg-hq-surface border border-hq-border hover:border-cyan-500/30" @click="openAgentConfig(id)">
                       <div class="flex items-center justify-between mb-1.5">
                         <div class="agent-avatar bg-cyan-500/20 text-cyan-500 text-[8px]" x-text="getAgentInitials(id)"></div>
@@ -2381,7 +2381,7 @@
                   <span class="text-xs font-bold text-purple-400">사업기획처 (CSO)</span>
                 </div>
                 <div class="grid grid-cols-2 gap-2">
-                  <template x-for="id in ['cso_manager','market_research_specialist','business_plan_specialist','financial_model_specialist']" :key="id">
+                  <template x-for="id in getSectionAgentIds('strategy')" :key="id">
                     <div class="desk-card bg-hq-surface border border-hq-border hover:border-purple-500/30" @click="openAgentConfig(id)">
                       <div class="flex items-center justify-between mb-1.5">
                         <div class="agent-avatar bg-purple-500/20 text-purple-400 text-[8px]" x-text="getAgentInitials(id)"></div>
@@ -2400,7 +2400,7 @@
                   <span class="text-xs font-bold text-emerald-500">법무·IP처 (CLO)</span>
                 </div>
                 <div class="grid grid-cols-2 gap-2">
-                  <template x-for="id in ['clo_manager','copyright_specialist','patent_specialist']" :key="id">
+                  <template x-for="id in getSectionAgentIds('legal')" :key="id">
                     <div class="desk-card bg-hq-surface border border-hq-border hover:border-emerald-500/30" @click="openAgentConfig(id)">
                       <div class="flex items-center justify-between mb-1.5">
                         <div class="agent-avatar bg-emerald-500/20 text-emerald-500 text-[8px]" x-text="getAgentInitials(id)"></div>
@@ -2419,7 +2419,7 @@
                   <span class="text-xs font-bold text-orange-500">마케팅·고객처 (CMO)</span>
                 </div>
                 <div class="grid grid-cols-2 gap-2">
-                  <template x-for="id in ['cmo_manager','survey_specialist','content_specialist','community_specialist']" :key="id">
+                  <template x-for="id in getSectionAgentIds('marketing')" :key="id">
                     <div class="desk-card bg-hq-surface border border-hq-border hover:border-orange-500/30" @click="openAgentConfig(id)">
                       <div class="flex items-center justify-between mb-1.5">
                         <div class="agent-avatar bg-orange-500/20 text-orange-500 text-[8px]" x-text="getAgentInitials(id)"></div>
@@ -2442,7 +2442,7 @@
               <span class="text-[10px] text-hq-muted ml-auto">5명</span>
             </div>
             <div class="grid grid-cols-5 gap-3">
-              <template x-for="id in ['cio_manager','market_condition_specialist','stock_analysis_specialist','technical_analysis_specialist','risk_management_specialist']" :key="id">
+              <template x-for="id in getSectionAgentIds('finance')" :key="id">
                 <div class="desk-card glass border border-hq-border hover:border-red-500/30" @click="openAgentConfig(id)">
                   <div class="flex items-center justify-between mb-2">
                     <div class="agent-avatar bg-red-500/20 text-red-400 text-[8px]" x-text="getAgentInitials(id)"></div>
@@ -2463,7 +2463,7 @@
               <span class="text-[10px] text-hq-muted ml-auto">4명</span>
             </div>
             <div class="grid grid-cols-4 gap-3">
-              <template x-for="id in ['cpo_manager','chronicle_specialist','editor_specialist','archive_specialist']" :key="id">
+              <template x-for="id in getSectionAgentIds('publishing')" :key="id">
                 <div class="desk-card glass border border-hq-border hover:border-fuchsia-500/30" @click="openAgentConfig(id)">
                   <div class="flex items-center justify-between mb-2">
                     <div class="agent-avatar bg-fuchsia-500/20 text-fuchsia-500 text-[8px]" x-text="getAgentInitials(id)"></div>
@@ -5638,7 +5638,7 @@
         dashboardRefreshTimer: null,
         budget: {},
         modelMode: 'auto',
-        modelOverride: 'claude-sonnet-4-6',
+        modelOverride: '',
         bulkModelSelection: '',
         bulkReasoningSelection: '',
         bulkReasoningOptions: [],
@@ -6570,7 +6570,7 @@
           const names = {
             'claude-opus-4-6': 'Claude Opus 4.6',
             'claude-sonnet-4-6': 'Claude Sonnet 4.6',
-            'claude-haiku-4-5-20251001': 'Claude Haiku 4.5',
+            'claude-haiku-4-6': 'Claude Haiku 4.6',
             'gpt-5.2-pro': 'GPT-5.2 Pro',
             'gpt-5.2': 'GPT-5.2',
             'gpt-5.1': 'GPT-5.1',
@@ -6588,7 +6588,7 @@
           const map = {
             'claude-opus-4-6': ['low','medium','high'],
             'claude-sonnet-4-6': ['low','medium','high'],
-            'claude-haiku-4-5-20251001': [],
+            'claude-haiku-4-6': [],
             'gpt-5-mini': ['low','medium','high'],
             'gpt-5': ['none','low','medium','high'],
             'gpt-5.1': ['none','low','medium','high'],
@@ -6601,7 +6601,7 @@
           return map[modelName] || [];
         },
 
-        // 에이전트 카드 라벨 업데이트: "Claude Sonnet 4.5 (medium)" 형식
+        // 에이전트 카드 라벨 업데이트: "Claude Sonnet 4.6 (medium)" 형식
         _updateAgentCardLabel(agentId) {
           const modelName = this.agentConfigData?.model_name || this.agentModelRaw[agentId] || '';
           const reasoning = this.agentConfigData?.reasoning_effort || this.agentReasonings[agentId] || '';
@@ -6859,24 +6859,6 @@
             this.showToast('추론 정도 변경 실패: ' + (e.message || '서버 연결 오류'), 'error');
           }
           setTimeout(() => { this.agentConfigSaveStatus = ''; }, 2500);
-        },
-
-        // ── 헬퍼: 모델별 기본 추론 옵션 ──
-        _getDefaultReasoning(modelName) {
-          const defaults = {
-            'claude-opus-4-6': ['low','medium','high'],
-            'claude-sonnet-4-6': ['low','medium','high'],
-            'claude-haiku-4-5-20251001': [],
-            'gpt-5-mini': ['low','medium','high'],
-            'gpt-5': ['none','low','medium','high'],
-            'gpt-5.1': ['none','low','medium','high'],
-            'gpt-5.2': ['none','low','medium','high','xhigh'],
-            'gpt-5.2-pro': ['medium','high','xhigh'],
-            'gemini-3-pro-preview': ['low','high'],
-            'gemini-2.5-pro': ['low','medium','high'],
-            'gemini-2.5-flash': ['none','low','medium','high'],
-          };
-          return defaults[modelName] || [];
         },
 
         // ── 헬퍼: 사무실 뷰 카드에 모델+추론 반영 ──
@@ -8278,7 +8260,7 @@
               !this.availableModels.length ? fetch('/api/available-models').then(r => r.json()) : Promise.resolve(null),
             ]);
             this.modelMode = res.mode || 'auto';
-            this.modelOverride = res.override || 'claude-sonnet-4-6';
+            this.modelOverride = res.override || '';
             if (modelsRes && Array.isArray(modelsRes)) {
               this.availableModels = this.sortModels(modelsRes);
             }

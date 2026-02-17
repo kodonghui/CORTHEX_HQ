@@ -7,7 +7,7 @@ Quality Gate: 매니저급 에이전트가 부하의 보고서를 검수하는 �
    - 실패한 결과인가?
    - 빈 응답인가?
 
-2. LLM 기반 검사 (gpt-4o-mini 1회 호출, 저비용)
+2. LLM 기반 검사 (gpt-5-mini 1회 호출, 저비용)
    - 질문에 실제로 답하고 있는가?
    - 할루시네이션 징후가 있는가?
    - 구체적 근거가 있는가?
@@ -106,7 +106,7 @@ class QualityGate:
             "max_retry": 1,
             "check_hallucination": True,
             "check_relevance": True,
-            "review_model": "gpt-4o-mini",
+            "review_model": "gpt-5-mini",
         }
 
     def set_rules_manager(self, manager: QualityRulesManager) -> None:
@@ -182,7 +182,7 @@ class QualityGate:
         if self._rules_manager:
             review_model = self._rules_manager.review_model
         else:
-            review_model = self._rules.get("review_model", "gpt-4o-mini")
+            review_model = self._rules.get("review_model", "gpt-5-mini")
 
         # 부서별 루브릭 조회
         rubric_text = self._get_rubric_prompt(division)

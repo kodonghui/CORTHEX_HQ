@@ -13,7 +13,7 @@ logger = logging.getLogger("corthex.llm.anthropic")
 _PRICING: dict[str, dict[str, float]] = {
     "claude-opus-4-6": {"input": 5.00, "output": 25.00},
     "claude-sonnet-4-6": {"input": 3.00, "output": 15.00},
-    "claude-haiku-4-5-20251001": {"input": 0.80, "output": 4.00},
+    "claude-haiku-4-6": {"input": 0.25, "output": 1.25},
     "claude-opus-4-0-20250514": {"input": 15.00, "output": 75.00},
 }
 

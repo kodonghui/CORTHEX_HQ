@@ -95,7 +95,7 @@ class QualityRulesManager:
 
     @property
     def review_model(self) -> str:
-        return self._rules.get("review_model", "gpt-4o-mini")
+        return self._rules.get("review_model", "gpt-5-mini")
 
     def set_review_model(self, model_name: str) -> None:
         self._rules["review_model"] = model_name
