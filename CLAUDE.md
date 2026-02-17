@@ -16,7 +16,7 @@
 - 작업 결과를 보고할 때는 "뭘 했는지 → 왜 했는지 → 현재 상태 → 다음에 할 일" 순서로 정리할 것
 - 존댓말로 할것
 - **뻔한 질문 금지**: 당연히 해야 하는 것을 CEO에게 물어보지 말 것. "커밋할까요?", "배포할까요?", "푸시할까요?" 같은 질문은 하지 말고 바로 실행할 것. CEO의 시간을 아낄 것
-- **"로컬에서 확인" 금지**: 이 프로젝트는 Oracle Cloud 서버에 배포되어 있음 (서버 IP는 GitHub Secrets `SERVER_IP` 참조). "로컬에서 확인해보세요" 같은 말은 절대 하지 말 것. 확인은 항상 서버에서. 작업 완료 = 커밋 + 푸시 + 배포 + 서버에서 확인까지 끝낸 것
+- **"로컬에서 확인" 금지**: 이 프로젝트는 Oracle Cloud 서버에 배포되어 있음. 접속 주소: `http://corthex-hq.com` (도메인, 권장) 또는 IP 직접 접속 (GitHub Secrets `SERVER_IP_ARM` 참조). "로컬에서 확인해보세요" 같은 말은 절대 하지 말 것. 확인은 항상 서버에서. 작업 완료 = 커밋 + 푸시 + 배포 + 서버에서 확인까지 끝낸 것
 
 ## Git 작업 규칙
 - 깃허브의 Claude.md를 매번 반드시 참고할것
@@ -99,10 +99,10 @@
      - 이번 세션에서 뭘 바꿨는지, 웹 화면 어디서 확인할 수 있는지 한눈에 정리
      - CEO가 대화 위로 스크롤해서 찾아볼 필요 없게, 마지막에 모든 확인 사항을 모아서 보여줄 것
   3. `docs/project-status.md`를 최신 상태로 갱신
-  4. 배포 완료 후 웹 화면 좌측 상단에서 빌드 번호 확인 가능 (http://{SERVER_IP})
+  4. 배포 완료 후 웹 화면 좌측 상단에서 빌드 번호 확인 가능 (http://corthex-hq.com)
 - **빌드 번호 확인 방법**:
   - 웹 화면: 좌측 상단에 "빌드 #XX" 표시
-  - 배포 상태 JSON: `http://{SERVER_IP}/deploy-status.json` 접속
+  - 배포 상태 JSON: `http://corthex-hq.com/deploy-status.json` 접속
   - GitHub Actions: https://github.com/kodonghui/CORTHEX_HQ/actions 에서 "Deploy to Oracle Cloud Server" 실행 번호 확인
 - **예시** (반드시 이 형식으로):
   ```
@@ -114,7 +114,7 @@
   | 2 | 설정 > 품질 검수 | 부서별 검수 기준 7개 부서 표시 | 빈 화면 | 7개 부서 목록 |
   | 3 | 설정 > 품질 검수 | "(루브릭)" 텍스트 삭제됨 | "부서별 검수 기준 (루브릭)" | "부서별 검수 기준" |
 
-  확인 방법: http://{SERVER_IP} 접속 후 위 표대로 확인해주세요.
+  확인 방법: http://corthex-hq.com 접속 후 위 표대로 확인해주세요.
   안 바뀌었으면 Ctrl+Shift+R (강력 새로고침) 해보세요.
   ```
 
@@ -138,6 +138,7 @@
   - SSH 키: GitHub Secrets `SERVER_SSH_KEY_ARM`에 등록
   - 사용자: `ubuntu`
 - **도메인**: `corthex-hq.com` (2026-02-18 구매, Cloudflare 등록 — DNS: corthex-hq.com → 158.179.165.97)
+- **HTTPS**: Let's Encrypt(무료 인증서) 설정됨 — deploy.yml에서 certbot 자동 설치. `http://` 접속 시 `https://`로 자동 리다이렉트. 최초 배포 1회에만 인증서 발급하고, 이후 배포마다 만료 전 자동 갱신. CERTBOT_EMAIL Secret 없어도 동작(--register-unsafely-without-email 폴백)
 - **이전 서버 (폐기됨)**: `168.107.28.100` (1GB 마이크로 — 더 이상 사용 안 함)
 - **자동 배포 흐름** (전체 과정):
   1. claude/ 브랜치에 [완료] 커밋 push
@@ -178,11 +179,12 @@
 | 배포 성공인데 화면이 안 바뀜 (3) | **서버 git pull 실패** — 이전 배포가 서버 파일을 수정해서 git pull이 충돌 에러를 냄 | `git pull` 대신 `git fetch + git reset --hard` 사용 (deploy.yml에 이미 반영됨). **Actions 로그에서 "error: Your local changes would be overwritten" 메시지가 있으면 이 문제** |
 | GitHub Actions "success"인데 서버 접속 안됨 | **서버 다운** 또는 **방화벽 차단** | Oracle Cloud 콘솔에서 인스턴스 상태 확인 → Security List에서 포트 80 열려있는지 확인 |
 | `pip 설치 실패` 경고 | PyYAML 패키지 설치 실패 | 무시 가능 (yaml 없이도 서버 동작함) |
-| 빌드 번호가 `BUILD_NUMBER_PLACEHOLDER`로 표시 | HTML을 로컬에서 직접 열었음 (서버 아님) | 반드시 `http://{SERVER_IP}`으로 접속해야 함. 로컬 파일을 브라우저로 열면 빌드 번호가 주입 안됨 |
+| 빌드 번호가 `BUILD_NUMBER_PLACEHOLDER`로 표시 | HTML을 로컬에서 직접 열었음 (서버 아님) | 반드시 `http://corthex-hq.com`으로 접속해야 함. 로컬 파일을 브라우저로 열면 빌드 번호가 주입 안됨 |
+| `https://` 접속 안 됨 (자물쇠 없음) | certbot 아직 실행 안 됨 | 배포 한 번 더 실행하면 자동 발급됨. 또는 GitHub → Actions → "Deploy to Oracle Cloud Server" → Run workflow. `CERTBOT_EMAIL` Secret 추가하면 더 좋음 |
 
 ### 배포 확인하는 3가지 방법
-1. **웹 화면**: `http://{SERVER_IP}` 접속 → 좌측 상단 "빌드 #XX" 확인
-2. **배포 상태 JSON**: `http://{SERVER_IP}/deploy-status.json` 직접 접속 → 빌드 번호와 시간 확인
+1. **웹 화면**: `http://corthex-hq.com` 접속 → 좌측 상단 "빌드 #XX" 확인
+2. **배포 상태 JSON**: `http://corthex-hq.com/deploy-status.json` 직접 접속 → 빌드 번호와 시간 확인
 3. **GitHub Actions**: https://github.com/kodonghui/CORTHEX_HQ/actions → "Deploy to Oracle Cloud Server" 워크플로우 확인
 
 ### 배포 흐름 상세 (디버깅용)
@@ -197,7 +199,7 @@
 ### nginx 캐시 방지 (2026-02-15 추가)
 - deploy.yml이 첫 배포 시 nginx 설정에 `Cache-Control: no-cache` 헤더를 자동 추가
 - 이후 배포부터는 브라우저가 항상 최신 파일을 받아감
-- 수동으로 확인: `curl -I http://{SERVER_IP}` → `Cache-Control: no-cache` 헤더 있으면 정상
+- 수동으로 확인: `curl -I http://corthex-hq.com` → `Cache-Control: no-cache` 헤더 있으면 정상
 
 ## 과거 사고 기록 (같은 실수 반복 금지!)
 

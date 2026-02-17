@@ -8,11 +8,12 @@
 
 ## 마지막 업데이트
 
-- **날짜**: 2026-02-17
-- **버전**: `2.00.000` (v2 선언 — 에이전트 자율 협업 시대)
-- **작업 브랜치**: claude/agent-collab-overhaul
-- **작업 내용**: 에이전트 협업 구조 대 개편 — 스마트 라우팅 4단계 + 처장 자율 전문가 선택(spawn_agent) + CEO 직접 개입 UI + cross_agent_protocol 실시간화
-- **빌드 번호**: 배포 후 GitHub Actions에서 확인
+- **날짜**: 2026-02-18
+- **버전**: `2.00.001` (도메인 구매 + HTTPS 설정 + v3 프롬프트 준비)
+- **작업 브랜치**: claude/domain-https-v3prep (현재 작업 브랜치)
+- **작업 내용**: corthex-hq.com 도메인 구매 + HTTPS(Let's Encrypt) 자동 설정 + CLAUDE.md 전체 도메인 URL 업데이트 + v3 구현 프롬프트 파일 저장
+- **빌드 번호**: GitHub Actions 확인: https://github.com/kodonghui/CORTHEX_HQ/actions
+- **접속 주소**: http://corthex-hq.com (HTTPS 첫 배포 후: https://corthex-hq.com)
 
 ---
 
