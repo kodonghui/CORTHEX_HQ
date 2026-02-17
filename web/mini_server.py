@@ -325,6 +325,15 @@ async def websocket_endpoint(ws: WebSocket):
                 "time": now,
             }
         })
+        # 연결 직후 오늘 비용을 전송 → 우측 상단 $0.0000 문제 해결
+        try:
+            today_cost = get_today_cost()
+            await ws.send_json({
+                "event": "cost_update",
+                "data": {"total_cost": today_cost, "total_tokens": 0},
+            })
+        except Exception:
+            pass
         while True:
             data = await ws.receive_text()
             msg = json.loads(data)
@@ -521,8 +530,10 @@ async def get_dashboard():
         "today_completed": stats["today_completed"],
         "today_failed": stats["today_failed"],
         "total_cost": stats["total_cost"],
+        "today_cost": get_today_cost(),
         "total_tokens": stats["total_tokens"],
-        "system_status": "busy" if stats["running_count"] > 0 else "idle",
+        "notion_connected": bool(_NOTION_API_KEY),
+        "system_status": "busy" if stats["running_count"] > 0 else "ok",
         "uptime": now,
         "agents": AGENTS,
         "recent_completed": stats["recent_completed"],
@@ -780,6 +791,41 @@ async def update_task_tags(task_id: str, request: Request):
     tags = body.get("tags", [])
     set_task_tags(task_id, tags)
     return {"success": True, "tags": tags}
+
+
+@app.post("/api/tasks/bulk")
+async def bulk_task_action(request: Request):
+    """작업 일괄 처리 — 삭제/북마크/태그/보관."""
+    body = await request.json()
+    action = body.get("action", "")
+    task_ids = body.get("task_ids", [])
+    if not task_ids:
+        return {"success": False, "error": "작업을 선택해주세요"}
+
+    if action == "delete":
+        count = bulk_delete_tasks(task_ids)
+        return {"success": True, "action": "delete", "count": count}
+    elif action == "bookmark":
+        for tid in task_ids:
+            db_toggle_bookmark(tid)
+        return {"success": True, "action": "bookmark", "count": len(task_ids)}
+    elif action == "tag":
+        tag = body.get("tag", "")
+        if not tag:
+            return {"success": False, "error": "태그를 입력해주세요"}
+        for tid in task_ids:
+            task = db_get_task(tid)
+            if task:
+                existing_tags = task.get("tags", [])
+                if tag not in existing_tags:
+                    existing_tags.append(tag)
+                    set_task_tags(tid, existing_tags)
+        return {"success": True, "action": "tag", "count": len(task_ids)}
+    elif action == "archive":
+        count = bulk_archive_tasks(task_ids, archive=True)
+        return {"success": True, "action": "archive", "count": count}
+    else:
+        return {"success": False, "error": f"알 수 없는 작업: {action}"}
 
 
 @app.put("/api/tasks/{task_id}/read")
@@ -2159,6 +2205,10 @@ async def _deliver_chain_result(chain: dict):
         _log(f"[CHAIN] {chain.get('chain_id', '?')} — 이미 전달됨, 중복 방지")
         return
     chain["delivered"] = True
+    # 즉시 completed 상태로 변경 → 폴러가 재진입 못하게 방지
+    chain["step"] = "completed"
+    chain["status"] = "completed"
+    chain["completed_at"] = datetime.now(KST).isoformat()
     _save_chain(chain)
 
     task_id = chain["task_id"]
@@ -2297,9 +2347,6 @@ async def _deliver_chain_result(chain: dict):
             agent_id=chain.get("target_id", "chief_of_staff"),
         )
 
-    chain["step"] = "completed"
-    chain["status"] = "completed"
-    chain["completed_at"] = datetime.now(KST).isoformat()
     _save_chain(chain)
 
     await _broadcast_chain_status(chain, "✅ 배치 체인 완료 — 최종 보고서 전달됨")
@@ -4713,6 +4760,8 @@ async def _start_telegram_bot() -> None:
                 ("claude-haiku-4-5-20251001", "Haiku 4.5", []),
             ],
             "OpenAI": [
+                ("gpt-5.2-pro", "GPT-5.2 Pro", ["xhigh", "high", "medium", "없음"]),
+                ("gpt-5.2", "GPT-5.2", ["xhigh", "high", "medium", "low", "없음"]),
                 ("gpt-5", "GPT-5", ["xhigh", "high", "low", "없음"]),
                 ("gpt-5-mini", "GPT-5 Mini", []),
             ],
@@ -4771,7 +4820,9 @@ async def _start_telegram_bot() -> None:
                             break
 
                 if not reasoning_levels:
-                    # 추론 없음 → 바로 저장
+                    # 추론 없음 → 바로 저장 (웹과 동일한 키 사용 → 동기화)
+                    save_setting("model_mode", "manual")
+                    save_setting("model_override", model_id)
                     save_setting("global_model_override", {"model": model_id, "reasoning": "없음"})
                     await query.edit_message_text(f"✅ 전원 모델을 `{model_id}` 으로 변경했습니다.\n(추론: 없음)", parse_mode="Markdown")
                 else:
@@ -4792,6 +4843,9 @@ async def _start_telegram_bot() -> None:
                 level = data[6:]
                 model_id = context.user_data.get("pending_model", "")
                 if model_id:
+                    # 웹과 동일한 키 사용 → 동기화
+                    save_setting("model_mode", "manual")
+                    save_setting("model_override", model_id)
                     save_setting("global_model_override", {"model": model_id, "reasoning": level})
                     await query.edit_message_text(
                         f"✅ 전원 모델을 `{model_id}` 으로 변경했습니다.\n(추론: {level})",
@@ -5999,11 +6053,12 @@ def _get_model_override(agent_id: str) -> str | None:
     - 자동 모드: None 반환 → select_model()이 질문 내용에 따라 자동 선택
     - 수동 모드: 해당 에이전트에 개별 지정된 모델을 반환
       (에이전트 상세에서 CEO가 직접 설정한 모델)
+    - 글로벌 오버라이드: 텔레그램/웹에서 설정한 전체 모델 변경도 반영
     """
     mode = load_setting("model_mode") or "auto"
     if mode != "manual":
         return None
-    # 수동 모드 → 에이전트별 개별 지정 모델 사용
+    # 수동 모드 → 에이전트별 개별 지정 모델 우선
     detail = _AGENTS_DETAIL.get(agent_id, {})
     agent_model = detail.get("model_name")
     if agent_model:
@@ -6012,6 +6067,10 @@ def _get_model_override(agent_id: str) -> str | None:
     for a in AGENTS:
         if a["agent_id"] == agent_id and a.get("model_name"):
             return a["model_name"]
+    # 글로벌 오버라이드 (텔레그램 /models 또는 웹 대시보드에서 설정한 전체 모델)
+    global_override = load_setting("model_override")
+    if global_override:
+        return global_override
     return None
 
 
