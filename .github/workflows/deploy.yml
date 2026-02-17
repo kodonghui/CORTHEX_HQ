@@ -29,11 +29,12 @@ jobs:
           OPENAI_KEY: ${{ secrets.OPENAI_API_KEY }}
           GOOGLE_KEY: ${{ secrets.GOOGLE_API_KEY }}
           NOTION_KEY: ${{ secrets.NOTION_API_KEY }}
+          CERTBOT_EMAIL: ${{ secrets.CERTBOT_EMAIL }}
         with:
           host: ${{ secrets.SERVER_IP_ARM }}
           username: ubuntu
           key: ${{ secrets.SERVER_SSH_KEY_ARM }}
-          envs: BUILD_NUMBER,SERVER_IP,TG_BOT_TOKEN,TG_CEO_CHAT_ID,ANTHROPIC_KEY,OPENAI_KEY,GOOGLE_KEY,NOTION_KEY
+          envs: BUILD_NUMBER,SERVER_IP,TG_BOT_TOKEN,TG_CEO_CHAT_ID,ANTHROPIC_KEY,OPENAI_KEY,GOOGLE_KEY,NOTION_KEY,CERTBOT_EMAIL
           script: |
             echo "🚀 배포 시작... (빌드 #${BUILD_NUMBER})"
 
@@ -253,4 +254,28 @@ jobs:
               sudo nginx -t 2>/dev/null && sudo systemctl reload nginx 2>/dev/null || echo "⚠️ nginx 리로드 건너뜀"
             fi
 
-            echo "🎉 배포 성공! http://${SERVER_IP} 에서 확인 가능 (빌드 #${BUILD_NUMBER})"
+            # 9.5단계: HTTPS (Let's Encrypt 무료 인증서) 설정
+            CERT_PATH="/etc/letsencrypt/live/corthex-hq.com/fullchain.pem"
+            if [ ! -f "$CERT_PATH" ]; then
+              echo "🔒 HTTPS 인증서 발급 중... (첫 배포 시 1회만 실행)"
+              sudo apt-get install -y certbot python3-certbot-nginx 2>&1 | tail -3
+              if [ -n "${CERTBOT_EMAIL}" ]; then
+                sudo certbot --nginx -d corthex-hq.com -d www.corthex-hq.com \
+                  --non-interactive --agree-tos --email "${CERTBOT_EMAIL}" \
+                  --redirect 2>&1
+              else
+                sudo certbot --nginx -d corthex-hq.com -d www.corthex-hq.com \
+                  --non-interactive --agree-tos --register-unsafely-without-email \
+                  --redirect 2>&1
+              fi
+              if [ -f "$CERT_PATH" ]; then
+                echo "✅ HTTPS 인증서 발급 완료! https://corthex-hq.com 접속 가능"
+              else
+                echo "⚠️ HTTPS 인증서 발급 실패 — HTTP로 계속 운영됨"
+              fi
+            else
+              echo "✅ HTTPS 인증서 이미 존재 — 만료 전 자동 갱신 확인 중..."
+              sudo certbot renew --quiet 2>&1 || echo "⚠️ 인증서 갱신 건너뜀 (아직 만료 아님)"
+            fi
+
+            echo "🎉 배포 성공! https://corthex-hq.com 에서 확인 가능 (빌드 #${BUILD_NUMBER})"
