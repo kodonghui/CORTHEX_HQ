@@ -9,22 +9,29 @@
 ## 마지막 업데이트
 
 - **날짜**: 2026-02-18
-- **버전**: `3.01.001` (전수검사 + Soul 전면 갱신 완료)
+- **버전**: `3.01.002` (memory.py SQLite 이전 + 팀장 플레이북 추가)
 - **작업 브랜치**: claude/autonomous-system-v3
-- **최근 커밋**: community_specialist soul 추가 + 전체 작업 기록 [완료]
+- **최근 커밋**: fix: memory.py — JSON 파일 → SQLite 이전 [완료] (`ea53a01`)
 - **빌드 번호**: GitHub Actions 확인: https://github.com/kodonghui/CORTHEX_HQ/actions
 - **접속 주소**: https://corthex-hq.com
 
-## ✅ 전수검사 + Soul 전면 갱신 완료 (2026-02-18)
+## ✅ 이번 세션 완료 내용 (2026-02-18 2차 작업)
 
-### 완료된 내용
-- **전수검사 8개 영역**: 배치 시스템, 텔레그램 봇, LLM 모델명, 배포(deploy.yml) 등 버그 수정
-- **Soul 전면 갱신 29/29명**: 모든 에이전트에 직무 방법론 스택 방식 system_prompt 교체 완료
-  - community_specialist: Orbit Model, Dunbar's Number, Community Maturity Model, Superuser Program
-- **agents.json 재생성 완료**: config/yaml2json.py 실행 완료
+### 완료된 것
+- **memory.py SQLite 이전**: 에이전트 장기 기억을 JSON 파일→SQLite DB로 전환. 배포해도 기억 날아가지 않음.
+- **팀장 운용 플레이북**: CLAUDE.md에 6단계 팀 관리 가이드 추가 (출격~해산 전 과정)
+- **확인 완료 (이미 구현됨)**:
+  - SNS 연결 상태: 환경변수 체크 방식으로 이미 구현됨
+  - 기밀문서 전체삭제: `DELETE /api/archive/all` API + UI 버튼 이미 구현됨
+  - 누적비용 표시: `get_monthly_cost()` db.py에 이미 있고 대시보드에서 호출 중
 
-### 미수정 이슈 (다음 세션에서 처리)
-- memory.py가 에이전트 기억을 JSON 파일로 저장 → 배포 시 날아감 (SQLite 이전 필요)
+### 전 세션 완료된 내용 (2026-02-18 1차 작업)
+- **전수검사 8개 영역**: 배치 시스템, 텔레그램 봇, LLM 모델명(gpt-5.1 제거), 배포 버그 수정
+- **Soul 전면 갱신 29/29명**: Kelly Criterion, Porter's Five Forces, DORA Metrics 등 방법론 스택 주입
+- **agents.json 재생성**: config/yaml2json.py 실행 완료
+
+### 다음에 할 일 (알려진 이슈)
+- 없음 (현재 알려진 미해결 이슈 없음)
 
 ---
 
