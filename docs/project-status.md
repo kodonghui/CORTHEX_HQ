@@ -36,7 +36,9 @@
 6. **줄바꿈 자동 통일 설정** (`.gitattributes`) - 윈도우에서 작업해도 줄바꿈 충돌 안 생기게 설정
 7. **외부 접속 기능** (`CORTHEX_외부접속_시작.bat`) - Cloudflare Tunnel로 어디서든 웹 접속 가능 (회사컴 켜져 있어야 함)
 8. **Oracle Cloud 24시간 서버** - ARM 4코어 24GB 서버(Ampere A1, Always Free)에 웹사이트 배포 완료
-   - 서버 IP: GitHub Secrets `SERVER_IP_ARM`에 등록
+   - 서버 IP: `158.179.165.97` (GitHub Secrets `SERVER_IP_ARM`)
+   - **도메인**: `corthex-hq.com` (2026-02-18 구매, Cloudflare 등록)
+   - 접속 주소: http://corthex-hq.com
    - 운영체제: Ubuntu (ARM aarch64)
    - 웹서버: nginx + FastAPI 백엔드 (uvicorn)
    - 이전 서버(168.107.28.100, 1GB) 폐기 → 새 서버로 완전 이전 (빌드 #143부터)
