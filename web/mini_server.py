@@ -355,42 +355,41 @@ async def websocket_endpoint(ws: WebSocket):
                     if use_batch and is_ai_ready():
                         update_task(task["task_id"], status="pending",
                                     result_summary="📦 [배치 체인] 시작 중...")
-                        # 배치 체인 시작 (분류 → 전문가 → 종합보고서 → CEO 전달)
-                        chain_result = await _start_batch_chain(cmd_text, task["task_id"])
-                        if "error" in chain_result:
-                            await ws.send_json({
-                                "event": "result",
-                                "data": {
-                                    "content": f"❌ 배치 체인 시작 실패: {chain_result['error']}",
-                                    "sender_id": "chief_of_staff",
-                                    "handled_by": "비서실장",
-                                    "time_seconds": 0,
-                                    "cost": 0,
-                                }
-                            })
-                        else:
-                            chain_id = chain_result.get("chain_id", "?")
-                            step = chain_result.get("step", "?")
-                            mode = chain_result.get("mode", "single")
-                            mode_label = "브로드캐스트 (6개 부서)" if mode == "broadcast" else "단일 부서 위임"
-                            await ws.send_json({
-                                "event": "result",
-                                "data": {
-                                    "content": (
-                                        f"📦 **배치 체인 시작됨**\n\n"
-                                        f"- 모드: {mode_label}\n"
-                                        f"- 현재 단계: {step}\n"
-                                        f"- 체인 ID: `{chain_id[:30]}`\n\n"
-                                        f"위임 체인 전체가 Batch API로 처리됩니다 (비용 ~50% 절감).\n"
-                                        f"각 단계 완료 시 자동으로 다음 단계로 진행되며, "
-                                        f"최종 보고서가 완성되면 알려드리겠습니다."
-                                    ),
-                                    "sender_id": "chief_of_staff",
-                                    "handled_by": "비서실장",
-                                    "time_seconds": 0,
-                                    "cost": 0,
-                                }
-                            })
+                        # 즉시 접수 응답 → 대화창 바로 풀림 (배치는 백그라운드에서 실행)
+                        await ws.send_json({
+                            "event": "result",
+                            "data": {
+                                "content": (
+                                    f"📦 **배치 접수 완료** (#{task['task_id']})\n\n"
+                                    f"배치 체인이 백그라운드에서 실행됩니다.\n"
+                                    f"각 단계 완료 시 자동으로 진행되며, "
+                                    f"최종 보고서가 완성되면 알려드리겠습니다.\n\n"
+                                    f"💡 대화를 계속하실 수 있습니다."
+                                ),
+                                "sender_id": "chief_of_staff",
+                                "handled_by": "비서실장",
+                                "time_seconds": 0,
+                                "cost": 0,
+                            }
+                        })
+
+                        # 배치 체인을 백그라운드 태스크로 실행 (대화 차단 없음)
+                        async def _run_batch_chain(text, task_id, ws_ref):
+                            try:
+                                chain_result = await _start_batch_chain(text, task_id)
+                                if "error" in chain_result:
+                                    for c in connected_clients[:]:
+                                        try:
+                                            await c.send_json({
+                                                "event": "batch_chain_progress",
+                                                "data": {"message": f"❌ 배치 시작 실패: {chain_result['error']}"}
+                                            })
+                                        except Exception:
+                                            pass
+                            except Exception as e:
+                                _log(f"[CHAIN] 백그라운드 배치 체인 오류: {e}")
+
+                        asyncio.create_task(_run_batch_chain(cmd_text, task["task_id"], ws))
                         continue
 
                     # 실시간 모드: AI 즉시 처리
@@ -1399,8 +1398,9 @@ async def _broadcast_chain_status(chain: dict, message: str):
     """배치 체인 진행 상황을 WebSocket으로 CEO에게 알립니다."""
     step_labels = {
         "classify": "1단계: 분류",
-        "specialists": "2단계: 전문가 분석",
-        "synthesis": "3단계: 종합 보고서",
+        "delegation": "2단계: 처장 지시서",
+        "specialists": "3단계: 전문가 분석",
+        "synthesis": "4단계: 종합 보고서",
         "completed": "완료",
         "failed": "실패",
         "direct": "비서실장 직접 처리",
@@ -1422,6 +1422,18 @@ async def _broadcast_chain_status(chain: dict, message: str):
             })
         except Exception:
             pass
+
+    # 텔레그램으로도 진행 상태 전달
+    if _telegram_app:
+        ceo_id = os.getenv("TELEGRAM_CEO_CHAT_ID", "")
+        if ceo_id:
+            try:
+                await _telegram_app.bot.send_message(
+                    chat_id=int(ceo_id),
+                    text=f"📦 {message}",
+                )
+            except Exception:
+                pass
 
 
 async def _start_batch_chain(text: str, task_id: str) -> dict:
@@ -1624,6 +1636,8 @@ async def _chain_create_delegation(chain: dict):
         deleg_model = None
 
     if deleg_model:
+        # 처장 초록불 켜기
+        await _broadcast_status(target_id, "working", 0.2, f"{mgr_name} 지시서 작성 중...")
         try:
             result = await ask_ai(
                 user_message=delegation_prompt,
@@ -1668,9 +1682,10 @@ async def _chain_create_delegation(chain: dict):
             _log(f"[CHAIN] {chain['chain_id']} — 지시서 생성 실패: {e}")
             # 실패해도 진행 (지시서 없이 원본 명령으로)
 
-    # 지시서 상태 업데이트
+    # 지시서 상태 업데이트 + 처장 초록불 끄기
     has_instructions = bool(chain.get("delegation_instructions"))
     deleg_status = f"✅ {mgr_name} 지시서 생성 완료" if has_instructions else f"⚠️ 지시서 없이 진행"
+    await _broadcast_status(target_id, "done", 0.5, deleg_status)
     update_task(chain["task_id"], status="pending",
                 result_summary=f"📦 [배치 체인] 2단계: {deleg_status}")
     await _broadcast_chain_status(chain, f"📦 2단계: {deleg_status}")
@@ -1780,6 +1795,10 @@ async def _chain_submit_specialists(chain: dict):
 
     requests = []
     for spec_id in specialists:
+        # 전문가 초록불 켜기
+        spec_name = _SPECIALIST_NAMES.get(spec_id, spec_id)
+        await _broadcast_status(spec_id, "working", 0.3, f"{spec_name} 배치 처리 중...")
+
         soul = _load_agent_prompt(spec_id, include_tools=False) + _BATCH_MODE_SUFFIX
         override = _get_model_override(spec_id)
         model = select_model(text, override=override)
@@ -1817,6 +1836,7 @@ async def _chain_submit_specialists(chain: dict):
             "error": br.get("error"),
         })
 
+    chain["step"] = "specialists"
     chain["status"] = "pending"
     _save_chain(chain)
 
@@ -1887,6 +1907,7 @@ async def _chain_submit_specialists_broadcast(chain: dict):
             "error": br.get("error"),
         })
 
+    chain["step"] = "specialists"
     chain["status"] = "pending"
     _save_chain(chain)
 
@@ -2050,6 +2071,25 @@ async def _chain_submit_synthesis(chain: dict):
     _log(f"[CHAIN] {chain['chain_id']} — 종합보고서 배치 제출 ({len(requests)}건)")
 
 
+async def _send_batch_result_to_telegram(content: str, cost: float):
+    """배치 체인 결과를 텔레그램 CEO에게 전달합니다."""
+    if not _telegram_app:
+        return
+    ceo_id = os.getenv("TELEGRAM_CEO_CHAT_ID", "")
+    if not ceo_id:
+        return
+    try:
+        # 텔레그램 메시지 길이 제한 (4096자)
+        if len(content) > 3800:
+            content = content[:3800] + "\n\n... (전체 결과는 웹에서 확인)"
+        await _telegram_app.bot.send_message(
+            chat_id=int(ceo_id),
+            text=f"📦 배치 체인 완료\n\n{content}\n\n─────\n💰 ${cost:.4f}",
+        )
+    except Exception as e:
+        _log(f"[TG] 배치 결과 전송 실패: {e}")
+
+
 async def _deliver_chain_result(chain: dict):
     """배치 체인 최종 결과를 CEO에게 전달합니다."""
     # ── 중복 전달 방지 ──
@@ -2174,6 +2214,10 @@ async def _deliver_chain_result(chain: dict):
             except Exception:
                 pass
 
+    # 텔레그램으로도 결과 전달
+    tg_content = compiled if chain["mode"] == "broadcast" else final_content
+    await _send_batch_result_to_telegram(tg_content, total_cost)
+
     # 아카이브에 저장
     synth_content = ""
     if chain["mode"] == "broadcast":
@@ -2286,7 +2330,30 @@ async def _advance_batch_chain(chain_id: str):
             _save_chain(chain)
             await _chain_submit_synthesis(chain)
 
-    # ── 2단계: 전문가 ──
+    # ── delegation 안전망 ──
+    # delegation은 실시간 API로 즉시 처리되므로 폴러가 관여할 일이 없음.
+    # 하지만 _chain_create_delegation() 중 에러로 step이 "delegation"에 멈춰있으면
+    # 여기서 복구하여 전문가 단계를 재시도합니다.
+    elif step == "delegation":
+        # 이미 전문가 배치가 제출된 상태면 → specialists로 전환
+        if chain["batches"].get("specialists"):
+            chain["step"] = "specialists"
+            _save_chain(chain)
+            _log(f"[CHAIN] {chain_id} — delegation 안전망: specialists로 전환")
+        else:
+            # 전문가 배치가 아직 제출 안 됨 → 지시서 생성부터 재시도
+            _log(f"[CHAIN] {chain_id} — delegation 안전망: 지시서 생성 재시도")
+            try:
+                await _chain_create_delegation(chain)
+            except Exception as e:
+                _log(f"[CHAIN] {chain_id} — delegation 재시도 실패: {e}")
+                # 실패 시 지시서 없이 전문가에게 직접 전달
+                chain["step"] = "specialists"
+                _save_chain(chain)
+                await _chain_submit_specialists(chain)
+        return
+
+    # ── 3단계: 전문가 ──
     elif step == "specialists":
         all_done = True
         for batch_info in chain["batches"].get("specialists", []):
@@ -2325,11 +2392,17 @@ async def _advance_batch_chain(chain_id: str):
                         "error": r.get("error"),
                     }
                     chain["total_cost_usd"] += r.get("cost_usd", 0)
+                    # 전문가 초록불 끄기
+                    await _broadcast_status(agent_id, "done", 1.0, "완료")
 
             spec_count = len(chain["results"]["specialists"])
             _log(f"[CHAIN] {chain['chain_id']} — 전문가 {spec_count}명 결과 수집 완료")
 
-            # 종합 단계로 진행
+            # 종합 단계로 진행 — 처장 초록불 켜기
+            target_id = chain.get("target_id", "chief_of_staff")
+            target_name = _AGENT_NAMES.get(target_id, target_id)
+            await _broadcast_status(target_id, "working", 0.7, f"{target_name} 종합보고서 작성 중...")
+
             chain["step"] = "synthesis"
             _save_chain(chain)
             await _broadcast_chain_status(chain, f"📦 전문가 {spec_count}명 완료 → 종합보고서 작성 시작")
@@ -2376,6 +2449,10 @@ async def _advance_batch_chain(chain_id: str):
                     chain["total_cost_usd"] += r.get("cost_usd", 0)
 
             _log(f"[CHAIN] {chain['chain_id']} — 종합보고서 완료")
+
+            # 처장 초록불 끄기
+            target_id = chain.get("target_id", "chief_of_staff")
+            await _broadcast_status(target_id, "done", 1.0, "보고 완료")
 
             # 최종 전달
             await _deliver_chain_result(chain)
@@ -4497,16 +4574,42 @@ async def _start_telegram_bot() -> None:
                         f"👤 {footer_who} | 💰 ${cost:.4f} | 🤖 {model_short}",
                         parse_mode=None,
                     )
+            elif mode == "batch" and is_ai_ready():
+                # 배치 모드 + AI 연결됨 → 실제 배치 체인 실행
+                update_task(task["task_id"], status="pending",
+                            result_summary="📦 [배치 체인] 시작 중...")
+                await update.message.reply_text(
+                    f"📦 배치 접수 완료 (#{task['task_id']})\n"
+                    f"배치 체인이 백그라운드에서 실행됩니다.\n"
+                    f"완료 시 결과를 여기로 보내드리겠습니다.",
+                    parse_mode=None,
+                )
+
+                # 배치 체인을 백그라운드로 실행
+                async def _tg_run_batch(text_arg, task_id_arg, chat_id_arg):
+                    try:
+                        chain_result = await _start_batch_chain(text_arg, task_id_arg)
+                        if "error" in chain_result and _telegram_app:
+                            try:
+                                await _telegram_app.bot.send_message(
+                                    chat_id=int(chat_id_arg),
+                                    text=f"❌ 배치 시작 실패: {chain_result['error']}",
+                                )
+                            except Exception:
+                                pass
+                    except Exception as e:
+                        _log(f"[TG] 배치 체인 오류: {e}")
+
+                asyncio.create_task(_tg_run_batch(text, task["task_id"], chat_id))
             else:
-                # 배치 모드 또는 AI 미준비
+                # AI 미연결 → 접수만
                 update_task(task["task_id"], status="completed",
-                            result_summary="배치 모드 — 접수만 완료" if mode == "batch" else "AI 미연결 — 접수만 완료",
+                            result_summary="AI 미연결 — 접수만 완료",
                             success=1, time_seconds=0.1)
-                reason = "배치 모드" if mode == "batch" else "AI 미연결"
                 await update.message.reply_text(
                     f"📋 접수했습니다. ({now})\n"
                     f"작업 ID: `{task['task_id']}`\n"
-                    f"상태: {reason}",
+                    f"상태: AI 미연결",
                     parse_mode="Markdown",
                 )
 
