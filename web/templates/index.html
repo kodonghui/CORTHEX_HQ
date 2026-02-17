@@ -74,6 +74,8 @@
 
     * { box-sizing: border-box; }
     body { font-family: 'Pretendard Variable', 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif; }
+    /* 포인트 명조체 — 제목/워크플로우 이름 등에 사용 */
+    .font-title { font-family: 'Noto Serif KR', 'Pretendard Variable', serif; }
 
     /* ═══ 사이버 사령부 배경 (딥 다크 + 네온 글로우) ═══ */
     .dark body {
@@ -2792,94 +2794,116 @@
               <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
               미리보기용 샘플 데이터입니다 — 실제 명령을 내리면 진짜 기록으로 대체됩니다
             </div>
-            <!-- ═══ C+D+E 미션 브리핑 카드 뷰 ═══ -->
+            <!-- ═══ 노션 스타일 작전일지 카드 뷰 ═══ -->
             <template x-for="(group, gi) in getGroupedTaskHistory()" :key="group.label">
-              <div class="mb-6">
-                <!-- E: 날짜 구분선 (군사 작전 스타일) -->
-                <div class="flex items-center gap-3 mb-3 py-1">
-                  <div class="w-2.5 h-2.5 rounded-full shrink-0"
-                       :class="gi === 0 ? 'bg-hq-green ring-2 ring-hq-green/30' : 'bg-hq-accent/40'"></div>
-                  <h3 class="text-xs font-bold uppercase tracking-[0.15em] font-mono shrink-0"
-                      :class="gi === 0 ? 'text-hq-green' : 'text-hq-accent/80'" x-text="group.label"></h3>
-                  <div class="flex-1 h-px" :class="gi === 0 ? 'bg-hq-green/20' : 'bg-hq-border/20'"></div>
-                  <span class="text-[11px] font-mono px-2 py-0.5 rounded-md shrink-0"
-                        :class="gi === 0 ? 'text-hq-green bg-hq-green/10' : 'text-hq-muted bg-hq-surface'"
+              <div class="mb-8">
+                <!-- 날짜 구분선 -->
+                <div class="flex items-center gap-3 mb-4 py-1">
+                  <div class="w-2 h-2 rounded-full shrink-0"
+                       :class="gi === 0 ? 'bg-hq-green ring-2 ring-hq-green/30' : 'bg-hq-muted/40'"></div>
+                  <h3 class="text-xs font-bold tracking-wider shrink-0 font-title"
+                      :class="gi === 0 ? 'text-hq-green' : 'text-hq-muted'" x-text="group.label"></h3>
+                  <div class="flex-1 h-px bg-hq-border/15"></div>
+                  <span class="text-[10px] px-2 py-0.5 rounded-full shrink-0"
+                        :class="gi === 0 ? 'text-hq-green bg-hq-green/8' : 'text-hq-muted/70 bg-hq-surface/50'"
                         x-text="group.items.length + '건'"></span>
                 </div>
                 <!-- 카드 리스트 -->
-                <div class="space-y-2">
+                <div class="space-y-3">
                   <template x-for="task in group.items" :key="task.task_id">
-                    <!-- C: 왼쪽 컬러바 카드 -->
-                    <div class="flex rounded-xl overflow-hidden transition-all hover:shadow-lg hover:shadow-hq-bg/50"
-                         :class="taskHistory.selectedIds.includes(task.task_id) ? 'ring-1 ring-hq-accent/30' : ''">
-                      <!-- 컬러바 (3px) -->
-                      <div class="w-1 shrink-0 rounded-l-xl"
-                           :class="task.status === 'completed' ? 'bg-hq-green' : task.status === 'failed' ? 'bg-hq-red' : task.status === 'running' ? 'bg-hq-yellow animate-pulse' : 'bg-hq-muted/30'"></div>
-                      <!-- 카드 본체 -->
-                      <div class="flex-1 bg-hq-panel/60 border border-l-0 border-hq-border/20 rounded-r-xl px-4 py-3 group/card">
-                        <!-- 1줄: 시간 + 명령어 + 태그 + 상태뱃지 -->
-                        <div class="flex items-center gap-3 cursor-pointer"
+                    <div class="bg-hq-panel/50 border rounded-2xl overflow-hidden transition-all duration-200 hover:bg-hq-panel/80 hover:shadow-lg hover:shadow-hq-bg/40"
+                         :class="taskHistory.selectedIds.includes(task.task_id) ? 'border-hq-accent/40 ring-1 ring-hq-accent/20' : 'border-hq-border/20'">
+                      <!-- 상단 컬러 인디케이터 -->
+                      <div class="h-[3px]"
+                           :class="task.status === 'completed' ? 'bg-hq-green/60' : task.status === 'failed' ? 'bg-hq-red/60' : task.status === 'running' ? 'bg-hq-yellow/60 animate-pulse' : 'bg-hq-muted/20'"></div>
+                      <div class="p-5">
+                        <!-- 1행: 상태 + 명령어 (큰 글씨) + 시간 -->
+                        <div class="flex items-start gap-3 cursor-pointer"
                              @click="taskHistory.expandedId = taskHistory.expandedId === task.task_id ? null : task.task_id; if(taskHistory.expandedId === task.task_id) loadTaskDetail(task.task_id)">
-                          <!-- 시간 -->
-                          <span class="text-[11px] text-hq-muted/70 font-mono shrink-0 w-12" x-text="new Date(task.created_at || Date.now()).toLocaleTimeString('ko-KR', {timeZone:'Asia/Seoul', hour:'2-digit', minute:'2-digit'})"></span>
-                          <!-- 명령어 -->
+                          <!-- 상태 도트 -->
+                          <div class="w-3 h-3 rounded-full shrink-0 mt-1"
+                               :class="task.status === 'completed' ? 'bg-hq-green' : task.status === 'failed' ? 'bg-hq-red' : task.status === 'running' ? 'bg-hq-yellow animate-pulse' : 'bg-hq-muted/40'"></div>
+                          <!-- 명령어 (주인공) -->
                           <div class="flex-1 min-w-0">
-                            <div class="text-sm text-hq-text hover:text-hq-accent transition truncate font-semibold" x-text="task.command"></div>
+                            <div class="text-[15px] font-semibold text-hq-text leading-snug" x-text="task.command"></div>
                           </div>
-                          <!-- 태그 -->
-                          <template x-for="tag in (task.tags || []).slice(0,2)" :key="tag">
-                            <span class="text-[9px] px-1.5 py-0.5 rounded-md bg-hq-accent/10 text-hq-accent shrink-0 font-medium" x-text="tag"></span>
-                          </template>
+                          <!-- 시간 (오른쪽) -->
+                          <span class="text-[11px] text-hq-muted/60 font-mono shrink-0 pt-0.5"
+                                x-text="new Date(task.created_at || Date.now()).toLocaleTimeString('ko-KR', {timeZone:'Asia/Seoul', hour:'2-digit', minute:'2-digit'})"></span>
+                        </div>
+
+                        <!-- 2행: 요약 (있으면) -->
+                        <div x-show="task.summary" class="mt-2 ml-6 text-[13px] text-hq-muted/80 leading-relaxed line-clamp-2"
+                             x-text="stripMarkdown(task.summary || '')"></div>
+
+                        <!-- 3행: 메타 정보 (태그 + 비용 + 소요시간 + 상태 뱃지) -->
+                        <div class="flex items-center gap-2 mt-3 ml-6 flex-wrap">
                           <!-- 상태 뱃지 -->
-                          <span class="text-[10px] px-2 py-0.5 rounded-md font-bold shrink-0 tracking-wide"
-                                :class="task.status === 'completed' ? 'bg-hq-green/15 text-hq-green' : task.status === 'failed' ? 'bg-hq-red/15 text-hq-red' : task.status === 'running' ? 'bg-hq-yellow/15 text-hq-yellow' : 'bg-hq-muted/15 text-hq-muted'"
+                          <span class="text-[10px] px-2 py-0.5 rounded-full font-semibold"
+                                :class="task.status === 'completed' ? 'bg-hq-green/12 text-hq-green' : task.status === 'failed' ? 'bg-hq-red/12 text-hq-red' : task.status === 'running' ? 'bg-hq-yellow/12 text-hq-yellow' : 'bg-hq-muted/12 text-hq-muted'"
                                 x-text="task.status === 'completed' ? '완료' : task.status === 'failed' ? '실패' : task.status === 'running' ? '진행중' : '대기'"></span>
-                          <!-- 비용 (큰 글씨) -->
-                          <span class="text-xs font-mono font-semibold shrink-0"
-                                :class="task.cost > 0.1 ? 'text-hq-yellow' : 'text-hq-cyan/80'"
-                                x-text="task.cost ? '$' + task.cost.toFixed(3) : ''"></span>
+                          <!-- 태그들 -->
+                          <template x-for="tag in (task.tags || []).slice(0,3)" :key="tag">
+                            <span class="text-[10px] px-2 py-0.5 rounded-full bg-hq-accent/8 text-hq-accent font-medium" x-text="'#' + tag"></span>
+                          </template>
+                          <!-- 구분점 -->
+                          <span x-show="task.cost || task.time_seconds" class="text-hq-muted/30 text-[10px]">&middot;</span>
+                          <!-- 비용 -->
+                          <span x-show="task.cost" class="text-[11px] font-mono"
+                                :class="task.cost > 0.1 ? 'text-hq-yellow' : 'text-hq-muted/60'"
+                                x-text="task.cost ? '$' + task.cost.toFixed(4) : ''"></span>
+                          <!-- 소요시간 -->
+                          <span x-show="task.time_seconds" class="text-[11px] font-mono text-hq-muted/60"
+                                x-text="task.time_seconds ? task.time_seconds + '초' : ''"></span>
                         </div>
-                        <!-- D: 통계줄 (에이전트 + 소요시간 + 액션) -->
-                        <div class="flex items-center gap-3 mt-1.5 pl-[60px]">
-                          <!-- 요약 (에이전트 정보 등) -->
-                          <div class="flex-1 min-w-0 text-[11px] text-hq-muted/70 truncate" x-text="stripMarkdown(task.summary || '')"></div>
-                          <!-- 소요 시간 -->
-                          <span x-show="task.time_seconds" class="text-[10px] font-mono text-hq-muted/60 shrink-0 flex items-center gap-0.5">
-                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                            <span x-text="task.time_seconds + '초'"></span>
-                          </span>
-                          <!-- 액션 버튼 (호버 시 밝아짐) -->
-                          <div class="flex items-center gap-1 shrink-0 transition-opacity duration-200"
-                               :class="(task.bookmarked || taskHistory.selectedIds.includes(task.task_id)) ? 'opacity-100' : 'opacity-0 group-hover/card:opacity-100'">
-                            <button @click.stop="toggleBookmark(task.task_id)"
-                                    class="w-6 h-6 rounded flex items-center justify-center text-xs transition hover:bg-hq-yellow/10"
-                                    :class="task.bookmarked ? 'text-hq-yellow' : 'text-hq-muted/50 hover:text-hq-yellow'"
-                                    title="북마크">&#9733;</button>
-                            <button @click.stop="deleteTask(task.task_id)"
-                                    class="w-6 h-6 rounded flex items-center justify-center text-xs transition text-hq-muted/50 hover:text-hq-red hover:bg-hq-red/10"
-                                    title="삭제">&times;</button>
-                            <!-- 동그란 선택 버튼 -->
-                            <button @click.stop="toggleTaskSelect(task.task_id)"
-                                    class="w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all duration-200 cursor-pointer"
-                                    :class="taskHistory.selectedIds.includes(task.task_id) ? 'border-hq-accent bg-hq-accent text-white' : 'border-hq-muted/40 hover:border-hq-accent/60'"
-                                    title="선택">
-                              <svg x-show="taskHistory.selectedIds.includes(task.task_id)" class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
-                            </button>
-                          </div>
+
+                        <!-- 4행: 액션 버튼 (항상 보임) -->
+                        <div class="flex items-center gap-2 mt-3 ml-6">
+                          <!-- 결과 보기 버튼 -->
+                          <button @click="taskHistory.expandedId = taskHistory.expandedId === task.task_id ? null : task.task_id; if(taskHistory.expandedId === task.task_id) loadTaskDetail(task.task_id)"
+                                  class="text-[11px] px-3 py-1 rounded-lg transition flex items-center gap-1"
+                                  :class="taskHistory.expandedId === task.task_id ? 'bg-hq-accent/15 text-hq-accent' : 'bg-hq-bg/50 text-hq-muted/70 hover:text-hq-accent hover:bg-hq-accent/10'">
+                            <svg class="w-3.5 h-3.5 transition-transform" :class="taskHistory.expandedId === task.task_id ? 'rotate-90' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                            <span x-text="taskHistory.expandedId === task.task_id ? '접기' : '결과 보기'"></span>
+                          </button>
+                          <!-- 내부 대화 버튼 (correlation_id 있을 때만) -->
+                          <button x-show="task.correlation_id"
+                                  @click.stop="loadReplay(task.correlation_id, task.task_id)"
+                                  class="text-[11px] px-3 py-1 rounded-lg bg-hq-bg/50 text-hq-muted/70 hover:text-hq-accent hover:bg-hq-accent/10 transition flex items-center gap-1">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+                            내부 대화
+                          </button>
+                          <!-- 스페이서 -->
+                          <div class="flex-1"></div>
+                          <!-- 북마크 -->
+                          <button @click.stop="toggleBookmark(task.task_id)"
+                                  class="w-7 h-7 rounded-lg flex items-center justify-center text-sm transition"
+                                  :class="task.bookmarked ? 'text-hq-yellow bg-hq-yellow/10' : 'text-hq-muted/40 hover:text-hq-yellow hover:bg-hq-yellow/5'"
+                                  title="북마크">&#9733;</button>
+                          <!-- 삭제 -->
+                          <button @click.stop="deleteTask(task.task_id)"
+                                  class="w-7 h-7 rounded-lg flex items-center justify-center text-sm text-hq-muted/40 hover:text-hq-red hover:bg-hq-red/5 transition"
+                                  title="삭제">&times;</button>
+                          <!-- 선택 -->
+                          <button @click.stop="toggleTaskSelect(task.task_id)"
+                                  class="w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all duration-200 cursor-pointer"
+                                  :class="taskHistory.selectedIds.includes(task.task_id) ? 'border-hq-accent bg-hq-accent text-white' : 'border-hq-muted/30 hover:border-hq-accent/50'"
+                                  title="선택">
+                            <svg x-show="taskHistory.selectedIds.includes(task.task_id)" class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
+                          </button>
                         </div>
-                        <!-- 펼침 상세 -->
-                        <div x-show="taskHistory.expandedId === task.task_id" class="mt-3 pt-3 border-t border-hq-border/20">
-                          <div class="text-sm markdown-body max-h-96 overflow-y-auto" x-html="renderMarkdown(task._fullResult || '')"></div>
-                          <div class="flex items-center gap-3 mt-3">
-                            <button x-show="task.correlation_id"
-                                    @click.stop="loadReplay(task.correlation_id, task.task_id)"
-                                    class="text-xs text-hq-accent hover:text-hq-accent/80 flex items-center gap-1">
-                              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
-                              내부 대화 보기
-                            </button>
-                            <span class="text-xs font-mono text-hq-muted" x-text="task.time_seconds ? task.time_seconds + '초 소요' : ''"></span>
-                          </div>
-                          <div x-show="taskHistory.replayData[task.task_id]" class="mt-3 pl-4 border-l-2 border-hq-accent/20">
+
+                        <!-- 펼침: 상세 결과 -->
+                        <div x-show="taskHistory.expandedId === task.task_id"
+                             x-transition:enter="transition ease-out duration-200"
+                             x-transition:enter-start="opacity-0 -translate-y-1"
+                             x-transition:enter-end="opacity-100 translate-y-0"
+                             class="mt-4 pt-4 border-t border-hq-border/15 ml-6">
+                          <div class="text-sm markdown-body max-h-[500px] overflow-y-auto rounded-xl bg-hq-bg/40 p-4 border border-hq-border/10"
+                               x-html="renderMarkdown(task._fullResult || '')"></div>
+                          <!-- 에이전트 간 대화 흐름 (리플레이) -->
+                          <div x-show="taskHistory.replayData[task.task_id]"
+                               class="mt-3 pl-4 border-l-2 border-hq-accent/20 rounded-r-lg bg-hq-bg/20 p-3">
                             <div class="text-xs text-hq-muted mb-2 font-semibold">에이전트 간 대화 흐름</div>
                             <div x-html="renderReplayTree(taskHistory.replayData[task.task_id])"></div>
                           </div>
@@ -3022,7 +3046,7 @@
                   <div class="flex-1 min-w-0">
                     <div class="flex items-center gap-2 flex-wrap mb-1">
                       <span class="inline-block w-2 h-2 rounded-full bg-violet-400 shrink-0"></span>
-                      <span class="text-sm font-semibold text-hq-text" x-text="wf.name"></span>
+                      <span class="text-sm font-semibold text-hq-text font-title" x-text="wf.name"></span>
                       <template x-for="(step, i) in wf.steps" :key="i">
                         <div class="flex items-center gap-1">
                           <span x-show="i > 0" class="text-hq-muted/40 text-[10px]">→</span>
@@ -4510,7 +4534,7 @@
       <!-- 헤더 -->
       <div class="flex items-center justify-between mb-5">
         <div>
-          <h2 class="text-lg font-bold text-hq-text font-mono" x-text="workflowExec.workflowName"></h2>
+          <h2 class="text-lg font-bold text-hq-text font-title" x-text="workflowExec.workflowName"></h2>
           <p class="text-xs text-hq-muted mt-0.5">워크플로우 실행</p>
         </div>
         <button @click="closeWorkflowExec()" class="text-hq-muted hover:text-hq-text text-xl">&times;</button>
