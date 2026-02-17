@@ -127,11 +127,12 @@ logger = logging.getLogger("corthex.mini_server")
 # ── 텔레그램 봇 (선택적 로드) ──
 _telegram_available = False
 try:
-    from telegram import Update, BotCommand
+    from telegram import Update, BotCommand, InlineKeyboardButton, InlineKeyboardMarkup
     from telegram.ext import (
         Application,
         CommandHandler,
         MessageHandler,
+        CallbackQueryHandler,
         ContextTypes,
         filters,
     )
@@ -4568,12 +4569,18 @@ async def _start_telegram_bot() -> None:
                 return
             await update.message.reply_text(
                 "*CORTHEX HQ 사용법*\n\n"
-                "/agents — 에이전트 목록 (29명)\n"
-                "/health — 서버 상태 확인\n"
-                "/help — 이 사용법\n\n"
+                "*정보*\n"
+                "/agents — 에이전트 목록\n"
+                "/health — 서버 상태\n"
+                "/status — 배치 진행 현황\n"
+                "/budget — 오늘 비용 / 한도 변경\n\n"
                 "*모드 전환*\n"
                 "/rt — 실시간 모드 (AI 즉시 답변)\n"
-                "/batch — 배치 모드 (접수만)\n\n"
+                "/batch — 배치 모드\n\n"
+                "*설정*\n"
+                "/models — 전원 모델 변경 (3단계 버튼)\n"
+                "/pause — AI 처리 중단\n"
+                "/resume — AI 처리 재개\n\n"
                 "일반 메시지를 보내면 AI가 답변합니다.",
                 parse_mode="Markdown",
             )
@@ -4639,6 +4646,176 @@ async def _start_telegram_bot() -> None:
                 parse_mode="Markdown",
             )
 
+        # ── /status — 배치 진행 목록 ──
+        async def cmd_status(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+            if not _is_tg_ceo(update):
+                return
+            chains = load_setting("batch_chains") or []
+            active = [c for c in chains if c.get("status") in ("running", "pending")]
+            if not active:
+                await update.message.reply_text("현재 진행 중인 배치가 없습니다.")
+                return
+            lines = [f"*진행 중인 배치 ({len(active)}건)*\n"]
+            for c in active[:10]:
+                step = c.get("step", "?")
+                text_preview = c.get("text", "")[:40]
+                chain_id = c.get("chain_id", "?")[:8]
+                lines.append(f"• `{chain_id}` | {step} | {text_preview}")
+            await update.message.reply_text("\n".join(lines), parse_mode="Markdown")
+
+        # ── /budget — 오늘 지출 확인/변경 ──
+        async def cmd_budget(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+            if not _is_tg_ceo(update):
+                return
+            args = (update.message.text or "").split()
+            today_cost = get_today_cost()
+            daily_limit = load_setting("daily_budget_usd") or 10
+            if len(args) >= 2:
+                try:
+                    new_limit = float(args[1])
+                    save_setting("daily_budget_usd", new_limit)
+                    await update.message.reply_text(
+                        f"💰 일일 예산을 *${new_limit:.2f}*로 변경했습니다.\n오늘 사용: ${today_cost:.4f}",
+                        parse_mode="Markdown",
+                    )
+                    return
+                except ValueError:
+                    pass
+            pct = (today_cost / daily_limit * 100) if daily_limit > 0 else 0
+            await update.message.reply_text(
+                f"💰 *오늘 비용 현황*\n\n"
+                f"사용: ${today_cost:.4f}\n"
+                f"한도: ${daily_limit:.2f}\n"
+                f"사용률: {pct:.1f}%\n\n"
+                f"한도 변경: `/budget 15` (15달러로 변경)",
+                parse_mode="Markdown",
+            )
+
+        # ── /pause, /resume — AI 처리 중단/재개 ──
+        async def cmd_pause(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+            if not _is_tg_ceo(update):
+                return
+            save_setting("ai_paused", True)
+            await update.message.reply_text("⏸ *AI 처리를 일시 중단*했습니다.\n\n`/resume`으로 재개하세요.", parse_mode="Markdown")
+
+        async def cmd_resume(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+            if not _is_tg_ceo(update):
+                return
+            save_setting("ai_paused", False)
+            await update.message.reply_text("▶️ *AI 처리를 재개*했습니다.", parse_mode="Markdown")
+
+        # ── /models — 3단계 인라인 버튼으로 모델 변경 ──
+        # 프로바이더별 모델 목록 (코드 내 _MODEL_CATALOG과 동기화)
+        _TG_MODELS = {
+            "Anthropic": [
+                ("claude-opus-4-6", "Opus 4.6", ["xhigh", "high", "low", "없음"]),
+                ("claude-sonnet-4-5-20250929", "Sonnet 4.5", ["high", "low", "없음"]),
+                ("claude-haiku-4-5-20251001", "Haiku 4.5", []),
+            ],
+            "OpenAI": [
+                ("gpt-5", "GPT-5", ["xhigh", "high", "low", "없음"]),
+                ("gpt-5-mini", "GPT-5 Mini", []),
+            ],
+            "Google": [
+                ("gemini-3-pro-preview", "Gemini 3 Pro Preview", ["high", "low", "없음"]),
+                ("gemini-2.5-pro", "Gemini 2.5 Pro", ["high", "low", "없음"]),
+                ("gemini-2.5-flash", "Gemini 2.5 Flash", []),
+            ],
+        }
+
+        async def cmd_models(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+            if not _is_tg_ceo(update):
+                return
+            current = load_setting("global_model_override") or {}
+            cur_model = current.get("model", "없음")
+            cur_reason = current.get("reasoning", "없음")
+            buttons = [
+                [InlineKeyboardButton("🟣 Anthropic", callback_data="mdl_p_Anthropic")],
+                [InlineKeyboardButton("🟢 OpenAI", callback_data="mdl_p_OpenAI")],
+                [InlineKeyboardButton("🔵 Google", callback_data="mdl_p_Google")],
+            ]
+            await update.message.reply_text(
+                f"*전원 모델 변경*\n\n현재: `{cur_model}` (추론: {cur_reason})\n\n프로바이더를 선택하세요:",
+                parse_mode="Markdown",
+                reply_markup=InlineKeyboardMarkup(buttons),
+            )
+
+        async def models_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+            query = update.callback_query
+            await query.answer()
+            data = query.data
+
+            # 1단계: 프로바이더 선택 → 모델 목록 표시
+            if data.startswith("mdl_p_"):
+                provider = data[6:]
+                models_list = _TG_MODELS.get(provider, [])
+                buttons = []
+                for model_id, label, _ in models_list:
+                    buttons.append([InlineKeyboardButton(label, callback_data=f"mdl_m_{model_id}")])
+                buttons.append([InlineKeyboardButton("« 뒤로", callback_data="mdl_back")])
+                await query.edit_message_text(
+                    f"*{provider}* 모델을 선택하세요:",
+                    parse_mode="Markdown",
+                    reply_markup=InlineKeyboardMarkup(buttons),
+                )
+
+            # 2단계: 모델 선택 → 추론 강도 표시 (또는 바로 저장)
+            elif data.startswith("mdl_m_"):
+                model_id = data[6:]
+                # 모델의 추론 레벨 찾기
+                reasoning_levels = []
+                for provider, models_list in _TG_MODELS.items():
+                    for mid, label, levels in models_list:
+                        if mid == model_id:
+                            reasoning_levels = levels
+                            break
+
+                if not reasoning_levels:
+                    # 추론 없음 → 바로 저장
+                    save_setting("global_model_override", {"model": model_id, "reasoning": "없음"})
+                    await query.edit_message_text(f"✅ 전원 모델을 `{model_id}` 으로 변경했습니다.\n(추론: 없음)", parse_mode="Markdown")
+                else:
+                    # 추론 레벨 선택 버튼
+                    context.user_data["pending_model"] = model_id
+                    buttons = []
+                    for level in reasoning_levels:
+                        buttons.append([InlineKeyboardButton(level, callback_data=f"mdl_r_{level}")])
+                    buttons.append([InlineKeyboardButton("« 뒤로", callback_data="mdl_back")])
+                    await query.edit_message_text(
+                        f"*{model_id}*\n추론 강도를 선택하세요:",
+                        parse_mode="Markdown",
+                        reply_markup=InlineKeyboardMarkup(buttons),
+                    )
+
+            # 3단계: 추론 강도 선택 → 저장
+            elif data.startswith("mdl_r_"):
+                level = data[6:]
+                model_id = context.user_data.get("pending_model", "")
+                if model_id:
+                    save_setting("global_model_override", {"model": model_id, "reasoning": level})
+                    await query.edit_message_text(
+                        f"✅ 전원 모델을 `{model_id}` 으로 변경했습니다.\n(추론: {level})",
+                        parse_mode="Markdown",
+                    )
+                else:
+                    await query.edit_message_text("❌ 모델 정보가 없습니다. /models를 다시 시도하세요.")
+
+            # 뒤로가기
+            elif data == "mdl_back":
+                current = load_setting("global_model_override") or {}
+                cur_model = current.get("model", "없음")
+                cur_reason = current.get("reasoning", "없음")
+                buttons = [
+                    [InlineKeyboardButton("🟣 Anthropic", callback_data="mdl_p_Anthropic")],
+                    [InlineKeyboardButton("🟢 OpenAI", callback_data="mdl_p_OpenAI")],
+                    [InlineKeyboardButton("🔵 Google", callback_data="mdl_p_Google")],
+                ]
+                await query.edit_message_text(
+                    f"*전원 모델 변경*\n\n현재: `{cur_model}` (추론: {cur_reason})\n\n프로바이더를 선택하세요:",
+                    parse_mode="Markdown",
+                    reply_markup=InlineKeyboardMarkup(buttons),
+                )
+
         async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             if not _is_tg_ceo(update):
                 return
@@ -4669,6 +4846,11 @@ async def _start_telegram_bot() -> None:
             task = create_task(text, source="telegram")
             save_message(text, source="telegram", chat_id=chat_id,
                          task_id=task["task_id"])
+
+            # AI 일시 중단 체크
+            if load_setting("ai_paused"):
+                await update.message.reply_text("⏸ AI 처리가 일시 중단된 상태입니다.\n`/resume`으로 재개하세요.", parse_mode="Markdown")
+                return
 
             # 모드 확인
             mode = load_setting("tg_mode") or "realtime"
@@ -4801,6 +4983,12 @@ async def _start_telegram_bot() -> None:
         _telegram_app.add_handler(CommandHandler("health", cmd_health))
         _telegram_app.add_handler(CommandHandler("rt", cmd_rt))
         _telegram_app.add_handler(CommandHandler("batch", cmd_batch))
+        _telegram_app.add_handler(CommandHandler("status", cmd_status))
+        _telegram_app.add_handler(CommandHandler("budget", cmd_budget))
+        _telegram_app.add_handler(CommandHandler("pause", cmd_pause))
+        _telegram_app.add_handler(CommandHandler("resume", cmd_resume))
+        _telegram_app.add_handler(CommandHandler("models", cmd_models))
+        _telegram_app.add_handler(CallbackQueryHandler(models_callback, pattern=r"^mdl_"))
         _telegram_app.add_handler(
             MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message)
         )
@@ -4811,8 +4999,13 @@ async def _start_telegram_bot() -> None:
             BotCommand("help", "사용법"),
             BotCommand("agents", "에이전트 목록"),
             BotCommand("health", "서버 상태"),
-            BotCommand("rt", "실시간 모드 (AI 즉시 답변)"),
-            BotCommand("batch", "배치 모드 (접수만)"),
+            BotCommand("rt", "실시간 모드"),
+            BotCommand("batch", "배치 모드"),
+            BotCommand("models", "전원 모델 변경"),
+            BotCommand("status", "배치 진행 상태"),
+            BotCommand("budget", "오늘 비용 / 한도 변경"),
+            BotCommand("pause", "AI 처리 중단"),
+            BotCommand("resume", "AI 처리 재개"),
         ])
 
         _log("[TG] 핸들러 등록 완료, initialize()...")
