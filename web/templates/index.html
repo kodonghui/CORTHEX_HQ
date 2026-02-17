@@ -5555,6 +5555,8 @@
           { cmd: '/배치실행', args: '', desc: '대기 중인 AI 요청 일괄 전송', icon: '📤' },
           { cmd: '/배치상태', args: '', desc: '배치 작업 진행 확인', icon: '📊' },
           { cmd: '/명령어', args: '', desc: '전체 명령어 목록', icon: '📋' },
+          { cmd: '/토론', args: '[주제]', desc: '6명 처장 임원 토론 (2라운드)', icon: '🗣️' },
+          { cmd: '/심층토론', args: '[주제]', desc: '6명 처장 심층 토론 (3라운드)', icon: '💬' },
         ],
         filteredSlashCommands: [],
         currentTaskId: null,
@@ -6002,6 +6004,23 @@
               this.messages.push({ type: 'user', text: msg.data.text, source: 'telegram', timestamp: new Date().toISOString() });
               if (this.showScrollBtn) this.newMsgCount++;
               this.$nextTick(() => this.scrollToBottom());
+              break;
+
+            case 'proactive_message':
+              // 능동적 에이전트가 자동 전송한 보고 메시지
+              this.messages = this.messages.filter(m => m.type !== 'processing');
+              const proactiveMsg = {
+                type: 'result',
+                content: `🤖 **[자동 보고: ${msg.data.schedule_name || '능동 에이전트'}]**\n\n${msg.data.content}`,
+                agent_id: msg.data.agent_id,
+                timestamp: new Date().toISOString(),
+                isProactive: true
+              };
+              this.messages.push(proactiveMsg);
+              this.systemStatus = 'idle';
+              if (this.showScrollBtn) this.newMsgCount++;
+              this.$nextTick(() => this.scrollToBottom());
+              this.showToast(`🤖 자동 보고 도착: ${msg.data.schedule_name || '능동 에이전트'}`, 'info');
               break;
 
             case 'result':

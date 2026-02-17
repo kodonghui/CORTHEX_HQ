@@ -4078,7 +4078,12 @@ async def delete_knowledge(folder: str, filename: str):
 @app.get("/api/memory/{agent_id}")
 async def get_memory(agent_id: str):
     all_memories = _load_data("memories", {})
-    return {"memories": all_memories.get(agent_id, [])}
+    # 수동 기억 + 자동 추출된 카테고리 기억 함께 반환
+    categorized = load_setting(f"memory_categorized_{agent_id}", {})
+    return {
+        "memories": all_memories.get(agent_id, []),
+        "categorized": categorized,
+    }
 
 
 @app.post("/api/memory/{agent_id}")
@@ -4097,6 +4102,13 @@ async def add_memory(agent_id: str, request: Request):
     all_memories[agent_id].append(memory)
     _save_data("memories", all_memories)
     return {"success": True, "memory": memory}
+
+
+@app.delete("/api/memory/{agent_id}/categorized")
+async def delete_categorized_memory(agent_id: str):
+    """에이전트 자동 추출 카테고리 기억 초기화."""
+    save_setting(f"memory_categorized_{agent_id}", {})
+    return {"success": True}
 
 
 @app.delete("/api/memory/{agent_id}/{memory_id}")
@@ -5437,6 +5449,48 @@ async def _broadcast_status(agent_id: str, status: str, progress: float, detail:
             pass
 
 
+async def _extract_and_save_memory(agent_id: str, task: str, response: str):
+    """대화 후 기억할 정보 추출 → save_setting에 저장 (비동기 백그라운드)."""
+    try:
+        extraction_prompt = (
+            "아래 대화에서 에이전트가 기억해야 할 정보가 있으면 JSON으로 추출해라. "
+            "없으면 빈 dict {} 반환.\n\n"
+            f"[대화]\n사용자: {task[:400]}\n에이전트: {response[:400]}\n\n"
+            "[추출 항목]\n"
+            "- ceo_preferences: CEO가 선호하거나 싫어하는 것 (있으면)\n"
+            "- decisions: '~하기로 결정', '~로 확정' 등 중요 결정 (있으면)\n"
+            "- warnings: 이 방법은 안 됨, CEO가 싫다고 함 등 주의사항 (있으면)\n"
+            "- context: 프로젝트 상태, 거래처, 일정 등 중요 맥락 (있으면)\n\n"
+            "JSON만 반환 (설명 없이):"
+        )
+
+        result = await ask_ai(
+            user_message=extraction_prompt,
+            model="claude-haiku-4-5-20251001",
+            max_tokens=400,
+            system_prompt="JSON만 반환. 설명 없이."
+        )
+
+        text_resp = result.get("content", "") if isinstance(result, dict) else str(result)
+        text_resp = text_resp.strip()
+        # JSON 블록 추출
+        if "```" in text_resp:
+            text_resp = text_resp.split("```")[1].strip()
+            if text_resp.startswith("json"):
+                text_resp = text_resp[4:].strip()
+
+        new_facts = json.loads(text_resp)
+        if new_facts and isinstance(new_facts, dict):
+            existing = load_setting(f"memory_categorized_{agent_id}", {})
+            for key, val in new_facts.items():
+                if val and val not in ("null", "없음", ""):
+                    prev = existing.get(key, "")
+                    existing[key] = (prev + " | " + str(val)).strip(" |") if prev else str(val)
+            save_setting(f"memory_categorized_{agent_id}", existing)
+    except Exception as e:
+        logger.debug(f"기억 추출 건너뜀 ({agent_id}): {e}")
+
+
 async def _call_agent(agent_id: str, text: str) -> dict:
     """단일 에이전트에게 AI 호출을 수행합니다 (상태 이벤트 + 활동 로그 + 도구 자동호출 포함)."""
     agent_name = _AGENT_NAMES.get(agent_id, _SPECIALIST_NAMES.get(agent_id, agent_id))
@@ -5451,6 +5505,23 @@ async def _call_agent(agent_id: str, text: str) -> dict:
             pass
 
     soul = _load_agent_prompt(agent_id)
+
+    # ── 에이전트 기억 주입 (카테고리별 기억 → system_prompt 앞에 삽입) ──
+    mem = load_setting(f"memory_categorized_{agent_id}", {})
+    if mem:
+        mem_lines = []
+        if mem.get("ceo_preferences"):
+            mem_lines.append(f"- CEO 취향/선호: {mem['ceo_preferences']}")
+        if mem.get("decisions"):
+            mem_lines.append(f"- 주요 결정: {mem['decisions']}")
+        if mem.get("warnings"):
+            mem_lines.append(f"- 주의사항: {mem['warnings']}")
+        if mem.get("context"):
+            mem_lines.append(f"- 중요 맥락: {mem['context']}")
+        if mem_lines:
+            memory_block = "[에이전트 기억]\n" + "\n".join(mem_lines) + "\n\n"
+            soul = memory_block + soul
+
     override = _get_model_override(agent_id)
     model = select_model(text, override=override)
 
@@ -5530,6 +5601,10 @@ async def _call_agent(agent_id: str, text: str) -> dict:
             })
         except Exception:
             pass
+
+    # ── 기억 자동 추출 (비동기 백그라운드 — 응답에서 중요 정보 저장) ──
+    if content and len(content) > 30:
+        asyncio.create_task(_extract_and_save_memory(agent_id, text, content))
 
     # 산출물 저장 (노션 + 아카이브 DB)
     if content and len(content) > 20:
@@ -6005,6 +6080,92 @@ async def _broadcast_to_managers_all(text: str, task_id: str) -> dict:
     }
 
 
+# ── 토론 시스템 (임원 회의 방식 다라운드 토론) ──
+
+DEBATE_ROTATION = [
+    ["cio_manager", "cto_manager", "cso_manager", "cmo_manager", "clo_manager", "cpo_manager"],
+    ["cto_manager", "cso_manager", "cio_manager", "clo_manager", "cmo_manager", "cpo_manager"],
+    ["cso_manager", "cmo_manager", "cto_manager", "cio_manager", "cpo_manager", "clo_manager"],
+]
+
+
+async def _call_agent_debate(agent_id: str, topic: str, history: str, extra_instruction: str) -> str:
+    """토론용 에이전트 호출 — 주제 + 이전 발언 + 추가 지시를 결합하여 호출."""
+    prompt = (
+        f"[토론 주제]\n{topic}\n\n"
+        f"[이전 발언들]\n{history if history else '(첫 발언, 독립적으로 의견 제시)'}\n\n"
+        f"{extra_instruction}"
+    )
+    result = await _call_agent(agent_id, prompt)
+    return result.get("content", str(result)) if isinstance(result, dict) else str(result)
+
+
+async def _broadcast_with_debate(ceo_message: str, rounds: int = 2) -> dict:
+    """임원 회의 방식 토론 — CEO 메시지를 처장들이 다단계 토론 후 비서실장이 종합."""
+    debate_history = ""
+
+    # 참가 처장 목록 (설정에 존재하는 처장만)
+    all_managers = ["cio_manager", "cto_manager", "cso_manager", "cmo_manager", "clo_manager", "cpo_manager"]
+    manager_ids = [m for m in all_managers if m in _AGENTS_DETAIL]
+
+    for round_num in range(1, rounds + 1):
+        rotation_idx = (round_num - 1) % len(DEBATE_ROTATION)
+        ordered_managers = [m for m in DEBATE_ROTATION[rotation_idx] if m in manager_ids]
+
+        if round_num == 1:
+            # 라운드 1: 병렬 — 서로 모르고 독립 의견 제시
+            debate_append = (
+                "\n\n[토론 규칙]\n"
+                "이 질문에 대한 당신의 독립적인 전문 의견을 제시하세요. "
+                "반드시 당신 부서의 관점에서 구체적으로 분석하세요."
+            )
+            tasks = [_call_agent_debate(mid, ceo_message, "", debate_append) for mid in ordered_managers]
+            responses = await asyncio.gather(*tasks, return_exceptions=True)
+            for mid, resp in zip(ordered_managers, responses):
+                if not isinstance(resp, Exception):
+                    mgr_name = _AGENT_NAMES.get(mid, mid)
+                    debate_history += f"\n[{mgr_name}의 1라운드 의견]\n{resp}\n"
+        else:
+            # 라운드 2+: 순차 — 이전 라운드 전체를 읽고 반박/보강
+            rebuttal_instruction = (
+                "\n\n[재반박 라운드]\n이전 발언들을 읽고:\n"
+                "1. 다른 처장 의견 중 문제점 최소 1가지 구체적으로 지적\n"
+                "2. '동의합니다', '좋은 의견입니다' 같은 빈 동의 표현은 절대 금지\n"
+                "3. 자신의 입장을 더 명확히 강화하거나 수정"
+            )
+            for mid in ordered_managers:
+                mgr_name = _AGENT_NAMES.get(mid, mid)
+                resp = await _call_agent_debate(mid, ceo_message, debate_history, rebuttal_instruction)
+                debate_history += f"\n[{mgr_name}의 {round_num}라운드 발언]\n{resp}\n"
+
+    # 비서실장이 토론 결과 종합
+    synthesis_prompt = (
+        f"[토론 주제]\n{ceo_message}\n\n"
+        f"[처장들의 토론 내용]\n{debate_history}\n\n"
+        "위 토론을 바탕으로:\n"
+        "1. 핵심 합의 사항 (처장들이 공통으로 동의한 점)\n"
+        "2. 주요 이견 (처장들 간 대립된 관점)\n"
+        "3. CEO를 위한 최종 권고사항\n"
+        "을 정리해서 보고해주세요."
+    )
+
+    final_result = await _call_agent("chief_of_staff", synthesis_prompt)
+    final_content = final_result.get("content", str(final_result)) if isinstance(final_result, dict) else str(final_result)
+
+    return {
+        "content": (
+            f"## 임원 토론 결과 ({rounds}라운드)\n\n"
+            f"{final_content}\n\n"
+            f"---\n\n"
+            f"<details><summary>전체 토론 내역 보기</summary>\n\n{debate_history}\n</details>"
+        ),
+        "debate_rounds": rounds,
+        "participants": manager_ids,
+        "agent_id": "chief_of_staff",
+        "handled_by": f"임원 토론 ({rounds}라운드, {len(manager_ids)}명 참여)",
+    }
+
+
 async def _broadcast_to_managers(text: str, task_id: str, target_agent_id: str | None = None) -> dict:
     """스마트 라우팅: Level에 따라 적절한 에이전트만 호출.
 
@@ -6393,6 +6554,8 @@ async def _process_ai_command(text: str, task_id: str, target_agent_id: str | No
             "📋 **사용 가능한 명령어**\n\n"
             "| 명령어 | 설명 |\n"
             "|--------|------|\n"
+            "| `/토론 [주제]` | 임원 토론 (2라운드: 독립 의견 → 재반박) |\n"
+            "| `/심층토론 [주제]` | 심층 임원 토론 (3라운드: 더 깊은 반박) |\n"
             "| `/전체 [메시지]` | 29명 에이전트 동시 가동 (브로드캐스트) |\n"
             "| `/순차 [메시지]` | 에이전트 릴레이 (순서대로 작업) |\n"
             f"| `/도구점검` | {len(_TOOLS_LIST)}개 도구 상태 점검 |\n"
@@ -6403,6 +6566,22 @@ async def _process_ai_command(text: str, task_id: str, target_agent_id: str | No
         )
         update_task(task_id, status="completed", result_summary=content[:500], success=1)
         return {"content": content, "handled_by": "비서실장", "agent_id": "chief_of_staff"}
+
+    # /토론 [주제] — 임원 토론 (2라운드: 독립 의견 + 재반박)
+    if text_stripped.startswith("/토론"):
+        topic = text_stripped[len("/토론"):].strip() or "CORTHEX 전략 방향"
+        result = await _broadcast_with_debate(topic, rounds=2)
+        update_task(task_id, status="completed", result_summary=f"임원 토론 완료 (2라운드)", success=1)
+        result["handled_by"] = result.get("handled_by", "임원 토론")
+        return result
+
+    # /심층토론 [주제] — 심층 임원 토론 (3라운드: 더 깊은 반박)
+    if text_stripped.startswith("/심층토론"):
+        topic = text_stripped[len("/심층토론"):].strip() or "CORTHEX 전략 방향"
+        result = await _broadcast_with_debate(topic, rounds=3)
+        update_task(task_id, status="completed", result_summary=f"심층 임원 토론 완료 (3라운드)", success=1)
+        result["handled_by"] = result.get("handled_by", "심층 임원 토론")
+        return result
 
     # /전체 [메시지] — 브로드캐스트 (29명 동시 가동) — 항상 Level 4 전원 호출
     if text_stripped.startswith("/전체"):
