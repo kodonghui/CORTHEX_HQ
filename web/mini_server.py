@@ -4663,14 +4663,6 @@ async def get_available_models():
             "reasoning_levels": ["none", "low", "medium", "high", "xhigh"],
         },
         {
-            "name": "gpt-5.1",
-            "provider": "openai",
-            "tier": "manager",
-            "cost_input": 4.0,
-            "cost_output": 20.0,
-            "reasoning_levels": ["none", "low", "medium", "high"],
-        },
-        {
             "name": "gpt-5",
             "provider": "openai",
             "tier": "specialist",

@@ -22,14 +22,6 @@ providers:
         tier: "manager"
         reasoning_levels: ["none", "low", "medium", "high"]
 
-      # ── GPT-5.1 시리즈 ──
-      - name: "gpt-5.1"
-        cost_per_1m_input: 1.25
-        cost_per_1m_output: 10.00
-        # max_tokens 제거 — 응답 잘림 방지
-        tier: "manager"
-        reasoning_levels: ["none", "low", "medium", "high"]
-
       # ── GPT-5.2 시리즈 (최신) ──
       - name: "gpt-5.2"
         cost_per_1m_input: 1.75
