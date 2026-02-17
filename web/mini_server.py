@@ -2090,6 +2090,69 @@ async def _send_batch_result_to_telegram(content: str, cost: float):
         _log(f"[TG] 배치 결과 전송 실패: {e}")
 
 
+async def _synthesis_realtime_fallback(chain: dict):
+    """종합 배치 실패 시 실시간 ask_ai()로 종합보고서를 대신 생성합니다."""
+    text = chain["text"]
+    _log(f"[CHAIN] {chain['chain_id']} — 실시간 폴백 시작")
+
+    if chain["mode"] == "broadcast":
+        all_managers = ["cto_manager", "cso_manager", "clo_manager", "cmo_manager", "cio_manager", "cpo_manager"]
+        for mgr_id in all_managers:
+            if mgr_id in chain["results"]["synthesis"]:
+                continue  # 이미 있으면 skip
+            specialists = _MANAGER_SPECIALISTS.get(mgr_id, [])
+            spec_parts = []
+            for s_id in specialists:
+                s_res = chain["results"]["specialists"].get(s_id, {})
+                name = _SPECIALIST_NAMES.get(s_id, s_id)
+                content = s_res.get("content", "응답 없음")
+                spec_parts.append(f"[{name}]\n{content}")
+
+            mgr_name = _AGENT_NAMES.get(mgr_id, mgr_id)
+            if spec_parts:
+                synthesis_prompt = (
+                    f"당신은 {mgr_name}입니다. 소속 전문가들의 분석 결과를 종합하여 CEO에게 보고하세요.\n\n"
+                    f"## CEO 원본 명령\n{text}\n\n"
+                    f"## 전문가 분석 결과\n" + "\n\n".join(spec_parts)
+                )
+            else:
+                synthesis_prompt = text
+            soul = _load_agent_prompt(mgr_id, include_tools=False)
+            try:
+                result = await ask_ai(user_message=synthesis_prompt, system_prompt=soul)
+                chain["results"]["synthesis"][mgr_id] = {
+                    "content": result.get("content", ""),
+                    "model": result.get("model", ""),
+                    "cost_usd": result.get("cost_usd", 0),
+                    "error": result.get("error"),
+                }
+                chain["total_cost_usd"] += result.get("cost_usd", 0)
+            except Exception as e:
+                _log(f"[CHAIN] 실시간 폴백 실패 ({mgr_id}): {e}")
+                chain["results"]["synthesis"][mgr_id] = {"content": "", "error": str(e)[:100]}
+    else:
+        target_id = chain.get("target_id", "chief_of_staff")
+        if target_id not in chain["results"]["synthesis"]:
+            soul = _load_agent_prompt(target_id, include_tools=False)
+            try:
+                result = await ask_ai(user_message=text, system_prompt=soul)
+                chain["results"]["synthesis"][target_id] = {
+                    "content": result.get("content", ""),
+                    "model": result.get("model", ""),
+                    "cost_usd": result.get("cost_usd", 0),
+                    "error": result.get("error"),
+                }
+                chain["total_cost_usd"] += result.get("cost_usd", 0)
+            except Exception as e:
+                _log(f"[CHAIN] 실시간 폴백 실패 ({target_id}): {e}")
+                chain["results"]["synthesis"][target_id] = {"content": "", "error": str(e)[:100]}
+
+    target_id = chain.get("target_id", "chief_of_staff")
+    await _broadcast_status(target_id, "done", 1.0, "보고 완료")
+    _save_chain(chain)
+    await _deliver_chain_result(chain)
+
+
 async def _deliver_chain_result(chain: dict):
     """배치 체인 최종 결과를 CEO에게 전달합니다."""
     # ── 중복 전달 방지 ──
@@ -2356,14 +2419,20 @@ async def _advance_batch_chain(chain_id: str):
     # ── 3단계: 전문가 ──
     elif step == "specialists":
         all_done = True
+        batch_errors = []  # 오류 추적
         for batch_info in chain["batches"].get("specialists", []):
             if batch_info.get("status") in ("pending", "processing"):
                 try:
                     status_result = await batch_check(batch_info["batch_id"], batch_info["provider"])
                     if "error" not in status_result:
                         batch_info["status"] = status_result["status"]
+                    else:
+                        err = status_result.get("error", "배치 상태 확인 실패")
+                        _log(f"[CHAIN] 전문가 배치 확인 오류 ({batch_info['provider']}): {err}")
+                        batch_errors.append(f"{batch_info['provider']}: {err[:80]}")
                 except Exception as e:
-                    _log(f"[CHAIN] 전문가 배치 확인 오류: {e}")
+                    _log(f"[CHAIN] 전문가 배치 확인 예외 ({batch_info.get('provider','?')}): {e}")
+                    batch_errors.append(f"{batch_info.get('provider','?')}: {str(e)[:80]}")
 
             if batch_info.get("status") not in ("completed", "failed"):
                 all_done = False
@@ -2372,12 +2441,18 @@ async def _advance_batch_chain(chain_id: str):
 
         if all_done:
             # 모든 전문가 배치 완료 → 결과 수집
+            retrieve_errors = []
             for batch_info in chain["batches"]["specialists"]:
                 if batch_info.get("status") != "completed":
+                    if batch_info.get("status") == "failed":
+                        err_detail = batch_info.get("error", "배치 실패")
+                        retrieve_errors.append(f"{batch_info['provider']}: {err_detail[:80]}")
                     continue
 
                 result = await batch_retrieve(batch_info["batch_id"], batch_info["provider"])
                 if "error" in result:
+                    retrieve_errors.append(f"{batch_info['provider']}: {result['error'][:80]}")
+                    _log(f"[CHAIN] 전문가 결과 수집 실패 ({batch_info['provider']}): {result['error']}")
                     continue
 
                 for r in result.get("results", []):
@@ -2398,6 +2473,15 @@ async def _advance_batch_chain(chain_id: str):
             spec_count = len(chain["results"]["specialists"])
             _log(f"[CHAIN] {chain['chain_id']} — 전문가 {spec_count}명 결과 수집 완료")
 
+            # 결과가 없으면 오류 원인을 텔레그램으로 전달
+            if spec_count == 0:
+                all_errors = batch_errors + retrieve_errors
+                if all_errors:
+                    error_summary = " | ".join(all_errors[:3])
+                    await _broadcast_chain_status(chain, f"⚠️ 전문가 배치 실패 — 원인: {error_summary}")
+                else:
+                    await _broadcast_chain_status(chain, "⚠️ 전문가 배치 결과 없음 — 처장 직접 처리로 전환")
+
             # 종합 단계로 진행 — 처장 초록불 켜기
             target_id = chain.get("target_id", "chief_of_staff")
             target_name = _AGENT_NAMES.get(target_id, target_id)
@@ -2408,17 +2492,23 @@ async def _advance_batch_chain(chain_id: str):
             await _broadcast_chain_status(chain, f"📦 전문가 {spec_count}명 완료 → 종합보고서 작성 시작")
             await _chain_submit_synthesis(chain)
 
-    # ── 3단계: 종합보고서 ──
+    # ── 4단계: 종합보고서 ──
     elif step == "synthesis":
         all_done = True
+        synth_errors = []  # 오류 추적
         for batch_info in chain["batches"].get("synthesis", []):
             if batch_info.get("status") in ("pending", "processing"):
                 try:
                     status_result = await batch_check(batch_info["batch_id"], batch_info["provider"])
                     if "error" not in status_result:
                         batch_info["status"] = status_result["status"]
+                    else:
+                        err = status_result.get("error", "배치 상태 확인 실패")
+                        _log(f"[CHAIN] 종합 배치 확인 오류 ({batch_info['provider']}): {err}")
+                        synth_errors.append(f"{batch_info['provider']}: {err[:80]}")
                 except Exception as e:
-                    _log(f"[CHAIN] 종합 배치 확인 오류: {e}")
+                    _log(f"[CHAIN] 종합 배치 확인 예외 ({batch_info.get('provider','?')}): {e}")
+                    synth_errors.append(f"{batch_info.get('provider','?')}: {str(e)[:80]}")
 
             if batch_info.get("status") not in ("completed", "failed"):
                 all_done = False
@@ -2427,12 +2517,18 @@ async def _advance_batch_chain(chain_id: str):
 
         if all_done:
             # 종합보고서 결과 수집
+            retrieve_errors = []
             for batch_info in chain["batches"]["synthesis"]:
                 if batch_info.get("status") != "completed":
+                    if batch_info.get("status") == "failed":
+                        err_detail = batch_info.get("error", "배치 실패")
+                        retrieve_errors.append(f"{batch_info['provider']}: {err_detail[:80]}")
                     continue
 
                 result = await batch_retrieve(batch_info["batch_id"], batch_info["provider"])
                 if "error" in result:
+                    retrieve_errors.append(f"{batch_info['provider']}: {result['error'][:80]}")
+                    _log(f"[CHAIN] 종합 결과 수집 실패 ({batch_info['provider']}): {result['error']}")
                     continue
 
                 for r in result.get("results", []):
@@ -2448,7 +2544,21 @@ async def _advance_batch_chain(chain_id: str):
                     }
                     chain["total_cost_usd"] += r.get("cost_usd", 0)
 
-            _log(f"[CHAIN] {chain['chain_id']} — 종합보고서 완료")
+            synth_count = len(chain["results"]["synthesis"])
+            _log(f"[CHAIN] {chain['chain_id']} — 종합보고서 {synth_count}개 완료")
+
+            # 종합 결과가 없으면 오류 원인 알림 + 실시간 폴백
+            if synth_count == 0:
+                all_errors = synth_errors + retrieve_errors
+                if all_errors:
+                    error_summary = " | ".join(all_errors[:3])
+                    await _broadcast_chain_status(chain, f"⚠️ 종합 배치 실패 — 실시간으로 재처리: {error_summary}")
+                else:
+                    await _broadcast_chain_status(chain, "⚠️ 종합 배치 결과 없음 — 실시간으로 재처리")
+
+                # 실시간 폴백: ask_ai()로 직접 종합보고서 생성
+                await _synthesis_realtime_fallback(chain)
+                return
 
             # 처장 초록불 끄기
             target_id = chain.get("target_id", "chief_of_staff")
