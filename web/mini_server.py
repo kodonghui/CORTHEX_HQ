@@ -3058,7 +3058,7 @@ async def _run_workflow_steps(wf_id: str, wf_name: str, steps: list):
 
         save_activity_log("system", f"▶ {wf_name} — {step_name} 실행 중", "info")
         # 웹소켓으로 단계 시작 알림
-        await _broadcast_workflow_progress(i, len(steps), "running", step_name, "")
+        await _broadcast_workflow_progress(i, len(steps), "running", step_name, "", workflow_id=wf_id)
 
         try:
             task = create_task(command, source="workflow")
@@ -3068,25 +3068,27 @@ async def _run_workflow_steps(wf_id: str, wf_name: str, steps: list):
             results.append({"step": step_name, "status": "completed", "result": content[:200]})
             save_activity_log("system", f"✅ {wf_name} — {step_name} 완료", "info")
             # 웹소켓으로 단계 완료 알림
-            await _broadcast_workflow_progress(i, len(steps), "completed", step_name, content[:300])
+            await _broadcast_workflow_progress(i, len(steps), "completed", step_name, content[:300], workflow_id=wf_id)
         except Exception as e:
             results.append({"step": step_name, "status": "failed", "error": str(e)[:200]})
             save_activity_log("system", f"❌ {wf_name} — {step_name} 실패: {str(e)[:100]}", "error")
-            await _broadcast_workflow_progress(i, len(steps), "failed", step_name, str(e)[:200])
+            await _broadcast_workflow_progress(i, len(steps), "failed", step_name, str(e)[:200], workflow_id=wf_id)
             break  # 실패 시 중단
 
     # 전체 완료 알림
     final_result = "\n\n".join([f"**{r['step']}**: {r.get('result', r.get('error', ''))}" for r in results])
-    await _broadcast_workflow_progress(-1, len(steps), "done", "", final_result, workflow_done=True)
+    await _broadcast_workflow_progress(-1, len(steps), "done", "", final_result, workflow_done=True, workflow_id=wf_id)
     save_activity_log("system", f"🏁 워크플로우 완료: {wf_name} — {len(results)}/{len(steps)} 단계 처리", "info")
 
 
 async def _broadcast_workflow_progress(step_index: int, total_steps: int, status: str,
-                                        step_name: str, result: str, workflow_done: bool = False):
+                                        step_name: str, result: str, workflow_done: bool = False,
+                                        workflow_id: str = ""):
     """워크플로우 진행 상태를 웹소켓으로 전송합니다."""
     msg = {
         "event": "workflow_progress",
         "data": {
+            "workflow_id": workflow_id,
             "step_index": step_index,
             "total_steps": total_steps,
             "status": status,
