@@ -315,14 +315,12 @@ async def websocket_endpoint(ws: WebSocket):
     await ws.accept()
     connected_clients.append(ws)
     try:
-        # 연결 시 초기 상태 전송
+        # 연결 시 초기 상태 전송 (activity_log가 아닌 system_info 이벤트 사용 — 통신로그에 안 뜨게)
         now = datetime.now(KST).strftime("%H:%M:%S")
         await ws.send_json({
-            "event": "activity_log",
+            "event": "system_info",
             "data": {
-                "agent_id": "chief_of_staff",
                 "message": "시스템 연결 완료. 대기 중입니다.",
-                "level": "info",
                 "time": now,
             }
         })
