@@ -522,6 +522,54 @@ async def get_tools():
 async def get_dashboard():
     now = datetime.now(KST).isoformat()
     stats = get_dashboard_stats()
+    today_cost = get_today_cost()
+    daily_limit = float(load_setting("daily_budget_usd") or 7.0)
+
+    # ── 프로바이더별 오늘 AI 호출 횟수 ──
+    provider_calls = {"anthropic": 0, "openai": 0, "google": 0}
+    try:
+        conn = __import__("db").get_connection()
+        today_start = datetime.now(KST).strftime("%Y-%m-%dT00:00:00")
+        rows = conn.execute(
+            "SELECT provider, COUNT(*) FROM agent_calls "
+            "WHERE created_at >= ? GROUP BY provider", (today_start,)
+        ).fetchall()
+        for row in rows:
+            p = (row[0] or "").lower()
+            if p in provider_calls:
+                provider_calls[p] = row[1]
+        conn.close()
+    except Exception:
+        pass
+    total_ai_calls = sum(provider_calls.values())
+
+    # ── 배치 현황 ──
+    chains = load_setting("batch_chains") or []
+    batch_active = len([c for c in chains if c.get("status") in ("running", "pending")])
+    batch_done = len([c for c in chains if c.get("status") == "completed"])
+
+    # ── 도구 수 ──
+    tool_count = 0
+    try:
+        pool = _init_tool_pool()
+        if pool:
+            tool_count = len(pool.registry)
+    except Exception:
+        pass
+    if tool_count == 0:
+        tool_count = len(_load_tool_schemas().get("anthropic", []))
+
+    # ── API 키 상태 ──
+    api_keys = {
+        "anthropic": get_available_providers().get("anthropic", False),
+        "google": get_available_providers().get("google", False),
+        "openai": get_available_providers().get("openai", False),
+        "notion": bool(os.getenv("NOTION_API_KEY", "")),
+        "telegram": bool(os.getenv("TELEGRAM_BOT_TOKEN", "")),
+    }
+    api_connected = sum(1 for v in api_keys.values() if v)
+    api_total = len(api_keys)
+
     return {
         "total_agents": len(AGENTS),
         "active_agents": stats["running_count"],
@@ -530,21 +578,23 @@ async def get_dashboard():
         "today_completed": stats["today_completed"],
         "today_failed": stats["today_failed"],
         "total_cost": stats["total_cost"],
-        "today_cost": get_today_cost(),
+        "today_cost": today_cost,
         "total_tokens": stats["total_tokens"],
         "notion_connected": bool(_NOTION_API_KEY),
         "system_status": "busy" if stats["running_count"] > 0 else "ok",
         "uptime": now,
         "agents": AGENTS,
         "recent_completed": stats["recent_completed"],
-        # API 키 연결 상태 — 프로바이더별 클라이언트 확인
-        "api_keys": {
-            "anthropic": get_available_providers().get("anthropic", False),
-            "google": get_available_providers().get("google", False),
-            "openai": get_available_providers().get("openai", False),
-            "notion": bool(os.getenv("NOTION_API_KEY", "")),
-            "telegram": bool(os.getenv("TELEGRAM_BOT_TOKEN", "")),
-        },
+        "api_keys": api_keys,
+        # ── C안: 대시보드 확장 데이터 ──
+        "provider_calls": provider_calls,
+        "total_ai_calls": total_ai_calls,
+        "daily_limit": daily_limit,
+        "batch_active": batch_active,
+        "batch_done": batch_done,
+        "tool_count": tool_count,
+        "api_connected": api_connected,
+        "api_total": api_total,
     }
 
 
