@@ -44,11 +44,29 @@ jobs:
           INSTA_ACCESS_TOKEN: ${{ secrets.INSTAGRAM_ACCESS_TOKEN }}
           INSTA_REDIRECT_URI: ${{ secrets.INSTAGRAM_REDIRECT_URI }}
           NOTION_DB_ID: ${{ secrets.NOTION_DEFAULT_DB_ID }}
+          GOOGLE_CLIENT_ID_VAR: ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET_VAR: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          GOOGLE_REDIRECT_URI_VAR: ${{ secrets.GOOGLE_REDIRECT_URI }}
+          GOOGLE_CAL_REDIRECT_URI: ${{ secrets.GOOGLE_CALENDAR_REDIRECT_URI }}
+          REPO_TOKEN: ${{ secrets.REPO_ACCESS_TOKEN }}
+          KAKAO_API_KEY: ${{ secrets.KAKAO_REST_API_KEY }}
+          KAKAO_ID_VAR: ${{ secrets.KAKAO_ID }}
+          KAKAO_PW_VAR: ${{ secrets.KAKAO_PW }}
+          NAVER_CLIENT_ID_VAR: ${{ secrets.NAVER_CLIENT_ID }}
+          NAVER_CLIENT_SECRET_VAR: ${{ secrets.NAVER_CLIENT_SECRET }}
+          NAVER_ID_VAR: ${{ secrets.NAVER_ID }}
+          NAVER_PW_VAR: ${{ secrets.NAVER_PW }}
+          NAVER_BLOG_ID_VAR: ${{ secrets.NAVER_BLOG_ID }}
+          NAVER_REDIRECT_URI_VAR: ${{ secrets.NAVER_REDIRECT_URI }}
+          DAUM_ID_VAR: ${{ secrets.DAUM_ID }}
+          DAUM_PW_VAR: ${{ secrets.DAUM_PW }}
+          DAUM_CAFE_ID_VAR: ${{ secrets.DAUM_CAFE_ID }}
+          DAUM_CAFE_BOARD_ID_VAR: ${{ secrets.DAUM_CAFE_BOARD_ID }}
         with:
           host: ${{ secrets.SERVER_IP_ARM }}
           username: ubuntu
           key: ${{ secrets.SERVER_SSH_KEY_ARM }}
-          envs: BUILD_NUMBER,SERVER_IP,TG_BOT_TOKEN,TG_CEO_CHAT_ID,ANTHROPIC_KEY,OPENAI_KEY,GOOGLE_KEY,NOTION_KEY,CERTBOT_EMAIL,DART_KEY,ECOS_KEY,KIPRIS_KEY,LAW_KEY,SERPAPI_KEY_VAR,SMTP_HOST_VAR,SMTP_PORT_VAR,SMTP_USER_VAR,SMTP_PASS_VAR,INSTA_APP_ID,INSTA_APP_SECRET,INSTA_ACCESS_TOKEN,INSTA_REDIRECT_URI,NOTION_DB_ID
+          envs: BUILD_NUMBER,SERVER_IP,TG_BOT_TOKEN,TG_CEO_CHAT_ID,ANTHROPIC_KEY,OPENAI_KEY,GOOGLE_KEY,NOTION_KEY,CERTBOT_EMAIL,DART_KEY,ECOS_KEY,KIPRIS_KEY,LAW_KEY,SERPAPI_KEY_VAR,SMTP_HOST_VAR,SMTP_PORT_VAR,SMTP_USER_VAR,SMTP_PASS_VAR,INSTA_APP_ID,INSTA_APP_SECRET,INSTA_ACCESS_TOKEN,INSTA_REDIRECT_URI,NOTION_DB_ID,GOOGLE_CLIENT_ID_VAR,GOOGLE_CLIENT_SECRET_VAR,GOOGLE_REDIRECT_URI_VAR,GOOGLE_CAL_REDIRECT_URI,REPO_TOKEN,KAKAO_API_KEY,KAKAO_ID_VAR,KAKAO_PW_VAR,NAVER_CLIENT_ID_VAR,NAVER_CLIENT_SECRET_VAR,NAVER_ID_VAR,NAVER_PW_VAR,NAVER_BLOG_ID_VAR,NAVER_REDIRECT_URI_VAR,DAUM_ID_VAR,DAUM_PW_VAR,DAUM_CAFE_ID_VAR,DAUM_CAFE_BOARD_ID_VAR
           script: |
             echo "🚀 배포 시작... (빌드 #${BUILD_NUMBER})"
 
@@ -280,7 +298,48 @@ jobs:
               echo "NOTION_DEFAULT_DB_ID=${NOTION_DB_ID}" >> "$ENV_FILE"
               echo "✅ Notion DB ID 설정 완료"
             fi
-            echo "📋 등록된 API 키 수: $(grep -c '_KEY\|_ID\|_PASS\|_HOST\|_PORT\|_USER' "$ENV_FILE" || echo 0)개"
+
+            # 5.9단계: Google OAuth + SNS 계정 설정
+            if [ -n "${GOOGLE_CLIENT_ID_VAR}" ]; then
+              sed -i '/^GOOGLE_CLIENT_ID/d; /^GOOGLE_CLIENT_SECRET/d; /^GOOGLE_REDIRECT_URI/d; /^GOOGLE_CALENDAR_REDIRECT_URI/d' "$ENV_FILE"
+              echo "GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID_VAR}" >> "$ENV_FILE"
+              echo "GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET_VAR}" >> "$ENV_FILE"
+              echo "GOOGLE_REDIRECT_URI=${GOOGLE_REDIRECT_URI_VAR}" >> "$ENV_FILE"
+              echo "GOOGLE_CALENDAR_REDIRECT_URI=${GOOGLE_CAL_REDIRECT_URI}" >> "$ENV_FILE"
+              echo "✅ Google OAuth (YouTube/Calendar) 설정 완료"
+            fi
+            if [ -n "${REPO_TOKEN}" ]; then
+              sed -i '/^GITHUB_TOKEN/d; /^GITHUB_REPO/d' "$ENV_FILE"
+              echo "GITHUB_TOKEN=${REPO_TOKEN}" >> "$ENV_FILE"
+              echo "GITHUB_REPO=kodonghui/CORTHEX_HQ" >> "$ENV_FILE"
+              echo "✅ GitHub 토큰 설정 완료"
+            fi
+            if [ -n "${KAKAO_API_KEY}" ]; then
+              sed -i '/^KAKAO_REST_API_KEY/d; /^KAKAO_ID/d; /^KAKAO_PW/d' "$ENV_FILE"
+              echo "KAKAO_REST_API_KEY=${KAKAO_API_KEY}" >> "$ENV_FILE"
+              echo "KAKAO_ID=${KAKAO_ID_VAR}" >> "$ENV_FILE"
+              echo "KAKAO_PW=${KAKAO_PW_VAR}" >> "$ENV_FILE"
+              echo "✅ 카카오 API + 계정 설정 완료"
+            fi
+            if [ -n "${NAVER_CLIENT_ID_VAR}" ]; then
+              sed -i '/^NAVER_CLIENT_ID/d; /^NAVER_CLIENT_SECRET/d; /^NAVER_ID/d; /^NAVER_PW/d; /^NAVER_BLOG_ID/d; /^NAVER_REDIRECT_URI/d' "$ENV_FILE"
+              echo "NAVER_CLIENT_ID=${NAVER_CLIENT_ID_VAR}" >> "$ENV_FILE"
+              echo "NAVER_CLIENT_SECRET=${NAVER_CLIENT_SECRET_VAR}" >> "$ENV_FILE"
+              echo "NAVER_ID=${NAVER_ID_VAR}" >> "$ENV_FILE"
+              echo "NAVER_PW=${NAVER_PW_VAR}" >> "$ENV_FILE"
+              echo "NAVER_BLOG_ID=${NAVER_BLOG_ID_VAR}" >> "$ENV_FILE"
+              echo "NAVER_REDIRECT_URI=${NAVER_REDIRECT_URI_VAR}" >> "$ENV_FILE"
+              echo "✅ 네이버 API + 블로그 계정 설정 완료"
+            fi
+            if [ -n "${DAUM_ID_VAR}" ]; then
+              sed -i '/^DAUM_ID/d; /^DAUM_PW/d; /^DAUM_CAFE_ID/d; /^DAUM_CAFE_BOARD_ID/d' "$ENV_FILE"
+              echo "DAUM_ID=${DAUM_ID_VAR}" >> "$ENV_FILE"
+              echo "DAUM_PW=${DAUM_PW_VAR}" >> "$ENV_FILE"
+              echo "DAUM_CAFE_ID=${DAUM_CAFE_ID_VAR}" >> "$ENV_FILE"
+              echo "DAUM_CAFE_BOARD_ID=${DAUM_CAFE_BOARD_ID_VAR}" >> "$ENV_FILE"
+              echo "✅ 다음 카페 계정 설정 완료"
+            fi
+            echo "📋 등록된 API 키 수: $(grep -c '_KEY\|_ID\|_PASS\|_HOST\|_PORT\|_USER\|_TOKEN' "$ENV_FILE" || echo 0)개"
 
             # 6단계: 서버 재시작
             echo "🔁 서버 재시작 중..."
