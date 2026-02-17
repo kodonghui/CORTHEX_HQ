@@ -4672,10 +4672,10 @@
     </div>
   </div>
 
-  <!-- ═══ 워크플로우 실행창 모달 ═══ -->
-  <div x-show="workflowExec.show" x-transition.opacity
+  <!-- ═══ 워크플로우 실행창 모달 (비활성 — 카드 내 직접 실행으로 대체) ═══ -->
+  <div x-show="false"
        class="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
-       @click.self="closeWorkflowExec()" style="display: none;">
+       style="display: none !important;">
     <div class="bg-hq-panel border border-hq-border rounded-2xl w-full max-w-[650px] mx-4 max-h-[85vh] overflow-y-auto p-6" @click.stop>
       <!-- 헤더 -->
       <div class="flex items-center justify-between mb-5">
