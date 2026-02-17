@@ -32,7 +32,7 @@ class PromptTesterTool(BaseTool):
         """프롬프트를 여러 모델로 실행, 결과 비교."""
         prompt = kwargs.get("prompt", "")
         system_prompt = kwargs.get("system_prompt", "당신은 도움이 되는 AI 어시스턴트입니다.")
-        models = kwargs.get("models", ["gpt-5-mini", "claude-haiku-4-6"])
+        models = kwargs.get("models", ["gpt-5-mini", "claude-haiku-4-5-20251001"])
 
         if not prompt:
             return "테스트할 프롬프트(prompt)를 입력해주세요."

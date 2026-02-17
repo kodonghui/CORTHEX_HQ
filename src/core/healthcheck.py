@@ -105,7 +105,7 @@ async def _check_providers(router: ModelRouter) -> list[CheckResult]:
 
     provider_models = {
         "openai": "gpt-5-mini",
-        "anthropic": "claude-haiku-4-6",
+        "anthropic": "claude-haiku-4-5-20251001",
     }
 
     for provider_name, test_model in provider_models.items():

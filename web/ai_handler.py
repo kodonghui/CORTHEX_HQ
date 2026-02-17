@@ -55,7 +55,7 @@ _PRICING = {
     # Anthropic
     "claude-opus-4-6": {"input": 15.00, "output": 75.00},
     "claude-sonnet-4-6": {"input": 3.00, "output": 15.00},
-    "claude-haiku-4-6": {"input": 0.25, "output": 1.25},
+    "claude-haiku-4-5-20251001": {"input": 0.25, "output": 1.25},
     # Google Gemini
     "gemini-3-pro-preview": {"input": 2.50, "output": 15.00},
     "gemini-2.5-pro": {"input": 1.25, "output": 10.00},
@@ -313,7 +313,7 @@ def select_model(text: str, override: str | None = None) -> str:
 
     if _anthropic_client:
         if len(text) <= 50 and not is_complex:
-            return "claude-haiku-4-6"
+            return "claude-haiku-4-5-20251001"
         return "claude-sonnet-4-6"
     elif _google_client:
         if len(text) <= 50 and not is_complex:

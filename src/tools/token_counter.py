@@ -30,7 +30,7 @@ _MODEL_ENCODINGS: dict[str, str] = {
     "gpt-5.2-pro": "o200k_base",
     "claude-opus-4-6": "cl100k_base",
     "claude-sonnet-4-6": "cl100k_base",
-    "claude-haiku-4-6": "cl100k_base",
+    "claude-haiku-4-5-20251001": "cl100k_base",
 }
 
 
