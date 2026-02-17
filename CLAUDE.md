@@ -273,7 +273,9 @@ N=10 팀원: 오버헤드 10^1.724 = 53배 ← 여기서 조율 비용이 실제
 - **서브에이전트 비용 구조**: 10명이면 오버헤드 N^1.724=53배, 토큰 4~220배 증가. "싸니까 많이 붙이자"는 논리는 틀림. 4~5개가 비용·효과 최적
 
 #### 데이터/저장
-- **memory.py가 에이전트 기억을 `data/memory/{agent_id}.json`에 저장** → 배포(`git reset --hard`) 시 날아감. 에이전트 기억도 SQLite DB에 저장해야 함 (2026-02-18 발견, 아직 미수정)
+- **memory.py 에이전트 기억: SQLite 저장 완료** (2026-02-18 이전) — `memories` 테이블에 저장. JSON 파일 방식 폐기.
+- **oauth_manager.py SNS OAuth 토큰: SQLite 저장 완료** (2026-02-18 이전) — `settings` 테이블, key=`sns_tokens`. 기존 JSON 파일 자동 마이그레이션.
+- **JSON 파일(`data/*.json`)에 사용자 데이터를 저장하면 절대 안 됨** — 배포(`git reset --hard`) 시 날아감. `save_setting(key, value)` / `load_setting(key)` 사용할 것
 - 예산 초과 시 에이전트 실행 차단 코드 없음 → `mini_server.py`에서 처리하는지 확인 필요
 
 #### CSS/프론트엔드
@@ -331,11 +333,33 @@ N=10 팀원: 오버헤드 10^1.724 = 53배 ← 여기서 조율 비용이 실제
 [이 에이전트가 항상 같은 포맷으로 보고하는 템플릿]
 ```
 
+### ⚠️ Soul 갱신 시 절대 건드리면 안 되는 필드들 (2026-02-18 사고에서 배운 교훈)
+
+**Soul 갱신 = `system_prompt` 필드만 변경. 나머지 필드 변경 금지!**
+
+Soul 팀이 agents.yaml을 갱신할 때 `division` 필드를 잘못 수정하면 **화면에서 부서가 전혀 안 열리는** 치명적 버그 발생.
+
+| 필드 | Soul 갱신 시 변경 가능? | 변경 시 영향 |
+|------|---------------------|------------|
+| `system_prompt` | ✅ 마음껏 변경 | 에이전트 답변 방식만 변경 |
+| `name`, `role` | ✅ 변경 가능 | 화면 표시 이름 |
+| `division` | ❌ **변경 절대 금지** | 화면 사이드바/메인뷰 부서 그룹이 전부 깨짐 |
+| `model` | ❌ 함부로 변경 금지 | 비용/성능 직결, 반드시 CEO 승인 후 |
+| `tools` | ❌ 함부로 변경 금지 | 에이전트 도구 접근 권한 |
+
+**`division` 올바른 포맷** (현재 유일하게 허용된 값들):
+- `secretary`, `publishing` — 단순형 (이 형태로 유지할 것)
+- `leet_master.tech`, `leet_master.strategy`, `leet_master.legal`, `leet_master.marketing` — 점(.) 표기 계층형
+- `finance.investment` — 점(.) 표기 계층형
+
+→ Soul 팀에게 작업 지시 시 반드시 포함: "**`system_prompt`만 수정. `division`, `model`, `tools` 절대 건드리지 말 것**"
+
 ### Soul 갈아엎기 할 때 팀 편성
 - 4~5그룹 병렬 (비서실/투자/기술+법무/전략+마케팅/출판)
 - 각 그룹 에이전트: WebSearch로 해당 직무 최신 방법론 리서치 + soul 작성 → 파일로 저장
 - 팀장이 파일 읽어서 agents.yaml에 순차 적용
 - 에이전트가 직접 agents.yaml 수정 금지 (충돌 위험)
+- **Soul 팀 spawn 프롬프트에 반드시 포함**: "`division`, `model`, `tools` 필드는 절대 건드리지 말 것. `system_prompt`만 수정."
 
 ### Soul 작성 시 반드시 포함할 방법론 분야 (직무별)
 | 직무 분야 | 핵심 방법론 |

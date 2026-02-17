@@ -2,7 +2,8 @@
 OAuth 토큰 관리자.
 
 각 SNS 플랫폼의 OAuth 토큰을 안전하게 저장·갱신·조회합니다.
-- 토큰 암호화 저장 (JSON 파일 기반)
+- 토큰 SQLite DB 저장 (settings 테이블, key='sns_tokens') — 배포 시 데이터 유지됨
+- 기존 JSON 파일(data/sns_tokens.json)이 있으면 자동 마이그레이션
 - 자동 만료 감지 및 refresh_token으로 갱신
 - 플랫폼별 OAuth 인증 URL 생성
 """
@@ -11,6 +12,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import sqlite3
 import time
 from pathlib import Path
 from typing import Any
@@ -20,11 +22,69 @@ import httpx
 
 logger = logging.getLogger("corthex.sns.oauth")
 
-# 토큰 저장 경로
-TOKEN_STORE_PATH = Path(os.getenv(
+# JSON 파일 경로 (마이그레이션용)
+_JSON_FALLBACK_PATH = Path(os.getenv(
     "SNS_TOKEN_STORE",
     Path(__file__).resolve().parent.parent.parent.parent / "data" / "sns_tokens.json",
 ))
+
+_DB_SETTINGS_KEY = "sns_tokens"
+
+
+def _get_db_path() -> str:
+    """환경에 맞는 DB 경로를 반환합니다 (web/db.py와 동일한 로직)."""
+    env_path = os.getenv("CORTHEX_DB_PATH")
+    if env_path:
+        return env_path
+    if os.path.isdir("/home/ubuntu"):
+        return "/home/ubuntu/corthex.db"
+    project_root = Path(__file__).parent.parent.parent.parent
+    return str(project_root / "corthex_dev.db")
+
+
+def _db_save(tokens_dict: dict) -> None:
+    """tokens_dict를 SQLite settings 테이블에 저장합니다."""
+    db_path = _get_db_path()
+    try:
+        conn = sqlite3.connect(db_path, timeout=10)
+        conn.execute("PRAGMA journal_mode=WAL")
+        # settings 테이블이 없으면 생성
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS settings (
+                key TEXT PRIMARY KEY,
+                value TEXT NOT NULL,
+                updated_at TEXT
+            )
+        """)
+        from datetime import datetime, timezone
+        now = datetime.now(timezone.utc).isoformat()
+        conn.execute(
+            "INSERT OR REPLACE INTO settings (key, value, updated_at) VALUES (?, ?, ?)",
+            (_DB_SETTINGS_KEY, json.dumps(tokens_dict, ensure_ascii=False), now),
+        )
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        logger.warning("SNS 토큰 DB 저장 실패: %s", e)
+
+
+def _db_load() -> dict | None:
+    """SQLite settings 테이블에서 sns_tokens를 로드합니다. 없으면 None."""
+    db_path = _get_db_path()
+    try:
+        if not Path(db_path).exists():
+            return None
+        conn = sqlite3.connect(db_path, timeout=10)
+        row = conn.execute(
+            "SELECT value FROM settings WHERE key = ?", (_DB_SETTINGS_KEY,)
+        ).fetchone()
+        conn.close()
+        if row:
+            return json.loads(row[0])
+        return None
+    except Exception as e:
+        logger.warning("SNS 토큰 DB 로드 실패: %s", e)
+        return None
 
 
 class OAuthToken:
@@ -109,7 +169,11 @@ PLATFORM_CONFIG: dict[str, dict[str, str]] = {
 
 
 class OAuthManager:
-    """모든 플랫폼의 OAuth 토큰을 중앙 관리."""
+    """모든 플랫폼의 OAuth 토큰을 중앙 관리.
+
+    SQLite DB(settings 테이블, key='sns_tokens')에 저장 — 배포 시 데이터 유지됨.
+    기존 JSON 파일(data/sns_tokens.json)이 있으면 자동 마이그레이션.
+    """
 
     def __init__(self) -> None:
         self._tokens: dict[str, OAuthToken] = {}
@@ -118,23 +182,33 @@ class OAuthManager:
     # ── 저장/로드 ──
 
     def _load(self) -> None:
-        if TOKEN_STORE_PATH.exists():
-            try:
-                raw = json.loads(TOKEN_STORE_PATH.read_text(encoding="utf-8"))
-                for platform, data in raw.items():
+        # 1. DB에서 먼저 로드
+        raw = _db_load()
+        if raw is not None:
+            for platform, data in raw.items():
+                try:
                     self._tokens[platform] = OAuthToken.from_dict(data)
-                logger.info("토큰 스토어 로드: %d개 플랫폼", len(self._tokens))
+                except Exception as e:
+                    logger.warning("토큰 파싱 실패 (%s): %s", platform, e)
+            logger.info("SNS 토큰 DB 로드: %d개 플랫폼", len(self._tokens))
+            return
+
+        # 2. DB에 없으면 JSON 파일에서 마이그레이션
+        if _JSON_FALLBACK_PATH.exists():
+            try:
+                raw_json = json.loads(_JSON_FALLBACK_PATH.read_text(encoding="utf-8"))
+                for platform, data in raw_json.items():
+                    self._tokens[platform] = OAuthToken.from_dict(data)
+                # DB에 저장 (이후 배포 시 유지됨)
+                self._save()
+                logger.info("SNS 토큰 JSON→DB 마이그레이션: %d개 플랫폼", len(self._tokens))
             except (json.JSONDecodeError, KeyError) as e:
-                logger.warning("토큰 스토어 파싱 실패: %s", e)
+                logger.warning("SNS 토큰 파싱 실패: %s", e)
 
     def _save(self) -> None:
-        TOKEN_STORE_PATH.parent.mkdir(parents=True, exist_ok=True)
         data = {k: v.to_dict() for k, v in self._tokens.items()}
-        TOKEN_STORE_PATH.write_text(
-            json.dumps(data, ensure_ascii=False, indent=2),
-            encoding="utf-8",
-        )
-        logger.debug("토큰 스토어 저장 완료")
+        _db_save(data)
+        logger.debug("SNS 토큰 DB 저장 완료")
 
     # ── 토큰 조회/저장 ──
 

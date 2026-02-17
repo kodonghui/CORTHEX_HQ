@@ -525,12 +525,28 @@ def get_dashboard_stats() -> dict:
         running = conn.execute(
             "SELECT COUNT(*) FROM tasks WHERE status = 'running'"
         ).fetchone()[0]
-        cost_row = conn.execute(
+        # tasks + agent_calls 양쪽 비용 합산
+        task_cost = conn.execute(
             "SELECT COALESCE(SUM(cost_usd), 0) FROM tasks"
-        ).fetchone()
-        tokens_row = conn.execute(
+        ).fetchone()[0]
+        try:
+            ac_cost = conn.execute(
+                "SELECT COALESCE(SUM(cost_usd), 0) FROM agent_calls"
+            ).fetchone()[0]
+        except Exception:
+            ac_cost = 0.0
+        cost_row = (task_cost + ac_cost,)
+        # tasks + agent_calls 토큰 합산
+        task_tokens = conn.execute(
             "SELECT COALESCE(SUM(tokens_used), 0) FROM tasks"
-        ).fetchone()
+        ).fetchone()[0]
+        try:
+            ac_tokens = conn.execute(
+                "SELECT COALESCE(SUM(input_tokens) + SUM(output_tokens), 0) FROM agent_calls"
+            ).fetchone()[0]
+        except Exception:
+            ac_tokens = 0
+        tokens_row = (task_tokens + ac_tokens,)
         recent_rows = conn.execute(
             "SELECT * FROM tasks WHERE status = 'completed' "
             "ORDER BY completed_at DESC LIMIT 5"
