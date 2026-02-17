@@ -876,7 +876,7 @@ async def _batch_submit_anthropic(requests: list[dict], default_model: str) -> d
             "params": params,
         })
 
-    batch = await _anthropic_client.beta.messages.batches.create(
+    batch = await _anthropic_client.messages.batches.create(
         requests=batch_requests
     )
 
@@ -894,7 +894,7 @@ async def _batch_check_anthropic(batch_id: str) -> dict:
     if not _anthropic_client:
         return {"error": "Anthropic API 키가 설정되지 않았습니다"}
 
-    batch = await _anthropic_client.beta.messages.batches.retrieve(batch_id)
+    batch = await _anthropic_client.messages.batches.retrieve(batch_id)
 
     # processing_status: in_progress, ended, canceling, canceled, expired
     status_map = {
@@ -926,7 +926,7 @@ async def _batch_retrieve_anthropic(batch_id: str) -> dict:
         return {"error": "Anthropic API 키가 설정되지 않았습니다"}
 
     results = []
-    async for result in _anthropic_client.beta.messages.batches.results(batch_id):
+    async for result in _anthropic_client.messages.batches.results(batch_id):
         custom_id = result.custom_id
         if result.result.type == "succeeded":
             msg = result.result.message
