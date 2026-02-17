@@ -1371,12 +1371,21 @@ async def batch_submit_grouped(
     if not requests:
         return [{"error": "요청 목록이 비어있습니다"}]
 
+    providers = get_available_providers()
+
     # 프로바이더별 그룹화
     groups: dict[str, list[dict]] = {}
     for req in requests:
         model = req.get("model", "claude-sonnet-4-5-20250929")
         provider = _get_provider(model)
         groups.setdefault(provider, []).append(req)
+
+    # 폴백용 모델 매핑 (프로바이더 실패 시 다른 프로바이더로 재시도)
+    _fallback_models = {
+        "anthropic": "gemini-2.5-flash" if providers.get("google") else ("gpt-4.1-mini" if providers.get("openai") else None),
+        "google": "claude-sonnet-4-5-20250929" if providers.get("anthropic") else ("gpt-4.1-mini" if providers.get("openai") else None),
+        "openai": "claude-sonnet-4-5-20250929" if providers.get("anthropic") else ("gemini-2.5-flash" if providers.get("google") else None),
+    }
 
     results = []
     for provider, group_reqs in groups.items():
@@ -1385,13 +1394,47 @@ async def batch_submit_grouped(
             result = await batch_submit(group_reqs, model=default_model)
             if "error" not in result:
                 result["custom_ids"] = [r.get("custom_id", "") for r in group_reqs]
-            results.append(result)
+                results.append(result)
+            else:
+                # 배치 제출 실패 → 폴백 프로바이더로 재시도
+                fallback_model = _fallback_models.get(provider)
+                if fallback_model:
+                    logger.warning("배치 제출 실패 (%s) → %s로 폴백 재시도", provider, _get_provider(fallback_model))
+                    for req in group_reqs:
+                        req["model"] = fallback_model
+                    retry_result = await batch_submit(group_reqs, model=fallback_model)
+                    if "error" not in retry_result:
+                        retry_result["custom_ids"] = [r.get("custom_id", "") for r in group_reqs]
+                        retry_result["fallback_from"] = provider
+                    results.append(retry_result)
+                else:
+                    results.append(result)
         except Exception as e:
             logger.error("배치 그룹 제출 실패 (%s): %s", provider, e)
-            results.append({
-                "provider": provider,
-                "error": f"제출 실패: {str(e)[:200]}",
-                "custom_ids": [r.get("custom_id", "") for r in group_reqs],
-            })
+            # 예외 발생 시에도 폴백 시도
+            fallback_model = _fallback_models.get(provider)
+            if fallback_model:
+                try:
+                    logger.warning("배치 예외 (%s) → %s로 폴백", provider, _get_provider(fallback_model))
+                    for req in group_reqs:
+                        req["model"] = fallback_model
+                    retry_result = await batch_submit(group_reqs, model=fallback_model)
+                    if "error" not in retry_result:
+                        retry_result["custom_ids"] = [r.get("custom_id", "") for r in group_reqs]
+                        retry_result["fallback_from"] = provider
+                    results.append(retry_result)
+                except Exception as e2:
+                    logger.error("폴백도 실패 (%s → %s): %s", provider, _get_provider(fallback_model), e2)
+                    results.append({
+                        "provider": provider,
+                        "error": f"제출 실패 (폴백 포함): {str(e)[:100]} / {str(e2)[:100]}",
+                        "custom_ids": [r.get("custom_id", "") for r in group_reqs],
+                    })
+            else:
+                results.append({
+                    "provider": provider,
+                    "error": f"제출 실패: {str(e)[:200]}",
+                    "custom_ids": [r.get("custom_id", "") for r in group_reqs],
+                })
 
     return results

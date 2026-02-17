@@ -1432,9 +1432,12 @@ async def _start_batch_chain(text: str, task_id: str) -> dict:
     """
     chain_id = f"chain_{datetime.now(KST).strftime('%Y%m%d_%H%M%S')}_{task_id[:8]}"
 
+    correlation_id = f"batch_{chain_id}"
+
     chain = {
         "chain_id": chain_id,
         "task_id": task_id,
+        "correlation_id": correlation_id,
         "text": text,
         "mode": "broadcast" if _is_broadcast_command(text) else "single",
         "step": "classify",
@@ -1443,10 +1446,15 @@ async def _start_batch_chain(text: str, task_id: str) -> dict:
         "batches": {"classify": None, "specialists": [], "synthesis": []},
         "results": {"classify": None, "specialists": {}, "synthesis": {}},
         "custom_id_map": {},  # custom_id → {"agent_id", "step"} 역매핑
+        "delegation_instructions": {},  # 처장 지시서 (단일 부서)
+        "broadcast_delegations": {},  # 처장 지시서 (브로드캐스트)
         "total_cost_usd": 0.0,
         "created_at": datetime.now(KST).isoformat(),
         "completed_at": None,
     }
+
+    # task에 correlation_id 연결
+    update_task(task_id, correlation_id=correlation_id)
 
     # 예산 확인
     limit = float(load_setting("daily_budget_usd") or 7.0)
@@ -1457,14 +1465,14 @@ async def _start_batch_chain(text: str, task_id: str) -> dict:
                     success=0)
         return {"error": f"일일 예산을 초과했습니다 (${today:.2f}/${limit:.0f})"}
 
-    # ── 브로드캐스트 모드 → 분류 건너뛰고 바로 전 부서 전문가 ──
+    # ── 브로드캐스트 모드 → 분류 건너뛰고 처장 지시서 → 전 부서 전문가 ──
     if chain["mode"] == "broadcast":
-        chain["step"] = "specialists"
+        chain["step"] = "delegation"
         chain["target_id"] = "broadcast"
         _save_chain(chain)
 
-        await _broadcast_chain_status(chain, "📦 배치 체인 시작 (브로드캐스트: 6개 부서)")
-        await _chain_submit_specialists_broadcast(chain)
+        await _broadcast_chain_status(chain, "📦 배치 체인 시작 (브로드캐스트: 6개 부서 → 처장 지시서 생성 중)")
+        await _chain_create_delegation_broadcast(chain)
         return {"chain_id": chain_id, "status": "started", "mode": "broadcast", "step": chain["step"]}
 
     # ── 키워드 분류 시도 (무료, 즉시) ──
@@ -1484,12 +1492,12 @@ async def _start_batch_chain(text: str, task_id: str) -> dict:
             await _broadcast_chain_status(chain, "📦 키워드 분류 → 비서실장 직접 처리")
             await _chain_submit_synthesis(chain)
         else:
-            # 처장 부서로 위임 → 전문가 호출 단계
-            chain["step"] = "specialists"
+            # 처장 부서로 위임 → 처장 지시서 → 전문가 호출 단계
+            chain["step"] = "delegation"
             _save_chain(chain)
             target_name = _AGENT_NAMES.get(keyword_match, keyword_match)
-            await _broadcast_chain_status(chain, f"📦 키워드 분류 → {target_name}에게 위임")
-            await _chain_submit_specialists(chain)
+            await _broadcast_chain_status(chain, f"📦 키워드 분류 → {target_name} 지시서 생성 중")
+            await _chain_create_delegation(chain)
 
         return {"chain_id": chain_id, "status": "started", "step": chain["step"]}
 
@@ -1517,6 +1525,7 @@ async def _start_batch_chain(text: str, task_id: str) -> dict:
         "message": text,
         "system_prompt": _BATCH_CLASSIFY_PROMPT,
         "model": classify_model,
+        "max_tokens": 1024,
     }
 
     result = await batch_submit([classify_req], model=classify_model)
@@ -1549,6 +1558,210 @@ async def _start_batch_chain(text: str, task_id: str) -> dict:
     return {"chain_id": chain_id, "status": "pending", "step": "classify"}
 
 
+# ── 처장 지시서 생성 프롬프트 ──
+_DELEGATION_PROMPT = """당신은 {mgr_name}입니다. CEO로부터 아래 업무 지시를 받았습니다.
+
+소속 전문가들에게 각각 구체적인 작업 지시를 내려야 합니다.
+각 전문가의 전문 분야에 맞게 CEO 명령을 세부 업무로 분해하세요.
+
+## 소속 전문가
+{spec_list}
+
+## CEO 명령
+{text}
+
+## 출력 형식
+반드시 아래 JSON 형식으로만 답하세요. 다른 텍스트는 쓰지 마세요.
+각 전문가 ID를 키로, 구체적인 작업 지시(2~4문장)를 값으로 작성하세요.
+
+{json_example}"""
+
+
+async def _chain_create_delegation(chain: dict):
+    """배치 체인 — 처장이 전문가별 지시서를 작성합니다 (실시간 API 1회 호출).
+
+    분류 완료 후, 전문가 배치 제출 전에 호출됩니다.
+    처장에게 CEO 명령을 전달하고, 각 전문가에게 내릴 구체적 지시서를 받습니다.
+    """
+    target_id = chain["target_id"]
+    text = chain["text"]
+    specialists = _MANAGER_SPECIALISTS.get(target_id, [])
+
+    if not specialists:
+        # 전문가 없음 → 지시서 생성 불필요
+        await _chain_submit_specialists(chain)
+        return
+
+    mgr_name = _AGENT_NAMES.get(target_id, target_id)
+
+    # 전문가 목록 텍스트 생성
+    spec_list_parts = []
+    json_example_parts = []
+    for s_id in specialists:
+        s_name = _SPECIALIST_NAMES.get(s_id, s_id)
+        spec_list_parts.append(f"- {s_id}: {s_name}")
+        json_example_parts.append(f'  "{s_id}": "구체적인 작업 지시 내용"')
+
+    spec_list = "\n".join(spec_list_parts)
+    json_example = "{\n" + ",\n".join(json_example_parts) + "\n}"
+
+    delegation_prompt = _DELEGATION_PROMPT.format(
+        mgr_name=mgr_name,
+        spec_list=spec_list,
+        text=text,
+        json_example=json_example,
+    )
+
+    # 가장 저렴한 모델로 실시간 API 호출 (배치 대기 없이 즉시 응답)
+    providers = get_available_providers()
+    if providers.get("anthropic"):
+        deleg_model = "claude-haiku-4-5-20251001"
+    elif providers.get("google"):
+        deleg_model = "gemini-2.5-flash"
+    elif providers.get("openai"):
+        deleg_model = "gpt-5-mini"
+    else:
+        deleg_model = None
+
+    if deleg_model:
+        try:
+            result = await ask_ai(
+                user_message=delegation_prompt,
+                model=deleg_model,
+                max_tokens=2048,
+            )
+            response_text = result.get("content", "") or result.get("text", "")
+
+            # JSON 파싱 시도
+            import json as _json
+            # JSON 블록 추출 (```json ... ``` 또는 { ... })
+            json_text = response_text.strip()
+            if "```" in json_text:
+                # 코드 블록에서 추출
+                start = json_text.find("{")
+                end = json_text.rfind("}") + 1
+                if start >= 0 and end > start:
+                    json_text = json_text[start:end]
+            elif json_text.startswith("{"):
+                pass  # 이미 JSON
+            else:
+                # { 찾기
+                start = json_text.find("{")
+                end = json_text.rfind("}") + 1
+                if start >= 0 and end > start:
+                    json_text = json_text[start:end]
+
+            instructions = _json.loads(json_text)
+            if isinstance(instructions, dict):
+                chain["delegation_instructions"] = instructions
+                chain["results"]["delegation"] = {
+                    "agent_id": target_id,
+                    "instructions": instructions,
+                    "model": deleg_model,
+                    "cost_usd": result.get("cost_usd", 0),
+                }
+                chain["total_cost_usd"] += result.get("cost_usd", 0)
+                _log(f"[CHAIN] {chain['chain_id']} — {mgr_name} 지시서 생성 완료 ({len(instructions)}명)")
+            else:
+                _log(f"[CHAIN] {chain['chain_id']} — 지시서 파싱 실패 (dict 아님)")
+        except Exception as e:
+            _log(f"[CHAIN] {chain['chain_id']} — 지시서 생성 실패: {e}")
+            # 실패해도 진행 (지시서 없이 원본 명령으로)
+
+    # 지시서 상태 업데이트
+    has_instructions = bool(chain.get("delegation_instructions"))
+    deleg_status = f"✅ {mgr_name} 지시서 생성 완료" if has_instructions else f"⚠️ 지시서 없이 진행"
+    update_task(chain["task_id"], status="pending",
+                result_summary=f"📦 [배치 체인] 2단계: {deleg_status}")
+    await _broadcast_chain_status(chain, f"📦 2단계: {deleg_status}")
+
+    _save_chain(chain)
+
+    # 전문가 배치 제출로 진행
+    await _chain_submit_specialists(chain)
+
+
+async def _chain_create_delegation_broadcast(chain: dict):
+    """배치 체인 — 브로드캐스트: 6개 처장이 각각 지시서를 작성합니다."""
+    text = chain["text"]
+    all_managers = ["cto_manager", "cso_manager", "clo_manager", "cmo_manager", "cio_manager", "cpo_manager"]
+
+    # 가장 저렴한 모델 선택
+    providers = get_available_providers()
+    if providers.get("anthropic"):
+        deleg_model = "claude-haiku-4-5-20251001"
+    elif providers.get("google"):
+        deleg_model = "gemini-2.5-flash"
+    elif providers.get("openai"):
+        deleg_model = "gpt-5-mini"
+    else:
+        deleg_model = None
+
+    broadcast_delegations = {}
+
+    if deleg_model:
+        import asyncio as _asyncio
+
+        async def _get_delegation(mgr_id: str) -> tuple[str, dict]:
+            specialists = _MANAGER_SPECIALISTS.get(mgr_id, [])
+            if not specialists:
+                return mgr_id, {}
+            mgr_name = _AGENT_NAMES.get(mgr_id, mgr_id)
+            spec_list_parts = []
+            json_example_parts = []
+            for s_id in specialists:
+                s_name = _SPECIALIST_NAMES.get(s_id, s_id)
+                spec_list_parts.append(f"- {s_id}: {s_name}")
+                json_example_parts.append(f'  "{s_id}": "구체적인 작업 지시 내용"')
+
+            prompt = _DELEGATION_PROMPT.format(
+                mgr_name=mgr_name,
+                spec_list="\n".join(spec_list_parts),
+                text=text,
+                json_example="{\n" + ",\n".join(json_example_parts) + "\n}",
+            )
+            try:
+                result = await ask_ai(user_message=prompt, model=deleg_model, max_tokens=2048)
+                response_text = result.get("content", "") or result.get("text", "")
+                import json as _json
+                json_text = response_text.strip()
+                start = json_text.find("{")
+                end = json_text.rfind("}") + 1
+                if start >= 0 and end > start:
+                    json_text = json_text[start:end]
+                instructions = _json.loads(json_text)
+                chain["total_cost_usd"] += result.get("cost_usd", 0)
+                return mgr_id, instructions if isinstance(instructions, dict) else {}
+            except Exception as e:
+                _log(f"[CHAIN] 브로드캐스트 지시서 실패 ({mgr_id}): {e}")
+                return mgr_id, {}
+
+        # 6개 처장에게 동시에 지시서 요청
+        tasks = [_get_delegation(m) for m in all_managers]
+        results = await _asyncio.gather(*tasks, return_exceptions=True)
+        for r in results:
+            if isinstance(r, tuple):
+                mgr_id, instructions = r
+                if instructions:
+                    broadcast_delegations[mgr_id] = instructions
+
+    chain["broadcast_delegations"] = broadcast_delegations
+    chain["results"]["delegation"] = {
+        "mode": "broadcast",
+        "delegations": broadcast_delegations,
+    }
+
+    deleg_count = sum(1 for d in broadcast_delegations.values() if d)
+    _log(f"[CHAIN] {chain['chain_id']} — 브로드캐스트 지시서 {deleg_count}/6 완료")
+    update_task(chain["task_id"], status="pending",
+                result_summary=f"📦 [배치 체인] 2단계: 처장 지시서 {deleg_count}/6 완료")
+    await _broadcast_chain_status(chain, f"📦 2단계: 처장 지시서 {deleg_count}/6 완료")
+    _save_chain(chain)
+
+    # 전문가 배치 제출로 진행
+    await _chain_submit_specialists_broadcast(chain)
+
+
 async def _chain_submit_specialists(chain: dict):
     """배치 체인 — 단일 부서의 전문가들에게 배치 제출합니다."""
     target_id = chain["target_id"]
@@ -1562,18 +1775,32 @@ async def _chain_submit_specialists(chain: dict):
         await _chain_submit_synthesis(chain)
         return
 
+    # 처장 지시서가 있으면 전문가에게 함께 전달
+    delegation = chain.get("delegation_instructions", {})
+
     requests = []
     for spec_id in specialists:
-        soul = _load_agent_prompt(spec_id)
+        soul = _load_agent_prompt(spec_id, include_tools=False) + _BATCH_MODE_SUFFIX
         override = _get_model_override(spec_id)
         model = select_model(text, override=override)
         custom_id = f"{chain['chain_id']}_spec_{spec_id}"
 
+        # 처장 지시서가 있으면 전문가에게 함께 전달
+        spec_instruction = delegation.get(spec_id, "")
+        if spec_instruction:
+            message = (
+                f"## 처장 지시\n{spec_instruction}\n\n"
+                f"## CEO 원본 명령\n{text}"
+            )
+        else:
+            message = text
+
         requests.append({
             "custom_id": custom_id,
-            "message": text,
+            "message": message,
             "system_prompt": soul,
             "model": model,
+            "max_tokens": 8192,
         })
         chain["custom_id_map"][custom_id] = {"agent_id": spec_id, "step": "specialists"}
 
@@ -1598,8 +1825,8 @@ async def _chain_submit_specialists(chain: dict):
     provider_count = len(batch_results)
     target_name = _AGENT_NAMES.get(target_id, target_id)
     update_task(chain["task_id"], status="pending",
-                result_summary=f"📦 [배치 체인] 2단계: {target_name} 전문가 {spec_count}명 배치 제출 ({provider_count}개 프로바이더)")
-    await _broadcast_chain_status(chain, f"📦 2단계: {target_name} 전문가 {spec_count}명 → {provider_count}개 프로바이더별 배치 제출")
+                result_summary=f"📦 [배치 체인] 3단계: {target_name} 전문가 {spec_count}명 배치 제출 ({provider_count}개 프로바이더)")
+    await _broadcast_chain_status(chain, f"📦 3단계: {target_name} 전문가 {spec_count}명 → {provider_count}개 프로바이더별 배치 제출")
 
     _log(f"[CHAIN] {chain['chain_id']} — 전문가 {spec_count}명 배치 제출 ({provider_count}개 프로바이더)")
 
@@ -1609,20 +1836,35 @@ async def _chain_submit_specialists_broadcast(chain: dict):
     text = chain["text"]
     all_managers = ["cto_manager", "cso_manager", "clo_manager", "cmo_manager", "cio_manager", "cpo_manager"]
 
+    # 브로드캐스트 모드의 처장별 지시서
+    broadcast_delegations = chain.get("broadcast_delegations", {})
+
     requests = []
     for mgr_id in all_managers:
         specialists = _MANAGER_SPECIALISTS.get(mgr_id, [])
+        mgr_delegation = broadcast_delegations.get(mgr_id, {})
         for spec_id in specialists:
-            soul = _load_agent_prompt(spec_id)
+            soul = _load_agent_prompt(spec_id, include_tools=False) + _BATCH_MODE_SUFFIX
             override = _get_model_override(spec_id)
             model = select_model(text, override=override)
             custom_id = f"{chain['chain_id']}_spec_{spec_id}"
 
+            # 처장 지시서가 있으면 전문가에게 함께 전달
+            spec_instruction = mgr_delegation.get(spec_id, "")
+            if spec_instruction:
+                message = (
+                    f"## 처장 지시\n{spec_instruction}\n\n"
+                    f"## CEO 원본 명령\n{text}"
+                )
+            else:
+                message = text
+
             requests.append({
                 "custom_id": custom_id,
-                "message": text,
+                "message": message,
                 "system_prompt": soul,
                 "model": model,
+                "max_tokens": 8192,
             })
             chain["custom_id_map"][custom_id] = {"agent_id": spec_id, "step": "specialists"}
 
@@ -1687,7 +1929,7 @@ async def _chain_submit_synthesis(chain: dict):
                 f"## 전문가 분석 결과\n" + "\n\n".join(spec_parts)
             )
 
-            soul = _load_agent_prompt(mgr_id)
+            soul = _load_agent_prompt(mgr_id, include_tools=False) + _BATCH_MODE_SUFFIX
             override = _get_model_override(mgr_id)
             model = select_model(synthesis_prompt, override=override)
             custom_id = f"{chain['chain_id']}_synth_{mgr_id}"
@@ -1697,12 +1939,13 @@ async def _chain_submit_synthesis(chain: dict):
                 "message": synthesis_prompt,
                 "system_prompt": soul,
                 "model": model,
+                "max_tokens": 8192,
             })
             chain["custom_id_map"][custom_id] = {"agent_id": mgr_id, "step": "synthesis"}
 
     elif chain["target_id"] == "chief_of_staff":
         # 비서실장 직접 처리 (분류 결과가 chief_of_staff인 경우)
-        soul = _load_agent_prompt("chief_of_staff")
+        soul = _load_agent_prompt("chief_of_staff", include_tools=False) + _BATCH_MODE_SUFFIX
         override = _get_model_override("chief_of_staff")
         model = select_model(text, override=override)
         custom_id = f"{chain['chain_id']}_synth_chief_of_staff"
@@ -1712,6 +1955,7 @@ async def _chain_submit_synthesis(chain: dict):
             "message": text,
             "system_prompt": soul,
             "model": model,
+            "max_tokens": 8192,
         })
         chain["custom_id_map"][custom_id] = {"agent_id": "chief_of_staff", "step": "synthesis"}
 
@@ -1722,7 +1966,7 @@ async def _chain_submit_synthesis(chain: dict):
 
         if not specialists or not chain["results"]["specialists"]:
             # 전문가 결과 없음 → 처장이 직접 답변
-            soul = _load_agent_prompt(target_id)
+            soul = _load_agent_prompt(target_id, include_tools=False) + _BATCH_MODE_SUFFIX
             override = _get_model_override(target_id)
             model = select_model(text, override=override)
             custom_id = f"{chain['chain_id']}_synth_{target_id}"
@@ -1732,6 +1976,7 @@ async def _chain_submit_synthesis(chain: dict):
                 "message": text,
                 "system_prompt": soul,
                 "model": model,
+                "max_tokens": 8192,
             })
             chain["custom_id_map"][custom_id] = {"agent_id": target_id, "step": "synthesis"}
         else:
@@ -1754,7 +1999,7 @@ async def _chain_submit_synthesis(chain: dict):
                 f"## 전문가 분석 결과\n" + "\n\n".join(spec_parts)
             )
 
-            soul = _load_agent_prompt(target_id)
+            soul = _load_agent_prompt(target_id, include_tools=False) + _BATCH_MODE_SUFFIX
             override = _get_model_override(target_id)
             model = select_model(synthesis_prompt, override=override)
             custom_id = f"{chain['chain_id']}_synth_{target_id}"
@@ -1764,6 +2009,7 @@ async def _chain_submit_synthesis(chain: dict):
                 "message": synthesis_prompt,
                 "system_prompt": soul,
                 "model": model,
+                "max_tokens": 8192,
             })
             chain["custom_id_map"][custom_id] = {"agent_id": target_id, "step": "synthesis"}
 
@@ -1793,13 +2039,13 @@ async def _chain_submit_synthesis(chain: dict):
 
     if chain["mode"] == "broadcast":
         update_task(chain["task_id"], status="pending",
-                    result_summary="📦 [배치 체인] 3단계: 6개 처장 종합보고서 배치 제출")
-        await _broadcast_chain_status(chain, "📦 3단계: 6개 처장이 종합보고서 작성 중 (배치)")
+                    result_summary="📦 [배치 체인] 4단계: 6개 처장 종합보고서 배치 제출")
+        await _broadcast_chain_status(chain, "📦 4단계: 6개 처장이 종합보고서 작성 중 (배치)")
     else:
         target_name = _AGENT_NAMES.get(chain["target_id"], chain["target_id"])
         update_task(chain["task_id"], status="pending",
-                    result_summary=f"📦 [배치 체인] 3단계: {target_name} 종합보고서 배치 제출")
-        await _broadcast_chain_status(chain, f"📦 3단계: {target_name} 종합보고서 작성 중 (배치)")
+                    result_summary=f"📦 [배치 체인] 4단계: {target_name} 종합보고서 배치 제출")
+        await _broadcast_chain_status(chain, f"📦 4단계: {target_name} 종합보고서 작성 중 (배치)")
 
     _log(f"[CHAIN] {chain['chain_id']} — 종합보고서 배치 제출 ({len(requests)}건)")
 
@@ -2026,11 +2272,11 @@ async def _advance_batch_chain(chain_id: str):
                 await _broadcast_chain_status(chain, f"📦 분류 완료: 비서실장 직접 처리")
                 await _chain_submit_synthesis(chain)
             else:
-                # 전문가 단계로 진행
-                chain["step"] = "specialists"
+                # 처장 지시서 → 전문가 단계로 진행
+                chain["step"] = "delegation"
                 _save_chain(chain)
-                await _broadcast_chain_status(chain, f"📦 분류 완료: {target_name}에게 위임 → 전문가 호출")
-                await _chain_submit_specialists(chain)
+                await _broadcast_chain_status(chain, f"📦 분류 완료: {target_name} 지시서 생성 중")
+                await _chain_create_delegation(chain)
 
         elif status_result["status"] in ("failed", "expired"):
             # 분류 배치 실패 → 비서실장 폴백
@@ -2233,11 +2479,120 @@ async def _run_scheduled_command(command: str, schedule_name: str):
 
 @app.get("/api/replay/{correlation_id}")
 async def get_replay(correlation_id: str):
-    return {"steps": []}
+    """배치 체인의 단계별 결과를 트리 형태로 반환합니다."""
+    chains = load_setting("batch_chains") or []
+
+    # correlation_id 또는 chain_id로 검색
+    chain = None
+    for c in chains:
+        if c.get("correlation_id") == correlation_id:
+            chain = c
+            break
+        if c.get("chain_id") == correlation_id.replace("batch_", ""):
+            chain = c
+            break
+
+    if not chain:
+        return {"steps": [], "error": "체인을 찾을 수 없습니다"}
+
+    steps = []
+
+    # 1단계: 분류
+    classify = chain.get("results", {}).get("classify")
+    if classify:
+        agent_name = _AGENT_NAMES.get(classify.get("agent_id", ""), classify.get("agent_id", ""))
+        steps.append({
+            "step": "classify",
+            "step_label": "1단계: 분류",
+            "agent": classify.get("method", "AI 분류"),
+            "agent_name": agent_name,
+            "result": classify.get("reason", f"→ {agent_name}"),
+            "cost_usd": classify.get("cost_usd", 0),
+        })
+
+    # 2단계: 처장 지시서
+    delegation = chain.get("results", {}).get("delegation")
+    if delegation:
+        if delegation.get("mode") == "broadcast":
+            for mgr_id, instructions in delegation.get("delegations", {}).items():
+                mgr_name = _AGENT_NAMES.get(mgr_id, mgr_id)
+                spec_instructions = []
+                for s_id, instruction in instructions.items():
+                    s_name = _SPECIALIST_NAMES.get(s_id, s_id)
+                    spec_instructions.append(f"**{s_name}**: {instruction}")
+                steps.append({
+                    "step": "delegation",
+                    "step_label": "2단계: 처장 지시서",
+                    "agent": mgr_id,
+                    "agent_name": mgr_name,
+                    "result": "\n".join(spec_instructions) if spec_instructions else "지시서 없음",
+                })
+        else:
+            deleg_agent = delegation.get("agent_id", "")
+            deleg_name = _AGENT_NAMES.get(deleg_agent, deleg_agent)
+            instructions = delegation.get("instructions", {})
+            spec_instructions = []
+            for s_id, instruction in instructions.items():
+                s_name = _SPECIALIST_NAMES.get(s_id, s_id)
+                spec_instructions.append(f"**{s_name}**: {instruction}")
+            steps.append({
+                "step": "delegation",
+                "step_label": "2단계: 처장 지시서",
+                "agent": deleg_agent,
+                "agent_name": deleg_name,
+                "result": "\n".join(spec_instructions) if spec_instructions else "지시서 없음",
+                "cost_usd": delegation.get("cost_usd", 0),
+            })
+
+    # 3단계: 전문가 결과
+    specialists = chain.get("results", {}).get("specialists", {})
+    for s_id, s_res in specialists.items():
+        s_name = _SPECIALIST_NAMES.get(s_id, s_id)
+        steps.append({
+            "step": "specialist",
+            "step_label": "3단계: 전문가 분석",
+            "agent": s_id,
+            "agent_name": s_name,
+            "result": s_res.get("content", "")[:2000],
+            "model": s_res.get("model", ""),
+            "cost_usd": s_res.get("cost_usd", 0),
+            "error": s_res.get("error"),
+        })
+
+    # 4단계: 종합보고서
+    synthesis = chain.get("results", {}).get("synthesis", {})
+    for mgr_id, synth_res in synthesis.items():
+        mgr_name = _AGENT_NAMES.get(mgr_id, mgr_id)
+        steps.append({
+            "step": "synthesis",
+            "step_label": "4단계: 종합보고서",
+            "agent": mgr_id,
+            "agent_name": mgr_name,
+            "result": synth_res.get("content", "")[:2000],
+            "model": synth_res.get("model", ""),
+            "cost_usd": synth_res.get("cost_usd", 0),
+        })
+
+    return {
+        "steps": steps,
+        "chain_id": chain.get("chain_id", ""),
+        "mode": chain.get("mode", ""),
+        "status": chain.get("status", ""),
+        "total_cost_usd": chain.get("total_cost_usd", 0),
+    }
 
 
 @app.get("/api/replay/latest")
 async def get_replay_latest():
+    """가장 최근 완료된 배치 체인의 replay를 반환합니다."""
+    chains = load_setting("batch_chains") or []
+    completed = [c for c in chains if c.get("status") == "completed"]
+    if not completed:
+        return {"steps": []}
+    latest = max(completed, key=lambda c: c.get("completed_at", ""))
+    corr_id = latest.get("correlation_id", "")
+    if corr_id:
+        return await get_replay(corr_id)
     return {"steps": []}
 
 
@@ -5091,11 +5446,12 @@ def _get_tool_descriptions(agent_id: str) -> str:
     )
 
 
-def _load_agent_prompt(agent_id: str) -> str:
+def _load_agent_prompt(agent_id: str, *, include_tools: bool = True) -> str:
     """에이전트의 시스템 프롬프트(소울) + 도구 정보를 로드합니다.
 
     우선순위: DB 오버라이드 > souls/*.md 파일 > agents.yaml system_prompt > 기본값
-    마지막에 할당된 도구 설명을 자동으로 추가합니다.
+    include_tools=True이면 마지막에 할당된 도구 설명을 추가합니다.
+    배치 모드에서는 include_tools=False로 호출하여 도구 설명을 제외합니다.
     """
     prompt = ""
 
@@ -5127,12 +5483,22 @@ def _load_agent_prompt(agent_id: str) -> str:
             "항상 존댓말을 사용하고, 구체적이고 실행 가능한 답변을 제공합니다."
         )
 
-    # 도구 설명 추가 (에이전트가 자신의 도구를 인지하고 활용할 수 있게)
-    tools_desc = _get_tool_descriptions(agent_id)
-    if tools_desc:
-        prompt += tools_desc
+    if include_tools:
+        # 도구 설명 추가 (에이전트가 자신의 도구를 인지하고 활용할 수 있게)
+        tools_desc = _get_tool_descriptions(agent_id)
+        if tools_desc:
+            prompt += tools_desc
 
     return prompt
+
+
+# 배치 모드 전용 시스템 프롬프트 접미사 (도구 호출 방지)
+_BATCH_MODE_SUFFIX = (
+    "\n\n[배치 모드 안내] 이 요청은 배치 처리입니다. "
+    "도구(함수)를 직접 호출할 수 없습니다. "
+    "보유한 지식과 분석 능력만으로 텍스트 기반 답변을 작성하세요. "
+    "코드 블록이나 함수 호출 형태(예: await, function() 등)로 답변하지 마세요."
+)
 
 
 _chief_prompt: str = ""
