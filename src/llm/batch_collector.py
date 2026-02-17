@@ -43,7 +43,7 @@ class BatchCollector:
     ) -> LLMResponse:
         """요청을 큐에 넣고 결과를 기다림."""
         req_id = uuid4().hex
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         future: asyncio.Future[LLMResponse] = loop.create_future()
 
         async with self._lock:
@@ -140,7 +140,7 @@ class BatchCollector:
                 logger.debug("Anthropic Batch %s 상태: %s", batch.id, batch.processing_status)
 
             # 결과 수집
-            async for result in await self._anthropic.messages.batches.results(batch.id):
+            async for result in self._anthropic.messages.batches.results(batch.id):
                 future = self._pending.pop(result.custom_id, None)
                 if not future or future.done():
                     continue
@@ -207,7 +207,7 @@ class BatchCollector:
 
             # 파일 업로드
             file_obj = await self._openai.files.create(
-                file=io.BytesIO(jsonl_content.encode("utf-8")),
+                file=("batch.jsonl", jsonl_content.encode("utf-8")),
                 purpose="batch",
             )
             logger.info("OpenAI Batch 파일 업로드: %s", file_obj.id)
