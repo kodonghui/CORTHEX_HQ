@@ -5367,7 +5367,7 @@ async def _save_to_notion(agent_id: str, title: str, content: str,
         _add_notion_log("SKIP", title, error="API 키 없음")
         return None
 
-    db_id = _NOTION_DB_SECRETARY if db_target == "secretary" else _NOTION_DB_OUTPUT
+    db_id = _NOTION_DB_SECRETARY if db_target == "secretary" else _NOTION_DB_ID
     db_name = "비서실" if db_target == "secretary" else "산출물"
 
     division = _AGENT_DIVISION.get(agent_id, "")
@@ -5451,7 +5451,7 @@ async def get_notion_log():
         "total": len(_notion_log),
         "api_key_set": bool(_NOTION_API_KEY),
         "db_secretary": _NOTION_DB_SECRETARY[:8] + "..." if _NOTION_DB_SECRETARY else "",
-        "db_output": _NOTION_DB_OUTPUT[:8] + "..." if _NOTION_DB_OUTPUT else "",
+        "db_output": _NOTION_DB_ID[:8] + "..." if _NOTION_DB_ID else "",
     }
 
 
