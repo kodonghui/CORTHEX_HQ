@@ -7544,7 +7544,11 @@
                 if (a.division) {
                   const divMap = { '비서실': 'secretary', '기술개발처': 'tech', '사업기획처': 'strategy',
                                    '법무처': 'legal', '마케팅처': 'marketing', '투자분석처': 'finance',
-                                   '출판기록처': 'publishing', '출판처': 'publishing' };
+                                   '출판기록처': 'publishing', '출판처': 'publishing',
+                                   'leet_master.tech': 'tech', 'leet_master.strategy': 'strategy',
+                                   'leet_master.legal': 'legal', 'leet_master.marketing': 'marketing',
+                                   'finance.investment': 'finance',
+                                   'secretary': 'secretary', 'publishing': 'publishing' };
                   this.agentDivision[a.agent_id] = divMap[a.division] || a.division;
                 }
               });
