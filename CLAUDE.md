@@ -137,7 +137,8 @@
   - IP: GitHub Secrets `SERVER_IP_ARM`에 등록
   - SSH 키: GitHub Secrets `SERVER_SSH_KEY_ARM`에 등록
   - 사용자: `ubuntu`
-- **이전 서버 (폐기됨)**: `158.179.165.97` (1GB 마이크로 — 더 이상 사용 안 함)
+- **도메인**: `corthex-hq.com` (2026-02-18 구매, Cloudflare 등록 — DNS: corthex-hq.com → 158.179.165.97)
+- **이전 서버 (폐기됨)**: `168.107.28.100` (1GB 마이크로 — 더 이상 사용 안 함)
 - **자동 배포 흐름** (전체 과정):
   1. claude/ 브랜치에 [완료] 커밋 push
   2. `auto-merge-claude.yml`이 PR 생성 + main에 자동 머지
