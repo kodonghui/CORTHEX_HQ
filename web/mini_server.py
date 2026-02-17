@@ -570,6 +570,25 @@ async def get_dashboard():
     api_connected = sum(1 for v in api_keys.values() if v)
     api_total = len(api_keys)
 
+    # ── 시스템 상태 판단 (최근 1시간 실패 3건 이상 → 이상) ──
+    recent_failed = 0
+    try:
+        one_hour_ago = (datetime.now(KST) - timedelta(hours=1)).isoformat()
+        _conn_tmp = __import__("db").get_connection()
+        recent_failed = _conn_tmp.execute(
+            "SELECT COUNT(*) FROM tasks WHERE created_at >= ? AND status = 'failed'",
+            (one_hour_ago,),
+        ).fetchone()[0]
+        _conn_tmp.close()
+    except Exception:
+        pass
+    if recent_failed >= 3:
+        sys_status = "error"
+    elif stats["running_count"] > 0:
+        sys_status = "busy"
+    else:
+        sys_status = "ok"
+
     return {
         "total_agents": len(AGENTS),
         "active_agents": stats["running_count"],
@@ -581,7 +600,7 @@ async def get_dashboard():
         "today_cost": today_cost,
         "total_tokens": stats["total_tokens"],
         "notion_connected": bool(_NOTION_API_KEY),
-        "system_status": "busy" if stats["running_count"] > 0 else "ok",
+        "system_status": sys_status,
         "uptime": now,
         "agents": AGENTS,
         "recent_completed": stats["recent_completed"],
@@ -990,8 +1009,8 @@ async def _run_batch_item(item: dict):
         task = create_task(item["command"], source="batch")
         item["task_id"] = task["task_id"]
 
-        # AI 처리 (_process_ai_command과 동일한 로직)
-        result = await _process_ai_command(item["command"], source="batch")
+        # AI 처리
+        result = await _process_ai_command(item["command"], task["task_id"])
 
         item["status"] = "completed"
         item["result"] = result.get("content", "")[:200] if isinstance(result, dict) else str(result)[:200]
@@ -2773,7 +2792,8 @@ async def _cron_loop():
 async def _run_scheduled_command(command: str, schedule_name: str):
     """예약된 명령을 실행합니다."""
     try:
-        result = await _process_ai_command(command, source="cron")
+        task = create_task(command, source="cron")
+        result = await _process_ai_command(command, task["task_id"])
         save_activity_log("system", f"✅ 예약 완료: {schedule_name}", "info")
     except Exception as e:
         save_activity_log("system", f"❌ 예약 실패: {schedule_name} — {str(e)[:100]}", "error")
@@ -3041,7 +3061,8 @@ async def _run_workflow_steps(wf_id: str, wf_name: str, steps: list):
         await _broadcast_workflow_progress(i, len(steps), "running", step_name, "")
 
         try:
-            result = await _process_ai_command(command, source="workflow")
+            task = create_task(command, source="workflow")
+            result = await _process_ai_command(command, task["task_id"])
             content = result.get("content", "") if isinstance(result, dict) else str(result)
             prev_result = content[:500]
             results.append({"step": step_name, "status": "completed", "result": content[:200]})
