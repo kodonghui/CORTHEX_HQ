@@ -4419,6 +4419,87 @@
     </div>
   </div>
 
+  <!-- ═══ 워크플로우 실행창 모달 ═══ -->
+  <div x-show="workflowExec.show" x-transition.opacity
+       class="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
+       @click.self="closeWorkflowExec()" style="display: none;">
+    <div class="bg-hq-panel border border-hq-border rounded-2xl w-full max-w-[650px] mx-4 max-h-[85vh] overflow-y-auto p-6" @click.stop>
+      <!-- 헤더 -->
+      <div class="flex items-center justify-between mb-5">
+        <div>
+          <h2 class="text-lg font-bold text-hq-text font-mono" x-text="workflowExec.workflowName"></h2>
+          <p class="text-xs text-hq-muted mt-0.5">워크플로우 실행</p>
+        </div>
+        <button @click="closeWorkflowExec()" class="text-hq-muted hover:text-hq-text text-xl">&times;</button>
+      </div>
+
+      <!-- 모드 선택 -->
+      <div class="flex items-center gap-3 mb-5 p-3 rounded-xl bg-hq-bg/50 border border-hq-border/30">
+        <span class="text-xs text-hq-muted font-semibold">모드:</span>
+        <button @click="workflowExec.mode = 'realtime'"
+                class="px-3 py-1.5 rounded-lg text-xs font-semibold transition"
+                :class="workflowExec.mode === 'realtime' ? 'bg-hq-accent text-white' : 'text-hq-muted hover:text-hq-text border border-hq-border'">
+          실시간
+        </button>
+        <button @click="workflowExec.mode = 'batch'"
+                class="px-3 py-1.5 rounded-lg text-xs font-semibold transition"
+                :class="workflowExec.mode === 'batch' ? 'bg-hq-accent text-white' : 'text-hq-muted hover:text-hq-text border border-hq-border'">
+          배치
+        </button>
+        <span class="text-[10px] text-hq-muted/60 ml-1" x-text="workflowExec.mode === 'realtime' ? '단계별로 결과를 바로 보여줍니다' : '전부 끝나면 결과를 한꺼번에 보여줍니다'"></span>
+      </div>
+
+      <!-- 단계별 진행 상태 -->
+      <div class="space-y-2 mb-5">
+        <template x-for="(step, i) in workflowExec.steps" :key="i">
+          <div class="flex items-start gap-3 p-3 rounded-xl transition-all"
+               :class="step.status === 'running' ? 'bg-hq-yellow/5 border border-hq-yellow/20' : step.status === 'completed' ? 'bg-hq-green/5 border border-hq-green/20' : step.status === 'failed' ? 'bg-hq-red/5 border border-hq-red/20' : 'bg-hq-bg/30 border border-hq-border/10'">
+            <!-- 상태 아이콘 -->
+            <div class="w-6 h-6 rounded-full flex items-center justify-center shrink-0 text-xs font-bold mt-0.5"
+                 :class="step.status === 'running' ? 'bg-hq-yellow/20 text-hq-yellow animate-pulse' : step.status === 'completed' ? 'bg-hq-green/20 text-hq-green' : step.status === 'failed' ? 'bg-hq-red/20 text-hq-red' : 'bg-hq-muted/10 text-hq-muted/50'">
+              <span x-show="step.status === 'pending'" x-text="i + 1"></span>
+              <span x-show="step.status === 'running'">
+                <svg class="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+              </span>
+              <span x-show="step.status === 'completed'">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
+              </span>
+              <span x-show="step.status === 'failed'">!</span>
+            </div>
+            <!-- 단계 정보 -->
+            <div class="flex-1 min-w-0">
+              <div class="text-sm font-semibold" :class="step.status === 'running' ? 'text-hq-yellow' : step.status === 'completed' ? 'text-hq-green' : step.status === 'failed' ? 'text-hq-red' : 'text-hq-muted/60'" x-text="step.name"></div>
+              <div x-show="step.command" class="text-[10px] text-hq-muted/50 truncate mt-0.5" x-text="step.command"></div>
+              <div x-show="step.result && workflowExec.mode === 'realtime'" class="text-xs text-hq-text/80 mt-2 p-2 rounded-lg bg-hq-bg/50 whitespace-pre-wrap max-h-32 overflow-y-auto" x-html="renderMarkdown(step.result)"></div>
+            </div>
+          </div>
+        </template>
+      </div>
+
+      <!-- 최종 결과 (배치 모드) -->
+      <div x-show="workflowExec.done && workflowExec.finalResult" class="mb-5 p-4 rounded-xl bg-hq-green/5 border border-hq-green/20">
+        <div class="text-xs font-semibold text-hq-green mb-2">최종 결과</div>
+        <div class="text-sm text-hq-text/80 whitespace-pre-wrap markdown-body max-h-64 overflow-y-auto" x-html="renderMarkdown(workflowExec.finalResult)"></div>
+      </div>
+
+      <!-- 에러 표시 -->
+      <div x-show="workflowExec.error" class="mb-5 p-4 rounded-xl bg-hq-red/5 border border-hq-red/20">
+        <div class="text-xs font-semibold text-hq-red mb-1">오류 발생</div>
+        <div class="text-sm text-hq-red/80" x-text="workflowExec.error"></div>
+      </div>
+
+      <!-- 하단 버튼 -->
+      <div class="flex items-center justify-end gap-3 pt-3 border-t border-hq-border/20">
+        <button @click="closeWorkflowExec()"
+                class="px-4 py-2 text-sm text-hq-muted hover:text-hq-text transition">닫기</button>
+        <button @click="executeWorkflow()"
+                :disabled="workflowExec.currentStep >= 0 && !workflowExec.done"
+                class="bg-hq-green hover:bg-green-600 text-white rounded-lg px-5 py-2 text-sm font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed"
+                x-text="workflowExec.currentStep >= 0 && !workflowExec.done ? '실행 중...' : workflowExec.done ? '다시 실행' : '실행'"></button>
+      </div>
+    </div>
+  </div>
+
   <!-- ═══ Login Overlay (로그인 오버레이) ═══ -->
   <div x-show="auth.showLogin" x-transition.opacity
        class="fixed inset-0 z-[60] flex items-center justify-center bg-hq-bg/95"
@@ -5090,6 +5171,7 @@
 
         // ── Workflows (워크플로우) ──
         workflows: { items: [], showEditor: false, editing: null, editName: '', editDesc: '', editSteps: [{ name: '', command: '' }], runningId: null, lastResult: null },
+        workflowExec: { show: false, workflowId: null, workflowName: '', mode: 'realtime', steps: [], currentStep: -1, done: false, error: null, finalResult: null },
 
         // ── Auth (인증) ──
         auth: { user: null, token: null, showLogin: false, loginUser: '', loginPass: '', loginError: '', role: 'ceo', bootstrapMode: true },
@@ -5560,6 +5642,10 @@
                 this.batchProgress.startedAt = null;
                 this.batchProgress.elapsed = '00:00';
               }
+              break;
+
+            case 'workflow_progress':
+              this.handleWorkflowProgress(msg.data);
               break;
 
             case 'telegram_message':
@@ -6845,26 +6931,85 @@
         async runWorkflow(id) {
           const wf = this.workflows.items.find(w => w.id === id);
           const wfName = wf?.name || id;
-          this.workflows.runningId = id;
-          this.workflows.lastResult = null;
-          this.showToast(`⚡ 워크플로우 "${wfName}" 실행을 시작합니다...`, 'info');
+          const steps = wf?.steps || [];
+
+          // 실행창 모달 열기
+          this.workflowExec = {
+            show: true,
+            workflowId: id,
+            workflowName: wfName,
+            mode: 'realtime',
+            steps: steps.map((s, i) => ({ name: s.name || `단계 ${i+1}`, command: s.command || '', status: 'pending', result: '' })),
+            currentStep: -1,
+            done: false,
+            error: null,
+            finalResult: null,
+          };
+        },
+
+        async executeWorkflow() {
+          const exec = this.workflowExec;
+          if (!exec.workflowId) return;
+          this.workflows.runningId = exec.workflowId;
+          exec.done = false;
+          exec.error = null;
+          exec.finalResult = null;
+          exec.steps.forEach(s => { s.status = 'pending'; s.result = ''; });
+
           try {
-            const resp = await fetch(`/api/workflows/${id}/run`, { method: 'POST' });
+            const resp = await fetch(`/api/workflows/${exec.workflowId}/run`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ mode: exec.mode }),
+            });
             const data = await resp.json();
             if (data.success) {
-              this.workflows.lastResult = { status: 'success', name: wfName, message: data.result || '실행 시작됨 (백그라운드 처리 중)' };
-              this.showToast(`✅ 워크플로우 "${wfName}" 실행 완료!`, 'success');
+              // 백그라운드 실행 시작 — WebSocket으로 진행 상태를 받음
+              exec.currentStep = 0;
+              if (exec.steps.length > 0) exec.steps[0].status = 'running';
             } else {
-              this.workflows.lastResult = { status: 'error', name: wfName, message: data.error || '알 수 없는 오류' };
-              this.showToast(`❌ 워크플로우 실행 실패: ${data.error || '오류'}`, 'error');
+              exec.error = data.error || '실행 실패';
+              exec.done = true;
             }
           } catch (e) {
-            console.error('Run workflow failed:', e);
-            this.workflows.lastResult = { status: 'error', name: wfName, message: e.message };
-            this.showToast(`❌ 워크플로우 오류: ${e.message}`, 'error');
+            exec.error = e.message;
+            exec.done = true;
           } finally {
             this.workflows.runningId = null;
           }
+        },
+
+        handleWorkflowProgress(data) {
+          const exec = this.workflowExec;
+          if (!exec.show) return;
+
+          const stepIdx = data.step_index ?? -1;
+          const status = data.status || '';
+          const result = data.result || '';
+
+          if (stepIdx >= 0 && stepIdx < exec.steps.length) {
+            exec.steps[stepIdx].status = status;
+            if (result) exec.steps[stepIdx].result = result;
+
+            if (status === 'completed' || status === 'failed') {
+              // 다음 단계 시작
+              const nextIdx = stepIdx + 1;
+              if (nextIdx < exec.steps.length && status === 'completed') {
+                exec.currentStep = nextIdx;
+                exec.steps[nextIdx].status = 'running';
+              }
+            }
+          }
+
+          if (data.workflow_done) {
+            exec.done = true;
+            exec.finalResult = data.final_result || '';
+            exec.currentStep = exec.steps.length;
+          }
+        },
+
+        closeWorkflowExec() {
+          this.workflowExec.show = false;
         },
 
         // ── Auth (인증) ──

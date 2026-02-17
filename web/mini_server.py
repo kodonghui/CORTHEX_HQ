@@ -2987,6 +2987,8 @@ async def _run_workflow_steps(wf_id: str, wf_name: str, steps: list):
             command = f"[이전 단계 결과 참고: {prev_result[:500]}]\n\n{command}"
 
         save_activity_log("system", f"▶ {wf_name} — {step_name} 실행 중", "info")
+        # 웹소켓으로 단계 시작 알림
+        await _broadcast_workflow_progress(i, len(steps), "running", step_name, "")
 
         try:
             result = await _process_ai_command(command, source="workflow")
@@ -2994,12 +2996,40 @@ async def _run_workflow_steps(wf_id: str, wf_name: str, steps: list):
             prev_result = content[:500]
             results.append({"step": step_name, "status": "completed", "result": content[:200]})
             save_activity_log("system", f"✅ {wf_name} — {step_name} 완료", "info")
+            # 웹소켓으로 단계 완료 알림
+            await _broadcast_workflow_progress(i, len(steps), "completed", step_name, content[:300])
         except Exception as e:
             results.append({"step": step_name, "status": "failed", "error": str(e)[:200]})
             save_activity_log("system", f"❌ {wf_name} — {step_name} 실패: {str(e)[:100]}", "error")
+            await _broadcast_workflow_progress(i, len(steps), "failed", step_name, str(e)[:200])
             break  # 실패 시 중단
 
+    # 전체 완료 알림
+    final_result = "\n\n".join([f"**{r['step']}**: {r.get('result', r.get('error', ''))}" for r in results])
+    await _broadcast_workflow_progress(-1, len(steps), "done", "", final_result, workflow_done=True)
     save_activity_log("system", f"🏁 워크플로우 완료: {wf_name} — {len(results)}/{len(steps)} 단계 처리", "info")
+
+
+async def _broadcast_workflow_progress(step_index: int, total_steps: int, status: str,
+                                        step_name: str, result: str, workflow_done: bool = False):
+    """워크플로우 진행 상태를 웹소켓으로 전송합니다."""
+    msg = {
+        "event": "workflow_progress",
+        "data": {
+            "step_index": step_index,
+            "total_steps": total_steps,
+            "status": status,
+            "step_name": step_name,
+            "result": result,
+            "workflow_done": workflow_done,
+            "final_result": result if workflow_done else "",
+        },
+    }
+    for ws in list(_ws_clients):
+        try:
+            await ws.send_json(msg)
+        except Exception:
+            pass
 
 
 # ── 자동매매 시스템 (키움증권 프레임워크) ──
