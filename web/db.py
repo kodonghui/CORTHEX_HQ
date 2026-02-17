@@ -159,6 +159,26 @@ CREATE TABLE IF NOT EXISTS agent_calls (
 
 CREATE INDEX IF NOT EXISTS idx_agent_calls_agent_id ON agent_calls(agent_id);
 CREATE INDEX IF NOT EXISTS idx_agent_calls_created_at ON agent_calls(created_at);
+
+-- 비동기 작업 테이블: 장시간 실행 작업 추적 (토론, 배치 등)
+CREATE TABLE IF NOT EXISTS async_tasks (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    task_id         TEXT UNIQUE NOT NULL,
+    title           TEXT NOT NULL,
+    status          TEXT DEFAULT 'pending',
+    agent_id        TEXT,
+    prompt          TEXT NOT NULL,
+    result          TEXT,
+    progress        INTEGER DEFAULT 0,
+    progress_message TEXT,
+    created_at      DATETIME DEFAULT CURRENT_TIMESTAMP,
+    started_at      DATETIME,
+    completed_at    DATETIME,
+    output_channels TEXT DEFAULT '["chat"]'
+);
+
+CREATE INDEX IF NOT EXISTS idx_async_tasks_status ON async_tasks(status);
+CREATE INDEX IF NOT EXISTS idx_async_tasks_task_id ON async_tasks(task_id);
 """
 
 
