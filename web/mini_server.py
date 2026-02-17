@@ -4282,15 +4282,16 @@ async def delete_conversation():
 
 # ── SNS 연동 ──
 
-_SNS_PLATFORMS = ["instagram", "x", "youtube", "tiktok", "facebook"]
+_SNS_PLATFORMS = ["instagram", "youtube", "tistory", "naver_blog", "naver_cafe", "daum_cafe"]
 
-# 환경변수에서 API 키 유무로 연결 상태 판단
+# 환경변수에서 API 키 유무로 연결 상태 판단 (실제 보유 키 기준)
 _SNS_ENV_MAP = {
     "instagram": "INSTAGRAM_ACCESS_TOKEN",
-    "x": "X_API_KEY",
-    "youtube": "YOUTUBE_API_KEY",
-    "tiktok": "TIKTOK_ACCESS_TOKEN",
-    "facebook": "FACEBOOK_ACCESS_TOKEN",
+    "youtube": "GOOGLE_CLIENT_ID",
+    "tistory": "KAKAO_ID",
+    "naver_blog": "NAVER_ID",
+    "naver_cafe": "NAVER_CLIENT_ID",
+    "daum_cafe": "DAUM_ID",
 }
 
 
