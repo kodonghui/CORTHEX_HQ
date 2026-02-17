@@ -55,8 +55,7 @@ _PRICING = {
     # Anthropic
     "claude-opus-4-6": {"input": 15.00, "output": 75.00},
     "claude-sonnet-4-6": {"input": 3.00, "output": 15.00},
-    "claude-sonnet-4-5-20250929": {"input": 3.00, "output": 15.00},
-    "claude-haiku-4-5-20251001": {"input": 0.25, "output": 1.25},
+    "claude-haiku-4-6": {"input": 0.25, "output": 1.25},
     # Google Gemini
     "gemini-3-pro-preview": {"input": 2.50, "output": 15.00},
     "gemini-2.5-pro": {"input": 1.25, "output": 10.00},
@@ -314,7 +313,7 @@ def select_model(text: str, override: str | None = None) -> str:
 
     if _anthropic_client:
         if len(text) <= 50 and not is_complex:
-            return "claude-haiku-4-5-20251001"
+            return "claude-haiku-4-6"
         return "claude-sonnet-4-6"
     elif _google_client:
         if len(text) <= 50 and not is_complex:
@@ -482,7 +481,7 @@ async def _call_google(
     tools가 주어지면 function calling을 처리합니다.
     tools는 Anthropic 포맷 리스트이며, 내부에서 Gemini 포맷으로 변환합니다.
     """
-    config = {"max_output_tokens": 4096, "temperature": 0.3}
+    config = {"max_output_tokens": 16384, "temperature": 0.3}
     if system_prompt:
         config["system_instruction"] = system_prompt
 
@@ -1007,9 +1006,9 @@ async def _batch_submit_openai(requests: list[dict], default_model: str) -> dict
 
     jsonl_content = "\n".join(lines)
 
-    # 파일 업로드
+    # 파일 업로드 — OpenAI SDK는 (파일명, bytes) 튜플 또는 파일 객체가 필요
     file_obj = await _openai_client.files.create(
-        file=jsonl_content.encode("utf-8"),
+        file=("batch.jsonl", jsonl_content.encode("utf-8")),
         purpose="batch",
     )
 
@@ -1157,7 +1156,7 @@ async def _batch_submit_google(requests: list[dict], default_model: str) -> dict
             ],
             "generation_config": {
                 "temperature": req.get("temperature", 0.3),
-                "max_output_tokens": req.get("max_output_tokens", 4096),
+                "max_output_tokens": req.get("max_output_tokens", 16384),
             },
         }
 
@@ -1337,7 +1336,7 @@ async def _batch_retrieve_google(batch_id: str) -> dict:
 
     # 메모리 정리 (결과 반환 후 1시간 뒤 삭제)
     try:
-        asyncio.get_event_loop().call_later(3600, lambda: _google_batch_meta.pop(batch_id, None))
+        asyncio.get_running_loop().call_later(3600, lambda: _google_batch_meta.pop(batch_id, None))
     except Exception:
         pass
 

@@ -1360,61 +1360,77 @@ async def _flush_batch_api_queue():
             req["agent_id"] = agent_id
             req["system_prompt"] = _load_agent_prompt(agent_id)
 
-    # Batch API 제출
-    result = await batch_submit(queue_copy)
+    # Batch API 제출 — 프로바이더별로 자동 그룹화 (Claude/GPT/Gemini 요청이 섞여도 각각 올바른 API로 전송)
+    batch_results = await batch_submit_grouped(queue_copy)
 
-    if "error" in result:
-        _log(f"[BATCH] 제출 실패: {result['error']}")
-        # 실패하면 다시 대기열에 넣기
+    # 전부 실패한 경우 대기열에 복구
+    all_failed = all("error" in br for br in batch_results)
+    if all_failed:
+        first_error = batch_results[0].get("error", "알 수 없는 오류") if batch_results else "결과 없음"
+        _log(f"[BATCH] 제출 실패 (전체): {first_error}")
         _batch_api_queue.extend(queue_copy)
-        return result
+        return {"error": first_error}
 
-    batch_id = result["batch_id"]
-    provider = result["provider"]
-
-    # DB에 PENDING 상태로 저장
-    pending_data = {
-        "batch_id": batch_id,
-        "provider": provider,
-        "status": "pending",
-        "auto_delegate": True,
-        "submitted_at": datetime.now(KST).isoformat(),
-        "requests": [
-            {
-                "custom_id": r.get("custom_id", r.get("task_id", "")),
-                "message": r.get("message", "")[:200],
-                "agent_id": r.get("agent_id", ""),
-                "task_id": r.get("task_id", ""),
-            }
-            for r in queue_copy
-        ],
-        "results": [],
-    }
-
+    # 성공한 배치들을 DB에 PENDING 상태로 저장
     pending_batches = load_setting("pending_batches") or []
-    pending_batches.append(pending_data)
+    submitted_ids = []
+    for result in batch_results:
+        if "error" in result:
+            _log(f"[BATCH] 프로바이더 {result.get('provider','?')} 제출 실패: {result['error']}")
+            continue
+
+        batch_id = result["batch_id"]
+        provider = result["provider"]
+        custom_ids_in_batch = result.get("custom_ids", [])
+
+        # 이 배치에 포함된 요청만 필터링
+        reqs_in_batch = [r for r in queue_copy if r.get("custom_id", r.get("task_id", "")) in custom_ids_in_batch]
+
+        pending_data = {
+            "batch_id": batch_id,
+            "provider": provider,
+            "status": "pending",
+            "auto_delegate": True,
+            "submitted_at": datetime.now(KST).isoformat(),
+            "requests": [
+                {
+                    "custom_id": r.get("custom_id", r.get("task_id", "")),
+                    "message": r.get("message", "")[:200],
+                    "agent_id": r.get("agent_id", ""),
+                    "task_id": r.get("task_id", ""),
+                }
+                for r in reqs_in_batch
+            ],
+            "results": [],
+        }
+        pending_batches.append(pending_data)
+        submitted_ids.append(batch_id)
+
+        # 각 task를 PENDING 상태로 업데이트
+        for req in reqs_in_batch:
+            task_id = req.get("task_id")
+            if task_id:
+                update_task(task_id, status="pending",
+                            result_summary=f"[PENDING] Batch API 제출됨 ({batch_id[:20]}...)")
+
+        # WebSocket 알림
+        for c in connected_clients[:]:
+            try:
+                await c.send_json({
+                    "event": "batch_submitted",
+                    "data": {"batch_id": batch_id, "provider": provider, "count": len(reqs_in_batch)},
+                })
+            except Exception:
+                pass
+
+        _log(f"[BATCH] Batch API 제출 완료: {batch_id} ({len(reqs_in_batch)}건, {provider})")
+
     save_setting("pending_batches", pending_batches)
-
-    # 각 task를 PENDING 상태로 업데이트
-    for req in queue_copy:
-        task_id = req.get("task_id")
-        if task_id:
-            update_task(task_id, status="pending",
-                        result_summary=f"[PENDING] Batch API 제출됨 ({batch_id[:20]}...)")
-
-    # WebSocket 알림
-    for c in connected_clients[:]:
-        try:
-            await c.send_json({
-                "event": "batch_submitted",
-                "data": {"batch_id": batch_id, "provider": provider, "count": len(queue_copy)},
-            })
-        except Exception:
-            pass
-
     _ensure_batch_poller()
-    _log(f"[BATCH] Batch API 제출 완료: {batch_id} ({len(queue_copy)}건, {provider})")
-    return result
+
+    # 첫 번째 성공 결과를 반환 (하위 호환성 유지)
+    first_success = next((r for r in batch_results if "error" not in r), batch_results[0] if batch_results else {})
+    return first_success
 
 
 @app.post("/api/batch/flush")
@@ -4498,7 +4514,7 @@ async def save_review_model(request: Request):
     body = await request.json()
     if "rules" not in _QUALITY_RULES:
         _QUALITY_RULES["rules"] = {}
-    _QUALITY_RULES["rules"]["review_model"] = body.get("model", "claude-haiku-4-5-20251001")
+    _QUALITY_RULES["rules"]["review_model"] = body.get("model", "claude-sonnet-4-6")
     _save_config_file("quality_rules", _QUALITY_RULES)
     return {"success": True}
 
@@ -4622,7 +4638,7 @@ async def get_available_models():
             "reasoning_levels": ["low", "medium", "high"],
         },
         {
-            "name": "claude-haiku-4-5-20251001",
+            "name": "claude-haiku-4-6",
             "provider": "anthropic",
             "tier": "specialist",
             "cost_input": 0.25,
@@ -4957,7 +4973,7 @@ async def _start_telegram_bot() -> None:
             "Anthropic": [
                 ("claude-opus-4-6", "Opus 4.6", ["xhigh", "high", "low", "없음"]),
                 ("claude-sonnet-4-6", "Sonnet 4.6", ["high", "medium", "low", "없음"]),
-                ("claude-haiku-4-5-20251001", "Haiku 4.5", []),
+                ("claude-haiku-4-6", "Haiku 4.6", []),
             ],
             "OpenAI": [
                 ("gpt-5.2-pro", "GPT-5.2 Pro", ["xhigh", "high", "medium", "없음"]),
@@ -6849,7 +6865,7 @@ def _init_tool_pool():
                     pass
 
             async def complete(self, model_name="", messages=None,
-                             temperature=0.3, max_tokens=4096,
+                             temperature=0.3, max_tokens=16384,
                              agent_id="", reasoning_effort=None,
                              use_batch=False):
                 messages = messages or []
