@@ -25,7 +25,6 @@ def _get_tiktoken():
 _MODEL_ENCODINGS: dict[str, str] = {
     "gpt-5-mini": "o200k_base",
     "gpt-5": "o200k_base",
-    "gpt-5.1": "o200k_base",
     "gpt-5.2": "o200k_base",
     "gpt-5.2-pro": "o200k_base",
     "claude-opus-4-6": "cl100k_base",
