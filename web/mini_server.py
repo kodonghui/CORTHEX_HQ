@@ -1,7 +1,7 @@
 """
-CORTHEX HQ - Mini Server (경량 서버)
+CORTHEX HQ - ARM Server
 
-Oracle Cloud 무료 서버(1GB RAM)에서 대시보드를 서비스하기 위한 경량 서버.
+Oracle Cloud ARM 서버 (4코어 24GB)에서 대시보드를 서비스합니다.
 전체 백엔드의 핵심 API만 제공하여 대시보드 UI가 정상 작동하도록 함.
 텔레그램 봇도 여기서 24시간 구동됩니다.
 """
@@ -144,7 +144,7 @@ except ImportError as e:
 
 KST = timezone(timedelta(hours=9))
 
-app = FastAPI(title="CORTHEX HQ Mini Server")
+app = FastAPI(title="CORTHEX HQ")
 
 # ── HTML 서빙 ──
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -2437,6 +2437,18 @@ async def _advance_batch_chain(chain_id: str):
 
         _save_chain(chain)
 
+        if not all_done:
+            # ── 배치 처리 대기 중 → 초록불 유지 (맥박 효과) ──
+            # Anthropic/OpenAI/Google 프로바이더 무관, 결과 없는 전문가에게 초록불
+            target_id = chain.get("target_id", "")
+            specialists = _MANAGER_SPECIALISTS.get(target_id, [])
+            for spec_id in specialists:
+                spec_res = chain["results"].get("specialists", {}).get(spec_id)
+                if spec_res is None:
+                    spec_name = _SPECIALIST_NAMES.get(spec_id, spec_id)
+                    await _broadcast_status(spec_id, "working", 0.5, f"{spec_name} 배치 처리 중...")
+            return
+
         if all_done:
             # 모든 전문가 배치 완료 → 결과 수집
             retrieve_errors = []
@@ -2512,6 +2524,13 @@ async def _advance_batch_chain(chain_id: str):
                 all_done = False
 
         _save_chain(chain)
+
+        if not all_done:
+            # ── 종합보고서 배치 대기 중 → 처장 초록불 유지 ──
+            target_id = chain.get("target_id", "chief_of_staff")
+            target_name = _AGENT_NAMES.get(target_id, target_id)
+            await _broadcast_status(target_id, "working", 0.8, f"{target_name} 종합보고서 작성 중...")
+            return
 
         if all_done:
             # 종합보고서 결과 수집
@@ -4170,7 +4189,7 @@ async def health_check():
     """서버 상태 확인."""
     return {
         "status": "ok",
-        "mode": "mini_server",
+        "mode": "ARM 서버",
         "agents": len(AGENTS),
         "telegram": _telegram_available and _telegram_app is not None,
         "timestamp": datetime.now(KST).isoformat(),
@@ -4876,7 +4895,28 @@ _AGENT_NAMES: dict[str, str] = {
 # ── 노션 API 연동 (에이전트 산출물 자동 저장) ──
 
 _NOTION_API_KEY = os.getenv("NOTION_API_KEY", "")
-_NOTION_DB_ID = os.getenv("NOTION_DEFAULT_DB_ID", "ee0527e4-697b-4cb6-8df0-6dca3f59ad4e")
+# 비서실 DB (CEO 명령 관리)
+_NOTION_DB_SECRETARY = os.getenv("NOTION_DB_SECRETARY", "36880ed0-a7e9-4eb8-8bd3-0f206c2e95d6")
+# 에이전트 산출물 DB (보고서 아카이브)
+_NOTION_DB_OUTPUT = os.getenv("NOTION_DB_OUTPUT", "4c20dd05-b740-461c-9189-f1e74362b365")
+# 하위 호환: 기존 환경변수도 지원
+_NOTION_DB_ID = os.getenv("NOTION_DEFAULT_DB_ID", _NOTION_DB_OUTPUT)
+
+# 노션 로그 (최근 20개, /api/notion-log에서 조회 가능)
+_notion_log: list[dict] = []
+
+def _add_notion_log(status: str, title: str, db: str = "", url: str = "", error: str = ""):
+    """노션 작업 로그를 저장합니다 (최근 20개)."""
+    global _notion_log
+    _notion_log.append({
+        "time": datetime.now(KST).strftime("%Y-%m-%d %H:%M:%S"),
+        "status": status,
+        "title": title[:60],
+        "db": db,
+        "url": url,
+        "error": error[:200] if error else "",
+    })
+    _notion_log = _notion_log[-20:]
 
 # 에이전트 ID → 부서명 매핑
 _AGENT_DIVISION: dict[str, str] = {}
@@ -4886,14 +4926,20 @@ for _a in AGENTS:
 
 
 async def _save_to_notion(agent_id: str, title: str, content: str,
-                          report_type: str = "보고서") -> str | None:
+                          report_type: str = "보고서",
+                          db_target: str = "output") -> str | None:
     """에이전트 산출물을 노션 DB에 저장합니다.
 
+    db_target: "output" = 에이전트 산출물 DB, "secretary" = 비서실 DB
     Python 기본 라이브러리(urllib)만 사용 — 추가 패키지 불필요.
     실패해도 에러만 로깅하고 None 반환 (서버 동작에 영향 없음).
     """
     if not _NOTION_API_KEY:
+        _add_notion_log("SKIP", title, error="API 키 없음")
         return None
+
+    db_id = _NOTION_DB_SECRETARY if db_target == "secretary" else _NOTION_DB_OUTPUT
+    db_name = "비서실" if db_target == "secretary" else "산출물"
 
     division = _AGENT_DIVISION.get(agent_id, "")
     agent_name = _AGENT_NAMES.get(agent_id, _SPECIALIST_NAMES.get(agent_id, agent_id))
@@ -4903,15 +4949,15 @@ async def _save_to_notion(agent_id: str, title: str, content: str,
     properties: dict = {
         "Name": {"title": [{"text": {"content": title[:100]}}]},
     }
-    # 선택 속성들 (DB에 해당 컬럼이 없으면 노션이 무시함)
+    # 선택 속성들 (DB에 해당 컬럼이 없으면 노션이 무시함 — 유연한 구조)
     if agent_name:
-        properties["Agent"] = {"rich_text": [{"text": {"content": agent_name}}]}
+        properties["작성자"] = {"rich_text": [{"text": {"content": agent_name}}]}
     if division:
-        properties["Division"] = {"rich_text": [{"text": {"content": division}}]}
+        properties["부서"] = {"rich_text": [{"text": {"content": division}}]}
     if report_type:
-        properties["Type"] = {"rich_text": [{"text": {"content": report_type}}]}
-    properties["Status"] = {"rich_text": [{"text": {"content": "완료"}}]}
-    properties["Date"] = {"date": {"start": now_str}}
+        properties["보고 유형"] = {"rich_text": [{"text": {"content": report_type}}]}
+    properties["상태"] = {"rich_text": [{"text": {"content": "완료"}}]}
+    properties["날짜"] = {"date": {"start": now_str}}
 
     # 본문 → 노션 블록 (최대 2000자, 노션 블록 크기 제한)
     children = []
@@ -4924,7 +4970,7 @@ async def _save_to_notion(agent_id: str, title: str, content: str,
         })
 
     body = json.dumps({
-        "parent": {"database_id": _NOTION_DB_ID},
+        "parent": {"database_id": db_id},
         "properties": properties,
         "children": children,
     }).encode("utf-8")
@@ -4946,20 +4992,38 @@ async def _save_to_notion(agent_id: str, title: str, content: str,
         except urllib.error.HTTPError as e:
             err_body = e.read().decode("utf-8", errors="replace")[:200]
             _log(f"[Notion] HTTP {e.code} 오류: {err_body}")
+            _add_notion_log("FAIL", title, db=db_name, error=f"HTTP {e.code}: {err_body}")
             return None
         except Exception as e:
             _log(f"[Notion] 요청 실패: {e}")
+            _add_notion_log("FAIL", title, db=db_name, error=str(e))
             return None
 
     try:
         result = await asyncio.to_thread(_do_request)
         if result and result.get("url"):
-            _log(f"[Notion] 저장 완료: {title[:50]} → {result['url']}")
+            _log(f"[Notion] 저장 완료 ({db_name}): {title[:50]} → {result['url']}")
+            _add_notion_log("OK", title, db=db_name, url=result["url"])
             return result["url"]
+        else:
+            _add_notion_log("FAIL", title, db=db_name, error="응답에 URL 없음")
     except Exception as e:
         _log(f"[Notion] 비동기 실행 실패: {e}")
+        _add_notion_log("FAIL", title, db=db_name, error=str(e))
 
     return None
+
+
+@app.get("/api/notion-log")
+async def get_notion_log():
+    """노션 저장 로그 조회 (최근 20건)."""
+    return {
+        "logs": _notion_log,
+        "total": len(_notion_log),
+        "api_key_set": bool(_NOTION_API_KEY),
+        "db_secretary": _NOTION_DB_SECRETARY[:8] + "..." if _NOTION_DB_SECRETARY else "",
+        "db_output": _NOTION_DB_OUTPUT[:8] + "..." if _NOTION_DB_OUTPUT else "",
+    }
 
 
 # 브로드캐스트 키워드 (모든 부서에 동시 전달하는 명령)
@@ -5089,6 +5153,20 @@ async def _call_agent(agent_id: str, text: str) -> dict:
     for c in connected_clients[:]:
         try:
             await c.send_json({"event": "activity_log", "data": log_done})
+        except Exception:
+            pass
+
+    # ── 비용 업데이트 브로드캐스트 (프론트엔드 우측 상단 금액 실시간 반영) ──
+    try:
+        today_cost = get_today_cost()
+    except Exception:
+        today_cost = cost
+    for c in connected_clients[:]:
+        try:
+            await c.send_json({
+                "event": "cost_update",
+                "data": {"total_cost": today_cost, "total_tokens": 0},
+            })
         except Exception:
             pass
 
