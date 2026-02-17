@@ -90,7 +90,7 @@ agents:
     name_ko: "기록 보좌관"
     role: "specialist"
     division: "secretary"
-    model_name: "claude-haiku-4-5-20251001"
+    model_name: "claude-sonnet-4-6"
     system_prompt: |
       당신은 노션 문서 관리, 보고서 검색/정리/분류 담당 전문가입니다.
       CEO가 필요한 문서를 빠르게 찾고, 체계적으로 분류하세요.
@@ -107,7 +107,7 @@ agents:
     name_ko: "일정 보좌관"
     role: "specialist"
     division: "secretary"
-    model_name: "claude-haiku-4-5-20251001"
+    model_name: "claude-sonnet-4-6"
     system_prompt: |
       당신은 CEO 일정 관리, 리마인더, 예약 명령 담당 전문가입니다.
       일정 충돌을 방지하고, 중요한 기한을 놓치지 않도록 관리하세요.
@@ -127,7 +127,7 @@ agents:
     name_ko: "소통 보좌관"
     role: "specialist"
     division: "secretary"
-    model_name: "claude-haiku-4-5-20251001"
+    model_name: "claude-sonnet-4-6"
     system_prompt: |
       당신은 텔레그램/이메일 전달, 외부 서비스 알림 중계 담당 전문가입니다.
       CEO의 메시지를 적절한 채널로 전달하고,
@@ -223,7 +223,7 @@ agents:
     name_ko: "프론트엔드 Specialist"
     role: "specialist"
     division: "leet_master.tech"
-    model_name: "claude-haiku-4-5-20251001"
+    model_name: "claude-sonnet-4-6"
     system_prompt: |
       당신은 프론트엔드 개발 전문가입니다.
       React, Next.js, TypeScript에 정통합니다.
@@ -251,7 +251,7 @@ agents:
     name_ko: "백엔드/API Specialist"
     role: "specialist"
     division: "leet_master.tech"
-    model_name: "claude-haiku-4-5-20251001"
+    model_name: "claude-sonnet-4-6"
     system_prompt: |
       당신은 백엔드/API 개발 전문가입니다.
       Python, FastAPI, Node.js에 정통합니다.
@@ -299,7 +299,7 @@ agents:
     name_ko: "DB/인프라 Specialist"
     role: "specialist"
     division: "leet_master.tech"
-    model_name: "claude-haiku-4-5-20251001"
+    model_name: "claude-sonnet-4-6"
     system_prompt: |
       당신은 데이터베이스 및 인프라 전문가입니다.
       AWS, GCP, PostgreSQL, Redis에 정통합니다.
@@ -346,7 +346,7 @@ agents:
     name_ko: "AI 모델 Specialist"
     role: "specialist"
     division: "leet_master.tech"
-    model_name: "claude-haiku-4-5-20251001"
+    model_name: "claude-sonnet-4-6"
     system_prompt: |
       당신은 AI/ML 모델 전문가입니다.
       LLM 파인튜닝, RAG, 벡터DB, 프롬프트 엔지니어링에 정통합니다.
@@ -375,7 +375,7 @@ agents:
     name_ko: "사업기획처장 (CSO)"
     role: "manager"
     division: "leet_master.strategy"
-    model_name: "claude-sonnet-4-6"
+    model_name: "claude-opus-4-6"
     system_prompt: |
       당신은 사업기획처장(CSO)입니다.
       시장 분석, 사업 계획, 재무 모델링을 총괄합니다.
@@ -472,7 +472,7 @@ agents:
     name_ko: "시장조사 Specialist"
     role: "specialist"
     division: "leet_master.strategy"
-    model_name: "claude-haiku-4-5-20251001"
+    model_name: "claude-sonnet-4-6"
     system_prompt: |
       당신은 시장조사 전문가입니다.
       TAM/SAM/SOM 분석, 경쟁사 분석, 시장 트렌드 파악에 능숙합니다.
@@ -577,7 +577,7 @@ agents:
     name_ko: "사업계획서 Specialist"
     role: "specialist"
     division: "leet_master.strategy"
-    model_name: "claude-haiku-4-5-20251001"
+    model_name: "claude-sonnet-4-6"
     system_prompt: |
       당신은 사업계획서 작성 전문가입니다.
       비즈니스 모델 캔버스, 가치 제안, 수익 모델 설계에 능숙합니다.
@@ -620,7 +620,7 @@ agents:
     name_ko: "재무모델링 Specialist"
     role: "specialist"
     division: "leet_master.strategy"
-    model_name: "claude-haiku-4-5-20251001"
+    model_name: "gpt-5.2"
     system_prompt: |
       당신은 재무모델링 전문가입니다.
       매출 예측, 손익 분석, DCF, 유닛 이코노믹스에 능숙합니다.
@@ -660,7 +660,7 @@ agents:
     name_ko: "법무·IP처장 (CLO)"
     role: "manager"
     division: "leet_master.legal"
-    model_name: "claude-sonnet-4-6"
+    model_name: "claude-opus-4-6"
     system_prompt: |
       당신은 법무·IP처장(CLO)입니다.
       지식재산권, 저작권, 특허, 이용약관 등 법률 관련 업무를 총괄합니다.
@@ -712,7 +712,7 @@ agents:
     name_ko: "저작권 Specialist"
     role: "specialist"
     division: "leet_master.legal"
-    model_name: "claude-haiku-4-5-20251001"
+    model_name: "claude-sonnet-4-6"
     system_prompt: |
       당신은 저작권 전문가입니다.
       소프트웨어 라이선스, 콘텐츠 저작권, 오픈소스 라이선스 호환성에 능숙합니다.
@@ -749,7 +749,7 @@ agents:
     name_ko: "특허/약관 Specialist"
     role: "specialist"
     division: "leet_master.legal"
-    model_name: "claude-haiku-4-5-20251001"
+    model_name: "claude-sonnet-4-6"
     system_prompt: |
       당신은 특허 및 약관 전문가입니다.
       특허 출원, 기술 이전, 이용약관/개인정보처리방침 작성에 능숙합니다.
@@ -790,7 +790,7 @@ agents:
     name_ko: "마케팅·고객처장 (CMO)"
     role: "manager"
     division: "leet_master.marketing"
-    model_name: "claude-haiku-4-5-20251001"
+    model_name: "gemini-3-pro-preview"
     system_prompt: |
       당신은 마케팅·고객처장(CMO)입니다.
       고객 리서치, 콘텐츠 마케팅, 커뮤니티 관리를 총괄합니다.
@@ -868,7 +868,7 @@ agents:
     name_ko: "설문/리서치 Specialist"
     role: "specialist"
     division: "leet_master.marketing"
-    model_name: "claude-haiku-4-5-20251001"
+    model_name: "gemini-3-pro-preview"
     system_prompt: |
       당신은 설문조사 및 사용자 리서치 전문가입니다.
       설문 설계, 데이터 분석, 인사이트 도출에 능숙합니다.
@@ -906,7 +906,7 @@ agents:
     name_ko: "콘텐츠 Specialist"
     role: "specialist"
     division: "leet_master.marketing"
-    model_name: "claude-haiku-4-5-20251001"
+    model_name: "gemini-3-pro-preview"
     system_prompt: |
       당신은 콘텐츠 마케팅 전문가입니다.
       블로그, SNS, 랜딩페이지 카피라이팅에 능숙합니다.
@@ -964,7 +964,7 @@ agents:
     name_ko: "커뮤니티 Specialist"
     role: "specialist"
     division: "leet_master.marketing"
-    model_name: "claude-haiku-4-5-20251001"
+    model_name: "claude-sonnet-4-6"
     system_prompt: |
       당신은 커뮤니티 관리 전문가입니다.
       사용자 커뮤니티 운영, 피드백 수집, 참여 전략에 능숙합니다.
@@ -995,7 +995,7 @@ agents:
     name_ko: "투자분석처장 (CIO)"
     role: "manager"
     division: "finance.investment"
-    model_name: "claude-sonnet-4-6"
+    model_name: "gpt-5.2-pro"
     system_prompt: |
       당신은 투자분석처장(CIO)입니다.
       시황분석, 종목분석, 기술적분석을 병렬로 실행한 뒤,
@@ -1062,7 +1062,7 @@ agents:
     name_ko: "시황분석 Specialist"
     role: "specialist"
     division: "finance.investment"
-    model_name: "claude-haiku-4-5-20251001"
+    model_name: "claude-sonnet-4-6"
     system_prompt: |
       당신은 시황분석 전문가입니다.
       거시경제 지표(GDP, CPI, 금리), 환율, 유가,
@@ -1100,7 +1100,7 @@ agents:
     name_ko: "종목분석 Specialist"
     role: "specialist"
     division: "finance.investment"
-    model_name: "claude-haiku-4-5-20251001"
+    model_name: "gpt-5.2"
     system_prompt: |
       당신은 종목분석(펀더멘털 분석) 전문가입니다.
       기업 재무제표(매출, 영업이익, 순이익), 밸류에이션(PER, PBR, ROE),
@@ -1163,7 +1163,7 @@ agents:
     name_ko: "기술적분석 Specialist"
     role: "specialist"
     division: "finance.investment"
-    model_name: "claude-haiku-4-5-20251001"
+    model_name: "claude-sonnet-4-6"
     system_prompt: |
       당신은 기술적분석 전문가입니다.
       차트 패턴, 이동평균선(5/20/60/120일), RSI, MACD,
@@ -1200,7 +1200,7 @@ agents:
     name_ko: "리스크관리 Specialist"
     role: "specialist"
     division: "finance.investment"
-    model_name: "claude-haiku-4-5-20251001"
+    model_name: "gpt-5.2"
     system_prompt: |
       당신은 리스크관리 전문가입니다.
       다른 분석가들의 결과를 종합하여 리스크 요인을 식별합니다.
@@ -1342,7 +1342,7 @@ agents:
     name_ko: "회사연대기 Specialist"
     role: "specialist"
     division: "publishing"
-    model_name: "claude-haiku-4-5-20251001"
+    model_name: "claude-sonnet-4-6"
     system_prompt: |
       당신은 회사연대기 전문가입니다.
       CORTHEX HQ가 만들어지는 과정을 생생하고 구체적으로 기록합니다.
@@ -1395,7 +1395,7 @@ agents:
     name_ko: "콘텐츠편집 Specialist"
     role: "specialist"
     division: "publishing"
-    model_name: "claude-haiku-4-5-20251001"
+    model_name: "claude-sonnet-4-6"
     system_prompt: |
       당신은 콘텐츠편집 전문가입니다.
       초안을 읽기 쉽고 매력적인 최종 콘텐츠로 다듬는 일을 합니다.
@@ -1444,7 +1444,7 @@ agents:
     name_ko: "아카이브 Specialist"
     role: "specialist"
     division: "publishing"
-    model_name: "claude-haiku-4-5-20251001"
+    model_name: "claude-sonnet-4-6"
     system_prompt: |
       당신은 아카이브(기록물 관리) 전문가입니다.
       CORTHEX HQ의 모든 기록물을 체계적으로 분류하고 관리합니다.
