@@ -288,16 +288,16 @@ def save_message(text: str, source: str = "telegram",
 
 # ── Tasks CRUD ──
 
-def create_task(command: str, source: str = "websocket") -> dict:
+def create_task(command: str, source: str = "websocket", agent_id: str = None) -> dict:
     """새 작업을 생성합니다. 반환: task dict."""
     task_id = _gen_task_id()
     now = _now_iso()
     conn = get_connection()
     try:
         conn.execute(
-            "INSERT INTO tasks (task_id, command, status, created_at, source) "
-            "VALUES (?, ?, 'pending', ?, ?)",
-            (task_id, command, now, source),
+            "INSERT INTO tasks (task_id, command, status, created_at, source, agent_id) "
+            "VALUES (?, ?, 'pending', ?, ?, ?)",
+            (task_id, command, now, source, agent_id),
         )
         conn.commit()
         return {
@@ -306,6 +306,7 @@ def create_task(command: str, source: str = "websocket") -> dict:
             "status": "pending",
             "created_at": now,
             "source": source,
+            "agent_id": agent_id,
         }
     finally:
         conn.close()
@@ -672,6 +673,17 @@ def delete_archive(division: str, filename: str) -> bool:
         conn.close()
 
 
+def delete_all_archives() -> int:
+    """모든 아카이브(기밀문서)를 삭제합니다. 반환: 삭제된 건수."""
+    conn = get_connection()
+    try:
+        cursor = conn.execute("DELETE FROM archives")
+        conn.commit()
+        return cursor.rowcount
+    finally:
+        conn.close()
+
+
 # ── Settings (키-값 저장소) ──
 
 def get_today_cost() -> float:
@@ -699,6 +711,40 @@ def get_today_cost() -> float:
         except Exception:
             agent_cost = 0.0
         return round(task_cost + agent_cost, 6)
+    except Exception:
+        return 0.0
+    finally:
+        conn.close()
+
+
+def get_monthly_cost() -> float:
+    """이번 달 총 AI 비용을 반환합니다 (USD).
+
+    tasks 테이블과 agent_calls 테이블 양쪽의 비용을 합산합니다.
+    """
+    conn = get_connection()
+    try:
+        now = datetime.now()
+        month_start = now.strftime("%Y-%m-01 00:00:00")
+
+        # tasks 테이블 비용
+        row = conn.execute(
+            "SELECT COALESCE(SUM(cost_usd), 0) FROM tasks WHERE created_at >= ?",
+            (month_start,)
+        ).fetchone()
+        total = row[0] if row else 0.0
+
+        # agent_calls 테이블 비용
+        try:
+            row2 = conn.execute(
+                "SELECT COALESCE(SUM(cost_usd), 0) FROM agent_calls WHERE created_at >= ?",
+                (month_start,)
+            ).fetchone()
+            total += row2[0] if row2 else 0.0
+        except Exception:
+            pass
+
+        return round(total, 6)
     except Exception:
         return 0.0
     finally:

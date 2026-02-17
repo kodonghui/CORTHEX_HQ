@@ -9,9 +9,9 @@
 ## 마지막 업데이트
 
 - **날짜**: 2026-02-18
-- **버전**: `3.00.000` (자율 운영 시스템 v3 — 에이전트 기억 + 토론 시스템)
+- **버전**: `3.01.000` (AI 모델 전면 개편 + 전수검사 + 추론 레벨 시스템)
 - **작업 브랜치**: claude/autonomous-system-v3 (현재 작업 브랜치)
-- **작업 내용**: 에이전트 장기 기억 자동 추출/주입 + 임원 토론 시스템 (/토론, /심층토론) + 처장 방법론 태그 + FE 슬래시 명령어 추가
+- **작업 내용**: 모델명 60+곳 전면 교체 (Sonnet 4.6/Opus 4.6/GPT-5.2/Gemini 3.0 Pro) + reasoning_effort 29명 설정 + max_tokens 제한 제거 + 기밀문서 전체삭제 + SNS 연결 + 월간비용 수정 + 치명적 버그 3건 수정
 - **빌드 번호**: GitHub Actions 확인: https://github.com/kodonghui/CORTHEX_HQ/actions
 - **접속 주소**: https://corthex-hq.com (HTTPS 설정 완료)
 

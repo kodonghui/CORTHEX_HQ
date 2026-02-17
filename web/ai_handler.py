@@ -54,6 +54,7 @@ except ImportError:
 _PRICING = {
     # Anthropic
     "claude-opus-4-6": {"input": 15.00, "output": 75.00},
+    "claude-sonnet-4-6": {"input": 3.00, "output": 15.00},
     "claude-sonnet-4-5-20250929": {"input": 3.00, "output": 15.00},
     "claude-haiku-4-5-20251001": {"input": 0.25, "output": 1.25},
     # Google Gemini
@@ -282,7 +283,7 @@ def get_available_providers() -> dict:
 def _pick_fallback_model(provider: str) -> str | None:
     """요청한 프로바이더가 없을 때, 사용 가능한 다른 모델을 반환합니다."""
     if _anthropic_client:
-        return "claude-sonnet-4-5-20250929"
+        return "claude-sonnet-4-6"
     if _google_client:
         return "gemini-2.5-flash"
     if _openai_client:
@@ -314,7 +315,7 @@ def select_model(text: str, override: str | None = None) -> str:
     if _anthropic_client:
         if len(text) <= 50 and not is_complex:
             return "claude-haiku-4-5-20251001"
-        return "claude-sonnet-4-5-20250929"
+        return "claude-sonnet-4-6"
     elif _google_client:
         if len(text) <= 50 and not is_complex:
             return "gemini-2.5-flash"
@@ -324,7 +325,7 @@ def select_model(text: str, override: str | None = None) -> str:
             return "gpt-5-mini"
         return "gpt-5.2"
 
-    return "claude-sonnet-4-5-20250929"  # 아무것도 없으면 기본값
+    return "claude-sonnet-4-6"  # 아무것도 없으면 기본값
 
 
 def _calc_cost(model: str, input_tokens: int, output_tokens: int) -> float:
@@ -344,7 +345,7 @@ async def classify_task(text: str) -> dict:
 
     # 분류용 모델: 가장 저렴한 모델 선택
     if _anthropic_client:
-        classify_model = "claude-haiku-4-5-20251001"
+        classify_model = "claude-sonnet-4-6"
     elif _google_client:
         classify_model = "gemini-2.5-flash"
     elif _openai_client:
@@ -394,7 +395,7 @@ async def _call_anthropic(
     tool_executor는 async 함수로, (tool_name, tool_input) -> result를 반환해야 합니다.
     """
     messages = [{"role": "user", "content": user_message}]
-    kwargs = {"model": model, "max_tokens": 4096, "messages": messages}
+    kwargs = {"model": model, "max_tokens": 16384, "messages": messages}
     if system_prompt:
         kwargs["system"] = system_prompt
     if "haiku" in model:
@@ -610,7 +611,7 @@ async def _call_openai(
         messages.append({"role": "system", "content": system_prompt})
     messages.append({"role": "user", "content": user_message})
 
-    kwargs = {"model": model, "messages": messages, "max_tokens": 4096, "temperature": 0.3}
+    kwargs = {"model": model, "messages": messages, "max_tokens": 16384, "temperature": 0.3}
     if tools:
         kwargs["tools"] = tools
 
@@ -814,7 +815,7 @@ async def batch_submit(
         return {"error": "요청 목록이 비어있습니다"}
 
     if model is None:
-        model = "claude-sonnet-4-5-20250929"
+        model = "claude-sonnet-4-6"
 
     provider = _get_provider(model)
 
@@ -886,7 +887,7 @@ async def _batch_submit_anthropic(requests: list[dict], default_model: str) -> d
         messages = [{"role": "user", "content": req.get("message", "")}]
         params = {
             "model": model,
-            "max_tokens": req.get("max_tokens", 4096),
+            "max_tokens": req.get("max_tokens", 16384),
             "messages": messages,
         }
         if req.get("system_prompt"):
@@ -947,7 +948,7 @@ async def _batch_retrieve_anthropic(batch_id: str) -> dict:
         return {"error": "Anthropic API 키가 설정되지 않았습니다"}
 
     results = []
-    async for result in await _anthropic_client.messages.batches.results(batch_id):
+    async for result in _anthropic_client.messages.batches.results(batch_id):
         custom_id = result.custom_id
         if result.result.type == "succeeded":
             msg = result.result.message
@@ -999,7 +1000,7 @@ async def _batch_submit_openai(requests: list[dict], default_model: str) -> dict
             "body": {
                 "model": model,
                 "messages": messages,
-                "max_tokens": req.get("max_tokens", 4096),
+                "max_tokens": req.get("max_tokens", 16384),
             },
         }
         lines.append(json.dumps(line, ensure_ascii=False))
@@ -1365,7 +1366,7 @@ async def batch_submit_grouped(
                 "custom_id": "agent_stock_analysis",
                 "message": "삼성전자 주가 분석",
                 "system_prompt": "당신은 주식 분석 전문가입니다...",
-                "model": "claude-sonnet-4-5-20250929",
+                "model": "claude-sonnet-4-6",
             },
             ...
         ]
@@ -1397,20 +1398,20 @@ async def batch_submit_grouped(
     # 프로바이더별 그룹화
     groups: dict[str, list[dict]] = {}
     for req in requests:
-        model = req.get("model", "claude-sonnet-4-5-20250929")
+        model = req.get("model", "claude-sonnet-4-6")
         provider = _get_provider(model)
         groups.setdefault(provider, []).append(req)
 
     # 폴백용 모델 매핑 (프로바이더 실패 시 다른 프로바이더로 재시도)
     _fallback_models = {
-        "anthropic": "gemini-2.5-flash" if providers.get("google") else ("gpt-4.1-mini" if providers.get("openai") else None),
-        "google": "claude-sonnet-4-5-20250929" if providers.get("anthropic") else ("gpt-4.1-mini" if providers.get("openai") else None),
-        "openai": "claude-sonnet-4-5-20250929" if providers.get("anthropic") else ("gemini-2.5-flash" if providers.get("google") else None),
+        "anthropic": "gemini-2.5-flash" if providers.get("google") else ("gpt-5-mini" if providers.get("openai") else None),
+        "google": "claude-sonnet-4-6" if providers.get("anthropic") else ("gpt-5-mini" if providers.get("openai") else None),
+        "openai": "claude-sonnet-4-6" if providers.get("anthropic") else ("gemini-2.5-flash" if providers.get("google") else None),
     }
 
     results = []
     for provider, group_reqs in groups.items():
-        default_model = group_reqs[0].get("model", "claude-sonnet-4-5-20250929")
+        default_model = group_reqs[0].get("model", "claude-sonnet-4-6")
         try:
             result = await batch_submit(group_reqs, model=default_model)
             if "error" not in result:
