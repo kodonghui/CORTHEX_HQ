@@ -17,7 +17,7 @@ class ToolConfig(BaseModel):
     name: str
     name_ko: str
     description: str
-    model_name: str = "gpt-4o-mini"
+    model_name: str = "gpt-5-mini"
 
 
 class BaseTool(ABC):

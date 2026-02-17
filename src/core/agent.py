@@ -164,7 +164,7 @@ class BaseAgent(ABC):
         """작업 완료 후 핵심 학습 사항을 메모리에 자동 저장합니다."""
         try:
             response = await self.model_router.complete(
-                model_name="gpt-4o-mini",  # 저렴한 모델 사용
+                model_name="gpt-5-mini",  # 저렴한 모델 사용
                 messages=[
                     {"role": "system", "content": (
                         "당신은 AI 에이전트의 학습 사항을 추출하는 도우미입니다.\n"
