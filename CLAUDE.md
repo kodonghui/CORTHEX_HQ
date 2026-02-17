@@ -279,5 +279,53 @@
 - **도구 실행**: `mini_server.py`의 `_call_agent()`에서 ToolPool을 통해 도구 실행
 - **최대 루프**: 도구 호출 루프는 최대 5회 반복 (무한 루프 방지)
 
+## 팀 에이전트 규칙 (Agent Teams)
+
+### 기본 원칙
+- **평소에는 팀 없이 일반 세션으로 작업** — 작은 작업에 팀은 낭비
+- CEO가 **"팀으로 해줘"**, **"기본팀으로 해결해줘"** 라고 하면 아래 기본팀을 구성해서 작업
+- CEO가 인원수를 직접 지정하면 그대로 따를 것 (예: "FE 2명, BE 1명으로 해줘")
+
+### 팀을 쓰면 좋은 상황
+| 상황 | 팀 구성 |
+|------|---------|
+| 큰 기능 추가 (새 탭, 새 시스템) | 기본팀 3명 (FE + BE + QA) |
+| 이슈 5개 이상 한꺼번에 | 기본팀 3명 + 필요시 TOOL/DEVOPS 추가 |
+| 시스템 전면 개편 | 최대 5명 (FE + BE + TOOL + QA + DEVOPS) |
+
+### 팀을 쓰지 않아도 되는 상황
+- 버그 1~3개 수정
+- 한 파일만 수정하는 작업
+- 간단한 UI 수정
+
+### 기본팀 (3명) — "팀으로 해줘" 하면 이 구성
+| 팀원 | 코드명 | 담당 파일 | 역할 |
+|------|--------|----------|------|
+| 팀원1 | **FE** | index.html, CSS, Alpine.js | 화면, 디자인, 다크/밝은 모드, 레이아웃 |
+| 팀원2 | **BE** | mini_server.py, db.py, src/tools/, config/*.yaml | API, DB, 도구, 서버 로직 |
+| 팀원3 | **QA** | 전체 | 수정 결과 검증, 다크모드 체크, 파일 충돌 확인 |
+
+### 확장 역할 (필요할 때만 추가)
+| 코드명 | 담당 | 언제 추가? |
+|--------|------|-----------|
+| **TOOL** | src/tools/ 도구 개발, tools.yaml 스키마 | 새 도구 만들 때 |
+| **DEVOPS** | deploy.yml, nginx, 서버 설정 | 배포/인프라 문제일 때 |
+| **PLAN** | 구조 설계, 작업 순서 결정 | 큰 기능 기획할 때 |
+
+### 서브에이전트 활용 규칙 (필수!)
+- **모든 팀원은 서브에이전트(Task 도구)를 적극 활용할 것**
+- 코드 탐색, 파일 검색, 구조 분석 같은 조사 작업은 서브에이전트에게 시킬 것
+- 팀원 본인은 서브에이전트가 가져온 결과를 바탕으로 **판단 + 수정에 집중**
+- 서브에이전트를 2개 이상 병렬로 돌려서 조사 시간을 단축할 것
+- 예시:
+  - FE 팀원 → 서브에이전트1: "다크모드 관련 CSS 찾아와" + 서브에이전트2: "Alpine.js 바인딩 목록 정리해와" → 결과 받고 수정
+  - BE 팀원 → 서브에이전트1: "API 엔드포인트 목록 분석해와" + 서브에이전트2: "DB 스키마 확인해와" → 결과 받고 수정
+
+### 팀 작업 효율 규칙
+- **같은 파일을 두 팀원이 동시에 수정하지 말 것** — 충돌남. 팀장이 파일별로 담당을 명확히 배정할 것
+- 팀원은 자기 담당 파일만 수정. 다른 팀원 담당 파일을 건드려야 하면 팀장에게 먼저 알릴 것
+- 불필요한 탐색 금지 — 서브에이전트로 빠르게 조사하고, 바로 수정에 들어갈 것
+- 작업 끝나면 팀장에게 즉시 보고. 놀고 있지 말고 다음 이슈 받을 것
+
 ## 환경 설정
 - gh CLI가 없으면 세션 시작 시 설치: `(type gh > /dev/null 2>&1) || (curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null && sudo apt update && sudo apt install gh -y)`
