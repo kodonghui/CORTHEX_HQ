@@ -11,14 +11,14 @@ providers:
       - name: "gpt-5-mini"
         cost_per_1m_input: 0.25
         cost_per_1m_output: 2.00
-        max_tokens: 16384
+        # max_tokens 제거 — 응답 잘림 방지
         tier: "worker"
         reasoning_levels: ["low", "medium", "high"]
 
       - name: "gpt-5"
         cost_per_1m_input: 1.25
         cost_per_1m_output: 10.00
-        max_tokens: 32768
+        # max_tokens 제거 — 응답 잘림 방지
         tier: "manager"
         reasoning_levels: ["none", "low", "medium", "high"]
 
@@ -26,7 +26,7 @@ providers:
       - name: "gpt-5.1"
         cost_per_1m_input: 1.25
         cost_per_1m_output: 10.00
-        max_tokens: 32768
+        # max_tokens 제거 — 응답 잘림 방지
         tier: "manager"
         reasoning_levels: ["none", "low", "medium", "high"]
 
@@ -34,14 +34,14 @@ providers:
       - name: "gpt-5.2"
         cost_per_1m_input: 1.75
         cost_per_1m_output: 14.00
-        max_tokens: 32768
+        # max_tokens 제거 — 응답 잘림 방지
         tier: "manager"
         reasoning_levels: ["none", "low", "medium", "high", "xhigh"]
 
       - name: "gpt-5.2-pro"
         cost_per_1m_input: 21.00
         cost_per_1m_output: 168.00
-        max_tokens: 32768
+        # max_tokens 제거 — 응답 잘림 방지
         tier: "executive"
         reasoning_levels: ["medium", "high", "xhigh"]
 
@@ -52,7 +52,7 @@ providers:
       - name: "claude-opus-4-6"
         cost_per_1m_input: 5.00
         cost_per_1m_output: 25.00
-        max_tokens: 16384
+        # max_tokens 제거 — 응답 잘림 방지
         tier: "executive"
         reasoning_levels: ["low", "medium", "high"]
 
@@ -60,14 +60,14 @@ providers:
       - name: "claude-sonnet-4-6"
         cost_per_1m_input: 3.00
         cost_per_1m_output: 15.00
-        max_tokens: 8192
+        # max_tokens 제거 — 응답 잘림 방지
         tier: "manager"
         reasoning_levels: ["low", "medium", "high"]
 
       - name: "claude-haiku-4-5-20251001"
         cost_per_1m_input: 0.80
         cost_per_1m_output: 4.00
-        max_tokens: 8192
+        # max_tokens 제거 — 응답 잘림 방지
         tier: "specialist"
         reasoning_levels: []
 
@@ -79,7 +79,7 @@ providers:
       - name: "gemini-3-pro-preview"
         cost_per_1m_input: 2.50
         cost_per_1m_output: 15.00
-        max_tokens: 65536
+        # max_tokens 제거 — 응답 잘림 방지
         tier: "executive"
         reasoning_levels: ["low", "high"]
 
@@ -89,7 +89,7 @@ providers:
       - name: "gemini-2.5-pro"
         cost_per_1m_input: 1.25
         cost_per_1m_output: 10.00
-        max_tokens: 65536
+        # max_tokens 제거 — 응답 잘림 방지
         tier: "manager"
         reasoning_levels: ["low", "medium", "high"]
 
@@ -97,6 +97,6 @@ providers:
       - name: "gemini-2.5-flash"
         cost_per_1m_input: 0.15
         cost_per_1m_output: 0.60
-        max_tokens: 65536
+        # max_tokens 제거 — 응답 잘림 방지
         tier: "specialist"
         reasoning_levels: ["none", "low", "medium", "high"]

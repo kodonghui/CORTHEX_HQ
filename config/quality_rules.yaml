@@ -15,7 +15,7 @@ rules:
   check_relevance: true
 
   # 검수에 사용할 LLM 모델 (웹 UI에서 변경 가능)
-  review_model: "gpt-4o-mini"
+  review_model: "claude-haiku-4-5-20251001"
 
 # 부서별 검수 기준 (루브릭)
 # CEO가 웹 UI에서 편집 가능. "default"는 부서별 설정이 없을 때 적용됨.

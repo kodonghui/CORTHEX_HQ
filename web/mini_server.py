@@ -41,7 +41,7 @@ except ImportError:
     def init_ai_client(): return False
     def is_ai_ready(): return False
     async def ask_ai(*a, **kw): return {"error": "ai_handler 미설치"}
-    def select_model(t, override=None): return override or "claude-haiku-4-5-20251001"
+    def select_model(t, override=None): return override or "claude-sonnet-4-6"
     async def classify_task(t): return {"agent_id": "chief_of_staff", "reason": "ai_handler 미설치", "cost_usd": 0}
     def get_available_providers(): return {"anthropic": False, "google": False, "openai": False}
     def _load_tool_schemas(allowed_tools=None): return {}
@@ -276,35 +276,35 @@ async def deploy_status():
 
 # ── 에이전트 목록 ──
 AGENTS = [
-    {"agent_id": "chief_of_staff", "name_ko": "비서실장", "role": "manager", "division": "secretary", "status": "idle", "model_name": "claude-sonnet-4-5-20250929"},
-    {"agent_id": "report_specialist", "name_ko": "기록 보좌관", "role": "specialist", "division": "secretary", "status": "idle", "model_name": "claude-haiku-4-5-20251001"},
-    {"agent_id": "schedule_specialist", "name_ko": "일정 보좌관", "role": "specialist", "division": "secretary", "status": "idle", "model_name": "claude-haiku-4-5-20251001"},
-    {"agent_id": "relay_specialist", "name_ko": "소통 보좌관", "role": "specialist", "division": "secretary", "status": "idle", "model_name": "claude-haiku-4-5-20251001"},
-    {"agent_id": "cto_manager", "name_ko": "기술개발처장 (CTO)", "role": "manager", "division": "leet_master.tech", "status": "idle", "model_name": "claude-sonnet-4-5-20250929"},
-    {"agent_id": "frontend_specialist", "name_ko": "프론트엔드 Specialist", "role": "specialist", "division": "leet_master.tech", "status": "idle", "model_name": "claude-haiku-4-5-20251001"},
-    {"agent_id": "backend_specialist", "name_ko": "백엔드/API Specialist", "role": "specialist", "division": "leet_master.tech", "status": "idle", "model_name": "claude-haiku-4-5-20251001"},
-    {"agent_id": "infra_specialist", "name_ko": "DB/인프라 Specialist", "role": "specialist", "division": "leet_master.tech", "status": "idle", "model_name": "claude-haiku-4-5-20251001"},
-    {"agent_id": "ai_model_specialist", "name_ko": "AI 모델 Specialist", "role": "specialist", "division": "leet_master.tech", "status": "idle", "model_name": "claude-haiku-4-5-20251001"},
-    {"agent_id": "cso_manager", "name_ko": "사업기획처장 (CSO)", "role": "manager", "division": "leet_master.strategy", "status": "idle", "model_name": "claude-sonnet-4-5-20250929"},
-    {"agent_id": "market_research_specialist", "name_ko": "시장조사 Specialist", "role": "specialist", "division": "leet_master.strategy", "status": "idle", "model_name": "claude-haiku-4-5-20251001"},
-    {"agent_id": "business_plan_specialist", "name_ko": "사업계획서 Specialist", "role": "specialist", "division": "leet_master.strategy", "status": "idle", "model_name": "claude-haiku-4-5-20251001"},
-    {"agent_id": "financial_model_specialist", "name_ko": "재무모델링 Specialist", "role": "specialist", "division": "leet_master.strategy", "status": "idle", "model_name": "claude-haiku-4-5-20251001"},
-    {"agent_id": "clo_manager", "name_ko": "법무·IP처장 (CLO)", "role": "manager", "division": "leet_master.legal", "status": "idle", "model_name": "claude-sonnet-4-5-20250929"},
-    {"agent_id": "copyright_specialist", "name_ko": "저작권 Specialist", "role": "specialist", "division": "leet_master.legal", "status": "idle", "model_name": "claude-haiku-4-5-20251001"},
-    {"agent_id": "patent_specialist", "name_ko": "특허/약관 Specialist", "role": "specialist", "division": "leet_master.legal", "status": "idle", "model_name": "claude-haiku-4-5-20251001"},
-    {"agent_id": "cmo_manager", "name_ko": "마케팅·고객처장 (CMO)", "role": "manager", "division": "leet_master.marketing", "status": "idle", "model_name": "claude-sonnet-4-5-20250929"},
-    {"agent_id": "survey_specialist", "name_ko": "설문/리서치 Specialist", "role": "specialist", "division": "leet_master.marketing", "status": "idle", "model_name": "claude-haiku-4-5-20251001"},
-    {"agent_id": "content_specialist", "name_ko": "콘텐츠 Specialist", "role": "specialist", "division": "leet_master.marketing", "status": "idle", "model_name": "claude-haiku-4-5-20251001"},
-    {"agent_id": "community_specialist", "name_ko": "커뮤니티 Specialist", "role": "specialist", "division": "leet_master.marketing", "status": "idle", "model_name": "claude-haiku-4-5-20251001"},
-    {"agent_id": "cio_manager", "name_ko": "투자분석처장 (CIO)", "role": "manager", "division": "finance.investment", "status": "idle", "model_name": "claude-sonnet-4-5-20250929"},
-    {"agent_id": "market_condition_specialist", "name_ko": "시황분석 Specialist", "role": "specialist", "division": "finance.investment", "status": "idle", "model_name": "claude-haiku-4-5-20251001"},
-    {"agent_id": "stock_analysis_specialist", "name_ko": "종목분석 Specialist", "role": "specialist", "division": "finance.investment", "status": "idle", "model_name": "claude-haiku-4-5-20251001"},
-    {"agent_id": "technical_analysis_specialist", "name_ko": "기술적분석 Specialist", "role": "specialist", "division": "finance.investment", "status": "idle", "model_name": "claude-haiku-4-5-20251001"},
-    {"agent_id": "risk_management_specialist", "name_ko": "리스크관리 Specialist", "role": "specialist", "division": "finance.investment", "status": "idle", "model_name": "claude-haiku-4-5-20251001"},
-    {"agent_id": "cpo_manager", "name_ko": "출판·기록처장 (CPO)", "role": "manager", "division": "publishing", "status": "idle", "model_name": "claude-sonnet-4-5-20250929"},
-    {"agent_id": "chronicle_specialist", "name_ko": "회사연대기 Specialist", "role": "specialist", "division": "publishing", "status": "idle", "model_name": "claude-haiku-4-5-20251001"},
-    {"agent_id": "editor_specialist", "name_ko": "콘텐츠편집 Specialist", "role": "specialist", "division": "publishing", "status": "idle", "model_name": "claude-haiku-4-5-20251001"},
-    {"agent_id": "archive_specialist", "name_ko": "아카이브 Specialist", "role": "specialist", "division": "publishing", "status": "idle", "model_name": "claude-haiku-4-5-20251001"},
+    {"agent_id": "chief_of_staff", "name_ko": "비서실장", "role": "manager", "division": "secretary", "status": "idle", "model_name": "claude-sonnet-4-6"},
+    {"agent_id": "report_specialist", "name_ko": "기록 보좌관", "role": "specialist", "division": "secretary", "status": "idle", "model_name": "claude-sonnet-4-6"},
+    {"agent_id": "schedule_specialist", "name_ko": "일정 보좌관", "role": "specialist", "division": "secretary", "status": "idle", "model_name": "claude-sonnet-4-6"},
+    {"agent_id": "relay_specialist", "name_ko": "소통 보좌관", "role": "specialist", "division": "secretary", "status": "idle", "model_name": "claude-sonnet-4-6"},
+    {"agent_id": "cto_manager", "name_ko": "기술개발처장 (CTO)", "role": "manager", "division": "leet_master.tech", "status": "idle", "model_name": "claude-sonnet-4-6"},
+    {"agent_id": "frontend_specialist", "name_ko": "프론트엔드 Specialist", "role": "specialist", "division": "leet_master.tech", "status": "idle", "model_name": "claude-sonnet-4-6"},
+    {"agent_id": "backend_specialist", "name_ko": "백엔드/API Specialist", "role": "specialist", "division": "leet_master.tech", "status": "idle", "model_name": "claude-sonnet-4-6"},
+    {"agent_id": "infra_specialist", "name_ko": "DB/인프라 Specialist", "role": "specialist", "division": "leet_master.tech", "status": "idle", "model_name": "claude-sonnet-4-6"},
+    {"agent_id": "ai_model_specialist", "name_ko": "AI 모델 Specialist", "role": "specialist", "division": "leet_master.tech", "status": "idle", "model_name": "claude-sonnet-4-6"},
+    {"agent_id": "cso_manager", "name_ko": "사업기획처장 (CSO)", "role": "manager", "division": "leet_master.strategy", "status": "idle", "model_name": "claude-opus-4-6"},
+    {"agent_id": "market_research_specialist", "name_ko": "시장조사 Specialist", "role": "specialist", "division": "leet_master.strategy", "status": "idle", "model_name": "claude-sonnet-4-6"},
+    {"agent_id": "business_plan_specialist", "name_ko": "사업계획서 Specialist", "role": "specialist", "division": "leet_master.strategy", "status": "idle", "model_name": "claude-sonnet-4-6"},
+    {"agent_id": "financial_model_specialist", "name_ko": "재무모델링 Specialist", "role": "specialist", "division": "leet_master.strategy", "status": "idle", "model_name": "gpt-5.2"},
+    {"agent_id": "clo_manager", "name_ko": "법무·IP처장 (CLO)", "role": "manager", "division": "leet_master.legal", "status": "idle", "model_name": "claude-opus-4-6"},
+    {"agent_id": "copyright_specialist", "name_ko": "저작권 Specialist", "role": "specialist", "division": "leet_master.legal", "status": "idle", "model_name": "claude-sonnet-4-6"},
+    {"agent_id": "patent_specialist", "name_ko": "특허/약관 Specialist", "role": "specialist", "division": "leet_master.legal", "status": "idle", "model_name": "claude-sonnet-4-6"},
+    {"agent_id": "cmo_manager", "name_ko": "마케팅·고객처장 (CMO)", "role": "manager", "division": "leet_master.marketing", "status": "idle", "model_name": "gemini-3-pro-preview"},
+    {"agent_id": "survey_specialist", "name_ko": "설문/리서치 Specialist", "role": "specialist", "division": "leet_master.marketing", "status": "idle", "model_name": "gemini-3-pro-preview"},
+    {"agent_id": "content_specialist", "name_ko": "콘텐츠 Specialist", "role": "specialist", "division": "leet_master.marketing", "status": "idle", "model_name": "gemini-3-pro-preview"},
+    {"agent_id": "community_specialist", "name_ko": "커뮤니티 Specialist", "role": "specialist", "division": "leet_master.marketing", "status": "idle", "model_name": "claude-sonnet-4-6"},
+    {"agent_id": "cio_manager", "name_ko": "투자분석처장 (CIO)", "role": "manager", "division": "finance.investment", "status": "idle", "model_name": "gpt-5.2-pro"},
+    {"agent_id": "market_condition_specialist", "name_ko": "시황분석 Specialist", "role": "specialist", "division": "finance.investment", "status": "idle", "model_name": "claude-sonnet-4-6"},
+    {"agent_id": "stock_analysis_specialist", "name_ko": "종목분석 Specialist", "role": "specialist", "division": "finance.investment", "status": "idle", "model_name": "gpt-5.2"},
+    {"agent_id": "technical_analysis_specialist", "name_ko": "기술적분석 Specialist", "role": "specialist", "division": "finance.investment", "status": "idle", "model_name": "claude-sonnet-4-6"},
+    {"agent_id": "risk_management_specialist", "name_ko": "리스크관리 Specialist", "role": "specialist", "division": "finance.investment", "status": "idle", "model_name": "gpt-5.2"},
+    {"agent_id": "cpo_manager", "name_ko": "출판·기록처장 (CPO)", "role": "manager", "division": "publishing", "status": "idle", "model_name": "claude-sonnet-4-6"},
+    {"agent_id": "chronicle_specialist", "name_ko": "회사연대기 Specialist", "role": "specialist", "division": "publishing", "status": "idle", "model_name": "claude-sonnet-4-6"},
+    {"agent_id": "editor_specialist", "name_ko": "콘텐츠편집 Specialist", "role": "specialist", "division": "publishing", "status": "idle", "model_name": "claude-sonnet-4-6"},
+    {"agent_id": "archive_specialist", "name_ko": "아카이브 Specialist", "role": "specialist", "division": "publishing", "status": "idle", "model_name": "claude-sonnet-4-6"},
 ]
 
 # ── WebSocket 관리 ──
@@ -678,12 +678,18 @@ async def get_dashboard():
 async def get_budget():
     limit = float(load_setting("daily_budget_usd") or 7.0)
     today = get_today_cost()
+    # 월간 비용: db.py의 get_monthly_cost() 사용 (없으면 오늘 비용으로 폴백)
+    try:
+        from db import get_monthly_cost
+        monthly = get_monthly_cost()
+    except (ImportError, Exception):
+        monthly = today
     return {
         "daily_limit": limit, "daily_used": today,
         "today_spent": today, "today_cost": today,
         "remaining": round(limit - today, 6),
         "exceeded": today >= limit,
-        "monthly_limit": 300.0, "monthly_used": today,
+        "monthly_limit": 300.0, "monthly_used": monthly,
     }
 
 
@@ -691,7 +697,7 @@ async def get_budget():
 async def get_model_mode():
     """현재 모델 모드 조회 (auto/manual)."""
     mode = load_setting("model_mode") or "auto"
-    override = load_setting("model_override") or "claude-sonnet-4-5-20250929"
+    override = load_setting("model_override") or "claude-sonnet-4-6"
     return {"mode": mode, "override": override}
 
 
@@ -1108,7 +1114,7 @@ async def submit_ai_batch(request: Request):
             {"message": "삼성전자 분석해줘", "system_prompt": "...", "agent_id": "cio_manager"},
             {"message": "특허 검색해줘", "system_prompt": "...", "agent_id": "clo_manager"},
         ],
-        "model": "claude-sonnet-4-5-20250929",  // 기본 모델 (선택)
+        "model": "claude-sonnet-4-6",  // 기본 모델 (선택)
         "auto_delegate": true  // 결과를 에이전트에게 자동 위임할지 (기본: true)
     }
 
@@ -1688,7 +1694,7 @@ async def _start_batch_chain(text: str, task_id: str) -> dict:
     # 가장 저렴한 사용 가능 모델 선택
     providers = get_available_providers()
     if providers.get("anthropic"):
-        classify_model = "claude-haiku-4-5-20251001"
+        classify_model = "claude-sonnet-4-6"
     elif providers.get("google"):
         classify_model = "gemini-2.5-flash"
     elif providers.get("openai"):
@@ -1798,7 +1804,7 @@ async def _chain_create_delegation(chain: dict):
     # 가장 저렴한 모델로 실시간 API 호출 (배치 대기 없이 즉시 응답)
     providers = get_available_providers()
     if providers.get("anthropic"):
-        deleg_model = "claude-haiku-4-5-20251001"
+        deleg_model = "claude-sonnet-4-6"
     elif providers.get("google"):
         deleg_model = "gemini-2.5-flash"
     elif providers.get("openai"):
@@ -1875,7 +1881,7 @@ async def _chain_create_delegation_broadcast(chain: dict):
     # 가장 저렴한 모델 선택
     providers = get_available_providers()
     if providers.get("anthropic"):
-        deleg_model = "claude-haiku-4-5-20251001"
+        deleg_model = "claude-sonnet-4-6"
     elif providers.get("google"):
         deleg_model = "gemini-2.5-flash"
     elif providers.get("openai"):
@@ -4274,21 +4280,39 @@ async def delete_conversation():
 # ── 아카이브 (DB 기반 — 하단 activity-logs/archive API 섹션에서 정의됨) ──
 
 
-# ── SNS 연동 (플레이스홀더 — 실제 연동은 외부 API 키 필요) ──
+# ── SNS 연동 ──
 
-_SNS_PLATFORMS = ["instagram", "x", "youtube", "threads", "tiktok", "facebook"]
+_SNS_PLATFORMS = ["instagram", "x", "youtube", "tiktok", "facebook"]
+
+# 환경변수에서 API 키 유무로 연결 상태 판단
+_SNS_ENV_MAP = {
+    "instagram": "INSTAGRAM_ACCESS_TOKEN",
+    "x": "X_API_KEY",
+    "youtube": "YOUTUBE_API_KEY",
+    "tiktok": "TIKTOK_ACCESS_TOKEN",
+    "facebook": "FACEBOOK_ACCESS_TOKEN",
+}
 
 
 @app.get("/api/sns/status")
 async def get_sns_status():
-    """SNS 플랫폼 연결 상태."""
-    return {p: {"connected": False, "username": ""} for p in _SNS_PLATFORMS}
+    """SNS 플랫폼 연결 상태 — 환경변수에 API 키가 있으면 connected: True."""
+    result = {}
+    for p in _SNS_PLATFORMS:
+        env_key = _SNS_ENV_MAP.get(p, "")
+        has_key = bool(os.getenv(env_key, ""))
+        result[p] = {"connected": has_key, "username": os.getenv(f"{p.upper()}_USERNAME", "")}
+    return result
 
 
 @app.get("/api/sns/oauth/status")
 async def get_sns_oauth_status():
     """SNS OAuth 인증 상태."""
-    return {p: {"authenticated": False} for p in _SNS_PLATFORMS}
+    result = {}
+    for p in _SNS_PLATFORMS:
+        env_key = _SNS_ENV_MAP.get(p, "")
+        result[p] = {"authenticated": bool(os.getenv(env_key, ""))}
+    return result
 
 
 @app.get("/api/sns/auth/{platform}")
@@ -4492,7 +4516,7 @@ async def save_review_model(request: Request):
     body = await request.json()
     if "rules" not in _QUALITY_RULES:
         _QUALITY_RULES["rules"] = {}
-    _QUALITY_RULES["rules"]["review_model"] = body.get("model", "gpt-4o-mini")
+    _QUALITY_RULES["rules"]["review_model"] = body.get("model", "claude-haiku-4-5-20251001")
     _save_config_file("quality_rules", _QUALITY_RULES)
     return {"success": True}
 
@@ -4608,7 +4632,7 @@ async def get_available_models():
             "reasoning_levels": ["low", "medium", "high"],
         },
         {
-            "name": "claude-sonnet-4-5-20250929",
+            "name": "claude-sonnet-4-6",
             "provider": "anthropic",
             "tier": "manager",
             "cost_input": 3.0,
@@ -4704,6 +4728,18 @@ async def get_activity_logs(limit: int = 50, agent_id: str = None):
 
 
 # ── 아카이브 API ──
+@app.delete("/api/archive/all")
+async def delete_all_archives_api():
+    """모든 기밀문서를 삭제합니다."""
+    try:
+        from db import delete_all_archives
+        count = delete_all_archives()
+        save_activity_log("system", f"🗑️ 기밀문서 전체 삭제: {count}건", "warning")
+        return {"success": True, "deleted": count}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
 @app.get("/api/archive")
 async def get_archive_list(division: str = None, limit: int = 100):
     return list_archives(division=division, limit=limit)
@@ -4938,7 +4974,7 @@ async def _start_telegram_bot() -> None:
         _TG_MODELS = {
             "Anthropic": [
                 ("claude-opus-4-6", "Opus 4.6", ["xhigh", "high", "low", "없음"]),
-                ("claude-sonnet-4-5-20250929", "Sonnet 4.5", ["high", "low", "없음"]),
+                ("claude-sonnet-4-6", "Sonnet 4.6", ["high", "medium", "low", "없음"]),
                 ("claude-haiku-4-5-20251001", "Haiku 4.5", []),
             ],
             "OpenAI": [
@@ -5522,7 +5558,7 @@ async def _extract_and_save_memory(agent_id: str, task: str, response: str):
 
         result = await ask_ai(
             user_message=extraction_prompt,
-            model="claude-haiku-4-5-20251001",
+            model="claude-sonnet-4-6",
             max_tokens=400,
             system_prompt="JSON만 반환. 설명 없이."
         )

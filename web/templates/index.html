@@ -3425,6 +3425,11 @@
               <input x-model="archive.searchCorrelation" placeholder="작업 ID로 검색"
                 class="bg-hq-surface border border-hq-border rounded-lg px-3 py-1.5 text-xs text-hq-text w-48" @keydown.enter="searchArchiveByCorrelation()">
               <button @click="searchArchiveByCorrelation()" class="bg-hq-accent text-white rounded-lg px-3 py-1.5 text-xs">검색</button>
+              <button @click="showDeleteAllArchiveModal = true"
+                      class="px-3 py-1.5 rounded-lg text-xs font-medium bg-red-500/20 text-red-400 hover:bg-red-500/30 border border-red-500/30 transition"
+                      x-show="archive.files.length > 0">
+                전체 삭제
+              </button>
             </div>
           </div>
 
@@ -5456,6 +5461,25 @@
     </div>
   </div>
 
+  <!-- ═══ 기밀문서 전체 삭제 확인 모달 ═══ -->
+  <div x-show="showDeleteAllArchiveModal" x-transition.opacity
+       class="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
+       @click.self="showDeleteAllArchiveModal = false" style="display: none;">
+    <div class="bg-hq-panel border border-red-500/30 rounded-2xl w-full max-w-[380px] mx-4 p-6" @click.stop>
+      <div class="flex items-center gap-3 mb-4">
+        <div class="w-10 h-10 rounded-xl bg-red-500/15 flex items-center justify-center text-red-400 text-lg">⚠️</div>
+        <h2 class="text-base font-bold text-red-400">전체 삭제 확인</h2>
+      </div>
+      <p class="text-hq-300 text-sm mb-5 leading-relaxed">정말 모든 기밀문서를 삭제하시겠습니까?<br>이 작업은 되돌릴 수 없습니다.</p>
+      <div class="flex justify-end gap-2">
+        <button @click="showDeleteAllArchiveModal = false"
+                class="px-4 py-2 rounded-lg text-sm bg-hq-surface text-hq-muted hover:bg-hq-border transition">취소</button>
+        <button @click="deleteAllArchives()"
+                class="px-4 py-2 rounded-lg text-sm bg-red-600 text-white hover:bg-red-700 transition">삭제</button>
+      </div>
+    </div>
+  </div>
+
   <script>
     function corthexApp() {
       return {
@@ -5614,7 +5638,7 @@
         dashboardRefreshTimer: null,
         budget: {},
         modelMode: 'auto',
-        modelOverride: 'claude-sonnet-4-5-20250929',
+        modelOverride: 'claude-sonnet-4-6',
         bulkModelSelection: '',
         bulkReasoningSelection: '',
         bulkReasoningOptions: [],
@@ -5639,6 +5663,7 @@
 
         // Archive browser
         archive: { files: [], loading: false, selectedReport: null, content: '', filterDivision: 'all', filterTier: 'all', searchCorrelation: '' },
+        showDeleteAllArchiveModal: false,
 
         // SNS management
         sns: { tab: 'status', status: {}, oauthStatus: {}, queue: [], events: [], loading: false,
@@ -6544,7 +6569,7 @@
         getModelDisplayName(modelName) {
           const names = {
             'claude-opus-4-6': 'Claude Opus 4.6',
-            'claude-sonnet-4-5-20250929': 'Claude Sonnet 4.5',
+            'claude-sonnet-4-6': 'Claude Sonnet 4.6',
             'claude-haiku-4-5-20251001': 'Claude Haiku 4.5',
             'gpt-5.2-pro': 'GPT-5.2 Pro',
             'gpt-5.2': 'GPT-5.2',
@@ -6562,7 +6587,7 @@
         _getDefaultReasoning(modelName) {
           const map = {
             'claude-opus-4-6': ['low','medium','high'],
-            'claude-sonnet-4-5-20250929': ['low','medium','high'],
+            'claude-sonnet-4-6': ['low','medium','high'],
             'claude-haiku-4-5-20251001': [],
             'gpt-5-mini': ['low','medium','high'],
             'gpt-5': ['none','low','medium','high'],
@@ -6840,7 +6865,7 @@
         _getDefaultReasoning(modelName) {
           const defaults = {
             'claude-opus-4-6': ['low','medium','high'],
-            'claude-sonnet-4-5-20250929': ['low','medium','high'],
+            'claude-sonnet-4-6': ['low','medium','high'],
             'claude-haiku-4-5-20251001': [],
             'gpt-5-mini': ['low','medium','high'],
             'gpt-5': ['none','low','medium','high'],
@@ -7801,6 +7826,22 @@
           } catch { this.showToast('삭제 중 오류가 발생했습니다.', 'error'); }
         },
 
+        async deleteAllArchives() {
+          try {
+            const res = await fetch('/api/archive/all', { method: 'DELETE' });
+            const data = await res.json();
+            if (data.success) {
+              this.archive.files = [];
+              this.archive.selectedReport = null;
+              this.archive.content = '';
+              this.showDeleteAllArchiveModal = false;
+              this.showToast('모든 기밀문서가 삭제되었습니다', 'success');
+            } else {
+              this.showToast(data.error || '전체 삭제 실패', 'error');
+            }
+          } catch { this.showToast('전체 삭제 중 오류가 발생했습니다.', 'error'); }
+        },
+
         // ── SNS Management ──
         async loadSNS() {
           this.sns.loading = true;
@@ -8237,7 +8278,7 @@
               !this.availableModels.length ? fetch('/api/available-models').then(r => r.json()) : Promise.resolve(null),
             ]);
             this.modelMode = res.mode || 'auto';
-            this.modelOverride = res.override || 'claude-sonnet-4-5-20250929';
+            this.modelOverride = res.override || 'claude-sonnet-4-6';
             if (modelsRes && Array.isArray(modelsRes)) {
               this.availableModels = this.sortModels(modelsRes);
             }

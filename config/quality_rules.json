@@ -4,7 +4,7 @@
     "max_retry": 1,
     "check_hallucination": true,
     "check_relevance": true,
-    "review_model": "gpt-4o-mini"
+    "review_model": "claude-haiku-4-5-20251001"
   },
   "rubrics": {
     "default": {

@@ -33,6 +33,29 @@
 - **프레임워크**: Tailwind CSS + Alpine.js (CDN)
 - **디자인 시스템**: `hq-*` 커스텀 컬러 토큰 사용
 
+## 하드코딩 금지 규칙 (매우 중요!)
+- **모델명, 에이전트 목록, 도구 목록 등을 코드에 직접 쓰지 말 것!**
+  - ❌ 나쁜 예: `mini_server.py`에 `model_name: "claude-haiku-4-5-20251001"` 직접 입력
+  - ✅ 좋은 예: `config/agents.yaml`에서 읽어서 사용
+- **모델명 정의는 딱 2곳만**:
+  - `config/agents.yaml` — 에이전트별 모델
+  - `config/models.yaml` — 사용 가능한 모델 목록 + 가격
+- **mini_server.py, ai_handler.py, index.html에 모델명 문자열을 직접 쓰면 안 됨**
+  - 설정 파일(yaml)에서 읽거나, 파일 상단에 상수로 한 번만 정의하고 참조할 것
+  - 예: `DEFAULT_MODEL = _load_config("models")["default"]` 이런 식으로
+- **새 모델 추가/변경 시 체크리스트** (이전 사고에서 배운 교훈):
+  1. `config/agents.yaml` 수정
+  2. `config/models.yaml` 수정
+  3. `python config/yaml2json.py` 실행 (JSON 재생성)
+  4. `mini_server.py`의 AGENTS 리스트가 yaml과 동기화되는지 확인
+  5. `mini_server.py`의 `get_available_models()` 함수 확인
+  6. `mini_server.py`의 `_TG_MODELS` (텔레그램 모델 목록) 확인
+  7. `ai_handler.py`의 `_PRICING` 가격표 확인
+  8. `ai_handler.py`의 기본값/폴백 모델 확인
+  9. `index.html`의 모델 표시명 매핑 확인
+  10. `index.html`의 추론 레벨 매핑 확인
+- **과거 사고**: 2026-02-18에 agents.yaml만 바꾸고 나머지 9곳을 안 바꿔서 Sonnet 4.6이 어디에도 반영 안 된 사건 발생. 4개 파일 60+곳이 구버전으로 남아있었음
+
 ## 데이터 저장 규칙 (SQLite DB)
 - **웹에서 사용자가 저장/수정/삭제하는 모든 데이터는 반드시 SQLite DB(`settings` 테이블)에 저장할 것**
   - 프리셋, 예약, 워크플로우, 메모리, 피드백, 예산, 에이전트 설정, 품질 검수 기준, 에이전트 소울 등 전부 포함
