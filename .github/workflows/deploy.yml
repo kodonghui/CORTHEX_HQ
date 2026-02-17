@@ -41,12 +41,14 @@ jobs:
           SMTP_PASS_VAR: ${{ secrets.SMTP_PASS }}
           INSTA_APP_ID: ${{ secrets.INSTAGRAM_APP_ID }}
           INSTA_APP_SECRET: ${{ secrets.INSTAGRAM_APP_SECRET }}
+          INSTA_ACCESS_TOKEN: ${{ secrets.INSTAGRAM_ACCESS_TOKEN }}
+          INSTA_REDIRECT_URI: ${{ secrets.INSTAGRAM_REDIRECT_URI }}
           NOTION_DB_ID: ${{ secrets.NOTION_DEFAULT_DB_ID }}
         with:
           host: ${{ secrets.SERVER_IP_ARM }}
           username: ubuntu
           key: ${{ secrets.SERVER_SSH_KEY_ARM }}
-          envs: BUILD_NUMBER,SERVER_IP,TG_BOT_TOKEN,TG_CEO_CHAT_ID,ANTHROPIC_KEY,OPENAI_KEY,GOOGLE_KEY,NOTION_KEY,CERTBOT_EMAIL,DART_KEY,ECOS_KEY,KIPRIS_KEY,LAW_KEY,SERPAPI_KEY_VAR,SMTP_HOST_VAR,SMTP_PORT_VAR,SMTP_USER_VAR,SMTP_PASS_VAR,INSTA_APP_ID,INSTA_APP_SECRET,NOTION_DB_ID
+          envs: BUILD_NUMBER,SERVER_IP,TG_BOT_TOKEN,TG_CEO_CHAT_ID,ANTHROPIC_KEY,OPENAI_KEY,GOOGLE_KEY,NOTION_KEY,CERTBOT_EMAIL,DART_KEY,ECOS_KEY,KIPRIS_KEY,LAW_KEY,SERPAPI_KEY_VAR,SMTP_HOST_VAR,SMTP_PORT_VAR,SMTP_USER_VAR,SMTP_PASS_VAR,INSTA_APP_ID,INSTA_APP_SECRET,INSTA_ACCESS_TOKEN,INSTA_REDIRECT_URI,NOTION_DB_ID
           script: |
             echo "🚀 배포 시작... (빌드 #${BUILD_NUMBER})"
 
@@ -266,10 +268,12 @@ jobs:
               echo "✅ Gmail SMTP 설정 완료"
             fi
             if [ -n "${INSTA_APP_ID}" ]; then
-              sed -i '/^INSTAGRAM_APP_ID/d; /^INSTAGRAM_APP_SECRET/d' "$ENV_FILE"
+              sed -i '/^INSTAGRAM_APP_ID/d; /^INSTAGRAM_APP_SECRET/d; /^INSTAGRAM_ACCESS_TOKEN/d; /^INSTAGRAM_REDIRECT_URI/d' "$ENV_FILE"
               echo "INSTAGRAM_APP_ID=${INSTA_APP_ID}" >> "$ENV_FILE"
               echo "INSTAGRAM_APP_SECRET=${INSTA_APP_SECRET}" >> "$ENV_FILE"
-              echo "✅ Instagram API 설정 완료"
+              echo "INSTAGRAM_ACCESS_TOKEN=${INSTA_ACCESS_TOKEN}" >> "$ENV_FILE"
+              echo "INSTAGRAM_REDIRECT_URI=${INSTA_REDIRECT_URI}" >> "$ENV_FILE"
+              echo "✅ Instagram API 설정 완료 (토큰 포함)"
             fi
             if [ -n "${NOTION_DB_ID}" ]; then
               sed -i '/^NOTION_DEFAULT_DB_ID/d' "$ENV_FILE"
