@@ -663,6 +663,27 @@ async def _call_openai(
     }
 
 
+# ── spawn_agent 도구 스키마 (mini_server.py가 처장에게 제공) ──
+SPAWN_AGENT_TOOL_SCHEMA = {
+    "name": "spawn_agent",
+    "description": "소속 전문가 에이전트를 호출하여 특정 분석/작업을 수행합니다.",
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "agent_id": {
+                "type": "string",
+                "description": "호출할 전문가 에이전트 ID",
+            },
+            "task": {
+                "type": "string",
+                "description": "전문가에게 지시할 구체적인 작업 내용",
+            },
+        },
+        "required": ["agent_id", "task"],
+    },
+}
+
+
 async def ask_ai(
     user_message: str,
     system_prompt: str = "",

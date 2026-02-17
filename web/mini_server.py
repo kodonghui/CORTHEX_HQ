@@ -341,6 +341,7 @@ async def websocket_endpoint(ws: WebSocket):
             if msg.get("type") == "command":
                 cmd_text = (msg.get("content") or msg.get("text", "")).strip()
                 use_batch = msg.get("batch", False)
+                ws_target_agent_id = msg.get("target_agent_id", None)
                 if cmd_text:
                     # DB에 메시지 + 작업 저장
                     task = create_task(cmd_text, source="websocket_batch" if use_batch else "websocket")
@@ -403,7 +404,7 @@ async def websocket_endpoint(ws: WebSocket):
                     # 실시간 모드: AI 즉시 처리
                     if is_ai_ready():
                         update_task(task["task_id"], status="running")
-                        result = await _process_ai_command(cmd_text, task["task_id"])
+                        result = await _process_ai_command(cmd_text, task["task_id"], target_agent_id=ws_target_agent_id)
                         if "error" in result:
                             await ws.send_json({
                                 "event": "result",
@@ -5688,16 +5689,156 @@ async def _manager_with_delegation(manager_id: str, text: str) -> dict:
     }
 
 
-async def _broadcast_to_managers(text: str, task_id: str) -> dict:
-    """전체 부서 브로드캐스트 — 비서실장 종합 보고서 시스템.
+def _determine_routing_level(text: str) -> tuple[int, str | None]:
+    """질문 복잡도에 따라 Level 1~4와 대상 처장 ID 반환.
 
-    흐름:
-    1) 비서실 보좌관 3명 + 6개 처장 동시 호출
-    2) 각 처장 보고서는 기밀문서(아카이브)에만 저장 (사령실에 전체 안 보여줌)
-    3) 비서실장이 AI로 종합 보고서 작성 (핵심 요약 + 부서별 한줄 + CEO 결재 체크리스트)
-    4) 사령실/텔레그램에는 비서실장 종합 보고서만 표시
-    5) "상세 보고서는 기밀문서에서 확인" 안내
+    Returns: (level, manager_id_or_None)
+    - Level 1: 간단한 인사/단순 질문 → 비서실장 직접 처리 (처장 호출 없음)
+    - Level 2: 특정 부서 전문 질문 → 처장 1명만 호출
+    - Level 3: 특정 부서 심층 분석 → 처장 1명 + spawn_agent 자율 전문가 선택
+    - Level 4: 복합/전사 질문 → 전원 병렬 호출 (기존 브로드캐스트)
     """
+    t = text.lower()
+
+    # Level 1: 간단한 요청 — 비서실장 직접 처리
+    SIMPLE_KEYWORDS = ["안녕", "안녕하세요", "고마워", "감사합니다", "일정", "뭐야",
+                       "언제야", "뭔가요", "알려줘", "찾아줘", "확인해줘"]
+    if len(text) < 50 and any(k in t for k in SIMPLE_KEYWORDS):
+        return (1, None)
+
+    # Level 2/3: 특정 부서 전문 질문
+    MANAGER_KEYWORDS = {
+        "cto_manager": ["기술", "개발", "코드", "api", "서버", "앱", "웹", "프론트", "백엔드", "인프라", "ai 모델", "데이터베이스"],
+        "cso_manager": ["사업", "시장", "재무", "전략", "비즈니스", "계획", "수익", "매출", "투자 계획"],
+        "clo_manager": ["법", "계약", "저작권", "특허", "약관", "법률", "ip"],
+        "cmo_manager": ["마케팅", "고객", "콘텐츠", "sns", "광고", "커뮤니티", "브랜딩"],
+        "cio_manager": ["투자", "주식", "코스피", "시황", "종목", "리스크", "포트폴리오", "etf", "채권"],
+        "cpo_manager": ["기록", "출판", "블로그", "연대기", "회고", "편집", "아카이브"],
+    }
+
+    matched_manager = None
+    for mgr_id, keywords in MANAGER_KEYWORDS.items():
+        if any(k in t for k in keywords):
+            matched_manager = mgr_id
+            break
+
+    if matched_manager:
+        DEEP_KEYWORDS = ["분석", "보고서", "전략", "계획서", "검토", "평가", "비교", "예측", "전망"]
+        if any(k in t for k in DEEP_KEYWORDS):
+            return (3, matched_manager)
+        return (2, matched_manager)
+
+    return (4, None)
+
+
+async def _manager_with_delegation_autonomous(manager_id: str, text: str) -> dict:
+    """처장이 spawn_agent 도구로 필요한 전문가만 자율 선택하여 호출 (Level 3용)."""
+    agent_cfg = next((a for a in AGENTS if a.get("agent_id") == manager_id), None)
+    if not agent_cfg:
+        return {"content": f"에이전트 설정을 찾을 수 없습니다: {manager_id}", "error": True}
+
+    soul = _load_agent_prompt(manager_id)
+    specialists_pool = _MANAGER_SPECIALISTS.get(manager_id, [])
+
+    # spawn_agent 도구 스키마
+    spawn_tool = {
+        "name": "spawn_agent",
+        "description": (
+            f"소속 전문가를 호출하여 특정 분석을 수행합니다. "
+            f"사용 가능한 전문가 ID: {', '.join(specialists_pool)}"
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "agent_id": {
+                    "type": "string",
+                    "description": "호출할 전문가 에이전트 ID",
+                    "enum": specialists_pool,
+                },
+                "task": {
+                    "type": "string",
+                    "description": "전문가에게 지시할 구체적인 작업 내용",
+                }
+            },
+            "required": ["agent_id", "task"]
+        }
+    }
+
+    specialist_results: dict[str, str] = {}
+
+    async def _spawn_executor(tool_name: str, tool_input: dict) -> str:
+        if tool_name == "spawn_agent":
+            sid = tool_input.get("agent_id", "")
+            task = tool_input.get("task", "")
+            if sid in specialists_pool:
+                logger.info("spawn_agent: %s → %s", manager_id, sid)
+                await _broadcast_status(manager_id, "working", 0.5, f"전문가 {_SPECIALIST_NAMES.get(sid, sid)} 호출 중...")
+                result = await _call_agent(sid, task)
+                content = result.get("content", "")
+                specialist_results[sid] = content
+                return content
+        return "알 수 없는 도구입니다."
+
+    mgr_name = _AGENT_NAMES.get(manager_id, manager_id)
+    await _broadcast_status(manager_id, "working", 0.2, f"{mgr_name} 분석 중 (자율 전문가 선택)...")
+
+    override = _get_model_override(manager_id)
+    model = select_model(text, override=override)
+
+    result = await ask_ai(
+        text,
+        system_prompt=soul,
+        model=model,
+        tools=[spawn_tool],
+        tool_executor=_spawn_executor,
+    )
+
+    await _broadcast_status(manager_id, "done", 1.0, "보고 완료")
+
+    return {
+        "content": result.get("content", ""),
+        "specialist_results": specialist_results,
+        "manager_id": manager_id,
+        "cost_usd": result.get("cost_usd", 0),
+        "time_seconds": result.get("time_seconds", 0),
+    }
+
+
+async def _chief_finalize(original_text: str, manager_results: dict) -> dict:
+    """Level 2/3 완료 후 비서실장이 최종 보고서 1개 작성."""
+    chief_cfg = next((a for a in AGENTS if a.get("agent_id") == "chief_of_staff"), None)
+    if not chief_cfg:
+        # fallback: 처장 결과 그대로 반환
+        combined = "\n\n".join(r.get("content", "") for r in manager_results.values())
+        return {"content": combined}
+
+    results_text = "\n\n".join(
+        f"[{mgr_id} 보고]\n{res.get('content', '')}"
+        for mgr_id, res in manager_results.items()
+    )
+
+    synthesis_prompt = (
+        f"CEO 질문: {original_text}\n\n"
+        f"처장 보고 내용:\n{results_text}\n\n"
+        "위 내용을 바탕으로 CEO에게 드릴 최종 보고서를 작성하세요. "
+        "핵심 결론을 먼저, 세부 내용을 뒤에 정리하세요."
+    )
+
+    soul = _load_agent_prompt("chief_of_staff")
+    override = _get_model_override("chief_of_staff")
+    model = select_model(synthesis_prompt, override=override)
+
+    result = await ask_ai(
+        synthesis_prompt,
+        system_prompt=soul,
+        model=model,
+    )
+
+    return {"content": result.get("content", ""), "routing_level": "finalized", "cost_usd": result.get("cost_usd", 0)}
+
+
+async def _broadcast_to_managers_all(text: str, task_id: str) -> dict:
+    """Level 4: 기존 방식 — 모든 처장 + 보좌관 병렬 호출 (브로드캐스트)."""
     managers = ["cto_manager", "cso_manager", "clo_manager", "cmo_manager", "cio_manager", "cpo_manager"]
     staff_specialists = ["report_specialist", "schedule_specialist", "relay_specialist"]
 
@@ -5862,6 +6003,40 @@ async def _broadcast_to_managers(text: str, task_id: str) -> dict:
         "model": "multi-agent",
         "routing_method": "브로드캐스트",
     }
+
+
+async def _broadcast_to_managers(text: str, task_id: str, target_agent_id: str | None = None) -> dict:
+    """스마트 라우팅: Level에 따라 적절한 에이전트만 호출.
+
+    Level 1: 비서실장 직접 처리 (처장 호출 없음)
+    Level 2: 처장 1명만 호출 (전문가 위임 없음)
+    Level 3: 처장 1명 + spawn_agent 자율 전문가 선택
+    Level 4: 전원 병렬 호출 (기존 브로드캐스트)
+    """
+    # CEO 직접 개입: 특정 에이전트에게 직접 전달
+    if target_agent_id:
+        logger.info("CEO 직접 개입: → %s", target_agent_id)
+        return await _call_agent(target_agent_id, text)
+
+    level, manager_id = _determine_routing_level(text)
+    logger.info("스마트 라우팅 Level %d, 처장: %s", level, manager_id)
+
+    if level == 1:
+        # 비서실장 직접 처리
+        return await _call_agent("chief_of_staff", text)
+
+    elif level == 2:
+        # 처장 1명만 호출 (전문가 위임 없음)
+        mgr_result = await _call_agent(manager_id, text)
+        return await _chief_finalize(text, {manager_id: mgr_result})
+
+    elif level == 3:
+        # 처장 + spawn_agent 자율 전문가 선택
+        mgr_result = await _manager_with_delegation_autonomous(manager_id, text)
+        return await _chief_finalize(text, {manager_id: mgr_result})
+
+    else:  # level == 4
+        return await _broadcast_to_managers_all(text, task_id)
 
 
 async def _sequential_collaboration(text: str, task_id: str, agent_order: list[str] | None = None) -> dict:
@@ -6187,16 +6362,17 @@ def _get_model_override(agent_id: str) -> str | None:
     return None
 
 
-async def _process_ai_command(text: str, task_id: str) -> dict:
+async def _process_ai_command(text: str, task_id: str, target_agent_id: str | None = None) -> dict:
     """CEO 명령을 적합한 에이전트에게 위임하고 AI 결과를 반환합니다.
 
     흐름:
       예산 확인 → 브로드캐스트 확인 → 라우팅(분류) → 상태 전송
       → 처장+전문가 풀 체인 위임 → 검수 → DB 저장
 
-    브로드캐스트 모드: "전체", "출석체크" 등 → 29명 동시 가동
+    브로드캐스트 모드: "전체", "출석체크" 등 → 스마트 라우팅 (Level 1~4)
     단일 위임 모드: 키워드/AI 분류 → 처장+전문가 체인 호출
     직접 처리: 비서실장이 직접 답변 (단순 질문)
+    target_agent_id: CEO가 특정 에이전트를 직접 지정한 경우
     """
     # 1) 예산 확인
     limit = float(load_setting("daily_budget_usd") or 7.0)
@@ -6228,12 +6404,12 @@ async def _process_ai_command(text: str, task_id: str) -> dict:
         update_task(task_id, status="completed", result_summary=content[:500], success=1)
         return {"content": content, "handled_by": "비서실장", "agent_id": "chief_of_staff"}
 
-    # /전체 [메시지] — 브로드캐스트 (29명 동시 가동)
+    # /전체 [메시지] — 브로드캐스트 (29명 동시 가동) — 항상 Level 4 전원 호출
     if text_stripped.startswith("/전체"):
         broadcast_text = text_stripped[len("/전체"):].strip()
         if not broadcast_text:
             broadcast_text = "전체 출석 보고"
-        return await _broadcast_to_managers(broadcast_text, task_id)
+        return await _broadcast_to_managers_all(broadcast_text, task_id)
 
     # /순차 [메시지] — 순차 협업 (에이전트 릴레이)
     if text_stripped.startswith("/순차"):
@@ -6305,9 +6481,9 @@ async def _process_ai_command(text: str, task_id: str) -> dict:
         return {"content": content, "handled_by": "비서실장", "agent_id": "chief_of_staff"}
 
     # ── 슬래시 명령어 이외: 키워드 기반 브로드캐스트 (기존 호환) ──
-    # "전체", "출석체크" 등의 키워드는 계속 작동 (자주 쓰는 기능이므로)
+    # "전체", "출석체크" 등의 키워드는 스마트 라우팅 적용 (Level 1~4)
     if _is_broadcast_command(text):
-        return await _broadcast_to_managers(text, task_id)
+        return await _broadcast_to_managers(text, task_id, target_agent_id=target_agent_id)
 
     # 3) 라우팅 — 적합한 에이전트 결정
     routing = await _route_task(text)
