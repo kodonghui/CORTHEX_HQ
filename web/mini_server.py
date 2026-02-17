@@ -925,41 +925,6 @@ async def update_task_tags(task_id: str, request: Request):
     return {"success": True, "tags": tags}
 
 
-@app.post("/api/tasks/bulk")
-async def bulk_task_action(request: Request):
-    """작업 일괄 처리 — 삭제/북마크/태그/보관."""
-    body = await request.json()
-    action = body.get("action", "")
-    task_ids = body.get("task_ids", [])
-    if not task_ids:
-        return {"success": False, "error": "작업을 선택해주세요"}
-
-    if action == "delete":
-        count = bulk_delete_tasks(task_ids)
-        return {"success": True, "action": "delete", "count": count}
-    elif action == "bookmark":
-        for tid in task_ids:
-            db_toggle_bookmark(tid)
-        return {"success": True, "action": "bookmark", "count": len(task_ids)}
-    elif action == "tag":
-        tag = body.get("tag", "")
-        if not tag:
-            return {"success": False, "error": "태그를 입력해주세요"}
-        for tid in task_ids:
-            task = db_get_task(tid)
-            if task:
-                existing_tags = task.get("tags", [])
-                if tag not in existing_tags:
-                    existing_tags.append(tag)
-                    set_task_tags(tid, existing_tags)
-        return {"success": True, "action": "tag", "count": len(task_ids)}
-    elif action == "archive":
-        count = bulk_archive_tasks(task_ids, archive=True)
-        return {"success": True, "action": "archive", "count": count}
-    else:
-        return {"success": False, "error": f"알 수 없는 작업: {action}"}
-
-
 @app.put("/api/tasks/{task_id}/read")
 async def mark_task_read_api(task_id: str, request: Request):
     """작업 읽음/안읽음 표시."""
@@ -971,7 +936,7 @@ async def mark_task_read_api(task_id: str, request: Request):
 
 @app.post("/api/tasks/bulk")
 async def bulk_task_action(request: Request):
-    """작업 일괄 처리 (삭제/아카이브/읽음 등)."""
+    """작업 일괄 처리 (삭제/아카이브/읽음/북마크/태그 등)."""
     body = await request.json()
     action = body.get("action", "")
     task_ids = body.get("task_ids", [])
@@ -993,6 +958,22 @@ async def bulk_task_action(request: Request):
     elif action == "unread":
         count = bulk_mark_read(task_ids, is_read=False)
         return {"success": True, "action": "unread", "affected": count}
+    elif action == "bookmark":
+        for tid in task_ids:
+            db_toggle_bookmark(tid)
+        return {"success": True, "action": "bookmark", "affected": len(task_ids)}
+    elif action == "tag":
+        tag = body.get("tag", "")
+        if not tag:
+            return {"success": False, "error": "태그를 입력해주세요"}
+        for tid in task_ids:
+            task = db_get_task(tid)
+            if task:
+                existing_tags = task.get("tags", [])
+                if tag not in existing_tags:
+                    existing_tags.append(tag)
+                    set_task_tags(tid, existing_tags)
+        return {"success": True, "action": "tag", "affected": len(task_ids)}
     else:
         return {"success": False, "error": f"알 수 없는 액션: {action}"}
 
