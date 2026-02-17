@@ -30,11 +30,23 @@ jobs:
           GOOGLE_KEY: ${{ secrets.GOOGLE_API_KEY }}
           NOTION_KEY: ${{ secrets.NOTION_API_KEY }}
           CERTBOT_EMAIL: ${{ secrets.CERTBOT_EMAIL }}
+          DART_KEY: ${{ secrets.DART_API_KEY }}
+          ECOS_KEY: ${{ secrets.ECOS_API_KEY }}
+          KIPRIS_KEY: ${{ secrets.KIPRIS_API_KEY }}
+          LAW_KEY: ${{ secrets.LAW_API_KEY }}
+          SERPAPI_KEY_VAR: ${{ secrets.SERPAPI_KEY }}
+          SMTP_HOST_VAR: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT_VAR: ${{ secrets.SMTP_PORT }}
+          SMTP_USER_VAR: ${{ secrets.SMTP_USER }}
+          SMTP_PASS_VAR: ${{ secrets.SMTP_PASS }}
+          INSTA_APP_ID: ${{ secrets.INSTAGRAM_APP_ID }}
+          INSTA_APP_SECRET: ${{ secrets.INSTAGRAM_APP_SECRET }}
+          NOTION_DB_ID: ${{ secrets.NOTION_DEFAULT_DB_ID }}
         with:
           host: ${{ secrets.SERVER_IP_ARM }}
           username: ubuntu
           key: ${{ secrets.SERVER_SSH_KEY_ARM }}
-          envs: BUILD_NUMBER,SERVER_IP,TG_BOT_TOKEN,TG_CEO_CHAT_ID,ANTHROPIC_KEY,OPENAI_KEY,GOOGLE_KEY,NOTION_KEY,CERTBOT_EMAIL
+          envs: BUILD_NUMBER,SERVER_IP,TG_BOT_TOKEN,TG_CEO_CHAT_ID,ANTHROPIC_KEY,OPENAI_KEY,GOOGLE_KEY,NOTION_KEY,CERTBOT_EMAIL,DART_KEY,ECOS_KEY,KIPRIS_KEY,LAW_KEY,SERPAPI_KEY_VAR,SMTP_HOST_VAR,SMTP_PORT_VAR,SMTP_USER_VAR,SMTP_PASS_VAR,INSTA_APP_ID,INSTA_APP_SECRET,NOTION_DB_ID
           script: |
             echo "🚀 배포 시작... (빌드 #${BUILD_NUMBER})"
 
@@ -218,7 +230,53 @@ jobs:
               echo "NOTION_API_KEY=${NOTION_KEY}" >> "$ENV_FILE"
               echo "✅ Notion API 키 설정 완료"
             fi
-            echo "📋 등록된 API 키 수: $(grep -c '_KEY=' "$ENV_FILE" || echo 0)개"
+
+            # 5.8단계: 전문가 도구 + 기타 API 키 설정
+            if [ -n "${DART_KEY}" ]; then
+              sed -i '/^DART_API_KEY/d' "$ENV_FILE"
+              echo "DART_API_KEY=${DART_KEY}" >> "$ENV_FILE"
+              echo "✅ DART (금감원) API 키 설정 완료"
+            fi
+            if [ -n "${ECOS_KEY}" ]; then
+              sed -i '/^ECOS_API_KEY/d' "$ENV_FILE"
+              echo "ECOS_API_KEY=${ECOS_KEY}" >> "$ENV_FILE"
+              echo "✅ ECOS (한국은행) API 키 설정 완료"
+            fi
+            if [ -n "${KIPRIS_KEY}" ]; then
+              sed -i '/^KIPRIS_API_KEY/d' "$ENV_FILE"
+              echo "KIPRIS_API_KEY=${KIPRIS_KEY}" >> "$ENV_FILE"
+              echo "✅ KIPRIS (특허/상표) API 키 설정 완료"
+            fi
+            if [ -n "${LAW_KEY}" ]; then
+              sed -i '/^LAW_API_KEY/d' "$ENV_FILE"
+              echo "LAW_API_KEY=${LAW_KEY}" >> "$ENV_FILE"
+              echo "✅ 국가법령정보 API 키 설정 완료"
+            fi
+            if [ -n "${SERPAPI_KEY_VAR}" ]; then
+              sed -i '/^SERPAPI_KEY/d' "$ENV_FILE"
+              echo "SERPAPI_KEY=${SERPAPI_KEY_VAR}" >> "$ENV_FILE"
+              echo "✅ SerpAPI (웹 검색) 키 설정 완료"
+            fi
+            if [ -n "${SMTP_HOST_VAR}" ]; then
+              sed -i '/^SMTP_HOST/d; /^SMTP_PORT/d; /^SMTP_USER/d; /^SMTP_PASS/d' "$ENV_FILE"
+              echo "SMTP_HOST=${SMTP_HOST_VAR}" >> "$ENV_FILE"
+              echo "SMTP_PORT=${SMTP_PORT_VAR}" >> "$ENV_FILE"
+              echo "SMTP_USER=${SMTP_USER_VAR}" >> "$ENV_FILE"
+              echo "SMTP_PASS=${SMTP_PASS_VAR}" >> "$ENV_FILE"
+              echo "✅ Gmail SMTP 설정 완료"
+            fi
+            if [ -n "${INSTA_APP_ID}" ]; then
+              sed -i '/^INSTAGRAM_APP_ID/d; /^INSTAGRAM_APP_SECRET/d' "$ENV_FILE"
+              echo "INSTAGRAM_APP_ID=${INSTA_APP_ID}" >> "$ENV_FILE"
+              echo "INSTAGRAM_APP_SECRET=${INSTA_APP_SECRET}" >> "$ENV_FILE"
+              echo "✅ Instagram API 설정 완료"
+            fi
+            if [ -n "${NOTION_DB_ID}" ]; then
+              sed -i '/^NOTION_DEFAULT_DB_ID/d' "$ENV_FILE"
+              echo "NOTION_DEFAULT_DB_ID=${NOTION_DB_ID}" >> "$ENV_FILE"
+              echo "✅ Notion DB ID 설정 완료"
+            fi
+            echo "📋 등록된 API 키 수: $(grep -c '_KEY\|_ID\|_PASS\|_HOST\|_PORT\|_USER' "$ENV_FILE" || echo 0)개"
 
             # 6단계: 서버 재시작
             echo "🔁 서버 재시작 중..."
