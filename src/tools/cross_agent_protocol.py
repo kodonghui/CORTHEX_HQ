@@ -14,6 +14,20 @@ logger = logging.getLogger("corthex.tools.cross_agent_protocol")
 
 MESSAGES_FILE = os.path.join(os.getcwd(), "data", "cross_agent_messages.json")
 
+# ── 실시간 에이전트 호출 콜백 (mini_server.py가 시작 시 등록) ──
+_call_agent_callback: Any | None = None
+
+
+def register_call_agent(fn: Any) -> None:
+    """mini_server.py가 서버 시작 시 _call_agent 함수를 등록합니다.
+
+    등록된 콜백은 cross_agent_protocol의 request 액션에서
+    실제 에이전트 AI를 실시간으로 호출하는 데 사용됩니다.
+    """
+    global _call_agent_callback
+    _call_agent_callback = fn
+    logger.info("cross_agent_protocol: _call_agent 콜백 등록 완료")
+
 
 class CrossAgentProtocolTool(BaseTool):
     """에이전트 간 횡적 협업 프로토콜 — 작업 요청, 정보 공유, 작업 인계, 결과 수집."""
@@ -89,6 +103,30 @@ class CrossAgentProtocolTool(BaseTool):
         self._save(messages)
 
         logger.info("에이전트 간 요청: %s → %s (ID: %s)", from_agent, to_agent, msg["id"])
+
+        # 실시간 에이전트 호출 (콜백이 등록된 경우)
+        if _call_agent_callback is not None:
+            try:
+                full_task = f"{task}\n\n배경 정보: {context}" if context else task
+                result = await _call_agent_callback(to_agent, full_task)
+                response_text = result.get("content", "") if isinstance(result, dict) else str(result)
+                # 응답을 메시지에 업데이트
+                msg["response"] = response_text
+                msg["status"] = "완료"
+                msg["updated_at"] = datetime.now().isoformat()
+                self._save(messages)
+                logger.info("실시간 요청 완료: %s → %s", from_agent, to_agent)
+                return (
+                    f"## 에이전트 간 실시간 요청 완료\n\n"
+                    f"**{from_agent} → {to_agent}**\n\n"
+                    f"**{to_agent}의 응답:**\n\n{response_text}"
+                )
+            except Exception as e:
+                logger.error("실시간 에이전트 호출 실패: %s", e)
+                msg["status"] = "실패"
+                msg["updated_at"] = datetime.now().isoformat()
+                self._save(messages)
+
         return (
             f"## 작업 요청 전송 완료\n\n"
             f"| 항목 | 내용 |\n|------|------|\n"

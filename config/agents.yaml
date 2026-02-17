@@ -40,6 +40,12 @@ agents:
       - 복수 본부가 필요한 경우 모두 포함
       - 일반 질문이나 보고서 요약은 직접 처리
       - 항상 한국어로 간결하고 명확하게 보고하세요.
+
+      ## 스마트 라우팅 안내
+      당신은 질문의 복잡도에 따라 다르게 작동합니다.
+      Level 1 (간단한 요청): 당신이 직접 답변합니다. 명확하고 간결하게 바로 답변하세요.
+      Level 2~4: 시스템이 해당 처장에게 위임합니다.
+      Level 1로 판단된 간단한 인사, 일정, 단순 확인 요청은 당신이 직접 짧고 명확하게 답하세요.
     capabilities:
       - "명령 분류 및 배분"
       - "보고서 요약"
@@ -158,6 +164,14 @@ agents:
       - action=commits, count=10: 최근 커밋 내역
       - action=repo_stats: 저장소 전체 통계
       개발 현황 파악, 이슈 관리 시 활용하세요.
+
+      ## 전문가 자율 선택 (spawn_agent 도구)
+      당신은 이제 spawn_agent 도구를 통해 필요한 전문가만 선택적으로 호출할 수 있습니다.
+      모든 전문가를 호출할 필요가 없습니다. 이 질문에 실제로 필요한 전문가만 선택하세요.
+      당신이 직접 처리할 수 있는 질문이라면 spawn_agent 없이 직접 답변해도 됩니다.
+      spawn_agent 사용 예:
+      - 기술적 구현이 필요할 때: spawn_agent(frontend_specialist, "...")
+      - 모든 전문성이 필요한 복잡한 분석: 여러 번 spawn_agent 호출
     capabilities:
       - "기술 아키텍처"
       - "코드 리뷰"
@@ -399,6 +413,14 @@ agents:
       - action=search, query="법학적성시험": 논문 검색
       - action=cite, title="논문 제목": 인용 정보
       - action=trend, query="키워드": 연도별 논문 발표 추이
+
+      ## 전문가 자율 선택 (spawn_agent 도구)
+      당신은 이제 spawn_agent 도구를 통해 필요한 전문가만 선택적으로 호출할 수 있습니다.
+      모든 전문가를 호출할 필요가 없습니다. 이 질문에 실제로 필요한 전문가만 선택하세요.
+      당신이 직접 처리할 수 있는 질문이라면 spawn_agent 없이 직접 답변해도 됩니다.
+      spawn_agent 사용 예:
+      - 기술적 구현이 필요할 때: spawn_agent(frontend_specialist, "...")
+      - 모든 전문성이 필요한 복잡한 분석: 여러 번 spawn_agent 호출
     capabilities:
       - "사업 전략"
       - "시장 분석"
@@ -641,6 +663,14 @@ agents:
       - action=law, query="저작권법": 법령 검색
       - action=precedent, query="저작권 침해": 판례 검색
       법률 검토 시 관련 법령과 판례를 먼저 조회하세요.
+
+      ## 전문가 자율 선택 (spawn_agent 도구)
+      당신은 이제 spawn_agent 도구를 통해 필요한 전문가만 선택적으로 호출할 수 있습니다.
+      모든 전문가를 호출할 필요가 없습니다. 이 질문에 실제로 필요한 전문가만 선택하세요.
+      당신이 직접 처리할 수 있는 질문이라면 spawn_agent 없이 직접 답변해도 됩니다.
+      spawn_agent 사용 예:
+      - 기술적 구현이 필요할 때: spawn_agent(frontend_specialist, "...")
+      - 모든 전문성이 필요한 복잡한 분석: 여러 번 spawn_agent 호출
     capabilities:
       - "법률 자문"
       - "IP 관리"
@@ -765,6 +795,14 @@ agents:
       - Naver Cafe: 네이버 카페 게시글 (Official API, extra에 club_id/menu_id 필요)
       - Naver Blog: 네이버 블로그 글 (Selenium 기반, 안정성 주의)
       - Daum Cafe: 다음 카페 게시글 (Selenium 기반, extra에 cafe_id/board_id 필요)
+
+      ## 전문가 자율 선택 (spawn_agent 도구)
+      당신은 이제 spawn_agent 도구를 통해 필요한 전문가만 선택적으로 호출할 수 있습니다.
+      모든 전문가를 호출할 필요가 없습니다. 이 질문에 실제로 필요한 전문가만 선택하세요.
+      당신이 직접 처리할 수 있는 질문이라면 spawn_agent 없이 직접 답변해도 됩니다.
+      spawn_agent 사용 예:
+      - 기술적 구현이 필요할 때: spawn_agent(frontend_specialist, "...")
+      - 모든 전문성이 필요한 복잡한 분석: 여러 번 spawn_agent 호출
     capabilities:
       - "마케팅 전략"
       - "고객 리서치"
@@ -960,6 +998,14 @@ agents:
       - backtest_engine: 투자 전략 백테스트 (골든크로스/RSI/MACD/바이앤홀드)
       - insider_tracker: 내부자(임원/대주주) 거래 추적 (track/scan/alert)
       - dividend_calendar: 배당 일정/이력/TOP 종목 (calendar/history/top)
+
+      ## 전문가 자율 선택 (spawn_agent 도구)
+      당신은 이제 spawn_agent 도구를 통해 필요한 전문가만 선택적으로 호출할 수 있습니다.
+      모든 전문가를 호출할 필요가 없습니다. 이 질문에 실제로 필요한 전문가만 선택하세요.
+      당신이 직접 처리할 수 있는 질문이라면 spawn_agent 없이 직접 답변해도 됩니다.
+      spawn_agent 사용 예:
+      - 기술적 구현이 필요할 때: spawn_agent(frontend_specialist, "...")
+      - 모든 전문성이 필요한 복잡한 분석: 여러 번 spawn_agent 호출
     capabilities:
       - "투자 분석"
       - "포트폴리오 관리"
@@ -1218,6 +1264,14 @@ agents:
       - action=build: 주간/월간 뉴스레터 생성
       - action=preview: 미리보기
       - action=templates: 템플릿 목록
+
+      ## 전문가 자율 선택 (spawn_agent 도구)
+      당신은 이제 spawn_agent 도구를 통해 필요한 전문가만 선택적으로 호출할 수 있습니다.
+      모든 전문가를 호출할 필요가 없습니다. 이 질문에 실제로 필요한 전문가만 선택하세요.
+      당신이 직접 처리할 수 있는 질문이라면 spawn_agent 없이 직접 답변해도 됩니다.
+      spawn_agent 사용 예:
+      - 기술적 구현이 필요할 때: spawn_agent(frontend_specialist, "...")
+      - 모든 전문성이 필요한 복잡한 분석: 여러 번 spawn_agent 호출
     capabilities:
       - "출판 기획"
       - "콘텐츠 큐레이션"
