@@ -1459,7 +1459,7 @@
                   <div class="text-[10px] text-hq-muted uppercase tracking-wider">오늘 비용</div>
                 </div>
               </div>
-              <div class="text-[11px] text-hq-muted">누적: $<span x-text="(dashboard.totalCost || 0).toFixed(2)"></span> · <span x-text="(dashboard.totalTokens || 0).toLocaleString()"></span> 토큰</div>
+              <div class="text-[11px] text-hq-muted">누적: $<span x-text="(dashboard.totalCost || 0).toFixed(2)"></span></div>
             </div>
             <div class="glass border border-hq-border rounded-xl p-4 hover-glow">
               <div class="flex items-center gap-3 mb-2">
@@ -1486,29 +1486,112 @@
               </div>
               <div class="text-[11px] text-hq-muted" x-text="dashboard.notionConnected ? '보고서 자동 저장 중' : 'API 키 설정 필요'"></div>
             </div>
+          </div>
+
+          <!-- 퀵 액션 + AI 사용량 + 시스템 현황 -->
+          <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-8">
+            <!-- 퀵 액션 카드 -->
             <div class="glass border border-hq-border rounded-xl p-4 hover-glow">
-              <div class="flex items-center gap-3 mb-2">
-                <div class="w-9 h-9 rounded-lg bg-hq-accent/15 flex items-center justify-center">
-                  <svg class="w-4.5 h-4.5 text-hq-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg>
+              <div class="flex items-center gap-3 mb-3">
+                <div class="w-9 h-9 rounded-lg bg-hq-cyan/15 flex items-center justify-center">
+                  <svg class="w-4.5 h-4.5 text-hq-cyan" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
                 </div>
                 <div>
-                  <div class="text-sm font-bold text-hq-text">API 키</div>
-                  <div class="text-[10px] text-hq-muted uppercase tracking-wider">연결 상태</div>
+                  <div class="text-sm font-bold text-hq-text">퀵 액션</div>
+                  <div class="text-[10px] text-hq-muted uppercase tracking-wider">바로 실행</div>
                 </div>
               </div>
-              <div class="space-y-1 text-[11px]">
-                <template x-for="key in [
-                  {id: 'anthropic', label: 'Anthropic'},
-                  {id: 'openai', label: 'OpenAI'},
-                  {id: 'telegram', label: 'Telegram'},
-                  {id: 'notion', label: 'Notion'},
-                ]" :key="key.id">
-                  <div class="flex items-center gap-1.5">
-                    <span class="w-1.5 h-1.5 rounded-full" :class="dashboard.apiKeys?.[key.id] ? 'bg-hq-green' : 'bg-hq-red'"></span>
-                    <span class="text-hq-muted" x-text="key.label"></span>
-                    <span class="ml-auto font-mono" :class="dashboard.apiKeys?.[key.id] ? 'text-hq-green' : 'text-hq-red/70'" x-text="dashboard.apiKeys?.[key.id] ? '등록됨' : '미등록'"></span>
+              <div class="flex flex-wrap gap-2">
+                <button @click="activeTab='command'; $nextTick(() => { chatInput='전체 보고'; })"
+                  class="px-3 py-1.5 text-[11px] font-semibold rounded-lg bg-hq-cyan/10 text-hq-cyan border border-hq-cyan/20 hover:bg-hq-cyan/20 transition">
+                  전체 보고
+                </button>
+                <button @click="activeTab='command'; $nextTick(() => { chatInput='/배치실행 전체 보고'; })"
+                  class="px-3 py-1.5 text-[11px] font-semibold rounded-lg bg-hq-yellow/10 text-hq-yellow border border-hq-yellow/20 hover:bg-hq-yellow/20 transition">
+                  배치 실행
+                </button>
+                <button @click="activeTab='command'; $nextTick(() => { chatInput='/도구점검'; })"
+                  class="px-3 py-1.5 text-[11px] font-semibold rounded-lg bg-hq-accent/10 text-hq-accent border border-hq-accent/20 hover:bg-hq-accent/20 transition">
+                  도구 점검
+                </button>
+              </div>
+            </div>
+
+            <!-- 오늘 AI 사용량 카드 -->
+            <div class="glass border border-hq-border rounded-xl p-4 hover-glow">
+              <div class="flex items-center gap-3 mb-3">
+                <div class="w-9 h-9 rounded-lg bg-hq-accent/15 flex items-center justify-center">
+                  <svg class="w-4.5 h-4.5 text-hq-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+                </div>
+                <div>
+                  <div class="text-sm font-bold text-hq-text" x-text="'AI 호출 ' + (dashboard.totalAiCalls || 0) + '회'"></div>
+                  <div class="text-[10px] text-hq-muted uppercase tracking-wider">오늘 사용량</div>
+                </div>
+              </div>
+              <!-- 프로바이더별 막대 -->
+              <div class="space-y-1.5">
+                <template x-for="p in [
+                  {id:'anthropic', label:'Claude', color:'hq-purple'},
+                  {id:'openai', label:'GPT', color:'hq-green'},
+                  {id:'google', label:'Gemini', color:'hq-cyan'},
+                ]" :key="p.id">
+                  <div class="flex items-center gap-2 text-[11px]">
+                    <span class="w-12 text-hq-muted truncate" x-text="p.label"></span>
+                    <div class="flex-1 h-2 rounded-full bg-hq-border/50 overflow-hidden">
+                      <div class="h-full rounded-full transition-all duration-500"
+                        :class="'bg-' + p.color"
+                        :style="'width:' + (dashboard.totalAiCalls > 0 ? Math.round((dashboard.providerCalls?.[p.id] || 0) / dashboard.totalAiCalls * 100) : 0) + '%'"></div>
+                    </div>
+                    <span class="w-6 text-right font-mono text-hq-muted" x-text="dashboard.providerCalls?.[p.id] || 0"></span>
                   </div>
                 </template>
+              </div>
+              <!-- 예산 바 -->
+              <div class="mt-2 pt-2 border-t border-hq-border/30">
+                <div class="flex items-center justify-between text-[10px] text-hq-muted mb-1">
+                  <span x-text="'$' + (dashboard.todayCost || 0).toFixed(4)"></span>
+                  <span x-text="'한도 $' + (dashboard.dailyLimit || 7).toFixed(0)"></span>
+                </div>
+                <div class="h-1.5 rounded-full bg-hq-border/50 overflow-hidden">
+                  <div class="h-full rounded-full transition-all duration-500"
+                    :class="(dashboard.todayCost || 0) >= (dashboard.dailyLimit || 7) ? 'bg-hq-red' : 'bg-hq-green'"
+                    :style="'width:' + Math.min(100, ((dashboard.todayCost || 0) / (dashboard.dailyLimit || 7) * 100)).toFixed(1) + '%'"></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 시스템 현황 카드 -->
+            <div class="glass border border-hq-border rounded-xl p-4 hover-glow">
+              <div class="flex items-center gap-3 mb-3">
+                <div class="w-9 h-9 rounded-lg bg-hq-green/15 flex items-center justify-center">
+                  <svg class="w-4.5 h-4.5 text-hq-green" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+                </div>
+                <div>
+                  <div class="text-sm font-bold text-hq-text">시스템 현황</div>
+                  <div class="text-[10px] text-hq-muted uppercase tracking-wider">상태 요약</div>
+                </div>
+              </div>
+              <div class="space-y-1.5 text-[11px]">
+                <div class="flex items-center justify-between">
+                  <span class="text-hq-muted">API 연결</span>
+                  <span class="font-mono text-hq-green" x-text="(dashboard.apiConnected || 0) + '/' + (dashboard.apiTotal || 5) + ' 정상'"></span>
+                </div>
+                <div class="flex items-center justify-between">
+                  <span class="text-hq-muted">도구 로드</span>
+                  <span class="font-mono text-hq-cyan" x-text="(dashboard.toolCount || 0) + '개'"></span>
+                </div>
+                <div class="flex items-center justify-between">
+                  <span class="text-hq-muted">배치</span>
+                  <span class="font-mono">
+                    <span class="text-hq-yellow" x-text="'대기 ' + (dashboard.batchActive || 0)"></span>
+                    <span class="text-hq-muted mx-0.5">·</span>
+                    <span class="text-hq-green" x-text="'완료 ' + (dashboard.batchDone || 0)"></span>
+                  </span>
+                </div>
+                <div class="flex items-center justify-between">
+                  <span class="text-hq-muted">노션</span>
+                  <span class="font-mono" :class="dashboard.notionConnected ? 'text-hq-green' : 'text-hq-red'" x-text="dashboard.notionConnected ? '연결됨' : '미연결'"></span>
+                </div>
               </div>
             </div>
           </div>
@@ -2336,7 +2419,7 @@
                 <div class="glass border border-hq-border rounded-xl p-4">
                   <div class="text-xs text-hq-muted mb-1">총 비용</div>
                   <div class="text-lg font-bold text-hq-accent">$<span x-text="(dashboard.totalCost || 0).toFixed(2)"></span></div>
-                  <div class="text-[10px] text-hq-muted mt-1" x-text="(dashboard.totalTokens || 0).toLocaleString() + ' 토큰'"></div>
+                  <div class="text-[10px] text-hq-muted mt-1" x-text="'AI 호출 ' + (dashboard.totalAiCalls || 0) + '회'"></div>
                 </div>
                 <div class="glass border border-hq-border rounded-xl p-4">
                   <div class="text-xs text-hq-muted mb-1">에이전트</div>
@@ -6522,6 +6605,14 @@
               recentCompleted: data.recent_completed || [],
               systemHealth: data.system_status || 'ok',
               apiKeys: data.api_keys || {},
+              providerCalls: data.provider_calls || {},
+              totalAiCalls: data.total_ai_calls || 0,
+              dailyLimit: data.daily_limit || 7,
+              batchActive: data.batch_active || 0,
+              batchDone: data.batch_done || 0,
+              toolCount: data.tool_count || 0,
+              apiConnected: data.api_connected || 0,
+              apiTotal: data.api_total || 5,
               loaded: true,
             };
             this.budget = budgetRes;
