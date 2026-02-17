@@ -1735,7 +1735,7 @@ async def _chain_create_delegation_broadcast(chain: dict):
                 json_example="{\n" + ",\n".join(json_example_parts) + "\n}",
             )
             try:
-                result = await ask_ai(user_message=prompt, model=deleg_model, max_tokens=2048)
+                result = await ask_ai(user_message=prompt, model=deleg_model)
                 response_text = result.get("content", "") or result.get("text", "")
                 import json as _json
                 json_text = response_text.strip()

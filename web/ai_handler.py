@@ -1115,8 +1115,8 @@ async def _batch_submit_google(requests: list[dict], default_model: str) -> dict
         return {"error": "Google API 키가 설정되지 않았습니다"}
 
     # 인라인 요청 포맷으로 변환
-    # google-genai SDK의 배치 API는 각 요청을 { contents, config } 구조로 받음
-    # system_instruction과 temperature 등은 config 안에 넣어야 함
+    # google-genai SDK 배치 API: { contents, system_instruction, generation_config }
+    # system_instruction과 generation_config는 각각 최상위 필드로 넣어야 함
     inline_requests = []
     custom_id_map = {}  # batch 내 인덱스 → custom_id 매핑
 
@@ -1128,17 +1128,14 @@ async def _batch_submit_google(requests: list[dict], default_model: str) -> dict
                     "role": "user",
                 }
             ],
+            "generation_config": {
+                "temperature": req.get("temperature", 0.3),
+                "max_output_tokens": req.get("max_output_tokens", 4096),
+            },
         }
-
-        # config 서브딕트: system_instruction, temperature, max_output_tokens
-        config = {
-            "temperature": req.get("temperature", 0.3),
-            "max_output_tokens": req.get("max_output_tokens", 4096),
-        }
+        # 시스템 프롬프트는 최상위 필드로 추가
         if req.get("system_prompt"):
-            config["system_instruction"] = req["system_prompt"]
-
-        request_body["config"] = config
+            request_body["system_instruction"] = req["system_prompt"]
 
         inline_requests.append(request_body)
         custom_id_map[i] = req.get("custom_id", f"req-{i}")
