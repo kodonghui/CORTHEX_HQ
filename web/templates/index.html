@@ -908,7 +908,7 @@
               </div>
               <div class="flex items-center justify-between">
                 <span class="text-xs text-hq-muted">서버</span>
-                <span class="text-xs" x-text="healthData.mode || '미니서버'"></span>
+                <span class="text-xs" x-text="healthData.mode || 'ARM 서버'"></span>
               </div>
               <div class="flex items-center justify-between" x-show="healthData.agents !== undefined">
                 <span class="text-xs text-hq-muted">등록 에이전트</span>
@@ -1942,6 +1942,14 @@
                         :class="useBatch
                           ? 'bg-hq-purple/15 text-hq-purple'
                           : 'text-hq-muted/60 hover:text-hq-muted'">📦 Batch</button>
+              </div>
+              <!-- 배치 진행 상태 배너 -->
+              <div x-show="batchProgress.active" x-transition
+                   class="px-3 py-1.5 rounded-lg bg-hq-yellow/10 border border-hq-yellow/30 text-xs flex items-center gap-2 shrink-0">
+                <span class="w-1.5 h-1.5 rounded-full bg-hq-yellow animate-pulse shrink-0"></span>
+                <span class="text-hq-yellow font-medium" x-text="batchProgress.step"></span>
+                <span class="text-hq-muted truncate max-w-[200px]" x-text="batchProgress.message"></span>
+                <span class="font-mono text-hq-muted shrink-0" x-text="batchProgress.elapsed"></span>
               </div>
               <div class="flex-1 relative">
                 <textarea x-model="inputText" x-ref="inputArea"
@@ -5331,6 +5339,9 @@
         // Batch mode toggle (#5)
         useBatch: false,
 
+        // 배치 진행 상태 타이머
+        batchProgress: { active: false, message: '', step: '', startedAt: null, elapsed: '00:00' },
+
         // Input hint — 고정 텍스트 (#18)
         inputHints: ['명령을 입력하세요 · /명령어 로 명령어 목록 확인'],
         inputHintIndex: 0,
@@ -5364,6 +5375,15 @@
           // Keyboard shortcuts (#16)
           this.initKeyboardShortcuts();
           // Input hint — 순환 제거, 고정 텍스트 사용 (#18)
+          // 배치 타이머 — 1초마다 경과 시간 업데이트
+          setInterval(() => {
+            if (this.batchProgress.active && this.batchProgress.startedAt) {
+              const sec = Math.floor((Date.now() - this.batchProgress.startedAt) / 1000);
+              const m = String(Math.floor(sec / 60)).padStart(2, '0');
+              const s = String(sec % 60).padStart(2, '0');
+              this.batchProgress.elapsed = `${m}:${s}`;
+            }
+          }, 1000);
         },
 
         // ── Theme ──
@@ -5477,6 +5497,19 @@
             case 'cost_update':
               this.totalCost = msg.data.total_cost;
               this.totalTokens = msg.data.total_tokens;
+              break;
+
+            case 'batch_chain_progress':
+              this.batchProgress.active = msg.data.step !== 'completed' && msg.data.step !== 'failed';
+              this.batchProgress.message = msg.data.message || '';
+              this.batchProgress.step = msg.data.step_label || msg.data.step || '';
+              if (this.batchProgress.active && !this.batchProgress.startedAt) {
+                this.batchProgress.startedAt = Date.now();
+              }
+              if (!this.batchProgress.active) {
+                this.batchProgress.startedAt = null;
+                this.batchProgress.elapsed = '00:00';
+              }
               break;
 
             case 'telegram_message':

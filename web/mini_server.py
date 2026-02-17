@@ -1,7 +1,7 @@
 """
-CORTHEX HQ - Mini Server (경량 서버)
+CORTHEX HQ - ARM Server
 
-Oracle Cloud 무료 서버(1GB RAM)에서 대시보드를 서비스하기 위한 경량 서버.
+Oracle Cloud ARM 서버 (4코어 24GB)에서 대시보드를 서비스합니다.
 전체 백엔드의 핵심 API만 제공하여 대시보드 UI가 정상 작동하도록 함.
 텔레그램 봇도 여기서 24시간 구동됩니다.
 """
@@ -127,11 +127,12 @@ logger = logging.getLogger("corthex.mini_server")
 # ── 텔레그램 봇 (선택적 로드) ──
 _telegram_available = False
 try:
-    from telegram import Update, BotCommand
+    from telegram import Update, BotCommand, InlineKeyboardButton, InlineKeyboardMarkup
     from telegram.ext import (
         Application,
         CommandHandler,
         MessageHandler,
+        CallbackQueryHandler,
         ContextTypes,
         filters,
     )
@@ -144,7 +145,7 @@ except ImportError as e:
 
 KST = timezone(timedelta(hours=9))
 
-app = FastAPI(title="CORTHEX HQ Mini Server")
+app = FastAPI(title="CORTHEX HQ")
 
 # ── HTML 서빙 ──
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -2437,6 +2438,18 @@ async def _advance_batch_chain(chain_id: str):
 
         _save_chain(chain)
 
+        if not all_done:
+            # ── 배치 처리 대기 중 → 초록불 유지 (맥박 효과) ──
+            # Anthropic/OpenAI/Google 프로바이더 무관, 결과 없는 전문가에게 초록불
+            target_id = chain.get("target_id", "")
+            specialists = _MANAGER_SPECIALISTS.get(target_id, [])
+            for spec_id in specialists:
+                spec_res = chain["results"].get("specialists", {}).get(spec_id)
+                if spec_res is None:
+                    spec_name = _SPECIALIST_NAMES.get(spec_id, spec_id)
+                    await _broadcast_status(spec_id, "working", 0.5, f"{spec_name} 배치 처리 중...")
+            return
+
         if all_done:
             # 모든 전문가 배치 완료 → 결과 수집
             retrieve_errors = []
@@ -2512,6 +2525,13 @@ async def _advance_batch_chain(chain_id: str):
                 all_done = False
 
         _save_chain(chain)
+
+        if not all_done:
+            # ── 종합보고서 배치 대기 중 → 처장 초록불 유지 ──
+            target_id = chain.get("target_id", "chief_of_staff")
+            target_name = _AGENT_NAMES.get(target_id, target_id)
+            await _broadcast_status(target_id, "working", 0.8, f"{target_name} 종합보고서 작성 중...")
+            return
 
         if all_done:
             # 종합보고서 결과 수집
@@ -4170,7 +4190,7 @@ async def health_check():
     """서버 상태 확인."""
     return {
         "status": "ok",
-        "mode": "mini_server",
+        "mode": "ARM 서버",
         "agents": len(AGENTS),
         "telegram": _telegram_available and _telegram_app is not None,
         "timestamp": datetime.now(KST).isoformat(),
@@ -4549,12 +4569,18 @@ async def _start_telegram_bot() -> None:
                 return
             await update.message.reply_text(
                 "*CORTHEX HQ 사용법*\n\n"
-                "/agents — 에이전트 목록 (29명)\n"
-                "/health — 서버 상태 확인\n"
-                "/help — 이 사용법\n\n"
+                "*정보*\n"
+                "/agents — 에이전트 목록\n"
+                "/health — 서버 상태\n"
+                "/status — 배치 진행 현황\n"
+                "/budget — 오늘 비용 / 한도 변경\n\n"
                 "*모드 전환*\n"
                 "/rt — 실시간 모드 (AI 즉시 답변)\n"
-                "/batch — 배치 모드 (접수만)\n\n"
+                "/batch — 배치 모드\n\n"
+                "*설정*\n"
+                "/models — 전원 모델 변경 (3단계 버튼)\n"
+                "/pause — AI 처리 중단\n"
+                "/resume — AI 처리 재개\n\n"
                 "일반 메시지를 보내면 AI가 답변합니다.",
                 parse_mode="Markdown",
             )
@@ -4620,6 +4646,176 @@ async def _start_telegram_bot() -> None:
                 parse_mode="Markdown",
             )
 
+        # ── /status — 배치 진행 목록 ──
+        async def cmd_status(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+            if not _is_tg_ceo(update):
+                return
+            chains = load_setting("batch_chains") or []
+            active = [c for c in chains if c.get("status") in ("running", "pending")]
+            if not active:
+                await update.message.reply_text("현재 진행 중인 배치가 없습니다.")
+                return
+            lines = [f"*진행 중인 배치 ({len(active)}건)*\n"]
+            for c in active[:10]:
+                step = c.get("step", "?")
+                text_preview = c.get("text", "")[:40]
+                chain_id = c.get("chain_id", "?")[:8]
+                lines.append(f"• `{chain_id}` | {step} | {text_preview}")
+            await update.message.reply_text("\n".join(lines), parse_mode="Markdown")
+
+        # ── /budget — 오늘 지출 확인/변경 ──
+        async def cmd_budget(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+            if not _is_tg_ceo(update):
+                return
+            args = (update.message.text or "").split()
+            today_cost = get_today_cost()
+            daily_limit = load_setting("daily_budget_usd") or 10
+            if len(args) >= 2:
+                try:
+                    new_limit = float(args[1])
+                    save_setting("daily_budget_usd", new_limit)
+                    await update.message.reply_text(
+                        f"💰 일일 예산을 *${new_limit:.2f}*로 변경했습니다.\n오늘 사용: ${today_cost:.4f}",
+                        parse_mode="Markdown",
+                    )
+                    return
+                except ValueError:
+                    pass
+            pct = (today_cost / daily_limit * 100) if daily_limit > 0 else 0
+            await update.message.reply_text(
+                f"💰 *오늘 비용 현황*\n\n"
+                f"사용: ${today_cost:.4f}\n"
+                f"한도: ${daily_limit:.2f}\n"
+                f"사용률: {pct:.1f}%\n\n"
+                f"한도 변경: `/budget 15` (15달러로 변경)",
+                parse_mode="Markdown",
+            )
+
+        # ── /pause, /resume — AI 처리 중단/재개 ──
+        async def cmd_pause(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+            if not _is_tg_ceo(update):
+                return
+            save_setting("ai_paused", True)
+            await update.message.reply_text("⏸ *AI 처리를 일시 중단*했습니다.\n\n`/resume`으로 재개하세요.", parse_mode="Markdown")
+
+        async def cmd_resume(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+            if not _is_tg_ceo(update):
+                return
+            save_setting("ai_paused", False)
+            await update.message.reply_text("▶️ *AI 처리를 재개*했습니다.", parse_mode="Markdown")
+
+        # ── /models — 3단계 인라인 버튼으로 모델 변경 ──
+        # 프로바이더별 모델 목록 (코드 내 _MODEL_CATALOG과 동기화)
+        _TG_MODELS = {
+            "Anthropic": [
+                ("claude-opus-4-6", "Opus 4.6", ["xhigh", "high", "low", "없음"]),
+                ("claude-sonnet-4-5-20250929", "Sonnet 4.5", ["high", "low", "없음"]),
+                ("claude-haiku-4-5-20251001", "Haiku 4.5", []),
+            ],
+            "OpenAI": [
+                ("gpt-5", "GPT-5", ["xhigh", "high", "low", "없음"]),
+                ("gpt-5-mini", "GPT-5 Mini", []),
+            ],
+            "Google": [
+                ("gemini-3-pro-preview", "Gemini 3 Pro Preview", ["high", "low", "없음"]),
+                ("gemini-2.5-pro", "Gemini 2.5 Pro", ["high", "low", "없음"]),
+                ("gemini-2.5-flash", "Gemini 2.5 Flash", []),
+            ],
+        }
+
+        async def cmd_models(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+            if not _is_tg_ceo(update):
+                return
+            current = load_setting("global_model_override") or {}
+            cur_model = current.get("model", "없음")
+            cur_reason = current.get("reasoning", "없음")
+            buttons = [
+                [InlineKeyboardButton("🟣 Anthropic", callback_data="mdl_p_Anthropic")],
+                [InlineKeyboardButton("🟢 OpenAI", callback_data="mdl_p_OpenAI")],
+                [InlineKeyboardButton("🔵 Google", callback_data="mdl_p_Google")],
+            ]
+            await update.message.reply_text(
+                f"*전원 모델 변경*\n\n현재: `{cur_model}` (추론: {cur_reason})\n\n프로바이더를 선택하세요:",
+                parse_mode="Markdown",
+                reply_markup=InlineKeyboardMarkup(buttons),
+            )
+
+        async def models_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+            query = update.callback_query
+            await query.answer()
+            data = query.data
+
+            # 1단계: 프로바이더 선택 → 모델 목록 표시
+            if data.startswith("mdl_p_"):
+                provider = data[6:]
+                models_list = _TG_MODELS.get(provider, [])
+                buttons = []
+                for model_id, label, _ in models_list:
+                    buttons.append([InlineKeyboardButton(label, callback_data=f"mdl_m_{model_id}")])
+                buttons.append([InlineKeyboardButton("« 뒤로", callback_data="mdl_back")])
+                await query.edit_message_text(
+                    f"*{provider}* 모델을 선택하세요:",
+                    parse_mode="Markdown",
+                    reply_markup=InlineKeyboardMarkup(buttons),
+                )
+
+            # 2단계: 모델 선택 → 추론 강도 표시 (또는 바로 저장)
+            elif data.startswith("mdl_m_"):
+                model_id = data[6:]
+                # 모델의 추론 레벨 찾기
+                reasoning_levels = []
+                for provider, models_list in _TG_MODELS.items():
+                    for mid, label, levels in models_list:
+                        if mid == model_id:
+                            reasoning_levels = levels
+                            break
+
+                if not reasoning_levels:
+                    # 추론 없음 → 바로 저장
+                    save_setting("global_model_override", {"model": model_id, "reasoning": "없음"})
+                    await query.edit_message_text(f"✅ 전원 모델을 `{model_id}` 으로 변경했습니다.\n(추론: 없음)", parse_mode="Markdown")
+                else:
+                    # 추론 레벨 선택 버튼
+                    context.user_data["pending_model"] = model_id
+                    buttons = []
+                    for level in reasoning_levels:
+                        buttons.append([InlineKeyboardButton(level, callback_data=f"mdl_r_{level}")])
+                    buttons.append([InlineKeyboardButton("« 뒤로", callback_data="mdl_back")])
+                    await query.edit_message_text(
+                        f"*{model_id}*\n추론 강도를 선택하세요:",
+                        parse_mode="Markdown",
+                        reply_markup=InlineKeyboardMarkup(buttons),
+                    )
+
+            # 3단계: 추론 강도 선택 → 저장
+            elif data.startswith("mdl_r_"):
+                level = data[6:]
+                model_id = context.user_data.get("pending_model", "")
+                if model_id:
+                    save_setting("global_model_override", {"model": model_id, "reasoning": level})
+                    await query.edit_message_text(
+                        f"✅ 전원 모델을 `{model_id}` 으로 변경했습니다.\n(추론: {level})",
+                        parse_mode="Markdown",
+                    )
+                else:
+                    await query.edit_message_text("❌ 모델 정보가 없습니다. /models를 다시 시도하세요.")
+
+            # 뒤로가기
+            elif data == "mdl_back":
+                current = load_setting("global_model_override") or {}
+                cur_model = current.get("model", "없음")
+                cur_reason = current.get("reasoning", "없음")
+                buttons = [
+                    [InlineKeyboardButton("🟣 Anthropic", callback_data="mdl_p_Anthropic")],
+                    [InlineKeyboardButton("🟢 OpenAI", callback_data="mdl_p_OpenAI")],
+                    [InlineKeyboardButton("🔵 Google", callback_data="mdl_p_Google")],
+                ]
+                await query.edit_message_text(
+                    f"*전원 모델 변경*\n\n현재: `{cur_model}` (추론: {cur_reason})\n\n프로바이더를 선택하세요:",
+                    parse_mode="Markdown",
+                    reply_markup=InlineKeyboardMarkup(buttons),
+                )
+
         async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             if not _is_tg_ceo(update):
                 return
@@ -4650,6 +4846,11 @@ async def _start_telegram_bot() -> None:
             task = create_task(text, source="telegram")
             save_message(text, source="telegram", chat_id=chat_id,
                          task_id=task["task_id"])
+
+            # AI 일시 중단 체크
+            if load_setting("ai_paused"):
+                await update.message.reply_text("⏸ AI 처리가 일시 중단된 상태입니다.\n`/resume`으로 재개하세요.", parse_mode="Markdown")
+                return
 
             # 모드 확인
             mode = load_setting("tg_mode") or "realtime"
@@ -4782,6 +4983,12 @@ async def _start_telegram_bot() -> None:
         _telegram_app.add_handler(CommandHandler("health", cmd_health))
         _telegram_app.add_handler(CommandHandler("rt", cmd_rt))
         _telegram_app.add_handler(CommandHandler("batch", cmd_batch))
+        _telegram_app.add_handler(CommandHandler("status", cmd_status))
+        _telegram_app.add_handler(CommandHandler("budget", cmd_budget))
+        _telegram_app.add_handler(CommandHandler("pause", cmd_pause))
+        _telegram_app.add_handler(CommandHandler("resume", cmd_resume))
+        _telegram_app.add_handler(CommandHandler("models", cmd_models))
+        _telegram_app.add_handler(CallbackQueryHandler(models_callback, pattern=r"^mdl_"))
         _telegram_app.add_handler(
             MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message)
         )
@@ -4792,8 +4999,13 @@ async def _start_telegram_bot() -> None:
             BotCommand("help", "사용법"),
             BotCommand("agents", "에이전트 목록"),
             BotCommand("health", "서버 상태"),
-            BotCommand("rt", "실시간 모드 (AI 즉시 답변)"),
-            BotCommand("batch", "배치 모드 (접수만)"),
+            BotCommand("rt", "실시간 모드"),
+            BotCommand("batch", "배치 모드"),
+            BotCommand("models", "전원 모델 변경"),
+            BotCommand("status", "배치 진행 상태"),
+            BotCommand("budget", "오늘 비용 / 한도 변경"),
+            BotCommand("pause", "AI 처리 중단"),
+            BotCommand("resume", "AI 처리 재개"),
         ])
 
         _log("[TG] 핸들러 등록 완료, initialize()...")
@@ -4876,7 +5088,28 @@ _AGENT_NAMES: dict[str, str] = {
 # ── 노션 API 연동 (에이전트 산출물 자동 저장) ──
 
 _NOTION_API_KEY = os.getenv("NOTION_API_KEY", "")
-_NOTION_DB_ID = os.getenv("NOTION_DEFAULT_DB_ID", "ee0527e4-697b-4cb6-8df0-6dca3f59ad4e")
+# 비서실 DB (CEO 명령 관리)
+_NOTION_DB_SECRETARY = os.getenv("NOTION_DB_SECRETARY", "36880ed0-a7e9-4eb8-8bd3-0f206c2e95d6")
+# 에이전트 산출물 DB (보고서 아카이브)
+_NOTION_DB_OUTPUT = os.getenv("NOTION_DB_OUTPUT", "4c20dd05-b740-461c-9189-f1e74362b365")
+# 하위 호환: 기존 환경변수도 지원
+_NOTION_DB_ID = os.getenv("NOTION_DEFAULT_DB_ID", _NOTION_DB_OUTPUT)
+
+# 노션 로그 (최근 20개, /api/notion-log에서 조회 가능)
+_notion_log: list[dict] = []
+
+def _add_notion_log(status: str, title: str, db: str = "", url: str = "", error: str = ""):
+    """노션 작업 로그를 저장합니다 (최근 20개)."""
+    global _notion_log
+    _notion_log.append({
+        "time": datetime.now(KST).strftime("%Y-%m-%d %H:%M:%S"),
+        "status": status,
+        "title": title[:60],
+        "db": db,
+        "url": url,
+        "error": error[:200] if error else "",
+    })
+    _notion_log = _notion_log[-20:]
 
 # 에이전트 ID → 부서명 매핑
 _AGENT_DIVISION: dict[str, str] = {}
@@ -4886,14 +5119,20 @@ for _a in AGENTS:
 
 
 async def _save_to_notion(agent_id: str, title: str, content: str,
-                          report_type: str = "보고서") -> str | None:
+                          report_type: str = "보고서",
+                          db_target: str = "output") -> str | None:
     """에이전트 산출물을 노션 DB에 저장합니다.
 
+    db_target: "output" = 에이전트 산출물 DB, "secretary" = 비서실 DB
     Python 기본 라이브러리(urllib)만 사용 — 추가 패키지 불필요.
     실패해도 에러만 로깅하고 None 반환 (서버 동작에 영향 없음).
     """
     if not _NOTION_API_KEY:
+        _add_notion_log("SKIP", title, error="API 키 없음")
         return None
+
+    db_id = _NOTION_DB_SECRETARY if db_target == "secretary" else _NOTION_DB_OUTPUT
+    db_name = "비서실" if db_target == "secretary" else "산출물"
 
     division = _AGENT_DIVISION.get(agent_id, "")
     agent_name = _AGENT_NAMES.get(agent_id, _SPECIALIST_NAMES.get(agent_id, agent_id))
@@ -4903,15 +5142,15 @@ async def _save_to_notion(agent_id: str, title: str, content: str,
     properties: dict = {
         "Name": {"title": [{"text": {"content": title[:100]}}]},
     }
-    # 선택 속성들 (DB에 해당 컬럼이 없으면 노션이 무시함)
+    # 선택 속성들 (DB에 해당 컬럼이 없으면 노션이 무시함 — 유연한 구조)
     if agent_name:
-        properties["Agent"] = {"rich_text": [{"text": {"content": agent_name}}]}
+        properties["작성자"] = {"rich_text": [{"text": {"content": agent_name}}]}
     if division:
-        properties["Division"] = {"rich_text": [{"text": {"content": division}}]}
+        properties["부서"] = {"rich_text": [{"text": {"content": division}}]}
     if report_type:
-        properties["Type"] = {"rich_text": [{"text": {"content": report_type}}]}
-    properties["Status"] = {"rich_text": [{"text": {"content": "완료"}}]}
-    properties["Date"] = {"date": {"start": now_str}}
+        properties["보고 유형"] = {"rich_text": [{"text": {"content": report_type}}]}
+    properties["상태"] = {"rich_text": [{"text": {"content": "완료"}}]}
+    properties["날짜"] = {"date": {"start": now_str}}
 
     # 본문 → 노션 블록 (최대 2000자, 노션 블록 크기 제한)
     children = []
@@ -4924,7 +5163,7 @@ async def _save_to_notion(agent_id: str, title: str, content: str,
         })
 
     body = json.dumps({
-        "parent": {"database_id": _NOTION_DB_ID},
+        "parent": {"database_id": db_id},
         "properties": properties,
         "children": children,
     }).encode("utf-8")
@@ -4946,20 +5185,38 @@ async def _save_to_notion(agent_id: str, title: str, content: str,
         except urllib.error.HTTPError as e:
             err_body = e.read().decode("utf-8", errors="replace")[:200]
             _log(f"[Notion] HTTP {e.code} 오류: {err_body}")
+            _add_notion_log("FAIL", title, db=db_name, error=f"HTTP {e.code}: {err_body}")
             return None
         except Exception as e:
             _log(f"[Notion] 요청 실패: {e}")
+            _add_notion_log("FAIL", title, db=db_name, error=str(e))
             return None
 
     try:
         result = await asyncio.to_thread(_do_request)
         if result and result.get("url"):
-            _log(f"[Notion] 저장 완료: {title[:50]} → {result['url']}")
+            _log(f"[Notion] 저장 완료 ({db_name}): {title[:50]} → {result['url']}")
+            _add_notion_log("OK", title, db=db_name, url=result["url"])
             return result["url"]
+        else:
+            _add_notion_log("FAIL", title, db=db_name, error="응답에 URL 없음")
     except Exception as e:
         _log(f"[Notion] 비동기 실행 실패: {e}")
+        _add_notion_log("FAIL", title, db=db_name, error=str(e))
 
     return None
+
+
+@app.get("/api/notion-log")
+async def get_notion_log():
+    """노션 저장 로그 조회 (최근 20건)."""
+    return {
+        "logs": _notion_log,
+        "total": len(_notion_log),
+        "api_key_set": bool(_NOTION_API_KEY),
+        "db_secretary": _NOTION_DB_SECRETARY[:8] + "..." if _NOTION_DB_SECRETARY else "",
+        "db_output": _NOTION_DB_OUTPUT[:8] + "..." if _NOTION_DB_OUTPUT else "",
+    }
 
 
 # 브로드캐스트 키워드 (모든 부서에 동시 전달하는 명령)
@@ -5089,6 +5346,20 @@ async def _call_agent(agent_id: str, text: str) -> dict:
     for c in connected_clients[:]:
         try:
             await c.send_json({"event": "activity_log", "data": log_done})
+        except Exception:
+            pass
+
+    # ── 비용 업데이트 브로드캐스트 (프론트엔드 우측 상단 금액 실시간 반영) ──
+    try:
+        today_cost = get_today_cost()
+    except Exception:
+        today_cost = cost
+    for c in connected_clients[:]:
+        try:
+            await c.send_json({
+                "event": "cost_update",
+                "data": {"total_cost": today_cost, "total_tokens": 0},
+            })
         except Exception:
             pass
 
