@@ -665,19 +665,26 @@ async def _call_openai(
         messages.append({"role": "system", "content": system_prompt})
     messages.append({"role": "user", "content": user_message})
 
-    # reasoning 지원 모델 판별
-    is_reasoning_model = any(m in model for m in ["o3", "o4-mini", "o3-mini"])
-    supports_reasoning = is_reasoning_model or model in ["gpt-5.2", "gpt-5.2-pro"]
+    # reasoning 지원 모델 판별 (OPENAI_REASONING_MODELS: temperature 파라미터 미지원)
+    supports_reasoning = model in OPENAI_REASONING_MODELS
 
-    if supports_reasoning and reasoning_effort:
-        # o-series/GPT-5.2: temperature 대신 reasoning_effort 파라미터 사용
-        openai_reasoning = OPENAI_REASONING_MAP.get(reasoning_effort, "medium")
-        kwargs = {
-            "model": model,
-            "messages": messages,
-            "max_completion_tokens": 65536,
-            "reasoning_effort": openai_reasoning,
-        }
+    if supports_reasoning:
+        if reasoning_effort:
+            # o-series/GPT-5.2: reasoning_effort 파라미터 사용
+            openai_reasoning = OPENAI_REASONING_MAP.get(reasoning_effort, "medium")
+            kwargs = {
+                "model": model,
+                "messages": messages,
+                "max_completion_tokens": 65536,
+                "reasoning_effort": openai_reasoning,
+            }
+        else:
+            # reasoning 모델은 temperature 미지원 — 파라미터 없이 호출
+            kwargs = {
+                "model": model,
+                "messages": messages,
+                "max_completion_tokens": 65536,
+            }
     elif reasoning_effort:
         # reasoning_effort가 있지만 reasoning 미지원 모델 → temperature 1.0
         kwargs = {"model": model, "messages": messages, "max_completion_tokens": 65536, "temperature": 1.0}

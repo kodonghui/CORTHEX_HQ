@@ -6296,14 +6296,15 @@ async def _call_agent(agent_id: str, text: str) -> dict:
                         pass
 
                 pool = _init_tool_pool()
-                if pool and hasattr(pool, '_tools') and tool_name in pool._tools:
-                    tool_obj = pool._tools[tool_name]
-                    # 도구의 execute 메서드 호출
-                    if asyncio.iscoroutinefunction(getattr(tool_obj, 'execute', None)):
-                        return await tool_obj.execute(**tool_input)
-                    elif hasattr(tool_obj, 'execute'):
-                        return await asyncio.to_thread(tool_obj.execute, **tool_input)
-                # ToolPool에 없으면 단순 설명 반환
+                if pool:
+                    try:
+                        # pool.invoke()로 호출 — _caller_model 자동 주입 (에이전트 모델 따라감)
+                        return await pool.invoke(tool_name, caller_id=agent_id, **tool_input)
+                    except Exception as e:
+                        if "ToolNotFoundError" in type(e).__name__ or tool_name in str(e):
+                            return f"도구 '{tool_name}'을(를) 찾을 수 없습니다."
+                        raise
+                # ToolPool 미초기화
                 return f"도구 '{tool_name}'을(를) 찾을 수 없습니다."
 
             tool_executor_fn = _tool_executor
