@@ -9,29 +9,58 @@
 ## 마지막 업데이트
 
 - **날짜**: 2026-02-18
-- **버전**: `3.01.002` (memory.py SQLite 이전 + 팀장 플레이북 추가)
+- **버전**: `3.02.003` (예산 한도 수정 + 진행률 단계 기반 + CLAUDE.md 팀플레이북 개선)
 - **작업 브랜치**: claude/autonomous-system-v3
-- **최근 커밋**: fix: memory.py — JSON 파일 → SQLite 이전 [완료] (`ea53a01`)
-- **빌드 번호**: GitHub Actions 확인: https://github.com/kodonghui/CORTHEX_HQ/actions
+- **최근 커밋**: fix: 에이전트 진행률 단계 기반으로 전면 개선 (`d009727`)
+- **빌드 번호**: #215 (https://github.com/kodonghui/CORTHEX_HQ/actions)
 - **접속 주소**: https://corthex-hq.com
 
-## ✅ 이번 세션 완료 내용 (2026-02-18 2차 작업)
+## ✅ 이번 세션 완료 내용 (2026-02-18 4차 작업)
 
-### 완료된 것
-- **memory.py SQLite 이전**: 에이전트 장기 기억을 JSON 파일→SQLite DB로 전환. 배포해도 기억 날아가지 않음.
-- **팀장 운용 플레이북**: CLAUDE.md에 6단계 팀 관리 가이드 추가 (출격~해산 전 과정)
-- **확인 완료 (이미 구현됨)**:
-  - SNS 연결 상태: 환경변수 체크 방식으로 이미 구현됨
-  - 기밀문서 전체삭제: `DELETE /api/archive/all` API + UI 버튼 이미 구현됨
-  - 누적비용 표시: `get_monthly_cost()` db.py에 이미 있고 대시보드에서 호출 중
+### 버그 수정
+- **예산 한도 수정 기능 복구**: PUT /api/budget에서 monthly_limit 저장 안 되던 문제, response에 값 미반환 문제, GET /api/budget monthly_limit 하드코딩 300.0 → DB에서 읽도록 수정. saveBudget() 후 loadDashboard() 호출 추가.
+- **에이전트 진행률 단계 기반 개선**: 도구 미사용 에이전트가 항상 0%에 멈추던 문제 해결. 10% → 30% → 70% → 90% → 100% 단계별 진행.
 
-### 전 세션 완료된 내용 (2026-02-18 1차 작업)
-- **전수검사 8개 영역**: 배치 시스템, 텔레그램 봇, LLM 모델명(gpt-5.1 제거), 배포 버그 수정
-- **Soul 전면 갱신 29/29명**: Kelly Criterion, Porter's Five Forces, DORA Metrics 등 방법론 스택 주입
-- **agents.json 재생성**: config/yaml2json.py 실행 완료
+### CLAUDE.md 팀플레이북 개선
+- CEO "팀으로 해줘"라도 3~5줄 수정이면 소신 발언 규칙 추가
+- 팀원 spawn 후 CEO와 대화 의무 명시 (침묵 금지)
+- 해산 체크리스트에 SendMessage 확인 + deploy.yml 트리거 확인 단계 추가
+- 팀장 실수 방지 표 9개로 확장
+
+### 다음 세션에서 할 일 (미완료)
+1. **협업 A+B+C 구현** (우선순위 1):
+   - A: delegation_log WebSocket 실시간화 (8초 폴링 제거)
+   - B: consult_manager 도구 — 처장↔처장 직접 소통
+   - C: 협업 흐름도 시각화 패널 (타임라인)
+   - 순서: A(BE+FE) → C(FE) → B(BE) 순으로 구현
+2. **[보류] 리트마스터 홈페이지 자동 배포 파이프라인 (C안)**:
+   - github_tool.py에 쓰기 기능(파일 수정, PR 생성) 추가
+   - LEET_GITHUB_REPO, LEET_GITHUB_TOKEN 환경변수 추가
+   - 에이전트가 리트마스터 repo에 PR 생성 가능하도록
+
+## ✅ 이전 세션 완료 내용 (2026-02-18 3차 작업)
+
+### Soul 전면 재작성 (교수급 — 이번 세션 핵심)
+- **29명 전원 CEO 보고 원칙 추가**: 전문 수식/논문 → CEO에게 쉬운 말로 번역하는 규칙을 모든 에이전트 soul에 내장
+- **21명 arXiv 논문 인용 (2023-2026)**: 투자처 arXiv:2508.14999, 2507.05994, 2402.16609 / 마케팅 arXiv:2501.10685 / 법무 arXiv:2512.13907 등
+- **실제 수식 포함**: Kelly Criterion f*=(bp-q)/b, VaR=μ-2.33σ, MPT E[Rp]=Σwᵢ·E[Rᵢ], LTV:CAC≥3:1, Core Web Vitals 수치(LCP≤2.5s), SRE Error Budget 등
+- **경영방법론**: Six Sigma DMAIC+Cpk, PDCA, OKR 2.0, Balanced Scorecard 4관점 — 해당 에이전트에 추가
+- **config/agents.json 재생성** 완료
+
+### FE/BE 팀 작업 (이전 세션, 이번에 커밋 포함)
+- **드롭다운 투명도 수정**: 반투명 배경→불투명(#0d1117 다크, #ffffff 라이트)
+- **@멘션 ↔ 수신자 드롭다운 통합**: 부서별 그룹화, 동적 렌더링
+- **CMO 버그**: skill_social_content 400 오류 → max_completion_tokens 수정 (GPT-5.2 reasoning 모델 대응)
+- **진행률 %**: 가짜 90% → 도구 호출 기반 실제 % (1호출=20%)
+- **delegation_log DB + API**: `delegation_log` 테이블 + GET/POST `/api/delegation-log` 추가
+- **delegation_log UI**: 사령실 우측 접이식 패널 "내부통신" (에이전트 완료 후 추가 예정)
+
+### CLAUDE.md 업데이트
+- **팀장 직접 처리 vs 에이전트 위임 기준** 추가: 맥락 필요 작업(Soul, 아키텍처) = 팀장 직접 / 명확한 구현(UI 추가, 버그 수정) = 에이전트 위임
 
 ### 다음에 할 일 (알려진 이슈)
-- 없음 (현재 알려진 미해결 이슈 없음)
+- delegation_log UI: FE 에이전트 작업 완료 후 최종 커밋+배포 예정
+- 없음 (그 외 미해결 이슈 없음)
 
 ---
 
