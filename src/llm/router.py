@@ -1,7 +1,7 @@
 """
 Model Router: single point of contact for all LLM calls.
 
-Routes to the correct provider (OpenAI / Anthropic) based on model name prefix.
+Routes to the correct provider (OpenAI / Anthropic / Google) based on model name prefix.
 Also accumulates cost tracking.
 """
 from __future__ import annotations
@@ -22,18 +22,22 @@ class ModelRouter:
     Model name prefix determines provider:
       gpt-*, o3-*, o1-*, o4-*, o5-*  -> OpenAI
       claude-*                         -> Anthropic
+      gemini-*                         -> Google
     """
 
     def __init__(
         self,
         openai_provider: Optional[LLMProvider] = None,
         anthropic_provider: Optional[LLMProvider] = None,
+        google_provider: Optional[LLMProvider] = None,
     ) -> None:
         self._providers: dict[str, LLMProvider] = {}
         if openai_provider:
             self._providers["openai"] = openai_provider
         if anthropic_provider:
             self._providers["anthropic"] = anthropic_provider
+        if google_provider:
+            self._providers["google"] = google_provider
         self.cost_tracker = CostTracker()
         self.batch_collector = None  # BatchCollector 주입 시 사용
 
@@ -47,6 +51,11 @@ class ModelRouter:
             provider = self._providers.get("anthropic")
             if not provider:
                 raise ValueError("Anthropic provider가 설정되지 않았습니다. ANTHROPIC_API_KEY를 확인하세요.")
+            return provider
+        elif model_name.startswith("gemini-"):
+            provider = self._providers.get("google")
+            if not provider:
+                raise ValueError("Google provider가 설정되지 않았습니다. GOOGLE_API_KEY를 확인하세요.")
             return provider
         else:
             raise ValueError(f"알 수 없는 모델: {model_name}")
