@@ -7620,6 +7620,14 @@ def _init_tool_pool():
         # AGENTS 초기 모델을 풀에 등록 (Skill 도구가 caller 에이전트 모델을 따라가도록)
         for a in AGENTS:
             pool.set_agent_model(a["agent_id"], a.get("model_name", "claude-sonnet-4-6"))
+        # DB에 저장된 에이전트 모델 덮어씌우기 (사용자가 UI에서 변경한 값 우선)
+        try:
+            overrides = _load_data("agent_overrides", {})
+            for agent_id, vals in overrides.items():
+                if "model_name" in vals:
+                    pool.set_agent_model(agent_id, vals["model_name"])
+        except Exception:
+            pass
         _log(f"[TOOLS] ToolPool 초기화 완료: {loaded}개 도구 로드 ✅")
         return pool
 

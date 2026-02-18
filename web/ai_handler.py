@@ -94,7 +94,7 @@ OPENAI_REASONING_MAP = {
 }
 
 # OpenAI reasoning 지원 모델 목록 (temperature 없이 reasoning_effort만 사용)
-OPENAI_REASONING_MODELS = {"o3", "o4-mini", "gpt-5.2", "gpt-5.2-pro", "o3-mini"}
+OPENAI_REASONING_MODELS = {"o3", "o4-mini", "gpt-5.2", "gpt-5.2-pro", "o3-mini", "gpt-5-mini"}
 
 # ── 모델 라우팅 키워드 ──
 _COMPLEX_KEYWORDS = [
@@ -699,8 +699,22 @@ async def _call_openai(
             if not msg.tool_calls:
                 break
 
-            # 어시스턴트 메시지를 대화에 추가
-            messages.append(msg)
+            # 어시스턴트 메시지를 대화에 추가 (딕셔너리로 변환 — ChatCompletionMessage 객체를 그대로 넣으면
+            # "messages must be a list of dictionaries" 오류 발생)
+            assistant_dict: dict = {"role": msg.role, "content": msg.content}
+            if msg.tool_calls:
+                assistant_dict["tool_calls"] = [
+                    {
+                        "id": tc.id,
+                        "type": "function",
+                        "function": {
+                            "name": tc.function.name,
+                            "arguments": tc.function.arguments,
+                        },
+                    }
+                    for tc in msg.tool_calls
+                ]
+            messages.append(assistant_dict)
 
             # 각 도구 호출 실행
             for tc in msg.tool_calls:

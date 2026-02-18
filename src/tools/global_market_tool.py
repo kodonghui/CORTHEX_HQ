@@ -42,7 +42,17 @@ class GlobalMarketTool(BaseTool):
     """글로벌 주식/지수/암호화폐/환율 조회 도구."""
 
     async def execute(self, **kwargs: Any) -> Any:
-        action = kwargs.get("action", "stock")
+        action = kwargs.get("action", "")
+        if not action:
+            return (
+                "action 파라미터가 필요합니다.\n"
+                "사용 가능한 action:\n"
+                "- stock: 개별 주식 조회 (symbol 필요, 예: symbol='AAPL')\n"
+                "- index: 주요 지수 조회 (indices 선택, 예: indices='S&P500,나스닥')\n"
+                "- crypto: 암호화폐 조회 (coins 선택, 예: coins='bitcoin,ethereum')\n"
+                "- forex: 환율 조회\n"
+                "- compare: 한국/글로벌 비교"
+            )
         if action == "stock":
             return await self._stock(kwargs)
         elif action == "index":
@@ -66,7 +76,9 @@ class GlobalMarketTool(BaseTool):
         if yf is None:
             return "yfinance 라이브러리가 설치되지 않았습니다. pip install yfinance"
 
-        symbol = kwargs.get("symbol", "AAPL")
+        symbol = kwargs.get("symbol", "")
+        if not symbol:
+            return "symbol 파라미터가 필요합니다. 예: symbol='AAPL' (Apple), 'TSLA' (Tesla), 'MSFT' (Microsoft)"
         period = kwargs.get("period", "1mo")
 
         try:
