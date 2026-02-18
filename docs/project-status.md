@@ -9,29 +9,35 @@
 ## 마지막 업데이트
 
 - **날짜**: 2026-02-18
-- **버전**: `3.01.002` (memory.py SQLite 이전 + 팀장 플레이북 추가)
+- **버전**: `3.02.000` (Soul 교수급 재작성 + delegation_log UI + CEO 번역 규칙)
 - **작업 브랜치**: claude/autonomous-system-v3
-- **최근 커밋**: fix: memory.py — JSON 파일 → SQLite 이전 [완료] (`ea53a01`)
+- **최근 커밋**: feat: Soul 29명 교수급 재작성 + CEO 번역 규칙 (`084a6c4`)
 - **빌드 번호**: GitHub Actions 확인: https://github.com/kodonghui/CORTHEX_HQ/actions
 - **접속 주소**: https://corthex-hq.com
 
-## ✅ 이번 세션 완료 내용 (2026-02-18 2차 작업)
+## ✅ 이번 세션 완료 내용 (2026-02-18 3차 작업)
 
-### 완료된 것
-- **memory.py SQLite 이전**: 에이전트 장기 기억을 JSON 파일→SQLite DB로 전환. 배포해도 기억 날아가지 않음.
-- **팀장 운용 플레이북**: CLAUDE.md에 6단계 팀 관리 가이드 추가 (출격~해산 전 과정)
-- **확인 완료 (이미 구현됨)**:
-  - SNS 연결 상태: 환경변수 체크 방식으로 이미 구현됨
-  - 기밀문서 전체삭제: `DELETE /api/archive/all` API + UI 버튼 이미 구현됨
-  - 누적비용 표시: `get_monthly_cost()` db.py에 이미 있고 대시보드에서 호출 중
+### Soul 전면 재작성 (교수급 — 이번 세션 핵심)
+- **29명 전원 CEO 보고 원칙 추가**: 전문 수식/논문 → CEO에게 쉬운 말로 번역하는 규칙을 모든 에이전트 soul에 내장
+- **21명 arXiv 논문 인용 (2023-2026)**: 투자처 arXiv:2508.14999, 2507.05994, 2402.16609 / 마케팅 arXiv:2501.10685 / 법무 arXiv:2512.13907 등
+- **실제 수식 포함**: Kelly Criterion f*=(bp-q)/b, VaR=μ-2.33σ, MPT E[Rp]=Σwᵢ·E[Rᵢ], LTV:CAC≥3:1, Core Web Vitals 수치(LCP≤2.5s), SRE Error Budget 등
+- **경영방법론**: Six Sigma DMAIC+Cpk, PDCA, OKR 2.0, Balanced Scorecard 4관점 — 해당 에이전트에 추가
+- **config/agents.json 재생성** 완료
 
-### 전 세션 완료된 내용 (2026-02-18 1차 작업)
-- **전수검사 8개 영역**: 배치 시스템, 텔레그램 봇, LLM 모델명(gpt-5.1 제거), 배포 버그 수정
-- **Soul 전면 갱신 29/29명**: Kelly Criterion, Porter's Five Forces, DORA Metrics 등 방법론 스택 주입
-- **agents.json 재생성**: config/yaml2json.py 실행 완료
+### FE/BE 팀 작업 (이전 세션, 이번에 커밋 포함)
+- **드롭다운 투명도 수정**: 반투명 배경→불투명(#0d1117 다크, #ffffff 라이트)
+- **@멘션 ↔ 수신자 드롭다운 통합**: 부서별 그룹화, 동적 렌더링
+- **CMO 버그**: skill_social_content 400 오류 → max_completion_tokens 수정 (GPT-5.2 reasoning 모델 대응)
+- **진행률 %**: 가짜 90% → 도구 호출 기반 실제 % (1호출=20%)
+- **delegation_log DB + API**: `delegation_log` 테이블 + GET/POST `/api/delegation-log` 추가
+- **delegation_log UI**: 사령실 우측 접이식 패널 "내부통신" (에이전트 완료 후 추가 예정)
+
+### CLAUDE.md 업데이트
+- **팀장 직접 처리 vs 에이전트 위임 기준** 추가: 맥락 필요 작업(Soul, 아키텍처) = 팀장 직접 / 명확한 구현(UI 추가, 버그 수정) = 에이전트 위임
 
 ### 다음에 할 일 (알려진 이슈)
-- 없음 (현재 알려진 미해결 이슈 없음)
+- delegation_log UI: FE 에이전트 작업 완료 후 최종 커밋+배포 예정
+- 없음 (그 외 미해결 이슈 없음)
 
 ---
 
