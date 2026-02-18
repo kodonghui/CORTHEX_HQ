@@ -3550,6 +3550,13 @@
               <input x-model="archive.searchCorrelation" placeholder="작업 ID로 검색"
                 class="bg-hq-surface border border-hq-border rounded-lg px-3 py-1.5 text-xs text-hq-text w-48" @keydown.enter="searchArchiveByCorrelation()">
               <button @click="searchArchiveByCorrelation()" class="bg-hq-accent text-white rounded-lg px-3 py-1.5 text-xs">검색</button>
+              <button @click="downloadArchiveZip()"
+                      class="px-3 py-1.5 rounded-lg text-xs font-medium bg-hq-accent/20 text-hq-accent hover:bg-hq-accent/30 border border-hq-accent/30 transition flex items-center gap-1.5"
+                      x-show="archive.files.length > 0"
+                      title="현재 필터 조건으로 ZIP 다운로드">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3"/></svg>
+                ZIP 내보내기
+              </button>
               <button @click="showDeleteAllArchiveModal = true"
                       class="px-3 py-1.5 rounded-lg text-xs font-medium bg-red-500/20 text-red-400 hover:bg-red-500/30 border border-red-500/30 transition"
                       x-show="archive.files.length > 0">
@@ -3599,12 +3606,19 @@
                   <div @click="readArchiveReport(file)"
                     :class="archive.selectedReport && archive.selectedReport.filename === file.filename ? 'border-hq-accent/50 bg-hq-accent/10 shadow-lg shadow-hq-accent/10' : 'border-hq-border/50 hover:border-hq-accent/30'"
                     class="group glass border rounded-xl p-3 cursor-pointer transition-all duration-200 relative">
-                    <!-- 삭제 버튼 (호버 시 표시) -->
-                    <button @click.stop="deleteArchiveReport(file)"
-                            class="absolute top-2 right-2 w-6 h-6 rounded-md flex items-center justify-center opacity-0 group-hover:opacity-100 text-hq-muted/30 hover:text-hq-red hover:bg-hq-red/8 transition z-10"
-                            title="삭제">
-                      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0"/></svg>
-                    </button>
+                    <!-- 액션 버튼 (호버 시 표시) -->
+                    <div class="absolute top-2 right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition z-10">
+                      <button @click.stop="downloadArchiveReport(file)"
+                              class="w-6 h-6 rounded-md flex items-center justify-center text-hq-muted/30 hover:text-hq-accent hover:bg-hq-accent/10 transition"
+                              title="다운로드">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3"/></svg>
+                      </button>
+                      <button @click.stop="deleteArchiveReport(file)"
+                              class="w-6 h-6 rounded-md flex items-center justify-center text-hq-muted/30 hover:text-hq-red hover:bg-hq-red/8 transition"
+                              title="삭제">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0"/></svg>
+                      </button>
+                    </div>
                     <div class="flex items-center gap-2 mb-1">
                       <span class="status-badge text-[9px]"
                         :class="file.division?.includes('tech') ? 'bg-hq-cyan/10 text-hq-cyan' :
@@ -3653,6 +3667,7 @@
                     <h3 class="text-sm font-bold text-hq-text" x-text="archive.selectedReport?.filename || ''"></h3>
                     <div class="flex items-center gap-3">
                       <button @click="copyToClipboard(archive.content)" class="text-xs text-hq-muted hover:text-hq-green transition">복사</button>
+                      <button @click="downloadArchiveReport(archive.selectedReport)" class="text-xs text-hq-muted hover:text-hq-accent transition">다운로드</button>
                       <button @click="deleteArchiveReport(archive.selectedReport)" class="text-xs text-hq-muted hover:text-hq-red transition">삭제</button>
                     </div>
                   </div>
@@ -6113,6 +6128,7 @@
                 tools_used: d.status === 'working' ? tools : [],
                 started_at: prev.started_at || (d.status === 'working' ? Date.now() : null),
                 elapsed: prev.elapsed || '00:00',
+                progress: d.progress ?? prev.progress ?? 0,
               }};
               if (d.status === 'working') {
                 const div = this.agentDivision[d.agent_id];
@@ -7990,6 +8006,44 @@
               }
             }
           } catch { this.showToast('검색에 실패했습니다.', 'error'); }
+        },
+
+        downloadArchiveReport(file) {
+          if (!file || !file.content) {
+            // 내용이 캐시에 없으면 API에서 가져와서 다운로드
+            fetch(`/api/archive/${encodeURIComponent(file.division)}/${encodeURIComponent(file.filename)}`)
+              .then(r => r.json())
+              .then(doc => {
+                if (doc.content) this._triggerDownload(doc.content, file.filename);
+                else this.showToast('내용을 불러올 수 없습니다', 'error');
+              })
+              .catch(() => this.showToast('다운로드 실패', 'error'));
+          } else {
+            this._triggerDownload(file.content, file.filename);
+          }
+        },
+
+        _triggerDownload(content, filename) {
+          const blob = new Blob([content], { type: 'text/markdown; charset=utf-8' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = filename.endsWith('.md') ? filename : filename + '.md';
+          a.click();
+          URL.revokeObjectURL(url);
+        },
+
+        downloadArchiveZip() {
+          const div = this.archive.filterDivision !== 'all' ? this.archive.filterDivision : null;
+          const tier = this.archive.filterTier !== 'all' ? this.archive.filterTier : null;
+          const params = new URLSearchParams();
+          if (div) params.set('division', div);
+          if (tier) params.set('tier', tier);
+          const url = `/api/archive/export-zip${params.toString() ? '?' + params.toString() : ''}`;
+          const a = document.createElement('a');
+          a.href = url;
+          a.click();
+          this.showToast('ZIP 내보내기 시작...', 'success');
         },
 
         async deleteArchiveReport(file) {
