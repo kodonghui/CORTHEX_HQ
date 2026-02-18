@@ -4724,6 +4724,39 @@ async def bulk_change_model(request: Request):
     return {"success": True, "changed": changed, "model_name": new_model, "reasoning_effort": reasoning}
 
 
+@app.post("/api/agents/save-defaults")
+async def save_agent_defaults():
+    """현재 agent_overrides를 기본값 스냅샷으로 저장."""
+    overrides = _load_data("agent_overrides", {})
+    _save_data("agent_model_defaults", overrides)
+    return {"success": True, "saved_count": len(overrides)}
+
+
+@app.post("/api/agents/restore-defaults")
+async def restore_agent_defaults():
+    """저장된 기본값으로 전체 에이전트 모델을 복원."""
+    defaults = _load_data("agent_model_defaults", {})
+    if not defaults:
+        return {"error": "저장된 기본값이 없습니다. 먼저 기본값을 저장하세요."}
+    _save_data("agent_overrides", defaults)
+    # 메모리 내 AGENTS 리스트도 업데이트
+    for agent_id, vals in defaults.items():
+        for a in AGENTS:
+            if a["agent_id"] == agent_id:
+                if "model_name" in vals:
+                    a["model_name"] = vals["model_name"]
+                break
+        if agent_id in _AGENTS_DETAIL:
+            _AGENTS_DETAIL[agent_id].update(vals)
+    # ToolPool 모델 등록도 업데이트
+    pool = _init_tool_pool()
+    if pool and hasattr(pool, "set_agent_model"):
+        for agent_id, vals in defaults.items():
+            if "model_name" in vals:
+                pool.set_agent_model(agent_id, vals["model_name"])
+    return {"success": True, "restored_count": len(defaults)}
+
+
 @app.put("/api/agents/{agent_id}/soul")
 async def save_agent_soul(agent_id: str, request: Request):
     """에이전트 소울(성격) 저장. DB에 영구 저장됨."""
