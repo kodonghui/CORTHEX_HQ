@@ -59,6 +59,12 @@ claude/autonomous-system-v3
 | `config/tools.json` | yaml2json.py 재실행으로 재생성 |
 | `config/quality_rules.json` | yaml2json.py 재실행으로 재생성 |
 
+### 추가 작업: delegation_log WebSocket broadcast + /api/consult 엔드포인트
+- **수정 파일**: `web/mini_server.py` (4741~4830줄 구간)
+- `POST /api/delegation-log`: 저장 후 `delegation_log_update` WebSocket 이벤트를 모든 connected_clients에 broadcast 추가 (4762~4775줄)
+- `POST /api/consult` 신규 엔드포인트 추가: body {from_agent, to_agent, question, context?} → DB 저장(log_type="consult") + WebSocket broadcast (4783~4830줄)
+- grep 검증: `delegation_log_update` 2곳(4774, 4823줄), `consult_manager_api` 1곳(4783줄) — 명세대로
+
 ## 현재 상태
 모든 수정 완료. yaml2json.py 재실행 완료.
 
