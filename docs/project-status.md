@@ -9,13 +9,48 @@
 ## 마지막 업데이트
 
 - **날짜**: 2026-02-18
-- **버전**: `3.02.003` (예산 한도 수정 + 진행률 단계 기반 + CLAUDE.md 팀플레이북 개선)
+- **버전**: `3.03.000` (협업 A+B+C + GitHub Secrets 40개 등록 + 노션 자동저장 DB 분리)
 - **작업 브랜치**: claude/autonomous-system-v3
-- **최근 커밋**: fix: 에이전트 진행률 단계 기반으로 전면 개선 (`d009727`)
-- **빌드 번호**: #215 (https://github.com/kodonghui/CORTHEX_HQ/actions)
+- **최근 커밋**: feat: 협업 A+B+C 구현 (`3f4cc74`)
+- **빌드 번호**: #220 (https://github.com/kodonghui/CORTHEX_HQ/actions)
 - **접속 주소**: https://corthex-hq.com
 
-## ✅ 이번 세션 완료 내용 (2026-02-18 4차 작업)
+## ✅ 이번 세션 완료 내용 (2026-02-18 5차 작업)
+
+### GitHub Secrets 40개 등록 완료
+- ANTHROPIC, OPENAI, GOOGLE, NOTION, TELEGRAM, DART, ECOS, KIPRIS, LAW, SERPAPI, SMTP, Instagram, Google OAuth, Kakao, Naver, Daum 전체 등록
+- 배포 시 서버 /home/ubuntu/corthex.env 자동 업데이트
+
+### 협업 A (BE + FE): delegation_log WebSocket 실시간화
+- POST /api/delegation-log 저장 시 connected_clients 전체에 delegation_log_update 이벤트 broadcast
+- FE: 8초 폴링(setInterval) 제거 → WebSocket 이벤트 수신으로 즉시 업데이트
+- handleWsMessage에 delegation_log_update case 추가
+
+### 협업 B (BE): POST /api/consult 신규
+- 처장↔처장 협의 요청 API
+- body: {from_agent, to_agent, question, context?}
+- DB에 log_type=consult로 저장 + WebSocket broadcast
+
+### 협업 C (FE): 협업 흐름도 패널
+- 내부통신 패널 옆에 "협업 흐름도" 접이식 패널 추가
+- delegation_log 데이터를 타임라인 형태로 시각화 (노드 → 화살표 → 수신자)
+- consult/report/delegation 색상 분기
+
+### 노션 자동저장 DB 분리
+- 비서실 에이전트 (division=secretary) → NOTION_DB_SECRETARY DB
+- 처장/전문가 → NOTION_DB_OUTPUT DB
+- 환경변수 미설정 시 NOTION_DEFAULT_DB_ID 폴백
+
+### 버그 수정 (이전 세션)
+- CMO에 notion_api, spawn_agent 도구 추가
+- SNS Manager 큐 JSON 파일 → SQLite DB 이전
+- Twitter/X 금지 문구 CMO soul에 추가
+
+### 다음 세션에서 할 일
+1. **노션 DB 확인**: NOTION_DB_SECRETARY, NOTION_DB_OUTPUT 환경변수 설정 (노션에 DB 2개 있으면)
+2. **[보류] 리트마스터 홈페이지 자동배포 파이프라인 (C안)**
+
+## ✅ 이전 세션 완료 내용 (2026-02-18 4차 작업)
 
 ### 버그 수정
 - **예산 한도 수정 기능 복구**: PUT /api/budget에서 monthly_limit 저장 안 되던 문제, response에 값 미반환 문제, GET /api/budget monthly_limit 하드코딩 300.0 → DB에서 읽도록 수정. saveBudget() 후 loadDashboard() 호출 추가.
