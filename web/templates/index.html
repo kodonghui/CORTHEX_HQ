@@ -3950,8 +3950,8 @@
               <div class="flex items-center gap-3">
                 <span class="text-[10px] px-2 py-1 rounded-full" :class="(trading.summary.settings||{}).paper_trading !== false ? 'bg-hq-yellow/10 text-hq-yellow' : 'bg-hq-red/10 text-hq-red'"
                       x-text="(trading.summary.settings||{}).paper_trading !== false ? '모의투자' : '실거래'"></span>
-                <span class="text-[10px] px-2 py-1 rounded-full" :class="(trading.summary.settings||{}).kiwoom_connected ? 'bg-hq-green/10 text-hq-green' : 'bg-hq-muted/10 text-hq-muted'"
-                      x-text="(trading.summary.settings||{}).kiwoom_connected ? '키움 연결' : '키움 미연결'"></span>
+                <span class="text-[10px] px-2 py-1 rounded-full" :class="(trading.summary.settings||{}).kis_connected ? 'bg-hq-green/10 text-hq-green' : 'bg-hq-muted/10 text-hq-muted'"
+                      x-text="(trading.summary.settings||{}).kis_connected ? 'KIS 연결' : 'KIS 미연결'"></span>
                 <button @click="toggleTradingBot()" class="rounded-lg px-4 py-1.5 text-xs font-bold transition"
                         :class="trading.botActive ? 'bg-hq-red/20 text-hq-red hover:bg-hq-red/30' : 'bg-hq-green/20 text-hq-green hover:bg-hq-green/30'"
                         x-text="trading.botActive ? '중지' : '시작'"></button>
@@ -4769,7 +4769,7 @@
           <strong>CIO 자동매매</strong>: 봇이 켜져 있으면 5분마다 CIO + 전문가 4명이 관심종목을 분석합니다. "CIO 자동실행"을 켜면 신뢰도 70% 이상 시그널을 자동 매수/매도합니다.
         </div>
         <div class="bg-hq-yellow/10 border border-hq-yellow/20 rounded-lg p-3 text-[10px] text-hq-yellow">
-          키움증권 API 미연결 — 현재 모의투자 모드. 미국 주식은 yfinance 데이터 사용.
+          KIS(한국투자증권) API 미연결 — 현재 모의투자 모드. 미국 주식은 yfinance 데이터 사용.
         </div>
         <button @click="saveTradingSettings()" class="w-full bg-hq-accent/20 text-hq-accent hover:bg-hq-accent/30 rounded-lg py-2.5 text-sm font-bold transition">설정 저장</button>
       </div>
@@ -8623,6 +8623,7 @@
             if (res.success) {
               this.showToast('자동매매 설정 저장됨', 'success');
               this.trading.showSettingsModal = false;
+              await this.loadTradingSummary();
             }
           } catch { this.showToast('설정 저장 실패', 'error'); }
         },

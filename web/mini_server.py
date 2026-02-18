@@ -3186,10 +3186,91 @@ async def _broadcast_workflow_progress(step_index: int, total_steps: int, status
             pass
 
 
-# ── 자동매매 시스템 (키움증권 프레임워크) ──
+# ── 자동매매 시스템 (KIS 한국투자증권 프레임워크) ──
 
 _trading_bot_active = False  # 자동매매 봇 ON/OFF
 _trading_bot_task = None     # 자동매매 봇 asyncio Task
+
+# ── 시세 캐시 (1분 자동 갱신) ──
+_price_cache: dict = {}  # {ticker: {"price": float, "change_pct": float, "updated_at": str}}
+_price_cache_lock = asyncio.Lock()
+
+
+async def _auto_refresh_prices():
+    """관심종목 시세를 1분마다 자동 갱신."""
+    while True:
+        try:
+            await asyncio.sleep(60)
+            watchlist = _load_data("trading_watchlist", [])
+            if not watchlist:
+                continue
+
+            new_cache = {}
+            kr_tickers = [w for w in watchlist if w.get("market", "KR") == "KR"]
+            us_tickers = [w for w in watchlist if w.get("market") == "US"]
+
+            # 한국 주식 (pykrx)
+            if kr_tickers:
+                try:
+                    from pykrx import stock as pykrx_stock
+                    today = datetime.now(KST).strftime("%Y%m%d")
+                    start = (datetime.now(KST) - timedelta(days=7)).strftime("%Y%m%d")
+                    for w in kr_tickers:
+                        try:
+                            df = await asyncio.to_thread(
+                                pykrx_stock.get_market_ohlcv_by_date, start, today, w["ticker"]
+                            )
+                            if df is not None and not df.empty:
+                                latest = df.iloc[-1]
+                                prev = df.iloc[-2] if len(df) >= 2 else latest
+                                close = int(latest["종가"])
+                                prev_close = int(prev["종가"])
+                                change = close - prev_close
+                                change_pct = round((change / prev_close) * 100, 2) if prev_close else 0
+                                new_cache[w["ticker"]] = {
+                                    "price": close,
+                                    "change_pct": change_pct,
+                                    "updated_at": datetime.now(KST).isoformat(),
+                                }
+                        except Exception:
+                            pass
+                except Exception:
+                    pass
+
+            # 미국 주식 (yfinance)
+            if us_tickers:
+                try:
+                    import yfinance as yf
+                    for w in us_tickers:
+                        try:
+                            ticker_obj = yf.Ticker(w["ticker"])
+                            hist = await asyncio.to_thread(
+                                lambda t=ticker_obj: t.history(period="5d")
+                            )
+                            if hist is not None and not hist.empty:
+                                latest = hist.iloc[-1]
+                                prev = hist.iloc[-2] if len(hist) >= 2 else latest
+                                close = round(float(latest["Close"]), 2)
+                                prev_close = round(float(prev["Close"]), 2)
+                                change = round(close - prev_close, 2)
+                                change_pct = round((change / prev_close) * 100, 2) if prev_close else 0
+                                new_cache[w["ticker"]] = {
+                                    "price": close,
+                                    "change_pct": change_pct,
+                                    "updated_at": datetime.now(KST).isoformat(),
+                                }
+                        except Exception:
+                            pass
+                except Exception:
+                    pass
+
+            if new_cache:
+                async with _price_cache_lock:
+                    _price_cache.update(new_cache)
+                _log(f"[PRICE] 시세 자동 갱신 완료 — {len(new_cache)}종목")
+        except Exception as e:
+            _log(f"[PRICE] 시세 자동 갱신 오류: {e}")
+            await asyncio.sleep(60)
 
 
 def _default_portfolio() -> dict:
@@ -3218,7 +3299,7 @@ def _default_trading_settings() -> dict:
         "auto_take_profit": True,     # 자동 익절 활성화
         "auto_execute": False,        # CIO 시그널 기반 자동 주문 실행 (안전장치: 기본 OFF)
         "min_confidence": 70,         # 자동매매 최소 신뢰도 (%)
-        "kiwoom_connected": False,    # 키움증권 API 연결 여부
+        "kis_connected": False,       # KIS(한국투자증권) API 연결 여부
         "paper_trading": True,        # 모의투자 모드 (실거래 전)
     }
 
@@ -3521,7 +3602,25 @@ async def get_watchlist_prices():
             for w in us_tickers:
                 prices[w["ticker"]] = {"error": "yfinance 미설치"}
 
+    # 캐시에 있는 종목은 캐시값으로 보완 (실시간 조회 실패 시 대체)
+    async with _price_cache_lock:
+        for ticker_key, cached in _price_cache.items():
+            if ticker_key not in prices or "error" in prices.get(ticker_key, {}):
+                prices[ticker_key] = {
+                    "current_price": cached.get("price", 0),
+                    "change_pct": cached.get("change_pct", 0),
+                    "updated_at": cached.get("updated_at", ""),
+                    "from_cache": True,
+                }
+
     return {"prices": prices, "updated_at": datetime.now(KST).isoformat()}
+
+
+@app.get("/api/trading/prices/cached")
+async def get_cached_prices():
+    """1분 자동 갱신된 시세 캐시를 즉시 반환 (실시간 조회 없이 빠르게 응답)."""
+    async with _price_cache_lock:
+        return {"success": True, "data": dict(_price_cache)}
 
 
 @app.get("/api/trading/watchlist/chart/{ticker}")
@@ -7615,6 +7714,9 @@ async def on_startup():
     if active_batches or active_chains:
         _ensure_batch_poller()
         _log(f"[BATCH] 미완료 배치 {len(active_batches)}개 + 체인 {len(active_chains)}개 감지 — 폴러 자동 시작")
+    # 관심종목 시세 1분 자동 갱신 태스크 시작
+    asyncio.create_task(_auto_refresh_prices())
+    _log("[PRICE] 시세 자동 갱신 태스크 시작 ✅ (1분 간격)")
 
 
 @app.on_event("shutdown")
