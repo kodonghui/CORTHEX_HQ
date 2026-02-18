@@ -292,37 +292,54 @@ async def deploy_status():
     return {"build": get_build_number(), "time": datetime.now(KST).isoformat(), "status": "success", "commit": ""}
 
 
+# 모델별 기본 추론 레벨 자동 매핑 (최신 2026년 기준)
+MODEL_REASONING_MAP: dict[str, str] = {
+    "claude-haiku-4-5":        "low",
+    "claude-haiku-4-5-20251001": "low",
+    "claude-sonnet-4-6":       "medium",
+    "claude-opus-4-6":         "high",
+    "gemini-3-pro-preview":    "high",
+    "gemini-2.5-pro":          "high",
+    "gpt-5.2":                 "high",
+    "gpt-5.2-pro":             "xhigh",
+    "gpt-5":                   "high",
+    "gpt-5-mini":              "medium",
+    "o3":                      "high",
+    "o4-mini":                 "medium",
+}
+
+
 # ── 에이전트 목록 ──
 AGENTS = [
     {"agent_id": "chief_of_staff", "name_ko": "비서실장", "role": "manager", "division": "secretary", "status": "idle", "model_name": "claude-sonnet-4-6"},
-    {"agent_id": "report_specialist", "name_ko": "기록 보좌관", "role": "specialist", "division": "secretary", "status": "idle", "model_name": "claude-sonnet-4-6"},
-    {"agent_id": "schedule_specialist", "name_ko": "일정 보좌관", "role": "specialist", "division": "secretary", "status": "idle", "model_name": "claude-sonnet-4-6"},
+    {"agent_id": "report_specialist", "name_ko": "기록 보좌관", "role": "specialist", "division": "secretary", "status": "idle", "model_name": "claude-haiku-4-5"},
+    {"agent_id": "schedule_specialist", "name_ko": "일정 보좌관", "role": "specialist", "division": "secretary", "status": "idle", "model_name": "claude-haiku-4-5"},
     {"agent_id": "relay_specialist", "name_ko": "소통 보좌관", "role": "specialist", "division": "secretary", "status": "idle", "model_name": "claude-sonnet-4-6"},
-    {"agent_id": "cto_manager", "name_ko": "기술개발처장 (CTO)", "role": "manager", "division": "leet_master.tech", "status": "idle", "model_name": "claude-sonnet-4-6"},
+    {"agent_id": "cto_manager", "name_ko": "기술개발처장 (CTO)", "role": "manager", "division": "leet_master.tech", "status": "idle", "model_name": "claude-opus-4-6"},
     {"agent_id": "frontend_specialist", "name_ko": "프론트엔드 Specialist", "role": "specialist", "division": "leet_master.tech", "status": "idle", "model_name": "claude-sonnet-4-6"},
     {"agent_id": "backend_specialist", "name_ko": "백엔드/API Specialist", "role": "specialist", "division": "leet_master.tech", "status": "idle", "model_name": "claude-sonnet-4-6"},
     {"agent_id": "infra_specialist", "name_ko": "DB/인프라 Specialist", "role": "specialist", "division": "leet_master.tech", "status": "idle", "model_name": "claude-sonnet-4-6"},
-    {"agent_id": "ai_model_specialist", "name_ko": "AI 모델 Specialist", "role": "specialist", "division": "leet_master.tech", "status": "idle", "model_name": "claude-sonnet-4-6"},
+    {"agent_id": "ai_model_specialist", "name_ko": "AI 모델 Specialist", "role": "specialist", "division": "leet_master.tech", "status": "idle", "model_name": "gemini-3-pro-preview"},
     {"agent_id": "cso_manager", "name_ko": "사업기획처장 (CSO)", "role": "manager", "division": "leet_master.strategy", "status": "idle", "model_name": "claude-opus-4-6"},
-    {"agent_id": "market_research_specialist", "name_ko": "시장조사 Specialist", "role": "specialist", "division": "leet_master.strategy", "status": "idle", "model_name": "claude-sonnet-4-6"},
-    {"agent_id": "business_plan_specialist", "name_ko": "사업계획서 Specialist", "role": "specialist", "division": "leet_master.strategy", "status": "idle", "model_name": "claude-sonnet-4-6"},
+    {"agent_id": "market_research_specialist", "name_ko": "시장조사 Specialist", "role": "specialist", "division": "leet_master.strategy", "status": "idle", "model_name": "gemini-3-pro-preview"},
+    {"agent_id": "business_plan_specialist", "name_ko": "사업계획서 Specialist", "role": "specialist", "division": "leet_master.strategy", "status": "idle", "model_name": "claude-opus-4-6"},
     {"agent_id": "financial_model_specialist", "name_ko": "재무모델링 Specialist", "role": "specialist", "division": "leet_master.strategy", "status": "idle", "model_name": "gpt-5.2"},
     {"agent_id": "clo_manager", "name_ko": "법무·IP처장 (CLO)", "role": "manager", "division": "leet_master.legal", "status": "idle", "model_name": "claude-opus-4-6"},
-    {"agent_id": "copyright_specialist", "name_ko": "저작권 Specialist", "role": "specialist", "division": "leet_master.legal", "status": "idle", "model_name": "claude-sonnet-4-6"},
-    {"agent_id": "patent_specialist", "name_ko": "특허/약관 Specialist", "role": "specialist", "division": "leet_master.legal", "status": "idle", "model_name": "claude-sonnet-4-6"},
+    {"agent_id": "copyright_specialist", "name_ko": "저작권 Specialist", "role": "specialist", "division": "leet_master.legal", "status": "idle", "model_name": "claude-opus-4-6"},
+    {"agent_id": "patent_specialist", "name_ko": "특허/약관 Specialist", "role": "specialist", "division": "leet_master.legal", "status": "idle", "model_name": "claude-opus-4-6"},
     {"agent_id": "cmo_manager", "name_ko": "마케팅·고객처장 (CMO)", "role": "manager", "division": "leet_master.marketing", "status": "idle", "model_name": "gemini-3-pro-preview"},
-    {"agent_id": "survey_specialist", "name_ko": "설문/리서치 Specialist", "role": "specialist", "division": "leet_master.marketing", "status": "idle", "model_name": "gemini-3-pro-preview"},
+    {"agent_id": "survey_specialist", "name_ko": "설문/리서치 Specialist", "role": "specialist", "division": "leet_master.marketing", "status": "idle", "model_name": "claude-sonnet-4-6"},
     {"agent_id": "content_specialist", "name_ko": "콘텐츠 Specialist", "role": "specialist", "division": "leet_master.marketing", "status": "idle", "model_name": "gemini-3-pro-preview"},
     {"agent_id": "community_specialist", "name_ko": "커뮤니티 Specialist", "role": "specialist", "division": "leet_master.marketing", "status": "idle", "model_name": "claude-sonnet-4-6"},
     {"agent_id": "cio_manager", "name_ko": "투자분석처장 (CIO)", "role": "manager", "division": "finance.investment", "status": "idle", "model_name": "gpt-5.2-pro"},
-    {"agent_id": "market_condition_specialist", "name_ko": "시황분석 Specialist", "role": "specialist", "division": "finance.investment", "status": "idle", "model_name": "claude-sonnet-4-6"},
+    {"agent_id": "market_condition_specialist", "name_ko": "시황분석 Specialist", "role": "specialist", "division": "finance.investment", "status": "idle", "model_name": "gpt-5.2"},
     {"agent_id": "stock_analysis_specialist", "name_ko": "종목분석 Specialist", "role": "specialist", "division": "finance.investment", "status": "idle", "model_name": "gpt-5.2"},
-    {"agent_id": "technical_analysis_specialist", "name_ko": "기술적분석 Specialist", "role": "specialist", "division": "finance.investment", "status": "idle", "model_name": "claude-sonnet-4-6"},
+    {"agent_id": "technical_analysis_specialist", "name_ko": "기술적분석 Specialist", "role": "specialist", "division": "finance.investment", "status": "idle", "model_name": "gpt-5.2"},
     {"agent_id": "risk_management_specialist", "name_ko": "리스크관리 Specialist", "role": "specialist", "division": "finance.investment", "status": "idle", "model_name": "gpt-5.2"},
     {"agent_id": "cpo_manager", "name_ko": "출판·기록처장 (CPO)", "role": "manager", "division": "publishing", "status": "idle", "model_name": "claude-sonnet-4-6"},
     {"agent_id": "chronicle_specialist", "name_ko": "회사연대기 Specialist", "role": "specialist", "division": "publishing", "status": "idle", "model_name": "claude-sonnet-4-6"},
     {"agent_id": "editor_specialist", "name_ko": "콘텐츠편집 Specialist", "role": "specialist", "division": "publishing", "status": "idle", "model_name": "claude-sonnet-4-6"},
-    {"agent_id": "archive_specialist", "name_ko": "아카이브 Specialist", "role": "specialist", "division": "publishing", "status": "idle", "model_name": "claude-sonnet-4-6"},
+    {"agent_id": "archive_specialist", "name_ko": "아카이브 Specialist", "role": "specialist", "division": "publishing", "status": "idle", "model_name": "claude-haiku-4-5"},
 ]
 
 # ── WebSocket 관리 ──
@@ -4770,21 +4787,27 @@ async def save_agent_defaults():
 
 @app.post("/api/agents/restore-defaults")
 async def restore_agent_defaults():
-    """저장된 기본값으로 전체 에이전트 모델을 복원."""
-    defaults = _load_data("agent_model_defaults", {})
+    """agents.yaml 하드코딩 기본값으로 전체 에이전트 모델/추론 복원."""
+    # agents.yaml을 직접 읽어서 하드코딩 기본값으로 복원
+    yaml_data = _load_config("agents")
+    defaults = {}
+    for agent in yaml_data.get("agents", []):
+        aid = agent.get("agent_id")
+        if aid:
+            defaults[aid] = {
+                "model_name": agent.get("model_name", "claude-sonnet-4-6"),
+                "reasoning_effort": agent.get("reasoning_effort", "medium"),
+            }
     if not defaults:
-        return {"error": "저장된 기본값이 없습니다. 먼저 기본값을 저장하세요."}
+        return {"error": "agents.yaml에서 에이전트를 찾을 수 없습니다."}
     _save_data("agent_overrides", defaults)
-    # 메모리 내 AGENTS 리스트도 업데이트
     for agent_id, vals in defaults.items():
         for a in AGENTS:
             if a["agent_id"] == agent_id:
-                if "model_name" in vals:
-                    a["model_name"] = vals["model_name"]
+                a["model_name"] = vals["model_name"]
                 break
         if agent_id in _AGENTS_DETAIL:
             _AGENTS_DETAIL[agent_id].update(vals)
-    # ToolPool 모델 등록도 업데이트
     pool = _init_tool_pool()
     if pool and hasattr(pool, "set_agent_model"):
         for agent_id, vals in defaults.items():
@@ -4799,6 +4822,9 @@ async def bulk_change_model(request: Request):
     body = await request.json()
     new_model = body.get("model_name", "")
     reasoning = body.get("reasoning_effort", "")
+    # reasoning_effort 미지정 시 모델별 기본값 자동 적용
+    if not reasoning:
+        reasoning = MODEL_REASONING_MAP.get(new_model, "medium")
     if not new_model:
         return {"error": "model_name 필수"}
     overrides = _load_data("agent_overrides", {})
@@ -4821,39 +4847,6 @@ async def bulk_change_model(request: Request):
         for a in AGENTS:
             pool.set_agent_model(a["agent_id"], new_model)
     return {"success": True, "changed": changed, "model_name": new_model, "reasoning_effort": reasoning}
-
-
-@app.post("/api/agents/save-defaults")
-async def save_agent_defaults():
-    """현재 agent_overrides를 기본값 스냅샷으로 저장."""
-    overrides = _load_data("agent_overrides", {})
-    _save_data("agent_model_defaults", overrides)
-    return {"success": True, "saved_count": len(overrides)}
-
-
-@app.post("/api/agents/restore-defaults")
-async def restore_agent_defaults():
-    """저장된 기본값으로 전체 에이전트 모델을 복원."""
-    defaults = _load_data("agent_model_defaults", {})
-    if not defaults:
-        return {"error": "저장된 기본값이 없습니다. 먼저 기본값을 저장하세요."}
-    _save_data("agent_overrides", defaults)
-    # 메모리 내 AGENTS 리스트도 업데이트
-    for agent_id, vals in defaults.items():
-        for a in AGENTS:
-            if a["agent_id"] == agent_id:
-                if "model_name" in vals:
-                    a["model_name"] = vals["model_name"]
-                break
-        if agent_id in _AGENTS_DETAIL:
-            _AGENTS_DETAIL[agent_id].update(vals)
-    # ToolPool 모델 등록도 업데이트
-    pool = _init_tool_pool()
-    if pool and hasattr(pool, "set_agent_model"):
-        for agent_id, vals in defaults.items():
-            if "model_name" in vals:
-                pool.set_agent_model(agent_id, vals["model_name"])
-    return {"success": True, "restored_count": len(defaults)}
 
 
 @app.put("/api/agents/{agent_id}/soul")
@@ -4884,6 +4877,11 @@ async def save_agent_model(agent_id: str, request: Request):
     if agent_id not in overrides:
         overrides[agent_id] = {}
     overrides[agent_id]["model_name"] = new_model
+    auto_reasoning = MODEL_REASONING_MAP.get(new_model, "")
+    if auto_reasoning:
+        overrides[agent_id]["reasoning_effort"] = auto_reasoning
+        if agent_id in _AGENTS_DETAIL:
+            _AGENTS_DETAIL[agent_id]["reasoning_effort"] = auto_reasoning
     _save_data("agent_overrides", overrides)
     # ToolPool 모델 등록 업데이트 (Skill 도구가 변경된 모델을 사용하도록)
     pool = _init_tool_pool()
