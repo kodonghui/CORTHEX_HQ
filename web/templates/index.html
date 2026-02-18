@@ -1602,7 +1602,7 @@
           </template>
 
           <!-- ═══ Messages ═══ -->
-          <template x-for="(msg, i) in messages" :key="i">
+          <template x-for="(msg, i) in messages" :key="msg.id || i">
             <div class="fade-in-up">
 
               <!-- User message -->
@@ -1806,20 +1806,22 @@
             </div>
           </div>
           <!-- Preset Chips + 대화 내보내기 (프리셋이 있거나 메시지가 있을 때만 표시) -->
-          <div x-show="(presets.items && presets.items.length > 0) || messages.length > 0" class="flex items-center gap-2 flex-wrap mt-2 max-w-4xl mx-auto overflow-x-auto scrollbar-thin">
-            <template x-for="p in presets.items" :key="p.name">
-              <button @click="sendPreset(p.command)"
-                      :disabled="systemStatus === 'working'"
-                      class="text-[11px] bg-hq-panel border border-hq-border rounded-lg px-2.5 py-1 hover:border-hq-accent/40 hover:text-hq-accent transition disabled:opacity-30 text-hq-muted whitespace-nowrap shrink-0">
-                <span x-text="p.name"></span>
+          <div x-show="(presets.items && presets.items.length > 0) || messages.length > 0" class="flex items-center gap-2 mt-2 max-w-4xl mx-auto">
+            <div class="flex items-center gap-2 overflow-x-auto scrollbar-thin flex-1 min-w-0">
+              <template x-for="p in presets.items" :key="p.name">
+                <button @click="sendPreset(p.command)"
+                        :disabled="systemStatus === 'working'"
+                        class="text-[11px] bg-hq-panel border border-hq-border rounded-lg px-2.5 py-1 hover:border-hq-accent/40 hover:text-hq-accent transition disabled:opacity-30 text-hq-muted whitespace-nowrap shrink-0">
+                  <span x-text="p.name"></span>
+                </button>
+              </template>
+              <button x-show="presets.items && presets.items.length > 0" @click="presets.showModal = true" class="text-[11px] text-hq-muted/80 hover:text-hq-accent transition px-1 shrink-0">
+                <svg class="w-3.5 h-3.5 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
               </button>
-            </template>
-            <button x-show="presets.items && presets.items.length > 0" @click="presets.showModal = true" class="text-[11px] text-hq-muted/80 hover:text-hq-accent transition px-1 shrink-0">
-              <svg class="w-3.5 h-3.5 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
-            </button>
+            </div>
             <!-- 대화 내보내기 (오른쪽 끝) -->
             <button x-show="messages.length > 0" @click="exportConversation()"
-                    class="text-[10px] text-hq-muted/70 hover:text-hq-accent flex items-center gap-1 transition ml-auto shrink-0">
+                    class="text-[10px] text-hq-muted/70 hover:text-hq-accent flex items-center gap-1 transition shrink-0">
               <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
               내보내기
             </button>
@@ -4160,6 +4162,27 @@
               this.connectionLost = false;
               this.reconnectAttempt = 0;
               this.showToast('서버에 다시 연결되었습니다.', 'success');
+              // 버그3 수정: 재연결 중에 놓친 작업 결과 확인 (WS 끊겼을 때 task_completed 이벤트가 유실될 수 있음)
+              if (this.currentTaskId && this.systemStatus === 'working') {
+                fetch(`/api/tasks/${this.currentTaskId}`)
+                  .then(r => r.json())
+                  .then(task => {
+                    if (task && (task.status === 'completed' || task.status === 'failed')) {
+                      this.handleWsMessage({
+                        event: 'task_completed',
+                        data: {
+                          task_id: task.task_id,
+                          success: task.success,
+                          content: task.result_data,
+                          summary: task.result_summary,
+                          time_seconds: task.execution_time_seconds,
+                          cost: task.cost_usd,
+                        }
+                      });
+                    }
+                  })
+                  .catch(() => {});
+              }
             }
           };
 
@@ -4189,11 +4212,11 @@
 
             case 'agent_status':
               const d = msg.data;
-              this.activeAgents[d.agent_id] = {
+              this.activeAgents = { ...this.activeAgents, [d.agent_id]: {
                 status: d.status,
                 progress: d.progress || 0,
                 detail: d.detail || '',
-              };
+              }};
 
               if (d.status === 'working') {
                 const div = this.agentDivision[d.agent_id];
@@ -4231,6 +4254,7 @@
               this.messages = this.messages.filter(m => m.type !== 'processing');
               this.messages.push({
                 type: 'result',
+                id: Date.now(),
                 content: msg.data.content,
                 sender_id: msg.data.sender_id || 'chief_of_staff',
                 handled_by: msg.data.handled_by || '비서실장',
@@ -4291,9 +4315,9 @@
               clearInterval(interval);
               return;
             }
-            const current = this.activeAgents[agentId].progress;
+            const current = this.activeAgents[agentId]?.progress || 0;
             if (current < 0.9) {
-              this.activeAgents[agentId].progress = Math.min(0.9, current + 0.05 + Math.random() * 0.1);
+              this.activeAgents = { ...this.activeAgents, [agentId]: { ...this.activeAgents[agentId], progress: Math.min(0.9, current + 0.05 + Math.random() * 0.1) } };
             } else {
               clearInterval(interval);
             }
@@ -4309,7 +4333,7 @@
           if (this.commandHistory.length > 50) this.commandHistory.shift();
           this.historyIndex = -1;
 
-          this.messages.push({ type: 'user', text });
+          this.messages.push({ type: 'user', text, id: Date.now() });
           this.inputText = '';
           this.activeAgents = {};
 

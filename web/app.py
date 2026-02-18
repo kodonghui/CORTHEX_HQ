@@ -1479,13 +1479,6 @@ async def websocket_endpoint(ws: WebSocket) -> None:
                     "batch": use_batch,
                 })
 
-                # Reset all agent statuses
-                if registry:
-                    for agent in registry.list_all():
-                        await ws_manager.send_agent_status(
-                            agent.config.agent_id, "idle"
-                        )
-
                 # Launch background task
                 asyncio.create_task(
                     _run_background_task(stored, user_input, depth, use_batch)
