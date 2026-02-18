@@ -1136,7 +1136,7 @@
                 </div>
                 <span x-show="activeAgents[id]?.status === 'working'"
                       class="ml-auto text-[9px] font-mono text-amber-500 shrink-0"
-                      x-text="Math.round((activeAgents[id]?.progress || 0) * 100) + '%'"></span>
+                      x-text="activeAgents[id]?.elapsed || '00:00'"></span>
               </div>
             </template>
           </div>
@@ -1183,7 +1183,7 @@
                     <span class="text-xs text-hq-muted" x-text="getAgentName(id)"></span>
                     <span x-show="activeAgents[id]?.status === 'working'"
                           class="ml-auto text-[9px] font-mono text-hq-yellow"
-                          x-text="Math.round((activeAgents[id]?.progress || 0) * 100) + '%'"></span>
+                          x-text="activeAgents[id]?.elapsed || '00:00'"></span>
                   </div>
                 </template>
               </div>
@@ -1211,7 +1211,7 @@
                     <span class="text-xs text-hq-muted" x-text="getAgentName(id)"></span>
                     <span x-show="activeAgents[id]?.status === 'working'"
                           class="ml-auto text-[9px] font-mono text-hq-yellow"
-                          x-text="Math.round((activeAgents[id]?.progress || 0) * 100) + '%'"></span>
+                          x-text="activeAgents[id]?.elapsed || '00:00'"></span>
                   </div>
                 </template>
               </div>
@@ -1239,7 +1239,7 @@
                     <span class="text-xs text-hq-muted" x-text="getAgentName(id)"></span>
                     <span x-show="activeAgents[id]?.status === 'working'"
                           class="ml-auto text-[9px] font-mono text-hq-yellow"
-                          x-text="Math.round((activeAgents[id]?.progress || 0) * 100) + '%'"></span>
+                          x-text="activeAgents[id]?.elapsed || '00:00'"></span>
                   </div>
                 </template>
               </div>
@@ -1267,7 +1267,7 @@
                     <span class="text-xs text-hq-muted" x-text="getAgentName(id)"></span>
                     <span x-show="activeAgents[id]?.status === 'working'"
                           class="ml-auto text-[9px] font-mono text-hq-yellow"
-                          x-text="Math.round((activeAgents[id]?.progress || 0) * 100) + '%'"></span>
+                          x-text="activeAgents[id]?.elapsed || '00:00'"></span>
                   </div>
                 </template>
               </div>
@@ -6025,6 +6025,7 @@
               this.batchProgress.elapsed = `${m}:${s}`;
             }
           }, 1000);
+          this.startElapsedTimer();
         },
 
         // ── Theme ──
@@ -6101,44 +6102,18 @@
               }
               break;
 
-            case 'agent_status':
+            case 'agent_status': {
               const d = msg.data;
-
-              // 도구 호출 횟수 기반 진행률 계산 (최대 5회 = 100%)
-              // 백엔드에서 도구 실행 시 detail에 "🔧" 패턴으로 알림
-              const MAX_TOOL_CALLS = 5;
-              if (d.status === 'working') {
-                if (!this.agentToolCallCount[d.agent_id]) {
-                  this.agentToolCallCount[d.agent_id] = 0;
-                }
-                // 도구 실행 이벤트인 경우 카운터 증가
-                if (d.detail && d.detail.includes('🔧')) {
-                  this.agentToolCallCount[d.agent_id] = Math.min(
-                    this.agentToolCallCount[d.agent_id] + 1,
-                    MAX_TOOL_CALLS
-                  );
-                } else if (this.agentToolCallCount[d.agent_id] === 0) {
-                  // 첫 번째 working 이벤트 = 작업 시작 (0% 유지)
-                }
-              }
-
-              // 진행률: 도구 호출 횟수 / 최대5 (done이면 1.0)
-              let toolProgress;
-              if (d.status === 'done') {
-                toolProgress = 1.0;
-                // 완료 시 카운터 리셋
-                this.agentToolCallCount[d.agent_id] = 0;
-              } else {
-                const callCount = this.agentToolCallCount[d.agent_id] || 0;
-                toolProgress = callCount / MAX_TOOL_CALLS;
-              }
-
-              this.activeAgents[d.agent_id] = {
+              const prev = this.activeAgents[d.agent_id] || {};
+              const tools = prev.tools_used ? [...prev.tools_used] : [];
+              if (d.tool_name && !tools.includes(d.tool_name)) tools.push(d.tool_name);
+              this.activeAgents = { ...this.activeAgents, [d.agent_id]: {
                 status: d.status,
-                progress: toolProgress,
                 detail: d.detail || '',
-              };
-
+                tools_used: d.status === 'working' ? tools : [],
+                started_at: prev.started_at || (d.status === 'working' ? Date.now() : null),
+                elapsed: prev.elapsed || '00:00',
+              }};
               if (d.status === 'working') {
                 const div = this.agentDivision[d.agent_id];
                 if (div) {
@@ -6152,6 +6127,7 @@
                 }
               }
               break;
+            }
 
             case 'activity_log':
               { const now = new Date(); const d = now.toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/\.\s*/g, '.').replace(/\.$/, ''); const t = now.toLocaleTimeString('ko-KR', { timeZone: 'Asia/Seoul', hour12: false, hour: '2-digit', minute: '2-digit' }); msg.data.timeDate = d; msg.data.timeClock = t; msg.data.time = d + ' ' + t; }
@@ -6330,10 +6306,25 @@
           }
         },
 
-        // simulateProgress 제거됨 (2026-02-18):
-        // 가짜 랜덤 진행률 대신 도구 호출 횟수 기반 실제 진행률 사용
-        // agent_status 이벤트의 detail에 "🔧" 포함 여부로 도구 호출 감지
-        // 진행률 = agentToolCallCount[agentId] / 5 (최대 5회 = 100%)
+        startElapsedTimer() {
+          setInterval(() => {
+            const updated = { ...this.activeAgents };
+            let changed = false;
+            Object.keys(updated).forEach(id => {
+              if (updated[id].status === 'working' && updated[id].started_at) {
+                const secs = Math.floor((Date.now() - updated[id].started_at) / 1000);
+                const mm = String(Math.floor(secs / 60)).padStart(2, '0');
+                const ss = String(secs % 60).padStart(2, '0');
+                const elapsed = mm + ':' + ss;
+                if (updated[id].elapsed !== elapsed) {
+                  updated[id] = { ...updated[id], elapsed };
+                  changed = true;
+                }
+              }
+            });
+            if (changed) this.activeAgents = updated;
+          }, 1000);
+        },
 
         // ── Input Experience ──
         async sendMessage() {
