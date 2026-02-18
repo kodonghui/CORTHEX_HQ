@@ -406,6 +406,19 @@ jobs:
               sudo nginx -t 2>/dev/null && sudo systemctl reload nginx 2>/dev/null || echo "⚠️ nginx 리로드 건너뜀"
             fi
 
+            # 9.3단계: Chromium 브라우저 자동 설치 (처음 한 번만)
+            if ! command -v chromium-browser &>/dev/null && ! command -v chromium &>/dev/null; then
+              echo "Chromium + ChromeDriver 설치 중... (Selenium SNS 도구용)"
+              sudo apt-get install -y chromium-browser chromium-chromedriver 2>&1 | tail -5 || \n              sudo apt-get install -y chromium chromium-driver 2>&1 | tail -5 || \n              echo "⚠️ Chromium 설치 실패 (별도 안내로 후처리 가능)"
+              if command -v chromium-browser &>/dev/null; then
+                echo "✅ chromium-browser 설치 완료: $(chromium-browser --version)"
+              elif command -v chromium &>/dev/null; then
+                echo "✅ chromium 설치 완료: $(chromium --version)"
+              fi
+            else
+              echo "✅ Chromium 이미 설치됨 -- Selenium SNS 도구 사용 가능"
+            fi
+
             # 9.5단계: HTTPS (Let's Encrypt 무료 인증서) 설정
             CERT_PATH="/etc/letsencrypt/live/corthex-hq.com/fullchain.pem"
             if [ ! -f "$CERT_PATH" ]; then
