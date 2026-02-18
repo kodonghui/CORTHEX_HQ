@@ -13,7 +13,6 @@ import json
 import logging
 import time
 import uuid
-from pathlib import Path
 from typing import Any, TYPE_CHECKING
 
 from src.tools.base import BaseTool
@@ -32,11 +31,37 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger("corthex.sns.manager")
 
-# 승인 큐 저장 경로
-QUEUE_PATH = Path(__file__).resolve().parent.parent.parent.parent / "data" / "sns_queue.json"
-
 # 퍼블리싱 실행 권한이 있는 역할 (CMO 이상)
 PUBLISH_ROLES = {"cmo_manager", "chief_of_staff"}
+
+# DB 저장 키 (SQLite settings 테이블)
+_DB_KEY = "sns_publish_queue"
+
+
+def _db_save(data: list) -> None:
+    """sns 큐를 SQLite DB에 저장 (배포 시 날아가지 않음)."""
+    try:
+        from db import save_setting
+        save_setting(_DB_KEY, data)
+    except ImportError:
+        try:
+            from web.db import save_setting
+            save_setting(_DB_KEY, data)
+        except ImportError:
+            logger.warning("[SNS] DB 저장 실패: db 모듈을 찾을 수 없음")
+
+
+def _db_load() -> list:
+    """SNS 큐를 SQLite DB에서 로드."""
+    try:
+        from db import load_setting
+        return load_setting(_DB_KEY, []) or []
+    except ImportError:
+        try:
+            from web.db import load_setting
+            return load_setting(_DB_KEY, []) or []
+        except ImportError:
+            return []
 
 
 class SNSPublishRequest:
@@ -113,22 +138,14 @@ class SNSManager(BaseTool):
     # ── 큐 저장/로드 ──
 
     def _load_queue(self) -> None:
-        if QUEUE_PATH.exists():
-            try:
-                raw = json.loads(QUEUE_PATH.read_text(encoding="utf-8"))
-                self._queue = [SNSPublishRequest.from_dict(r) for r in raw]
-            except (json.JSONDecodeError, KeyError):
-                self._queue = []
+        try:
+            raw = _db_load()
+            self._queue = [SNSPublishRequest.from_dict(r) for r in raw]
+        except (KeyError, TypeError):
+            self._queue = []
 
     def _save_queue(self) -> None:
-        QUEUE_PATH.parent.mkdir(parents=True, exist_ok=True)
-        QUEUE_PATH.write_text(
-            json.dumps(
-                [r.to_dict() for r in self._queue],
-                ensure_ascii=False, indent=2,
-            ),
-            encoding="utf-8",
-        )
+        _db_save([r.to_dict() for r in self._queue])
 
     # ── 메인 실행 ──
 
