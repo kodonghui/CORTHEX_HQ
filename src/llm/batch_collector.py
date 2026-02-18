@@ -181,17 +181,26 @@ class BatchCollector:
                 if future and not future.done():
                     future.set_exception(e)
 
+    @staticmethod
+    def _openai_max_tokens_key(model: str, reasoning_effort: str | None) -> str:
+        """gpt-5+ / o-시리즈는 max_completion_tokens, 구형 모델은 max_tokens."""
+        _uses_new_api = reasoning_effort is not None or any(
+            tag in model for tag in ("gpt-5", "o1-", "o3-", "o4-", "o5-")
+        )
+        return "max_completion_tokens" if _uses_new_api else "max_tokens"
+
     async def _submit_openai_batch(self, reqs: list[dict]) -> None:
         """OpenAI Batch API (JSONL -> upload -> create -> poll -> download)."""
         try:
             # JSONL 생성
             jsonl_lines = []
             for r in reqs:
+                _max_tokens_key = self._openai_max_tokens_key(r["model"], r.get("reasoning_effort"))
                 body: dict[str, Any] = {
                     "model": r["model"],
                     "messages": r["messages"],
                     "temperature": r["temperature"],
-                    "max_tokens": r["max_tokens"],
+                    _max_tokens_key: r["max_tokens"],
                 }
                 if r.get("reasoning_effort"):
                     body["reasoning_effort"] = r["reasoning_effort"]
