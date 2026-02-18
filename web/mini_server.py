@@ -50,6 +50,24 @@ except ImportError:
     async def batch_retrieve(*a, **kw): return {"error": "ai_handler 미설치"}
     async def batch_submit_grouped(*a, **kw): return [{"error": "ai_handler 미설치"}]
 
+try:
+    from kis_client import (
+        get_current_price as _kis_price,
+        place_order as _kis_order,
+        get_balance as _kis_balance,
+        is_configured as _kis_configured,
+        KIS_IS_MOCK,
+    )
+    _KIS_AVAILABLE = True
+except ImportError:
+    _KIS_AVAILABLE = False
+    KIS_IS_MOCK = True
+    async def _kis_price(ticker): return 0
+    async def _kis_order(ticker, action, qty, price=0): return {"success": False, "message": "kis_client 미설치", "order_no": ""}
+    async def _kis_balance(): return {"success": False, "cash": 0, "holdings": [], "total_eval": 0}
+    def _kis_configured(): return False
+    _log("[KIS] kis_client 모듈 로드 실패 — 모의투자 모드")
+
 # Python 출력 버퍼링 비활성화 (systemd에서 로그가 바로 보이도록)
 os.environ["PYTHONUNBUFFERED"] = "1"
 
@@ -586,7 +604,9 @@ async def get_dashboard():
     provider_calls = {"anthropic": 0, "openai": 0, "google": 0}
     try:
         conn = __import__("db").get_connection()
-        today_start = datetime.now(KST).strftime("%Y-%m-%dT00:00:00")
+        # KST 자정을 UTC로 변환 (DB는 UTC ISO 형식으로 저장됨)
+        _kst_midnight = datetime.now(KST).replace(hour=0, minute=0, second=0, microsecond=0)
+        today_start = _kst_midnight.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S")
         rows = conn.execute(
             "SELECT provider, COUNT(*) FROM agent_calls "
             "WHERE created_at >= ? GROUP BY provider", (today_start,)
@@ -4014,23 +4034,58 @@ async def _trading_bot_loop():
             order_size = settings.get("order_size", 1_000_000)
 
             if auto_execute:
+                paper_mode = settings.get("paper_trading", True)
+                use_kis = _KIS_AVAILABLE and not paper_mode and _kis_configured()
+
                 for sig in parsed_signals:
-                    if sig["action"] in ("buy", "sell") and sig.get("confidence", 0) >= min_confidence:
-                        # 주문 가격은 현재가 기준 (모의투자이므로 목표가 또는 기본가 사용)
-                        target_w = next((w for w in market_watchlist if w["ticker"] == sig["ticker"]), None)
-                        price = target_w.get("target_price", 0) if target_w else 0
+                    if sig["action"] not in ("buy", "sell"):
+                        continue
+                    if sig.get("confidence", 0) < min_confidence:
+                        continue
+
+                    ticker = sig["ticker"]
+
+                    try:
+                        # 현재가 조회 (KIS 실시간 or 관심목록 목표가)
+                        if _KIS_AVAILABLE and _kis_configured():
+                            price = await _kis_price(ticker)
+                        else:
+                            target_w = next((w for w in market_watchlist if w["ticker"] == ticker), None)
+                            price = target_w.get("target_price", 0) if target_w else 0
+
                         if price <= 0:
                             price = 50000  # 가격 미설정 시 기본값
 
                         qty = max(1, int(order_size / price))
 
-                        # 내부적으로 주문 실행 (모의투자)
-                        from starlette.testclient import TestClient  # noqa
-                        try:
+                        if use_kis:
+                            # 실제 KIS API 주문 (시장가)
+                            order_result = await _kis_order(ticker, sig["action"], qty, price=0)
+                            mode_str = "실거래" if not KIS_IS_MOCK else "모의투자(KIS)"
+                            action_kr = "매수" if sig["action"] == "buy" else "매도"
+                            if order_result["success"]:
+                                order_msg = f"[{mode_str}] {action_kr} 주문 완료: {sig.get('name', ticker)} {qty}주 (주문번호: {order_result['order_no']})"
+                                save_activity_log("cio_manager", order_msg, "info")
+                                history = _load_data("trading_history", [])
+                                history.insert(0, {
+                                    "id": f"kis_{datetime.now(KST).strftime('%Y%m%d%H%M%S')}_{ticker}",
+                                    "date": datetime.now(KST).isoformat(),
+                                    "ticker": ticker, "name": sig.get("name", ticker),
+                                    "action": sig["action"], "qty": qty, "price": price,
+                                    "total": qty * price, "pnl": 0,
+                                    "strategy": f"CIO 자동매매 ({mode_str}, 신뢰도 {sig['confidence']}%)",
+                                    "status": "executed", "market": sig.get("market", market),
+                                    "order_no": order_result["order_no"],
+                                })
+                                _save_data("trading_history", history)
+                            else:
+                                order_msg = f"[{mode_str}] 주문 실패: {sig.get('name', ticker)} — {order_result['message']}"
+                                save_activity_log("cio_manager", order_msg, "warning")
+                        else:
+                            # 가상 포트폴리오 업데이트 (paper_trading 모드)
                             portfolio = _load_data("trading_portfolio", _default_portfolio())
                             if sig["action"] == "buy" and portfolio["cash"] >= price * qty:
-                                # 매수 로직 (execute_trading_order와 동일)
-                                holding = next((h for h in portfolio["holdings"] if h["ticker"] == sig["ticker"]), None)
+                                holding = next((h for h in portfolio["holdings"] if h["ticker"] == ticker), None)
                                 total_amount = qty * price
                                 if holding:
                                     old_total = holding["avg_price"] * holding["qty"]
@@ -4040,7 +4095,7 @@ async def _trading_bot_loop():
                                     holding["current_price"] = price
                                 else:
                                     portfolio["holdings"].append({
-                                        "ticker": sig["ticker"], "name": sig["name"],
+                                        "ticker": ticker, "name": sig.get("name", ticker),
                                         "qty": qty, "avg_price": price, "current_price": price,
                                         "market": sig.get("market", market),
                                     })
@@ -4048,54 +4103,53 @@ async def _trading_bot_loop():
                                 portfolio["updated_at"] = datetime.now(KST).isoformat()
                                 _save_data("trading_portfolio", portfolio)
 
-                                # 거래 내역 저장
                                 history = _load_data("trading_history", [])
                                 history.insert(0, {
-                                    "id": f"auto_{datetime.now(KST).strftime('%Y%m%d%H%M%S')}_{sig['ticker']}",
+                                    "id": f"auto_{datetime.now(KST).strftime('%Y%m%d%H%M%S')}_{ticker}",
                                     "date": datetime.now(KST).isoformat(),
-                                    "ticker": sig["ticker"], "name": sig["name"],
+                                    "ticker": ticker, "name": sig.get("name", ticker),
                                     "action": "buy", "qty": qty, "price": price,
                                     "total": total_amount, "pnl": 0,
-                                    "strategy": f"CIO 자동매매 (신뢰도 {sig['confidence']}%)",
+                                    "strategy": f"CIO 자동매매 (가상, 신뢰도 {sig['confidence']}%)",
                                     "status": "executed", "market": sig.get("market", market),
                                 })
                                 _save_data("trading_history", history)
 
                                 save_activity_log("cio_manager",
-                                    f"📈 자동매수: {sig['name']} {qty}주 × {price:,.0f}원 (신뢰도 {sig['confidence']}%)",
+                                    f"[가상] 매수: {sig.get('name', ticker)} {qty}주 x {price:,.0f}원 (신뢰도 {sig['confidence']}%)",
                                     "info")
 
                             elif sig["action"] == "sell":
-                                holding = next((h for h in portfolio["holdings"] if h["ticker"] == sig["ticker"]), None)
+                                holding = next((h for h in portfolio["holdings"] if h["ticker"] == ticker), None)
                                 if holding and holding["qty"] > 0:
                                     sell_qty = min(qty, holding["qty"])
                                     total_amount = sell_qty * price
                                     pnl = (price - holding["avg_price"]) * sell_qty
                                     holding["qty"] -= sell_qty
                                     if holding["qty"] == 0:
-                                        portfolio["holdings"] = [h for h in portfolio["holdings"] if h["ticker"] != sig["ticker"]]
+                                        portfolio["holdings"] = [h for h in portfolio["holdings"] if h["ticker"] != ticker]
                                     portfolio["cash"] += total_amount
                                     portfolio["updated_at"] = datetime.now(KST).isoformat()
                                     _save_data("trading_portfolio", portfolio)
 
                                     history = _load_data("trading_history", [])
                                     history.insert(0, {
-                                        "id": f"auto_{datetime.now(KST).strftime('%Y%m%d%H%M%S')}_{sig['ticker']}",
+                                        "id": f"auto_{datetime.now(KST).strftime('%Y%m%d%H%M%S')}_{ticker}",
                                         "date": datetime.now(KST).isoformat(),
-                                        "ticker": sig["ticker"], "name": sig["name"],
+                                        "ticker": ticker, "name": sig.get("name", ticker),
                                         "action": "sell", "qty": sell_qty, "price": price,
                                         "total": total_amount, "pnl": pnl,
-                                        "strategy": f"CIO 자동매매 (신뢰도 {sig['confidence']}%)",
+                                        "strategy": f"CIO 자동매매 (가상, 신뢰도 {sig['confidence']}%)",
                                         "status": "executed", "market": sig.get("market", market),
                                     })
                                     _save_data("trading_history", history)
 
                                     pnl_str = f"{'+'if pnl>=0 else ''}{pnl:,.0f}원"
                                     save_activity_log("cio_manager",
-                                        f"📉 자동매도: {sig['name']} {sell_qty}주 × {price:,.0f}원 (손익 {pnl_str})",
+                                        f"[가상] 매도: {sig.get('name', ticker)} {sell_qty}주 x {price:,.0f}원 (손익 {pnl_str})",
                                         "info")
-                        except Exception as order_err:
-                            logger.error("[TRADING BOT] 자동주문 오류: %s", order_err)
+                    except Exception as order_err:
+                        logger.error("[TRADING BOT] 자동주문 오류 (%s): %s", ticker, order_err)
 
             buy_count = len([s for s in parsed_signals if s.get("action") == "buy"])
             sell_count = len([s for s in parsed_signals if s.get("action") == "sell"])
@@ -4105,6 +4159,33 @@ async def _trading_bot_loop():
             logger.error("[TRADING BOT] 에러: %s", e)
 
     logger.info("자동매매 봇 루프 종료")
+
+
+@app.get("/api/trading/kis/balance")
+async def get_kis_balance():
+    """KIS 실계좌 잔고 조회."""
+    if not _KIS_AVAILABLE or not _kis_configured():
+        return {"success": False, "message": "KIS API 미설정"}
+    return await _kis_balance()
+
+
+@app.get("/api/trading/kis/status")
+async def get_kis_status():
+    """KIS API 연결 상태 확인."""
+    configured = _KIS_AVAILABLE and _kis_configured()
+    account_display = "미설정"
+    if configured:
+        try:
+            from kis_client import KIS_ACCOUNT_NO as _acct  # noqa
+            account_display = f"****{_acct[-4:]}" if len(_acct) >= 4 else "설정됨"
+        except Exception:
+            account_display = "설정됨"
+    return {
+        "available": configured,
+        "is_mock": KIS_IS_MOCK,
+        "mode": "모의투자" if KIS_IS_MOCK else "실거래",
+        "account": account_display,
+    }
 
 
 @app.post("/api/trading/portfolio/reset")
@@ -4580,6 +4661,39 @@ async def save_quality_rules(request: Request):
 
 # ── 에이전트 설정: 소울/모델/추론 저장 ──
 
+@app.post("/api/agents/save-defaults")
+async def save_agent_defaults():
+    """현재 agent_overrides를 기본값 스냅샷으로 저장."""
+    overrides = _load_data("agent_overrides", {})
+    _save_data("agent_model_defaults", overrides)
+    return {"success": True, "saved_count": len(overrides)}
+
+
+@app.post("/api/agents/restore-defaults")
+async def restore_agent_defaults():
+    """저장된 기본값으로 전체 에이전트 모델을 복원."""
+    defaults = _load_data("agent_model_defaults", {})
+    if not defaults:
+        return {"error": "저장된 기본값이 없습니다. 먼저 기본값을 저장하세요."}
+    _save_data("agent_overrides", defaults)
+    # 메모리 내 AGENTS 리스트도 업데이트
+    for agent_id, vals in defaults.items():
+        for a in AGENTS:
+            if a["agent_id"] == agent_id:
+                if "model_name" in vals:
+                    a["model_name"] = vals["model_name"]
+                break
+        if agent_id in _AGENTS_DETAIL:
+            _AGENTS_DETAIL[agent_id].update(vals)
+    # ToolPool 모델 등록도 업데이트
+    pool = _init_tool_pool()
+    if pool and hasattr(pool, "set_agent_model"):
+        for agent_id, vals in defaults.items():
+            if "model_name" in vals:
+                pool.set_agent_model(agent_id, vals["model_name"])
+    return {"success": True, "restored_count": len(defaults)}
+
+
 @app.put("/api/agents/bulk-model")
 async def bulk_change_model(request: Request):
     """모든 에이전트의 모델을 한번에 변경."""
@@ -4602,6 +4716,11 @@ async def bulk_change_model(request: Request):
         overrides[aid]["reasoning_effort"] = reasoning
         changed += 1
     _save_data("agent_overrides", overrides)
+    # ToolPool 모델 등록 일괄 업데이트
+    pool = _init_tool_pool()
+    if pool and hasattr(pool, "set_agent_model"):
+        for a in AGENTS:
+            pool.set_agent_model(a["agent_id"], new_model)
     return {"success": True, "changed": changed, "model_name": new_model, "reasoning_effort": reasoning}
 
 
@@ -4634,6 +4753,10 @@ async def save_agent_model(agent_id: str, request: Request):
         overrides[agent_id] = {}
     overrides[agent_id]["model_name"] = new_model
     _save_data("agent_overrides", overrides)
+    # ToolPool 모델 등록 업데이트 (Skill 도구가 변경된 모델을 사용하도록)
+    pool = _init_tool_pool()
+    if pool and hasattr(pool, "set_agent_model"):
+        pool.set_agent_model(agent_id, new_model)
     return {"success": True, "agent_id": agent_id, "model": new_model}
 
 
@@ -7293,6 +7416,9 @@ def _init_tool_pool():
 
         loaded = len(pool._tools)
         _tool_pool = pool
+        # AGENTS 초기 모델을 풀에 등록 (Skill 도구가 caller 에이전트 모델을 따라가도록)
+        for a in AGENTS:
+            pool.set_agent_model(a["agent_id"], a.get("model_name", "claude-sonnet-4-6"))
         _log(f"[TOOLS] ToolPool 초기화 완료: {loaded}개 도구 로드 ✅")
         return pool
 

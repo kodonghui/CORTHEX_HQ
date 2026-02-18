@@ -36,14 +36,24 @@ class BaseTool(ABC):
         """Run the tool with given inputs."""
         ...
 
-    async def _llm_call(self, system_prompt: str, user_prompt: str) -> str:
-        """Make an LLM call powered by this tool's assigned model."""
+    async def _llm_call(
+        self,
+        system_prompt: str,
+        user_prompt: str,
+        caller_model: str | None = None,
+    ) -> str:
+        """Make an LLM call powered by this tool's assigned model.
+
+        caller_model이 있으면 해당 모델을 우선 사용하고,
+        없으면 tools.yaml에 설정된 model_name으로 폴백합니다.
+        """
+        model = caller_model or self.config.model_name or "claude-sonnet-4-6"
         response = await self.model_router.complete(
-            model_name=self.config.model_name,
+            model_name=model,
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt},
             ],
-            temperature=0.2,
+            temperature=0.7,
         )
         return response.content

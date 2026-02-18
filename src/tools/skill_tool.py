@@ -31,4 +31,5 @@ class SkillTool(BaseTool):
         return await self._llm_call(
             system_prompt=system_prompt,
             user_prompt=prompt or kwargs.get("input", "도움을 요청합니다."),
+            caller_model=kwargs.get("_caller_model"),
         )

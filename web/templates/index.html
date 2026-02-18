@@ -1883,6 +1883,22 @@
                 </div>
               </div>
               <!-- 텍스트 제거됨 (#17) -->
+
+              <!-- 최근 완료 작업 (새로고침 후에도 표시) -->
+              <div x-show="recentCommandTasks && recentCommandTasks.length > 0" class="mt-4 max-w-lg w-full">
+                <div class="text-[10px] font-bold text-hq-muted/60 uppercase tracking-[0.15em] font-mono mb-2">LAST OPERATIONS</div>
+                <div class="space-y-1.5">
+                  <template x-for="task in recentCommandTasks.slice(0,3)" :key="task.task_id">
+                    <div class="glass border border-hq-border/40 rounded-xl px-3 py-2 flex items-center gap-2 text-[10px]">
+                      <span class="font-mono" x-text="task.status === 'completed' ? '✅' : '❌'"></span>
+                      <span class="flex-1 text-hq-text/70 truncate"
+                            x-text="(task.agent_name || task.agent_id || '') + (task.command ? ' · ' + task.command.slice(0,40) : '')"></span>
+                      <span class="text-hq-muted/50 shrink-0 font-mono"
+                            x-text="task.created_at ? new Date(task.created_at).toLocaleTimeString('ko-KR', {timeZone:'Asia/Seoul', hour:'2-digit', minute:'2-digit'}) : ''"></span>
+                    </div>
+                  </template>
+                </div>
+              </div>
             </div>
           </template>
 
@@ -2809,6 +2825,18 @@
                     <span x-show="bulkModelSaving" class="animate-spin">&#8987;</span>
                     <span x-text="bulkModelSaving ? '변경 중...' : '29명 전체 적용'"></span>
                   </button>
+
+                  <!-- 기본값 저장/복원 -->
+                  <div class="border-t border-hq-border mt-3 pt-3 flex gap-2">
+                    <button @click="saveAgentDefaults()"
+                            class="flex-1 text-[10px] font-bold bg-hq-bg border border-hq-border text-hq-text hover:border-hq-accent rounded-lg px-2 py-1.5 transition">
+                      현재를 기본값으로 저장
+                    </button>
+                    <button @click="restoreAgentDefaults()"
+                            class="flex-1 text-[10px] font-bold bg-hq-bg border border-hq-border text-hq-muted hover:border-hq-yellow rounded-lg px-2 py-1.5 transition">
+                      기본값 복원
+                    </button>
+                  </div>
                 </div>
               </div>
 
@@ -5742,6 +5770,9 @@
         // ── Dashboard (홈) ──
         dashboard: { todayTasks: 0, todayCompleted: 0, todayFailed: 0, runningCount: 0, totalCost: 0, totalTokens: 0, agentCount: 0, recentCompleted: [], systemHealth: 'ok', loaded: false },
 
+        // ── 사령관실: 최근 완료 작업 (새로고침 후에도 표시) ──
+        recentCommandTasks: [],
+
         // ── Presets (명령 템플릿) ──
         presets: { items: [], showModal: false, editName: '', editCommand: '' },
 
@@ -7176,6 +7207,18 @@
           if (tabId === 'trading') this.loadTradingSummary();
           if (tabId === 'command') {
             this.$nextTick(() => { this.scrollToBottom(); });
+            this.loadRecentTasksForCommand();
+          }
+        },
+
+        // ── Command Tab: 최근 작업 로드 (새로고침 후에도 표시) ──
+
+        async loadRecentTasksForCommand() {
+          try {
+            const data = await fetch('/api/tasks?limit=5&status=completed').then(r => r.ok ? r.json() : []);
+            this.recentCommandTasks = Array.isArray(data) ? data : (data.tasks || []);
+          } catch (e) {
+            // 조용히 실패 (사령관실 기본 동작에 영향 없음)
           }
         },
 
@@ -8661,6 +8704,27 @@
             const label = this.modelMode === 'auto' ? '자동 모드 (질문에 따라 자동 선택)' : '수동 모드 (에이전트별 개별 모델)';
             this.showToast(label, 'success');
           } catch { this.showToast('모델 모드 변경 실패', 'error'); }
+        },
+
+        async saveAgentDefaults() {
+          try {
+            const res = await fetch('/api/agents/save-defaults', { method: 'POST' }).then(r => r.json());
+            if (res.success) this.showToast(`기본값 저장 완료 (${res.saved_count}명)`, 'success');
+            else this.showToast('저장 실패', 'error');
+          } catch { this.showToast('저장 실패', 'error'); }
+        },
+
+        async restoreAgentDefaults() {
+          if (!confirm('저장된 기본값으로 전체 에이전트 모델을 복원합니다.\n계속할까요?')) return;
+          try {
+            const res = await fetch('/api/agents/restore-defaults', { method: 'POST' }).then(r => r.json());
+            if (res.success) {
+              this.showToast(`기본값 복원 완료 (${res.restored_count}명)`, 'success');
+              this.loadDashboard();
+            } else {
+              this.showToast(res.error || '복원 실패', 'error');
+            }
+          } catch { this.showToast('복원 실패', 'error'); }
         },
 
         async applyBulkModel() {
