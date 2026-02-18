@@ -2085,6 +2085,7 @@ async def _chain_submit_specialists(chain: dict):
             "system_prompt": soul,
             "model": model,
             "max_tokens": min(MODEL_MAX_TOKENS_MAP.get(model, 8192), 16384),
+            "reasoning_effort": _get_agent_reasoning_effort(spec_id),
         })
         chain["custom_id_map"][custom_id] = {"agent_id": spec_id, "step": "specialists"}
 
@@ -2150,6 +2151,7 @@ async def _chain_submit_specialists_broadcast(chain: dict):
                 "system_prompt": soul,
                 "model": model,
                 "max_tokens": min(MODEL_MAX_TOKENS_MAP.get(model, 8192), 16384),
+                "reasoning_effort": _get_agent_reasoning_effort(spec_id),
             })
             chain["custom_id_map"][custom_id] = {"agent_id": spec_id, "step": "specialists"}
 
@@ -2226,6 +2228,7 @@ async def _chain_submit_synthesis(chain: dict):
                 "system_prompt": soul,
                 "model": model,
                 "max_tokens": min(MODEL_MAX_TOKENS_MAP.get(model, 8192), 16384),
+                "reasoning_effort": _get_agent_reasoning_effort(mgr_id),
             })
             chain["custom_id_map"][custom_id] = {"agent_id": mgr_id, "step": "synthesis"}
 
@@ -2242,6 +2245,7 @@ async def _chain_submit_synthesis(chain: dict):
             "system_prompt": soul,
             "model": model,
             "max_tokens": min(MODEL_MAX_TOKENS_MAP.get(model, 8192), 16384),
+            "reasoning_effort": _get_agent_reasoning_effort("chief_of_staff"),
         })
         chain["custom_id_map"][custom_id] = {"agent_id": "chief_of_staff", "step": "synthesis"}
 
@@ -2263,6 +2267,7 @@ async def _chain_submit_synthesis(chain: dict):
                 "system_prompt": soul,
                 "model": model,
                 "max_tokens": min(MODEL_MAX_TOKENS_MAP.get(model, 8192), 16384),
+                "reasoning_effort": _get_agent_reasoning_effort(target_id),
             })
             chain["custom_id_map"][custom_id] = {"agent_id": target_id, "step": "synthesis"}
         else:
@@ -2296,6 +2301,7 @@ async def _chain_submit_synthesis(chain: dict):
                 "system_prompt": soul,
                 "model": model,
                 "max_tokens": min(MODEL_MAX_TOKENS_MAP.get(model, 8192), 16384),
+                "reasoning_effort": _get_agent_reasoning_effort(target_id),
             })
             chain["custom_id_map"][custom_id] = {"agent_id": target_id, "step": "synthesis"}
 
@@ -6304,7 +6310,8 @@ async def _call_agent(agent_id: str, text: str) -> dict:
 
     await _broadcast_status(agent_id, "working", 0.3, "AI 응답 생성 중...")
     result = await ask_ai(text, system_prompt=soul, model=model,
-                          tools=tool_schemas, tool_executor=tool_executor_fn)
+                          tools=tool_schemas, tool_executor=tool_executor_fn,
+                          reasoning_effort=_get_agent_reasoning_effort(agent_id))
     await _broadcast_status(agent_id, "working", 0.7, "응답 처리 중...")
 
     # agent_calls 테이블에 AI 호출 기록 저장
@@ -7304,6 +7311,17 @@ def _get_model_override(agent_id: str) -> str | None:
     if global_override:
         return global_override
     return None
+
+
+def _get_agent_reasoning_effort(agent_id: str) -> str:
+    """에이전트의 reasoning_effort를 agent_overrides DB → AGENTS 목록 순서로 조회."""
+    overrides = _load_data("agent_overrides", {})
+    if agent_id in overrides and "reasoning_effort" in overrides[agent_id]:
+        return overrides[agent_id]["reasoning_effort"]
+    for a in AGENTS:
+        if a["agent_id"] == agent_id:
+            return a.get("reasoning_effort", "")
+    return ""
 
 
 async def _process_ai_command(text: str, task_id: str, target_agent_id: str | None = None) -> dict:
