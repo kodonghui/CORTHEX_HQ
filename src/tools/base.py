@@ -48,8 +48,8 @@ class BaseTool(ABC):
         없으면 tools.yaml에 설정된 model_name으로 폴백합니다.
         model_router가 지원하지 않는 모델(Gemini 등)이면 config 기본값으로 폴백합니다.
         """
-        # model_router는 gpt-*/o*-*/claude-* 만 지원 — 그 외(gemini 등)는 폴백
-        _SUPPORTED_PREFIXES = ("gpt-", "o1-", "o3-", "o4-", "o5-", "claude-")
+        # model_router는 gpt-*/o*-*/claude-*/gemini-* 지원
+        _SUPPORTED_PREFIXES = ("gpt-", "o1-", "o3-", "o4-", "o5-", "claude-", "gemini-")
         _is_supported = caller_model and any(caller_model.startswith(p) for p in _SUPPORTED_PREFIXES)
         model = (caller_model if _is_supported else None) or self.config.model_name or "claude-sonnet-4-6"
         response = await self.model_router.complete(

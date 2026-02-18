@@ -40,6 +40,7 @@ from src.core.registry import AgentRegistry
 from src.core.replay import build_replay, get_last_correlation_id
 from src.llm.anthropic_provider import AnthropicProvider
 from src.llm.batch_collector import BatchCollector
+from src.llm.gemini_provider import GeminiProvider
 from src.llm.openai_provider import OpenAIProvider
 from src.llm.router import ModelRouter
 from src.tools.pool import ToolPool
@@ -132,13 +133,16 @@ async def startup() -> None:
         # Build LLM providers
         openai_key = os.getenv("OPENAI_API_KEY", "")
         anthropic_key = os.getenv("ANTHROPIC_API_KEY", "")
+        google_key = os.getenv("GOOGLE_API_KEY", "")
 
         openai_prov = OpenAIProvider(api_key=openai_key) if openai_key else None
         anthropic_prov = AnthropicProvider(api_key=anthropic_key) if anthropic_key else None
+        google_prov = GeminiProvider(api_key=google_key) if google_key else None
 
         model_router = ModelRouter(
             openai_provider=openai_prov,
             anthropic_provider=anthropic_prov,
+            google_provider=google_prov,
         )
 
         # BatchCollector 초기화 (Batch API 50% 할인)
