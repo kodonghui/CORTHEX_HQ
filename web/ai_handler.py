@@ -393,7 +393,7 @@ async def _call_anthropic(
     tool_executor는 async 함수로, (tool_name, tool_input) -> result를 반환해야 합니다.
     """
     messages = [{"role": "user", "content": user_message}]
-    kwargs = {"model": model, "max_tokens": 65536, "messages": messages}
+    kwargs = {"model": model, "max_tokens": 16384, "messages": messages}
     if system_prompt:
         kwargs["system"] = system_prompt
     if "haiku" in model:
@@ -710,6 +710,18 @@ async def ask_ai(
     if not is_ai_ready():
         return {"error": "AI 미연결 — API 키를 확인하세요"}
 
+    # 현재 한국 날짜/시간(KST) 자동 주입 — AI가 항상 정확한 날짜를 알 수 있도록
+    from datetime import datetime, timezone, timedelta
+    _kst = timezone(timedelta(hours=9))
+    _now_kst = datetime.now(_kst)
+    _date_prefix = (
+        f"[현재 한국 날짜/시간] {_now_kst.strftime('%Y년 %m월 %d일 %H:%M')} (KST)\n\n"
+    )
+    if system_prompt:
+        system_prompt = _date_prefix + system_prompt
+    else:
+        system_prompt = _date_prefix
+
     if model is None:
         model = select_model(user_message)
 
@@ -885,7 +897,7 @@ async def _batch_submit_anthropic(requests: list[dict], default_model: str) -> d
         messages = [{"role": "user", "content": req.get("message", "")}]
         params = {
             "model": model,
-            "max_tokens": req.get("max_tokens", 65536),
+            "max_tokens": req.get("max_tokens", 16384),
             "messages": messages,
         }
         if req.get("system_prompt"):
