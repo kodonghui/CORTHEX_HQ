@@ -5623,7 +5623,7 @@ async def _extract_and_save_memory(agent_id: str, task: str, response: str):
 async def _call_agent(agent_id: str, text: str) -> dict:
     """단일 에이전트에게 AI 호출을 수행합니다 (상태 이벤트 + 활동 로그 + 도구 자동호출 포함)."""
     agent_name = _AGENT_NAMES.get(agent_id, _SPECIALIST_NAMES.get(agent_id, agent_id))
-    await _broadcast_status(agent_id, "working", 0.2, f"{agent_name} 분석 중...")
+    await _broadcast_status(agent_id, "working", 0.1, f"{agent_name} 작업 준비 중...")
 
     # 활동 로그 — 누가 일하는지 기록
     log_entry = save_activity_log(agent_id, f"[{agent_name}] 작업 시작: {text[:40]}...")
@@ -5673,7 +5673,7 @@ async def _call_agent(agent_id: str, text: str) -> dict:
                 tools_used.append(tool_name)
                 call_count = len(tools_used)
                 # 도구 호출 횟수 기반 진행률 계산 (1회=20%, 2회=40%, ..., 5회=100%)
-                tool_progress = min(call_count / _MAX_TOOL_CALLS, 1.0)
+                tool_progress = 0.3 + min(call_count / _MAX_TOOL_CALLS, 1.0) * 0.35
                 tool_progress_pct = int(tool_progress * 100)
 
                 # 도구 호출 횟수 포함 agent_status 이벤트 발송
@@ -5706,8 +5706,10 @@ async def _call_agent(agent_id: str, text: str) -> dict:
 
             tool_executor_fn = _tool_executor
 
+    await _broadcast_status(agent_id, "working", 0.3, "AI 응답 생성 중...")
     result = await ask_ai(text, system_prompt=soul, model=model,
                           tools=tool_schemas, tool_executor=tool_executor_fn)
+    await _broadcast_status(agent_id, "working", 0.7, "응답 처리 중...")
 
     # agent_calls 테이블에 AI 호출 기록 저장
     try:
@@ -5728,6 +5730,7 @@ async def _call_agent(agent_id: str, text: str) -> dict:
         await _broadcast_status(agent_id, "done", 1.0, "오류 발생")
         return {"agent_id": agent_id, "name": agent_name, "error": result["error"], "cost_usd": 0}
 
+    await _broadcast_status(agent_id, "working", 0.9, "저장 완료...")
     await _broadcast_status(agent_id, "done", 1.0, "완료")
 
     # 완료 로그
