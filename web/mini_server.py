@@ -586,7 +586,9 @@ async def get_dashboard():
     provider_calls = {"anthropic": 0, "openai": 0, "google": 0}
     try:
         conn = __import__("db").get_connection()
-        today_start = datetime.now(KST).strftime("%Y-%m-%dT00:00:00")
+        # KST 자정을 UTC로 변환 (DB는 UTC ISO 형식으로 저장됨)
+        _kst_midnight = datetime.now(KST).replace(hour=0, minute=0, second=0, microsecond=0)
+        today_start = _kst_midnight.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S")
         rows = conn.execute(
             "SELECT provider, COUNT(*) FROM agent_calls "
             "WHERE created_at >= ? GROUP BY provider", (today_start,)
@@ -4602,7 +4604,45 @@ async def bulk_change_model(request: Request):
         overrides[aid]["reasoning_effort"] = reasoning
         changed += 1
     _save_data("agent_overrides", overrides)
+    # ToolPool 모델 등록 일괄 업데이트
+    pool = _init_tool_pool()
+    if pool and hasattr(pool, "set_agent_model"):
+        for a in AGENTS:
+            pool.set_agent_model(a["agent_id"], new_model)
     return {"success": True, "changed": changed, "model_name": new_model, "reasoning_effort": reasoning}
+
+
+@app.post("/api/agents/save-defaults")
+async def save_agent_defaults():
+    """현재 agent_overrides를 기본값 스냅샷으로 저장."""
+    overrides = _load_data("agent_overrides", {})
+    _save_data("agent_model_defaults", overrides)
+    return {"success": True, "saved_count": len(overrides)}
+
+
+@app.post("/api/agents/restore-defaults")
+async def restore_agent_defaults():
+    """저장된 기본값으로 전체 에이전트 모델을 복원."""
+    defaults = _load_data("agent_model_defaults", {})
+    if not defaults:
+        return {"error": "저장된 기본값이 없습니다. 먼저 기본값을 저장하세요."}
+    _save_data("agent_overrides", defaults)
+    # 메모리 내 AGENTS 리스트도 업데이트
+    for agent_id, vals in defaults.items():
+        for a in AGENTS:
+            if a["agent_id"] == agent_id:
+                if "model_name" in vals:
+                    a["model_name"] = vals["model_name"]
+                break
+        if agent_id in _AGENTS_DETAIL:
+            _AGENTS_DETAIL[agent_id].update(vals)
+    # ToolPool 모델 등록도 업데이트
+    pool = _init_tool_pool()
+    if pool and hasattr(pool, "set_agent_model"):
+        for agent_id, vals in defaults.items():
+            if "model_name" in vals:
+                pool.set_agent_model(agent_id, vals["model_name"])
+    return {"success": True, "restored_count": len(defaults)}
 
 
 @app.put("/api/agents/{agent_id}/soul")
@@ -4634,6 +4674,10 @@ async def save_agent_model(agent_id: str, request: Request):
         overrides[agent_id] = {}
     overrides[agent_id]["model_name"] = new_model
     _save_data("agent_overrides", overrides)
+    # ToolPool 모델 등록 업데이트 (Skill 도구가 변경된 모델을 사용하도록)
+    pool = _init_tool_pool()
+    if pool and hasattr(pool, "set_agent_model"):
+        pool.set_agent_model(agent_id, new_model)
     return {"success": True, "agent_id": agent_id, "model": new_model}
 
 
@@ -7293,6 +7337,9 @@ def _init_tool_pool():
 
         loaded = len(pool._tools)
         _tool_pool = pool
+        # AGENTS 초기 모델을 풀에 등록 (Skill 도구가 caller 에이전트 모델을 따라가도록)
+        for a in AGENTS:
+            pool.set_agent_model(a["agent_id"], a.get("model_name", "claude-sonnet-4-6"))
         _log(f"[TOOLS] ToolPool 초기화 완료: {loaded}개 도구 로드 ✅")
         return pool
 

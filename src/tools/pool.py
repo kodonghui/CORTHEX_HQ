@@ -23,6 +23,12 @@ class ToolPool:
     def __init__(self, model_router: ModelRouter) -> None:
         self._tools: dict[str, BaseTool] = {}
         self._model_router = model_router
+        self._agent_models: dict[str, str] = {}  # agent_id → model_name 매핑
+
+    def set_agent_model(self, agent_id: str, model: str) -> None:
+        """에이전트 모델을 풀에 등록. Skill 도구가 caller 모델을 사용할 수 있게 함."""
+        if agent_id and model:
+            self._agent_models[agent_id] = model
 
     def register(self, tool: BaseTool) -> None:
         self._tools[tool.tool_id] = tool
@@ -232,6 +238,11 @@ class ToolPool:
         if tool_id not in self._tools:
             raise ToolNotFoundError(tool_id)
         logger.info("[%s] 도구 호출: %s", caller_id, tool_id)
+        # caller 에이전트의 모델을 kwargs에 주입 (Skill 도구가 caller 모델을 사용하도록)
+        if "_caller_model" not in kwargs and caller_id:
+            caller_model = self._agent_models.get(caller_id)
+            if caller_model:
+                kwargs["_caller_model"] = caller_model
         return await self._tools[tool_id].execute(caller_id=caller_id, **kwargs)
 
     def list_tools(self) -> list[dict]:
