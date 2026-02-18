@@ -2047,7 +2047,7 @@ async def _chain_submit_specialists(chain: dict):
             "message": message,
             "system_prompt": soul,
             "model": model,
-            "max_tokens": MODEL_MAX_TOKENS_MAP.get(model, 32768),
+            "max_tokens": min(MODEL_MAX_TOKENS_MAP.get(model, 8192), 16384),
         })
         chain["custom_id_map"][custom_id] = {"agent_id": spec_id, "step": "specialists"}
 
@@ -2112,7 +2112,7 @@ async def _chain_submit_specialists_broadcast(chain: dict):
                 "message": message,
                 "system_prompt": soul,
                 "model": model,
-                "max_tokens": MODEL_MAX_TOKENS_MAP.get(model, 32768),
+                "max_tokens": min(MODEL_MAX_TOKENS_MAP.get(model, 8192), 16384),
             })
             chain["custom_id_map"][custom_id] = {"agent_id": spec_id, "step": "specialists"}
 
@@ -2188,7 +2188,7 @@ async def _chain_submit_synthesis(chain: dict):
                 "message": synthesis_prompt,
                 "system_prompt": soul,
                 "model": model,
-                "max_tokens": MODEL_MAX_TOKENS_MAP.get(model, 32768),
+                "max_tokens": min(MODEL_MAX_TOKENS_MAP.get(model, 8192), 16384),
             })
             chain["custom_id_map"][custom_id] = {"agent_id": mgr_id, "step": "synthesis"}
 
@@ -2204,7 +2204,7 @@ async def _chain_submit_synthesis(chain: dict):
             "message": text,
             "system_prompt": soul,
             "model": model,
-            "max_tokens": MODEL_MAX_TOKENS_MAP.get(model, 32768),
+            "max_tokens": min(MODEL_MAX_TOKENS_MAP.get(model, 8192), 16384),
         })
         chain["custom_id_map"][custom_id] = {"agent_id": "chief_of_staff", "step": "synthesis"}
 
@@ -2225,7 +2225,7 @@ async def _chain_submit_synthesis(chain: dict):
                 "message": text,
                 "system_prompt": soul,
                 "model": model,
-                "max_tokens": MODEL_MAX_TOKENS_MAP.get(model, 32768),
+                "max_tokens": min(MODEL_MAX_TOKENS_MAP.get(model, 8192), 16384),
             })
             chain["custom_id_map"][custom_id] = {"agent_id": target_id, "step": "synthesis"}
         else:
@@ -2258,7 +2258,7 @@ async def _chain_submit_synthesis(chain: dict):
                 "message": synthesis_prompt,
                 "system_prompt": soul,
                 "model": model,
-                "max_tokens": MODEL_MAX_TOKENS_MAP.get(model, 32768),
+                "max_tokens": min(MODEL_MAX_TOKENS_MAP.get(model, 8192), 16384),
             })
             chain["custom_id_map"][custom_id] = {"agent_id": target_id, "step": "synthesis"}
 
