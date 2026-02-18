@@ -67,6 +67,35 @@ _PRICING = {
     "gpt-5-mini": {"input": 0.50, "output": 2.00},
 }
 
+# ── reasoning_effort 관련 상수 ──
+
+# reasoning_effort → temperature 매핑 (추론 모델은 반드시 1.0)
+REASONING_TEMPERATURE_MAP = {
+    "low": 1.0,
+    "medium": 1.0,
+    "high": 1.0,
+    "xhigh": 1.0,
+}
+
+# reasoning_effort → Claude extended thinking budget_tokens 매핑
+REASONING_BUDGET_TOKENS_MAP = {
+    "low": 1024,
+    "medium": 8192,
+    "high": 16000,
+    "xhigh": 32000,
+}
+
+# reasoning_effort → OpenAI reasoning_effort 값 매핑 (OpenAI는 xhigh 없음 → high로 매핑)
+OPENAI_REASONING_MAP = {
+    "low": "low",
+    "medium": "medium",
+    "high": "high",
+    "xhigh": "high",
+}
+
+# OpenAI reasoning 지원 모델 목록 (temperature 없이 reasoning_effort만 사용)
+OPENAI_REASONING_MODELS = {"o3", "o4-mini", "gpt-5.2", "gpt-5.2-pro", "o3-mini"}
+
 # ── 모델 라우팅 키워드 ──
 _COMPLEX_KEYWORDS = [
     "분석", "보고서", "전략", "계획", "비교", "평가", "조사",
@@ -386,26 +415,46 @@ async def _call_anthropic(
     model: str,
     tools: list | None = None,
     tool_executor: callable | None = None,
+    reasoning_effort: str = "",
 ) -> dict:
     """Anthropic (Claude) API 호출.
 
     tools가 주어지면 tool_use 블록을 처리하는 루프를 실행합니다.
     tool_executor는 async 함수로, (tool_name, tool_input) -> result를 반환해야 합니다.
+    reasoning_effort가 주어지면 extended thinking을 활성화합니다.
     """
     messages = [{"role": "user", "content": user_message}]
     kwargs = {"model": model, "max_tokens": 16384, "messages": messages}
     if system_prompt:
         kwargs["system"] = system_prompt
-    if "haiku" in model:
+
+    # temperature 설정 — reasoning_effort가 있으면 extended thinking 활성화
+    if reasoning_effort and reasoning_effort in REASONING_TEMPERATURE_MAP:
+        kwargs["temperature"] = 1.0  # 추론 모델 필수값
+        budget = REASONING_BUDGET_TOKENS_MAP.get(reasoning_effort, 8192)
+        kwargs["thinking"] = {"type": "enabled", "budget_tokens": budget}
+        kwargs["betas"] = ["interleaved-thinking-2025-05-14"]
+    elif "haiku" in model:
         kwargs["temperature"] = 0.5
     else:
-        kwargs["temperature"] = 0.3
+        kwargs["temperature"] = 0.7
 
     # 도구 스키마가 있으면 API에 포함
     if tools:
         kwargs["tools"] = tools
 
-    resp = await _anthropic_client.messages.create(**kwargs)
+    # extended thinking 사용 시 betas 미지원 서버 대비 폴백 처리
+    try:
+        resp = await _anthropic_client.messages.create(**kwargs)
+    except Exception as e:
+        if reasoning_effort and ("betas" in str(e) or "thinking" in str(e)):
+            logger.warning("extended thinking 미지원 — 폴백으로 재시도: %s", e)
+            kwargs.pop("betas", None)
+            kwargs.pop("thinking", None)
+            kwargs["temperature"] = 1.0
+            resp = await _anthropic_client.messages.create(**kwargs)
+        else:
+            raise
 
     total_input_tokens = resp.usage.input_tokens
     total_output_tokens = resp.usage.output_tokens
@@ -436,10 +485,12 @@ async def _call_anthropic(
                         "is_error": True,
                     })
 
-            # 어시스턴트 응답을 대화에 추가 (모든 블록을 직렬화)
+            # 어시스턴트 응답을 대화에 추가 (모든 블록을 직렬화, thinking 블록 포함)
             assistant_content = []
             for b in resp.content:
-                if b.type == "text":
+                if b.type == "thinking":
+                    assistant_content.append({"type": "thinking", "thinking": b.thinking})
+                elif b.type == "text":
                     assistant_content.append({"type": "text", "text": b.text})
                 elif b.type == "tool_use":
                     assistant_content.append({
@@ -474,13 +525,16 @@ async def _call_google(
     model: str,
     tools: list | None = None,
     tool_executor: callable | None = None,
+    reasoning_effort: str = "",
 ) -> dict:
     """Google Gemini API 호출 (google-genai SDK 사용).
 
     tools가 주어지면 function calling을 처리합니다.
     tools는 Anthropic 포맷 리스트이며, 내부에서 Gemini 포맷으로 변환합니다.
+    reasoning_effort가 있으면 temperature를 1.0으로 설정합니다.
     """
-    config = {"max_output_tokens": 16384, "temperature": 0.3}
+    temp = 1.0 if reasoning_effort else 0.7
+    config = {"max_output_tokens": 16384, "temperature": temp}
     if system_prompt:
         config["system_instruction"] = system_prompt
 
@@ -598,18 +652,38 @@ async def _call_openai(
     model: str,
     tools: list | None = None,
     tool_executor: callable | None = None,
+    reasoning_effort: str = "",
 ) -> dict:
     """OpenAI (GPT) API 호출.
 
     tools가 주어지면 function calling을 처리합니다.
     tools는 OpenAI 포맷 리스트 ({"type": "function", "function": {...}}).
+    reasoning_effort가 있으면 o-series/GPT-5.2 모델에 reasoning_effort 파라미터를 전달합니다.
     """
     messages = []
     if system_prompt:
         messages.append({"role": "system", "content": system_prompt})
     messages.append({"role": "user", "content": user_message})
 
-    kwargs = {"model": model, "messages": messages, "max_completion_tokens": 65536, "temperature": 0.3}
+    # reasoning 지원 모델 판별
+    is_reasoning_model = any(m in model for m in ["o3", "o4-mini", "o3-mini"])
+    supports_reasoning = is_reasoning_model or model in ["gpt-5.2", "gpt-5.2-pro"]
+
+    if supports_reasoning and reasoning_effort:
+        # o-series/GPT-5.2: temperature 대신 reasoning_effort 파라미터 사용
+        openai_reasoning = OPENAI_REASONING_MAP.get(reasoning_effort, "medium")
+        kwargs = {
+            "model": model,
+            "messages": messages,
+            "max_completion_tokens": 65536,
+            "reasoning_effort": openai_reasoning,
+        }
+    elif reasoning_effort:
+        # reasoning_effort가 있지만 reasoning 미지원 모델 → temperature 1.0
+        kwargs = {"model": model, "messages": messages, "max_completion_tokens": 65536, "temperature": 1.0}
+    else:
+        kwargs = {"model": model, "messages": messages, "max_completion_tokens": 65536, "temperature": 0.7}
+
     if tools:
         kwargs["tools"] = tools
 
@@ -689,6 +763,7 @@ async def ask_ai(
     model: str | None = None,
     tools: list | None = None,
     tool_executor: callable | None = None,
+    reasoning_effort: str = "",
 ) -> dict:
     """AI에게 질문합니다 (프로바이더 자동 판별).
 
@@ -703,6 +778,9 @@ async def ask_ai(
         tool_executor: 도구 실행 함수 (async callable).
             시그니처: async def executor(tool_name: str, tool_input: dict) -> Any
             예: ToolPool.invoke를 래핑한 함수
+        reasoning_effort: 추론 강도 ("low" | "medium" | "high" | "xhigh").
+            Claude는 extended thinking을 활성화하고, OpenAI reasoning 모델은 reasoning_effort를 전달합니다.
+            빈 문자열("")이면 일반 모드로 동작합니다.
 
     반환: {"content", "model", "input_tokens", "output_tokens", "cost_usd", "time_seconds"}
     AI 불가 시: {"error": "사유"}
@@ -766,16 +844,19 @@ async def ask_ai(
             result = await _call_anthropic(
                 user_message, system_prompt, model,
                 tools=provider_tools, tool_executor=tool_executor,
+                reasoning_effort=reasoning_effort,
             )
         elif provider == "google":
             result = await _call_google(
                 user_message, system_prompt, model,
                 tools=provider_tools, tool_executor=tool_executor,
+                reasoning_effort=reasoning_effort,
             )
         elif provider == "openai":
             result = await _call_openai(
                 user_message, system_prompt, model,
                 tools=provider_tools, tool_executor=tool_executor,
+                reasoning_effort=reasoning_effort,
             )
         else:
             return {"error": f"알 수 없는 프로바이더: {provider}"}
