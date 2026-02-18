@@ -609,7 +609,7 @@ async def _call_openai(
         messages.append({"role": "system", "content": system_prompt})
     messages.append({"role": "user", "content": user_message})
 
-    kwargs = {"model": model, "messages": messages, "max_tokens": 16384, "temperature": 0.3}
+    kwargs = {"model": model, "messages": messages, "max_completion_tokens": 16384, "temperature": 0.3}
     if tools:
         kwargs["tools"] = tools
 
@@ -998,7 +998,7 @@ async def _batch_submit_openai(requests: list[dict], default_model: str) -> dict
             "body": {
                 "model": model,
                 "messages": messages,
-                "max_tokens": req.get("max_tokens", 16384),
+                "max_completion_tokens": req.get("max_tokens", 16384),
             },
         }
         lines.append(json.dumps(line, ensure_ascii=False))
