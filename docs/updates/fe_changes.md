@@ -184,3 +184,20 @@ delegation_log를 8초 폴링에서 WebSocket 실시간 수신으로 전환하�
 3. `showCollabFlow: false` — Alpine.js data 객체에 추가 (5647줄)
 4. 흐름도 토글 버튼 — 내부통신 패널 헤더에 추가 (2070줄)
 5. 협업 흐름도 패널 HTML — delegation_log 패널 바로 다음에 삽입 (2143줄)
+
+---
+
+## 3차 작업 (2026-02-18): UI 이슈 5개 수정
+
+### 한 줄 요약
+내부통신 토글 버튼 항상 표시 + 협업 흐름도를 내부통신 탭으로 통합(showCollabFlow 제거) + @멘션 드롭다운 커서 의존 제거(inputText 기반으로 단순화) + 한국어 텍스트 맥락 font-mono 2건 제거
+
+### 수정 상세
+
+**이슈 1 (수정 완료)**: 내부통신 토글 버튼을 `x-show="messages.length > 0"` div 바깥으로 독립 배치 → 메시지 유무와 무관하게 항상 표시
+
+**이슈 2+3 (수정 완료)**: 협업 흐름도 패널 별도 div 전체 삭제 → 내부통신 패널 탭 목록에 "흐름도" 탭 추가 (`delegationLogFilter === 'flow'`), 흐름도 타임라인 HTML을 탭 콘텐츠로 이동. `showCollabFlow` 초기화 코드 삭제
+
+**이슈 4 (수정 완료)**: `handleInputChange`의 @멘션 감지를 커서 위치(`el.selectionStart`) 기반에서 `inputText.match(/(?:^| )@(\S*)$/)` 패턴(텍스트 끝 기준)으로 변경 → 불안정 해소
+
+**이슈 5 (수정 완료)**: 한국어 단어 "내부통신", "실시간" 에 붙어있던 font-mono 제거 (숫자/코드/영문 레이블 등 나머지 font-mono는 모두 유지)

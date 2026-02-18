@@ -2063,16 +2063,10 @@
           <div class="flex items-center justify-between px-4 py-3 border-b border-hq-border/50 shrink-0">
             <div class="flex items-center gap-2">
               <span class="w-2 h-2 rounded-full bg-hq-cyan animate-pulse"></span>
-              <span class="text-sm font-bold text-hq-text font-mono tracking-wide">내부통신</span>
+              <span class="text-sm font-bold text-hq-text tracking-wide">내부통신</span>
               <span class="text-[10px] text-hq-muted/60 font-mono">DELEGATION LOG</span>
             </div>
             <div class="flex items-center gap-2">
-              <button @click="showCollabFlow = !showCollabFlow" title="협업 흐름도"
-                      class="text-hq-muted hover:text-hq-cyan transition p-1 rounded">
-                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2V9M9 21H5a2 2 0 01-2-2V9m0 0h18"/>
-                </svg>
-              </button>
               <button @click="fetchDelegationLogs()" title="새로고침"
                       class="text-hq-muted hover:text-hq-accent transition p-1 rounded">
                 <svg class="w-3.5 h-3.5" :class="delegationLogLoading ? 'animate-spin' : ''"
@@ -2100,9 +2094,12 @@
             <button @click="delegationLogFilter = 'report'"
                     :class="delegationLogFilter === 'report' ? 'bg-hq-green/20 text-hq-green' : 'text-hq-muted hover:text-hq-text'"
                     class="text-[10px] px-2 py-1 rounded-md font-semibold transition">보고</button>
+            <button @click="delegationLogFilter = 'flow'"
+                    :class="delegationLogFilter === 'flow' ? 'bg-hq-purple/20 text-hq-purple' : 'text-hq-muted hover:text-hq-text'"
+                    class="text-[10px] px-2 py-1 rounded-md font-semibold transition">흐름도</button>
           </div>
-          <!-- 로그 목록 -->
-          <div class="flex-1 overflow-y-auto scrollbar-thin p-3 space-y-2">
+          <!-- 로그 목록 (전체/위임/보고 탭) -->
+          <div x-show="delegationLogFilter !== 'flow'" class="flex-1 overflow-y-auto scrollbar-thin p-3 space-y-2">
             <template x-if="delegationLogs.length === 0 && !delegationLogLoading">
               <div class="text-center py-8">
                 <div class="text-hq-muted/40 text-sm">에이전트 통신 없음</div>
@@ -2131,73 +2128,54 @@
               </div>
             </template>
           </div>
-          <!-- 푸터 -->
-          <div class="px-4 py-2 border-t border-hq-border/30 shrink-0 flex items-center gap-2">
-            <span class="w-1.5 h-1.5 rounded-full bg-hq-green animate-pulse"></span>
-            <span class="text-[10px] text-hq-muted/60 font-mono">실시간</span>
-            <span class="text-[10px] text-hq-muted/40 ml-auto" x-text="delegationLogs.length + '건'"></span>
-          </div>
-        </div>
-
-          <!-- 협업 흐름도 패널 -->
-          <div x-show="showCollabFlow"
-               x-cloak
-               class="absolute right-0 top-0 h-full w-72 bg-hq-surface border-l border-hq-border/40 flex flex-col z-30 shadow-2xl"
-               style="display:none">
-            <div class="flex items-center justify-between px-3 py-2 border-b border-hq-border/30 shrink-0">
-              <span class="text-[10px] font-bold text-hq-accent tracking-widest uppercase">협업 흐름도</span>
-              <button @click="showCollabFlow = false" class="text-hq-muted hover:text-hq-text transition p-1 rounded">
-                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                </svg>
-              </button>
-            </div>
-            <!-- 흐름도 내용 -->
-            <div class="flex-1 overflow-y-auto scrollbar-thin p-3">
-              <template x-if="delegationLogs.length === 0">
-                <div class="text-center py-8 text-hq-muted/60 text-[11px]">협업 기록이 없습니다</div>
-              </template>
-              <div class="space-y-2">
-                <template x-for="(log, idx) in delegationLogs.slice(0, 20)" :key="log.id || idx">
-                  <div class="relative">
-                    <!-- 연결선 -->
-                    <div x-show="idx < delegationLogs.slice(0,20).length - 1"
-                         class="absolute left-[18px] top-[36px] w-px h-4 bg-hq-border/40"></div>
-                    <div class="flex items-start gap-2">
-                      <!-- 발신자 노드 -->
-                      <div class="shrink-0 w-9 h-9 rounded-full flex items-center justify-center text-[9px] font-bold text-center leading-tight"
-                           :class="log.log_type === 'consult' ? 'bg-hq-cyan/20 text-hq-cyan border border-hq-cyan/30' :
-                                   log.log_type === 'report' ? 'bg-hq-green/20 text-hq-green border border-hq-green/30' :
-                                   'bg-hq-accent/20 text-hq-accent border border-hq-accent/30'">
-                        <span x-text="(log.sender || '').slice(0,4)"></span>
+          <!-- 흐름도 탭 -->
+          <div x-show="delegationLogFilter === 'flow'" class="flex-1 overflow-y-auto scrollbar-thin p-3">
+            <template x-if="delegationLogs.length === 0">
+              <div class="text-center py-8 text-hq-muted/60 text-[11px]">협업 기록이 없습니다</div>
+            </template>
+            <div class="space-y-2">
+              <template x-for="(log, idx) in delegationLogs.slice(0, 20)" :key="log.id || idx">
+                <div class="relative">
+                  <!-- 연결선 -->
+                  <div x-show="idx < delegationLogs.slice(0,20).length - 1"
+                       class="absolute left-[18px] top-[36px] w-px h-4 bg-hq-border/40"></div>
+                  <div class="flex items-start gap-2">
+                    <!-- 발신자 노드 -->
+                    <div class="shrink-0 w-9 h-9 rounded-full flex items-center justify-center text-[9px] font-bold text-center leading-tight"
+                         :class="log.log_type === 'consult' ? 'bg-hq-cyan/20 text-hq-cyan border border-hq-cyan/30' :
+                                 log.log_type === 'report' ? 'bg-hq-green/20 text-hq-green border border-hq-green/30' :
+                                 'bg-hq-accent/20 text-hq-accent border border-hq-accent/30'">
+                      <span x-text="(log.sender || '').slice(0,4)"></span>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                      <div class="flex items-center gap-1 mb-0.5">
+                        <span class="text-[10px] font-semibold text-hq-text truncate" x-text="log.sender || '-'"></span>
+                        <svg class="w-3 h-3 text-hq-muted shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                        </svg>
+                        <span class="text-[10px] text-hq-cyan truncate" x-text="log.receiver || '-'"></span>
                       </div>
-                      <div class="flex-1 min-w-0">
-                        <div class="flex items-center gap-1 mb-0.5">
-                          <span class="text-[10px] font-semibold text-hq-text truncate" x-text="log.sender || '-'"></span>
-                          <svg class="w-3 h-3 text-hq-muted shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-                          </svg>
-                          <span class="text-[10px] text-hq-cyan truncate" x-text="log.receiver || '-'"></span>
-                        </div>
-                        <div class="text-[10px] text-hq-muted line-clamp-2" x-text="log.message"></div>
-                        <div class="flex items-center gap-1 mt-1">
-                          <span class="text-[9px] px-1.5 py-0.5 rounded font-semibold"
-                                :class="log.log_type === 'consult' ? 'bg-hq-cyan/10 text-hq-cyan' :
-                                        log.log_type === 'report' ? 'bg-hq-green/10 text-hq-green' :
-                                        'bg-hq-accent/10 text-hq-accent'"
-                                x-text="log.log_type || 'delegation'"></span>
-                        </div>
+                      <div class="text-[10px] text-hq-muted line-clamp-2" x-text="log.message"></div>
+                      <div class="flex items-center gap-1 mt-1">
+                        <span class="text-[9px] px-1.5 py-0.5 rounded font-semibold"
+                              :class="log.log_type === 'consult' ? 'bg-hq-cyan/10 text-hq-cyan' :
+                                      log.log_type === 'report' ? 'bg-hq-green/10 text-hq-green' :
+                                      'bg-hq-accent/10 text-hq-accent'"
+                              x-text="log.log_type || 'delegation'"></span>
                       </div>
                     </div>
                   </div>
-                </template>
-              </div>
-            </div>
-            <div class="px-3 py-2 border-t border-hq-border/30 shrink-0 flex items-center justify-between">
-              <span class="text-[10px] text-hq-muted/60">최근 20건</span>
-              <span class="text-[10px] text-hq-muted/40" x-text="delegationLogs.length + '건 총'"></span>
+                </div>
+              </template>
             </div>
           </div>
+          <!-- 푸터 -->
+          <div class="px-4 py-2 border-t border-hq-border/30 shrink-0 flex items-center gap-2">
+            <span class="w-1.5 h-1.5 rounded-full bg-hq-green animate-pulse"></span>
+            <span class="text-[10px] text-hq-muted/60">실시간</span>
+            <span class="text-[10px] text-hq-muted/40 ml-auto" x-text="delegationLogs.length + '건'"></span>
+          </div>
+        </div>
 
         <!-- ═══ Input Bar ═══ -->
         <div class="border-t-2 border-hq-accent/20 bg-hq-surface/90 backdrop-blur-md p-4 shrink-0 shadow-[0_-4px_16px_rgb(var(--hq-shadow)/0.08)] relative z-50">
@@ -2331,6 +2309,18 @@
               </button>
             </div>
           </div>
+          <!-- 내부통신 토글 (항상 표시) -->
+          <div class="flex items-center mt-2 max-w-4xl mx-auto">
+            <button @click="toggleDelegationLog()" title="에이전트 내부통신 로그"
+                    :class="showDelegationLog ? 'text-hq-cyan bg-hq-cyan/10 border-hq-cyan/30' : 'text-hq-muted/70 hover:text-hq-cyan border-transparent'"
+                    class="text-[10px] flex items-center gap-1 transition border rounded-lg px-2 py-1">
+              <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
+              </svg>
+              내부통신
+            </button>
+          </div>
           <!-- Preset Chips + 대화 내보내기 (프리셋이 있거나 메시지가 있을 때만 표시) -->
           <div x-show="(presets.items && presets.items.length > 0) || messages.length > 0" class="flex items-center gap-2 flex-wrap mt-2 max-w-4xl mx-auto overflow-x-auto scrollbar-thin">
             <template x-for="p in presets.items" :key="p.name">
@@ -2345,17 +2335,6 @@
             </button>
             <!-- 대화 내보내기 + 비우기 (오른쪽 끝) -->
             <div x-show="messages.length > 0" class="flex items-center gap-2 ml-auto shrink-0">
-              <!-- 내부통신 토글 -->
-              <button @click="toggleDelegationLog()" title="에이전트 내부통신 로그"
-                      :class="showDelegationLog ? 'text-hq-cyan bg-hq-cyan/10 border-hq-cyan/30' : 'text-hq-muted/70 hover:text-hq-cyan border-transparent'"
-                      class="text-[10px] flex items-center gap-1 transition border rounded-lg px-2 py-1">
-                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
-                </svg>
-                내부통신
-              </button>
-              <span class="text-hq-border">|</span>
               <button @click="exportConversation()"
                       class="text-[10px] text-hq-muted/70 hover:text-hq-accent flex items-center gap-1 transition">
                 <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
@@ -5644,7 +5623,6 @@
         agentToolCallCount: {},  // 에이전트별 도구 호출 횟수 (진행률 계산용)
         // 내부통신 (delegation log)
         showDelegationLog: false,
-        showCollabFlow: false,
         delegationLogs: [],
         delegationLogLoading: false,
         delegationLogFilter: 'all',
@@ -6481,10 +6459,8 @@
           }
           this.showSlashDropdown = false;
 
-          // @멘션 감지
-          const cursorPos = el.selectionStart;
-          const textBefore = text.substring(0, cursorPos);
-          const atMatch = textBefore.match(/@(\S*)$/);
+          // @멘션 감지 — inputText에서 직접 패턴 추출 (커서 위치 의존 제거로 안정화)
+          const atMatch = text.match(/(?:^| )@(\S*)$/);
 
           if (atMatch) {
             this.mentionQuery = atMatch[1].toLowerCase();

@@ -61,6 +61,12 @@
 - **시간대**: `Asia/Seoul` (KST, UTC+9) 기준
 - **프레임워크**: Tailwind CSS + Alpine.js (CDN)
 - **디자인 시스템**: `hq-*` 커스텀 컬러 토큰 사용
+- **폰트 (반드시 지킬 것)**: **Pretendard** 단일 폰트로 통일
+  - body 기본폰트: `'Pretendard Variable', 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif`
+  - 포인트 명조 (제목/워크플로우 이름 등): `.font-title { font-family: 'Noto Serif KR', ... }` — 이 클래스만 허용
+  - `font-mono` 사용 허용 범위: **숫자/코드/종목코드/시간값 입력창에만** 허용. 한국어 텍스트에 `font-mono` 쓰면 안 됨
+  - CDN: `https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css`
+  - ❌ 금지: 새 Google 폰트 추가, `font-sans` 커스텀 오버라이드, 이름 없는 system-ui 단독 사용
 
 ## 하드코딩 금지 규칙 (매우 중요!)
 - **모델명, 에이전트 목록, 도구 목록 등을 코드에 직접 쓰지 말 것!**
