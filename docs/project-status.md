@@ -9,13 +9,36 @@
 ## 마지막 업데이트
 
 - **날짜**: 2026-02-18
-- **버전**: `3.02.000` (Soul 교수급 재작성 + delegation_log UI + CEO 번역 규칙)
+- **버전**: `3.02.003` (예산 한도 수정 + 진행률 단계 기반 + CLAUDE.md 팀플레이북 개선)
 - **작업 브랜치**: claude/autonomous-system-v3
-- **최근 커밋**: feat: Soul 29명 교수급 재작성 + CEO 번역 규칙 (`084a6c4`)
-- **빌드 번호**: GitHub Actions 확인: https://github.com/kodonghui/CORTHEX_HQ/actions
+- **최근 커밋**: fix: 에이전트 진행률 단계 기반으로 전면 개선 (`d009727`)
+- **빌드 번호**: #215 (https://github.com/kodonghui/CORTHEX_HQ/actions)
 - **접속 주소**: https://corthex-hq.com
 
-## ✅ 이번 세션 완료 내용 (2026-02-18 3차 작업)
+## ✅ 이번 세션 완료 내용 (2026-02-18 4차 작업)
+
+### 버그 수정
+- **예산 한도 수정 기능 복구**: PUT /api/budget에서 monthly_limit 저장 안 되던 문제, response에 값 미반환 문제, GET /api/budget monthly_limit 하드코딩 300.0 → DB에서 읽도록 수정. saveBudget() 후 loadDashboard() 호출 추가.
+- **에이전트 진행률 단계 기반 개선**: 도구 미사용 에이전트가 항상 0%에 멈추던 문제 해결. 10% → 30% → 70% → 90% → 100% 단계별 진행.
+
+### CLAUDE.md 팀플레이북 개선
+- CEO "팀으로 해줘"라도 3~5줄 수정이면 소신 발언 규칙 추가
+- 팀원 spawn 후 CEO와 대화 의무 명시 (침묵 금지)
+- 해산 체크리스트에 SendMessage 확인 + deploy.yml 트리거 확인 단계 추가
+- 팀장 실수 방지 표 9개로 확장
+
+### 다음 세션에서 할 일 (미완료)
+1. **협업 A+B+C 구현** (우선순위 1):
+   - A: delegation_log WebSocket 실시간화 (8초 폴링 제거)
+   - B: consult_manager 도구 — 처장↔처장 직접 소통
+   - C: 협업 흐름도 시각화 패널 (타임라인)
+   - 순서: A(BE+FE) → C(FE) → B(BE) 순으로 구현
+2. **[보류] 리트마스터 홈페이지 자동 배포 파이프라인 (C안)**:
+   - github_tool.py에 쓰기 기능(파일 수정, PR 생성) 추가
+   - LEET_GITHUB_REPO, LEET_GITHUB_TOKEN 환경변수 추가
+   - 에이전트가 리트마스터 repo에 PR 생성 가능하도록
+
+## ✅ 이전 세션 완료 내용 (2026-02-18 3차 작업)
 
 ### Soul 전면 재작성 (교수급 — 이번 세션 핵심)
 - **29명 전원 CEO 보고 원칙 추가**: 전문 수식/논문 → CEO에게 쉬운 말로 번역하는 규칙을 모든 에이전트 soul에 내장
