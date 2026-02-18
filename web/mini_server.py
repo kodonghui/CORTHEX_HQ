@@ -3388,6 +3388,25 @@ async def add_trading_watchlist(request: Request):
     return {"success": True, "watchlist": watchlist}
 
 
+@app.put("/api/trading/watchlist/{ticker}")
+async def update_trading_watchlist(ticker: str, request: Request):
+    """관심 종목 수정 (목표가, 알림 유형, 메모)."""
+    body = await request.json()
+    watchlist = _load_data("trading_watchlist", [])
+    item = next((w for w in watchlist if w.get("ticker") == ticker), None)
+    if not item:
+        return {"success": False, "error": "종목을 찾을 수 없습니다"}
+    if "target_price" in body:
+        item["target_price"] = body["target_price"]
+    if "alert_type" in body:
+        item["alert_type"] = body["alert_type"]
+    if "notes" in body:
+        item["notes"] = body["notes"]
+    _save_data("trading_watchlist", watchlist)
+    save_activity_log("system", f"👁️ 관심종목 수정: {item.get('name', ticker)} ({ticker})", "info")
+    return {"success": True, "watchlist": watchlist}
+
+
 @app.delete("/api/trading/watchlist/{ticker}")
 async def remove_trading_watchlist(ticker: str):
     """관심 종목 삭제."""
@@ -4870,12 +4889,23 @@ async def delete_archive_api(division: str, filename: str):
 
 
 @app.get("/api/archive/export-zip")
-async def export_archive_zip(division: str = None, tier: str = None, limit: int = 500):
+async def export_archive_zip(division: str = None, tier: str = None, limit: int = 500, files: str = None):
     """현재 필터 조건에 맞는 기밀문서를 ZIP으로 다운로드합니다."""
     import zipfile, io, re
     from db import list_archives as _list_archives
 
-    docs = _list_archives(division=division, limit=limit)
+    # files 파라미터가 있으면 선택된 파일만 개별 조회
+    if files:
+        file_list = files.split(",")
+        docs = []
+        for fp in file_list:
+            parts = fp.strip().split("/", 1)
+            if len(parts) == 2:
+                doc = db_get_archive(parts[0], parts[1])
+                if doc:
+                    docs.append(doc)
+    else:
+        docs = _list_archives(division=division, limit=limit)
 
     # tier 필터 (executive/specialist/staff)
     def _get_tier(agent_id: str) -> str:
@@ -4900,7 +4930,12 @@ async def export_archive_zip(division: str = None, tier: str = None, limit: int 
             raw_div = doc.get("division", "unknown")
             safe_div = re.sub(r"[^\w\-]", "_", raw_div)
             safe_fn = re.sub(r"[^\w\-\.]", "_", doc.get("filename", "report.md"))
-            zf.writestr(f"{safe_div}/{safe_fn}", doc.get("content", ""))
+            # content가 없으면 개별 조회
+            content = doc.get("content") or ""
+            if not content:
+                full_doc = db_get_archive(doc.get("division", ""), doc.get("filename", ""))
+                content = full_doc.get("content", "") if full_doc else ""
+            zf.writestr(f"{safe_div}/{safe_fn}", content)
 
     buf.seek(0)
     from fastapi.responses import StreamingResponse

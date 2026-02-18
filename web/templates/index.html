@@ -3604,8 +3604,26 @@
                   return true;
                 })" :key="file.division + '/' + file.filename">
                   <div @click="readArchiveReport(file)"
-                    :class="archive.selectedReport && archive.selectedReport.filename === file.filename ? 'border-hq-accent/50 bg-hq-accent/10 shadow-lg shadow-hq-accent/10' : 'border-hq-border/50 hover:border-hq-accent/30'"
-                    class="group glass border rounded-xl p-3 cursor-pointer transition-all duration-200 relative">
+                    :class="archive.selectedReport && archive.selectedReport.filename === file.filename ? 'border-hq-accent bg-hq-accent/15 shadow-lg shadow-hq-accent/10 ring-1 ring-hq-accent/30 border-l-[3px] border-l-hq-accent' : 'border-hq-border/50 hover:border-hq-accent/30 hover:bg-hq-accent/5'"
+                    class="group glass border rounded-xl p-3 pl-8 cursor-pointer transition-all duration-200 relative">
+                    <!-- 체크박스 (hover 또는 selectMode 시 표시) -->
+                    <div class="absolute top-2 left-2 z-10"
+                         :class="archive.selectMode || archive.selectedFiles.some(f => f.division === file.division && f.filename === file.filename) ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'"
+                         @click.stop="">
+                      <label class="flex items-center cursor-pointer">
+                        <input type="checkbox"
+                               :checked="archive.selectedFiles.some(f => f.division === file.division && f.filename === file.filename)"
+                               @change="e => { if(e.target.checked) { archive.selectedFiles.push(file) } else { archive.selectedFiles = archive.selectedFiles.filter(f => !(f.division === file.division && f.filename === file.filename)) } }"
+                               class="sr-only">
+                        <div :class="archive.selectedFiles.some(f => f.division === file.division && f.filename === file.filename) ? 'bg-hq-accent border-hq-accent' : 'bg-hq-bg border-hq-border/50'"
+                             class="w-4 h-4 rounded border-2 flex items-center justify-center transition-all">
+                          <svg x-show="archive.selectedFiles.some(f => f.division === file.division && f.filename === file.filename)"
+                               class="w-2.5 h-2.5 text-hq-dark" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="3">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
+                          </svg>
+                        </div>
+                      </label>
+                    </div>
                     <!-- 액션 버튼 (호버 시 표시) -->
                     <div class="absolute top-2 right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition z-10">
                       <button @click.stop="downloadArchiveReport(file)"
@@ -3642,6 +3660,25 @@
                     </div>
                   </div>
                 </template>
+
+                <!-- 다중 선택 액션 바 -->
+                <div x-show="archive.selectedFiles.length > 0"
+                     class="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-50 flex items-center gap-2 px-4 py-2.5 rounded-2xl glass border border-hq-accent/30 shadow-lg shadow-hq-accent/10 backdrop-blur-xl">
+                  <span class="text-xs font-medium text-hq-accent" x-text="archive.selectedFiles.length + '개 선택됨'"></span>
+                  <div class="w-px h-4 bg-hq-border/50"></div>
+                  <button @click="downloadSelectedAsZip()"
+                          class="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-hq-accent/15 hover:bg-hq-accent/25 text-hq-accent transition font-medium">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3"/></svg>
+                    ZIP 다운로드
+                  </button>
+                  <button @click="deleteSelectedFiles()"
+                          class="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-hq-red/10 hover:bg-hq-red/20 text-hq-red transition font-medium">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0"/></svg>
+                    삭제
+                  </button>
+                  <button @click="archive.selectedFiles = []"
+                          class="text-xs text-hq-muted hover:text-hq-text transition px-2 py-1.5">취소</button>
+                </div>
 
                 <!-- 빈 화면 안내 -->
                 <div x-show="archive.files.filter(f => {
@@ -4156,6 +4193,9 @@
                       <button @click="openWatchlistChart(w)" class="text-hq-muted/70 hover:text-hq-cyan transition" title="차트 보기">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>
                       </button>
+                      <button @click="openWatchlistEdit(w)" class="text-hq-muted/70 hover:text-hq-accent transition" title="수정">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                      </button>
                       <button @click="removeWatchlistItem(w.ticker)" class="text-hq-muted/70 hover:text-hq-red transition" title="삭제">&times;</button>
                     </div>
                   </div>
@@ -4494,6 +4534,43 @@
           <input x-model="trading.watchForm.notes" placeholder="메모 (선택)" class="w-full bg-hq-bg border border-hq-border rounded-lg px-3 py-2 text-sm text-hq-text">
         </div>
         <button @click="addWatchlistItem()" class="w-full bg-hq-accent/20 text-hq-accent hover:bg-hq-accent/30 rounded-lg py-2.5 text-sm font-bold transition">관심종목 추가</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ Trading Watchlist Edit Modal (관심종목 수정) ═══ -->
+  <div x-show="trading.showWatchEditModal" x-transition.opacity
+       class="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
+       @click.self="trading.showWatchEditModal = false" style="display: none;">
+    <div class="bg-hq-panel border border-hq-border rounded-2xl w-full max-w-[420px] mx-4 p-6" @click.stop>
+      <div class="flex items-center justify-between mb-5">
+        <div>
+          <h2 class="text-lg font-bold text-hq-text">관심종목 수정</h2>
+          <p class="text-[10px] text-hq-muted mt-0.5" x-text="trading.watchEditForm.name + ' (' + trading.watchEditForm.ticker + ')'"></p>
+        </div>
+        <button @click="trading.showWatchEditModal = false" class="text-hq-muted hover:text-hq-text text-xl">&times;</button>
+      </div>
+      <div class="space-y-3">
+        <div>
+          <label class="text-[10px] text-hq-muted block mb-1">목표가 <span class="text-hq-muted/50" x-text="(trading.watchEditForm.market||'KR')==='US' ? '(USD)' : '(원)'"></span></label>
+          <input x-model.number="trading.watchEditForm.target_price" type="number" placeholder="0" class="w-full bg-hq-bg border border-hq-border rounded-lg px-3 py-2 text-sm text-hq-text font-mono">
+        </div>
+        <div>
+          <label class="text-[10px] text-hq-muted block mb-1">알림 조건</label>
+          <div class="flex gap-2">
+            <button @click="trading.watchEditForm.alert_type='above'"
+                    :class="trading.watchEditForm.alert_type==='above' ? 'bg-hq-green/20 text-hq-green border-hq-green/40' : 'bg-hq-bg text-hq-muted border-hq-border'"
+                    class="flex-1 border rounded-lg py-2 text-xs font-bold transition">↑ 이상 시 알림</button>
+            <button @click="trading.watchEditForm.alert_type='below'"
+                    :class="trading.watchEditForm.alert_type==='below' ? 'bg-blue-500/20 text-blue-400 border-blue-500/40' : 'bg-hq-bg text-hq-muted border-hq-border'"
+                    class="flex-1 border rounded-lg py-2 text-xs font-bold transition">↓ 이하 시 알림</button>
+          </div>
+        </div>
+        <div>
+          <label class="text-[10px] text-hq-muted block mb-1">메모</label>
+          <input x-model="trading.watchEditForm.notes" placeholder="메모 (선택)" class="w-full bg-hq-bg border border-hq-border rounded-lg px-3 py-2 text-sm text-hq-text">
+        </div>
+        <button @click="updateWatchlistItem()" class="w-full bg-hq-accent/20 text-hq-accent hover:bg-hq-accent/30 rounded-lg py-2.5 text-sm font-bold transition">수정 저장</button>
       </div>
     </div>
   </div>
@@ -5810,7 +5887,7 @@
         knowledge: { files: [], loading: false, selectedFile: null, content: '', editMode: false, saving: false, newFileName: '', newFolder: '', showCreateForm: false },
 
         // Archive browser
-        archive: { files: [], loading: false, selectedReport: null, content: '', filterDivision: 'all', filterTier: 'all', searchCorrelation: '' },
+        archive: { files: [], loading: false, selectedReport: null, content: '', filterDivision: 'all', filterTier: 'all', searchCorrelation: '', selectedFiles: [], selectMode: false },
         showDeleteAllArchiveModal: false,
 
         // SNS management
@@ -5841,6 +5918,8 @@
           // 관심종목 추가 폼
           watchForm: { ticker: '', name: '', target_price: 0, notes: '', market: 'KR' },
           showWatchModal: false,
+          watchEditForm: { ticker: '', name: '', target_price: 0, notes: '', alert_type: 'above', market: 'KR' },
+          showWatchEditModal: false,
           // 관심종목 실시간 가격
           watchPrices: {},
           watchPricesLoading: false,
@@ -8065,6 +8144,27 @@
           } catch { this.showToast('삭제 중 오류가 발생했습니다.', 'error'); }
         },
 
+        async downloadSelectedAsZip() {
+          if (!this.archive.selectedFiles.length) return;
+          const filenames = this.archive.selectedFiles.map(f => `${f.division}/${f.filename}`).join(',');
+          const url = `/api/archive/export-zip?files=${encodeURIComponent(filenames)}`;
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `corthex-selected-${Date.now()}.zip`;
+          a.click();
+          this.archive.selectedFiles = [];
+        },
+        async deleteSelectedFiles() {
+          if (!this.archive.selectedFiles.length) return;
+          if (!confirm(`${this.archive.selectedFiles.length}개 파일을 삭제하시겠습니까?`)) return;
+          for (const file of this.archive.selectedFiles) {
+            await fetch(`/api/archive/${encodeURIComponent(file.division)}/${encodeURIComponent(file.filename)}`, { method: 'DELETE' });
+          }
+          this.archive.selectedFiles = [];
+          await this.loadArchive();
+          this.showToast(`삭제 완료`, 'success');
+        },
+
         async deleteAllArchives() {
           try {
             const res = await fetch('/api/archive/all', { method: 'DELETE' });
@@ -8313,6 +8413,33 @@
               this.loadWatchlistPrices();  // 새 종목 가격도 바로 조회
             } else { this.showToast(res.error || '추가 실패', 'error'); }
           } catch { this.showToast('관심종목 추가 오류', 'error'); }
+        },
+
+        openWatchlistEdit(w) {
+          this.trading.watchEditForm = {
+            ticker: w.ticker,
+            name: w.name,
+            target_price: w.target_price || 0,
+            notes: w.notes || '',
+            alert_type: w.alert_type || 'above',
+            market: w.market || 'KR',
+          };
+          this.trading.showWatchEditModal = true;
+        },
+
+        async updateWatchlistItem() {
+          const f = this.trading.watchEditForm;
+          try {
+            const res = await fetch(`/api/trading/watchlist/${f.ticker}`, {
+              method: 'PUT', headers: {'Content-Type':'application/json'},
+              body: JSON.stringify({ target_price: f.target_price, alert_type: f.alert_type, notes: f.notes }),
+            }).then(r => r.json());
+            if (res.success) {
+              this.showToast(`${f.name} 수정됨`, 'success');
+              this.trading.showWatchEditModal = false;
+              await this.loadTradingSummary();
+            } else { this.showToast(res.error || '수정 실패', 'error'); }
+          } catch { this.showToast('수정 오류', 'error'); }
         },
 
         async removeWatchlistItem(ticker) {

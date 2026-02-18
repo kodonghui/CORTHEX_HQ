@@ -10,6 +10,7 @@
 - CEO는 비개발자 → 전문 용어 쓸 때 괄호 안에 쉬운 설명 필수. 존댓말 사용
 - 추상적 말 금지: "최적화했습니다"(X) → "로딩 3초→1초로 줄었습니다"(O)
 - 뻔한 질문 금지: "커밋할까요?" "배포할까요?" → 바로 실행
+- **"논의" 키워드 시 코딩 금지**: CEO가 "논의", "이야기", "아이디어" 등을 먼저 언급하면 → 코드 작성 없이 구체적이고 이해하기 쉬운 아이디어/옵션 + 추천을 제시할 것. 논의 후 CEO가 결정하면 그때 실행
 - 소신 발언 필수: A보다 B가 낫다면 먼저 말하고 CEO가 최종 결정
 - "로컬에서 확인" 금지 → 항상 서버(`http://corthex-hq.com`)에서 확인
 - 작업 완료 = 커밋 + 푸시 + 배포 + 서버 확인 + CEO에게 빌드번호 체크리스트 보고까지
@@ -19,12 +20,33 @@
 - 마지막 커밋에 `[완료]` 포함해야 자동 머지 작동
 - 장치 전환 언급 시 → `git fetch origin` → `git checkout main && git pull` → 새 브랜치 순서
 
+**파일 수정 안전 규칙**
+- `web/templates/index.html`은 **Write 도구로 전체 덮어쓰기 절대 금지** → 반드시 Edit 도구로 부분 수정만 할 것 (전체 덮어쓰면 수천 줄 유실 위험)
+
 ---
 
 ## 프로젝트 정보
 - 저장소: https://github.com/kodonghui/CORTHEX_HQ
 - 소유자: kodonghui (비개발자 CEO)
 - 언어: 한국어로 소통
+
+## ⚡ 장치 전환 시 필수 — 세션 시작 즉시 실행
+
+**다른 기기에서 이 세션을 열었다면, 제일 먼저 아래를 실행할 것. 어떤 작업도 이 전에 하지 말 것.**
+
+```bash
+git fetch origin && git status
+```
+- git status에 미커밋 파일이 있으면 → 작업 중지. CEO에게 "미커밋 작업이 있습니다. 먼저 커밋하시겠습니까?" 물어볼 것
+- git status가 깨끗하면(nothing to commit) → 아래 계속 실행:
+
+```bash
+git checkout main && git pull origin main
+```
+- 완료 후 반드시 새 브랜치에서 작업 시작: `git checkout -b claude/[작업명]`
+- main 브랜치에서 직접 작업 절대 금지
+
+이 규칙의 이유: CEO는 항상 작업을 main에 머지한 후 기기를 이동함. 따라서 새 세션 = 항상 최신 main에서 시작해야 함. 이걸 안 하면 Claude가 구버전 맥락으로 응답하게 됨 (실제 사례: 빌드 #224 기준으로 응답했으나 실제는 #238이었던 사건).
 
 ## ⚠️ GitHub Secrets 현황 (2026-02-18 전체 등록 완료 — 다시 물어보지 말 것!)
 **모든 API 키가 GitHub Secrets에 등록되어 있음. CEO에게 "API 키 알려주세요" 절대 금지.**
@@ -60,6 +82,7 @@
 - 작업 결과를 보고할 때는 "뭘 했는지 → 왜 했는지 → 현재 상태 → 다음에 할 일" 순서로 정리할 것
 - 존댓말로 할것
 - **뻔한 질문 금지**: 당연히 해야 하는 것을 CEO에게 물어보지 말 것. "커밋할까요?", "배포할까요?", "푸시할까요?" 같은 질문은 하지 말고 바로 실행할 것. CEO의 시간을 아낄 것
+- **"논의" 키워드 시 코딩 금지 (중요!)**: CEO가 "논의하자", "이야기 해보자", "아이디어 줘" 등을 먼저 언급하면 → 코드 작성 없이, 구체적이고 이해하기 쉽게 아이디어/옵션 + 추천을 제시할 것. 논의 후 CEO가 "해줘"라고 결정하면 그때 실행. 논의 요청을 실행 요청으로 혼동하지 말 것
 - **소신 있게 의견 제시 (예스맨 금지)**: CEO가 "A 해줘"라고 해도, B가 더 낫다고 판단하면 반드시 먼저 말할 것
   - 형식: "A 대신 B를 추천합니다. 이유: [구체적 이유]. A로 진행하시겠습니까?" → CEO가 결정
   - 단순 실행자가 아니라 **기술 파트너**로 행동할 것. "시키는 대로만" 하는 것은 CEO에게 도움이 안 됨
@@ -290,57 +313,6 @@
 7. `docs/project-status.md` 갱신
 8. CEO에게 빌드 번호 확인 체크리스트 표 제공
 
-## 에이전트 Soul 관리 규칙
-
-### Soul이란?
-`config/agents.yaml`의 `system_prompt` 필드. 각 에이전트가 어떻게 생각하고 행동할지 결정하는 핵심 지침.
-
-### Soul 작성 원칙 — "직무 방법론 스택(Job Methodology Stack)" 방식
-기존 soul 문제: 3~5줄짜리 추상적 설명 ("당신은 X 전문가입니다") → AI가 자기 일반 지식으로 대충 처리.
-올바른 soul: **이름 있는 구체적 프레임워크**를 명시 → AI가 일관된 전문가처럼 행동.
-
-좋은 Soul 구조 (30~60줄 권장): 직책 소개 → 핵심 방법론 스택 3~5개 (이름·원작자·적용 조건) → 의사결정 프레임워크 (조건/수치 기반) → 출력 형식 표준
-
-### ⚠️ Soul 갱신 시 절대 건드리면 안 되는 필드들 (2026-02-18 사고에서 배운 교훈)
-
-**Soul 갱신 = `system_prompt` 필드만 변경. 나머지 필드 변경 금지!**
-
-Soul 팀이 agents.yaml을 갱신할 때 `division` 필드를 잘못 수정하면 **화면에서 부서가 전혀 안 열리는** 치명적 버그 발생.
-
-| 필드 | Soul 갱신 시 변경 가능? | 변경 시 영향 |
-|------|---------------------|------------|
-| `system_prompt` | ✅ 마음껏 변경 | 에이전트 답변 방식만 변경 |
-| `name`, `role` | ✅ 변경 가능 | 화면 표시 이름 |
-| `division` | ❌ **변경 절대 금지** | 화면 사이드바/메인뷰 부서 그룹이 전부 깨짐 |
-| `model` | ❌ 함부로 변경 금지 | 비용/성능 직결, 반드시 CEO 승인 후 |
-| `tools` | ❌ 함부로 변경 금지 | 에이전트 도구 접근 권한 |
-
-**`division` 올바른 포맷** (현재 유일하게 허용된 값들):
-- `secretary`, `publishing` — 단순형 (이 형태로 유지할 것)
-- `leet_master.tech`, `leet_master.strategy`, `leet_master.legal`, `leet_master.marketing` — 점(.) 표기 계층형
-- `finance.investment` — 점(.) 표기 계층형
-
-→ Soul 팀에게 작업 지시 시 반드시 포함: "**`system_prompt`만 수정. `division`, `model`, `tools` 절대 건드리지 말 것**"
-
-### Soul 갈아엎기 할 때 팀 편성
-- 4~5그룹 병렬 (비서실/투자/기술+법무/전략+마케팅/출판)
-- 각 그룹 에이전트: WebSearch로 해당 직무 최신 방법론 리서치 + soul 작성 → 파일로 저장
-- 팀장이 파일 읽어서 agents.yaml에 순차 적용
-- 에이전트가 직접 agents.yaml 수정 금지 (충돌 위험)
-- **Soul 팀 spawn 프롬프트에 반드시 포함**: "`division`, `model`, `tools` 필드는 절대 건드리지 말 것. `system_prompt`만 수정."
-
-### Soul 작성 시 반드시 포함할 방법론 분야 (직무별)
-| 직무 분야 | 핵심 방법론 |
-|---------|-----------|
-| 경영/전략 | Porter's Five Forces, Blue Ocean, Wardley Mapping, ERRC |
-| 투자/금융 | Kelly Criterion, Modern Portfolio Theory, Wyckoff, VaR, Sharpe Ratio |
-| 마케팅 | AARRR Pirate Metrics, Cialdini 7원칙, JTBD, Hook Model, E-E-A-T |
-| 기술/개발 | DDD, DORA Metrics, 12-Factor App, CQRS, SRE Error Budget |
-| 법무/IP | ISO 31000 리스크, GDPR+PIPA 6가지 근거, Privacy by Design |
-| 재무모델링 | DCF+Monte Carlo, Unit Economics (LTV:CAC≥3), SaaS Metrics (NRR) |
-| 조사/리서치 | TAM/SAM/SOM Bottom-up, Kano Model, NPS, Conjoint Analysis |
-| 편집/기록 | BLUF, Pyramid Principle, Flesch-Kincaid, After Action Review |
-
 ---
 
 ## 컴팩트(세션 압축) 대비 가이드라인
@@ -414,6 +386,11 @@ Soul 팀이 agents.yaml을 갱신할 때 `division` 필드를 잘못 수정하�
   4. 배포 완료 후 웹 화면 좌측 상단에서 빌드 번호 확인 가능 (http://corthex-hq.com)
 - **빌드 번호 확인**: 웹 좌측 상단 "빌드 #XX" / `http://corthex-hq.com/deploy-status.json` / GitHub Actions 로그
 - **CEO 보고 형식**: "이번 세션에서 뭘 바꿨는지 → 어디서 확인하는지" 표로 정리 (확인할 곳, 이전, 이후 3열)
+- **보고 시 "빌드#N" 사용 (PR#N 아님!)**:
+  - CEO에게 배포/머지 완료 보고할 때 반드시 **"빌드#N"** 형식으로 쓸 것
+  - CEO가 실제로 확인하는 건 GitHub Actions 빌드 번호(빌드#N)이지, PR 번호가 아님
+  - PR#과 빌드#은 번호가 다름 — 혼동하면 CEO가 확인할 수 없음
+  - 예: "빌드#287 배포 완료" (O) / "PR#45 머지 완료" (X)
 
 
 ## 서버 배포 규칙 (Oracle Cloud — ARM 24GB 서버)
