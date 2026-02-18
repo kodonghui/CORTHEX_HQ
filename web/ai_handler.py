@@ -393,7 +393,7 @@ async def _call_anthropic(
     tool_executor는 async 함수로, (tool_name, tool_input) -> result를 반환해야 합니다.
     """
     messages = [{"role": "user", "content": user_message}]
-    kwargs = {"model": model, "max_tokens": 16384, "messages": messages}
+    kwargs = {"model": model, "max_tokens": 65536, "messages": messages}
     if system_prompt:
         kwargs["system"] = system_prompt
     if "haiku" in model:
@@ -609,7 +609,7 @@ async def _call_openai(
         messages.append({"role": "system", "content": system_prompt})
     messages.append({"role": "user", "content": user_message})
 
-    kwargs = {"model": model, "messages": messages, "max_completion_tokens": 16384, "temperature": 0.3}
+    kwargs = {"model": model, "messages": messages, "max_completion_tokens": 65536, "temperature": 0.3}
     if tools:
         kwargs["tools"] = tools
 
@@ -885,7 +885,7 @@ async def _batch_submit_anthropic(requests: list[dict], default_model: str) -> d
         messages = [{"role": "user", "content": req.get("message", "")}]
         params = {
             "model": model,
-            "max_tokens": req.get("max_tokens", 16384),
+            "max_tokens": req.get("max_tokens", 65536),
             "messages": messages,
         }
         if req.get("system_prompt"):
@@ -998,7 +998,7 @@ async def _batch_submit_openai(requests: list[dict], default_model: str) -> dict
             "body": {
                 "model": model,
                 "messages": messages,
-                "max_completion_tokens": req.get("max_tokens", 16384),
+                "max_completion_tokens": req.get("max_completion_tokens", 65536),
             },
         }
         lines.append(json.dumps(line, ensure_ascii=False))
