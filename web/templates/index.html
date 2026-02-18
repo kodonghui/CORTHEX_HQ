@@ -8410,6 +8410,7 @@
               this.budget.daily_limit = res.daily_limit;
               this.budget.monthly_limit = res.monthly_limit;
               this.showBudgetEdit = false;
+              this.loadDashboard();
               this.showToast('예산 한도가 수정되었습니다.', 'success');
             } else {
               this.showToast(res.error || '예산 수정 실패', 'error');

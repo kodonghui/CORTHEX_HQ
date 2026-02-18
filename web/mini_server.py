@@ -684,12 +684,13 @@ async def get_budget():
         monthly = get_monthly_cost()
     except (ImportError, Exception):
         monthly = today
+    monthly_limit = float(load_setting("monthly_budget_usd") or 300.0)
     return {
         "daily_limit": limit, "daily_used": today,
         "today_spent": today, "today_cost": today,
         "remaining": round(limit - today, 6),
         "exceeded": today >= limit,
-        "monthly_limit": 300.0, "monthly_used": monthly,
+        "monthly_limit": monthly_limit, "monthly_used": monthly,
     }
 
 
@@ -4610,11 +4611,15 @@ async def save_agent_reasoning(agent_id: str, request: Request):
 
 @app.put("/api/budget")
 async def save_budget(request: Request):
-    """일일 예산 한도 변경."""
+    """일일/월간 예산 한도 변경."""
     body = await request.json()
     if "daily_limit" in body:
         save_setting("daily_budget_usd", float(body["daily_limit"]))
-    return {"success": True}
+    if "monthly_limit" in body:
+        save_setting("monthly_budget_usd", float(body["monthly_limit"]))
+    daily = float(load_setting("daily_budget_usd") or 7.0)
+    monthly = float(load_setting("monthly_budget_usd") or 300.0)
+    return {"success": True, "daily_limit": daily, "monthly_limit": monthly}
 
 
 @app.get("/api/available-models")
