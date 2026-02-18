@@ -4759,7 +4759,76 @@ async def post_delegation_log(request: Request):
             task_id=body.get("task_id"),
             log_type=body.get("log_type", "delegation"),
         )
+        # WebSocket 실시간 broadcast — 열려있는 모든 클라이언트에 즉시 전달
+        import time as _time
+        _log_data = {
+            "id": row_id,
+            "sender": sender,
+            "receiver": receiver,
+            "message": message,
+            "log_type": body.get("log_type", "delegation"),
+            "created_at": _time.time(),
+        }
+        for _c in connected_clients[:]:
+            try:
+                await _c.send_json({"event": "delegation_log_update", "data": _log_data})
+            except Exception:
+                pass
         return {"success": True, "id": row_id}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+@app.post("/api/consult")
+async def consult_manager_api(request: Request):
+    """처장 간 협의 요청. 에이전트가 다른 에이전트에게 의견/도움을 요청합니다.
+
+    body: {from_agent, to_agent, question, context?}
+    반환: {success, id, message}
+    """
+    try:
+        from db import save_delegation_log
+        body = await request.json()
+        from_agent = body.get("from_agent", "")
+        to_agent = body.get("to_agent", "")
+        question = body.get("question", "")
+        context = body.get("context", "")
+
+        if not from_agent or not to_agent or not question:
+            return {"success": False, "error": "from_agent, to_agent, question은 필수입니다."}
+
+        msg_text = f"[협의 요청] {question}"
+        if context:
+            msg_text += f"\n맥락: {context}"
+
+        import time as _time
+        row_id = save_delegation_log(
+            sender=from_agent,
+            receiver=to_agent,
+            message=msg_text,
+            log_type="consult",
+        )
+
+        # WebSocket broadcast
+        _log_data = {
+            "id": row_id,
+            "sender": from_agent,
+            "receiver": to_agent,
+            "message": msg_text,
+            "log_type": "consult",
+            "created_at": _time.time(),
+        }
+        for _c in connected_clients[:]:
+            try:
+                await _c.send_json({"event": "delegation_log_update", "data": _log_data})
+            except Exception:
+                pass
+
+        return {
+            "success": True,
+            "id": row_id,
+            "message": f"{from_agent}가 {to_agent}에게 협의를 요청했습니다.",
+        }
     except Exception as e:
         return {"success": False, "error": str(e)}
 
@@ -5768,6 +5837,7 @@ async def _call_agent(agent_id: str, text: str) -> dict:
             agent_id=agent_id,
             title=f"[{agent_name}] {text[:50]}",
             content=content,
+            db_target="secretary" if _AGENT_DIVISION.get(agent_id) == "secretary" else "output",
         ))
         # 아카이브 DB에 저장 (영구 보관)
         division = _AGENT_DIVISION.get(agent_id, "secretary")
@@ -5926,6 +5996,7 @@ async def _manager_with_delegation(manager_id: str, text: str) -> dict:
             title=f"[{mgr_name}] 종합보고: {text[:40]}",
             content=synth_content,
             report_type="종합보고서",
+            db_target="secretary" if _AGENT_DIVISION.get(manager_id) == "secretary" else "output",
         ))
         # 아카이브 DB에 저장
         division = _AGENT_DIVISION.get(manager_id, "secretary")

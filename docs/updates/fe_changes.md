@@ -170,3 +170,17 @@ this.agentToolCallCount[id] = 0;  // done 전환 시 리셋
 - 3개 작업 모두 완료
 - 수정 파일: `web/templates/index.html` 1개만 수정
 - 다른 파일 건드리지 않음
+
+---
+
+## 추가 작업 (2차): WebSocket 실시간 연동 + 협업 흐름도 패널
+
+### 변경 내용 요약 (한 줄)
+delegation_log를 8초 폴링에서 WebSocket 실시간 수신으로 전환하고, 협업 흐름도 시각화 패널 추가 — `handleWsMessage`에 `delegation_log_update` case 삽입, `toggleDelegationLog`에서 `setInterval(8000)` 제거, `showCollabFlow` Alpine.js 상태 변수 추가, 흐름도 토글 버튼 + 흐름도 패널 HTML 삽입
+
+### 수정 항목
+1. `case 'delegation_log_update'` — handleWsMessage switch문에 추가 (6192줄)
+2. `setInterval(() => this.fetchDelegationLogs(), 8000)` 제거 — toggleDelegationLog 단순화
+3. `showCollabFlow: false` — Alpine.js data 객체에 추가 (5647줄)
+4. 흐름도 토글 버튼 — 내부통신 패널 헤더에 추가 (2070줄)
+5. 협업 흐름도 패널 HTML — delegation_log 패널 바로 다음에 삽입 (2143줄)
