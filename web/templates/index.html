@@ -1947,6 +1947,12 @@
                           <span class="w-1 h-1 rounded-full bg-hq-yellow/60 pulse-dot" style="animation-delay:0.6s"></span>
                         </div>
                       </div>
+                      <!-- 리프레시 후 복원된 작업 명령어 표시 -->
+                      <div x-show="msg.restoredCommand && Object.values(activeAgents).filter(a => a.status === 'working').length === 0"
+                           class="text-[11px] text-hq-muted/80 italic pl-1 pb-1">
+                        <span class="text-hq-yellow/70">복원됨:</span>
+                        <span x-text="msg.restoredCommand"></span>
+                      </div>
                       <div class="space-y-2.5">
                         <template x-for="(status, agentId) in activeAgents" :key="agentId">
                           <div x-show="status.status === 'working'" class="fade-in cursor-pointer" @click="scrollToAgent(agentId)">
@@ -6134,6 +6140,8 @@
           // Restore conversation
           this.loadConversation();
           this.connectWebSocket();
+          // 하드 리프레시 후 실행 중인 작업 상태 복원
+          this.restoreRunningTask();
           this.loadDashboard();
           this.loadPresets();
           // Keyboard shortcuts (#16)
@@ -6429,6 +6437,31 @@
                 setTimeout(() => { this.errorAlert.visible = false; }, 10000);
               }
               break;
+          }
+        },
+
+        // 하드 리프레시(Ctrl+Shift+R) 후 서버에서 실행 중인 작업 상태 복원
+        async restoreRunningTask() {
+          try {
+            const res = await fetch('/api/tasks?status=running&limit=5');
+            if (!res.ok) return;
+            const tasks = await res.json();
+            if (!Array.isArray(tasks) || tasks.length === 0) return;
+            // 가장 최근 running task를 현재 작업으로 복원
+            const task = tasks[0];
+            this.currentTaskId = task.task_id;
+            this.systemStatus = 'working';
+            // 처리중 메시지 버블 추가 (이미 없을 때만)
+            if (!this.messages.some(m => m.type === 'processing')) {
+              this.messages.push({
+                type: 'processing',
+                id: Date.now(),
+                timestamp: task.created_at || new Date().toISOString(),
+                restoredCommand: task.command || ''
+              });
+            }
+          } catch (e) {
+            // 복원 실패 시 조용히 무시 (기존 동작에 영향 없음)
           }
         },
 
