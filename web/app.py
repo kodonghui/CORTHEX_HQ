@@ -565,6 +565,43 @@ async def get_tools() -> list[dict]:
         return []
 
 
+@app.get("/api/tools/health")
+async def get_tools_health() -> dict:
+    """도구 건강 상태 점검 — /도구점검 명령에서 사용."""
+    try:
+        tools_cfg = yaml.safe_load(
+            (CONFIG_DIR / "tools.yaml").read_text(encoding="utf-8")
+        )
+        all_tools = tools_cfg.get("tools", [])
+    except Exception:
+        all_tools = []
+
+    loaded_ids: set[str] = set(tool_pool_ref._tools.keys()) if tool_pool_ref else set()
+    pool_status = "ready" if tool_pool_ref else "not_initialized"
+
+    tools_detail = []
+    for t in all_tools:
+        tid = t.get("tool_id", "")
+        status = "ready" if tid in loaded_ids else "not_loaded"
+        tools_detail.append({
+            "tool_id": tid,
+            "name": t.get("name_ko") or t.get("name", tid),
+            "status": status,
+        })
+
+    ready_count = sum(1 for t in tools_detail if t["status"] == "ready")
+    not_loaded_count = len(tools_detail) - ready_count
+
+    return {
+        "total": len(tools_detail),
+        "ready": ready_count,
+        "missing_key": 0,
+        "not_loaded": not_loaded_count,
+        "pool_status": pool_status,
+        "tools": tools_detail,
+    }
+
+
 @app.get("/api/quality")
 async def get_quality() -> dict:
     """Return quality gate statistics."""
@@ -1529,13 +1566,6 @@ async def websocket_endpoint(ws: WebSocket) -> None:
                     "command": user_input,
                     "batch": use_batch,
                 })
-
-                # Reset all agent statuses
-                if registry:
-                    for agent in registry.list_all():
-                        await ws_manager.send_agent_status(
-                            agent.config.agent_id, "idle"
-                        )
 
                 # Launch background task
                 asyncio.create_task(
