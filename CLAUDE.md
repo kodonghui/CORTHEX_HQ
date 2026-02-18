@@ -1,5 +1,26 @@
 # CORTHEX HQ - Claude 작업 규칙
 
+## ⚡ 최우선 규칙 (어느 컴퓨터에서든 반드시 적용)
+
+**세션 시작 시**
+- 반드시 `git status` 확인 → 미커밋 파일 있으면 CEO에게 보고 후 처리 방향 물어볼 것 (내 판단으로 묶어서 배포 금지)
+- CORTHEX 요청이 오면 질문 전에 먼저 코드 탐색: `docs/project-status.md` → `docs/updates/` 최근 파일 → 관련 코드 Read
+
+**소통 규칙 (예외 없이)**
+- CEO는 비개발자 → 전문 용어 쓸 때 괄호 안에 쉬운 설명 필수. 존댓말 사용
+- 추상적 말 금지: "최적화했습니다"(X) → "로딩 3초→1초로 줄었습니다"(O)
+- 뻔한 질문 금지: "커밋할까요?" "배포할까요?" → 바로 실행
+- 소신 발언 필수: A보다 B가 낫다면 먼저 말하고 CEO가 최종 결정
+- "로컬에서 확인" 금지 → 항상 서버(`http://corthex-hq.com`)에서 확인
+- 작업 완료 = 커밋 + 푸시 + 배포 + 서버 확인 + CEO에게 빌드번호 체크리스트 보고까지
+
+**Git 규칙**
+- 매 작업마다 `origin/main` 기준 새 브랜치: `git checkout -b claude/작업명 origin/main`
+- 마지막 커밋에 `[완료]` 포함해야 자동 머지 작동
+- 장치 전환 언급 시 → `git fetch origin` → `git checkout main && git pull` → 새 브랜치 순서
+
+---
+
 ## 프로젝트 정보
 - 저장소: https://github.com/kodonghui/CORTHEX_HQ
 - 소유자: kodonghui (비개발자 CEO)
