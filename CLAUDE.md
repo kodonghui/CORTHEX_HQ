@@ -5,6 +5,29 @@
 - 소유자: kodonghui (비개발자 CEO)
 - 언어: 한국어로 소통
 
+## ⚠️ GitHub Secrets 현황 (2026-02-18 전체 등록 완료 — 다시 물어보지 말 것!)
+**모든 API 키가 GitHub Secrets에 등록되어 있음. CEO에게 "API 키 알려주세요" 절대 금지.**
+배포 시 deploy.yml이 자동으로 서버 `/home/ubuntu/corthex.env`에 반영함.
+
+| 분류 | 등록된 Secret 이름 |
+|------|-------------------|
+| AI API | `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GOOGLE_API_KEY`, `GOOGLE_GEMINI_API_KEY` |
+| 노션 | `NOTION_API_KEY`, `NOTION_DEFAULT_DB_ID` |
+| GitHub | `REPO_ACCESS_TOKEN` (GITHUB_TOKEN은 예약어라 REPO_ACCESS_TOKEN 사용) |
+| 텔레그램 | `TELEGRAM_ENABLED`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CEO_CHAT_ID` |
+| 공공/리서치 | `DART_API_KEY`, `ECOS_API_KEY`, `KIPRIS_API_KEY`, `LAW_API_KEY`, `SERPAPI_KEY` |
+| 이메일 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS` |
+| 인스타그램 | `INSTAGRAM_APP_ID`, `INSTAGRAM_APP_SECRET`, `INSTAGRAM_ACCESS_TOKEN`, `INSTAGRAM_REDIRECT_URI` |
+| Google OAuth | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI`, `GOOGLE_CALENDAR_REDIRECT_URI` |
+| 카카오 | `KAKAO_REST_API_KEY`, `KAKAO_ID`, `KAKAO_PW` |
+| 네이버 | `NAVER_CLIENT_ID`, `NAVER_CLIENT_SECRET`, `NAVER_ID`, `NAVER_PW`, `NAVER_BLOG_ID`, `NAVER_REDIRECT_URI` |
+| 다음 | `DAUM_CAFE_ID`, `DAUM_CAFE_BOARD_ID`, `DAUM_ID`, `DAUM_PW` |
+| 서버 | `SERVER_IP_ARM`, `SERVER_SSH_KEY_ARM` (건드리지 말 것) |
+| 기타 | `SNS_BROWSER_HEADLESS` |
+
+**API 키 값이 필요하면** → `gh secret list --repo kodonghui/CORTHEX_HQ`로 목록만 확인 가능 (값은 GitHub에서 보안상 숨김)
+**키 재등록 방법** → `.venv/Scripts/python set_secrets.py` (set_secrets.py는 실행 후 자동 삭제됨)
+
 ## 소통 규칙 (최우선 규칙 — 반드시 지킬 것)
 - CEO는 비개발자다. 모든 대화에서 아래 규칙을 예외 없이 지킬 것
 - **구체적으로**: 추상적인 말 금지. "최적화했습니다" (X) → "페이지 로딩 속도를 3초에서 1초로 줄였습니다" (O)
