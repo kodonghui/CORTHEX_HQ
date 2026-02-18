@@ -422,7 +422,17 @@ jobs:
               sudo nginx -t 2>/dev/null && sudo systemctl reload nginx 2>/dev/null || echo "⚠️ nginx 리로드 건너뜀"
             fi
 
-            # 9.3단계: Chromium 브라우저 자동 설치 (처음 한 번만)
+            # 9.3단계: 시스템 패키지 자동 설치 (처음 한 번만)
+            # pandoc (문서 변환 도구 — Word/Markdown/PDF 상호 변환)
+            if ! command -v pandoc &>/dev/null; then
+              echo "📄 pandoc 설치 중..."
+              sudo apt-get install -y pandoc 2>&1 | tail -3
+              echo "✅ pandoc 설치 완료: $(pandoc --version | head -1)"
+            else
+              echo "✅ pandoc 이미 설치됨: $(pandoc --version | head -1)"
+            fi
+
+            # Chromium 브라우저 자동 설치 (처음 한 번만)
             if ! command -v chromium-browser &>/dev/null && ! command -v chromium &>/dev/null; then
               echo "Chromium + ChromeDriver 설치 중... (Selenium SNS 도구용)"
               sudo apt-get install -y chromium-browser chromium-chromedriver 2>&1 | tail -5 || \n              sudo apt-get install -y chromium chromium-driver 2>&1 | tail -5 || \n              echo "⚠️ Chromium 설치 실패 (별도 안내로 후처리 가능)"
