@@ -9,23 +9,32 @@
 ## 마지막 업데이트
 
 - **날짜**: 2026-02-18
-- **버전**: `3.03.001` (Notion DB 환경변수 불일치 수정 + NOTION_DB_OUTPUT 추가)
+- **버전**: `3.03.002` (텔레그램 주요 AI 명령어 5개 추가)
 - **작업 브랜치**: claude/autonomous-system-v3
-- **최근 커밋**: fix: Notion DB 환경변수 이름 불일치 수정 (`eec5baa`)
-- **빌드 번호**: #221 (https://github.com/kodonghui/CORTHEX_HQ/actions)
+- **최근 커밋**: feat: 텔레그램 주요 AI 명령어 5개 추가 [완료] (`11ae750`)
+- **빌드 번호**: #224 (https://github.com/kodonghui/CORTHEX_HQ/actions)
 - **접속 주소**: https://corthex-hq.com
 
-## ✅ 이번 세션 완료 내용 (2026-02-18 6차 작업)
+## ✅ 이번 세션 완료 내용 (2026-02-18 7차 작업)
 
-### Notion DB 환경변수 연결 완료
-- GitHub Secrets 등록: `NOTION_DB_SECRETARY` (비서실 DB) + `NOTION_DB_OUTPUT` (에이전트 산출물 DB)
-- deploy.yml 수정: 기존 `secrets.NOTION_SECRETARY_DB_ID` (잘못된 이름) → `secrets.NOTION_DB_SECRETARY` (올바른 이름)
-- deploy.yml 수정: `NOTION_DB_OUTPUT` Secret이 아예 누락됐던 것 추가
-- 서버 저장 환경변수명도 mini_server.py가 읽는 이름(`NOTION_DB_SECRETARY`, `NOTION_DB_OUTPUT`)으로 통일
+### 텔레그램 주요 AI 명령어 5개 추가
+- `/토론 [주제]`: 임원 2라운드 토론 (처장 6명 → 비서실장 종합)
+- `/심층토론 [주제]`: 임원 3라운드 심층 토론 (더 깊은 반박)
+- `/전체 [메시지]`: 29명 전체 에이전트 동시 브로드캐스트
+- `/순차 [작업]`: 에이전트 릴레이 순차 협업
+- `@에이전트명 [지시]`: 특정 에이전트 직접 지시 (예: `@cto 기술 분석`)
+- `/help` 텍스트 + 봇 명령어 메뉴 업데이트
+- 수정 파일: `web/mini_server.py` 1개
 
-### 노션 DB 실제 ID (CEO 제공)
-- 비서실 DB: `30a56b4978dc8153bac1dee5d04d6a74`
-- 에이전트 산출물 DB: `30a56b4978dc81ceaacaef3fc90a6fba`
+### UI 5개 이슈 수정 (이전 작업 — 빌드 #223)
+- 내부통신 토글 버튼 항상 표시 (messages.length 조건 제거)
+- 협업 흐름도 → 내부통신 탭으로 통합 (겹침 제거)
+- @멘션 드롭다운 불안정 해소 (커서 의존 → inputText.match)
+- 한국어 텍스트 font-mono 2건 제거
+
+### Notion DB 환경변수 연결 완료 (이전 작업 — 빌드 #221)
+- GitHub Secrets 등록: `NOTION_DB_SECRETARY` + `NOTION_DB_OUTPUT`
+- deploy.yml 환경변수 이름 불일치 수정
 
 ### 다음 세션에서 할 일
 1. **[보류] 리트마스터 홈페이지 자동배포 파이프라인 (C안)**
