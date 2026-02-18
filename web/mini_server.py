@@ -5868,9 +5868,10 @@ async def _call_agent(agent_id: str, text: str) -> dict:
                                 "agent_id": agent_id,
                                 "status": "working",
                                 "progress": round(tool_progress, 2),
-                                "detail": f"{tool_name} 도구 실행 중...",
+                                "detail": f"{tool_name} 실행 중...",
                                 "tool_calls": call_count,
                                 "max_calls": _MAX_TOOL_CALLS,
+                                "tool_name": tool_name,
                             },
                         })
                     except Exception:
