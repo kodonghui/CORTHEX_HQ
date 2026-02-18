@@ -179,6 +179,22 @@ CREATE TABLE IF NOT EXISTS async_tasks (
 
 CREATE INDEX IF NOT EXISTS idx_async_tasks_status ON async_tasks(status);
 CREATE INDEX IF NOT EXISTS idx_async_tasks_task_id ON async_tasks(task_id);
+
+-- 위임 로그 테이블: 에이전트 간 협업/위임 기록
+CREATE TABLE IF NOT EXISTS delegation_log (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    sender      TEXT NOT NULL,
+    receiver    TEXT NOT NULL,
+    message     TEXT NOT NULL,
+    task_id     TEXT,
+    log_type    TEXT DEFAULT 'delegation',
+    created_at  DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_delegation_log_sender ON delegation_log(sender);
+CREATE INDEX IF NOT EXISTS idx_delegation_log_receiver ON delegation_log(receiver);
+CREATE INDEX IF NOT EXISTS idx_delegation_log_task_id ON delegation_log(task_id);
+CREATE INDEX IF NOT EXISTS idx_delegation_log_created_at ON delegation_log(created_at);
 """
 
 
@@ -940,5 +956,56 @@ def get_agent_performance() -> list[dict]:
             }
             for r in rows
         ]
+    finally:
+        conn.close()
+
+
+# ── Delegation Log CRUD ──
+
+def save_delegation_log(sender: str, receiver: str, message: str,
+                        task_id: str = None,
+                        log_type: str = "delegation") -> int:
+    """에이전트 간 위임/협업 로그를 저장합니다. 반환: row id."""
+    conn = get_connection()
+    try:
+        cur = conn.execute(
+            "INSERT INTO delegation_log (sender, receiver, message, task_id, log_type) "
+            "VALUES (?, ?, ?, ?, ?)",
+            (sender, receiver, message, task_id, log_type),
+        )
+        conn.commit()
+        return cur.lastrowid
+    except sqlite3.OperationalError:
+        # delegation_log 테이블이 아직 없는 경우 (init_db 전)
+        return 0
+    finally:
+        conn.close()
+
+
+def list_delegation_logs(agent: str = None, limit: int = 100) -> list:
+    """위임 로그를 최근순으로 조회합니다.
+
+    agent 파라미터 지정 시 해당 에이전트가 sender 또는 receiver인 로그만 반환합니다.
+    """
+    conn = get_connection()
+    try:
+        if agent:
+            rows = conn.execute(
+                "SELECT id, sender, receiver, message, task_id, log_type, created_at "
+                "FROM delegation_log "
+                "WHERE sender = ? OR receiver = ? "
+                "ORDER BY created_at DESC LIMIT ?",
+                (agent, agent, limit),
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                "SELECT id, sender, receiver, message, task_id, log_type, created_at "
+                "FROM delegation_log "
+                "ORDER BY created_at DESC LIMIT ?",
+                (limit,),
+            ).fetchall()
+        return [dict(r) for r in rows]
+    except sqlite3.OperationalError:
+        return []
     finally:
         conn.close()
