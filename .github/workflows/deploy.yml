@@ -206,22 +206,25 @@ jobs:
               echo "✅ src/ 디렉토리 (도구 모듈) 배포 완료"
             fi
 
-            # 5단계: Python 의존성 설치 (venv에 직접 설치)
+            # 5단계: Python 의존성 설치 (requirements.txt 전체 설치)
             echo "📦 Python 패키지 설치 중..."
             VENV_PIP="/home/ubuntu/venv/bin/pip"
             VENV_PYTHON="/home/ubuntu/venv/bin/python3"
             if [ -x "$VENV_PIP" ]; then
               echo "📦 venv pip 사용: $VENV_PIP"
-              "$VENV_PIP" install python-telegram-bot anthropic google-genai openai pyyaml 2>&1
+              "$VENV_PIP" install -r /home/ubuntu/CORTHEX_HQ/requirements.txt 2>&1
             else
               echo "⚠️ venv pip 없음 — 시스템 pip 사용"
-              sudo python3 -m pip install --break-system-packages python-telegram-bot anthropic google-genai openai 2>&1 || true
+              sudo python3 -m pip install --break-system-packages -r /home/ubuntu/CORTHEX_HQ/requirements.txt 2>&1 || true
             fi
             # 설치 확인 (venv python으로 확인)
             "$VENV_PYTHON" -c "import telegram; print(f'✅ python-telegram-bot v{telegram.__version__} 설치됨')" 2>&1 || echo "❌ telegram 모듈 임포트 실패!"
             "$VENV_PYTHON" -c "import anthropic; print(f'✅ anthropic v{anthropic.__version__} 설치됨')" 2>&1 || echo "❌ anthropic 모듈 임포트 실패!"
             "$VENV_PYTHON" -c "from google import genai; print('✅ google-genai 설치됨')" 2>&1 || echo "❌ google-genai 모듈 임포트 실패!"
             "$VENV_PYTHON" -c "import openai; print(f'✅ openai v{openai.__version__} 설치됨')" 2>&1 || echo "❌ openai 모듈 임포트 실패!"
+            "$VENV_PYTHON" -c "import notion_client; print('✅ notion-client 설치됨')" 2>&1 || echo "❌ notion-client 임포트 실패!"
+            "$VENV_PYTHON" -c "import chromadb; print('✅ chromadb 설치됨')" 2>&1 || echo "❌ chromadb 임포트 실패!"
+            "$VENV_PYTHON" -c "import yt_dlp; print('✅ yt-dlp 설치됨')" 2>&1 || echo "❌ yt-dlp 임포트 실패!"
 
             # 5.5단계: YAML → JSON 변환 (venv Python 사용 — PyYAML이 venv에 설치됨)
             echo "🔄 설정 파일 JSON 변환 중..."
