@@ -37,12 +37,12 @@ class OpenAIProvider(LLMProvider):
     ) -> LLMResponse:
         logger.debug("OpenAI 호출: model=%s, msgs=%d", model, len(messages))
 
-        # reasoning_effort 모델(gpt-5.2, gpt-5.2-pro, o-시리즈)은
-        # max_completion_tokens를 사용해야 함. 일반 모델은 max_tokens 사용.
-        _uses_reasoning = reasoning_effort is not None or any(
-            tag in model for tag in ("5.2", "-o1", "-o3", "-o4")
+        # gpt-5 이상 및 o-시리즈 모델은 max_completion_tokens 사용.
+        # gpt-5-mini, gpt-5, gpt-5.2, gpt-5.2-pro, o1-*, o3-*, o4-*, o5-* 포함.
+        _uses_new_api = reasoning_effort is not None or any(
+            tag in model for tag in ("gpt-5", "o1-", "o3-", "o4-", "o5-")
         )
-        _max_tokens_key = "max_completion_tokens" if _uses_reasoning else "max_tokens"
+        _max_tokens_key = "max_completion_tokens" if _uses_new_api else "max_tokens"
 
         kwargs: dict = {
             "model": model,
