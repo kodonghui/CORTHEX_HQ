@@ -4945,6 +4945,12 @@ async def _start_telegram_bot() -> None:
                 "/health — 서버 상태\n"
                 "/status — 배치 진행 현황\n"
                 "/budget — 오늘 비용 / 한도 변경\n\n"
+                "*AI 명령*\n"
+                "/토론 \\[주제\\] — 임원 토론 (2라운드)\n"
+                "/심층토론 \\[주제\\] — 심층 임원 토론 (3라운드)\n"
+                "/전체 \\[메시지\\] — 29명 동시 지시\n"
+                "/순차 \\[작업\\] — 에이전트 릴레이 순차 협업\n"
+                "@에이전트명 \\[지시\\] — 특정 에이전트 직접 지시\n\n"
                 "*모드 전환*\n"
                 "/rt — 실시간 모드 (AI 즉시 답변)\n"
                 "/batch — 배치 모드\n\n"
@@ -4952,7 +4958,7 @@ async def _start_telegram_bot() -> None:
                 "/models — 전원 모델 변경 (3단계 버튼)\n"
                 "/pause — AI 처리 중단\n"
                 "/resume — AI 처리 재개\n\n"
-                "일반 메시지를 보내면 AI가 답변합니다.",
+                "일반 메시지를 보내면 AI가 자동 라우팅합니다.",
                 parse_mode="Markdown",
             )
 
@@ -5194,12 +5200,111 @@ async def _start_telegram_bot() -> None:
                     reply_markup=InlineKeyboardMarkup(buttons),
                 )
 
+        # ── 장기 실행 명령 공통 헬퍼 (토론/전체/순차 등 2~10분 소요 명령) ──
+        async def _tg_long_command(update_obj, task_text, target_agent_id=None):
+            """백그라운드로 실행하고 완료 시 텔레그램으로 결과 전송."""
+            chat_id = str(update_obj.effective_chat.id)
+            task = create_task(task_text, source="telegram")
+            cmd_name = task_text.split()[0]
+            await update_obj.message.reply_text(
+                f"⏳ *{cmd_name}* 시작 (#{task['task_id']})\n"
+                f"완료 시 결과를 보내드립니다. (2~10분 소요)",
+                parse_mode="Markdown",
+            )
+
+            async def _bg(t, tid, cid):
+                try:
+                    update_task(tid, status="running")
+                    result = await _process_ai_command(t, tid, target_agent_id=target_agent_id)
+                    content = result.get("content", result.get("error", "결과 없음"))
+                    cost = result.get("cost_usd", result.get("total_cost_usd", 0))
+                    if len(content) > 3900:
+                        content = content[:3900] + "\n\n... (결과가 잘렸습니다. 웹에서 전체 확인)"
+                    await _telegram_app.bot.send_message(
+                        chat_id=int(cid),
+                        text=f"{content}\n\n─────\n💰 ${cost:.4f}",
+                    )
+                except Exception as e:
+                    try:
+                        await _telegram_app.bot.send_message(chat_id=int(cid), text=f"❌ 오류: {e}")
+                    except Exception:
+                        pass
+
+            asyncio.create_task(_bg(task_text, task["task_id"], chat_id))
+
+        # ── /토론 [주제] — 임원 토론 (2라운드) ──
+        async def cmd_debate(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+            if not _is_tg_ceo(update):
+                return
+            topic = " ".join(context.args) if context.args else ""
+            if not topic:
+                await update.message.reply_text(
+                    "사용법: `/토론 [주제]`\n예: `/토론 AI가 인간의 일자리를 대체할까?`",
+                    parse_mode="Markdown",
+                )
+                return
+            await _tg_long_command(update, f"/토론 {topic}")
+
+        # ── /심층토론 [주제] — 심층 임원 토론 (3라운드) ──
+        async def cmd_deep_debate(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+            if not _is_tg_ceo(update):
+                return
+            topic = " ".join(context.args) if context.args else ""
+            if not topic:
+                await update.message.reply_text(
+                    "사용법: `/심층토론 [주제]`\n예: `/심층토론 CORTHEX 2026 전략 방향`",
+                    parse_mode="Markdown",
+                )
+                return
+            await _tg_long_command(update, f"/심층토론 {topic}")
+
+        # ── /전체 [메시지] — 29명 동시 브로드캐스트 ──
+        async def cmd_broadcast_all(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+            if not _is_tg_ceo(update):
+                return
+            message = " ".join(context.args) if context.args else "전체 출석 보고"
+            await _tg_long_command(update, f"/전체 {message}")
+
+        # ── /순차 [메시지] — 에이전트 릴레이 순차 협업 ──
+        async def cmd_sequential(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+            if not _is_tg_ceo(update):
+                return
+            message = " ".join(context.args) if context.args else ""
+            if not message:
+                await update.message.reply_text(
+                    "사용법: `/순차 [작업]`\n예: `/순차 CORTHEX 웹사이트 기술→보안→사업성 분석`",
+                    parse_mode="Markdown",
+                )
+                return
+            await _tg_long_command(update, f"/순차 {message}")
+
         async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             if not _is_tg_ceo(update):
                 return
             text = update.message.text.strip()
             if not text:
                 return
+
+            # @에이전트명 직접 지시 파싱 (예: "@cto_manager 기술 분석해줘")
+            tg_target_agent_id = None
+            if text.startswith("@"):
+                parts = text.split(None, 1)
+                if len(parts) >= 2:
+                    mention = parts[0][1:].lower()
+                    for a in AGENTS:
+                        aid = a.get("agent_id", "").lower()
+                        aname = a.get("name_ko", "")
+                        if aid == mention or aid.startswith(mention) or mention in aname:
+                            tg_target_agent_id = a["agent_id"]
+                            text = parts[1]
+                            break
+                    if not tg_target_agent_id:
+                        await update.message.reply_text(
+                            f"❌ `@{parts[0][1:]}` 에이전트를 찾을 수 없습니다.\n"
+                            f"/agents 로 에이전트 목록을 확인하세요.",
+                            parse_mode="Markdown",
+                        )
+                        return
 
             # 한국어 명령어 처리 (텔레그램 CommandHandler는 영어만 지원하므로 텍스트로 처리)
             if text in ("실시간", "/실시간"):
@@ -5240,7 +5345,7 @@ async def _start_telegram_bot() -> None:
                 update_task(task["task_id"], status="running")
                 await update.message.reply_text(f"⏳ 처리 중... (#{task['task_id']})")
 
-                result = await _process_ai_command(text, task["task_id"])
+                result = await _process_ai_command(text, task["task_id"], target_agent_id=tg_target_agent_id)
 
                 if "error" in result:
                     await update.message.reply_text(f"❌ {result['error']}")
@@ -5367,6 +5472,11 @@ async def _start_telegram_bot() -> None:
         _telegram_app.add_handler(CommandHandler("resume", cmd_resume))
         _telegram_app.add_handler(CommandHandler("models", cmd_models))
         _telegram_app.add_handler(CallbackQueryHandler(models_callback, pattern=r"^mdl_"))
+        # 신규: 주요 AI 명령 핸들러
+        _telegram_app.add_handler(CommandHandler("토론", cmd_debate))
+        _telegram_app.add_handler(CommandHandler("심층토론", cmd_deep_debate))
+        _telegram_app.add_handler(CommandHandler("전체", cmd_broadcast_all))
+        _telegram_app.add_handler(CommandHandler("순차", cmd_sequential))
         _telegram_app.add_handler(
             MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message)
         )
@@ -5377,6 +5487,10 @@ async def _start_telegram_bot() -> None:
             BotCommand("help", "사용법"),
             BotCommand("agents", "에이전트 목록"),
             BotCommand("health", "서버 상태"),
+            BotCommand("토론", "임원 토론 (2라운드)"),
+            BotCommand("심층토론", "심층 임원 토론 (3라운드)"),
+            BotCommand("전체", "29명 전체 에이전트 동시 지시"),
+            BotCommand("순차", "에이전트 릴레이 순차 작업"),
             BotCommand("rt", "실시간 모드"),
             BotCommand("batch", "배치 모드"),
             BotCommand("models", "전원 모델 변경"),
