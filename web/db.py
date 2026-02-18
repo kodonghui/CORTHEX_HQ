@@ -520,12 +520,24 @@ def toggle_bookmark(task_id: str) -> bool:
 
 # ── Dashboard Stats ──
 
+def _today_start_utc_iso() -> str:
+    """오늘 KST 자정을 UTC ISO 형식으로 반환합니다.
+
+    DB에 UTC ISO 형식(Z 접미사)으로 저장되는 값과 올바르게 비교하기 위해
+    KST 자정(00:00:00 KST)을 UTC로 변환합니다.
+    예: KST 2026-02-19 00:00:00 → UTC 2026-02-18 15:00:00 → "2026-02-18T15:00:00"
+    """
+    kst_midnight = _now_kst().replace(hour=0, minute=0, second=0, microsecond=0)
+    utc_midnight = kst_midnight.astimezone(timezone.utc)
+    return utc_midnight.strftime("%Y-%m-%dT%H:%M:%S")
+
+
 def get_dashboard_stats() -> dict:
     """대시보드 통계를 반환합니다."""
     conn = get_connection()
     try:
-        today = _now_kst().strftime("%Y-%m-%d")
-        today_start = f"{today}T00:00:00"
+        # KST 자정을 UTC로 변환하여 DB의 UTC ISO 타임스탬프와 올바르게 비교
+        today_start = _today_start_utc_iso()
 
         today_total = conn.execute(
             "SELECT COUNT(*) FROM tasks WHERE created_at >= ?", (today_start,)
@@ -722,11 +734,11 @@ def get_today_cost() -> float:
     """오늘(KST 기준) 사용한 총 AI 비용을 반환합니다 (USD).
 
     tasks 테이블과 agent_calls 테이블 양쪽의 비용을 합산합니다.
+    KST 자정을 UTC로 변환하여 DB의 UTC ISO 타임스탬프와 올바르게 비교합니다.
     """
     conn = get_connection()
     try:
-        today = _now_kst().strftime("%Y-%m-%d")
-        today_start = f"{today}T00:00:00"
+        today_start = _today_start_utc_iso()
         # tasks 테이블 비용
         task_row = conn.execute(
             "SELECT COALESCE(SUM(cost_usd), 0) FROM tasks WHERE created_at >= ?",

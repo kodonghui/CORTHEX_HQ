@@ -44,12 +44,23 @@ class OpenAIProvider(LLMProvider):
         )
         _max_tokens_key = "max_completion_tokens" if _uses_new_api else "max_tokens"
 
+        # reasoning 모델(gpt-5 계열, o1/o3/o4/o5 시리즈)은 temperature 파라미터 미지원.
+        # 해당 모델에 temperature를 전달하면 400 오류가 발생하므로 자동으로 제거.
+        _REASONING_MODELS = {"gpt-5-mini", "gpt-5", "gpt-5.2", "gpt-5.2-pro"}
+        _is_reasoning = (
+            model in _REASONING_MODELS
+            or model.startswith(("o1", "o3", "o4", "o5"))
+        )
+
         kwargs: dict = {
             "model": model,
             "messages": messages,
-            "temperature": temperature,
             _max_tokens_key: max_tokens,
         }
+
+        # reasoning 모델이 아닌 경우에만 temperature 추가
+        if not _is_reasoning:
+            kwargs["temperature"] = temperature
 
         # reasoning_effort 지원 (GPT-5.2, o-시리즈 등)
         if reasoning_effort:
