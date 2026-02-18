@@ -308,6 +308,22 @@ MODEL_REASONING_MAP: dict[str, str] = {
     "o4-mini":                 "medium",
 }
 
+# 모델별 최대 출력 토큰 한도 (공식 API 기준, 2026년 2월)
+MODEL_MAX_TOKENS_MAP: dict[str, int] = {
+    "claude-haiku-4-5":          64000,
+    "claude-haiku-4-5-20251001": 64000,
+    "claude-sonnet-4-6":         64000,
+    "claude-opus-4-6":           64000,
+    "gemini-3-pro-preview":      64000,
+    "gemini-2.5-pro":            65536,
+    "gpt-5.2":                   128000,
+    "gpt-5.2-pro":               128000,
+    "gpt-5":                     128000,
+    "gpt-5-mini":                32768,
+    "o3":                        100000,
+    "o4-mini":                   65536,
+}
+
 
 # ── 에이전트 목록 ──
 AGENTS = [
@@ -2031,7 +2047,7 @@ async def _chain_submit_specialists(chain: dict):
             "message": message,
             "system_prompt": soul,
             "model": model,
-            "max_tokens": 8192,
+            "max_tokens": MODEL_MAX_TOKENS_MAP.get(model, 32768),
         })
         chain["custom_id_map"][custom_id] = {"agent_id": spec_id, "step": "specialists"}
 
@@ -2096,7 +2112,7 @@ async def _chain_submit_specialists_broadcast(chain: dict):
                 "message": message,
                 "system_prompt": soul,
                 "model": model,
-                "max_tokens": 8192,
+                "max_tokens": MODEL_MAX_TOKENS_MAP.get(model, 32768),
             })
             chain["custom_id_map"][custom_id] = {"agent_id": spec_id, "step": "specialists"}
 
@@ -2172,7 +2188,7 @@ async def _chain_submit_synthesis(chain: dict):
                 "message": synthesis_prompt,
                 "system_prompt": soul,
                 "model": model,
-                "max_tokens": 8192,
+                "max_tokens": MODEL_MAX_TOKENS_MAP.get(model, 32768),
             })
             chain["custom_id_map"][custom_id] = {"agent_id": mgr_id, "step": "synthesis"}
 
@@ -2188,7 +2204,7 @@ async def _chain_submit_synthesis(chain: dict):
             "message": text,
             "system_prompt": soul,
             "model": model,
-            "max_tokens": 8192,
+            "max_tokens": MODEL_MAX_TOKENS_MAP.get(model, 32768),
         })
         chain["custom_id_map"][custom_id] = {"agent_id": "chief_of_staff", "step": "synthesis"}
 
@@ -2209,7 +2225,7 @@ async def _chain_submit_synthesis(chain: dict):
                 "message": text,
                 "system_prompt": soul,
                 "model": model,
-                "max_tokens": 8192,
+                "max_tokens": MODEL_MAX_TOKENS_MAP.get(model, 32768),
             })
             chain["custom_id_map"][custom_id] = {"agent_id": target_id, "step": "synthesis"}
         else:
@@ -2242,7 +2258,7 @@ async def _chain_submit_synthesis(chain: dict):
                 "message": synthesis_prompt,
                 "system_prompt": soul,
                 "model": model,
-                "max_tokens": 8192,
+                "max_tokens": MODEL_MAX_TOKENS_MAP.get(model, 32768),
             })
             chain["custom_id_map"][custom_id] = {"agent_id": target_id, "step": "synthesis"}
 
@@ -7505,7 +7521,7 @@ def _init_tool_pool():
                     pass
 
             async def complete(self, model_name="", messages=None,
-                             temperature=0.3, max_tokens=16384,
+                             temperature=0.3, max_tokens=32768,
                              agent_id="", reasoning_effort=None,
                              use_batch=False):
                 messages = messages or []
