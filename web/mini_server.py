@@ -265,6 +265,43 @@ def _save_config_file(name: str, data: dict) -> None:
     save_setting(f"config_{name}", data)
 
 
+def _sync_agent_defaults_to_db():
+    """agents.yaml의 model_name, reasoning_effort를 agent_overrides DB에 동기화.
+    이미 DB에 있는 에이전트는 보존, 없는 것만 채움."""
+    try:
+        # agents.yaml 로드
+        agents_config = _load_config("agents")
+        if not agents_config:
+            return
+        agents_list = agents_config.get("agents", [])
+
+        # 현재 agent_overrides DB 로드
+        overrides = _load_data("agent_overrides", {})
+        changed = False
+
+        for agent_data in agents_list:
+            agent_id = agent_data.get("agent_id")
+            if not agent_id:
+                continue
+            # 이미 overrides에 있으면 건드리지 않음 (사용자 설정 보존)
+            if agent_id in overrides:
+                continue
+            # agents.yaml 값으로 초기화
+            model_name = agent_data.get("model_name") or agent_data.get("model")
+            reasoning = agent_data.get("reasoning_effort") or agent_data.get("reasoning")
+            if model_name:
+                overrides[agent_id] = {"model_name": model_name}
+                if reasoning:
+                    overrides[agent_id]["reasoning_effort"] = reasoning
+                changed = True
+
+        if changed:
+            _save_data("agent_overrides", overrides)
+            logger.info("agent_overrides DB 초기화: agents.yaml 값 주입 완료")
+    except Exception as e:
+        logger.warning("agent_overrides 동기화 실패: %s", e)
+
+
 @app.get("/", response_class=HTMLResponse)
 async def index():
     html_path = os.path.join(TEMPLATE_DIR, "index.html")
@@ -7710,6 +7747,7 @@ async def get_tools_health():
 async def on_startup():
     """서버 시작 시 DB 초기화 + AI 클라이언트 + 텔레그램 봇 + 크론 엔진 + 도구 풀 시작."""
     init_db()
+    _sync_agent_defaults_to_db()
     _load_chief_prompt()
     ai_ok = init_ai_client()
     _log(f"[AI] 클라이언트 초기화: {'성공 ✅' if ai_ok else '실패 ❌ (ANTHROPIC_API_KEY 미설정?)'}")
