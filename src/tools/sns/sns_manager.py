@@ -18,13 +18,55 @@ from typing import Any, TYPE_CHECKING
 from src.tools.base import BaseTool
 from src.tools.sns.base_publisher import PostContent, PublishResult
 from src.tools.sns.oauth_manager import OAuthManager
-from src.tools.sns.tistory_publisher import TistoryPublisher
-from src.tools.sns.youtube_publisher import YouTubePublisher
-from src.tools.sns.instagram_publisher import InstagramPublisher
-from src.tools.sns.linkedin_publisher import LinkedInPublisher
-from src.tools.sns.naver_cafe_publisher import NaverCafePublisher
-from src.tools.sns.naver_blog_publisher import NaverBlogPublisher
-from src.tools.sns.daum_cafe_publisher import DaumCafePublisher
+
+try:
+    from src.tools.sns.tistory_publisher import TistoryPublisher
+    _TISTORY_AVAILABLE = True
+except ImportError:
+    TistoryPublisher = None
+    _TISTORY_AVAILABLE = False
+
+try:
+    from src.tools.sns.youtube_publisher import YouTubePublisher
+    _YOUTUBE_AVAILABLE = True
+except ImportError:
+    YouTubePublisher = None
+    _YOUTUBE_AVAILABLE = False
+
+try:
+    from src.tools.sns.instagram_publisher import InstagramPublisher
+    _INSTAGRAM_AVAILABLE = True
+except ImportError:
+    InstagramPublisher = None
+    _INSTAGRAM_AVAILABLE = False
+
+try:
+    from src.tools.sns.linkedin_publisher import LinkedInPublisher
+    _LINKEDIN_AVAILABLE = True
+except ImportError:
+    LinkedInPublisher = None
+    _LINKEDIN_AVAILABLE = False
+
+try:
+    from src.tools.sns.naver_cafe_publisher import NaverCafePublisher
+    _NAVER_CAFE_AVAILABLE = True
+except ImportError:
+    NaverCafePublisher = None
+    _NAVER_CAFE_AVAILABLE = False
+
+try:
+    from src.tools.sns.naver_blog_publisher import NaverBlogPublisher
+    _NAVER_BLOG_AVAILABLE = True
+except ImportError:
+    NaverBlogPublisher = None
+    _NAVER_BLOG_AVAILABLE = False
+
+try:
+    from src.tools.sns.daum_cafe_publisher import DaumCafePublisher
+    _DAUM_CAFE_AVAILABLE = True
+except ImportError:
+    DaumCafePublisher = None
+    _DAUM_CAFE_AVAILABLE = False
 
 if TYPE_CHECKING:
     from src.llm.router import ModelRouter
@@ -123,15 +165,21 @@ class SNSManager(BaseTool):
     def __init__(self, config: Any, model_router: ModelRouter) -> None:
         super().__init__(config, model_router)
         self.oauth = OAuthManager()
-        self._publishers = {
-            "tistory": TistoryPublisher(self.oauth),
-            "youtube": YouTubePublisher(self.oauth),
-            "instagram": InstagramPublisher(self.oauth),
-            "linkedin": LinkedInPublisher(self.oauth),
-            "naver_cafe": NaverCafePublisher(self.oauth),
-            "naver_blog": NaverBlogPublisher(self.oauth),
-            "daum_cafe": DaumCafePublisher(self.oauth),
-        }
+        self._publishers = {}
+        if TistoryPublisher is not None:
+            self._publishers["tistory"] = TistoryPublisher(self.oauth)
+        if YouTubePublisher is not None:
+            self._publishers["youtube"] = YouTubePublisher(self.oauth)
+        if InstagramPublisher is not None:
+            self._publishers["instagram"] = InstagramPublisher(self.oauth)
+        if LinkedInPublisher is not None:
+            self._publishers["linkedin"] = LinkedInPublisher(self.oauth)
+        if NaverCafePublisher is not None:
+            self._publishers["naver_cafe"] = NaverCafePublisher(self.oauth)
+        if NaverBlogPublisher is not None:
+            self._publishers["naver_blog"] = NaverBlogPublisher(self.oauth)
+        if DaumCafePublisher is not None:
+            self._publishers["daum_cafe"] = DaumCafePublisher(self.oauth)
         self._queue: list[SNSPublishRequest] = []
         self._load_queue()
 
