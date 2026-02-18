@@ -3994,6 +3994,51 @@
               </div>
             </div>
 
+            <!-- KIS 실계좌 잔고 (연결된 경우에만 표시) -->
+            <template x-if="(trading.summary.settings||{}).kis_connected && trading.summary.kis_balance && trading.summary.kis_balance.success">
+              <div class="glass border border-hq-green/30 rounded-xl p-4 mb-6">
+                <div class="flex items-center justify-between mb-3">
+                  <div class="flex items-center gap-2">
+                    <span class="text-xs font-bold text-hq-green">KIS 실계좌</span>
+                    <span class="text-[10px] px-2 py-0.5 rounded-full bg-hq-yellow/10 text-hq-yellow" x-text="(trading.summary.kis_balance||{}).mode || '모의투자'"></span>
+                  </div>
+                  <span class="text-[10px] text-hq-muted">한국투자증권</span>
+                </div>
+                <div class="grid grid-cols-3 gap-3">
+                  <div class="bg-hq-surface rounded-lg p-3">
+                    <div class="text-[10px] text-hq-muted mb-1">예수금(현금)</div>
+                    <div class="text-sm font-bold text-hq-cyan" x-text="((trading.summary.kis_balance||{}).cash||0).toLocaleString() + '원'"></div>
+                  </div>
+                  <div class="bg-hq-surface rounded-lg p-3">
+                    <div class="text-[10px] text-hq-muted mb-1">총 평가금액</div>
+                    <div class="text-sm font-bold text-hq-text" x-text="((trading.summary.kis_balance||{}).total_eval||0).toLocaleString() + '원'"></div>
+                  </div>
+                  <div class="bg-hq-surface rounded-lg p-3">
+                    <div class="text-[10px] text-hq-muted mb-1">보유 종목</div>
+                    <div class="text-sm font-bold text-hq-text" x-text="((trading.summary.kis_balance||{}).holdings||[]).length + '종목'"></div>
+                  </div>
+                </div>
+                <!-- 보유 종목 상세 (있는 경우만) -->
+                <template x-if="((trading.summary.kis_balance||{}).holdings||[]).length > 0">
+                  <div class="mt-3 space-y-1.5">
+                    <template x-for="h in (trading.summary.kis_balance.holdings||[]).slice(0,5)" :key="h.ticker">
+                      <div class="flex items-center justify-between bg-hq-surface rounded-lg px-3 py-2">
+                        <div>
+                          <span class="text-xs font-bold text-hq-text" x-text="h.name"></span>
+                          <span class="text-[10px] text-hq-muted ml-1" x-text="h.ticker + ' · ' + h.qty + '주'"></span>
+                        </div>
+                        <div class="text-right">
+                          <div class="text-xs text-hq-text" x-text="(h.current_price||0).toLocaleString() + '원'"></div>
+                          <div class="text-[10px]" :class="(h.eval_profit||0) >= 0 ? 'text-hq-green' : 'text-hq-red'"
+                               x-text="((h.eval_profit||0) >= 0 ? '+' : '') + (h.eval_profit||0).toLocaleString() + '원'"></div>
+                        </div>
+                      </div>
+                    </template>
+                  </div>
+                </template>
+              </div>
+            </template>
+
             <!-- 2단 레이아웃: 보유종목 + 최근거래 -->
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
               <!-- 보유 종목 -->
