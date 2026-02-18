@@ -4869,6 +4869,51 @@ async def delete_archive_api(division: str, filename: str):
     return {"success": True}
 
 
+@app.get("/api/archive/export-zip")
+async def export_archive_zip(division: str = None, tier: str = None, limit: int = 500):
+    """현재 필터 조건에 맞는 기밀문서를 ZIP으로 다운로드합니다."""
+    import zipfile, io, re
+    from db import list_archives as _list_archives
+
+    docs = _list_archives(division=division, limit=limit)
+
+    # tier 필터 (executive/specialist/staff)
+    def _get_tier(agent_id: str) -> str:
+        if not agent_id:
+            return "staff"
+        aid = agent_id.lower()
+        if any(x in aid for x in ["cto", "cfo", "cmo", "clo", "coo", "ceo", "chief"]):
+            return "executive"
+        if any(x in aid for x in ["manager", "lead", "head"]):
+            return "specialist"
+        return "staff"
+
+    if tier and tier != "all":
+        docs = [d for d in docs if _get_tier(d.get("agent_id", "")) == tier]
+
+    if not docs:
+        return JSONResponse({"error": "내보낼 문서가 없습니다"}, status_code=404)
+
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        for doc in docs:
+            raw_div = doc.get("division", "unknown")
+            safe_div = re.sub(r"[^\w\-]", "_", raw_div)
+            safe_fn = re.sub(r"[^\w\-\.]", "_", doc.get("filename", "report.md"))
+            zf.writestr(f"{safe_div}/{safe_fn}", doc.get("content", ""))
+
+    buf.seek(0)
+    from fastapi.responses import StreamingResponse
+    from datetime import datetime
+    date_str = datetime.now().strftime("%Y%m%d")
+    zip_name = f"corthex-archive-{date_str}.zip"
+    return StreamingResponse(
+        buf,
+        media_type="application/zip",
+        headers={"Content-Disposition": f'attachment; filename="{zip_name}"'},
+    )
+
+
 # ── 진단 API (텔레그램 봇 디버깅용) ──
 @app.get("/api/telegram-status")
 async def telegram_status():
