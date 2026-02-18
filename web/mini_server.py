@@ -3390,6 +3390,18 @@ async def get_trading_summary():
     signals = _load_data("trading_signals", [])
     settings = _load_data("trading_settings", _default_trading_settings())
 
+    # KIS 연결 상태 — DB 설정값 무시하고 실시간으로 확인
+    settings["kis_connected"] = bool(_KIS_AVAILABLE and _kis_configured())
+
+    # KIS 실계좌 잔고 조회 (연결된 경우에만)
+    kis_balance = None
+    if settings["kis_connected"]:
+        try:
+            kis_balance = await _kis_balance()
+        except Exception as e:
+            logger.warning("[KIS] summary 잔고 조회 실패: %s", e)
+            kis_balance = None
+
     # 포트폴리오 평가 계산
     holdings = portfolio.get("holdings", [])
     total_eval = sum(h.get("current_price", 0) * h.get("qty", 0) for h in holdings)
@@ -3428,6 +3440,7 @@ async def get_trading_summary():
         "signals_count": len(signals),
         "settings": settings,
         "bot_active": _trading_bot_active,
+        "kis_balance": kis_balance,
     }
 
 
