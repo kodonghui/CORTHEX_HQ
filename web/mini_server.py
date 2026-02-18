@@ -3892,22 +3892,48 @@ def _is_market_open(settings: dict) -> tuple[bool, str]:
     return False, ""
 
 
+def _next_trading_run_time():
+    """다음 실행 시각 계산 (09:10 또는 14:50 KST).
+
+    오늘 두 시각(09:10, 14:50) 중 아직 지나지 않은 가장 빠른 시각을 반환.
+    두 시각 모두 지났으면 내일 09:10을 반환.
+    """
+    now = datetime.now(KST)
+    today = now.date()
+    run_times = [
+        datetime(today.year, today.month, today.day, 9, 10, tzinfo=KST),
+        datetime(today.year, today.month, today.day, 14, 50, tzinfo=KST),
+    ]
+    for t in run_times:
+        if t > now:
+            return t
+    # 오늘 두 시각 모두 지났으면 내일 09:10
+    tomorrow = today + timedelta(days=1)
+    return datetime(tomorrow.year, tomorrow.month, tomorrow.day, 9, 10, tzinfo=KST)
+
+
 async def _trading_bot_loop():
     """자동매매 봇 루프 — CIO(투자분석처장) + 4명 전문가가 분석 → 자동 매매.
 
     흐름:
-    1. 5분마다 장 시간 체크 (한국 09:00~15:20, 미국 22:30~05:00 KST)
+    1. 하루 2회 정해진 시각에 실행 (09:10 KST, 14:50 KST)
     2. 관심종목이 있으면 CIO 팀에게 분석 위임
     3. CIO가 4명 전문가 결과를 취합하여 매수/매도/관망 판단
     4. 신뢰도 70% 이상 시그널만 자동 주문 실행 (auto_execute=True일 때만)
     5. 모의투자 모드(paper_trading=True)에서는 가상 포트폴리오만 업데이트
     """
     logger = logging.getLogger("corthex.trading")
-    logger.info("자동매매 봇 루프 시작 (CIO 연동)")
+    logger.info("자동매매 봇 루프 시작 (CIO 연동 — 하루 2회: 09:10 + 14:50 KST)")
 
     while _trading_bot_active:
         try:
-            await asyncio.sleep(300)  # 5분마다 체크
+            next_run = _next_trading_run_time()
+            now = datetime.now(KST)
+            sleep_seconds = (next_run - now).total_seconds()
+            logger.info("[TRADING BOT] 다음 실행 예약: %s (약 %.0f초 후)",
+                        next_run.strftime("%Y-%m-%d %H:%M KST"), sleep_seconds)
+            if sleep_seconds > 0:
+                await asyncio.sleep(sleep_seconds)
             if not _trading_bot_active:
                 break
 
