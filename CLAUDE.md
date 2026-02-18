@@ -54,6 +54,9 @@
   - 예: "feat: 로그인 기능 추가 [완료]"
   - [완료]가 있어야 자동 머지가 작동함. 없으면 PR만 만들고 머지는 안 함
 - 브랜치명은 반드시 claude/ 로 시작할 것 (자동 머지 트리거 조건)
+- **매 작업(세션) 시작 시 반드시 새 브랜치를 만들 것.** 기존 브랜치에 무관한 작업을 추가하지 말 것
+  - 브랜치 이름은 작업 내용이 담기도록 (예: claude/soul-upgrade-cio, claude/fix-login-bug)
+  - 새 브랜치는 항상 최신 main(origin/main)에서 만들 것: `git checkout -b claude/작업명 origin/main`
 - 브랜치 작업 후 main에 합치는 것까지 완료해야 "작업 끝"으로 간주
 
 ## UI/UX 규칙
