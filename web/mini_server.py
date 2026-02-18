@@ -4717,6 +4717,48 @@ async def get_activity_logs(limit: int = 50, agent_id: str = None):
     return logs
 
 
+# ── 협업 로그 API ──
+
+@app.get("/api/delegation-log")
+async def get_delegation_log(agent: str = None, limit: int = 100):
+    """에이전트 간 위임/협업 로그를 조회합니다.
+
+    ?agent=비서실장 처럼 쿼리 파라미터를 지정하면 해당 에이전트 관련 로그만 반환합니다.
+    """
+    try:
+        from db import list_delegation_logs
+        logs = list_delegation_logs(agent=agent, limit=limit)
+        return logs
+    except Exception as e:
+        return []
+
+
+@app.post("/api/delegation-log")
+async def post_delegation_log(request: Request):
+    """에이전트 간 위임/협업 로그를 저장합니다.
+
+    body: {sender, receiver, message, task_id?, log_type?}
+    """
+    try:
+        from db import save_delegation_log
+        body = await request.json()
+        sender = body.get("sender", "")
+        receiver = body.get("receiver", "")
+        message = body.get("message", "")
+        if not sender or not receiver or not message:
+            return {"success": False, "error": "sender, receiver, message는 필수입니다."}
+        row_id = save_delegation_log(
+            sender=sender,
+            receiver=receiver,
+            message=message,
+            task_id=body.get("task_id"),
+            log_type=body.get("log_type", "delegation"),
+        )
+        return {"success": True, "id": row_id}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
 # ── 아카이브 API ──
 @app.delete("/api/archive/all")
 async def delete_all_archives_api():
@@ -5619,12 +5661,35 @@ async def _call_agent(agent_id: str, text: str) -> dict:
         if schemas.get("anthropic"):
             tool_schemas = schemas["anthropic"]  # ask_ai 내부에서 프로바이더별 변환
 
+            _MAX_TOOL_CALLS = 5  # 무한 루프 방지 최대 도구 호출 횟수
+
             async def _tool_executor(tool_name: str, tool_input: dict):
                 """ToolPool을 통해 도구를 실행합니다."""
                 tools_used.append(tool_name)
+                call_count = len(tools_used)
+                # 도구 호출 횟수 기반 진행률 계산 (1회=20%, 2회=40%, ..., 5회=100%)
+                tool_progress = min(call_count / _MAX_TOOL_CALLS, 1.0)
+                tool_progress_pct = int(tool_progress * 100)
+
+                # 도구 호출 횟수 포함 agent_status 이벤트 발송
+                for _c in connected_clients[:]:
+                    try:
+                        await _c.send_json({
+                            "event": "agent_status",
+                            "data": {
+                                "agent_id": agent_id,
+                                "status": "working",
+                                "progress": round(tool_progress, 2),
+                                "detail": f"{tool_name} 도구 실행 중...",
+                                "tool_calls": call_count,
+                                "max_calls": _MAX_TOOL_CALLS,
+                            },
+                        })
+                    except Exception:
+                        pass
+
                 pool = _init_tool_pool()
                 if pool and hasattr(pool, '_tools') and tool_name in pool._tools:
-                    await _broadcast_status(agent_id, "working", 0.5, f"🔧 {tool_name} 도구 실행 중...")
                     tool_obj = pool._tools[tool_name]
                     # 도구의 execute 메서드 호출
                     if asyncio.iscoroutinefunction(getattr(tool_obj, 'execute', None)):
@@ -5729,10 +5794,26 @@ async def _delegate_to_specialists(manager_id: str, text: str) -> list[dict]:
     """처장이 소속 전문가들에게 병렬로 위임합니다.
 
     asyncio.gather로 전문가들을 동시에 호출 → 상태 표시등 전부 깜빡임.
+    위임 발생 시 delegation_log에 자동 기록합니다.
     """
     specialists = _MANAGER_SPECIALISTS.get(manager_id, [])
     if not specialists:
         return []
+
+    # 위임 로그 자동 기록
+    try:
+        from db import save_delegation_log
+        mgr_name = _AGENT_NAMES.get(manager_id, manager_id)
+        for spec_id in specialists:
+            spec_name = _SPECIALIST_NAMES.get(spec_id, spec_id)
+            save_delegation_log(
+                sender=mgr_name,
+                receiver=spec_name,
+                message=text[:500],
+                log_type="delegation",
+            )
+    except Exception:
+        pass
 
     tasks = [_call_agent(spec_id, text) for spec_id in specialists]
     results = await asyncio.gather(*tasks, return_exceptions=True)
@@ -5743,6 +5824,20 @@ async def _delegate_to_specialists(manager_id: str, text: str) -> list[dict]:
         if isinstance(r, Exception):
             processed.append({"agent_id": spec_id, "name": _SPECIALIST_NAMES.get(spec_id, spec_id), "error": str(r)[:100], "cost_usd": 0})
         else:
+            # 전문가 결과 보고 로그 자동 기록
+            try:
+                from db import save_delegation_log
+                spec_name = _SPECIALIST_NAMES.get(spec_id, spec_id)
+                mgr_name = _AGENT_NAMES.get(manager_id, manager_id)
+                content_preview = r.get("content", "")[:300] if isinstance(r, dict) else str(r)[:300]
+                save_delegation_log(
+                    sender=spec_name,
+                    receiver=mgr_name,
+                    message=content_preview,
+                    log_type="report",
+                )
+            except Exception:
+                pass
             processed.append(r)
     return processed
 
