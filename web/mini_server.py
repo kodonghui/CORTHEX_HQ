@@ -5390,8 +5390,57 @@ async def get_sns_oauth_status():
 
 @app.get("/api/sns/auth/{platform}")
 async def sns_auth(platform: str):
-    """SNS 플랫폼 인증 (미구현 — OAuth 설정 필요)."""
-    return {"success": False, "error": f"{platform} OAuth 연동이 아직 설정되지 않았습니다. API 키를 등록해주세요."}
+    """플랫폼별 OAuth 인증 URL을 반환합니다."""
+    try:
+        from src.tools.sns.oauth_manager import OAuthManager
+        oauth = OAuthManager()
+        url = oauth.get_auth_url(platform)
+        if url:
+            return {"success": True, "url": url, "platform": platform}
+        else:
+            return {"success": False, "error": f"{platform} OAuth 설정이 없습니다."}
+    except ValueError as e:
+        return {"success": False, "error": str(e)}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+@app.get("/api/sns/oauth/callback/{platform}")
+async def sns_oauth_callback(platform: str, code: str = "", state: str = "", request: Request = None):
+    """OAuth 인증 코드를 받아서 토큰으로 교환 후 저장합니다."""
+    if not code:
+        return HTMLResponse(f"""
+            <html><body style="font-family:sans-serif;text-align:center;padding:50px">
+            <h2>&#10060; {platform} 인증 실패</h2>
+            <p>인증 코드가 전달되지 않았습니다.</p>
+            </body></html>
+        """)
+    try:
+        from src.tools.sns.oauth_manager import OAuthManager
+        oauth = OAuthManager()
+        token = await oauth.exchange_code(platform, code)
+        if token:
+            return HTMLResponse(f"""
+                <html><body style="font-family:sans-serif;text-align:center;padding:50px">
+                <h2>&#9989; {platform} 인증 완료!</h2>
+                <p>이 창을 닫으셔도 됩니다.</p>
+                <script>setTimeout(()=>window.close(),3000)</script>
+                </body></html>
+            """)
+        else:
+            return HTMLResponse(f"""
+                <html><body style="font-family:sans-serif;text-align:center;padding:50px">
+                <h2>&#10060; {platform} 인증 실패</h2>
+                <p>토큰 교환에 실패했습니다.</p>
+                </body></html>
+            """)
+    except Exception as e:
+        return HTMLResponse(f"""
+            <html><body style="font-family:sans-serif;text-align:center;padding:50px">
+            <h2>&#10060; 오류 발생</h2>
+            <p>{str(e)}</p>
+            </body></html>
+        """)
 
 
 @app.post("/api/sns/instagram/photo")

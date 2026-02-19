@@ -41,13 +41,6 @@ except ImportError:
     _INSTAGRAM_AVAILABLE = False
 
 try:
-    from src.tools.sns.linkedin_publisher import LinkedInPublisher
-    _LINKEDIN_AVAILABLE = True
-except ImportError:
-    LinkedInPublisher = None
-    _LINKEDIN_AVAILABLE = False
-
-try:
     from src.tools.sns.naver_cafe_publisher import NaverCafePublisher
     _NAVER_CAFE_AVAILABLE = True
 except ImportError:
@@ -172,8 +165,6 @@ class SNSManager(BaseTool):
             self._publishers["youtube"] = YouTubePublisher(self.oauth)
         if InstagramPublisher is not None:
             self._publishers["instagram"] = InstagramPublisher(self.oauth)
-        if LinkedInPublisher is not None:
-            self._publishers["linkedin"] = LinkedInPublisher(self.oauth)
         if NaverCafePublisher is not None:
             self._publishers["naver_cafe"] = NaverCafePublisher(self.oauth)
         if NaverBlogPublisher is not None:

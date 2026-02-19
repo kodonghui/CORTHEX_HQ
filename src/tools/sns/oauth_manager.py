@@ -147,15 +147,8 @@ PLATFORM_CONFIG: dict[str, dict[str, str]] = {
         "env_client_id": "INSTAGRAM_APP_ID",
         "env_client_secret": "INSTAGRAM_APP_SECRET",
         "env_redirect_uri": "INSTAGRAM_REDIRECT_URI",
+        "env_access_token": "INSTAGRAM_ACCESS_TOKEN",  # GitHub Secrets에 등록된 장기 토큰 fallback
         "scope": "instagram_basic,instagram_content_publish",
-    },
-    "linkedin": {
-        "auth_url": "https://www.linkedin.com/oauth/v2/authorization",
-        "token_url": "https://www.linkedin.com/oauth/v2/accessToken",
-        "env_client_id": "LINKEDIN_CLIENT_ID",
-        "env_client_secret": "LINKEDIN_CLIENT_SECRET",
-        "env_redirect_uri": "LINKEDIN_REDIRECT_URI",
-        "scope": "openid profile w_member_social",
     },
     "naver_cafe": {
         "auth_url": "https://nid.naver.com/oauth2.0/authorize",
@@ -213,7 +206,17 @@ class OAuthManager:
     # ── 토큰 조회/저장 ──
 
     def get_token(self, platform: str) -> OAuthToken | None:
-        return self._tokens.get(platform)
+        token = self._tokens.get(platform)
+        # DB에 토큰이 없으면 환경변수 fallback 체크 (Instagram: INSTAGRAM_ACCESS_TOKEN)
+        if token is None:
+            cfg = PLATFORM_CONFIG.get(platform, {})
+            env_key = cfg.get("env_access_token", "")
+            if env_key:
+                env_token = os.getenv(env_key, "")
+                if env_token:
+                    logger.info("[%s] DB 토큰 없음 → 환경변수 %s 사용", platform, env_key)
+                    token = OAuthToken(platform=platform, access_token=env_token)
+        return token
 
     def set_token(self, token: OAuthToken) -> None:
         self._tokens[token.platform] = token
