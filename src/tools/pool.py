@@ -67,6 +67,8 @@ class ToolPool:
             "precedent_analyzer": "src.tools.precedent_analyzer.PrecedentAnalyzerTool",
             "trademark_similarity": "src.tools.trademark_similarity.TrademarkSimilarityTool",
             "contract_reviewer": "src.tools.contract_reviewer.ContractReviewerTool",
+            "nda_analyzer": "src.tools.nda_analyzer.NdaAnalyzerTool",
+            "license_scanner": "src.tools.license_scanner.LicenseScannerTool",
             "ip_portfolio_manager": "src.tools.ip_portfolio_manager.IPPortfolioManagerTool",
             "ai_governance_checker": "src.tools.ai_governance_checker.AIGovernanceCheckerTool",
             "law_change_monitor": "src.tools.law_change_monitor.LawChangeMonitorTool",
