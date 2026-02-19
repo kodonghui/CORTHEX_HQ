@@ -3980,7 +3980,7 @@
 
           <!-- 서브 탭 -->
           <div class="flex gap-2 mb-6">
-            <template x-for="tab in [{id:'dashboard',l:'대시보드'},{id:'portfolio',l:'포트폴리오'},{id:'strategies',l:'매매 전략'},{id:'watchlist',l:'관심종목'},{id:'history',l:'거래내역'},{id:'signals',l:'시그널'},{id:'shadow',l:'실거래/모의 비교'}]" :key="tab.id">
+            <template x-for="tab in [{id:'dashboard',l:'대시보드'},{id:'portfolio',l:'포트폴리오'},{id:'strategies',l:'매매 전략'},{id:'watchlist',l:'관심종목'},{id:'history',l:'거래내역'},{id:'signals',l:'시그널'},{id:'performance',l:'CIO 성과'},{id:'shadow',l:'실거래/모의 비교'}]" :key="tab.id">
               <button @click="trading.tab = tab.id" :class="trading.tab === tab.id ? 'bg-hq-accent/20 text-hq-accent border-hq-accent/30' : 'text-hq-muted border-transparent hover:text-hq-text'" class="px-3 py-1.5 text-xs font-semibold rounded-lg border transition" x-text="tab.l"></button>
             </template>
           </div>
@@ -3991,6 +3991,10 @@
 
           <!-- ▸ 서브탭 1: 대시보드 -->
           <div x-show="trading.tab === 'dashboard' && !trading.loading">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+
+            <!-- ═══ 좌측: CIO 영역 ═══ -->
+            <div>
 
             <!-- CIO 자동매매 배너 (최상단) -->
             <div class="glass border rounded-xl p-4 mb-4 flex items-center justify-between"
@@ -4024,6 +4028,25 @@
                         x-text="trading.botActive ? '중지' : '시작'"></button>
               </div>
             </div>
+
+            <!-- CIO 시그널 요약 (최근 3개) -->
+            <div class="space-y-2 mt-3">
+              <template x-for="sig in (trading.signals || []).slice(0,3)" :key="sig.ticker">
+                <div class="glass border border-hq-border/50 rounded-lg p-3 flex items-center justify-between">
+                  <span class="text-xs font-bold text-hq-text" x-text="sig.ticker"></span>
+                  <span class="text-xs px-2 py-0.5 rounded font-bold"
+                        :class="sig.action === 'BUY' ? 'bg-hq-green/20 text-hq-green' : sig.action === 'SELL' ? 'bg-hq-red/20 text-hq-red' : 'bg-hq-muted/20 text-hq-muted'"
+                        x-text="sig.action === 'BUY' ? '매수' : sig.action === 'SELL' ? '매도' : '관망'"></span>
+                  <span class="text-xs text-hq-muted font-mono" x-text="(sig.confidence || 0) + '%'"></span>
+                </div>
+              </template>
+              <div x-show="!trading.signals || trading.signals.length === 0" class="text-xs text-hq-muted text-center py-4">아직 시그널 없음</div>
+            </div>
+
+            </div><!-- /좌측: CIO 영역 -->
+
+            <!-- ═══ 우측: 계좌 현황 ═══ -->
+            <div>
 
             <!-- 코크핏: 실거래/모의 2열 미니카드 + 슬리피지 -->
             <div class="grid grid-cols-2 gap-3 mb-3" x-data="{
@@ -4228,6 +4251,9 @@
             </div>
 
             </div><!-- /코크핏 상세 현황 -->
+
+            </div><!-- /우측: 계좌 현황 -->
+            </div><!-- /grid 좌우 2열 -->
 
           </div>
 
@@ -4566,6 +4592,112 @@
                   </details>
                 </div>
               </template>
+            </div>
+          </div>
+
+          <!-- ▸ 서브탭: CIO 성과 -->
+          <div x-show="trading.tab === 'performance' && !trading.loading"
+               x-data="{
+                 perfData: null,
+                 predictions: [],
+                 loading: false,
+                 async load() {
+                   this.loading = true;
+                   try {
+                     const [p, s] = await Promise.all([
+                       fetch('/api/cio/predictions?limit=20').then(r=>r.json()),
+                       fetch('/api/cio/performance-summary').then(r=>r.json())
+                     ]);
+                     this.predictions = p.predictions || [];
+                     this.perfData = s;
+                   } catch(e) { console.error(e); }
+                   this.loading = false;
+                 }
+               }"
+               x-init="load()">
+
+            <!-- 정확도 요약 카드 -->
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+              <div class="glass border border-hq-border rounded-xl p-4 text-center">
+                <p class="text-[10px] text-hq-muted mb-1">전체 예측</p>
+                <p class="text-2xl font-bold text-hq-text" x-text="perfData ? (perfData.total_predictions || 0) : '-'"></p>
+              </div>
+              <div class="glass border border-hq-green/30 rounded-xl p-4 text-center">
+                <p class="text-[10px] text-hq-muted mb-1">3일 정확도</p>
+                <p class="text-2xl font-bold text-hq-green" x-text="perfData ? ((perfData.accuracy_3d || 0).toFixed(1) + '%') : '-'"></p>
+              </div>
+              <div class="glass border border-hq-cyan/30 rounded-xl p-4 text-center">
+                <p class="text-[10px] text-hq-muted mb-1">7일 정확도</p>
+                <p class="text-2xl font-bold text-hq-cyan" x-text="perfData ? ((perfData.accuracy_7d || 0).toFixed(1) + '%') : '-'"></p>
+              </div>
+              <div class="glass border border-hq-yellow/30 rounded-xl p-4 text-center">
+                <p class="text-[10px] text-hq-muted mb-1">검증 대기</p>
+                <p class="text-2xl font-bold text-hq-yellow" x-text="perfData ? (perfData.pending_count || 0) : '-'"></p>
+              </div>
+            </div>
+
+            <!-- 예측 히스토리 테이블 -->
+            <div class="glass border border-hq-border rounded-xl overflow-hidden">
+              <div class="px-4 py-3 border-b border-hq-border flex items-center justify-between">
+                <h3 class="text-sm font-bold text-hq-text">예측 히스토리</h3>
+                <button @click="load()" class="text-xs text-hq-accent hover:text-hq-text transition">새로고침</button>
+              </div>
+
+              <div x-show="loading" class="text-center py-8 text-hq-muted text-sm">로딩 중...</div>
+              <div x-show="!loading && predictions.length === 0" class="text-center py-8 text-hq-muted text-sm">
+                아직 예측 데이터 없음<br>
+                <span class="text-xs">CIO가 분석을 실행하면 자동으로 기록됩니다</span>
+              </div>
+
+              <div x-show="!loading && predictions.length > 0" class="overflow-x-auto">
+                <table class="w-full text-xs">
+                  <thead>
+                    <tr class="border-b border-hq-border">
+                      <th class="text-left px-4 py-2 text-hq-muted font-medium">날짜</th>
+                      <th class="text-left px-4 py-2 text-hq-muted font-medium">종목</th>
+                      <th class="text-left px-4 py-2 text-hq-muted font-medium">예측</th>
+                      <th class="text-right px-4 py-2 text-hq-muted font-medium">예측가</th>
+                      <th class="text-center px-4 py-2 text-hq-muted font-medium">3일</th>
+                      <th class="text-center px-4 py-2 text-hq-muted font-medium">7일</th>
+                      <th class="text-left px-4 py-2 text-hq-muted font-medium">신뢰도</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <template x-for="pred in predictions" :key="pred.id">
+                      <tr class="border-b border-hq-border/30 hover:bg-hq-surface/50">
+                        <td class="px-4 py-2 text-hq-muted font-mono" x-text="pred.created_at ? pred.created_at.slice(0,10) : '-'"></td>
+                        <td class="px-4 py-2 font-bold text-hq-text" x-text="pred.ticker || '-'"></td>
+                        <td class="px-4 py-2">
+                          <span class="px-2 py-0.5 rounded font-bold"
+                                :class="pred.direction === 'UP' ? 'bg-hq-green/20 text-hq-green' : 'bg-hq-red/20 text-hq-red'"
+                                x-text="pred.direction === 'UP' ? '상승' : '하락'"></span>
+                        </td>
+                        <td class="px-4 py-2 text-right font-mono text-hq-text" x-text="pred.predicted_price ? pred.predicted_price.toLocaleString() + '원' : '-'"></td>
+                        <td class="px-4 py-2 text-center">
+                          <span x-show="pred.correct_3d !== null"
+                                :class="pred.correct_3d ? 'text-hq-green' : 'text-hq-red'"
+                                x-text="pred.correct_3d ? '✓' : '✗'"></span>
+                          <span x-show="pred.correct_3d === null" class="text-hq-muted">대기</span>
+                        </td>
+                        <td class="px-4 py-2 text-center">
+                          <span x-show="pred.correct_7d !== null"
+                                :class="pred.correct_7d ? 'text-hq-green' : 'text-hq-red'"
+                                x-text="pred.correct_7d ? '✓' : '✗'"></span>
+                          <span x-show="pred.correct_7d === null" class="text-hq-muted">대기</span>
+                        </td>
+                        <td class="px-4 py-2">
+                          <div class="flex items-center gap-2">
+                            <div class="flex-1 h-1.5 bg-hq-surface rounded-full overflow-hidden">
+                              <div class="h-full bg-hq-accent rounded-full" :style="`width: ${pred.confidence || 0}%`"></div>
+                            </div>
+                            <span class="text-hq-muted font-mono" x-text="(pred.confidence || 0) + '%'"></span>
+                          </div>
+                        </td>
+                      </tr>
+                    </template>
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
 
@@ -5041,7 +5173,7 @@
             <label class="flex items-center gap-2 text-xs text-hq-text cursor-pointer">
               <input type="checkbox" x-model="trading.settings.enable_real" class="rounded accent-green-500">
               <span class="text-hq-green font-semibold">실거래 계좌에 주문</span>
-              <span class="text-hq-muted/60 text-[10px]">KIS 44049763</span>
+              <span class="text-hq-muted/60 text-[10px]">KIS 50168576</span>
             </label>
             <label class="flex items-center gap-2 text-xs text-hq-text cursor-pointer">
               <input type="checkbox" x-model="trading.settings.enable_mock" class="rounded accent-purple-500">

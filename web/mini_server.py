@@ -2981,6 +2981,9 @@ async def _cio_prediction_verifier():
                 from db import get_pending_verifications, update_cio_prediction_result
                 from kis_client import get_current_price
 
+                verified_count = 0
+                verified_results = []
+
                 for days in [3, 7]:
                     pending = get_pending_verifications(days_threshold=days)
                     for p in pending:
@@ -2988,6 +2991,13 @@ async def _cio_prediction_verifier():
                             price = await get_current_price(p["ticker"])
                             if days == 3:
                                 update_cio_prediction_result(p["id"], actual_price_3d=price)
+                                predicted = p.get("predicted_price_3d") or p.get("predicted_price")
+                                correct = bool(predicted and (
+                                    (p.get("direction") == "상승" and price >= predicted) or
+                                    (p.get("direction") == "하락" and price <= predicted)
+                                ))
+                                verified_results.append({"correct_3d": correct, "ticker": p["ticker"]})
+                                verified_count += 1
                             else:
                                 update_cio_prediction_result(p["id"], actual_price_7d=price)
                             _logger_v.info("[CIO검증] %s %d일 검증 완료: %d원", p["ticker"], days, price)
@@ -2995,6 +3005,26 @@ async def _cio_prediction_verifier():
                             _logger_v.warning("[CIO검증] %s 주가 조회 실패: %s", p["ticker"], e)
 
                 save_activity_log("system", "✅ CIO 예측 사후검증 완료", "info")
+
+                # 검증 완료 후 텔레그램 알림
+                if verified_count > 0:
+                    try:
+                        ceo_id = os.getenv("TELEGRAM_CEO_CHAT_ID", "")
+                        if _telegram_app and ceo_id:
+                            correct_count = sum(1 for r in verified_results if r.get("correct_3d"))
+                            accuracy = round(correct_count / verified_count * 100) if verified_count > 0 else 0
+                            msg = (
+                                f"📊 CIO 자기학습 검증 완료\n"
+                                f"오늘 검증: {verified_count}건\n"
+                                f"3일 정확도: {accuracy}% ({correct_count}/{verified_count})"
+                            )
+                            await _telegram_app.bot.send_message(
+                                chat_id=int(ceo_id),
+                                text=msg,
+                            )
+                    except Exception as te:
+                        _logger_v.warning("[CIO검증] 텔레그램 알림 실패: %s", te)
+
             except ImportError as e:
                 _logger_v.warning("[CIO검증] 필요 함수 미구현 — 스킵: %s", e)
         except Exception as e:
@@ -4915,6 +4945,31 @@ async def reset_trading_portfolio(request: Request):
     _save_data("trading_signals", [])
     save_activity_log("system", f"🔄 모의투자 리셋: 초기 자금 {initial_cash:,.0f}원", "info")
     return {"success": True, "portfolio": portfolio}
+
+
+# ── CIO 예측 히스토리 ──
+
+@app.get("/api/cio/predictions")
+async def get_cio_predictions(limit: int = 20, unverified_only: bool = False):
+    """CIO 예측 히스토리 조회"""
+    try:
+        from db import load_cio_predictions
+        predictions = load_cio_predictions(limit=limit, unverified_only=unverified_only)
+        return {"predictions": predictions}
+    except Exception as e:
+        logger.error(f"[CIO] 예측 조회 실패: {e}")
+        return {"predictions": [], "error": str(e)}
+
+@app.get("/api/cio/performance-summary")
+async def get_cio_performance_summary():
+    """CIO 예측 성과 요약"""
+    try:
+        from db import get_cio_performance_summary
+        summary = get_cio_performance_summary()
+        return summary
+    except Exception as e:
+        logger.error(f"[CIO] 성과 조회 실패: {e}")
+        return {"total_predictions": 0, "accuracy_3d": 0, "accuracy_7d": 0, "pending_count": 0}
 
 
 # ── 지식파일 관리 ──
