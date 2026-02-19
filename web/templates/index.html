@@ -3998,14 +3998,15 @@
                 </div>
               </div>
               <div class="flex items-center gap-3">
-                <span class="text-[10px] px-2 py-1 rounded-full"
-                      :class="(trading.summary.settings||{}).paper_trading !== false ? 'bg-hq-yellow/10 text-hq-yellow' : 'bg-hq-red/10 text-hq-red'"
+                <span class="text-[10px] px-2 py-1 rounded-full border"
+                      :class="(trading.summary.settings||{}).paper_trading !== false ? 'border-hq-purple/30 bg-hq-purple/10 text-hq-purple' : 'border-hq-green/30 bg-hq-green/10 text-hq-green'"
                       x-text="(trading.summary.settings||{}).paper_trading !== false ? '모의투자' : '실거래'"></span>
-                <span class="text-[10px] px-2 py-1 rounded-full"
-                      :class="(trading.summary.settings||{}).kis_connected ? 'bg-hq-green/10 text-hq-green' : 'bg-hq-muted/10 text-hq-muted'"
+                <span class="text-[10px] px-2 py-1 rounded-full border"
+                      :class="(trading.summary.settings||{}).kis_connected ? 'border-hq-green/30 bg-hq-green/10 text-hq-green' : 'border-hq-muted/30 bg-hq-muted/10 text-hq-muted'"
                       x-text="(trading.summary.settings||{}).kis_connected ? 'KIS 연결' : 'KIS 미연결'"></span>
+                <div class="w-px h-4 bg-hq-border/50 mx-1"></div>
                 <button @click="runTradingNow()" :disabled="trading.runningNow"
-                        class="rounded-lg px-4 py-1.5 text-xs font-bold transition bg-hq-accent/20 text-hq-accent hover:bg-hq-accent/30 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5">
+                        class="rounded-lg px-4 py-1.5 text-xs font-bold transition bg-hq-accent text-hq-bg hover:bg-hq-accent/90 shadow-lg shadow-hq-accent/20 disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none flex items-center gap-1.5">
                   <svg x-show="trading.runningNow" class="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24">
                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
                     <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
@@ -4018,7 +4019,7 @@
               </div>
             </div>
 
-            <!-- CIO 팀 협업 로그 패널 -->
+            <!-- 교신 로그 패널 -->
             <div class="mt-3 rounded-xl border border-hq-yellow/20 bg-hq-yellow/5 overflow-hidden"
                  x-data="{}"
                  x-init="fetch('/api/delegation-log?division=cio&limit=20').then(r=>r.ok?r.json():[]).then(d=>{$root.trading.cioLogs=Array.isArray(d)?d:[];}).catch(()=>{})">
@@ -4026,7 +4027,7 @@
                    class="flex items-center justify-between px-3 py-2 cursor-pointer hover:bg-hq-yellow/10 transition">
                 <div class="flex items-center gap-2">
                   <span class="w-1.5 h-1.5 rounded-full bg-hq-yellow"></span>
-                  <span class="text-[11px] font-bold text-hq-yellow">CIO 팀 협업 흐름</span>
+                  <span class="text-[11px] font-bold text-hq-yellow">교신 로그</span>
                   <span class="text-[9px] text-hq-yellow/60" x-text="trading.cioLogs.length + '건'"></span>
                 </div>
                 <svg :class="trading.showCioLogs ? 'rotate-180' : ''"
@@ -4036,7 +4037,7 @@
               </div>
               <div x-show="trading.showCioLogs" class="divide-y divide-hq-yellow/10 max-h-48 overflow-y-auto scrollbar-thin">
                 <template x-if="trading.cioLogs.length === 0">
-                  <div class="px-3 py-3 text-[10px] text-hq-muted/50 text-center">분석 실행 시 협업 흐름이 표시됩니다</div>
+                  <div class="px-3 py-3 text-[10px] text-hq-muted/50 text-center">분석 실행 시 교신 로그가 표시됩니다</div>
                 </template>
                 <template x-for="log in trading.cioLogs" :key="log.id">
                   <div class="px-3 py-2 flex items-start gap-2">
@@ -4067,8 +4068,8 @@
               }
             }" x-init="loadMock()">
               <!-- 실거래 카드 -->
-              <div class="bg-hq-panel border rounded-xl p-4"
-                   :class="(trading.summary.settings||{}).kis_connected && (trading.summary.kis_balance||{}).success ? 'border-hq-green/30' : 'border-hq-border'">
+              <div class="bg-hq-panel border border-l-4 rounded-xl p-4"
+                   :class="(trading.summary.settings||{}).kis_connected && (trading.summary.kis_balance||{}).success ? 'border-hq-green/30 border-l-hq-green' : 'border-hq-border border-l-hq-muted/30'">
                 <div class="flex items-center gap-2 mb-2">
                   <div class="w-2 h-2 rounded-full"
                        :class="(trading.summary.settings||{}).kis_connected && (trading.summary.kis_balance||{}).success ? 'bg-hq-green animate-pulse' : 'bg-hq-muted/30'"></div>
@@ -4077,7 +4078,8 @@
                     실거래
                   </span>
                 </div>
-                <div class="text-lg font-bold text-hq-text"
+                <div class="text-xl font-bold font-mono"
+                     :class="((trading.summary.portfolio||{}).total_pnl||0) >= 0 ? 'text-hq-green' : 'text-hq-red'"
                      x-text="(trading.summary.settings||{}).kis_connected && (trading.summary.kis_balance||{}).success
                               ? ((trading.summary.kis_balance.total_eval||0)).toLocaleString() + '원'
                               : ((trading.summary.portfolio||{}).total_asset||0).toLocaleString() + '원'"></div>
@@ -4088,8 +4090,8 @@
               </div>
 
               <!-- 모의투자 카드 -->
-              <div class="bg-hq-panel border rounded-xl p-4"
-                   :class="mockBal && mockBal.available ? 'border-hq-purple/30' : 'border-hq-border'">
+              <div class="bg-hq-panel border border-l-4 rounded-xl p-4"
+                   :class="mockBal && mockBal.available ? 'border-hq-purple/30 border-l-hq-purple' : 'border-hq-border border-l-hq-muted/30'">
                 <div class="flex items-center gap-2 mb-2">
                   <div class="w-2 h-2 rounded-full"
                        :class="mockBal && mockBal.available ? 'bg-hq-purple animate-pulse' : 'bg-hq-muted/30'"></div>
@@ -4103,7 +4105,9 @@
                 </template>
                 <template x-if="!mockLoading && mockBal && mockBal.available">
                   <div>
-                    <div class="text-lg font-bold text-hq-text" x-text="(mockBal.total_eval||0).toLocaleString() + '원'"></div>
+                    <div class="text-xl font-bold font-mono"
+                         :class="((mockBal.total_pnl||0)) >= 0 ? 'text-hq-green' : 'text-hq-red'"
+                         x-text="(mockBal.total_eval||0).toLocaleString() + '원'"></div>
                     <div class="text-xs text-hq-muted mt-1" x-text="'현금 ' + (mockBal.cash||0).toLocaleString() + '원'"></div>
                     <div class="text-xs mt-1 text-hq-muted" x-text="'보유 ' + ((mockBal.holdings||[]).length) + '종목'"></div>
                   </div>
@@ -4705,7 +4709,7 @@
             <div class="flex items-center justify-between mb-4">
               <div>
                 <h3 class="text-sm font-bold text-hq-text">CIO 매매 시그널</h3>
-                <p class="text-[10px] text-hq-muted mt-0.5">CIO(투자분석처장) + 전문가 4명이 분석한 매매 시그널</p>
+                <p class="text-[10px] text-hq-muted mt-0.5">CIO + 전문가 4명이 분석한 매매 시그널 · 일지 보기</p>
               </div>
               <button @click="generateTradingSignals()" class="bg-hq-purple/20 text-hq-purple hover:bg-hq-purple/30 rounded-lg px-3 py-1.5 text-xs font-semibold transition">📊 CIO 분석 요청</button>
             </div>
@@ -7971,7 +7975,7 @@
             this.loadTradingSummary();
             clearInterval(this.trading.refreshInterval);
             this.trading.refreshInterval = setInterval(() => {
-              if (this.activeTab === 'trading') this.loadTradingSummary();
+              if (this.activeTab === 'trading') this.loadTradingSummary(true);
             }, 30000);
           } else {
             clearInterval(this.trading.refreshInterval);
@@ -9133,10 +9137,11 @@
           }
         },
 
-        async loadTradingSummary() {
-          this.trading.loading = true;
+        async loadTradingSummary(isRefresh = false) {
+          // 첫 로드만 로딩 표시, 30초 폴링 갱신 시에는 화면 유지 (깜빡임 방지)
+          if (!isRefresh) this.trading.loading = true;
           try {
-            const [summary, portfolio, strategies, watchlist, history, signals] = await Promise.all([
+            const results = await Promise.allSettled([
               fetch('/api/trading/summary').then(r => r.ok ? r.json() : {}),
               fetch('/api/trading/portfolio').then(r => r.ok ? r.json() : {}),
               fetch('/api/trading/strategies').then(r => r.ok ? r.json() : []),
@@ -9144,6 +9149,10 @@
               fetch('/api/trading/history').then(r => r.ok ? r.json() : []),
               fetch('/api/trading/signals').then(r => r.ok ? r.json() : []),
             ]);
+            const defaults = [{}, {}, [], [], [], []];
+            const [summary, portfolio, strategies, watchlist, history, signals] = results.map((r, i) =>
+              r.status === 'fulfilled' ? r.value : defaults[i]
+            );
             this.trading.summary = summary;
             this.trading.portfolio = portfolio;
             this.trading.strategies = Array.isArray(strategies) ? strategies : [];
