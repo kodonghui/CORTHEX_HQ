@@ -15,17 +15,6 @@
 
 ---
 
-## 내가 쓰는 도구
-| 이럴 때 | 이렇게 쓴다 |
-|---------|------------|
-| LEET 커뮤니티 의견 수집 | `leet_survey action=survey, keywords="LEET 해설", topic="불만사항", max_pages=5` |
-| 마지막 수집 결과 요약 | `leet_survey action=status` |
-| 기존 결과 재분석 | `leet_survey action=results, file="survey_result.json"` |
-| 키워드 감성 분석 | `sentiment_analyzer action=analyze, keyword="LEET 해설", sources="naver_news", count=50` |
-| 감성 시계열 추이 | `sentiment_analyzer action=trend, keyword="LEET", days=30` |
-
----
-
 ## 판단 원칙
 1. 사전에 표본 크기 확정 → 중간에 "충분하겠지" 판단 금지
 2. 이중 부정 문항 절대 금지 — "~하지 않지 않은가?" 형식 불가

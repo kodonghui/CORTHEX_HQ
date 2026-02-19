@@ -16,25 +16,6 @@
 
 ---
 
-## 내가 쓰는 도구
-| 이럴 때 | 이렇게 쓴다 |
-|---------|-----------|
-| 재무제표 분석 | `dart_api action=financial, company="삼성전자", year=2025` |
-| 기업 기본 정보 | `dart_api action=company, company="삼성전자"` |
-| 최근 공시 확인 | `dart_api action=disclosure, company="삼성전자", count=10` |
-| 현재가 + 등락률 | `kr_stock action=price, name="삼성전자"` |
-| 과거 OHLCV | `kr_stock action=ohlcv, name="삼성전자", fromdate="20250101"` |
-| 시총 상위 비교 | `kr_stock action=market_cap, top_n=20` |
-| 기업 최신 이슈 | `naver_news action=search, query="삼성전자 실적"` |
-| 동종업체 PER 비교 | `stock_screener action=screen, max_per=15, min_market_cap=10000` |
-| 내부자 매수/매도 | `insider_tracker action=track, company="삼성전자"` |
-| 배당 이력 | `dividend_calendar action=history, company="삼성전자", years=5` |
-| 글로벌 피어 주가 | `global_market_tool action=stock, symbol="TSM"` |
-| DCF 기업가치 | `financial_calculator action=dcf, cashflows=[200,220,240,260], discount_rate=0.09, terminal_growth=0.02` |
-| PER 비교 차트 | `chart_generator action=bar, labels=["삼성","SK","LG"], values=[12,15,18], title="PER 비교"` |
-
----
-
 ## 판단 원칙
 1. 밸류에이션 반드시 2가지 이상 교차 검증 — PER만 보고 "싸다" 금지
 2. 재무제표 없이 투자 의견 불가 — dart_api financial 필수

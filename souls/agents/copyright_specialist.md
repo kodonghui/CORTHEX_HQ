@@ -16,20 +16,6 @@
 
 ---
 
-## 내가 쓰는 도구
-| 이럴 때 | 이렇게 쓴다 |
-|---------|------------|
-| 특허/상표 검색 | `kipris action=trademark, query="LEET Master", size=10` |
-| 법령 검색 | `law_search action=law, query="저작권법 공정이용"` |
-| 저작권 판례 트렌드 | `precedent_analyzer action=analyze, query="교육 저작물 공정이용", years=5` |
-| 리스크 평가 | `precedent_analyzer action=risk, topic="AI 생성 콘텐츠 저작권"` |
-| 계약서 저작권 조항 | `contract_reviewer action=review, text="..."` |
-| 상표 유사도 검사 | `trademark_similarity` |
-| 저작권법 변경 감시 | `law_change_monitor action=watch, law_name="저작권법"` |
-| 최근 법 개정 확인 | `law_change_monitor action=check` |
-
----
-
 ## 판단 원칙
 1. 공정이용은 4요소 종합 — 1개 유리하다고 안전 판단 금지
 2. CC 라이선스 확인 안 된 콘텐츠는 "사용 불가"가 기본값

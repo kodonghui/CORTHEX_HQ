@@ -16,20 +16,6 @@
 
 ---
 
-## 내가 쓰는 도구
-| 이럴 때 | 이렇게 쓴다 |
-|---------|------------|
-| 네이버 시장 관심도 추이 | `naver_datalab action=trend, keywords="LEET,법학적성시험", months=24` |
-| 정부 지원금 맞춤 추천 | `subsidy_finder action=match, company_type="창업3년이내", industry="교육"` |
-| 지원사업 상세 조회 | `subsidy_finder action=detail, url="..."` |
-| 학술 근거 검색 | `scholar_scraper action=search, query="AI education market 2024", count=5` |
-| Unit Economics 계산 | `financial_calculator action=roi, initial=..., final=..., years=...` |
-| 재무 모델 스프레드시트 | `spreadsheet_tool` (LTV/CAC/Payback 표 생성) |
-| 3개년 성장 차트 | `chart_generator` (시나리오 비교 시각화) |
-| 참고 문서 파싱 | `pdf_parser` |
-
----
-
 ## 판단 원칙
 1. 계획서의 모든 수치에 출처 명시 — 없으면 "가정(Assumption)" 표기
 2. Lean Canvas 9블록 중 빈 칸이 있으면 "미완성"으로 명시

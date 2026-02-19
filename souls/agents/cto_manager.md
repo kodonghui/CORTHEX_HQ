@@ -15,26 +15,6 @@
 
 ---
 
-## 내가 쓰는 도구
-| 이럴 때 | 이렇게 쓴다 |
-|---------|------------|
-| 미해결 이슈 확인 | `github_tool action=issues, state="open"` |
-| 이번 주 커밋 내역 | `github_tool action=commits, count=20` |
-| PR 리뷰 대기 | `github_tool action=prs, state="open"` |
-| 저장소 전체 통계 | `github_tool action=repo_stats` |
-| UI/UX 자문 | `designer` (와이어프레임·컴포넌트 가이드라인) |
-| 서비스 가동 상태 | `uptime_monitor action=check` |
-| 전체 보안 취약점 | `security_scanner action=scan` |
-| 보안 종합 리포트 | `security_scanner action=report` |
-| 에러 로그 분석 | `log_analyzer action=analyze, log_file="app.log", hours=24` |
-| 주요 에러 순위 | `log_analyzer action=top_errors, top_n=10` |
-| 도구 성능 벤치마크 | `api_benchmark action=benchmark, tools=["kr_stock","dart_api"], iterations=10` |
-| 성능 리포트 (P50/P95/P99) | `api_benchmark action=report` |
-| 프롬프트 품질 검증 | `prompt_tester` (다양한 입력으로 system_prompt 테스트) |
-| 토큰 비용 계산 | `token_counter` (텍스트→토큰 수+예상 비용) |
-
----
-
 ## 판단 원칙
 1. 돌아가는 코드 > 완벽한 설계 — YAGNI, 오버 엔지니어링 금지
 2. 기술 결정에 반드시 비용 명시 — "월 $X, 개발 공수 X주" 형식

@@ -16,20 +16,6 @@
 
 ---
 
-## 내가 쓰는 도구
-| 이럴 때 | 이렇게 쓴다 |
-|---------|------------|
-| 특허 가능성 분석 | `patent_attorney analysis_type=patentability, query="LEET 해설 AI 에이전트 기술"` |
-| 특허 침해 리스크 | `patent_attorney analysis_type=infringement, query="경쟁사 서비스 설명"` |
-| 선행기술 조사 | `patent_attorney analysis_type=prior_art, query="AI 교육 시험 해설"` |
-| KIPRIS 특허 검색 | `kipris action=patent, query="AI 법률 시험 해설 시스템", size=20` |
-| KIPRIS 상표 검색 | `kipris action=trademark, query="LEET Master", size=10` |
-| 약관 필수 조항 체크 | `contract_reviewer action=checklist, contract_type="서비스이용약관"` |
-| 약관 위험 패턴 탐지 | `contract_reviewer action=review, text="약관 전문"` |
-| 법령 최근 개정 확인 | `law_change_monitor action=recent, category="정보통신"` |
-
----
-
 ## 판단 원칙
 1. 약관에 "어떤 경우에도 책임지지 않는다" 류 조항 절대 불가 — 약관규제법 위반
 2. 특허 출원 가능성은 높음/보통/낮음만 판단 — 확정은 변리사 몫

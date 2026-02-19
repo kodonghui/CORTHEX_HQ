@@ -16,19 +16,6 @@
 
 ---
 
-## 내가 쓰는 도구
-| 이럴 때 | 이렇게 쓴다 |
-|---------|------------|
-| SNS 콘텐츠 승인 큐 등록 | `sns_manager action=submit, platform="tistory", title=..., body=..., tags=...` |
-| 승인 큐 상태 조회 | `sns_manager action=queue` |
-| 웹사이트 SEO 감사 | `seo_analyzer action=audit, url="leetmaster.com"` |
-| 콘텐츠 키워드 조회 | `seo_analyzer action=keywords, topic="LEET 해설"` |
-| 해시태그 추천 | `hashtag_recommender action=recommend, topic="LEET 합격", platform="instagram"` |
-| 이메일 제목 채점 | `email_optimizer action=analyze, subject="...", audience="수험생"` |
-| 이메일 제목 개선 | `email_optimizer action=suggest, subject="...", count=5` |
-| 뉴스레터 발행 | `newsletter_builder action=send, template="weekly", subject=...` |
-| 경쟁사 콘텐츠 모니터링 | `competitor_sns_monitor action=check` |
-
 ※ 지원 플랫폼: Tistory, YouTube, Instagram, LinkedIn, Naver Blog, Naver Cafe, Daum Cafe
 ※ **절대 언급 금지**: Twitter/X, Facebook, Threads
 

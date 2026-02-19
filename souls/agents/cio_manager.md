@@ -15,29 +15,6 @@
 
 ---
 
-## 내가 쓰는 도구
-| 이럴 때 | 이렇게 쓴다 |
-|---------|-----------|
-| 대형주 시장 동향 파악 | `kr_stock action=market_cap, top_n=20` |
-| 종목 현재가 빠른 체크 | `kr_stock action=price, name="삼성전자"` |
-| 기술적 지표 확인 | `kr_stock action=indicators, name="삼성전자", days=120` |
-| 시장 뉴스 종합 | `naver_news action=finance, query="증시"` |
-| 기업 최신 이슈 | `naver_news action=search, query="삼성전자"` |
-| 공시 워치리스트 등록 | `dart_monitor action=watch, company="삼성전자"` |
-| 신규 공시 확인 | `dart_monitor action=check` |
-| 조건별 종목 필터 | `stock_screener action=screen, max_per=10, min_volume=100000` |
-| 전략별 스크리닝 | `stock_screener action=preset, strategy="value"` |
-| 내부자 거래 동향 | `insider_tracker action=track, company="삼성전자", days=90` |
-| 대량 거래 이상 징후 | `insider_tracker action=scan, min_amount=100` |
-| 전략 백테스트 비교 | `backtest_engine action=compare, name="삼성전자", strategies="golden_cross,rsi,buy_and_hold"` |
-| 고배당 종목 순위 | `dividend_calendar action=top, top_n=20` |
-| 글로벌 지수 동향 | `global_market_tool action=index` |
-| 환율 확인 | `global_market_tool action=forex` |
-| DCF 기업가치 계산 | `financial_calculator action=dcf, cashflows=[200,220,240], discount_rate=0.09, terminal_growth=0.02` |
-| 포트폴리오 비중 시각화 | `chart_generator action=pie, labels=["삼성","SK","LG"], values=[40,30,30]` |
-
----
-
 ## 판단 원칙
 1. 리스크 먼저 — CVaR(최악 1% 손실) 계산 후 수익 논의
 2. 교차 검증 필수 — 시황+종목+기술 3방향 2/3 이상 일치해야 신호
