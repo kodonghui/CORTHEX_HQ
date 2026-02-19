@@ -64,28 +64,15 @@ agents:
   - cio_manager
   - cpo_manager
   allowed_tools:
+  - web_search
   - real_web_search
-  - token_counter
+  - naver_news
   - notification_engine
   - calendar_tool
   - email_sender
-  - vector_knowledge
-  - decision_tracker
-  - audio_transcriber
-  - cross_agent_protocol
-  - spawn_agent
   - notion_api
-  - skill_brainstorming
-  - skill_brainstorm
-  - skill_writing_plans
-  - skill_executing_plans
-  - skill_dispatching_parallel_agents
-  - skill_handoff
-  - skill_strategic_compact
-  - skill_continuous_learning
-  - skill_continuous_learning_v2
-  - skill_using_superpowers
-  - skill_pensieve
+  - decision_tracker
+  - cross_agent_protocol
 - agent_id: report_specialist
   name: Information Aide
   name_ko: 정보 보좌관
@@ -128,7 +115,6 @@ agents:
   - naver_news
   - web_search
   - real_web_search
-  - skill_strategic_compact
 - agent_id: schedule_specialist
   name: Strategy Specialist
   name_ko: 일정 보좌관
@@ -166,8 +152,7 @@ agents:
   superior_id: chief_of_staff
   allowed_tools:
   - calendar_tool
-  - skill_writing_plans
-  - skill_executing_plans
+  - notification_engine
 - agent_id: relay_specialist
   name: Quality Inspector
   name_ko: 검수 보좌관
@@ -206,7 +191,6 @@ agents:
   - real_web_search
   - naver_news
   - cross_agent_protocol
-  - skill_iterative_retrieval
 - agent_id: cto_manager
   name: CTO Manager
   name_ko: 기술개발처장 (CTO)
@@ -266,8 +250,8 @@ agents:
   - ai_model_specialist
   superior_id: chief_of_staff
   allowed_tools:
-  - designer
   - github_tool
+  - code_quality
   - uptime_monitor
   - security_scanner
   - log_analyzer
@@ -275,25 +259,8 @@ agents:
   - prompt_tester
   - embedding_tool
   - token_counter
-  - image_generator
+  - notification_engine
   - cross_agent_protocol
-  - skill_coding_standards
-  - skill_security_review
-  - skill_security_scan
-  - skill_code_documenter
-  - skill_verification_loop
-  - skill_systematic_debugging
-  - skill_writing_plans
-  - skill_code_review
-  - skill_requesting_code_review
-  - skill_receiving_code_review
-  - skill_create_pr
-  - skill_finishing_branch
-  - skill_changelog_generator
-  - skill_developer_growth
-  - skill_mcp_builder
-  - skill_dispatching_parallel_agents
-  - skill_subagent_driven_development
 - agent_id: frontend_specialist
   name: Frontend Specialist
   name_ko: 프론트엔드 Specialist
@@ -333,14 +300,9 @@ agents:
   - React/Next.js
   superior_id: cto_manager
   allowed_tools:
-  - designer
-  - skill_frontend_patterns
-  - skill_frontend_design
-  - skill_senior_frontend
-  - skill_coding_standards
-  - skill_artifacts_builder
-  - skill_tdd_workflow
-  - skill_verification_before_completion
+  - github_tool
+  - code_quality
+  - image_generator
 - agent_id: backend_specialist
   name: Backend/API Specialist
   name_ko: 백엔드/API Specialist
@@ -385,14 +347,6 @@ agents:
   - security_scanner
   - log_analyzer
   - api_benchmark
-  - skill_backend_patterns
-  - skill_python_patterns
-  - skill_python_testing
-  - skill_coding_standards
-  - skill_tdd_workflow
-  - skill_security_review
-  - skill_verification_loop
-  - skill_systematic_debugging
 - agent_id: infra_specialist
   name: DB/Infrastructure Specialist
   name_ko: DB/인프라 Specialist
@@ -433,17 +387,10 @@ agents:
   superior_id: cto_manager
   allowed_tools:
   - github_tool
-  - code_quality
   - uptime_monitor
   - security_scanner
   - log_analyzer
   - api_benchmark
-  - skill_security_review
-  - skill_security_scan
-  - skill_verification_loop
-  - skill_postgres_patterns
-  - skill_clickhouse_io
-  - skill_git_worktrees
 - agent_id: ai_model_specialist
   name: AI Model Specialist
   name_ko: AI 모델 Specialist
@@ -496,10 +443,6 @@ agents:
   - embedding_tool
   - token_counter
   - vector_knowledge
-  - skill_python_patterns
-  - skill_python_testing
-  - skill_eval_harness
-  - skill_iterative_retrieval
 - agent_id: cso_manager
   name: CSO Manager
   name_ko: 사업기획처장 (CSO)
@@ -548,30 +491,18 @@ agents:
   - financial_model_specialist
   superior_id: chief_of_staff
   allowed_tools:
-  - leet_survey
+  - naver_datalab
+  - public_data
   - platform_market_scraper
   - competitor_monitor
-  - app_review_scraper
-  - youtube_analyzer
   - subsidy_finder
-  - naver_place_scraper
   - scholar_scraper
-  - real_web_search
   - spreadsheet_tool
-  - financial_calculator
   - chart_generator
-  - pdf_parser
+  - real_web_search
+  - financial_calculator
   - decision_tracker
   - cross_agent_protocol
-  - skill_pricing_strategy
-  - skill_launch_strategy
-  - skill_competitor_alternatives
-  - skill_marketing_ideas
-  - skill_content_strategy
-  - skill_last30days
-  - skill_free_tool_strategy
-  - skill_product_marketing_context
-  - skill_brainstorming
 - agent_id: market_research_specialist
   name: Market Research Specialist
   name_ko: 시장조사 Specialist
@@ -614,21 +545,16 @@ agents:
   superior_id: cso_manager
   allowed_tools:
   - web_search
-  - daum_cafe
-  - leet_survey
+  - real_web_search
   - naver_datalab
   - public_data
   - platform_market_scraper
   - competitor_monitor
   - app_review_scraper
   - youtube_analyzer
-  - naver_place_scraper
   - scholar_scraper
-  - real_web_search
-  - skill_last30days
-  - skill_content_strategy
-  - skill_competitor_alternatives
-  - skill_defuddle
+  - sentiment_analyzer
+  - naver_news
 - agent_id: business_plan_specialist
   name: Business Plan Specialist
   name_ko: 사업계획서 Specialist
@@ -671,15 +597,12 @@ agents:
   - 비즈니스 모델
   superior_id: cso_manager
   allowed_tools:
-  - naver_datalab
-  - subsidy_finder
-  - scholar_scraper
+  - financial_calculator
   - spreadsheet_tool
   - chart_generator
-  - pdf_parser
-  - skill_pricing_strategy
-  - skill_launch_strategy
-  - skill_free_tool_strategy
+  - report_generator
+  - subsidy_finder
+  - decision_tracker
 - agent_id: financial_model_specialist
   name: Financial Modeling Specialist
   name_ko: 재무모델링 Specialist
@@ -733,13 +656,12 @@ agents:
   - 손익 분석
   superior_id: cso_manager
   allowed_tools:
-  - tax_accountant
-  - public_data
-  - subsidy_finder
   - spreadsheet_tool
-  - financial_calculator
   - chart_generator
-  - skill_pricing_strategy
+  - financial_calculator
+  - ecos_macro
+  - public_data
+  - report_generator
 - agent_id: clo_manager
   name: CLO Manager
   name_ko: 법무·IP처장 (CLO)
@@ -794,16 +716,15 @@ agents:
   - patent_specialist
   superior_id: chief_of_staff
   allowed_tools:
-  - patent_attorney
+  - kipris
   - law_search
   - precedent_analyzer
   - trademark_similarity
   - contract_reviewer
   - law_change_monitor
-  - pdf_parser
+  - web_search
+  - real_web_search
   - cross_agent_protocol
-  - skill_security_review
-  - skill_security_scan
 - agent_id: copyright_specialist
   name: Copyright Specialist
   name_ko: 저작권 Specialist
@@ -843,14 +764,11 @@ agents:
   - 라이선스 검토
   superior_id: clo_manager
   allowed_tools:
-  - kipris
   - law_search
   - precedent_analyzer
-  - trademark_similarity
-  - contract_reviewer
   - law_change_monitor
-  - pdf_parser
-  - skill_security_review
+  - contract_reviewer
+  - web_search
 - agent_id: patent_specialist
   name: Patent/Terms Specialist
   name_ko: 특허/약관 Specialist
@@ -892,15 +810,12 @@ agents:
   - 약관 작성
   superior_id: clo_manager
   allowed_tools:
-  - patent_attorney
   - kipris
-  - law_search
-  - precedent_analyzer
+  - patent_attorney
   - trademark_similarity
-  - contract_reviewer
+  - precedent_analyzer
+  - law_search
   - law_change_monitor
-  - pdf_parser
-  - skill_security_review
 - agent_id: cmo_manager
   name: CMO Manager
   name_ko: 마케팅·고객처장 (CMO)
@@ -964,34 +879,18 @@ agents:
   - community_specialist
   superior_id: chief_of_staff
   allowed_tools:
-  - sns_manager
-  - notion_api
-  - seo_analyzer
   - sentiment_analyzer
   - hashtag_recommender
   - email_optimizer
   - competitor_sns_monitor
-  - email_sender
-  - image_generator
+  - seo_analyzer
+  - naver_datalab
+  - platform_market_scraper
+  - youtube_analyzer
+  - naver_news
+  - sns_manager
+  - notification_engine
   - cross_agent_protocol
-  - skill_copywriting
-  - skill_copy_editing
-  - skill_marketing_ideas
-  - skill_marketing_psychology
-  - skill_social_content
-  - skill_email_sequence
-  - skill_page_cro
-  - skill_form_cro
-  - skill_signup_flow_cro
-  - skill_onboarding_cro
-  - skill_popup_cro
-  - skill_paywall_upgrade_cro
-  - skill_seo_audit
-  - skill_launch_strategy
-  - skill_paid_ads
-  - skill_referral_program
-  - skill_content_strategy
-  - skill_product_marketing_context
 - agent_id: survey_specialist
   name: Survey/Research Specialist
   name_ko: 설문/리서치 Specialist
@@ -1032,11 +931,15 @@ agents:
   - 커뮤니티 여론 조사
   superior_id: cmo_manager
   allowed_tools:
-  - leet_survey
+  - web_search
+  - real_web_search
+  - naver_datalab
+  - public_data
+  - platform_market_scraper
+  - app_review_scraper
+  - scholar_scraper
   - sentiment_analyzer
-  - skill_last30days
-  - skill_marketing_psychology
-  - skill_defuddle
+  - naver_news
 - agent_id: content_specialist
   name: Content Specialist
   name_ko: 콘텐츠 Specialist
@@ -1079,27 +982,11 @@ agents:
   - SNS 자동 발행
   superior_id: cmo_manager
   allowed_tools:
-  - translator
-  - designer
-  - sns_manager
-  - notion_api
-  - seo_analyzer
-  - hashtag_recommender
   - email_optimizer
-  - competitor_sns_monitor
-  - newsletter_builder
+  - report_generator
   - image_generator
-  - skill_copywriting
-  - skill_copy_editing
-  - skill_social_content
-  - skill_seo_audit
-  - skill_schema_markup
-  - skill_programmatic_seo
-  - skill_email_sequence
-  - skill_page_cro
-  - skill_content_strategy
-  - skill_canvas_design
-  - skill_theme_factory
+  - sns_manager
+  - naver_news
 - agent_id: community_specialist
   name: Community Specialist
   name_ko: 커뮤니티 Specialist
@@ -1132,15 +1019,13 @@ agents:
   - SNS 모니터링
   superior_id: cmo_manager
   allowed_tools:
-  - sns_manager
-  - notion_api
-  - seo_analyzer
+  - naver_datalab
+  - daum_cafe
+  - platform_market_scraper
+  - naver_place_scraper
   - sentiment_analyzer
-  - competitor_sns_monitor
-  - skill_social_content
-  - skill_last30days
-  - skill_marketing_ideas
-  - skill_defuddle
+  - sns_manager
+  - leet_survey
 - agent_id: cio_manager
   name: CIO Manager
   name_ko: 투자분석처장 (CIO)
@@ -1246,7 +1131,9 @@ agents:
   superior_id: chief_of_staff
   allowed_tools:
   - kr_stock
+  - dart_api
   - naver_news
+  - ecos_macro
   - dart_monitor
   - stock_screener
   - backtest_engine
@@ -1256,9 +1143,9 @@ agents:
   - financial_calculator
   - chart_generator
   - spreadsheet_tool
+  - real_web_search
+  - notification_engine
   - cross_agent_protocol
-  - skill_last30days
-  - skill_defuddle
 - agent_id: market_condition_specialist
   name: Market Condition Specialist
   name_ko: 시황분석 Specialist
@@ -1342,13 +1229,12 @@ agents:
   - 시장 동향
   superior_id: cio_manager
   allowed_tools:
-  - web_search
-  - naver_news
+  - kr_stock
   - ecos_macro
-  - real_web_search
+  - naver_news
   - global_market_tool
-  - skill_last30days
-  - skill_defuddle
+  - chart_generator
+  - real_web_search
 - agent_id: stock_analysis_specialist
   name: Stock Analysis Specialist
   name_ko: 종목분석 Specialist
@@ -1442,15 +1328,13 @@ agents:
   allowed_tools:
   - kr_stock
   - dart_api
-  - naver_news
   - dart_monitor
   - stock_screener
   - insider_tracker
   - dividend_calendar
-  - global_market_tool
-  - financial_calculator
   - chart_generator
-  - skill_last30days
+  - spreadsheet_tool
+  - financial_calculator
 - agent_id: technical_analysis_specialist
   name: Technical Analysis Specialist
   name_ko: 기술적분석 Specialist
@@ -1484,7 +1368,7 @@ agents:
   - kr_stock
   - backtest_engine
   - chart_generator
-  - skill_last30days
+  - spreadsheet_tool
 - agent_id: risk_management_specialist
   name: Risk Management Specialist
   name_ko: 리스크관리 Specialist
@@ -1570,13 +1454,12 @@ agents:
   - 포지션 관리
   superior_id: cio_manager
   allowed_tools:
-  - dart_api
-  - insider_tracker
-  - backtest_engine
-  - financial_calculator
+  - kr_stock
   - global_market_tool
-  - notification_engine
-  - skill_last30days
+  - financial_calculator
+  - chart_generator
+  - real_web_search
+  - ecos_macro
 - agent_id: cpo_manager
   name: CPO Manager
   name_ko: 출판·기록처장 (CPO)
@@ -1641,29 +1524,13 @@ agents:
   - archive_specialist
   superior_id: chief_of_staff
   allowed_tools:
-  - translator
   - notion_api
+  - doc_converter
   - report_generator
   - meeting_formatter
   - newsletter_builder
-  - spreadsheet_tool
-  - chart_generator
-  - pdf_parser
-  - vector_knowledge
   - decision_tracker
-  - audio_transcriber
-  - image_generator
   - cross_agent_protocol
-  - skill_copywriting
-  - skill_copy_editing
-  - skill_code_documenter
-  - skill_changelog_generator
-  - skill_content_strategy
-  - skill_canvas_design
-  - skill_theme_factory
-  - skill_obsidian_markdown
-  - skill_nutrient_doc
-  - skill_handoff
 - agent_id: chronicle_specialist
   name: Company Chronicle Specialist
   name_ko: 회사연대기 Specialist
@@ -1703,17 +1570,11 @@ agents:
   - 마일스톤 정리
   superior_id: cpo_manager
   allowed_tools:
-  - web_search
   - notion_api
-  - meeting_formatter
-  - real_web_search
+  - report_generator
+  - newsletter_builder
+  - web_search
   - decision_tracker
-  - audio_transcriber
-  - github_tool
-  - skill_copy_editing
-  - skill_changelog_generator
-  - skill_obsidian_markdown
-  - skill_obsidian_cli
 - agent_id: editor_specialist
   name: Content Editor Specialist
   name_ko: 콘텐츠편집 Specialist
@@ -1751,17 +1612,11 @@ agents:
   - 가독성 개선
   superior_id: cpo_manager
   allowed_tools:
-  - translator
   - doc_converter
   - report_generator
+  - meeting_formatter
   - newsletter_builder
-  - chart_generator
   - pdf_parser
-  - skill_copy_editing
-  - skill_copywriting
-  - skill_seo_audit
-  - skill_theme_factory
-  - skill_nutrient_doc
 - agent_id: archive_specialist
   name: Archive Specialist
   name_ko: 아카이브 Specialist
@@ -1805,11 +1660,7 @@ agents:
   superior_id: cpo_manager
   allowed_tools:
   - notion_api
-  - doc_converter
-  - meeting_formatter
   - vector_knowledge
-  - skill_code_documenter
-  - skill_obsidian_markdown
-  - skill_obsidian_cli
-  - skill_obsidian_bases
-  - skill_json_canvas
+  - decision_tracker
+  - real_web_search
+  - pdf_parser

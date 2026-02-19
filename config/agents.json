@@ -28,28 +28,15 @@
         "cpo_manager"
       ],
       "allowed_tools": [
+        "web_search",
         "real_web_search",
-        "token_counter",
+        "naver_news",
         "notification_engine",
         "calendar_tool",
         "email_sender",
-        "vector_knowledge",
-        "decision_tracker",
-        "audio_transcriber",
-        "cross_agent_protocol",
-        "spawn_agent",
         "notion_api",
-        "skill_brainstorming",
-        "skill_brainstorm",
-        "skill_writing_plans",
-        "skill_executing_plans",
-        "skill_dispatching_parallel_agents",
-        "skill_handoff",
-        "skill_strategic_compact",
-        "skill_continuous_learning",
-        "skill_continuous_learning_v2",
-        "skill_using_superpowers",
-        "skill_pensieve"
+        "decision_tracker",
+        "cross_agent_protocol"
       ]
     },
     {
@@ -70,8 +57,7 @@
       "allowed_tools": [
         "naver_news",
         "web_search",
-        "real_web_search",
-        "skill_strategic_compact"
+        "real_web_search"
       ]
     },
     {
@@ -90,8 +76,7 @@
       "superior_id": "chief_of_staff",
       "allowed_tools": [
         "calendar_tool",
-        "skill_writing_plans",
-        "skill_executing_plans"
+        "notification_engine"
       ]
     },
     {
@@ -113,8 +98,7 @@
         "web_search",
         "real_web_search",
         "naver_news",
-        "cross_agent_protocol",
-        "skill_iterative_retrieval"
+        "cross_agent_protocol"
       ]
     },
     {
@@ -139,8 +123,8 @@
       ],
       "superior_id": "chief_of_staff",
       "allowed_tools": [
-        "designer",
         "github_tool",
+        "code_quality",
         "uptime_monitor",
         "security_scanner",
         "log_analyzer",
@@ -148,25 +132,8 @@
         "prompt_tester",
         "embedding_tool",
         "token_counter",
-        "image_generator",
-        "cross_agent_protocol",
-        "skill_coding_standards",
-        "skill_security_review",
-        "skill_security_scan",
-        "skill_code_documenter",
-        "skill_verification_loop",
-        "skill_systematic_debugging",
-        "skill_writing_plans",
-        "skill_code_review",
-        "skill_requesting_code_review",
-        "skill_receiving_code_review",
-        "skill_create_pr",
-        "skill_finishing_branch",
-        "skill_changelog_generator",
-        "skill_developer_growth",
-        "skill_mcp_builder",
-        "skill_dispatching_parallel_agents",
-        "skill_subagent_driven_development"
+        "notification_engine",
+        "cross_agent_protocol"
       ]
     },
     {
@@ -185,14 +152,9 @@
       ],
       "superior_id": "cto_manager",
       "allowed_tools": [
-        "designer",
-        "skill_frontend_patterns",
-        "skill_frontend_design",
-        "skill_senior_frontend",
-        "skill_coding_standards",
-        "skill_artifacts_builder",
-        "skill_tdd_workflow",
-        "skill_verification_before_completion"
+        "github_tool",
+        "code_quality",
+        "image_generator"
       ]
     },
     {
@@ -215,15 +177,7 @@
         "code_quality",
         "security_scanner",
         "log_analyzer",
-        "api_benchmark",
-        "skill_backend_patterns",
-        "skill_python_patterns",
-        "skill_python_testing",
-        "skill_coding_standards",
-        "skill_tdd_workflow",
-        "skill_security_review",
-        "skill_verification_loop",
-        "skill_systematic_debugging"
+        "api_benchmark"
       ]
     },
     {
@@ -243,17 +197,10 @@
       "superior_id": "cto_manager",
       "allowed_tools": [
         "github_tool",
-        "code_quality",
         "uptime_monitor",
         "security_scanner",
         "log_analyzer",
-        "api_benchmark",
-        "skill_security_review",
-        "skill_security_scan",
-        "skill_verification_loop",
-        "skill_postgres_patterns",
-        "skill_clickhouse_io",
-        "skill_git_worktrees"
+        "api_benchmark"
       ]
     },
     {
@@ -275,11 +222,7 @@
         "prompt_tester",
         "embedding_tool",
         "token_counter",
-        "vector_knowledge",
-        "skill_python_patterns",
-        "skill_python_testing",
-        "skill_eval_harness",
-        "skill_iterative_retrieval"
+        "vector_knowledge"
       ]
     },
     {
@@ -303,30 +246,18 @@
       ],
       "superior_id": "chief_of_staff",
       "allowed_tools": [
-        "leet_survey",
+        "naver_datalab",
+        "public_data",
         "platform_market_scraper",
         "competitor_monitor",
-        "app_review_scraper",
-        "youtube_analyzer",
         "subsidy_finder",
-        "naver_place_scraper",
         "scholar_scraper",
-        "real_web_search",
         "spreadsheet_tool",
-        "financial_calculator",
         "chart_generator",
-        "pdf_parser",
+        "real_web_search",
+        "financial_calculator",
         "decision_tracker",
-        "cross_agent_protocol",
-        "skill_pricing_strategy",
-        "skill_launch_strategy",
-        "skill_competitor_alternatives",
-        "skill_marketing_ideas",
-        "skill_content_strategy",
-        "skill_last30days",
-        "skill_free_tool_strategy",
-        "skill_product_marketing_context",
-        "skill_brainstorming"
+        "cross_agent_protocol"
       ]
     },
     {
@@ -348,21 +279,16 @@
       "superior_id": "cso_manager",
       "allowed_tools": [
         "web_search",
-        "daum_cafe",
-        "leet_survey",
+        "real_web_search",
         "naver_datalab",
         "public_data",
         "platform_market_scraper",
         "competitor_monitor",
         "app_review_scraper",
         "youtube_analyzer",
-        "naver_place_scraper",
         "scholar_scraper",
-        "real_web_search",
-        "skill_last30days",
-        "skill_content_strategy",
-        "skill_competitor_alternatives",
-        "skill_defuddle"
+        "sentiment_analyzer",
+        "naver_news"
       ]
     },
     {
@@ -380,15 +306,12 @@
       ],
       "superior_id": "cso_manager",
       "allowed_tools": [
-        "naver_datalab",
-        "subsidy_finder",
-        "scholar_scraper",
+        "financial_calculator",
         "spreadsheet_tool",
         "chart_generator",
-        "pdf_parser",
-        "skill_pricing_strategy",
-        "skill_launch_strategy",
-        "skill_free_tool_strategy"
+        "report_generator",
+        "subsidy_finder",
+        "decision_tracker"
       ]
     },
     {
@@ -407,13 +330,12 @@
       ],
       "superior_id": "cso_manager",
       "allowed_tools": [
-        "tax_accountant",
-        "public_data",
-        "subsidy_finder",
         "spreadsheet_tool",
-        "financial_calculator",
         "chart_generator",
-        "skill_pricing_strategy"
+        "financial_calculator",
+        "ecos_macro",
+        "public_data",
+        "report_generator"
       ]
     },
     {
@@ -436,16 +358,15 @@
       ],
       "superior_id": "chief_of_staff",
       "allowed_tools": [
-        "patent_attorney",
+        "kipris",
         "law_search",
         "precedent_analyzer",
         "trademark_similarity",
         "contract_reviewer",
         "law_change_monitor",
-        "pdf_parser",
-        "cross_agent_protocol",
-        "skill_security_review",
-        "skill_security_scan"
+        "web_search",
+        "real_web_search",
+        "cross_agent_protocol"
       ]
     },
     {
@@ -463,14 +384,11 @@
       ],
       "superior_id": "clo_manager",
       "allowed_tools": [
-        "kipris",
         "law_search",
         "precedent_analyzer",
-        "trademark_similarity",
-        "contract_reviewer",
         "law_change_monitor",
-        "pdf_parser",
-        "skill_security_review"
+        "contract_reviewer",
+        "web_search"
       ]
     },
     {
@@ -488,15 +406,12 @@
       ],
       "superior_id": "clo_manager",
       "allowed_tools": [
-        "patent_attorney",
         "kipris",
-        "law_search",
-        "precedent_analyzer",
+        "patent_attorney",
         "trademark_similarity",
-        "contract_reviewer",
-        "law_change_monitor",
-        "pdf_parser",
-        "skill_security_review"
+        "precedent_analyzer",
+        "law_search",
+        "law_change_monitor"
       ]
     },
     {
@@ -521,34 +436,18 @@
       ],
       "superior_id": "chief_of_staff",
       "allowed_tools": [
-        "sns_manager",
-        "notion_api",
-        "seo_analyzer",
         "sentiment_analyzer",
         "hashtag_recommender",
         "email_optimizer",
         "competitor_sns_monitor",
-        "email_sender",
-        "image_generator",
-        "cross_agent_protocol",
-        "skill_copywriting",
-        "skill_copy_editing",
-        "skill_marketing_ideas",
-        "skill_marketing_psychology",
-        "skill_social_content",
-        "skill_email_sequence",
-        "skill_page_cro",
-        "skill_form_cro",
-        "skill_signup_flow_cro",
-        "skill_onboarding_cro",
-        "skill_popup_cro",
-        "skill_paywall_upgrade_cro",
-        "skill_seo_audit",
-        "skill_launch_strategy",
-        "skill_paid_ads",
-        "skill_referral_program",
-        "skill_content_strategy",
-        "skill_product_marketing_context"
+        "seo_analyzer",
+        "naver_datalab",
+        "platform_market_scraper",
+        "youtube_analyzer",
+        "naver_news",
+        "sns_manager",
+        "notification_engine",
+        "cross_agent_protocol"
       ]
     },
     {
@@ -567,11 +466,15 @@
       ],
       "superior_id": "cmo_manager",
       "allowed_tools": [
-        "leet_survey",
+        "web_search",
+        "real_web_search",
+        "naver_datalab",
+        "public_data",
+        "platform_market_scraper",
+        "app_review_scraper",
+        "scholar_scraper",
         "sentiment_analyzer",
-        "skill_last30days",
-        "skill_marketing_psychology",
-        "skill_defuddle"
+        "naver_news"
       ]
     },
     {
@@ -590,27 +493,11 @@
       ],
       "superior_id": "cmo_manager",
       "allowed_tools": [
-        "translator",
-        "designer",
-        "sns_manager",
-        "notion_api",
-        "seo_analyzer",
-        "hashtag_recommender",
         "email_optimizer",
-        "competitor_sns_monitor",
-        "newsletter_builder",
+        "report_generator",
         "image_generator",
-        "skill_copywriting",
-        "skill_copy_editing",
-        "skill_social_content",
-        "skill_seo_audit",
-        "skill_schema_markup",
-        "skill_programmatic_seo",
-        "skill_email_sequence",
-        "skill_page_cro",
-        "skill_content_strategy",
-        "skill_canvas_design",
-        "skill_theme_factory"
+        "sns_manager",
+        "naver_news"
       ]
     },
     {
@@ -629,15 +516,13 @@
       ],
       "superior_id": "cmo_manager",
       "allowed_tools": [
-        "sns_manager",
-        "notion_api",
-        "seo_analyzer",
+        "naver_datalab",
+        "daum_cafe",
+        "platform_market_scraper",
+        "naver_place_scraper",
         "sentiment_analyzer",
-        "competitor_sns_monitor",
-        "skill_social_content",
-        "skill_last30days",
-        "skill_marketing_ideas",
-        "skill_defuddle"
+        "sns_manager",
+        "leet_survey"
       ]
     },
     {
@@ -662,7 +547,9 @@
       "superior_id": "chief_of_staff",
       "allowed_tools": [
         "kr_stock",
+        "dart_api",
         "naver_news",
+        "ecos_macro",
         "dart_monitor",
         "stock_screener",
         "backtest_engine",
@@ -672,9 +559,9 @@
         "financial_calculator",
         "chart_generator",
         "spreadsheet_tool",
-        "cross_agent_protocol",
-        "skill_last30days",
-        "skill_defuddle"
+        "real_web_search",
+        "notification_engine",
+        "cross_agent_protocol"
       ]
     },
     {
@@ -692,13 +579,12 @@
       ],
       "superior_id": "cio_manager",
       "allowed_tools": [
-        "web_search",
-        "naver_news",
+        "kr_stock",
         "ecos_macro",
-        "real_web_search",
+        "naver_news",
         "global_market_tool",
-        "skill_last30days",
-        "skill_defuddle"
+        "chart_generator",
+        "real_web_search"
       ]
     },
     {
@@ -718,15 +604,13 @@
       "allowed_tools": [
         "kr_stock",
         "dart_api",
-        "naver_news",
         "dart_monitor",
         "stock_screener",
         "insider_tracker",
         "dividend_calendar",
-        "global_market_tool",
-        "financial_calculator",
         "chart_generator",
-        "skill_last30days"
+        "spreadsheet_tool",
+        "financial_calculator"
       ]
     },
     {
@@ -747,7 +631,7 @@
         "kr_stock",
         "backtest_engine",
         "chart_generator",
-        "skill_last30days"
+        "spreadsheet_tool"
       ]
     },
     {
@@ -765,13 +649,12 @@
       ],
       "superior_id": "cio_manager",
       "allowed_tools": [
-        "dart_api",
-        "insider_tracker",
-        "backtest_engine",
-        "financial_calculator",
+        "kr_stock",
         "global_market_tool",
-        "notification_engine",
-        "skill_last30days"
+        "financial_calculator",
+        "chart_generator",
+        "real_web_search",
+        "ecos_macro"
       ]
     },
     {
@@ -795,29 +678,13 @@
       ],
       "superior_id": "chief_of_staff",
       "allowed_tools": [
-        "translator",
         "notion_api",
+        "doc_converter",
         "report_generator",
         "meeting_formatter",
         "newsletter_builder",
-        "spreadsheet_tool",
-        "chart_generator",
-        "pdf_parser",
-        "vector_knowledge",
         "decision_tracker",
-        "audio_transcriber",
-        "image_generator",
-        "cross_agent_protocol",
-        "skill_copywriting",
-        "skill_copy_editing",
-        "skill_code_documenter",
-        "skill_changelog_generator",
-        "skill_content_strategy",
-        "skill_canvas_design",
-        "skill_theme_factory",
-        "skill_obsidian_markdown",
-        "skill_nutrient_doc",
-        "skill_handoff"
+        "cross_agent_protocol"
       ]
     },
     {
@@ -836,17 +703,11 @@
       ],
       "superior_id": "cpo_manager",
       "allowed_tools": [
-        "web_search",
         "notion_api",
-        "meeting_formatter",
-        "real_web_search",
-        "decision_tracker",
-        "audio_transcriber",
-        "github_tool",
-        "skill_copy_editing",
-        "skill_changelog_generator",
-        "skill_obsidian_markdown",
-        "skill_obsidian_cli"
+        "report_generator",
+        "newsletter_builder",
+        "web_search",
+        "decision_tracker"
       ]
     },
     {
@@ -865,17 +726,11 @@
       ],
       "superior_id": "cpo_manager",
       "allowed_tools": [
-        "translator",
         "doc_converter",
         "report_generator",
+        "meeting_formatter",
         "newsletter_builder",
-        "chart_generator",
-        "pdf_parser",
-        "skill_copy_editing",
-        "skill_copywriting",
-        "skill_seo_audit",
-        "skill_theme_factory",
-        "skill_nutrient_doc"
+        "pdf_parser"
       ]
     },
     {
@@ -895,14 +750,10 @@
       "superior_id": "cpo_manager",
       "allowed_tools": [
         "notion_api",
-        "doc_converter",
-        "meeting_formatter",
         "vector_knowledge",
-        "skill_code_documenter",
-        "skill_obsidian_markdown",
-        "skill_obsidian_cli",
-        "skill_obsidian_bases",
-        "skill_json_canvas"
+        "decision_tracker",
+        "real_web_search",
+        "pdf_parser"
       ]
     }
   ]
