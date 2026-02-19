@@ -71,6 +71,7 @@ class ToolPool:
             "backtest_engine": "src.tools.backtest_engine.BacktestEngineTool",
             "insider_tracker": "src.tools.insider_tracker.InsiderTrackerTool",
             "dividend_calendar": "src.tools.dividend_calendar.DividendCalendarTool",
+            "technical_analyzer": "src.tools.technical_analyzer.TechnicalAnalyzerTool",
             # ─── CMO 마케팅고객처 신규 도구 ───
             "seo_analyzer": "src.tools.seo_analyzer.SeoAnalyzerTool",
             "sentiment_analyzer": "src.tools.sentiment_analyzer.SentimentAnalyzerTool",

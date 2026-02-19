@@ -1159,6 +1159,7 @@ agents:
   - real_web_search
   - notification_engine
   - cross_agent_protocol
+  - technical_analyzer
 - agent_id: market_condition_specialist
   name: Market Condition Specialist
   name_ko: 시황분석 Specialist
@@ -1385,6 +1386,7 @@ agents:
   - chart_generator
   - spreadsheet_tool
   - cross_agent_protocol
+  - technical_analyzer
 - agent_id: risk_management_specialist
   name: Risk Management Specialist
   name_ko: 리스크관리 Specialist
