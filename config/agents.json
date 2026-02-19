@@ -372,6 +372,8 @@
         "precedent_analyzer",
         "trademark_similarity",
         "contract_reviewer",
+        "nda_analyzer",
+        "license_scanner",
         "ip_portfolio_manager",
         "ai_governance_checker",
         "law_change_monitor",
