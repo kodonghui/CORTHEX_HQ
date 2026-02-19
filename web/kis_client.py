@@ -110,12 +110,17 @@ async def _get_token() -> str:
         async with httpx.AsyncClient(timeout=10) as client:
             resp = await client.post(
                 f"{KIS_BASE}/oauth2/tokenP",
+                headers={"Content-Type": "application/json; charset=utf-8"},
                 json={
                     "grant_type": "client_credentials",
                     "appkey": KIS_APP_KEY,
                     "appsecret": KIS_APP_SECRET,
                 },
             )
+            if not resp.is_success:
+                body = resp.text
+                logger.error("[KIS] 토큰 발급 실패 %s: %s", resp.status_code, body)
+                raise Exception(f"KIS 토큰 발급 실패 ({resp.status_code}): {body}")
             resp.raise_for_status()
             data = resp.json()
             token = data["access_token"]
