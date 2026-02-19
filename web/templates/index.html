@@ -8826,7 +8826,8 @@
           try {
             const res = await fetch('/api/agents/restore-defaults', { method: 'POST' }).then(r => r.json());
             if (res.success) {
-              this.showToast(`기본값 복원 완료 (${res.restored_count}명)`, 'success');
+              const src = res.source === 'snapshot' ? '내가 저장한 기본값' : 'YAML 기본값';
+              this.showToast(`${src}으로 복원 완료 (${res.restored_count}명)`, 'success');
               this.loadDashboard();
             } else {
               this.showToast(res.error || '복원 실패', 'error');
