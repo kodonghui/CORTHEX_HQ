@@ -115,6 +115,7 @@ agents:
   - naver_news
   - web_search
   - real_web_search
+  - cross_agent_protocol
 - agent_id: schedule_specialist
   name: Strategy Specialist
   name_ko: 일정 보좌관
@@ -153,6 +154,7 @@ agents:
   allowed_tools:
   - calendar_tool
   - notification_engine
+  - cross_agent_protocol
 - agent_id: relay_specialist
   name: Quality Inspector
   name_ko: 검수 보좌관
@@ -303,6 +305,7 @@ agents:
   - github_tool
   - code_quality
   - image_generator
+  - cross_agent_protocol
 - agent_id: backend_specialist
   name: Backend/API Specialist
   name_ko: 백엔드/API Specialist
@@ -347,6 +350,7 @@ agents:
   - security_scanner
   - log_analyzer
   - api_benchmark
+  - cross_agent_protocol
 - agent_id: infra_specialist
   name: DB/Infrastructure Specialist
   name_ko: DB/인프라 Specialist
@@ -391,6 +395,7 @@ agents:
   - security_scanner
   - log_analyzer
   - api_benchmark
+  - cross_agent_protocol
 - agent_id: ai_model_specialist
   name: AI Model Specialist
   name_ko: AI 모델 Specialist
@@ -443,6 +448,7 @@ agents:
   - embedding_tool
   - token_counter
   - vector_knowledge
+  - cross_agent_protocol
 - agent_id: cso_manager
   name: CSO Manager
   name_ko: 사업기획처장 (CSO)
@@ -555,6 +561,7 @@ agents:
   - scholar_scraper
   - sentiment_analyzer
   - naver_news
+  - cross_agent_protocol
 - agent_id: business_plan_specialist
   name: Business Plan Specialist
   name_ko: 사업계획서 Specialist
@@ -603,6 +610,7 @@ agents:
   - report_generator
   - subsidy_finder
   - decision_tracker
+  - cross_agent_protocol
 - agent_id: financial_model_specialist
   name: Financial Modeling Specialist
   name_ko: 재무모델링 Specialist
@@ -662,6 +670,7 @@ agents:
   - ecos_macro
   - public_data
   - report_generator
+  - cross_agent_protocol
 - agent_id: clo_manager
   name: CLO Manager
   name_ko: 법무·IP처장 (CLO)
@@ -769,6 +778,7 @@ agents:
   - law_change_monitor
   - contract_reviewer
   - web_search
+  - cross_agent_protocol
 - agent_id: patent_specialist
   name: Patent/Terms Specialist
   name_ko: 특허/약관 Specialist
@@ -815,6 +825,7 @@ agents:
   - precedent_analyzer
   - law_search
   - law_change_monitor
+  - cross_agent_protocol
 - agent_id: cmo_manager
   name: CMO Manager
   name_ko: 마케팅·고객처장 (CMO)
@@ -939,6 +950,7 @@ agents:
   - scholar_scraper
   - sentiment_analyzer
   - naver_news
+  - cross_agent_protocol
 - agent_id: content_specialist
   name: Content Specialist
   name_ko: 콘텐츠 Specialist
@@ -986,6 +998,7 @@ agents:
   - image_generator
   - sns_manager
   - naver_news
+  - cross_agent_protocol
 - agent_id: community_specialist
   name: Community Specialist
   name_ko: 커뮤니티 Specialist
@@ -1025,6 +1038,7 @@ agents:
   - sentiment_analyzer
   - sns_manager
   - leet_survey
+  - cross_agent_protocol
 - agent_id: cio_manager
   name: CIO Manager
   name_ko: 투자분석처장 (CIO)
@@ -1234,6 +1248,7 @@ agents:
   - global_market_tool
   - chart_generator
   - real_web_search
+  - cross_agent_protocol
 - agent_id: stock_analysis_specialist
   name: Stock Analysis Specialist
   name_ko: 종목분석 Specialist
@@ -1334,6 +1349,7 @@ agents:
   - chart_generator
   - spreadsheet_tool
   - financial_calculator
+  - cross_agent_protocol
 - agent_id: technical_analysis_specialist
   name: Technical Analysis Specialist
   name_ko: 기술적분석 Specialist
@@ -1368,6 +1384,7 @@ agents:
   - backtest_engine
   - chart_generator
   - spreadsheet_tool
+  - cross_agent_protocol
 - agent_id: risk_management_specialist
   name: Risk Management Specialist
   name_ko: 리스크관리 Specialist
@@ -1459,6 +1476,7 @@ agents:
   - chart_generator
   - real_web_search
   - ecos_macro
+  - cross_agent_protocol
 - agent_id: cpo_manager
   name: CPO Manager
   name_ko: 출판·기록처장 (CPO)
@@ -1574,6 +1592,7 @@ agents:
   - newsletter_builder
   - web_search
   - decision_tracker
+  - cross_agent_protocol
 - agent_id: editor_specialist
   name: Content Editor Specialist
   name_ko: 콘텐츠편집 Specialist
@@ -1616,6 +1635,7 @@ agents:
   - meeting_formatter
   - newsletter_builder
   - pdf_parser
+  - cross_agent_protocol
 - agent_id: archive_specialist
   name: Archive Specialist
   name_ko: 아카이브 Specialist
@@ -1663,3 +1683,4 @@ agents:
   - decision_tracker
   - real_web_search
   - pdf_parser
+  - cross_agent_protocol

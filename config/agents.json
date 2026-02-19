@@ -57,7 +57,8 @@
       "allowed_tools": [
         "naver_news",
         "web_search",
-        "real_web_search"
+        "real_web_search",
+        "cross_agent_protocol"
       ]
     },
     {
@@ -76,7 +77,8 @@
       "superior_id": "chief_of_staff",
       "allowed_tools": [
         "calendar_tool",
-        "notification_engine"
+        "notification_engine",
+        "cross_agent_protocol"
       ]
     },
     {
@@ -154,7 +156,8 @@
       "allowed_tools": [
         "github_tool",
         "code_quality",
-        "image_generator"
+        "image_generator",
+        "cross_agent_protocol"
       ]
     },
     {
@@ -177,7 +180,8 @@
         "code_quality",
         "security_scanner",
         "log_analyzer",
-        "api_benchmark"
+        "api_benchmark",
+        "cross_agent_protocol"
       ]
     },
     {
@@ -200,7 +204,8 @@
         "uptime_monitor",
         "security_scanner",
         "log_analyzer",
-        "api_benchmark"
+        "api_benchmark",
+        "cross_agent_protocol"
       ]
     },
     {
@@ -222,7 +227,8 @@
         "prompt_tester",
         "embedding_tool",
         "token_counter",
-        "vector_knowledge"
+        "vector_knowledge",
+        "cross_agent_protocol"
       ]
     },
     {
@@ -288,7 +294,8 @@
         "youtube_analyzer",
         "scholar_scraper",
         "sentiment_analyzer",
-        "naver_news"
+        "naver_news",
+        "cross_agent_protocol"
       ]
     },
     {
@@ -311,7 +318,8 @@
         "chart_generator",
         "report_generator",
         "subsidy_finder",
-        "decision_tracker"
+        "decision_tracker",
+        "cross_agent_protocol"
       ]
     },
     {
@@ -335,7 +343,8 @@
         "financial_calculator",
         "ecos_macro",
         "public_data",
-        "report_generator"
+        "report_generator",
+        "cross_agent_protocol"
       ]
     },
     {
@@ -388,7 +397,8 @@
         "precedent_analyzer",
         "law_change_monitor",
         "contract_reviewer",
-        "web_search"
+        "web_search",
+        "cross_agent_protocol"
       ]
     },
     {
@@ -410,7 +420,8 @@
         "trademark_similarity",
         "precedent_analyzer",
         "law_search",
-        "law_change_monitor"
+        "law_change_monitor",
+        "cross_agent_protocol"
       ]
     },
     {
@@ -473,7 +484,8 @@
         "app_review_scraper",
         "scholar_scraper",
         "sentiment_analyzer",
-        "naver_news"
+        "naver_news",
+        "cross_agent_protocol"
       ]
     },
     {
@@ -496,7 +508,8 @@
         "report_generator",
         "image_generator",
         "sns_manager",
-        "naver_news"
+        "naver_news",
+        "cross_agent_protocol"
       ]
     },
     {
@@ -521,7 +534,8 @@
         "naver_place_scraper",
         "sentiment_analyzer",
         "sns_manager",
-        "leet_survey"
+        "leet_survey",
+        "cross_agent_protocol"
       ]
     },
     {
@@ -583,7 +597,8 @@
         "naver_news",
         "global_market_tool",
         "chart_generator",
-        "real_web_search"
+        "real_web_search",
+        "cross_agent_protocol"
       ]
     },
     {
@@ -609,7 +624,8 @@
         "dividend_calendar",
         "chart_generator",
         "spreadsheet_tool",
-        "financial_calculator"
+        "financial_calculator",
+        "cross_agent_protocol"
       ]
     },
     {
@@ -630,7 +646,8 @@
         "kr_stock",
         "backtest_engine",
         "chart_generator",
-        "spreadsheet_tool"
+        "spreadsheet_tool",
+        "cross_agent_protocol"
       ]
     },
     {
@@ -653,7 +670,8 @@
         "financial_calculator",
         "chart_generator",
         "real_web_search",
-        "ecos_macro"
+        "ecos_macro",
+        "cross_agent_protocol"
       ]
     },
     {
@@ -706,7 +724,8 @@
         "report_generator",
         "newsletter_builder",
         "web_search",
-        "decision_tracker"
+        "decision_tracker",
+        "cross_agent_protocol"
       ]
     },
     {
@@ -729,7 +748,8 @@
         "report_generator",
         "meeting_formatter",
         "newsletter_builder",
-        "pdf_parser"
+        "pdf_parser",
+        "cross_agent_protocol"
       ]
     },
     {
@@ -752,7 +772,8 @@
         "vector_knowledge",
         "decision_tracker",
         "real_web_search",
-        "pdf_parser"
+        "pdf_parser",
+        "cross_agent_protocol"
       ]
     }
   ]
