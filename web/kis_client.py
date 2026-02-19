@@ -775,6 +775,7 @@ async def place_overseas_order(
                     "ORD_DVSN": order_type,
                     "ORD_QTY": str(qty),
                     "OVRS_ORD_UNPR": f"{price:.2f}" if price > 0 else "0",
+                    "SLL_TYPE": "00" if action == "sell" else "",  # 매도시 필수
                     "ORD_SVR_DVSN_CD": "0",
                 },
             )

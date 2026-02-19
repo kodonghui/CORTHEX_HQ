@@ -56,6 +56,8 @@ try:
         place_order as _kis_order,
         get_balance as _kis_balance,
         is_configured as _kis_configured,
+        get_overseas_price as _kis_us_price,
+        place_overseas_order as _kis_us_order,
         KIS_IS_MOCK,
     )
     _KIS_AVAILABLE = True
@@ -66,6 +68,8 @@ except ImportError:
     async def _kis_order(ticker, action, qty, price=0): return {"success": False, "message": "kis_client 미설치", "order_no": ""}
     async def _kis_balance(): return {"success": False, "cash": 0, "holdings": [], "total_eval": 0}
     def _kis_configured(): return False
+    async def _kis_us_price(symbol, exchange=""): return {"success": False, "price": 0}
+    async def _kis_us_order(symbol, action, qty, price=0, exchange=""): return {"success": False, "message": "kis_client 미설치", "order_no": ""}
     _log("[KIS] kis_client 모듈 로드 실패 — 모의투자 모드")
 
 # Python 출력 버퍼링 비활성화 (systemd에서 로그가 바로 보이도록)
@@ -4961,27 +4965,58 @@ async def _trading_bot_loop():
                         continue
 
                     ticker = sig["ticker"]
+                    # 한국/미국 시장 자동 판별: ticker가 영문이면 US, 숫자면 KR
+                    sig_market = sig.get("market", market)
+                    is_us = sig_market.upper() in ("US", "USA", "OVERSEAS") or (ticker.isalpha() and len(ticker) <= 5)
 
                     try:
-                        # 현재가 조회 (KIS 실시간 or 관심목록 목표가)
-                        if _KIS_AVAILABLE and _kis_configured():
-                            price = await _kis_price(ticker)
+                        if is_us:
+                            # ── 미국주식 현재가 조회 + 지정가 주문 ──
+                            if _KIS_AVAILABLE and _kis_configured():
+                                us_price_data = await _kis_us_price(ticker)
+                                price = us_price_data.get("price", 0) if us_price_data.get("success") else 0
+                            else:
+                                target_w = next((w for w in market_watchlist if w.get("ticker", "").upper() == ticker.upper()), None)
+                                price = float(target_w.get("target_price", 0)) if target_w else 0
+                            if price <= 0:
+                                save_activity_log("cio_manager", f"[US] {ticker} 현재가 조회 실패 — 주문 건너뜀", "warning")
+                                continue
+                            # 미국주식: order_size(원) ÷ (가격×환율) = 주수
+                            _fx = 1450  # 기본 환율
+                            try:
+                                from db import load_setting
+                                _fx = load_setting("fx_rate_usd_krw", 1450)
+                            except Exception:
+                                pass
+                            qty = max(1, int(order_size / (price * _fx)))
                         else:
-                            target_w = next((w for w in market_watchlist if w["ticker"] == ticker), None)
-                            price = target_w.get("target_price", 0) if target_w else 0
-
-                        if price <= 0:
-                            price = 50000  # 가격 미설정 시 기본값
-
-                        qty = max(1, int(order_size / price))
+                            # ── 한국주식 현재가 조회 ──
+                            if _KIS_AVAILABLE and _kis_configured():
+                                price = await _kis_price(ticker)
+                            else:
+                                target_w = next((w for w in market_watchlist if w["ticker"] == ticker), None)
+                                price = target_w.get("target_price", 0) if target_w else 0
+                            if price <= 0:
+                                price = 50000  # 가격 미설정 시 기본값
+                            qty = max(1, int(order_size / price))
 
                         if use_kis:
-                            # 실제 KIS API 주문 (시장가)
-                            order_result = await _kis_order(ticker, sig["action"], qty, price=0)
                             mode_str = "실거래" if not KIS_IS_MOCK else "모의투자(KIS)"
                             action_kr = "매수" if sig["action"] == "buy" else "매도"
+
+                            if is_us:
+                                # 미국주식: 지정가 주문 (시장가 미지원)
+                                order_result = await _kis_us_order(ticker, sig["action"], qty, price=price)
+                                order_total = qty * price  # USD 기준
+                            else:
+                                # 한국주식: 시장가 주문
+                                order_result = await _kis_order(ticker, sig["action"], qty, price=0)
+                                order_total = qty * price  # KRW 기준
+
                             if order_result["success"]:
-                                order_msg = f"[{mode_str}] {action_kr} 주문 완료: {sig.get('name', ticker)} {qty}주 (주문번호: {order_result['order_no']})"
+                                currency = "USD" if is_us else "KRW"
+                                order_msg = f"[{mode_str}] {action_kr} 주문 완료: {sig.get('name', ticker)} {qty}주 ${price:.2f}" if is_us else \
+                                            f"[{mode_str}] {action_kr} 주문 완료: {sig.get('name', ticker)} {qty}주 (주문번호: {order_result['order_no']})"
                                 save_activity_log("cio_manager", order_msg, "info")
                                 history = _load_data("trading_history", [])
                                 history.insert(0, {
@@ -4989,10 +5024,11 @@ async def _trading_bot_loop():
                                     "date": datetime.now(KST).isoformat(),
                                     "ticker": ticker, "name": sig.get("name", ticker),
                                     "action": sig["action"], "qty": qty, "price": price,
-                                    "total": qty * price, "pnl": 0,
+                                    "total": order_total, "pnl": 0,
                                     "strategy": f"CIO 자동매매 ({mode_str}, 신뢰도 {sig['confidence']}%)",
-                                    "status": "executed", "market": sig.get("market", market),
+                                    "status": "executed", "market": "US" if is_us else "KR",
                                     "order_no": order_result["order_no"],
+                                    "currency": "USD" if is_us else "KRW",
                                 })
                                 _save_data("trading_history", history)
                             else:
