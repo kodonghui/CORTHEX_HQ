@@ -150,14 +150,6 @@ PLATFORM_CONFIG: dict[str, dict[str, str]] = {
         "env_access_token": "INSTAGRAM_ACCESS_TOKEN",  # GitHub Secrets에 등록된 장기 토큰 fallback
         "scope": "instagram_basic,instagram_content_publish",
     },
-    "linkedin": {
-        "auth_url": "https://www.linkedin.com/oauth/v2/authorization",
-        "token_url": "https://www.linkedin.com/oauth/v2/accessToken",
-        "env_client_id": "LINKEDIN_CLIENT_ID",
-        "env_client_secret": "LINKEDIN_CLIENT_SECRET",
-        "env_redirect_uri": "LINKEDIN_REDIRECT_URI",
-        "scope": "openid profile w_member_social",
-    },
     "naver_cafe": {
         "auth_url": "https://nid.naver.com/oauth2.0/authorize",
         "token_url": "https://nid.naver.com/oauth2.0/token",
