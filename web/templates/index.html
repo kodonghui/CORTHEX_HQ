@@ -1364,46 +1364,6 @@
         </div>
       </div>
 
-      <!-- Activity Log -->
-      <div class="border-t border-hq-border shrink-0 mt-2">
-        <button @click="logExpanded = !logExpanded"
-                class="w-full flex items-center justify-between px-4 py-2 hover:bg-hq-panel/20 transition-colors">
-          <div class="flex items-center gap-2">
-            <svg class="w-3.5 h-3.5 text-hq-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
-            <span class="text-[10px] font-bold text-hq-muted uppercase tracking-[0.15em]">활동 로그</span>
-          </div>
-          <div class="flex items-center gap-2">
-            <span x-show="activityLogs.length > 0"
-                  class="text-[9px] font-mono bg-hq-accent/10 text-hq-accent px-1.5 py-0.5 rounded"
-                  x-text="activityLogs.length"></span>
-            <svg class="w-3 h-3 text-hq-muted transition-transform duration-200"
-                 :class="logExpanded ? 'rotate-180' : ''"
-                 fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
-          </div>
-        </button>
-        <div x-show="logExpanded" x-collapse>
-          <!-- 전체삭제 버튼 -->
-          <div x-show="activityLogs.length > 0" class="flex items-center justify-end px-3 pb-1">
-            <button @click="activityLogs = []; saveActivityLogs()" class="text-[10px] text-hq-red/60 hover:text-hq-red transition">전체 삭제</button>
-          </div>
-          <div class="overflow-y-auto scrollbar-thin max-h-52 px-3 pb-3 space-y-0.5">
-            <template x-for="(log, i) in activityLogs.slice(-50).reverse()" :key="i">
-              <div class="log-item text-[11px] text-hq-muted fade-in group flex items-center gap-1">
-                <div class="flex-1 min-w-0">
-                  <span class="font-mono text-hq-muted/80" x-text="(log.time || '').substring(0, 5)"></span>
-                  <span class="font-medium" :class="getAgentColor(log.agent_id) || 'text-hq-cyan/70'" x-text="log.agent_id"></span>
-                  <span x-text="log.action"></span>
-                </div>
-                <button @click="activityLogs.splice(activityLogs.indexOf(log), 1); saveActivityLogs()"
-                        class="opacity-0 group-hover:opacity-100 text-hq-red/50 hover:text-hq-red transition shrink-0" title="삭제">&times;</button>
-              </div>
-            </template>
-            <template x-if="activityLogs.length === 0">
-              <div class="text-[11px] text-hq-muted/80 italic px-2 py-2">아직 활동이 없습니다</div>
-            </template>
-          </div>
-        </div>
-      </div>
     </aside>
 
     <!-- ═══ Right Panel: Tabs + Content ═══ -->

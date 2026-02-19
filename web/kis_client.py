@@ -708,7 +708,7 @@ async def get_overseas_price(symbol: str, exchange: str = "") -> dict:
             return {
                 "success": True,
                 "symbol": symbol.upper(),
-                "exchange": excd,
+                "exchange": price_excd,
                 "price": price,
                 "prev_close": prev_close,
                 "change": change,
@@ -805,7 +805,7 @@ async def place_overseas_order(
 
 
 async def get_overseas_balance() -> dict:
-    """해외주식 계좌 잔고 조회.
+    """해외주식 계좌 잔고 조회 — NASD/NYSE/AMEX 3개 거래소 통합.
 
     Returns:
         {"cash_usd": float, "holdings": [...], "total_eval_usd": float, "success": bool}
@@ -813,58 +813,77 @@ async def get_overseas_balance() -> dict:
     if not is_configured():
         return {"success": False, "available": False, "cash_usd": 0, "holdings": [], "total_eval_usd": 0}
 
+    _US_EXCHANGES = ["NASD", "NYSE", "AMEX"]
+
+    async def _query_exchange(token: str, excd: str) -> dict:
+        """단일 거래소 잔고 조회."""
+        try:
+            async with httpx.AsyncClient(timeout=15) as client:
+                resp = await client.get(
+                    f"{KIS_BASE}/uapi/overseas-stock/v1/trading/inquire-balance",
+                    headers={
+                        "authorization": f"Bearer {token}",
+                        "appkey": KIS_APP_KEY,
+                        "appsecret": KIS_APP_SECRET,
+                        "tr_id": _TR_OVERSEAS["balance"],
+                    },
+                    params={
+                        "CANO": KIS_ACCOUNT_NO,
+                        "ACNT_PRDT_CD": KIS_ACCOUNT_CODE,
+                        "OVRS_EXCG_CD": excd,
+                        "TR_CRCY_CD": "USD",
+                        "CTX_AREA_FK200": "",
+                        "CTX_AREA_NK200": "",
+                    },
+                )
+                data = resp.json()
+                logger.info("[KIS] 해외잔고 %s: rt_cd=%s, msg=%s", excd, data.get("rt_cd"), data.get("msg1", ""))
+                return {"excd": excd, "data": data}
+        except Exception as e:
+            logger.error("[KIS] 해외잔고 %s 조회 예외: %s", excd, e)
+            return {"excd": excd, "data": {"rt_cd": "-1", "msg1": str(e)}}
+
     try:
         token = await _get_token()
-        async with httpx.AsyncClient(timeout=15) as client:
-            resp = await client.get(
-                f"{KIS_BASE}/uapi/overseas-stock/v1/trading/inquire-balance",
-                headers={
-                    "authorization": f"Bearer {token}",
-                    "appkey": KIS_APP_KEY,
-                    "appsecret": KIS_APP_SECRET,
-                    "tr_id": _TR_OVERSEAS["balance"],
-                },
-                params={
-                    "CANO": KIS_ACCOUNT_NO,
-                    "ACNT_PRDT_CD": KIS_ACCOUNT_CODE,
-                    "OVRS_EXCG_CD": "NASD",
-                    "TR_CRCY_CD": "USD",
-                    "CTX_AREA_FK200": "",
-                    "CTX_AREA_NK200": "",
-                },
-            )
-            data = resp.json()
-            logger.info("[KIS] 해외주식 잔고 API 응답: rt_cd=%s, msg=%s, status=%s",
-                        data.get("rt_cd"), data.get("msg1", ""), resp.status_code)
+
+        # NASD, NYSE, AMEX 동시 조회 (각 거래소별 보유종목이 다를 수 있음)
+        results = await asyncio.gather(
+            *[_query_exchange(token, ex) for ex in _US_EXCHANGES],
+            return_exceptions=True,
+        )
+
+        all_holdings = []
+        total_purchase = 0.0
+        total_pnl = 0.0
+        any_success = False
+        errors = []
+
+        for r in results:
+            if isinstance(r, Exception):
+                errors.append(str(r))
+                continue
+            excd = r["excd"]
+            data = r["data"]
 
             if data.get("rt_cd") != "0":
-                msg = data.get("msg1", "알 수 없는 오류")
-                logger.warning("[KIS] 해외주식 잔고 조회 실패: %s (전체 응답: %s)", msg, str(data)[:500])
-                return {"success": False, "available": False, "message": msg, "cash_usd": 0, "holdings": [], "total_eval_usd": 0}
+                msg = data.get("msg1", "")
+                if msg:
+                    errors.append(f"{excd}: {msg}")
+                continue
 
-            output1 = data.get("output1", [])  # 보유 종목
-            output2 = data.get("output2", {})   # 계좌 요약 (dict일 수도 있음)
+            any_success = True
 
-            # output2가 리스트인 경우 처리
-            if isinstance(output2, list):
-                out2 = output2[0] if output2 else {}
-            else:
-                out2 = output2
-
-            cash_usd = float(out2.get("frcr_pchs_amt1", "0") or "0")
-            total_eval_usd = float(out2.get("tot_evlu_pfls_amt", "0") or "0")
-
-            holdings = []
-            for item in output1:
+            # output1: 보유 종목
+            for item in data.get("output1", []):
                 qty = int(float(item.get("ovrs_cblc_qty", "0") or "0"))
                 if qty > 0:
                     avg_price = float(item.get("pchs_avg_pric", "0") or "0")
                     current_price = float(item.get("now_pric2", "0") or "0")
                     eval_profit = float(item.get("frcr_evlu_pfls_amt", "0") or "0")
-                    holdings.append({
+                    all_holdings.append({
                         "symbol": item.get("ovrs_pdno", ""),
                         "name": item.get("ovrs_item_name", ""),
-                        "exchange": item.get("ovrs_excg_cd", ""),
+                        "exchange": item.get("ovrs_excg_cd", excd),
                         "qty": qty,
                         "avg_price": avg_price,
                         "current_price": current_price,
@@ -872,25 +891,45 @@ async def get_overseas_balance() -> dict:
                         "currency": "USD",
                     })
 
-            mode = "모의투자" if KIS_IS_MOCK else "실거래"
-            logger.info("[KIS] 해외주식 잔고 조회 완료 (%s) — %d종목 보유", mode, len(holdings))
+            # output2: 요약 (매입금액 + 손익 → 총평가)
+            output2 = data.get("output2", {})
+            if isinstance(output2, list):
+                out2 = output2[0] if output2 else {}
+            else:
+                out2 = output2
+            total_purchase += float(out2.get("frcr_pchs_amt1", "0") or "0")
+            total_pnl += float(out2.get("tot_evlu_pfls_amt", "0") or "0")
 
-            return {
-                "success": True,
-                "available": True,
-                "cash_usd": cash_usd,
-                "holdings": holdings,
-                "total_eval_usd": total_eval_usd,
-                "mode": mode,
-                "market": "US",
-            }
+        if not any_success:
+            err_msg = "; ".join(errors) if errors else "모든 거래소 조회 실패"
+            logger.warning("[KIS] 해외잔고 전체 실패: %s", err_msg)
+            return {"success": False, "available": False, "message": err_msg,
+                    "cash_usd": 0, "holdings": [], "total_eval_usd": 0}
+
+        # 총평가금액: 개별 종목 (수량×현재가) 합산이 가장 정확
+        holdings_eval = sum(h["qty"] * h["current_price"] for h in all_holdings)
+        # 폴백: output2의 매입금액 + 손익
+        total_eval_usd = holdings_eval if holdings_eval > 0 else (total_purchase + total_pnl)
+
+        mode = "모의투자" if KIS_IS_MOCK else "실거래"
+        logger.info("[KIS] 해외잔고 통합: %d종목, 총평가 $%.2f (%s)", len(all_holdings), total_eval_usd, mode)
+
+        return {
+            "success": True,
+            "available": True,
+            "cash_usd": 0,  # 해외잔고 API는 외화예수금 미제공 — 추후 별도 API 연동 필요
+            "holdings": all_holdings,
+            "total_eval_usd": total_eval_usd,
+            "mode": mode,
+            "market": "US",
+        }
     except Exception as e:
-        logger.error("[KIS] 해외주식 잔고 조회 실패: %s", e)
+        logger.error("[KIS] 해외잔고 통합 조회 실패: %s", e)
         return {"success": False, "available": False, "cash_usd": 0, "holdings": [], "total_eval_usd": 0, "error": str(e)}
 
 
 async def get_mock_overseas_balance() -> dict:
-    """Shadow Trading: 모의투자 해외주식 잔고 조회.
+    """Shadow Trading: 모의투자 해외주식 잔고 조회 — NASD/NYSE/AMEX 통합.
 
     Returns:
         {"cash_usd": float, "holdings": [...], "total_eval_usd": float, "success": bool, "is_mock": True}
@@ -898,53 +937,56 @@ async def get_mock_overseas_balance() -> dict:
     if not MOCK_APP_KEY:
         return {"available": False, "reason": "모의투자 App Key 미설정", "is_mock": True}
 
+    _US_EXCHANGES = ["NASD", "NYSE", "AMEX"]
+
+    async def _query_mock_exchange(token: str, excd: str) -> dict:
+        try:
+            async with httpx.AsyncClient(timeout=15) as client:
+                resp = await client.get(
+                    f"{MOCK_BASE}/uapi/overseas-stock/v1/trading/inquire-balance",
+                    headers={
+                        "authorization": f"Bearer {token}",
+                        "appkey": MOCK_APP_KEY,
+                        "appsecret": MOCK_APP_SECRET,
+                        "tr_id": "VTTS3012R",
+                    },
+                    params={
+                        "CANO": MOCK_ACCOUNT_NO,
+                        "ACNT_PRDT_CD": MOCK_ACCOUNT_CODE,
+                        "OVRS_EXCG_CD": excd,
+                        "TR_CRCY_CD": "USD",
+                        "CTX_AREA_FK200": "",
+                        "CTX_AREA_NK200": "",
+                    },
+                )
+                return {"excd": excd, "data": resp.json()}
+        except Exception as e:
+            return {"excd": excd, "data": {"rt_cd": "-1", "msg1": str(e)}}
+
     try:
         token = await _get_mock_token()
-        async with httpx.AsyncClient(timeout=15) as client:
-            resp = await client.get(
-                f"{MOCK_BASE}/uapi/overseas-stock/v1/trading/inquire-balance",
-                headers={
-                    "authorization": f"Bearer {token}",
-                    "appkey": MOCK_APP_KEY,
-                    "appsecret": MOCK_APP_SECRET,
-                    "tr_id": "VTTS3012R",
-                },
-                params={
-                    "CANO": MOCK_ACCOUNT_NO,
-                    "ACNT_PRDT_CD": MOCK_ACCOUNT_CODE,
-                    "OVRS_EXCG_CD": "NASD",
-                    "TR_CRCY_CD": "USD",
-                    "CTX_AREA_FK200": "",
-                    "CTX_AREA_NK200": "",
-                },
-            )
-            data = resp.json()
-            logger.info("[KIS-Shadow] 모의 해외잔고 API 응답: rt_cd=%s, msg=%s, status=%s",
-                        data.get("rt_cd"), data.get("msg1", ""), resp.status_code)
+        results = await asyncio.gather(
+            *[_query_mock_exchange(token, ex) for ex in _US_EXCHANGES],
+            return_exceptions=True,
+        )
 
+        all_holdings = []
+        any_success = False
+
+        for r in results:
+            if isinstance(r, Exception):
+                continue
+            data = r["data"]
             if data.get("rt_cd") != "0":
-                msg = data.get("msg1", "알 수 없는 오류")
-                logger.warning("[KIS-Shadow] 모의 해외잔고 실패: %s (전체: %s)", msg, str(data)[:500])
-                return {"success": False, "available": False, "message": msg, "is_mock": True}
-
-            output1 = data.get("output1", [])
-            output2 = data.get("output2", {})
-            if isinstance(output2, list):
-                out2 = output2[0] if output2 else {}
-            else:
-                out2 = output2
-
-            cash_usd = float(out2.get("frcr_pchs_amt1", "0") or "0")
-            total_eval_usd = float(out2.get("tot_evlu_pfls_amt", "0") or "0")
-
-            holdings = []
-            for item in output1:
+                continue
+            any_success = True
+            for item in data.get("output1", []):
                 qty = int(float(item.get("ovrs_cblc_qty", "0") or "0"))
                 if qty > 0:
-                    holdings.append({
+                    all_holdings.append({
                         "symbol": item.get("ovrs_pdno", ""),
                         "name": item.get("ovrs_item_name", ""),
-                        "exchange": item.get("ovrs_excg_cd", ""),
+                        "exchange": item.get("ovrs_excg_cd", r["excd"]),
                         "qty": qty,
                         "avg_price": float(item.get("pchs_avg_pric", "0") or "0"),
                         "current_price": float(item.get("now_pric2", "0") or "0"),
@@ -952,16 +994,21 @@ async def get_mock_overseas_balance() -> dict:
                         "currency": "USD",
                     })
 
-            return {
-                "success": True,
-                "available": True,
-                "cash_usd": cash_usd,
-                "holdings": holdings,
-                "total_eval_usd": total_eval_usd,
-                "mode": "모의투자",
-                "is_mock": True,
-                "market": "US",
-            }
+        if not any_success:
+            return {"success": False, "available": False, "message": "모의 해외잔고 조회 실패", "is_mock": True}
+
+        total_eval_usd = sum(h["qty"] * h["current_price"] for h in all_holdings)
+
+        return {
+            "success": True,
+            "available": True,
+            "cash_usd": 0,
+            "holdings": all_holdings,
+            "total_eval_usd": total_eval_usd,
+            "mode": "모의투자",
+            "is_mock": True,
+            "market": "US",
+        }
     except Exception as e:
-        logger.error("[KIS-Shadow] 모의투자 해외주식 잔고 조회 실패: %s", e)
+        logger.error("[KIS-Shadow] 모의투자 해외잔고 통합 조회 실패: %s", e)
         return {"success": False, "available": False, "cash_usd": 0, "holdings": [], "total_eval_usd": 0, "error": str(e), "is_mock": True}
