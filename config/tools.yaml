@@ -466,3 +466,43 @@ tools:
   name_ko: 에이전트 협업 프로토콜
   description: 에이전트 간 횡적 협업 — 작업 요청, 정보 공유, 작업 인계, 결과 수집·종합
   model_name: gpt-5-mini
+  parameters:
+    action:
+      type: string
+      enum: [request, broadcast, handoff, respond, status, collect]
+      description: "수행할 협업 액션 — request: 작업 요청, broadcast: 전체 공유, handoff: 작업 인계, respond: 요청 응답, status: 현황 조회, collect: 결과 수집"
+      required: true
+    to_agent:
+      type: string
+      description: "요청/인계/응답 대상 에이전트 ID (request, handoff, respond 시 필수)"
+    task:
+      type: string
+      description: "요청할 작업 내용 (request, handoff 시 필수)"
+    message:
+      type: string
+      description: "전체 공유 메시지 (broadcast 시 필수)"
+    context:
+      type: string
+      description: "배경 정보·참고 자료 (선택)"
+    priority:
+      type: string
+      enum: [긴급, 높음, 보통, 낮음]
+      description: "우선순위 (기본값: 보통)"
+    current_result:
+      type: string
+      description: "현재까지 작업 결과 (handoff 시 전달)"
+    next_task:
+      type: string
+      description: "인수인계 후 수행할 다음 작업 (handoff 시)"
+    request_id:
+      type: string
+      description: "응답/수집할 메시지 ID (respond, collect 시)"
+    response:
+      type: string
+      description: "요청에 대한 응답 내용 (respond 시 필수)"
+    request_ids:
+      type: string
+      description: "수집할 메시지 ID 목록 — 쉼표 구분 (collect 시)"
+    tags:
+      type: string
+      description: "현황 조회 시 필터 태그 (status 시, 선택)"

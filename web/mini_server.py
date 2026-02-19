@@ -8816,6 +8816,13 @@ async def on_startup():
     _log("[CRON] 크론 실행 엔진 시작 ✅")
     # 도구 실행 엔진 초기화 (비동기 아닌 동기 — 첫 요청 시 lazy 로드도 지원)
     _init_tool_pool()
+    # cross_agent_protocol 실시간 콜백 등록
+    try:
+        from src.tools.cross_agent_protocol import register_call_agent
+        register_call_agent(_call_agent)
+        _log("[P2P] cross_agent_protocol 콜백 등록 완료 ✅")
+    except Exception as e:
+        _log(f"[P2P] cross_agent_protocol 콜백 등록 실패: {e}")
     # PENDING 배치 또는 진행 중인 체인이 있으면 폴러 시작
     pending_batches = load_setting("pending_batches") or []
     active_batches = [b for b in pending_batches if b.get("status") in ("pending", "processing")]
