@@ -256,6 +256,7 @@ class ToolPool:
         if tool_id not in self._tools:
             raise ToolNotFoundError(tool_id)
         logger.info("[%s] 도구 호출: %s", caller_id, tool_id)
+        tool = self._tools[tool_id]
         # caller 에이전트의 모델/temperature를 kwargs에 주입
         if caller_id:
             if "_caller_model" not in kwargs:
@@ -266,7 +267,10 @@ class ToolPool:
                 caller_temp = self._agent_temperatures.get(caller_id)
                 if caller_temp is not None:
                     kwargs["_caller_temperature"] = caller_temp
-        return await self._tools[tool_id].execute(caller_id=caller_id, **kwargs)
+        # 도구 인스턴스에 caller 설정 주입 — _llm_call()이 자동으로 사용
+        tool._current_caller_model = kwargs.get("_caller_model")
+        tool._current_caller_temperature = kwargs.get("_caller_temperature")
+        return await tool.execute(caller_id=caller_id, **kwargs)
 
     def list_tools(self) -> list[dict]:
         return [

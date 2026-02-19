@@ -222,7 +222,7 @@ class SectorRotatorTool(BaseTool):
                 "투자자에게 업종 배분 전략을 제안하세요. 한국어로 답변."
             ),
             user_prompt=raw_text,
-            caller_model=kwargs.get("_caller_model"),
+            caller_model=kwargs.get("_caller_model"), caller_temperature=kwargs.get("_caller_temperature"),
         )
         return f"{raw_text}\n\n{'='*60}\n🎓 교수급 업종 분석\n{'='*60}\n{analysis}"
 
@@ -302,7 +302,7 @@ class SectorRotatorTool(BaseTool):
                 "유리한 업종과 불리한 업종을 구체적으로 제시하세요. 한국어."
             ),
             user_prompt="현재 한국 경기 사이클 국면 판단 + 업종 추천을 해주세요.",
-            caller_model=kwargs.get("_caller_model"),
+            caller_model=kwargs.get("_caller_model"), caller_temperature=kwargs.get("_caller_temperature"),
         )
         results.append(f"\n🎓 현재 국면 분석:\n{analysis}")
         return "\n".join(results)

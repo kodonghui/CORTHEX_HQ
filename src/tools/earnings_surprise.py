@@ -190,7 +190,7 @@ class EarningsSurpriseTool(BaseTool):
                 "주가 반응을 예측하세요. 구체적인 숫자 근거로. 한국어."
             ),
             user_prompt=raw_text,
-            caller_model=kwargs.get("_caller_model"),
+            caller_model=kwargs.get("_caller_model"), caller_temperature=kwargs.get("_caller_temperature"),
         )
         return f"{raw_text}\n\n{'='*55}\n🎓 교수급 실적 분석\n{'='*55}\n{analysis}"
 

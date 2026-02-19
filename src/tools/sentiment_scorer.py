@@ -136,7 +136,7 @@ class SentimentScorerTool(BaseTool):
                     "긍정/부정/중립 비율, 주요 이슈, 감성 점수(0~100)를 제시하세요. 한국어."
                 ),
                 user_prompt=f"{name}의 최근 시장 감성을 분석해주세요.",
-                caller_model=kwargs.get("_caller_model"),
+                caller_model=kwargs.get("_caller_model"), caller_temperature=kwargs.get("_caller_temperature"),
             )
             return f"📊 {name} 시장 감성 분석 (LLM 기반)\n\n{analysis}"
 
@@ -204,7 +204,7 @@ class SentimentScorerTool(BaseTool):
                 "Tetlock(2007)의 연구를 참고하여 분석하세요. 한국어."
             ),
             user_prompt=raw_text,
-            caller_model=kwargs.get("_caller_model"),
+            caller_model=kwargs.get("_caller_model"), caller_temperature=kwargs.get("_caller_temperature"),
         )
         return f"{raw_text}\n\n{'='*55}\n🎓 교수급 감성 분석\n{'='*55}\n{analysis}"
 
@@ -224,7 +224,7 @@ class SentimentScorerTool(BaseTool):
                 "시장 전체 분위기를 분석하세요. 구체적인 숫자로. 한국어."
             ),
             user_prompt="현재 한국 주식시장 공포/탐욕 지수와 시장 분위기 분석",
-            caller_model=kwargs.get("_caller_model"),
+            caller_model=kwargs.get("_caller_model"), caller_temperature=kwargs.get("_caller_temperature"),
         )
         return f"📊 시장 전체 감성 분석 (공포/탐욕 지수)\n\n{analysis}"
 
@@ -240,7 +240,7 @@ class SentimentScorerTool(BaseTool):
             analysis = await self._llm_call(
                 system_prompt=f"'{keyword}' 키워드에 대한 최근 시장 감성 트렌드를 분석해주세요. 한국어.",
                 user_prompt=f"'{keyword}' 감성 분석",
-                caller_model=kwargs.get("_caller_model"),
+                caller_model=kwargs.get("_caller_model"), caller_temperature=kwargs.get("_caller_temperature"),
             )
             return f"📊 '{keyword}' 감성 트렌드 (LLM 기반)\n\n{analysis}"
 

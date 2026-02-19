@@ -194,7 +194,7 @@ class DcfValuatorTool(BaseTool):
                 "구체적인 숫자를 근거로 들고, 리스크 요인도 언급하세요. 한국어로 답변하세요."
             ),
             user_prompt=raw_text,
-            caller_model=kwargs.get("_caller_model"),
+            caller_model=kwargs.get("_caller_model"), caller_temperature=kwargs.get("_caller_temperature"),
         )
         return f"{raw_text}\n\n{'='*50}\n🎓 교수급 종합 분석\n{'='*50}\n{analysis}"
 
@@ -225,7 +225,7 @@ class DcfValuatorTool(BaseTool):
         analysis = await self._llm_call(
             system_prompt="DCF 모델 결과를 해석하는 기업가치평가 전문가입니다. 한국어로 분석하세요.",
             user_prompt=raw_text,
-            caller_model=kwargs.get("_caller_model"),
+            caller_model=kwargs.get("_caller_model"), caller_temperature=kwargs.get("_caller_temperature"),
         )
         return f"{raw_text}\n\n🎓 분석:\n{analysis}"
 
@@ -256,7 +256,7 @@ class DcfValuatorTool(BaseTool):
         analysis = await self._llm_call(
             system_prompt="상대가치 분석 전문가입니다. PER/PBR 밴드 분석으로 매매 판단을 내려주세요. 한국어.",
             user_prompt=raw_text,
-            caller_model=kwargs.get("_caller_model"),
+            caller_model=kwargs.get("_caller_model"), caller_temperature=kwargs.get("_caller_temperature"),
         )
         return f"{raw_text}\n\n🎓 분석:\n{analysis}"
 
@@ -365,7 +365,7 @@ class DcfValuatorTool(BaseTool):
         analysis = await self._llm_call(
             system_prompt="DCF 민감도 분석 결과를 해석하는 전문가입니다. 어떤 시나리오가 가장 합리적인지 판단해주세요. 한국어.",
             user_prompt=raw_text,
-            caller_model=kwargs.get("_caller_model"),
+            caller_model=kwargs.get("_caller_model"), caller_temperature=kwargs.get("_caller_temperature"),
         )
         return f"{raw_text}\n\n🎓 분석:\n{analysis}"
 

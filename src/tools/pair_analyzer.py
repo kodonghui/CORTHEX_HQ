@@ -187,7 +187,7 @@ class PairAnalyzerTool(BaseTool):
                 "Gatev et al.(2006) 연구를 참고하세요. 한국어."
             ),
             user_prompt=raw_text,
-            caller_model=kwargs.get("_caller_model"),
+            caller_model=kwargs.get("_caller_model"), caller_temperature=kwargs.get("_caller_temperature"),
         )
         return f"{raw_text}\n\n{'='*55}\n🎓 교수급 페어 분석\n{'='*55}\n{analysis}"
 
