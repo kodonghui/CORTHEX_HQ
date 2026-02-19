@@ -3992,85 +3992,145 @@
           <!-- ▸ 서브탭 1: 대시보드 -->
           <div x-show="trading.tab === 'dashboard' && !trading.loading">
 
-            <!-- 상단 카드 4개: KIS연결 / 총자산 / 보유현금 / 오늘거래 -->
-            <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-
-              <!-- 카드 1: KIS 연결 상태 -->
-              <div class="glass border rounded-xl p-4 hover-glow"
-                   :class="(trading.summary.settings||{}).kis_connected && (trading.summary.kis_balance||{}).success
-                           ? 'border-hq-green/30' : (trading.summary.settings||{}).kis_connected
-                           ? 'border-hq-yellow/30' : 'border-hq-border'">
-                <div class="text-[10px] text-hq-muted/60 uppercase tracking-wider mb-2">KIS 연결</div>
-                <div class="flex items-center gap-2">
-                  <div class="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                       :class="(trading.summary.settings||{}).kis_connected && (trading.summary.kis_balance||{}).success
-                               ? 'bg-hq-green animate-pulse' : (trading.summary.settings||{}).kis_connected
-                               ? 'bg-hq-yellow animate-pulse' : 'bg-hq-muted/30'"></div>
-                  <span class="text-sm font-bold"
-                        :class="(trading.summary.settings||{}).kis_connected && (trading.summary.kis_balance||{}).success
-                                ? 'text-hq-green' : (trading.summary.settings||{}).kis_connected
-                                ? 'text-hq-yellow' : 'text-hq-muted'"
-                        x-text="(trading.summary.settings||{}).kis_connected && (trading.summary.kis_balance||{}).success
-                                 ? '연결됨' : (trading.summary.settings||{}).kis_connected
-                                 ? '조회 중' : '미연결'"></span>
-                </div>
-                <div class="text-[10px] text-hq-muted mt-1.5 flex items-center gap-1">
-                  <span>한국투자증권 실거래</span>
-                  <button @click="loadTradingSummary()" class="text-hq-muted/50 hover:text-hq-accent transition" title="새로고침">⟳</button>
+            <!-- CIO 자동매매 배너 (최상단) -->
+            <div class="glass border rounded-xl p-4 mb-4 flex items-center justify-between"
+                 :class="trading.botActive ? 'border-hq-green/40 bg-hq-green/[0.05]' : 'border-hq-border'">
+              <div class="flex items-center gap-3">
+                <div class="w-3 h-3 rounded-full" :class="trading.botActive ? 'bg-hq-green animate-pulse' : 'bg-hq-muted/30'"></div>
+                <div>
+                  <span class="text-sm font-bold" :class="trading.botActive ? 'text-hq-green' : 'text-hq-muted'"
+                        x-text="trading.botActive ? 'CIO 자동매매 : 가동 중' : 'CIO 자동매매 : 대기'"></span>
+                  <p class="text-[10px] text-hq-muted"
+                     x-text="trading.botActive ? 'CIO + 전문가 4명이 매 5분마다 관심종목 분석 중 (장 시간에만 작동)' : 'CIO 자동매매가 꺼져 있습니다. 설정에서 켜세요.'"></p>
                 </div>
               </div>
-
-              <!-- 카드 2: 총 자산 (KIS 실계좌 우선) -->
-              <div class="glass border border-hq-green/20 rounded-xl p-4 hover-glow">
-                <div class="text-[10px] text-hq-green/60 uppercase tracking-wider mb-2">총 자산</div>
-                <div class="text-xl font-bold text-hq-text"
-                     x-text="(trading.summary.settings||{}).kis_connected && (trading.summary.kis_balance||{}).success
-                              ? formatKRW((trading.summary.kis_balance||{}).total_eval || 0) + '원'
-                              : formatKRW((trading.summary.portfolio||{}).total_asset || 0) + '원'"></div>
-                <div class="text-[10px] mt-1"
-                     :class="(trading.summary.settings||{}).kis_connected && (trading.summary.kis_balance||{}).success
-                             ? 'text-hq-muted' : tradingPnlColor((trading.summary.portfolio||{}).total_pnl || 0)"
-                     x-text="(trading.summary.settings||{}).kis_connected && (trading.summary.kis_balance||{}).success
-                              ? 'KIS 실계좌 기준'
-                              : (((trading.summary.portfolio||{}).total_pnl || 0) >= 0 ? '+' : '') + formatKRW((trading.summary.portfolio||{}).total_pnl || 0) + '원'"></div>
-              </div>
-
-              <!-- 카드 3: 보유 현금 (KIS 실계좌 우선) -->
-              <div class="glass border border-hq-cyan/20 rounded-xl p-4 hover-glow">
-                <div class="text-[10px] text-hq-cyan/60 uppercase tracking-wider mb-2">보유 현금</div>
-                <div class="text-xl font-bold text-hq-text"
-                     x-text="(trading.summary.settings||{}).kis_connected && (trading.summary.kis_balance||{}).success
-                              ? ((trading.summary.kis_balance||{}).cash || 0).toLocaleString() + '원'
-                              : formatKRW((trading.summary.portfolio||{}).cash || 0) + '원'"></div>
-                <div class="text-[10px] text-hq-muted mt-1"
-                     x-text="(trading.summary.settings||{}).kis_connected && (trading.summary.kis_balance||{}).success
-                              ? ((trading.summary.kis_balance||{}).holdings||[]).length + '종목 보유'
-                              : (trading.summary.portfolio||{}).holdings_count + '종목 보유'"></div>
-              </div>
-
-              <!-- 카드 4: 오늘 거래 -->
-              <div class="glass border border-hq-purple/20 rounded-xl p-4 hover-glow">
-                <div class="text-[10px] text-hq-purple/60 uppercase tracking-wider mb-2">오늘 거래</div>
-                <div class="text-xl font-bold text-hq-text" x-text="((trading.summary.today||{}).trades || 0) + '건'"></div>
-                <div class="text-[10px] mt-1" :class="tradingPnlColor((trading.summary.today||{}).pnl || 0)"
-                     x-text="'손익 ' + (((trading.summary.today||{}).pnl || 0) >= 0 ? '+' : '') + formatKRW((trading.summary.today||{}).pnl || 0) + '원'"></div>
+              <div class="flex items-center gap-3">
+                <span class="text-[10px] px-2 py-1 rounded-full"
+                      :class="(trading.summary.settings||{}).paper_trading !== false ? 'bg-hq-yellow/10 text-hq-yellow' : 'bg-hq-red/10 text-hq-red'"
+                      x-text="(trading.summary.settings||{}).paper_trading !== false ? '모의투자' : '실거래'"></span>
+                <span class="text-[10px] px-2 py-1 rounded-full"
+                      :class="(trading.summary.settings||{}).kis_connected ? 'bg-hq-green/10 text-hq-green' : 'bg-hq-muted/10 text-hq-muted'"
+                      x-text="(trading.summary.settings||{}).kis_connected ? 'KIS 연결' : 'KIS 미연결'"></span>
+                <button @click="runTradingNow()" :disabled="trading.runningNow"
+                        class="rounded-lg px-4 py-1.5 text-xs font-bold transition bg-hq-accent/20 text-hq-accent hover:bg-hq-accent/30 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5">
+                  <svg x-show="trading.runningNow" class="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                  </svg>
+                  <span x-text="trading.runningNow ? '분석 중...' : '지금 분석'"></span>
+                </button>
+                <button @click="toggleTradingBot()" class="rounded-lg px-4 py-1.5 text-xs font-bold transition"
+                        :class="trading.botActive ? 'bg-hq-red/20 text-hq-red hover:bg-hq-red/30' : 'bg-hq-green/20 text-hq-green hover:bg-hq-green/30'"
+                        x-text="trading.botActive ? '중지' : '시작'"></button>
               </div>
             </div>
+
+            <!-- 코크핏: 실거래/모의 2열 미니카드 + 슬리피지 -->
+            <div class="grid grid-cols-2 gap-3 mb-3" x-data="{
+              mockBal: null, mockLoading: false,
+              async loadMock() {
+                this.mockLoading = true;
+                try {
+                  const r = await fetch('/api/trading/mock/balance');
+                  this.mockBal = await r.json();
+                } catch(e) { this.mockBal = {available: false}; }
+                this.mockLoading = false;
+              }
+            }" x-init="loadMock()">
+              <!-- 실거래 카드 -->
+              <div class="bg-hq-panel border rounded-xl p-4"
+                   :class="(trading.summary.settings||{}).kis_connected && (trading.summary.kis_balance||{}).success ? 'border-hq-green/30' : 'border-hq-border'">
+                <div class="flex items-center gap-2 mb-2">
+                  <div class="w-2 h-2 rounded-full"
+                       :class="(trading.summary.settings||{}).kis_connected && (trading.summary.kis_balance||{}).success ? 'bg-hq-green animate-pulse' : 'bg-hq-muted/30'"></div>
+                  <span class="text-xs font-bold"
+                        :class="(trading.summary.settings||{}).kis_connected && (trading.summary.kis_balance||{}).success ? 'text-hq-green' : 'text-hq-muted'">
+                    실거래
+                  </span>
+                </div>
+                <div class="text-lg font-bold text-hq-text"
+                     x-text="(trading.summary.settings||{}).kis_connected && (trading.summary.kis_balance||{}).success
+                              ? ((trading.summary.kis_balance.total_eval||0)).toLocaleString() + '원'
+                              : ((trading.summary.portfolio||{}).total_asset||0).toLocaleString() + '원'"></div>
+                <div class="text-xs text-hq-muted mt-1"
+                     x-text="'보유 ' + (((trading.summary.kis_balance||{}).holdings||[]).length || (trading.summary.portfolio||{}).holdings_count || 0) + '종목'"></div>
+                <div class="text-xs mt-1 text-hq-muted"
+                     x-text="'오늘 ' + ((trading.summary.today||{}).trades||0) + '건'"></div>
+              </div>
+
+              <!-- 모의투자 카드 -->
+              <div class="bg-hq-panel border rounded-xl p-4"
+                   :class="mockBal && mockBal.available ? 'border-hq-purple/30' : 'border-hq-border'">
+                <div class="flex items-center gap-2 mb-2">
+                  <div class="w-2 h-2 rounded-full"
+                       :class="mockBal && mockBal.available ? 'bg-hq-purple animate-pulse' : 'bg-hq-muted/30'"></div>
+                  <span class="text-xs font-bold"
+                        :class="mockBal && mockBal.available ? 'text-hq-purple' : 'text-hq-muted'">
+                    모의투자
+                  </span>
+                </div>
+                <template x-if="mockLoading">
+                  <div class="text-xs text-hq-muted">조회 중...</div>
+                </template>
+                <template x-if="!mockLoading && mockBal && mockBal.available">
+                  <div>
+                    <div class="text-lg font-bold text-hq-text" x-text="(mockBal.total_eval||0).toLocaleString() + '원'"></div>
+                    <div class="text-xs text-hq-muted mt-1" x-text="'현금 ' + (mockBal.cash||0).toLocaleString() + '원'"></div>
+                    <div class="text-xs mt-1 text-hq-muted" x-text="'보유 ' + ((mockBal.holdings||[]).length) + '종목'"></div>
+                  </div>
+                </template>
+                <template x-if="!mockLoading && (!mockBal || !mockBal.available)">
+                  <div>
+                    <div class="text-sm text-hq-muted">미연결</div>
+                    <div class="text-xs text-hq-muted/60 mt-1" x-text="(mockBal||{}).reason || 'Mock Key 미설정'"></div>
+                  </div>
+                </template>
+              </div>
+
+              <!-- 슬리피지 바 (2열 전체 폭) -->
+              <div class="col-span-2 bg-hq-surface border border-hq-border rounded-xl px-4 py-2.5 flex items-center justify-between">
+                <span class="text-xs text-hq-muted">슬리피지 (모의 - 실거래 수익률 차이)</span>
+                <span class="text-xs font-bold"
+                      :class="(mockBal && mockBal.available && (trading.summary.settings||{}).kis_connected)
+                              ? 'text-hq-accent' : 'text-hq-muted/50'"
+                      x-text="(mockBal && mockBal.available && (trading.summary.settings||{}).kis_connected)
+                               ? '비교 데이터 수집 중' : '모의/실거래 모두 연결 시 표시'">
+                </span>
+              </div>
+            </div>
+
+            <!-- 코크핏 상세 현황 -->
+            <div>
+
+            <!-- 상세 헤더 + 드롭다운 -->
+            <div class="flex items-center justify-between mb-3">
+              <h3 class="text-xs font-bold text-hq-text">상세 현황</h3>
+              <div class="flex items-center gap-2">
+                <button @click="loadTradingSummary()" class="text-hq-muted/50 hover:text-hq-accent transition text-xs" title="새로고침">⟳</button>
+                <select x-model="trading.detailAccount"
+                        class="bg-hq-surface border border-hq-border rounded px-2 py-1 text-xs text-hq-muted">
+                  <option value="real">실거래 ▾</option>
+                  <option value="mock">모의투자 ▾</option>
+                </select>
+              </div>
+            </div>
+
 
             <!-- 중간 2열: 보유종목(KIS) + 최근거래 -->
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
 
-              <!-- 보유종목 (KIS 실계좌 우선, 없으면 모의) -->
+              <!-- 보유종목 (드롭다운으로 실거래/모의 전환) -->
               <div class="glass border border-hq-green/15 rounded-xl p-4 hover-glow">
                 <div class="flex items-center justify-between mb-3">
                   <h3 class="text-sm font-bold text-hq-green/80">보유 종목</h3>
                   <span class="text-[10px] text-hq-muted"
-                        x-text="(trading.summary.settings||{}).kis_connected && (trading.summary.kis_balance||{}).success
-                                 ? 'KIS 실계좌' : '모의계좌'"></span>
+                        x-text="trading.detailAccount === 'real'
+                                 ? ((trading.summary.settings||{}).kis_connected && (trading.summary.kis_balance||{}).success ? 'KIS 실계좌' : '실거래 미연결')
+                                 : '모의계좌'"></span>
                 </div>
 
-                <!-- KIS 연결 성공: KIS 보유종목 표시 -->
-                <template x-if="(trading.summary.settings||{}).kis_connected && (trading.summary.kis_balance||{}).success">
+                <!-- 실거래 탭 선택 시: KIS 연결 성공 -->
+                <template x-if="trading.detailAccount === 'real' && (trading.summary.settings||{}).kis_connected && (trading.summary.kis_balance||{}).success">
                   <div>
                     <template x-if="((trading.summary.kis_balance||{}).holdings||[]).length === 0">
                       <div class="text-center text-hq-muted/70 py-6 text-xs">보유 종목 없음</div>
@@ -4093,8 +4153,8 @@
                   </div>
                 </template>
 
-                <!-- KIS 조회 중 -->
-                <template x-if="(trading.summary.settings||{}).kis_connected && !(trading.summary.kis_balance||{}).success">
+                <!-- 실거래 탭: KIS 조회 중 -->
+                <template x-if="trading.detailAccount === 'real' && (trading.summary.settings||{}).kis_connected && !(trading.summary.kis_balance||{}).success">
                   <div class="text-center py-6">
                     <div class="text-xs text-hq-yellow/80 mb-1">KIS 잔고 조회 중...</div>
                     <div x-show="(trading.summary.kis_balance||{}).error" x-text="'오류: ' + ((trading.summary.kis_balance||{}).error||'')" class="text-[10px] text-hq-muted/60 mb-2"></div>
@@ -4102,8 +4162,16 @@
                   </div>
                 </template>
 
-                <!-- KIS 미연결: 모의계좌 보유종목 -->
-                <template x-if="!(trading.summary.settings||{}).kis_connected">
+                <!-- 실거래 탭: KIS 미연결 -->
+                <template x-if="trading.detailAccount === 'real' && !(trading.summary.settings||{}).kis_connected">
+                  <div class="text-center py-6">
+                    <div class="text-xs text-hq-muted/70">KIS 미연결</div>
+                    <div class="text-[10px] text-hq-muted/50 mt-1">설정에서 KIS API 키를 입력하세요</div>
+                  </div>
+                </template>
+
+                <!-- 모의투자 탭: 모의계좌 보유종목 -->
+                <template x-if="trading.detailAccount === 'mock'">
                   <div>
                     <template x-if="(trading.portfolio.holdings||[]).length === 0">
                       <div class="text-center text-hq-muted/70 py-6 text-xs">보유 종목 없음</div>
@@ -4159,74 +4227,7 @@
               </div>
             </div>
 
-            <!-- CIO 자동매매 배너 -->
-            <div class="glass border rounded-xl p-4 mb-6 flex items-center justify-between"
-                 :class="trading.botActive ? 'border-hq-green/40 bg-hq-green/[0.05]' : 'border-hq-border'">
-              <div class="flex items-center gap-3">
-                <div class="w-3 h-3 rounded-full" :class="trading.botActive ? 'bg-hq-green animate-pulse' : 'bg-hq-muted/30'"></div>
-                <div>
-                  <span class="text-sm font-bold" :class="trading.botActive ? 'text-hq-green' : 'text-hq-muted'"
-                        x-text="trading.botActive ? 'CIO 자동매매 : 가동 중' : 'CIO 자동매매 : 대기'"></span>
-                  <p class="text-[10px] text-hq-muted"
-                     x-text="trading.botActive ? 'CIO + 전문가 4명이 매 5분마다 관심종목 분석 중 (장 시간에만 작동)' : 'CIO 자동매매가 꺼져 있습니다. 설정에서 켜세요.'"></p>
-                </div>
-              </div>
-              <div class="flex items-center gap-3">
-                <span class="text-[10px] px-2 py-1 rounded-full"
-                      :class="(trading.summary.settings||{}).paper_trading !== false ? 'bg-hq-yellow/10 text-hq-yellow' : 'bg-hq-red/10 text-hq-red'"
-                      x-text="(trading.summary.settings||{}).paper_trading !== false ? '모의투자' : '실거래'"></span>
-                <span class="text-[10px] px-2 py-1 rounded-full"
-                      :class="(trading.summary.settings||{}).kis_connected ? 'bg-hq-green/10 text-hq-green' : 'bg-hq-muted/10 text-hq-muted'"
-                      x-text="(trading.summary.settings||{}).kis_connected ? 'KIS 연결' : 'KIS 미연결'"></span>
-                <button @click="runTradingNow()" :disabled="trading.runningNow"
-                        class="rounded-lg px-4 py-1.5 text-xs font-bold transition bg-hq-accent/20 text-hq-accent hover:bg-hq-accent/30 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5">
-                  <svg x-show="trading.runningNow" class="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24">
-                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
-                  </svg>
-                  <span x-text="trading.runningNow ? '분석 중...' : '지금 분석'"></span>
-                </button>
-                <button @click="toggleTradingBot()" class="rounded-lg px-4 py-1.5 text-xs font-bold transition"
-                        :class="trading.botActive ? 'bg-hq-red/20 text-hq-red hover:bg-hq-red/30' : 'bg-hq-green/20 text-hq-green hover:bg-hq-green/30'"
-                        x-text="trading.botActive ? '중지' : '시작'"></button>
-              </div>
-            </div>
-
-            <!-- 모의거래 섹션 (접기/펼치기) -->
-            <div class="glass border border-hq-yellow/20 rounded-xl p-4 mt-2">
-              <div class="flex items-center justify-between cursor-pointer select-none"
-                   @click="trading.showPaper = !trading.showPaper">
-                <div class="flex items-center gap-2">
-                  <span class="text-[10px] px-2 py-0.5 rounded-full bg-hq-yellow/10 text-hq-yellow">모의투자</span>
-                  <span class="text-xs font-bold text-hq-muted">모의거래 계좌</span>
-                </div>
-                <svg class="w-4 h-4 text-hq-muted transition-transform duration-200"
-                     :class="trading.showPaper ? 'rotate-180' : ''"
-                     fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
-                </svg>
-              </div>
-              <div x-show="trading.showPaper"
-                   x-transition:enter="transition ease-out duration-150"
-                   x-transition:enter-start="opacity-0 -translate-y-1"
-                   x-transition:enter-end="opacity-100 translate-y-0"
-                   class="mt-4 grid grid-cols-2 gap-4">
-                <div class="bg-hq-surface rounded-lg p-3">
-                  <div class="text-[10px] text-hq-muted mb-1">모의 총자산</div>
-                  <div class="text-sm font-bold text-hq-text"
-                       x-text="((trading.summary.portfolio||{}).total_asset || 0).toLocaleString() + '원'"></div>
-                  <div class="text-[10px] mt-0.5" :class="tradingPnlColor((trading.summary.portfolio||{}).total_pnl || 0)"
-                       x-text="(((trading.summary.portfolio||{}).total_pnl || 0) >= 0 ? '+' : '') + formatKRW((trading.summary.portfolio||{}).total_pnl || 0) + '원'"></div>
-                </div>
-                <div class="bg-hq-surface rounded-lg p-3">
-                  <div class="text-[10px] text-hq-muted mb-1">모의 현금</div>
-                  <div class="text-sm font-bold text-hq-text"
-                       x-text="((trading.summary.portfolio||{}).cash || 0).toLocaleString() + '원'"></div>
-                  <div class="text-[10px] mt-0.5 text-hq-muted"
-                       x-text="(trading.summary.portfolio||{}).holdings_count + '종목 보유'"></div>
-                </div>
-              </div>
-            </div>
+            </div><!-- /코크핏 상세 현황 -->
 
           </div>
 
@@ -6249,6 +6250,10 @@
           initialCashInput: 50000000,
           // 모의거래 섹션 접기/펼치기
           showPaper: false,
+          // 대시보드 서브탭 (실거래/모의투자)
+          subTab: 'real',
+          // 코크핏 상세 드롭다운 (실거래/모의투자)
+          detailAccount: 'real',
         },
 
         // Org tree expand state
