@@ -4010,7 +4010,7 @@
                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
                     <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
                   </svg>
-                  <span x-text="trading.runningNow ? '분석 중...' : '지금 분석'"></span>
+                  <span x-text="trading.runningNow ? '분석 중...' : '즉시 분석·매매결정'"></span>
                 </button>
                 <button @click="toggleTradingBot()" class="rounded-lg px-4 py-1.5 text-xs font-bold transition"
                         :class="trading.botActive ? 'bg-hq-red/20 text-hq-red hover:bg-hq-red/30' : 'bg-hq-green/20 text-hq-green hover:bg-hq-green/30'"
@@ -4018,6 +4018,41 @@
               </div>
             </div>
 
+            <!-- CIO 팀 협업 로그 패널 -->
+            <div class="mt-3 rounded-xl border border-hq-yellow/20 bg-hq-yellow/5 overflow-hidden"
+                 x-data="{}"
+                 x-init="fetch('/api/delegation-log?division=cio&limit=20').then(r=>r.ok?r.json():[]).then(d=>{$root.trading.cioLogs=Array.isArray(d)?d:[];}).catch(()=>{})">
+              <div @click="trading.showCioLogs = !trading.showCioLogs"
+                   class="flex items-center justify-between px-3 py-2 cursor-pointer hover:bg-hq-yellow/10 transition">
+                <div class="flex items-center gap-2">
+                  <span class="w-1.5 h-1.5 rounded-full bg-hq-yellow"></span>
+                  <span class="text-[11px] font-bold text-hq-yellow">CIO 팀 협업 흐름</span>
+                  <span class="text-[9px] text-hq-yellow/60" x-text="trading.cioLogs.length + '건'"></span>
+                </div>
+                <svg :class="trading.showCioLogs ? 'rotate-180' : ''"
+                     class="w-3 h-3 text-hq-yellow/60 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                </svg>
+              </div>
+              <div x-show="trading.showCioLogs" class="divide-y divide-hq-yellow/10 max-h-48 overflow-y-auto scrollbar-thin">
+                <template x-if="trading.cioLogs.length === 0">
+                  <div class="px-3 py-3 text-[10px] text-hq-muted/50 text-center">분석 실행 시 협업 흐름이 표시됩니다</div>
+                </template>
+                <template x-for="log in trading.cioLogs" :key="log.id">
+                  <div class="px-3 py-2 flex items-start gap-2">
+                    <span class="text-[10px] font-semibold text-hq-yellow shrink-0 mt-0.5"
+                          x-text="(getAgentName(log.sender) || log.sender).replace('투자분석처장', 'CIO').replace(' Specialist', '')"></span>
+                    <svg class="w-2.5 h-2.5 text-hq-muted/40 shrink-0 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/>
+                    </svg>
+                    <span class="text-[10px] text-hq-muted/70 shrink-0 mt-0.5"
+                          x-text="(getAgentName(log.receiver) || log.receiver).replace('투자분석처장', 'CIO').replace(' Specialist', '')"></span>
+                    <span class="text-[9px] text-hq-muted/50 flex-1 line-clamp-1 mt-0.5" x-text="stripMarkdown(log.message)"></span>
+                    <span class="text-[9px] text-hq-muted/40 shrink-0 mt-0.5" x-text="relativeTimeStr(log.created_at)"></span>
+                  </div>
+                </template>
+              </div>
+            </div>
 
             <!-- 코크핏: 실거래/모의 2열 미니카드 + 슬리피지 -->
             <div class="grid grid-cols-2 gap-3 mb-3" x-data="{
@@ -6592,6 +6627,8 @@
           loadingSignals: false,
           decisions: [],
           expandedDecision: null,
+          cioLogs: [],
+          showCioLogs: true,
           // 주문 폼
           orderForm: { action: 'buy', ticker: '', name: '', qty: 0, price: 0 },
           // 전략 추가 폼
@@ -9347,10 +9384,17 @@
             const orders = res.orders_triggered || 0;
             const cal = res.calibration;
             if (cal) this.trading.calibration = cal;
-            let msg = `즉시 분석 완료! 매수 ${buy}건, 매도 ${sell}건`;
+            let msg = `분석 완료! 매수 ${buy} · 매도 ${sell}`;
             if (orders > 0) msg += ` · 주문 ${orders}건 실행`;
-            if (cal && cal.win_rate !== undefined) msg += ` · 최근 승률 ${cal.win_rate}%`;
-            this.showToast(msg, orders > 0 ? 'success' : 'info');
+            this.showToast(msg + ' → 시그널탭 확인', orders > 0 ? 'success' : 'info');
+            // 시그널탭으로 이동 + 데이터 갱신
+            this.trading.tab = 'signals';
+            const [dec, logs] = await Promise.all([
+              fetch('/api/trading/decisions').then(r=>r.ok?r.json():{decisions:[]}).catch(()=>({decisions:[]})),
+              fetch('/api/delegation-log?division=cio&limit=30').then(r=>r.ok?r.json():[]).catch(()=>[]),
+            ]);
+            this.trading.decisions = dec.decisions || [];
+            this.trading.cioLogs = Array.isArray(logs) ? logs : [];
             await this.loadTradingSummary();
           } catch { this.showToast('즉시 분석 실패', 'error'); }
           finally { this.trading.runningNow = false; }
