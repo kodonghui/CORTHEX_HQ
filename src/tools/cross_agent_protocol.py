@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import json
 import logging
-import os
+import sqlite3
 import uuid
 from datetime import datetime
 from typing import Any
@@ -11,8 +11,6 @@ from typing import Any
 from src.tools.base import BaseTool
 
 logger = logging.getLogger("corthex.tools.cross_agent_protocol")
-
-MESSAGES_FILE = os.path.join(os.getcwd(), "data", "cross_agent_messages.json")
 
 # ── 실시간 에이전트 호출 콜백 (mini_server.py가 시작 시 등록) ──
 _call_agent_callback: Any | None = None
@@ -29,8 +27,102 @@ def register_call_agent(fn: Any) -> None:
     logger.info("cross_agent_protocol: _call_agent 콜백 등록 완료")
 
 
+def _get_conn() -> sqlite3.Connection:
+    """DB 연결 — cross_agent_messages 테이블 자동 생성."""
+    try:
+        from db import get_connection  # 서버 환경 (web/ 기준)
+    except ImportError:
+        from web.db import get_connection  # 로컬 환경
+    conn = get_connection()
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS cross_agent_messages (
+            id TEXT PRIMARY KEY,
+            msg_type TEXT NOT NULL,
+            from_agent TEXT NOT NULL,
+            to_agent TEXT NOT NULL,
+            data TEXT NOT NULL,
+            status TEXT DEFAULT '대기',
+            created_at TEXT NOT NULL
+        )
+    """)
+    conn.commit()
+    return conn
+
+
 class CrossAgentProtocolTool(BaseTool):
     """에이전트 간 횡적 협업 프로토콜 — 작업 요청, 정보 공유, 작업 인계, 결과 수집."""
+
+    def _save_msg(self, msg: dict) -> None:
+        """새 메시지를 DB에 저장."""
+        try:
+            conn = _get_conn()
+            conn.execute(
+                "INSERT OR REPLACE INTO cross_agent_messages "
+                "(id, msg_type, from_agent, to_agent, data, status, created_at) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (
+                    msg["id"],
+                    msg.get("type", "request"),
+                    msg.get("from", "unknown"),
+                    msg.get("to", ""),
+                    json.dumps(msg, ensure_ascii=False),
+                    msg.get("status", "대기"),
+                    msg.get("created_at", datetime.now().isoformat()),
+                ),
+            )
+            conn.commit()
+            conn.close()
+        except Exception as e:
+            logger.error("cross_agent_protocol DB 저장 실패: %s", e)
+
+    def _update_msg(self, msg: dict) -> None:
+        """기존 메시지 상태/내용 업데이트."""
+        try:
+            conn = _get_conn()
+            conn.execute(
+                "UPDATE cross_agent_messages SET data=?, status=? WHERE id=?",
+                (json.dumps(msg, ensure_ascii=False), msg.get("status", ""), msg["id"]),
+            )
+            conn.commit()
+            conn.close()
+        except Exception as e:
+            logger.error("cross_agent_protocol DB 업데이트 실패: %s", e)
+
+    def _load(self, limit: int = 200, agent_id: str = "", msg_type: str = "") -> list[dict]:
+        """DB에서 메시지 목록 조회."""
+        try:
+            conn = _get_conn()
+            params: list = []
+            where_clauses: list[str] = []
+            if agent_id:
+                where_clauses.append("(from_agent=? OR to_agent=?)")
+                params.extend([agent_id, agent_id])
+            if msg_type:
+                where_clauses.append("msg_type=?")
+                params.append(msg_type)
+            where = f"WHERE {' AND '.join(where_clauses)}" if where_clauses else ""
+            params.append(limit)
+            rows = conn.execute(
+                f"SELECT data FROM cross_agent_messages {where} "
+                f"ORDER BY created_at DESC LIMIT ?",
+                params,
+            ).fetchall()
+            conn.close()
+            return [json.loads(r[0]) for r in rows]
+        except Exception:
+            return []
+
+    def _find_by_id(self, msg_id: str) -> dict | None:
+        """ID로 메시지 1건 조회."""
+        try:
+            conn = _get_conn()
+            row = conn.execute(
+                "SELECT data FROM cross_agent_messages WHERE id=?", (msg_id,)
+            ).fetchone()
+            conn.close()
+            return json.loads(row[0]) if row else None
+        except Exception:
+            return None
 
     async def execute(self, **kwargs: Any) -> Any:
         action = kwargs.get("action", "request")
@@ -52,20 +144,6 @@ class CrossAgentProtocolTool(BaseTool):
                 "사용 가능한 action: request(작업 요청), broadcast(전체 공유), "
                 "handoff(작업 인계), status(현황), collect(결과 수집), respond(응답)"
             )
-
-    def _load(self) -> list[dict]:
-        if not os.path.isfile(MESSAGES_FILE):
-            return []
-        try:
-            with open(MESSAGES_FILE, "r", encoding="utf-8") as f:
-                return json.load(f)
-        except Exception:
-            return []
-
-    def _save(self, messages: list[dict]) -> None:
-        os.makedirs(os.path.dirname(MESSAGES_FILE), exist_ok=True)
-        with open(MESSAGES_FILE, "w", encoding="utf-8") as f:
-            json.dump(messages, f, ensure_ascii=False, indent=2)
 
     async def _request(self, kwargs: dict) -> str:
         """다른 에이전트에게 작업 요청."""
@@ -98,10 +176,7 @@ class CrossAgentProtocolTool(BaseTool):
             "updated_at": "",
         }
 
-        messages = self._load()
-        messages.append(msg)
-        self._save(messages)
-
+        self._save_msg(msg)
         logger.info("에이전트 간 요청: %s → %s (ID: %s)", from_agent, to_agent, msg["id"])
 
         # 실시간 에이전트 호출 (콜백이 등록된 경우)
@@ -110,11 +185,10 @@ class CrossAgentProtocolTool(BaseTool):
                 full_task = f"{task}\n\n배경 정보: {context}" if context else task
                 result = await _call_agent_callback(to_agent, full_task)
                 response_text = result.get("content", "") if isinstance(result, dict) else str(result)
-                # 응답을 메시지에 업데이트
                 msg["response"] = response_text
                 msg["status"] = "완료"
                 msg["updated_at"] = datetime.now().isoformat()
-                self._save(messages)
+                self._update_msg(msg)
                 logger.info("실시간 요청 완료: %s → %s", from_agent, to_agent)
                 return (
                     f"## 에이전트 간 실시간 요청 완료\n\n"
@@ -125,7 +199,7 @@ class CrossAgentProtocolTool(BaseTool):
                 logger.error("실시간 에이전트 호출 실패: %s", e)
                 msg["status"] = "실패"
                 msg["updated_at"] = datetime.now().isoformat()
-                self._save(messages)
+                self._update_msg(msg)
 
         return (
             f"## 작업 요청 전송 완료\n\n"
@@ -161,9 +235,7 @@ class CrossAgentProtocolTool(BaseTool):
             "created_at": datetime.now().isoformat(),
         }
 
-        messages = self._load()
-        messages.append(msg)
-        self._save(messages)
+        self._save_msg(msg)
 
         tags_str = ", ".join(tags) if tags else "없음"
         return (
@@ -201,9 +273,7 @@ class CrossAgentProtocolTool(BaseTool):
             "created_at": datetime.now().isoformat(),
         }
 
-        messages = self._load()
-        messages.append(msg)
-        self._save(messages)
+        self._save_msg(msg)
 
         return (
             f"## 작업 인계 완료\n\n"
@@ -220,33 +290,32 @@ class CrossAgentProtocolTool(BaseTool):
         msg_type = kwargs.get("type", "")
         limit = int(kwargs.get("limit", 20))
 
-        messages = self._load()
+        messages = self._load(limit=limit, agent_id=agent_id, msg_type=msg_type)
         if not messages:
             return "에이전트 간 메시지가 없습니다."
 
-        if agent_id:
-            messages = [m for m in messages if m.get("from") == agent_id or m.get("to") == agent_id]
-        if msg_type:
-            messages = [m for m in messages if m.get("type") == msg_type]
-
-        recent = messages[-limit:]
-
-        lines = [f"## 에이전트 간 메시지 현황 ({len(recent)}건)\n"]
+        lines = [f"## 에이전트 간 메시지 현황 ({len(messages)}건)\n"]
         lines.append("| ID | 유형 | 발신 | 수신 | 상태 | 시간 |")
         lines.append("|-----|------|------|------|------|------|")
 
-        for m in reversed(recent):
+        for m in messages:
             ts = m.get("created_at", "")[:16]
             lines.append(
                 f"| {m['id']} | {m.get('type', '')} | {m.get('from', '')} | "
                 f"{m.get('to', '')} | {m.get('status', '')} | {ts} |"
             )
 
-        # 통계
-        total = len(self._load())
-        pending = sum(1 for m in self._load() if m.get("status") == "대기")
-        lines.append(f"\n- 총 메시지: {total}건")
-        lines.append(f"- 대기 중: {pending}건")
+        try:
+            conn = _get_conn()
+            total = conn.execute("SELECT COUNT(*) FROM cross_agent_messages").fetchone()[0]
+            pending = conn.execute(
+                "SELECT COUNT(*) FROM cross_agent_messages WHERE status='대기'"
+            ).fetchone()[0]
+            conn.close()
+            lines.append(f"\n- 총 메시지: {total}건")
+            lines.append(f"- 대기 중: {pending}건")
+        except Exception:
+            pass
 
         return "\n".join(lines)
 
@@ -260,11 +329,9 @@ class CrossAgentProtocolTool(BaseTool):
         if not request_ids:
             return "수집할 요청 ID 목록(request_ids)을 입력해주세요."
 
-        messages = self._load()
         collected: list[dict] = []
-
         for req_id in request_ids:
-            msg = next((m for m in messages if m["id"] == req_id), None)
+            msg = self._find_by_id(req_id)
             if msg:
                 collected.append(msg)
 
@@ -283,7 +350,6 @@ class CrossAgentProtocolTool(BaseTool):
                 context_parts.append(response)
 
         if context_parts:
-            # LLM으로 종합
             synthesis = await self._llm_call(
                 system_prompt=(
                     "당신은 다양한 부서의 보고를 종합하는 전문가입니다. "
@@ -304,8 +370,7 @@ class CrossAgentProtocolTool(BaseTool):
         if not request_id or not response:
             return "요청 ID(request_id)와 응답 내용(response)을 입력해주세요."
 
-        messages = self._load()
-        msg = next((m for m in messages if m["id"] == request_id), None)
+        msg = self._find_by_id(request_id)
         if not msg:
             return f"요청 ID '{request_id}'를 찾을 수 없습니다."
 
@@ -314,7 +379,7 @@ class CrossAgentProtocolTool(BaseTool):
         msg["updated_at"] = datetime.now().isoformat()
         msg["responder"] = responder
 
-        self._save(messages)
+        self._update_msg(msg)
 
         return (
             f"## 응답 등록 완료\n\n"
