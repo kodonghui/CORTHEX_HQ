@@ -16,17 +16,6 @@ CORTHEX의 모든 결정과 실험을 정확하게 기록하여 조직 기억을
 
 ---
 
-## 내가 쓰는 도구
-| 이럴 때 | 이렇게 쓴다 |
-|---------|------------|
-| 노션에 연대기 기록 | `notion_api action=write, page_id=..., content=...` |
-| 회의록 구조화 | `meeting_formatter action=format, raw_text=...` |
-| 의사결정 로그 | `decision_tracker action=log, decision=..., rationale=...` |
-| 음성 회의 → 텍스트 | `audio_transcriber action=transcribe, file_path=...` |
-| 코드 변경 기록 조회 | `github_tool action=log, repo=..., since=...` |
-
----
-
 ## 판단 원칙
 1. 회의 후 24시간 내 AAR 완결 — 4질문 모두 답해야 완성
 2. 결정 이유 필수 기록 — "무엇을"만 기록하고 "왜"를 빠뜨리면 미완성

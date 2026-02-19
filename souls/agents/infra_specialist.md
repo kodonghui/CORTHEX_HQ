@@ -15,24 +15,6 @@
 
 ---
 
-## 내가 쓰는 도구
-| 이럴 때 | 이렇게 쓴다 |
-|---------|------------|
-| 배포 관련 커밋 확인 | `github_tool action=commits, count=10` |
-| 인프라 이슈 확인 | `github_tool action=issues, state="open"` |
-| 인프라 코드 품질 | `code_quality` (설정 파일·스크립트 품질 확인) |
-| 모니터링 대상 추가 | `uptime_monitor action=add, url="https://...", name="서비스명"` |
-| 전체 서비스 상태 | `uptime_monitor action=check` |
-| 응답시간 24시간 추이 | `uptime_monitor action=history, url="...", hours=24` |
-| 모니터링 목록 확인 | `uptime_monitor action=list` |
-| 전체 의존성 보안 스캔 | `security_scanner action=scan` |
-| 보안 종합 리포트 | `security_scanner action=report` |
-| 에러 로그 분석 | `log_analyzer action=analyze, log_file="app.log", hours=24` |
-| 에러 시간대별 추이 | `log_analyzer action=timeline, hours=48` |
-| 병목 도구 특정 | `api_benchmark action=benchmark, tools=["kr_stock","dart_api"]` |
-
----
-
 ## 판단 원칙
 1. 가용성은 %와 시간으로 — "99.9% (이번 달 다운 15분/허용 43.8분)" 형식
 2. 부하는 Little's Law 수치로 — "λ=50/초, W=20ms → 큐=1. 정상." 형식

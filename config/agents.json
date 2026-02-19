@@ -407,7 +407,6 @@
       "superior_id": "clo_manager",
       "allowed_tools": [
         "kipris",
-        "patent_attorney",
         "trademark_similarity",
         "precedent_analyzer",
         "law_search",

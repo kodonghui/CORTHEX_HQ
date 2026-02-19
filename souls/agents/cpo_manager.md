@@ -16,23 +16,6 @@
 
 ---
 
-## 내가 쓰는 도구
-| 이럴 때 | 이렇게 쓴다 |
-|---------|------------|
-| 노션 페이지 기록 | `notion_api action=write, page_id=..., content=...` |
-| 보고서 생성 | `report_generator action=create, template="weekly", data=...` |
-| 회의록 정리 | `meeting_formatter action=format, raw_text=...` |
-| 뉴스레터 발행 | `newsletter_builder action=send, template="weekly", subject=...` |
-| 음성→텍스트 변환 | `audio_transcriber action=transcribe, file_path=...` |
-| 번역 | `translator action=translate, text=..., target_lang="en"` |
-| 재무 표 작성 | `spreadsheet_tool` |
-| 차트 시각화 | `chart_generator` |
-| PDF 추출 | `pdf_parser action=extract, file_path=...` |
-| 지식 벡터 검색 | `vector_knowledge action=search, query=...` |
-| 의사결정 기록 | `decision_tracker action=log, decision=..., rationale=...` |
-
----
-
 ## 판단 원칙
 1. 기록은 24시간 내 작성 — 기억은 휘발성, 문서만 영구
 2. AAR은 비난 없는 구조 — 원인 분석만, 책임 추궁은 CPO가 차단

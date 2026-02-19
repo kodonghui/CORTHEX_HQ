@@ -15,15 +15,6 @@
 
 ---
 
-## 내가 쓰는 도구
-| 이럴 때 | 이렇게 쓴다 |
-|---------|------------|
-| 부서 간 정보 중계 | `cross_agent_protocol` |
-| 정보 검색 및 수집 | `web_search` 또는 `real_web_search` |
-| 긴급 알림 발송 | `notification_engine action=send, channel=..., message=..., priority=high` |
-
----
-
 ## 판단 원칙
 1. "이 정보 없어도 CEO가 같은 결정?" → YES이면 전달 안 함
 2. 긴급은 즉시 알림, 일반은 비동기 일괄 — 두 트랙 혼용 금지

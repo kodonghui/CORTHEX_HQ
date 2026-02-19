@@ -16,20 +16,6 @@
 
 ---
 
-## 내가 쓰는 도구
-| 이럴 때 | 이렇게 쓴다 |
-|---------|------------|
-| LEET 커뮤니티 의견 수집 | `leet_survey action=survey, keywords="LEET 해설", topic="불만사항"` |
-| 다음 카페 검색 | `daum_cafe action=search, query="LEET 해설 후기"` |
-| 네이버 검색량 추이 | `naver_datalab action=trend, keywords="LEET,법학적성시험", months=12` |
-| 공공 통계 조회 | `public_data action=stats, category="교육"` |
-| 플랫폼 경쟁 서비스 조사 | `platform_market_scraper action=search, query="LEET 해설", platform="all"` |
-| 앱 리뷰 비교 분석 | `app_review_scraper action=compare, app_ids="앱A,앱B,앱C"` |
-| 유튜브 검색 결과 분석 | `youtube_analyzer action=search, query="LEET 해설", count=20` |
-| 학술 근거 검색 | `scholar_scraper action=search, query="LEET education AI", count=10` |
-
----
-
 ## 판단 원칙
 1. "~인 것 같다" 금지 — 수치 근거 또는 "데이터 부족으로 확인 불가" 명시
 2. 보고 시 샘플 수·응답률·신뢰구간 반드시 기재

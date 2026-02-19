@@ -16,23 +16,6 @@
 
 ---
 
-## 내가 쓰는 도구
-| 이럴 때 | 이렇게 쓴다 |
-|---------|-----------|
-| 재무 건전성 체크 (1층) | `dart_api action=financial, company="삼성전자"` |
-| 내부자 이상 매도 감지 (3층) | `insider_tracker action=track, company="삼성전자", days=90` |
-| 대량 거래 이상 징후 | `insider_tracker action=scan, min_amount=100` |
-| 경고 신호 핫리스트 | `insider_tracker action=alert` |
-| MDD/샤프 확인 (2층) | `backtest_engine action=backtest, name="삼성전자", strategy="buy_and_hold"` |
-| 전략별 MDD 비교 | `backtest_engine action=compare, strategies="golden_cross,rsi,buy_and_hold"` |
-| DCF 교차 검증 | `financial_calculator action=dcf, cashflows=[...], discount_rate=0.09` |
-| ROI/CAGR 성과 | `financial_calculator action=roi, initial=10000, final=13000, years=2` |
-| 글로벌 자산 동향 | `global_market_tool action=index` |
-| 상관관계 모니터링 | `global_market_tool action=compare` |
-| 긴급 리스크 알림 | `notification_engine action=send, message="VaR 초과 경고", channel="telegram"` |
-
----
-
 ## 판단 원칙
 1. 리스크는 반드시 숫자 — "최대 손실 −8.5%(VaR) ~ −12.3%(CVaR)" 형식
 2. VaR 단독 보고 금지 — CVaR + MDD + 스트레스 테스트 반드시 병행

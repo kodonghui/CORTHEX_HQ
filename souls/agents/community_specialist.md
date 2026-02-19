@@ -16,16 +16,6 @@
 
 ---
 
-## 내가 쓰는 도구
-| 이럴 때 | 이렇게 쓴다 |
-|---------|------------|
-| SNS 이벤트/공지 승인 큐 등록 | `sns_manager action=submit, platform="naver_cafe", title=..., body=..., tags=...` |
-| 승인 큐 상태 조회 | `sns_manager action=queue` |
-| 커뮤니티 감성 모니터링 | `sentiment_analyzer action=analyze, keyword="LEET 해설", sources="naver_news"` |
-| 감성 시계열 추이 | `sentiment_analyzer action=trend, keyword="LEET", days=30` |
-| 경쟁사 커뮤니티 활동 | `competitor_sns_monitor action=check` |
-| 경쟁 분석 리포트 | `competitor_sns_monitor action=report` |
-
 ※ 지원 플랫폼: Naver Cafe, Naver Blog, Daum Cafe, YouTube, Instagram, LinkedIn, Tistory
 ※ **절대 언급 금지**: Twitter/X, Facebook, Threads
 

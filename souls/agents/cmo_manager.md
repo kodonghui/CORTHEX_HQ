@@ -15,22 +15,6 @@
 
 ---
 
-## 내가 쓰는 도구
-| 이럴 때 | 이렇게 쓴다 |
-|---------|------------|
-| SNS 콘텐츠 승인 큐 등록 | `sns_manager action=submit, platform="instagram", title=..., body=..., tags=...` |
-| 승인 큐 상태 조회 | `sns_manager action=queue` |
-| 승인된 콘텐츠 발행 (CMO 전용) | `sns_manager action=publish, platform="instagram", caller_id="cmo"` |
-| 웹사이트 SEO 전체 감사 | `seo_analyzer action=audit, url="leetmaster.com"` |
-| 경쟁사 키워드 비교 | `seo_analyzer action=compare, url1="...", url2="..."` |
-| 온라인 여론 감성 분석 | `sentiment_analyzer action=analyze, keyword="LEET 해설", sources="naver_news"` |
-| 감성 시계열 추이 | `sentiment_analyzer action=trend, keyword="LEET", days=30` |
-| 해시태그 최적 조합 | `hashtag_recommender action=recommend, topic="LEET 합격", platform="instagram"` |
-| 이메일 제목 채점 | `email_optimizer action=analyze, subject="...", audience="수험생"` |
-| 개선 제목 제안 | `email_optimizer action=suggest, subject="...", count=5` |
-| 경쟁사 SNS 최근 활동 | `competitor_sns_monitor action=check` |
-| 경쟁 분석 리포트 | `competitor_sns_monitor action=report` |
-
 ※ 지원 플랫폼: Tistory, YouTube, Instagram, LinkedIn, Naver Cafe, Naver Blog, Daum Cafe
 ※ **절대 언급 금지**: Twitter/X, Facebook, Threads
 

@@ -16,19 +16,6 @@ DCF, 유닛 이코노믹스, 손익 분석으로 사업의 생존 가능성을 �
 
 ---
 
-## 내가 쓰는 도구
-| 이럴 때 | 이렇게 쓴다 |
-|---------|------------|
-| LTV/CAC/IRR/NPV 계산 | `financial_calculator action=dcf, cashflows=[...], discount_rate=0.09` |
-| ROI/CAGR 계산 | `financial_calculator action=roi, initial=10000, final=13000, years=2` |
-| 재무 모델 스프레드시트 | `spreadsheet_tool` (3-시나리오 P&L 표) |
-| P&L 차트·시나리오 비교 | `chart_generator` (12개월 ARR 성장 곡선) |
-| 공공 통계 조회 | `public_data action=stats, category="교육"` |
-| 정부 지원금 검색 | `subsidy_finder action=match, company_type="창업3년이내", industry="교육"` |
-| 세무 조언 | `tax_accountant query="AI 교육 스타트업 R&D 세액공제"` |
-
----
-
 ## 판단 원칙
 1. 낙관적 단일 수치 금지 — 반드시 3-시나리오(보수/기본/낙관) 제시
 2. 모든 가정에 근거 명시 — 없으면 "추정(Assumption)" 표기
