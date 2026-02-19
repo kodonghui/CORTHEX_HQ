@@ -264,6 +264,56 @@ tools:
     - action
     - visitors
     - signups
+- tool_id: ab_test_engine
+  name: AB Test Engine
+  name_ko: A/B 테스트 통계 검정기
+  description: 교수급 A/B 테스트 통계 검정 — 빈도주의(Z-test) + 베이지안(Monte Carlo) 이중 검증, 표본 크기 계산, 검정력 분석, 매출 기반 t-test, 다변량 검정(본페로니 보정)
+  model_name: gemini-3-pro-preview
+  parameters:
+    type: object
+    properties:
+      action:
+        type: string
+        enum:
+        - full
+        - test
+        - sample_size
+        - power
+        - revenue
+        - multi
+        description: full=종합분석, test=전환율검정, sample_size=표본크기계산, power=검정력분석, revenue=매출검정, multi=다변량검정
+      visitors_a:
+        type: integer
+        description: A안 방문자 수
+      conversions_a:
+        type: integer
+        description: A안 전환 수
+      visitors_b:
+        type: integer
+        description: B안 방문자 수
+      conversions_b:
+        type: integer
+        description: B안 전환 수
+      confidence:
+        type: number
+        description: 신뢰수준 (기본 0.95)
+      baseline_rate:
+        type: number
+        description: 기존 전환율 (표본 크기 계산용, 예 0.05)
+      mde:
+        type: number
+        description: 최소 감지 효과 (Minimum Detectable Effect, 예 0.01)
+      revenue_a:
+        type: string
+        description: 'A안 매출 데이터 쉼표 구분 (예: 50000,62000,48000)'
+      revenue_b:
+        type: string
+        description: 'B안 매출 데이터 쉼표 구분 (예: 55000,71000,53000)'
+      variants:
+        type: string
+        description: 'JSON 형태 다변량 데이터 (예: [{"name":"A","visitors":1000,"conversions":50},...])'
+    required:
+    - action
 - tool_id: backtest_engine
   name: Backtest Engine
   name_ko: 포트폴리오 백테스터
