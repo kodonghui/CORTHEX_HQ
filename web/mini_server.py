@@ -6158,10 +6158,19 @@ async def _start_telegram_bot() -> None:
 
         _log("[TG] 핸들러 등록 완료, initialize()...")
         await _telegram_app.initialize()
+
+        # webhook 충돌 방지: polling 시작 전 webhook 삭제
+        try:
+            await _telegram_app.bot.delete_webhook(drop_pending_updates=False)
+            _log("[TG] webhook 삭제 완료 (polling 충돌 방지)")
+        except Exception as we:
+            _log(f"[TG] webhook 삭제 건너뜀: {we}")
+
         _log("[TG] start()...")
         await _telegram_app.start()
         _log("[TG] polling 시작...")
-        await _telegram_app.updater.start_polling(drop_pending_updates=True)
+        # drop_pending_updates=False: 이전에 보낸 /start 메시지도 처리
+        await _telegram_app.updater.start_polling(drop_pending_updates=False)
 
         ceo_id = os.getenv("TELEGRAM_CEO_CHAT_ID", "")
         _diag["tg_started"] = True
