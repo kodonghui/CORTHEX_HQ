@@ -1385,7 +1385,7 @@
               <div class="log-item text-[11px] text-hq-muted fade-in group flex items-center gap-1">
                 <div class="flex-1 min-w-0">
                   <span class="font-mono text-hq-muted/80" x-text="(log.time || '').substring(0, 5)"></span>
-                  <span class="text-hq-cyan/70 font-medium" x-text="log.agent_id"></span>
+                  <span class="font-medium" :class="getAgentColor(log.agent_id) || 'text-hq-cyan/70'" x-text="log.agent_id"></span>
                   <span x-text="log.action"></span>
                 </div>
                 <button @click="activityLogs.splice(activityLogs.indexOf(log), 1); saveActivityLogs()"
@@ -3502,7 +3502,7 @@
                 </div>
                 <span class="w-7 h-7 rounded-md flex items-center justify-center text-[9px] font-bold shrink-0"
                       :class="getAgentAvatarClass(log.agent_id)" x-text="getAgentInitials(log.agent_id)"></span>
-                <span class="text-xs font-medium text-hq-cyan/80 shrink-0 w-24 truncate" x-text="getAgentName(log.agent_id)"></span>
+                <span class="text-xs font-medium shrink-0 w-24 truncate" :class="getAgentColor(log.agent_id) || 'text-hq-cyan/80'" x-text="getAgentName(log.agent_id)"></span>
                 <span class="text-xs text-hq-text/90 flex-1" x-text="log.action"></span>
               </div>
             </template>
@@ -3625,12 +3625,29 @@
                 </template>
               </div>
               <!-- 직급 필터 -->
-              <div class="flex gap-1.5 mb-3 sticky top-8 z-10 pb-1" style="background: rgb(var(--hq-bg));">
+              <div class="flex gap-1.5 mb-2 sticky top-8 z-10 pb-1" style="background: rgb(var(--hq-bg));">
                 <template x-for="tier in [{id:'all',label:'전체'},{id:'executive',label:'임원급 (C-Level)'},{id:'specialist',label:'전문가급'},{id:'staff',label:'보좌관급'}]" :key="tier.id">
                   <button @click="archive.filterTier = tier.id"
                     :class="archive.filterTier === tier.id ? 'bg-hq-purple/20 text-hq-purple' : 'text-hq-muted'"
                     class="px-2 py-0.5 text-[10px] font-semibold rounded-md transition" x-text="tier.label"></button>
                 </template>
+              </div>
+              <!-- 중요도 + 태그 필터 -->
+              <div class="flex flex-wrap gap-2 mb-3 sticky top-14 z-10 pb-1" style="background: rgb(var(--hq-bg));">
+                <select x-model="archiveImportanceFilter"
+                        class="bg-hq-surface border border-hq-border rounded-lg px-2 py-1 text-[10px] text-hq-text">
+                  <option value="all">중요도 전체</option>
+                  <option value="임원급">임원급</option>
+                  <option value="일반">일반</option>
+                </select>
+                <div class="flex gap-1.5 flex-wrap items-center">
+                  <template x-for="tag in ['임원급','전략실','긴급','기밀','보고서']" :key="tag">
+                    <button @click="toggleArchiveTag(tag)"
+                            :class="archiveTagFilter.includes(tag) ? 'bg-hq-accent text-white border-hq-accent' : 'bg-hq-surface text-hq-muted border-hq-border'"
+                            class="px-2 py-0.5 rounded text-[10px] border transition"
+                            x-text="'#' + tag"></button>
+                  </template>
+                </div>
               </div>
 
               <template x-if="archive.loading">
@@ -3645,6 +3662,8 @@
                     const tier = getAgentTier(f.agent_id);
                     if (archive.filterTier !== tier) return false;
                   }
+                  if (archiveImportanceFilter !== 'all' && f.importance !== archiveImportanceFilter) return false;
+                  if (archiveTagFilter.length > 0 && !archiveTagFilter.every(t => (f.tags||[]).includes(t))) return false;
                   return true;
                 })" :key="file.division + '/' + file.filename">
                   <div @click="readArchiveReport(file)"
@@ -3728,6 +3747,8 @@
                 <div x-show="archive.files.filter(f => {
                   if (archive.filterDivision !== 'all' && f.division !== archive.filterDivision) return false;
                   if (archive.filterTier !== 'all' && getAgentTier(f.agent_id) !== archive.filterTier) return false;
+                  if (archiveImportanceFilter !== 'all' && f.importance !== archiveImportanceFilter) return false;
+                  if (archiveTagFilter.length > 0 && !archiveTagFilter.every(t => (f.tags||[]).includes(t))) return false;
                   return true;
                 }).length === 0"
                      class="flex flex-col items-center justify-center py-12 text-center">
@@ -4073,8 +4094,8 @@
                 <button @click="loadTradingSummary()" class="text-hq-muted/50 hover:text-hq-accent transition text-xs" title="새로고침">⟳</button>
                 <select x-model="trading.detailAccount"
                         class="bg-hq-surface border border-hq-border rounded px-2 py-1 text-xs text-hq-muted">
-                  <option value="real">실거래 ▾</option>
-                  <option value="mock">모의투자 ▾</option>
+                  <option value="real">실거래</option>
+                  <option value="mock">모의투자</option>
                 </select>
               </div>
             </div>
@@ -4633,6 +4654,10 @@
 
           <!-- ▸ 서브탭 6: 시그널 (CIO 분석) -->
           <div x-show="trading.tab === 'signals' && !trading.loading">
+            <div x-effect="if(trading.tab === 'signals') {
+              fetch('/api/trading/signals').then(r=>r.ok?r.json():[]).then(s=>{ trading.signals = Array.isArray(s) ? s : (s.signals||[]); }).catch(()=>{});
+              fetch('/api/trading/decisions').then(r=>r.ok?r.json():{decisions:[]}).then(d=>{ trading.decisions = d.decisions||[]; }).catch(()=>{});
+            }"></div>
             <div class="flex items-center justify-between mb-4">
               <div>
                 <h3 class="text-sm font-bold text-hq-text">CIO 매매 시그널</h3>
@@ -4640,6 +4665,45 @@
               </div>
               <button @click="generateTradingSignals()" class="bg-hq-purple/20 text-hq-purple hover:bg-hq-purple/30 rounded-lg px-3 py-1.5 text-xs font-semibold transition">📊 CIO 분석 요청</button>
             </div>
+            <!-- 협업 진행 패널 (분석 중일 때만 표시) -->
+            <div x-show="trading.loadingSignals" class="glass border border-hq-purple/30 rounded-xl p-4 mb-4">
+              <div class="flex items-center gap-2 mb-3">
+                <div class="w-2 h-2 rounded-full bg-hq-purple animate-pulse"></div>
+                <span class="text-xs font-bold text-hq-purple">CIO 팀 분석 진행 중</span>
+              </div>
+              <div class="space-y-1.5 text-xs font-mono">
+                <div class="flex items-center gap-2">
+                  <span class="text-hq-yellow font-semibold">CIO</span>
+                  <span class="text-hq-muted">(독자 분석 + 지휘)</span>
+                  <span x-show="activeAgents['cio_manager']?.status === 'working'" class="text-[9px] px-1.5 py-0.5 rounded bg-hq-yellow/10 text-hq-yellow animate-pulse">분석중</span>
+                </div>
+                <div class="flex items-center gap-2 ml-3">
+                  <span class="text-hq-muted">├─</span>
+                  <span class="text-hq-cyan">투자전문가1</span>
+                  <span class="text-hq-muted/60 text-[10px]">(기술분석)</span>
+                  <span x-show="activeAgents['technical_analysis_specialist']?.status === 'working'" class="text-[9px] px-1.5 py-0.5 rounded bg-hq-cyan/10 text-hq-cyan animate-pulse">분석중</span>
+                </div>
+                <div class="flex items-center gap-2 ml-3">
+                  <span class="text-hq-muted">├─</span>
+                  <span class="text-hq-cyan">투자전문가2</span>
+                  <span class="text-hq-muted/60 text-[10px]">(거시경제)</span>
+                  <span x-show="activeAgents['market_condition_specialist']?.status === 'working'" class="text-[9px] px-1.5 py-0.5 rounded bg-hq-cyan/10 text-hq-cyan animate-pulse">분석중</span>
+                </div>
+                <div class="flex items-center gap-2 ml-3">
+                  <span class="text-hq-muted">├─</span>
+                  <span class="text-hq-cyan">투자전문가3</span>
+                  <span class="text-hq-muted/60 text-[10px]">(리스크)</span>
+                  <span x-show="activeAgents['risk_management_specialist']?.status === 'working'" class="text-[9px] px-1.5 py-0.5 rounded bg-hq-cyan/10 text-hq-cyan animate-pulse">분석중</span>
+                </div>
+                <div class="flex items-center gap-2 ml-3">
+                  <span class="text-hq-muted">└─</span>
+                  <span class="text-hq-cyan">투자전문가4</span>
+                  <span class="text-hq-muted/60 text-[10px]">(종목분석)</span>
+                  <span x-show="activeAgents['stock_analysis_specialist']?.status === 'working'" class="text-[9px] px-1.5 py-0.5 rounded bg-hq-cyan/10 text-hq-cyan animate-pulse">분석중</span>
+                </div>
+              </div>
+            </div>
+
             <template x-if="trading.signals.length === 0">
               <div class="glass border border-hq-border rounded-xl p-8 text-center">
                 <p class="text-hq-muted/70 text-xs mb-3">시그널이 없습니다</p>
@@ -4689,6 +4753,38 @@
                     <summary class="text-hq-cyan cursor-pointer hover:text-hq-accent text-[10px] font-semibold">📋 CIO 전체 분석 보고서 보기</summary>
                     <div class="mt-2 text-hq-text/80 whitespace-pre-wrap text-[11px] leading-relaxed max-h-[300px] overflow-y-auto scrollbar-thin bg-hq-bg/30 rounded-lg p-3" x-text="s.analysis || '-'"></div>
                   </details>
+                </div>
+              </template>
+            </div>
+
+            <!-- 매매 결정 일지 -->
+            <div class="mt-6">
+              <h3 class="text-sm font-semibold text-hq-muted mb-3">매매 결정 일지</h3>
+              <div x-show="trading.decisions.length === 0" class="text-xs text-hq-muted/60 text-center py-4">
+                아직 매매 결정 이력이 없습니다
+              </div>
+              <template x-for="d in trading.decisions" :key="d.id">
+                <div class="glass border border-hq-border rounded-xl mb-2 overflow-hidden">
+                  <!-- 헤더 (항상 표시) -->
+                  <div @click="trading.expandedDecision = trading.expandedDecision === d.id ? null : d.id"
+                       class="flex items-center gap-3 p-3 cursor-pointer hover:bg-hq-surface/50">
+                    <span :class="d.action === '매수' ? 'text-hq-green' : d.action === '매도' ? 'text-hq-red' : 'text-hq-muted'"
+                          class="text-xs font-bold w-8" x-text="d.action"></span>
+                    <span class="text-xs text-hq-muted" x-text="d.created_at?.slice(0,16)?.replace('T',' ')"></span>
+                    <span class="text-sm font-medium flex-1" x-text="d.ticker_name || d.ticker"></span>
+                    <span class="text-xs text-hq-muted" x-text="(d.confidence||0) + '%'"></span>
+                    <svg :class="trading.expandedDecision === d.id ? 'rotate-180' : ''" class="w-3 h-3 transition-transform text-hq-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                  </div>
+                  <!-- 상세 (펼쳤을 때) -->
+                  <div x-show="trading.expandedDecision === d.id" class="border-t border-hq-border p-3 text-xs space-y-2">
+                    <div><span class="text-hq-muted">이유:</span> <span x-text="d.reason"></span></div>
+                    <div x-show="d.expert_opinions && d.expert_opinions.length > 0">
+                      <span class="text-hq-muted">전문가 의견:</span>
+                      <template x-for="e in (d.expert_opinions||[])" :key="e.expert">
+                        <span class="ml-2 text-hq-muted/80"><span x-text="e.expert"></span>: <span x-text="e.recommendation"></span></span>
+                      </template>
+                    </div>
+                  </div>
                 </div>
               </template>
             </div>
@@ -6458,6 +6554,8 @@
 
         // Archive browser
         archive: { files: [], loading: false, selectedReport: null, content: '', filterDivision: 'all', filterTier: 'all', searchCorrelation: '', selectedFiles: [], selectMode: false },
+        archiveImportanceFilter: 'all',
+        archiveTagFilter: [],
         showDeleteAllArchiveModal: false,
 
         // SNS management
@@ -6482,6 +6580,9 @@
           botActive: false,
           runningNow: false,
           calibration: null,
+          loadingSignals: false,
+          decisions: [],
+          expandedDecision: null,
           // 주문 폼
           orderForm: { action: 'buy', ticker: '', name: '', qty: 0, price: 0 },
           // 전략 추가 폼
@@ -7372,7 +7473,8 @@
           this.showDelegationLog = !this.showDelegationLog;
           if (this.showDelegationLog) {
             this.fetchDelegationLogs();
-            // 5초마다 자동 갱신
+            // 5초마다 자동 갱신 (기존 타이머 누수 방지)
+            if (this._delegationPollTimer) { clearInterval(this._delegationPollTimer); this._delegationPollTimer = null; }
             this._delegationPollTimer = setInterval(() => this.fetchDelegationLogs(true), 5000);
           } else {
             clearInterval(this._delegationPollTimer);
@@ -7403,6 +7505,24 @@
             case 'idle': return 'bg-hq-muted/40';
             default: return 'bg-hq-muted/30';
           }
+        },
+
+        getAgentColor(agentId) {
+          if (!agentId) return '';
+          const id = agentId.toLowerCase();
+          if (id.includes('cio')) return 'text-yellow-400';
+          if (id.includes('cmo') || id.includes('marketing')) return 'text-purple-400';
+          if (id.includes('cto') || id.includes('tech')) return 'text-blue-400';
+          if (id.includes('clo') || id.includes('legal')) return 'text-red-400';
+          if (id.includes('cho') || id.includes('hr')) return 'text-green-400';
+          if (id.includes('cso') || id.includes('strategy')) return 'text-orange-400';
+          return '';
+        },
+
+        toggleArchiveTag(tag) {
+          const idx = this.archiveTagFilter.indexOf(tag);
+          if (idx > -1) this.archiveTagFilter.splice(idx, 1);
+          else this.archiveTagFilter.push(tag);
         },
 
         getSectionBadgeClass(section) {
@@ -9231,6 +9351,7 @@
         },
 
         async generateTradingSignals() {
+          this.trading.loadingSignals = true;
           this.showToast('CIO + 전문가 4명 분석 중... (5~10분 소요)', 'info');
           try {
             const res = await fetch('/api/trading/signals/generate', {method:'POST'}).then(r => r.json());
@@ -9242,6 +9363,7 @@
               await this.loadTradingSummary();
             } else { this.showToast(res.error || '분석 실패', 'error'); }
           } catch { this.showToast('CIO 분석 요청 오류', 'error'); }
+          finally { this.trading.loadingSignals = false; }
         },
 
         async resetTradingPortfolio() {
