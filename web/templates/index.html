@@ -2128,7 +2128,7 @@
                     class="text-[10px] px-2 py-1 rounded-md font-semibold transition">흐름도</button>
           </div>
           <!-- 로그 목록 (전체/위임/보고 탭) -->
-          <div x-show="delegationLogFilter !== 'flow'" class="flex-1 overflow-y-auto scrollbar-thin p-3 space-y-2">
+          <div x-show="delegationLogFilter !== 'flow'" class="flex-1 overflow-y-auto scrollbar-thin p-2.5 space-y-1.5">
             <template x-if="delegationLogs.length === 0 && !delegationLogLoading">
               <div class="text-center py-8">
                 <div class="text-hq-muted/40 text-sm">에이전트 통신 없음</div>
@@ -2136,63 +2136,72 @@
               </div>
             </template>
             <template x-for="log in getFilteredDelegationLogs()" :key="log.id">
-              <div class="rounded-lg border p-2.5 transition-all"
-                   :class="log.log_type === 'delegation'
-                     ? 'border-hq-cyan/20 bg-hq-cyan/5'
-                     : 'border-hq-green/20 bg-hq-green/5'">
-                <div class="flex items-center gap-1.5 mb-1.5 flex-wrap">
-                  <span class="text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider shrink-0"
-                        :class="log.log_type === 'delegation'
-                          ? 'bg-hq-cyan/20 text-hq-cyan'
-                          : 'bg-hq-green/20 text-hq-green'"
-                        x-text="log.log_type === 'delegation' ? '위임' : '보고'"></span>
-                  <span class="text-[10px] text-hq-text font-semibold truncate max-w-[70px]" x-text="getAgentName(log.sender) || log.sender"></span>
-                  <svg class="w-3 h-3 text-hq-muted/50 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/>
-                  </svg>
-                  <span class="text-[10px] text-hq-text font-semibold truncate max-w-[70px]" x-text="getAgentName(log.receiver) || log.receiver"></span>
+              <!-- B안: 카드형 — 왼쪽 컬러 보더 + 발신/수신 헤더 + 메시지 + 시간(hover) -->
+              <div class="rounded-lg border border-hq-border/20 bg-hq-panel/30 overflow-hidden transition-all hover:bg-hq-panel/60 hover:border-hq-border/40 hover:shadow-sm"
+                   :style="'border-left: 3px solid ' + getDeptColor(log.sender)">
+                <!-- 헤더: 발신 → 수신 + 상대시간 -->
+                <div class="flex items-center justify-between px-3 pt-2.5 pb-1">
+                  <div class="flex items-center gap-1.5 min-w-0">
+                    <span class="text-[11px] font-bold truncate max-w-[90px]"
+                          :style="'color:' + getDeptColor(log.sender)"
+                          x-text="getAgentName(log.sender) || log.sender"></span>
+                    <svg class="w-3 h-3 text-hq-muted/40 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/>
+                    </svg>
+                    <span class="text-[11px] font-semibold text-hq-text/80 truncate max-w-[90px]"
+                          x-text="getAgentName(log.receiver) || log.receiver"></span>
+                  </div>
+                  <!-- 상대시간 (hover시 정확한 시간 툴팁) -->
+                  <span class="text-[9px] text-hq-muted/50 shrink-0 ml-1 cursor-default whitespace-nowrap"
+                        :title="formatTime(log.created_at)"
+                        x-text="relativeTimeStr(log.created_at)"></span>
                 </div>
-                <div class="text-[11px] text-hq-muted leading-relaxed line-clamp-3" x-text="log.message"></div>
-                <div class="text-[9px] text-hq-muted/40 mt-1 text-right" x-text="formatTime(log.created_at)"></div>
+                <!-- 메시지 미리보기 (마크다운 제거) -->
+                <div class="px-3 pb-2 text-[11px] text-hq-muted/70 leading-relaxed line-clamp-2"
+                     x-text="stripMarkdown(log.message)"></div>
+                <!-- 유형 배지 -->
+                <div class="px-3 pb-2.5">
+                  <span class="text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider"
+                        :class="log.log_type === 'delegation' ? 'bg-hq-cyan/15 text-hq-cyan' : 'bg-hq-green/15 text-hq-green'"
+                        x-text="log.log_type === 'delegation' ? '위임' : '보고'"></span>
+                </div>
               </div>
             </template>
           </div>
           <!-- 흐름도 탭 -->
-          <div x-show="delegationLogFilter === 'flow'" class="flex-1 overflow-y-auto scrollbar-thin p-3">
+          <div x-show="delegationLogFilter === 'flow'" class="flex-1 overflow-y-auto scrollbar-thin p-2.5">
             <template x-if="delegationLogs.length === 0">
               <div class="text-center py-8 text-hq-muted/60 text-[11px]">협업 기록이 없습니다</div>
             </template>
-            <div class="space-y-2">
+            <div class="space-y-0">
               <template x-for="(log, idx) in delegationLogs.slice(0, 20)" :key="log.id || idx">
-                <div class="relative">
-                  <!-- 연결선 -->
+                <div class="relative pl-10">
+                  <!-- 타임라인 세로선 -->
                   <div x-show="idx < delegationLogs.slice(0,20).length - 1"
-                       class="absolute left-[18px] top-[36px] w-px h-4 bg-hq-border/40"></div>
-                  <div class="flex items-start gap-2">
-                    <!-- 발신자 노드 -->
-                    <div class="shrink-0 w-9 h-9 rounded-full flex items-center justify-center text-[9px] font-bold text-center leading-tight"
-                         :class="log.log_type === 'consult' ? 'bg-hq-cyan/20 text-hq-cyan border border-hq-cyan/30' :
-                                 log.log_type === 'report' ? 'bg-hq-green/20 text-hq-green border border-hq-green/30' :
-                                 'bg-hq-accent/20 text-hq-accent border border-hq-accent/30'">
-                      <span x-text="(log.sender || '').slice(0,4)"></span>
+                       class="absolute left-[14px] top-[28px] w-px bottom-[-4px] bg-hq-border/30"></div>
+                  <!-- 발신자 컬러 도트 -->
+                  <div class="absolute left-[9px] top-[10px] w-[11px] h-[11px] rounded-full border-2 border-hq-bg"
+                       :style="'background:' + getDeptColor(log.sender)"></div>
+                  <!-- 카드 내용 -->
+                  <div class="mb-3 pb-1">
+                    <div class="flex items-center gap-1 mb-0.5">
+                      <span class="text-[11px] font-bold"
+                            :style="'color:' + getDeptColor(log.sender)"
+                            x-text="getAgentName(log.sender) || log.sender"></span>
+                      <svg class="w-3 h-3 text-hq-muted/40 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                      </svg>
+                      <span class="text-[11px] font-semibold text-hq-text/80 truncate"
+                            x-text="getAgentName(log.receiver) || log.receiver"></span>
+                      <span class="ml-auto text-[9px] text-hq-muted/40 shrink-0 cursor-default"
+                            :title="formatTime(log.created_at)"
+                            x-text="relativeTimeStr(log.created_at)"></span>
                     </div>
-                    <div class="flex-1 min-w-0">
-                      <div class="flex items-center gap-1 mb-0.5">
-                        <span class="text-[10px] font-semibold text-hq-text truncate" x-text="log.sender || '-'"></span>
-                        <svg class="w-3 h-3 text-hq-muted shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-                        </svg>
-                        <span class="text-[10px] text-hq-cyan truncate" x-text="log.receiver || '-'"></span>
-                      </div>
-                      <div class="text-[10px] text-hq-muted line-clamp-2" x-text="log.message"></div>
-                      <div class="flex items-center gap-1 mt-1">
-                        <span class="text-[9px] px-1.5 py-0.5 rounded font-semibold"
-                              :class="log.log_type === 'consult' ? 'bg-hq-cyan/10 text-hq-cyan' :
-                                      log.log_type === 'report' ? 'bg-hq-green/10 text-hq-green' :
-                                      'bg-hq-accent/10 text-hq-accent'"
-                              x-text="log.log_type || 'delegation'"></span>
-                      </div>
-                    </div>
+                    <div class="text-[10px] text-hq-muted/60 line-clamp-2 leading-relaxed"
+                         x-text="stripMarkdown(log.message)"></div>
+                    <span class="inline-block mt-1 text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider"
+                          :class="log.log_type === 'delegation' ? 'bg-hq-cyan/10 text-hq-cyan' : 'bg-hq-green/10 text-hq-green'"
+                          x-text="log.log_type === 'delegation' ? '위임' : '보고'"></span>
                   </div>
                 </div>
               </template>
@@ -6808,6 +6817,13 @@
             }
           }, 1000);
           this.startElapsedTimer();
+          // 예산 주기적 동기화 (30초마다) — 백그라운드 AI 호출 비용도 반영
+          setInterval(async () => {
+            try {
+              const r = await fetch('/api/budget');
+              if (r.ok) { const d = await r.json(); if (d.today_cost !== undefined) this.totalCost = d.today_cost; }
+            } catch(e) {}
+          }, 30000);
         },
 
         // ── Theme ──
@@ -9796,7 +9812,38 @@
           const d = new Date(ts);
           const h = d.getHours();
           const m = d.getMinutes().toString().padStart(2,'0');
-          return `${h < 12 ? '오전' : '오후'} ${h % 12 || 12}:${m}`;
+          const s = d.getSeconds().toString().padStart(2,'0');
+          return `${h < 12 ? '오전' : '오후'} ${h % 12 || 12}:${m}:${s}`;
+        },
+        // 내부통신 — 상대시간 ("방금", "3분 전", hover 시 정확한 시간)
+        relativeTimeStr(ts) {
+          if (!ts) return '';
+          const diff = Date.now() - new Date(ts).getTime();
+          const sec = Math.floor(diff / 1000);
+          if (sec < 60) return '방금';
+          const min = Math.floor(sec / 60);
+          if (min < 60) return min + '분 전';
+          const hr = Math.floor(min / 60);
+          if (hr < 24) return hr + '시간 전';
+          return Math.floor(hr / 24) + '일 전';
+        },
+        // 내부통신 — 부서별 컬러 (발신자 agentId 기반)
+        getDeptColor(agentId) {
+          if (!agentId) return '#6b7280';
+          const id = agentId.toLowerCase();
+          if (id.includes('cio') || id.includes('finance') || id.includes('stock') || id.includes('market_condition') || id.includes('technical_analysis') || id.includes('risk')) return '#fbbf24';
+          if (id.includes('cto') || id.includes('frontend') || id.includes('backend') || id.includes('infra') || id.includes('ai_model')) return '#22d3ee';
+          if (id.includes('cmo') || id.includes('community') || id.includes('content_spec') || id.includes('survey')) return '#a855f7';
+          if (id.includes('clo') || id.includes('copyright') || id.includes('patent')) return '#f43f5e';
+          if (id.includes('cso') || id.includes('business_plan') || id.includes('market_research') || id.includes('financial_model')) return '#f97316';
+          if (id.includes('cpo') || id.includes('chronicle') || id.includes('editor') || id.includes('archive')) return '#8b5cf6';
+          if (id.includes('chief') || id.includes('relay') || id.includes('report_spec') || id.includes('schedule')) return '#f59e0b';
+          return '#6b7280';
+        },
+        // 내부통신 — 마크다운 제거 (## 헤더, **볼드**, `코드` 등)
+        stripMarkdown(text) {
+          if (!text) return '';
+          return text.replace(/^#+\s*/gm, '').replace(/\*\*([^*]+)\*\*/g, '$1').replace(/\*([^*]+)\*/g, '$1').replace(/`([^`]+)`/g, '$1').replace(/\[([^\]]+)\]\([^)]+\)/g, '$1').replace(/\n+/g, ' ').trim().slice(0, 150);
         },
 
         onChatScroll(e) {
