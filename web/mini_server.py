@@ -3824,40 +3824,92 @@ async def get_trading_summary():
 
 @app.get("/api/trading/portfolio")
 async def get_trading_portfolio():
-    """실거래 KIS 잔고 기반 포트폴리오 조회 + 스냅샷 자동 저장"""
+    """실거래 KIS 잔고 기반 포트폴리오 조회 — 한국장 + 미국장 통합 (C안)"""
     try:
-        from kis_client import get_balance, KIS_APP_KEY
+        from kis_client import get_balance, get_overseas_balance, KIS_APP_KEY
+        from db import load_setting, save_setting, save_portfolio_snapshot
+        import asyncio as _aio
+
         if not KIS_APP_KEY:
             return {"available": False, "reason": "KIS 미설정"}
-        bal = await get_balance()
-        if not bal.get("success"):
-            return {"available": False, "reason": bal.get("error", "조회 실패")}
 
-        cash = bal.get("cash", 0)
-        holdings = bal.get("holdings", [])
-        total_eval = bal.get("total_eval", cash)
+        # 한국장 + 미국장 동시 조회
+        kr_bal, us_bal = await _aio.gather(
+            get_balance(),
+            get_overseas_balance(),
+            return_exceptions=True,
+        )
+        if isinstance(kr_bal, Exception):
+            kr_bal = {"success": False, "error": str(kr_bal)}
+        if isinstance(us_bal, Exception):
+            us_bal = {"success": False, "error": str(us_bal)}
 
-        # 초기 자금: DB에서 로드 (없으면 최초 조회 시 현재 총자산으로 설정)
-        from db import load_setting, save_setting, save_portfolio_snapshot
-        initial = load_setting("portfolio_initial_capital", None)
-        if initial is None:
-            initial = total_eval if total_eval > 0 else cash
-            save_setting("portfolio_initial_capital", initial)
+        kr_ok = kr_bal.get("success", False)
+        us_ok = us_bal.get("success", False)
 
-        pnl = total_eval - initial
-        pnl_pct = round((pnl / initial * 100), 2) if initial > 0 else 0.0
+        if not kr_ok and not us_ok:
+            return {"available": False, "reason": "한국장/미국장 모두 조회 실패"}
 
-        # 스냅샷 저장 (오늘 기준)
-        save_portfolio_snapshot(cash, total_eval, pnl, pnl_pct)
+        # 환율 (DB에 저장된 값 사용, 없으면 1450 기본값)
+        fx_rate = load_setting("fx_rate_usd_krw", 1450)
+
+        # ── 한국장 ──
+        kr_cash = kr_bal.get("cash", 0) if kr_ok else 0
+        kr_holdings = kr_bal.get("holdings", []) if kr_ok else []
+        kr_total = kr_bal.get("total_eval", kr_cash) if kr_ok else 0
+        kr_initial = load_setting("portfolio_initial_capital", None)
+        if kr_initial is None and kr_ok:
+            kr_initial = kr_total if kr_total > 0 else kr_cash
+            save_setting("portfolio_initial_capital", kr_initial)
+        kr_initial = kr_initial or 0
+        kr_pnl = kr_total - kr_initial
+        kr_pnl_pct = round((kr_pnl / kr_initial * 100), 2) if kr_initial > 0 else 0.0
+
+        # ── 미국장 ──
+        us_cash_usd = us_bal.get("cash_usd", 0) if us_ok else 0
+        us_holdings = us_bal.get("holdings", []) if us_ok else []
+        us_total_usd = us_bal.get("total_eval_usd", us_cash_usd) if us_ok else 0
+        us_initial_usd = load_setting("portfolio_initial_capital_usd", None)
+        if us_initial_usd is None and us_ok and us_total_usd > 0:
+            us_initial_usd = us_total_usd
+            save_setting("portfolio_initial_capital_usd", us_initial_usd)
+        us_initial_usd = us_initial_usd or 0
+        us_pnl_usd = us_total_usd - us_initial_usd
+        us_pnl_pct = round((us_pnl_usd / us_initial_usd * 100), 2) if us_initial_usd > 0 else 0.0
+
+        # ── 총합 (원화 환산) ──
+        us_total_krw = us_total_usd * fx_rate
+        us_initial_krw = us_initial_usd * fx_rate
+        grand_total = kr_total + us_total_krw
+        grand_initial = kr_initial + us_initial_krw
+        grand_pnl = grand_total - grand_initial
+        grand_pnl_pct = round((grand_pnl / grand_initial * 100), 2) if grand_initial > 0 else 0.0
+
+        # 스냅샷 저장 (총합 기준)
+        save_portfolio_snapshot(kr_cash, grand_total, grand_pnl, grand_pnl_pct)
 
         return {
             "available": True,
-            "cash": cash,
-            "holdings": holdings,
-            "total_eval": total_eval,
-            "initial_capital": initial,
-            "pnl": pnl,
-            "pnl_pct": pnl_pct,
+            "fx_rate": fx_rate,
+            # 한국장
+            "kr": {
+                "cash": kr_cash, "holdings": kr_holdings, "total_eval": kr_total,
+                "initial_capital": kr_initial, "pnl": kr_pnl, "pnl_pct": kr_pnl_pct,
+                "available": kr_ok,
+            },
+            # 미국장
+            "us": {
+                "cash_usd": us_cash_usd, "holdings": us_holdings, "total_eval_usd": us_total_usd,
+                "initial_capital_usd": us_initial_usd, "pnl_usd": us_pnl_usd, "pnl_pct": us_pnl_pct,
+                "total_eval_krw": us_total_krw, "available": us_ok,
+            },
+            # 총합 (원화 기준)
+            "cash": kr_cash,
+            "holdings": kr_holdings,
+            "total_eval": grand_total,
+            "initial_capital": grand_initial,
+            "pnl": grand_pnl,
+            "pnl_pct": grand_pnl_pct,
         }
     except Exception as e:
         return {"available": False, "reason": str(e)}
@@ -5098,15 +5150,29 @@ async def get_portfolio_history():
 
 @app.post("/api/trading/portfolio/set-initial")
 async def set_portfolio_initial(request: Request):
-    """초기 자금 수동 설정"""
+    """초기 자금 수동 설정 — KRW + USD 분리 지원"""
     try:
         body = await request.json()
-        amount = int(body.get("amount", 0))
-        if amount <= 0:
-            return {"success": False, "error": "금액은 0보다 커야 합니다"}
         from db import save_setting
-        save_setting("portfolio_initial_capital", amount)
-        return {"success": True, "initial_capital": amount}
+        result = {}
+        # 한국장 초기자금 (원)
+        kr_amount = body.get("amount") or body.get("amount_krw")
+        if kr_amount and int(kr_amount) > 0:
+            save_setting("portfolio_initial_capital", int(kr_amount))
+            result["initial_capital_krw"] = int(kr_amount)
+        # 미국장 초기자금 (달러)
+        us_amount = body.get("amount_usd")
+        if us_amount is not None and float(us_amount) >= 0:
+            save_setting("portfolio_initial_capital_usd", float(us_amount))
+            result["initial_capital_usd"] = float(us_amount)
+        # 환율 수동 설정
+        fx_rate = body.get("fx_rate")
+        if fx_rate and float(fx_rate) > 0:
+            save_setting("fx_rate_usd_krw", float(fx_rate))
+            result["fx_rate"] = float(fx_rate)
+        if not result:
+            return {"success": False, "error": "금액을 입력해주세요"}
+        return {"success": True, **result}
     except Exception as e:
         return {"success": False, "error": str(e)}
 
