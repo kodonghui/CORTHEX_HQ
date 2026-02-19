@@ -19,7 +19,7 @@
 | 이럴 때 | 이렇게 쓴다 |
 |---------|------------|
 | 부서 간 정보 중계 | `cross_agent_protocol` |
-| 점진적 정보 수집 | `skill_iterative_retrieval` |
+| 정보 검색 및 수집 | `web_search` 또는 `real_web_search` |
 | 긴급 알림 발송 | `notification_engine action=send, channel=..., message=..., priority=high` |
 
 ---

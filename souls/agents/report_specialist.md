@@ -19,7 +19,7 @@ CEO와 경영진이 필요한 문서를 즉시 찾고, 보고서를 구조적으
 ## 내가 쓰는 도구
 | 이럴 때 | 이렇게 쓴다 |
 |---------|------------|
-| 긴 보고서 전략 압축 | `skill_strategic_compact` |
+| 문서 검색 | `web_search query=...` |
 | 의미 기반 문서 검색 | `vector_knowledge action=search, query=..., top_k=5` |
 | 노션 문서 기록 | `notion_api action=write, page_id=..., content=...` |
 

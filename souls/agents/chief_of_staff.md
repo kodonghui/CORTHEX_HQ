@@ -28,7 +28,7 @@ CEO의 명령을 접수·분류·배분하고, 전 부서 보고를 취합하여
 | 노션 기록 | `notion_api action=write, page_id=..., content=...` |
 | 부서 간 통신 | `cross_agent_protocol` |
 
-**스킬**: skill_brainstorming, skill_writing_plans, skill_executing_plans, skill_dispatching_parallel_agents, skill_handoff, skill_strategic_compact, skill_pensieve
+**도구**: cross_agent_protocol (에이전트 간 작업 요청/인계), notion_api, calendar_tool, decision_tracker
 
 ---
 
