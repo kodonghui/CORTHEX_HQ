@@ -9159,8 +9159,8 @@
 
         // ── #12: Tab grouping helpers ──
         getPrimaryTabs() {
-          // 메인 탭 순서: 작전현황 / 사령관실 / 작전일지 / 기밀문서 / 전략실 / 크론기지
-          const order = ['home', 'command', 'history', 'archive', 'trading', 'schedule'];
+          // 메인 탭 순서: 작전현황 / 사령관실 / 작전일지 / 기밀문서 / 전략실
+          const order = ['home', 'command', 'history', 'archive', 'trading'];
           return order.map(id => this.tabs.find(t => t.id === id)).filter(Boolean);
         },
         getSecondaryTabs() {
