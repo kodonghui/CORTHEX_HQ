@@ -83,3 +83,69 @@ rubrics:
       1. 정확성: 회사 연혁, 날짜, 수치 등 사실관계가 정확한가? (0-35점)
       2. 가독성: 문장이 읽기 쉽고 구조가 명확한가? (0-30점)
       3. 완성도: 빠진 내용 없이 요청 범위를 다 다루었는가? (0-35점)
+
+# 투자 분석 전용 검수 규칙 (CIO/투자분석가 보고서에만 적용)
+investment_analysis:
+  # 매수/매도 균형 체크
+  balance_required:
+    enabled: true
+    description: "매수 근거와 매도/리스크 근거가 모두 있어야 함"
+    min_risk_mentions: 2  # 최소 리스크 언급 횟수
+    keywords_risk:
+      - "하락 리스크"
+      - "손절"
+      - "위험"
+      - "리스크"
+      - "주의"
+      - "매도"
+      - "단점"
+      - "우려"
+    keywords_bullish:
+      - "매수"
+      - "상승"
+      - "호재"
+      - "강세"
+      - "기회"
+    # 낙관 키워드가 리스크 키워드보다 3배 이상이면 편향 경고
+    bias_threshold: 3.0
+
+  # 위험 요소 명시 여부
+  risk_disclosure:
+    enabled: true
+    description: "투자 리스크를 반드시 수치로 명시해야 함"
+    required_fields:
+      - "목표주가 하단"  # 또는 "하락 목표가"
+      - "손절 기준"      # 또는 "stop loss"
+    allow_partial: true   # 하나라도 있으면 통과 (둘 다 없으면 경고)
+
+  # 낙관 편향 감지
+  optimism_bias_check:
+    enabled: true
+    description: "지나치게 낙관적인 표현을 감지"
+    penalty_phrases:
+      - "무조건 오른다"
+      - "확실히"
+      - "반드시 상승"
+      - "100%"
+      - "절대적으로"
+    warning_phrases:
+      - "강력 매수"
+      - "폭발적 상승"
+      - "대박"
+    max_penalty_count: 0   # penalty_phrases가 하나라도 있으면 리젝
+    max_warning_count: 2   # warning_phrases 3개 이상이면 경고
+
+  # 분석 근거 충실도
+  evidence_quality:
+    enabled: true
+    description: "의견이 아닌 데이터 기반 근거가 있어야 함"
+    min_data_points: 1  # 최소 1개의 숫자/수치 언급 필요
+    evidence_keywords:
+      - "PER"
+      - "PBR"
+      - "ROE"
+      - "영업이익"
+      - "매출"
+      - "%"
+      - "억"
+      - "조"
