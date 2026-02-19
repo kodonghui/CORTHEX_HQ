@@ -526,6 +526,9 @@ async def get_mock_balance() -> dict:
                 "total_eval": total_eval,
                 "mode": "모의투자",
                 "is_mock": True,
+                "_debug_out2": out2,
+                "_debug_rt_cd": data.get("rt_cd"),
+                "_debug_msg": data.get("msg1"),
             }
     except Exception as e:
         logger.error("[KIS-Shadow] 모의투자 잔고 조회 실패: %s", e)
