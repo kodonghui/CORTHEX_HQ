@@ -907,6 +907,9 @@ agents:
   - rfm_segmentation
   - content_quality_scorer
   - pricing_sensitivity
+  - churn_risk_scorer
+  - marketing_attribution
+  - cohort_retention
 - agent_id: survey_specialist
   name: Survey/Research Specialist
   name_ko: 설문/리서치 Specialist

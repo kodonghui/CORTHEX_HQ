@@ -724,6 +724,100 @@ tools:
         description: 제품/서비스명 (티어 설계용)
     required:
     - action
+- tool_id: churn_risk_scorer
+  name: Churn Risk Scorer
+  name_ko: 이탈 위험 점수
+  description: 교수급 이탈 위험 분석 — Cox PH 생존분석 기반 이탈 점수(0~100), Kaplan-Meier 생존곡선, 이탈 요인 분석, 방지 전략
+  parameters:
+    type: object
+    properties:
+      action:
+        type: string
+        enum: [full, score, batch, survival, factors, strategy]
+        description: full=종합, score=개별점수, batch=일괄평가, survival=생존곡선, factors=요인분석, strategy=방지전략
+      recency_days:
+        type: integer
+        description: 마지막 활동 이후 경과일
+      frequency_decline:
+        type: number
+        description: 구매빈도 감소율 0~1
+      support_tickets:
+        type: integer
+        description: 최근 불만건수
+      payment_issues:
+        type: integer
+        description: 결제실패 횟수
+      engagement_score:
+        type: integer
+        description: 서비스 활용도 0~100
+      tenure_months:
+        type: integer
+        description: 가입 후 경과 개월수
+      customers:
+        type: string
+        description: batch용 고객 JSON 목록
+      monthly_revenue_per_customer:
+        type: integer
+        description: 고객당 월 매출
+      total_customers:
+        type: integer
+        description: 전체 고객수
+    required: [action]
+- tool_id: marketing_attribution
+  name: Marketing Attribution
+  name_ko: 마케팅 채널 기여도
+  description: 교수급 채널 기여도 분석 — Shapley Value + Markov Chain + 6가지 기여모델 비교 + ROI 예산 재배분
+  parameters:
+    type: object
+    properties:
+      action:
+        type: string
+        enum: [full, shapley, markov, compare, roi, path]
+        description: full=종합, shapley=공정기여도, markov=전환확률, compare=6모델비교, roi=ROI분석, path=경로분석
+      paths_json:
+        type: string
+        description: 전환 경로 JSON
+      channel_costs:
+        type: string
+        description: 채널별 비용 JSON
+      monthly_budget:
+        type: integer
+        description: 월 마케팅 예산
+    required: [action]
+- tool_id: cohort_retention
+  name: Cohort Retention
+  name_ko: 코호트 리텐션
+  description: 교수급 코호트 리텐션 분석 — 리텐션 히트맵, 커브 피팅(지수/로그/멱함수), sBG 모델 예측, NRR/GRR, 업종 벤치마크
+  parameters:
+    type: object
+    properties:
+      action:
+        type: string
+        enum: [full, heatmap, curve, benchmark, revenue, predict]
+        description: full=종합, heatmap=히트맵, curve=커브피팅, benchmark=벤치마크, revenue=매출리텐션, predict=예측
+      cohort_json:
+        type: string
+        description: '코호트 JSON (예: [{"cohort":"2025-01","size":100,"retained":[100,80,65]}])'
+      industry:
+        type: string
+        enum: [saas_b2b, saas_b2c, ecommerce, mobile_app, gaming, fintech, media]
+        description: 벤치마크 비교 업종
+      starting_mrr:
+        type: integer
+        description: 기존고객 시작 월매출
+      expansion_mrr:
+        type: integer
+        description: 업셀 매출
+      contraction_mrr:
+        type: integer
+        description: 다운그레이드 매출
+      churned_mrr:
+        type: integer
+        description: 이탈 매출
+      predict_months:
+        type: integer
+        description: 예측 기간 (개월)
+    required: [action]
 - tool_id: backtest_engine
   name: Backtest Engine
   name_ko: 포트폴리오 백테스터
