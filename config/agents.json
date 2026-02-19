@@ -457,7 +457,10 @@
         "naver_news",
         "sns_manager",
         "notification_engine",
-        "cross_agent_protocol"
+        "cross_agent_protocol",
+        "funnel_analyzer",
+        "ab_test_engine",
+        "customer_ltv_model"
       ]
     },
     {
@@ -575,7 +578,15 @@
         "real_web_search",
         "notification_engine",
         "cross_agent_protocol",
-        "technical_analyzer"
+        "technical_analyzer",
+        "dcf_valuator",
+        "portfolio_optimizer",
+        "risk_calculator",
+        "sector_rotator",
+        "sentiment_scorer",
+        "pair_analyzer",
+        "earnings_surprise",
+        "macro_regime"
       ]
     },
     {
@@ -599,7 +610,10 @@
         "global_market_tool",
         "chart_generator",
         "real_web_search",
-        "cross_agent_protocol"
+        "cross_agent_protocol",
+        "macro_regime",
+        "sentiment_scorer",
+        "sector_rotator"
       ]
     },
     {
@@ -626,7 +640,10 @@
         "chart_generator",
         "spreadsheet_tool",
         "financial_calculator",
-        "cross_agent_protocol"
+        "cross_agent_protocol",
+        "dcf_valuator",
+        "earnings_surprise",
+        "sentiment_scorer"
       ]
     },
     {
@@ -649,7 +666,8 @@
         "chart_generator",
         "spreadsheet_tool",
         "cross_agent_protocol",
-        "technical_analyzer"
+        "technical_analyzer",
+        "pair_analyzer"
       ]
     },
     {
@@ -673,7 +691,10 @@
         "chart_generator",
         "real_web_search",
         "ecos_macro",
-        "cross_agent_protocol"
+        "cross_agent_protocol",
+        "risk_calculator",
+        "portfolio_optimizer",
+        "pair_analyzer"
       ]
     },
     {
