@@ -904,6 +904,8 @@ agents:
   - funnel_analyzer
   - ab_test_engine
   - customer_ltv_model
+  - rfm_segmentation
+  - content_quality_scorer
 - agent_id: survey_specialist
   name: Survey/Research Specialist
   name_ko: 설문/리서치 Specialist
