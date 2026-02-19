@@ -730,9 +730,13 @@ agents:
   - precedent_analyzer
   - trademark_similarity
   - contract_reviewer
+  - nda_analyzer
+  - license_scanner
   - ip_portfolio_manager
   - ai_governance_checker
   - law_change_monitor
+  - regulation_radar
+  - dispute_simulator
   - web_search
   - real_web_search
   - cross_agent_protocol
@@ -779,6 +783,9 @@ agents:
   - precedent_analyzer
   - law_change_monitor
   - contract_reviewer
+  - ai_governance_checker
+  - regulation_radar
+  - dispute_simulator
   - web_search
   - cross_agent_protocol
 - agent_id: patent_specialist
@@ -827,6 +834,9 @@ agents:
   - precedent_analyzer
   - law_search
   - law_change_monitor
+  - ip_portfolio_manager
+  - regulation_radar
+  - dispute_simulator
   - cross_agent_protocol
 - agent_id: cmo_manager
   name: CMO Manager
