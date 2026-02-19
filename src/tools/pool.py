@@ -83,6 +83,7 @@ class ToolPool:
             # ─── CMO 마케팅고객처 신규 도구 ───
             "funnel_analyzer": "src.tools.funnel_analyzer.FunnelAnalyzerTool",
             "ab_test_engine": "src.tools.ab_test_engine.AbTestEngineTool",
+            "customer_ltv_model": "src.tools.customer_ltv_model.CustomerLtvModelTool",
             "seo_analyzer": "src.tools.seo_analyzer.SeoAnalyzerTool",
             "sentiment_analyzer": "src.tools.sentiment_analyzer.SentimentAnalyzerTool",
             "hashtag_recommender": "src.tools.hashtag_recommender.HashtagRecommenderTool",

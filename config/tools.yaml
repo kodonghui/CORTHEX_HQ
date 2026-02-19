@@ -538,6 +538,68 @@ tools:
         description: 'JSON 형태 다변량 데이터 (예: [{"name":"A","visitors":1000,"conversions":50},...])'
     required:
     - action
+- tool_id: customer_ltv_model
+  name: Customer LTV Model
+  name_ko: 고객 생애가치 예측
+  description: 교수급 CLV 예측 — BG/NBD 구매확률 + Gamma-Gamma 객단가 모델, 세그먼트 분류, 코호트 비교, 유닛 이코노믹스(CAC vs CLV), 할인 CLV(DCF)
+  model_name: gemini-3-pro-preview
+  parameters:
+    type: object
+    properties:
+      action:
+        type: string
+        enum:
+        - full
+        - predict
+        - segment
+        - cohort
+        - unit_economics
+        - discount
+        description: full=종합, predict=개별예측, segment=세그먼트, cohort=코호트비교, unit_economics=유닛이코노믹스, discount=할인CLV
+      frequency:
+        type: integer
+        description: 반복 구매 횟수 (기본 5)
+      recency:
+        type: integer
+        description: 최근 구매까지 경과일 (기본 30)
+      T:
+        type: integer
+        description: 관찰 기간 일수 (기본 365)
+      monetary:
+        type: integer
+        description: 평균 주문금액 원 (기본 50000)
+      horizon:
+        type: integer
+        description: 예측 기간 일수 (기본 365)
+      cac:
+        type: integer
+        description: 고객획득비용 원 (유닛 이코노믹스용, 기본 100000)
+      monthly_revenue:
+        type: integer
+        description: 월 평균 매출 원 (기본 50000)
+      monthly_churn:
+        type: number
+        description: 월 이탈률 (기본 0.05)
+      gross_margin:
+        type: number
+        description: 매출총이익률 (기본 0.7)
+      industry:
+        type: string
+        enum:
+        - saas
+        - ecommerce
+        - subscription_box
+        - mobile_app
+        - fintech
+        description: 업종 (벤치마크 비교용)
+      customers:
+        type: string
+        description: 'JSON 고객 데이터 (세그먼트용, 예: [{"id":"C1","frequency":5,...}])'
+      cohorts:
+        type: string
+        description: 'JSON 코호트 데이터 (코호트 비교용)'
+    required:
+    - action
 - tool_id: backtest_engine
   name: Backtest Engine
   name_ko: 포트폴리오 백테스터
