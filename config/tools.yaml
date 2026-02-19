@@ -168,6 +168,37 @@ tools:
   name_ko: 종목 스크리너
   description: 한국 상장사 조건 필터링 — PER/PBR/시가총액/거래량 기반 스크리닝 + 프리셋 전략(가치주/성장주/배당주/모멘텀)
   model_name: gpt-5-mini
+- tool_id: technical_analyzer
+  name: Technical Analyzer
+  name_ko: 기술적 분석 도구
+  description: 교수급 30개 지표 종합 기술적 분석 — 추세(MA/ADX/PSAR), 모멘텀(RSI/MACD/Stochastic/CCI/Williams), 변동성(BB/ATR), 거래량(OBV/CMF/AD), 캔들패턴, 지지/저항선, 매매신호 종합 스코어
+  model_name: gpt-5.2
+  parameters:
+    type: object
+    properties:
+      action:
+        type: string
+        enum:
+        - full
+        - trend
+        - momentum
+        - volatility
+        - volume
+        - pattern
+        - support_resistance
+        - signal
+        description: full=전체분석, trend=추세, momentum=모멘텀, volatility=변동성, volume=거래량, pattern=캔들패턴, support_resistance=지지저항, signal=매매신호종합
+      name:
+        type: string
+        description: '종목명 (예: 삼성전자)'
+      ticker:
+        type: string
+        description: '종목코드 (예: 005930)'
+      days:
+        type: integer
+        description: 분석 기간 일수 (기본 200일, 장기 지표용)
+    required:
+    - action
 - tool_id: backtest_engine
   name: Backtest Engine
   name_ko: 포트폴리오 백테스터

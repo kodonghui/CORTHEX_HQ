@@ -574,7 +574,8 @@
         "spreadsheet_tool",
         "real_web_search",
         "notification_engine",
-        "cross_agent_protocol"
+        "cross_agent_protocol",
+        "technical_analyzer"
       ]
     },
     {
@@ -647,7 +648,8 @@
         "backtest_engine",
         "chart_generator",
         "spreadsheet_tool",
-        "cross_agent_protocol"
+        "cross_agent_protocol",
+        "technical_analyzer"
       ]
     },
     {
