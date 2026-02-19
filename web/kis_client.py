@@ -2,8 +2,14 @@
 import os
 import asyncio
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone, time as dtime
 from typing import Optional
+
+# 한국 시간대 (UTC+9)
+_KST = timezone(timedelta(hours=9))
+# 매일 토큰 자동 갱신 시각 (KST)
+_RENEWAL_HOUR_KST = 7   # 오전 7시
+_RENEWAL_MINUTE_KST = 0
 
 import httpx
 
@@ -289,3 +295,48 @@ async def get_balance() -> dict:
     except Exception as e:
         logger.error("[KIS] 잔고 조회 실패: %s", e)
         return {"success": False, "cash": 0, "holdings": [], "total_eval": 0}
+
+
+async def _force_renew_token() -> None:
+    """토큰 강제 갱신 (캐시 무효화 후 신규 발급)."""
+    async with _token_lock:
+        _token_cache["token"] = None
+        _token_cache["expires"] = None
+    # 락 해제 후 _get_token() 호출 (내부에서 다시 락 획득)
+    try:
+        await _get_token()
+        mode = "모의투자" if KIS_IS_MOCK else "실거래"
+        logger.info("[KIS] 토큰 자동 갱신 완료 (%s, 오전 %d시 스케줄)", mode, _RENEWAL_HOUR_KST)
+    except Exception as e:
+        logger.error("[KIS] 토큰 자동 갱신 실패: %s", e)
+
+
+async def start_daily_token_renewal() -> None:
+    """매일 KST 오전 7시에 KIS 토큰을 자동 갱신하는 백그라운드 태스크.
+    mini_server.py의 startup 이벤트에서 asyncio.create_task()로 실행할 것.
+    """
+    if not is_configured():
+        logger.info("[KIS] API 미설정 — 토큰 자동 갱신 스케줄러 비활성화")
+        return
+
+    logger.info("[KIS] 토큰 자동 갱신 스케줄러 시작 (매일 KST %02d:%02d)", _RENEWAL_HOUR_KST, _RENEWAL_MINUTE_KST)
+
+    while True:
+        now_kst = datetime.now(_KST)
+        # 오늘 오전 7시 (KST)
+        today_renewal = now_kst.replace(
+            hour=_RENEWAL_HOUR_KST, minute=_RENEWAL_MINUTE_KST, second=0, microsecond=0
+        )
+        # 이미 지났으면 내일 오전 7시
+        if now_kst >= today_renewal:
+            today_renewal += timedelta(days=1)
+
+        wait_seconds = (today_renewal - now_kst).total_seconds()
+        logger.info(
+            "[KIS] 다음 토큰 자동 갱신: %s (%.0f분 후)",
+            today_renewal.strftime("%m-%d %H:%M KST"),
+            wait_seconds / 60,
+        )
+
+        await asyncio.sleep(wait_seconds)
+        await _force_renew_token()

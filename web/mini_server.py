@@ -8053,6 +8053,10 @@ async def on_startup():
     # 관심종목 시세 1분 자동 갱신 태스크 시작
     asyncio.create_task(_auto_refresh_prices())
     _log("[PRICE] 시세 자동 갱신 태스크 시작 ✅ (1분 간격)")
+    # KIS 토큰 매일 오전 7시 자동 갱신 스케줄러 시작
+    from kis_client import start_daily_token_renewal
+    asyncio.create_task(start_daily_token_renewal())
+    _log("[KIS] 토큰 자동 갱신 스케줄러 시작 ✅ (매일 KST 07:00)")
 
 
 @app.on_event("shutdown")
