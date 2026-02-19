@@ -121,20 +121,29 @@ class LogAnalyzerTool(BaseTool):
 
     # ── action 구현 ──
 
+    @staticmethod
+    def _ensure_log_file(log_file: str) -> None:
+        """로그 파일이 없으면 디렉토리와 빈 파일을 생성합니다."""
+        path = Path(log_file)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        if not path.exists():
+            path.touch()
+            logger.info("[LogAnalyzer] 로그 파일 생성: %s", log_file)
+
     async def _analyze(self, kwargs: dict[str, Any]) -> str:
         """로그 파일 전체 분석."""
         log_file = kwargs.get("log_file", DEFAULT_LOG_FILE)
         level = kwargs.get("level", "ERROR").upper()
         hours = int(kwargs.get("hours", 24))
 
+        # 로그 파일/디렉토리가 없으면 자동 생성
+        self._ensure_log_file(log_file)
+
         # 전체 레벨 카운트를 위해 ALL로 먼저 파싱
         all_entries = self._parse_log_file(log_file, "ALL", hours)
 
         if not all_entries:
-            path = Path(log_file)
-            if not path.exists():
-                return f"로그 파일이 없습니다: {log_file}"
-            return f"최근 {hours}시간 내 로그가 없습니다."
+            return f"최근 {hours}시간 내 로그가 없습니다. (파일: {log_file})"
 
         # 레벨별 건수
         level_counts = Counter(e.level for e in all_entries)
@@ -197,9 +206,12 @@ class LogAnalyzerTool(BaseTool):
         top_n = int(kwargs.get("top_n", 10))
         hours = int(kwargs.get("hours", 24))
 
+        # 로그 파일/디렉토리가 없으면 자동 생성
+        self._ensure_log_file(log_file)
+
         entries = self._parse_log_file(log_file, "ERROR", hours)
         if not entries:
-            return f"최근 {hours}시간 내 ERROR 로그가 없습니다."
+            return f"최근 {hours}시간 내 ERROR 로그가 없습니다. (파일: {log_file})"
 
         msg_patterns = Counter(self._normalize_message(e.message) for e in entries)
 
@@ -228,9 +240,12 @@ class LogAnalyzerTool(BaseTool):
         log_file = kwargs.get("log_file", DEFAULT_LOG_FILE)
         hours = int(kwargs.get("hours", 24))
 
+        # 로그 파일/디렉토리가 없으면 자동 생성
+        self._ensure_log_file(log_file)
+
         entries = self._parse_log_file(log_file, "ERROR", hours)
         if not entries:
-            return f"최근 {hours}시간 내 ERROR 로그가 없습니다."
+            return f"최근 {hours}시간 내 ERROR 로그가 없습니다. (파일: {log_file})"
 
         # 시간대별 집계
         hour_counts: dict[int, int] = defaultdict(int)

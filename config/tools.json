@@ -61,7 +61,49 @@
       "name": "Korean Stock Data",
       "name_ko": "한국 주식 데이터",
       "description": "한국거래소 주가/거래량 조회, 기술적 지표(RSI/MACD/BB) 자동 계산, 시가총액 순위 (pykrx)",
-      "model_name": "gpt-5-mini"
+      "model_name": "gpt-5-mini",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "price",
+              "ohlcv",
+              "indicators",
+              "market_cap"
+            ],
+            "description": "수행할 작업. price=주가조회, ohlcv=기간별 데이터, indicators=기술적지표, market_cap=시가총액순위"
+          },
+          "ticker": {
+            "type": "string",
+            "description": "종목코드 (예: 005930). ticker 또는 name 중 하나 필수"
+          },
+          "name": {
+            "type": "string",
+            "description": "종목명 (예: 삼성전자). ticker 또는 name 중 하나 필수"
+          },
+          "days": {
+            "type": "integer",
+            "description": "조회 기간 (일수, 기본값 30)"
+          },
+          "market": {
+            "type": "string",
+            "enum": [
+              "KOSPI",
+              "KOSDAQ"
+            ],
+            "description": "시장 구분 (market_cap action에만 사용, 기본값 KOSPI)"
+          },
+          "top_n": {
+            "type": "integer",
+            "description": "시가총액 상위 N개 (market_cap action에만 사용, 기본값 20)"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      }
     },
     {
       "tool_id": "dart_api",
@@ -355,7 +397,51 @@
       "name": "Chart Generator",
       "name_ko": "차트 생성기",
       "description": "데이터를 막대/꺾은선/원형/산점도/캔들차트로 시각화 — PNG 또는 HTML",
-      "model_name": "gpt-5-mini"
+      "model_name": "gpt-5-mini",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "bar",
+              "line",
+              "pie",
+              "scatter",
+              "candlestick",
+              "dashboard"
+            ],
+            "description": "차트 유형. bar=막대, line=꺾은선, pie=원형, scatter=산점도, candlestick=캔들차트, dashboard=대시보드"
+          },
+          "title": {
+            "type": "string",
+            "description": "차트 제목"
+          },
+          "labels": {
+            "type": "string",
+            "description": "X축 레이블 목록 (쉼표 구분 문자열, 예: 1월,2월,3월)"
+          },
+          "values": {
+            "type": "string",
+            "description": "Y축 값 목록 (쉼표 구분 문자열, 예: 100,200,300)"
+          },
+          "data": {
+            "type": "string",
+            "description": "데이터 JSON 문자열. dict({레이블:값}) 또는 list([{name:..., value:...}]) 형태"
+          },
+          "xlabel": {
+            "type": "string",
+            "description": "X축 이름"
+          },
+          "ylabel": {
+            "type": "string",
+            "description": "Y축 이름"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      }
     },
     {
       "tool_id": "pdf_parser",

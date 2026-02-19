@@ -46,6 +46,12 @@ class KrStockTool(BaseTool):
     """한국 주식 데이터 조회 및 기술적 분석 도구."""
 
     async def execute(self, **kwargs: Any) -> str:
+        # query 파라미터로 호출된 경우 (tools.yaml에 parameters 스키마 미정의 시 폴백)
+        # query 값을 name으로 매핑하여 정상 처리되도록 함
+        query = kwargs.get("query", "")
+        if query and not kwargs.get("name") and not kwargs.get("ticker"):
+            kwargs["name"] = query
+
         action = kwargs.get("action", "price")
 
         if action == "price":
