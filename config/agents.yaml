@@ -1162,6 +1162,14 @@ agents:
   - notification_engine
   - cross_agent_protocol
   - technical_analyzer
+  - dcf_valuator
+  - portfolio_optimizer
+  - risk_calculator
+  - sector_rotator
+  - sentiment_scorer
+  - pair_analyzer
+  - earnings_surprise
+  - macro_regime
 - agent_id: market_condition_specialist
   name: Market Condition Specialist
   name_ko: 시황분석 Specialist
@@ -1252,6 +1260,9 @@ agents:
   - chart_generator
   - real_web_search
   - cross_agent_protocol
+  - macro_regime
+  - sentiment_scorer
+  - sector_rotator
 - agent_id: stock_analysis_specialist
   name: Stock Analysis Specialist
   name_ko: 종목분석 Specialist
@@ -1353,6 +1364,9 @@ agents:
   - spreadsheet_tool
   - financial_calculator
   - cross_agent_protocol
+  - dcf_valuator
+  - earnings_surprise
+  - sentiment_scorer
 - agent_id: technical_analysis_specialist
   name: Technical Analysis Specialist
   name_ko: 기술적분석 Specialist
@@ -1389,6 +1403,7 @@ agents:
   - spreadsheet_tool
   - cross_agent_protocol
   - technical_analyzer
+  - pair_analyzer
 - agent_id: risk_management_specialist
   name: Risk Management Specialist
   name_ko: 리스크관리 Specialist
@@ -1481,6 +1496,9 @@ agents:
   - real_web_search
   - ecos_macro
   - cross_agent_protocol
+  - risk_calculator
+  - portfolio_optimizer
+  - pair_analyzer
 - agent_id: cpo_manager
   name: CPO Manager
   name_ko: 출판·기록처장 (CPO)
