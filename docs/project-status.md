@@ -8,10 +8,57 @@
 
 ## 마지막 업데이트
 
-- **날짜**: 2026-02-19
-- **버전**: `3.03.003` (AI 자기보정 + 수동 즉시 분석 + 신뢰도 연구기반 조정)
-- **작업 브랜치**: claude/fix-broken-tools
+- **날짜**: 2026-02-19 (오후 세션)
+- **버전**: `3.01.000` (진행 중 — 도구 전수검사 + Soul 다이어트 + FE 버그수정)
+- **작업 브랜치**: `claude/fixes-soul-guide` (진행 중, 미완료)
 - **접속 주소**: https://corthex-hq.com
+
+---
+
+## 🔄 현재 세션 진행 중 (2026-02-19 오후, 컴팩트 전 중간 기록)
+
+### ✅ 완료된 것
+
+#### FE 버그 수정 (index.html)
+- **탭 순서 변경**: 작전일지 → 전략실 → 기밀문서 (trading과 archive 순서 교체, 9697줄)
+- **KST 시간 버그 수정**: `_parseTS()` 헬퍼 추가 → SQLite UTC 타임스탬프를 KST로 정확 변환
+  - formatTime(): `toLocaleTimeString('ko-KR', {timeZone: 'Asia/Seoul'})` 사용
+  - relativeTimeStr(): Date.now() 기준 올바른 diff 계산 → "방금/3분 전/2시간 전" 정상화
+- **내부통신 색상 수정**: getDeptColor()에 한국어 키워드 추가 (투자분석/마케팅/기술개발/법무/사업기획/출판/비서 등)
+  → 모든 카드에 부서별 색상 왼쪽 보더 표시됨
+
+#### Soul 다이어트 가이드라인 작성
+- `docs/soul-diet-guide-for-claude-desktop.md` 생성
+- Claude Desktop용 처별 지시 프롬프트 7개 (CIO/CTO/CMO/CSO/CLO/CPO/비서실)
+- 비서실 역할 재편 포함:
+  - report_specialist → 정보 보좌관 (아침 브리핑)
+  - schedule_specialist → 일정 보좌관 (유지+강화)
+  - relay_specialist → 검수 보좌관 (품질 검수)
+
+#### 도구 오류 전수 취합
+- `docs/updates/2026-02-19_tool-audit-report.md` 생성
+- 유형 A (라이브러리 미설치): notion-client, chromadb, pytest, bandit, ruff, google-play-scraper, yt-dlp
+  - ⚠️ pandas-ta/numpy-financial은 requirements.txt에 있으나 설치 실패 (pip 의존성 충돌 가능성)
+- 유형 B (파라미터 파싱 오류): dart_api, insider_tracker, global_market_tool, notification_engine, prompt_tester, embedding_tool, token_counter
+- 유형 C (API 키): sns_manager OAuth 만료, PUBLIC_DATA_API_KEY 미등록
+- 노션 실패 원인: notion-client 패키지 미설치
+
+### ❌ 아직 못 한 것 (다음 세션에서 계속)
+
+1. **deploy.yml pip install 추가**: notion-client, chromadb, bandit, ruff, pytest 강제 설치 추가
+   - requirements.txt에 있는 pandas-ta도 개별 강제 설치 추가 (충돌 우회용)
+2. **유형 B 파라미터 파싱 수정**: dart_api 등 4개 도구 코드 수정
+3. **노션 업로드 버그 조사**: notion-client 설치 + API 연동 테스트
+4. **전략실 "지금 분석" → "매매+보고서" 버튼 변경** (CEO 확인 필요)
+5. **Soul 다이어트 실제 적용**: Claude Desktop이 가이드 따라 파일 수정 → 내가 git push
+6. **비서실 역할명 변경**: agents.yaml에서 역할명/설명 업데이트 필요
+7. **내부통신 SSE 실시간화** (폴링 → SSE EventSource)
+8. **P2P 협업 B안**
+
+### ⚠️ CEO 미결 결정사항
+- "지금 분석" 버튼 → "매매+보고서"로 바꿀지 확인 필요 (컴팩트 전 미결)
+
+---
 
 ## ✅ 이번 세션 완료 내용 (2026-02-19)
 

@@ -9736,8 +9736,8 @@
 
         // ── #12: Tab grouping helpers ──
         getPrimaryTabs() {
-          // 메인 탭 순서: 작전현황 / 사령관실 / 작전일지 / 기밀문서 / 전략실
-          const order = ['home', 'command', 'history', 'archive', 'trading'];
+          // 메인 탭 순서: 작전현황 / 사령관실 / 작전일지 / 전략실 / 기밀문서
+          const order = ['home', 'command', 'history', 'trading', 'archive'];
           return order.map(id => this.tabs.find(t => t.id === id)).filter(Boolean);
         },
         getSecondaryTabs() {
@@ -9850,18 +9850,22 @@
           const days = ['일요일','월요일','화요일','수요일','목요일','금요일','토요일'];
           return `${d.getFullYear()}년 ${d.getMonth()+1}월 ${d.getDate()}일 ${days[d.getDay()]}`;
         },
+        // UTC 타임스탬프 파싱 헬퍼 (SQLite CURRENT_TIMESTAMP = UTC 기준, 'Z' 붙여서 강제 UTC 파싱)
+        _parseTS(ts) {
+          if (!ts) return null;
+          const s = String(ts).replace(' ', 'T');
+          return new Date((s.includes('+') || s.includes('Z')) ? s : s + 'Z');
+        },
         formatTime(ts) {
-          if (!ts) return '';
-          const d = new Date(ts);
-          const h = d.getHours();
-          const m = d.getMinutes().toString().padStart(2,'0');
-          const s = d.getSeconds().toString().padStart(2,'0');
-          return `${h < 12 ? '오전' : '오후'} ${h % 12 || 12}:${m}:${s}`;
+          const d = this._parseTS(ts);
+          if (!d || isNaN(d)) return '';
+          return d.toLocaleTimeString('ko-KR', { timeZone: 'Asia/Seoul', hour: '2-digit', minute: '2-digit', second: '2-digit' });
         },
         // 내부통신 — 상대시간 ("방금", "3분 전", hover 시 정확한 시간)
         relativeTimeStr(ts) {
-          if (!ts) return '';
-          const diff = Date.now() - new Date(ts).getTime();
+          const d = this._parseTS(ts);
+          if (!d || isNaN(d)) return '';
+          const diff = Date.now() - d.getTime();
           const sec = Math.floor(diff / 1000);
           if (sec < 60) return '방금';
           const min = Math.floor(sec / 60);
@@ -9874,13 +9878,20 @@
         getDeptColor(agentId) {
           if (!agentId) return '#6b7280';
           const id = agentId.toLowerCase();
-          if (id.includes('cio') || id.includes('finance') || id.includes('stock') || id.includes('market_condition') || id.includes('technical_analysis') || id.includes('risk')) return '#fbbf24';
-          if (id.includes('cto') || id.includes('frontend') || id.includes('backend') || id.includes('infra') || id.includes('ai_model')) return '#22d3ee';
-          if (id.includes('cmo') || id.includes('community') || id.includes('content_spec') || id.includes('survey')) return '#a855f7';
-          if (id.includes('clo') || id.includes('copyright') || id.includes('patent')) return '#f43f5e';
-          if (id.includes('cso') || id.includes('business_plan') || id.includes('market_research') || id.includes('financial_model')) return '#f97316';
-          if (id.includes('cpo') || id.includes('chronicle') || id.includes('editor') || id.includes('archive')) return '#8b5cf6';
-          if (id.includes('chief') || id.includes('relay') || id.includes('report_spec') || id.includes('schedule')) return '#f59e0b';
+          // CIO / 투자분석처 (노란색)
+          if (id.includes('cio') || id.includes('투자분석') || id.includes('finance') || id.includes('stock') || id.includes('market_condition') || id.includes('시황') || id.includes('종목분석') || id.includes('technical_analysis') || id.includes('기술적분석') || id.includes('risk') || id.includes('리스크')) return '#fbbf24';
+          // CTO / 기술개발처 (청록색)
+          if (id.includes('cto') || id.includes('기술개발') || id.includes('frontend') || id.includes('프론트엔드') || id.includes('backend') || id.includes('백엔드') || id.includes('infra') || id.includes('인프라') || id.includes('ai_model') || id.includes('ai모델')) return '#22d3ee';
+          // CMO / 마케팅고객처 (보라색)
+          if (id.includes('cmo') || id.includes('마케팅') || id.includes('community') || id.includes('커뮤니티') || id.includes('content_spec') || id.includes('콘텐츠') || id.includes('survey') || id.includes('설문')) return '#a855f7';
+          // CLO / 법무IP처 (빨간색)
+          if (id.includes('clo') || id.includes('법무') || id.includes('copyright') || id.includes('저작권') || id.includes('patent') || id.includes('특허')) return '#f43f5e';
+          // CSO / 사업기획처 (주황색)
+          if (id.includes('cso') || id.includes('사업기획') || id.includes('business_plan') || id.includes('사업계획') || id.includes('market_research') || id.includes('시장조사') || id.includes('financial_model') || id.includes('재무모델')) return '#f97316';
+          // CPO / 출판기록처 (바이올렛)
+          if (id.includes('cpo') || id.includes('출판') || id.includes('chronicle') || id.includes('연대기') || id.includes('editor') || id.includes('편집') || id.includes('archive') || id.includes('아카이브')) return '#8b5cf6';
+          // 비서실 (앰버)
+          if (id.includes('chief') || id.includes('비서') || id.includes('relay') || id.includes('소통') || id.includes('report_spec') || id.includes('기록') || id.includes('schedule') || id.includes('일정')) return '#f59e0b';
           return '#6b7280';
         },
         // 내부통신 — 마크다운 제거 (## 헤더, **볼드**, `코드` 등)
