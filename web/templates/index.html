@@ -3980,7 +3980,7 @@
 
           <!-- 서브 탭 -->
           <div class="flex gap-2 mb-6">
-            <template x-for="tab in [{id:'dashboard',l:'대시보드'},{id:'portfolio',l:'포트폴리오'},{id:'strategies',l:'매매 전략'},{id:'watchlist',l:'관심종목'},{id:'history',l:'거래내역'},{id:'signals',l:'시그널'}]" :key="tab.id">
+            <template x-for="tab in [{id:'dashboard',l:'대시보드'},{id:'portfolio',l:'포트폴리오'},{id:'strategies',l:'매매 전략'},{id:'watchlist',l:'관심종목'},{id:'history',l:'거래내역'},{id:'signals',l:'시그널'},{id:'shadow',l:'실거래/모의 비교'}]" :key="tab.id">
               <button @click="trading.tab = tab.id" :class="trading.tab === tab.id ? 'bg-hq-accent/20 text-hq-accent border-hq-accent/30' : 'text-hq-muted border-transparent hover:text-hq-text'" class="px-3 py-1.5 text-xs font-semibold rounded-lg border transition" x-text="tab.l"></button>
             </template>
           </div>
@@ -4567,6 +4567,121 @@
               </template>
             </div>
           </div>
+
+          <!-- ═══ SHADOW TRADING: 실거래/모의 비교 탭 ═══ -->
+          <div x-show="trading.tab === 'shadow' && !trading.loading" x-data="{
+            shadowData: null, shadowLoading: false, shadowError: '',
+            async loadShadow() {
+              this.shadowLoading = true; this.shadowError = '';
+              try {
+                const r = await fetch('/api/trading/shadow/compare');
+                this.shadowData = await r.json();
+              } catch(e) { this.shadowError = '조회 실패: ' + e.message; }
+              this.shadowLoading = false;
+            }
+          }">
+            <!-- 탭 진입 시 자동 로드 -->
+            <div x-effect="if(trading.tab === 'shadow') loadShadow()"></div>
+
+            <div class="space-y-4">
+              <!-- 헤더 -->
+              <div class="flex items-center justify-between">
+                <div>
+                  <h3 class="text-sm font-bold text-hq-text">실거래 / 모의투자 비교</h3>
+                  <p class="text-xs text-hq-muted mt-0.5">같은 전략을 두 계좌에서 동시 실행하여 슬리피지(실제 체결 오차)를 측정합니다.</p>
+                </div>
+                <button @click="loadShadow()" class="bg-hq-surface border border-hq-border hover:border-hq-accent/30 rounded-lg px-3 py-1.5 text-xs text-hq-muted transition">
+                  새로고침
+                </button>
+              </div>
+
+              <!-- 로딩 -->
+              <div x-show="shadowLoading" class="flex items-center justify-center py-12">
+                <div class="w-6 h-6 border-2 border-hq-accent border-t-transparent rounded-full animate-spin mr-3"></div>
+                <span class="text-sm text-hq-muted">비교 데이터 조회 중...</span>
+              </div>
+
+              <!-- 에러 -->
+              <div x-show="!shadowLoading && shadowError" class="bg-hq-red/10 border border-hq-red/20 rounded-lg p-3 text-xs text-hq-red" x-text="shadowError"></div>
+
+              <!-- 모의 미설정 안내 -->
+              <div x-show="!shadowLoading && !shadowError && shadowData && !(shadowData.mock||{}).available && !(shadowData.mock||{}).holdings" class="bg-hq-yellow/10 border border-hq-yellow/20 rounded-lg p-4">
+                <p class="text-xs font-bold text-hq-yellow mb-1">모의투자 설정 필요</p>
+                <p class="text-xs text-hq-muted">KIS 포털에서 모의투자 App Key를 신청하고 GitHub Secrets에 등록하면 비교가 시작됩니다.</p>
+                <div class="mt-2 bg-hq-base rounded p-2 font-mono text-[10px] text-hq-muted space-y-0.5">
+                  <div>KOREA_INVEST_MOCK_APP_KEY=...</div>
+                  <div>KOREA_INVEST_MOCK_APP_SECRET=...</div>
+                  <div>KOREA_INVEST_MOCK_ACCOUNT=...</div>
+                </div>
+              </div>
+
+              <!-- 비교 카드 (데이터 있을 때) -->
+              <div x-show="!shadowLoading && !shadowError && shadowData" class="space-y-4">
+
+                <!-- 수익률 비교 카드 2열 -->
+                <div class="grid grid-cols-2 gap-3">
+                  <!-- 실거래 -->
+                  <div class="bg-hq-panel border border-hq-green/30 rounded-xl p-4">
+                    <div class="flex items-center gap-2 mb-3">
+                      <div class="w-2 h-2 rounded-full bg-hq-green"></div>
+                      <span class="text-xs font-bold text-hq-green">실거래</span>
+                    </div>
+                    <div class="text-lg font-bold text-hq-text" x-text="(shadowData && (shadowData.real||{}).available) ? ((shadowData.real.total_eval||0).toLocaleString() + '원') : '—'"></div>
+                    <div class="text-xs text-hq-muted mt-1" x-text="(shadowData && (shadowData.real||{}).available) ? ('현금 ' + ((shadowData.real.cash||0)).toLocaleString() + '원') : 'KIS 연결 필요'"></div>
+                  </div>
+
+                  <!-- 모의투자 -->
+                  <div class="bg-hq-panel border border-hq-purple/30 rounded-xl p-4">
+                    <div class="flex items-center gap-2 mb-3">
+                      <div class="w-2 h-2 rounded-full bg-hq-purple"></div>
+                      <span class="text-xs font-bold text-hq-purple">모의투자</span>
+                    </div>
+                    <div class="text-lg font-bold text-hq-text" x-text="(shadowData && (shadowData.mock||{}).available) ? ((shadowData.mock.total_eval||0).toLocaleString() + '원') : '—'"></div>
+                    <div class="text-xs text-hq-muted mt-1" x-text="(shadowData && (shadowData.mock||{}).available) ? ('현금 ' + ((shadowData.mock.cash||0)).toLocaleString() + '원') : '모의 Key 등록 필요'"></div>
+                  </div>
+                </div>
+
+                <!-- 슬리피지 표시 -->
+                <div class="bg-hq-surface border border-hq-border rounded-xl p-4">
+                  <div class="flex items-center justify-between">
+                    <div>
+                      <p class="text-xs font-bold text-hq-text">슬리피지 (실거래 - 모의 수익률 차이)</p>
+                      <p class="text-xs text-hq-muted mt-0.5">음수면 실거래 손실이 더 큼, 양수면 실거래가 더 좋음</p>
+                    </div>
+                    <div class="text-right">
+                      <div class="text-base font-bold" :class="(shadowData && shadowData.slip_rate != null) ? (shadowData.slip_rate >= 0 ? 'text-hq-green' : 'text-hq-red') : 'text-hq-muted'"
+                           x-text="(shadowData && shadowData.slip_rate != null) ? (shadowData.slip_rate >= 0 ? '+' : '') + shadowData.slip_rate + '%' : '측정 중'">
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- 전략 검증 배지 안내 -->
+                <div class="bg-hq-panel border border-hq-accent/20 rounded-xl p-4">
+                  <div class="flex items-start gap-3">
+                    <div class="w-8 h-8 rounded-full bg-hq-accent/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <span class="text-sm">🏅</span>
+                    </div>
+                    <div>
+                      <p class="text-xs font-bold text-hq-text">전략 검증 흐름</p>
+                      <p class="text-xs text-hq-muted mt-1 leading-relaxed">
+                        모의투자에서 <span class="text-hq-yellow font-semibold">2주 연속 수익</span>이 나면 → 텔레그램으로 "실거래 전환 추천" 알림 발송.<br>
+                        검증된 전략만 실거래에 적용하는 구조입니다.
+                      </p>
+                      <div class="mt-2 flex gap-2 flex-wrap">
+                        <span class="bg-hq-muted/10 text-hq-muted rounded px-2 py-0.5 text-[10px]">1단계: 모의투자 실행</span>
+                        <span class="text-hq-muted/40 text-[10px] self-center">→</span>
+                        <span class="bg-hq-yellow/10 text-hq-yellow rounded px-2 py-0.5 text-[10px]">2단계: 2주 수익 확인</span>
+                        <span class="text-hq-muted/40 text-[10px] self-center">→</span>
+                        <span class="bg-hq-green/10 text-hq-green rounded px-2 py-0.5 text-[10px]">3단계: 실거래 전환</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+              </div><!-- /비교 카드 끝 -->
+            </div><!-- /space-y-4 끝 -->
+          </div><!-- /shadow 탭 끝 -->
 
         </div>
       </div>
