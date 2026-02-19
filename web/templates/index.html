@@ -2793,39 +2793,6 @@
                 <div x-show="modelMode === 'auto'" class="text-[10px] text-hq-muted">
                   질문 길이/내용에 따라 Haiku(저비용) 또는 Sonnet(고품질) 자동 선택
                 </div>
-                <div x-show="modelMode === 'recommended'" class="mt-1">
-                  <div class="grid grid-cols-1 gap-0.5 text-[9px] text-hq-muted max-h-40 overflow-y-auto">
-                    <div class="flex justify-between py-0.5 border-b border-hq-border/30"><span>비서실장</span><span class="text-hq-accent">Sonnet 4.6</span></div>
-                    <div class="flex justify-between py-0.5 border-b border-hq-border/30"><span>기록 보좌관</span><span class="text-hq-muted">Haiku 4.5</span></div>
-                    <div class="flex justify-between py-0.5 border-b border-hq-border/30"><span>일정 보좌관</span><span class="text-hq-muted">Haiku 4.5</span></div>
-                    <div class="flex justify-between py-0.5 border-b border-hq-border/30"><span>소통 보좌관</span><span class="text-hq-accent">Sonnet 4.6</span></div>
-                    <div class="flex justify-between py-0.5 border-b border-hq-border/30"><span>CTO</span><span class="text-hq-purple">Opus 4.6</span></div>
-                    <div class="flex justify-between py-0.5 border-b border-hq-border/30"><span>프론트엔드</span><span class="text-hq-accent">Sonnet 4.6</span></div>
-                    <div class="flex justify-between py-0.5 border-b border-hq-border/30"><span>백엔드</span><span class="text-hq-accent">Sonnet 4.6</span></div>
-                    <div class="flex justify-between py-0.5 border-b border-hq-border/30"><span>인프라</span><span class="text-hq-accent">Sonnet 4.6</span></div>
-                    <div class="flex justify-between py-0.5 border-b border-hq-border/30"><span>AI 모델</span><span class="text-hq-yellow">Gemini 3.0 Pro</span></div>
-                    <div class="flex justify-between py-0.5 border-b border-hq-border/30"><span>CSO</span><span class="text-hq-purple">Opus 4.6</span></div>
-                    <div class="flex justify-between py-0.5 border-b border-hq-border/30"><span>시장조사</span><span class="text-hq-yellow">Gemini 3.0 Pro</span></div>
-                    <div class="flex justify-between py-0.5 border-b border-hq-border/30"><span>사업계획서</span><span class="text-hq-purple">Opus 4.6</span></div>
-                    <div class="flex justify-between py-0.5 border-b border-hq-border/30"><span>재무모델링</span><span class="text-hq-green">GPT-5.2</span></div>
-                    <div class="flex justify-between py-0.5 border-b border-hq-border/30"><span>CLO</span><span class="text-hq-purple">Opus 4.6</span></div>
-                    <div class="flex justify-between py-0.5 border-b border-hq-border/30"><span>저작권</span><span class="text-hq-purple">Opus 4.6</span></div>
-                    <div class="flex justify-between py-0.5 border-b border-hq-border/30"><span>특허/약관</span><span class="text-hq-purple">Opus 4.6</span></div>
-                    <div class="flex justify-between py-0.5 border-b border-hq-border/30"><span>CMO</span><span class="text-hq-yellow">Gemini 3.0 Pro</span></div>
-                    <div class="flex justify-between py-0.5 border-b border-hq-border/30"><span>설문/리서치</span><span class="text-hq-accent">Sonnet 4.6</span></div>
-                    <div class="flex justify-between py-0.5 border-b border-hq-border/30"><span>콘텐츠</span><span class="text-hq-yellow">Gemini 3.0 Pro</span></div>
-                    <div class="flex justify-between py-0.5 border-b border-hq-border/30"><span>커뮤니티</span><span class="text-hq-accent">Sonnet 4.6</span></div>
-                    <div class="flex justify-between py-0.5 border-b border-hq-border/30"><span>CIO</span><span class="text-hq-green">GPT-5.2 Pro</span></div>
-                    <div class="flex justify-between py-0.5 border-b border-hq-border/30"><span>시황분석</span><span class="text-hq-green">GPT-5.2</span></div>
-                    <div class="flex justify-between py-0.5 border-b border-hq-border/30"><span>종목분석</span><span class="text-hq-green">GPT-5.2</span></div>
-                    <div class="flex justify-between py-0.5 border-b border-hq-border/30"><span>기술적분석</span><span class="text-hq-green">GPT-5.2</span></div>
-                    <div class="flex justify-between py-0.5 border-b border-hq-border/30"><span>리스크관리</span><span class="text-hq-green">GPT-5.2</span></div>
-                    <div class="flex justify-between py-0.5 border-b border-hq-border/30"><span>CPO</span><span class="text-hq-accent">Sonnet 4.6</span></div>
-                    <div class="flex justify-between py-0.5 border-b border-hq-border/30"><span>회사연대기</span><span class="text-hq-accent">Sonnet 4.6</span></div>
-                    <div class="flex justify-between py-0.5 border-b border-hq-border/30"><span>콘텐츠편집</span><span class="text-hq-accent">Sonnet 4.6</span></div>
-                    <div class="flex justify-between py-0.5"><span>아카이브</span><span class="text-hq-muted">Haiku 4.5</span></div>
-                  </div>
-                </div>
                 <div x-show="modelMode === 'manual'" class="mt-1">
                   <div class="text-[10px] text-hq-muted">각 에이전트에 개별 지정된 모델을 사용합니다</div>
                   <div class="text-[10px] text-hq-accent mt-1">에이전트 클릭 → 모델 탭에서 개별 변경 가능</div>
