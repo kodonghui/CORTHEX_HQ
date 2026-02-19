@@ -1582,6 +1582,53 @@
       }
     },
     {
+      "tool_id": "us_stock",
+      "name": "US Stock Tool",
+      "name_ko": "미국주식 도구",
+      "description": "미국주식 심층분석 — 시세, 재무제표, OHLCV, 기술지표, 동종업체, 실적, 스크리너",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "quote",
+              "financials",
+              "ohlcv",
+              "indicators",
+              "peers",
+              "earnings",
+              "screener"
+            ],
+            "description": "quote=시세, financials=재무제표, ohlcv=차트데이터, indicators=기술지표, peers=동종업체, earnings=실적, screener=종목스크리닝"
+          },
+          "symbol": {
+            "type": "string",
+            "description": "미국주식 티커 심볼 (예: AAPL, TSLA, NVDA, MSFT)"
+          },
+          "period": {
+            "type": "string",
+            "description": "데이터 기간 (예: 1mo, 3mo, 6mo, 1y, 5y). 기본값: 3mo"
+          },
+          "interval": {
+            "type": "string",
+            "description": "봉 간격 (1d, 1wk, 1mo). 기본값: 1d"
+          },
+          "sector": {
+            "type": "string",
+            "description": "섹터 필터 (screener용, 예: Technology, Healthcare)"
+          },
+          "min_market_cap": {
+            "type": "number",
+            "description": "최소 시가총액 필터 (screener용, 단위 달러)"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      }
+    },
+    {
       "tool_id": "global_market_tool",
       "name": "Global Market Tool",
       "name_ko": "글로벌 시장 도구",

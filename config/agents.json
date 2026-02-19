@@ -586,6 +586,7 @@
       "superior_id": "chief_of_staff",
       "allowed_tools": [
         "kr_stock",
+        "us_stock",
         "dart_api",
         "naver_news",
         "ecos_macro",
@@ -628,6 +629,7 @@
       "superior_id": "cio_manager",
       "allowed_tools": [
         "kr_stock",
+        "us_stock",
         "ecos_macro",
         "naver_news",
         "global_market_tool",
@@ -655,6 +657,7 @@
       "superior_id": "cio_manager",
       "allowed_tools": [
         "kr_stock",
+        "us_stock",
         "dart_api",
         "dart_monitor",
         "stock_screener",
@@ -685,6 +688,7 @@
       "superior_id": "cio_manager",
       "allowed_tools": [
         "kr_stock",
+        "us_stock",
         "backtest_engine",
         "chart_generator",
         "spreadsheet_tool",
@@ -709,6 +713,7 @@
       "superior_id": "cio_manager",
       "allowed_tools": [
         "kr_stock",
+        "us_stock",
         "global_market_tool",
         "financial_calculator",
         "chart_generator",
