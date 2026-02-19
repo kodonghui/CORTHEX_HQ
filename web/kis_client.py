@@ -468,8 +468,7 @@ async def get_mock_balance() -> dict:
     if not MOCK_APP_KEY:
         return {"available": False, "reason": "모의투자 App Key 미설정 (KOREA_INVEST_MOCK_APP_KEY)", "is_mock": True}
 
-    try:
-        token = await _get_mock_token()
+    async def _fetch_mock_balance(token: str) -> dict:
         async with httpx.AsyncClient(timeout=15) as client:
             resp = await client.get(
                 f"{MOCK_BASE}/uapi/domestic-stock/v1/trading/inquire-balance",
@@ -477,7 +476,7 @@ async def get_mock_balance() -> dict:
                     "authorization": f"Bearer {token}",
                     "appkey": MOCK_APP_KEY,
                     "appsecret": MOCK_APP_SECRET,
-                    "tr_id": "VTTC8434R",  # 모의투자 잔고조회 TR_ID
+                    "tr_id": "VTTC8434R",
                 },
                 params={
                     "CANO": MOCK_ACCOUNT_NO,
@@ -493,43 +492,63 @@ async def get_mock_balance() -> dict:
                     "CTX_AREA_NK100": "",
                 },
             )
-            data = resp.json()
-            output1 = data.get("output1", [])  # 보유 종목
-            output2 = data.get("output2", [{}])  # 계좌 요약
+            return resp.json()
 
-            out2 = output2[0] if output2 else {}
-            # 모의투자 대회 계좌는 nxdy_excc_amt(익일정산금)이 0으로 올 수 있음
-            # 이 경우 dnca_tot_amt(예수금 총액)으로 폴백
-            _nxdy = int(out2.get("nxdy_excc_amt", "0") or "0")
-            _dnca = int(out2.get("dnca_tot_amt", "0") or "0")
-            cash = _nxdy if _nxdy > 0 else _dnca
-            total_eval = int(out2.get("tot_evlu_amt", "0") or "0")
+    try:
+        for attempt in range(2):  # 토큰 만료 시 1회 자동 갱신
+            token = await _get_mock_token()
+            data = await _fetch_mock_balance(token)
 
-            holdings = []
-            for item in output1:
-                qty = int(item.get("hldg_qty", "0") or "0")
-                if qty > 0:
-                    holdings.append({
-                        "ticker": item.get("pdno", ""),
-                        "name": item.get("prdt_name", ""),
-                        "qty": qty,
-                        "avg_price": int(item.get("pchs_avg_pric", "0") or "0"),
-                        "current_price": int(item.get("prpr", "0") or "0"),
-                        "eval_profit": int(item.get("evlu_pfls_amt", "0") or "0"),
-                    })
+            # 토큰 만료 감지 → 캐시 삭제 후 재시도
+            if data.get("rt_cd") != "0":
+                logger.warning("[KIS-Shadow] 모의투자 API 오류 (attempt %d): rt_cd=%s msg=%s",
+                               attempt + 1, data.get("rt_cd"), data.get("msg1"))
+                _mock_token_cache["token"] = None
+                _mock_token_cache["expires"] = None
+                try:
+                    from db import save_setting
+                    save_setting(_DB_MOCK_TOKEN_KEY, None)
+                except Exception:
+                    pass
+                if attempt == 0:
+                    await asyncio.sleep(1)
+                    continue
+                raise Exception(f"모의투자 API 오류: {data.get('msg1', 'unknown')}")
+            break
 
-            return {
-                "success": True,
-                "available": True,
-                "cash": cash,
-                "holdings": holdings,
-                "total_eval": total_eval,
-                "mode": "모의투자",
-                "is_mock": True,
-                "_debug_out2": out2,
-                "_debug_rt_cd": data.get("rt_cd"),
-                "_debug_msg": data.get("msg1"),
-            }
+        output1 = data.get("output1", [])
+        output2 = data.get("output2", [{}])
+        out2 = output2[0] if output2 else {}
+
+        # 모의투자 대회 계좌는 nxdy_excc_amt(익일정산금)이 0으로 올 수 있음
+        # 이 경우 dnca_tot_amt(예수금 총액)으로 폴백
+        _nxdy = int(out2.get("nxdy_excc_amt", "0") or "0")
+        _dnca = int(out2.get("dnca_tot_amt", "0") or "0")
+        cash = _nxdy if _nxdy > 0 else _dnca
+        total_eval = int(out2.get("tot_evlu_amt", "0") or "0")
+
+        holdings = []
+        for item in output1:
+            qty = int(item.get("hldg_qty", "0") or "0")
+            if qty > 0:
+                holdings.append({
+                    "ticker": item.get("pdno", ""),
+                    "name": item.get("prdt_name", ""),
+                    "qty": qty,
+                    "avg_price": int(item.get("pchs_avg_pric", "0") or "0"),
+                    "current_price": int(item.get("prpr", "0") or "0"),
+                    "eval_profit": int(item.get("evlu_pfls_amt", "0") or "0"),
+                })
+
+        return {
+            "success": True,
+            "available": True,
+            "cash": cash,
+            "holdings": holdings,
+            "total_eval": total_eval,
+            "mode": "모의투자",
+            "is_mock": True,
+        }
     except Exception as e:
         logger.error("[KIS-Shadow] 모의투자 잔고 조회 실패: %s", e)
         return {"success": False, "available": False, "cash": 0, "holdings": [], "total_eval": 0, "error": str(e), "is_mock": True}
