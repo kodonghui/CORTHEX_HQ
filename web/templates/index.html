@@ -2793,40 +2793,6 @@
                 <div x-show="modelMode === 'auto'" class="text-[10px] text-hq-muted">
                   질문 길이/내용에 따라 Haiku(저비용) 또는 Sonnet(고품질) 자동 선택
                 </div>
-                <div x-show="modelMode === 'recommended'" class="mt-1">
-                  <div class="text-[10px] text-hq-green font-bold mb-2">✓ 권장 모델 적용됨 — 에이전트별 최적 설정</div>
-                  <div class="grid grid-cols-1 gap-0.5 text-[9px] text-hq-muted max-h-40 overflow-y-auto">
-                    <div class="flex justify-between py-0.5 border-b border-hq-border/30"><span>비서실장</span><span class="text-hq-accent">Sonnet 4.6</span></div>
-                    <div class="flex justify-between py-0.5 border-b border-hq-border/30"><span>기록 보좌관</span><span class="text-hq-muted">Haiku 4.5</span></div>
-                    <div class="flex justify-between py-0.5 border-b border-hq-border/30"><span>일정 보좌관</span><span class="text-hq-muted">Haiku 4.5</span></div>
-                    <div class="flex justify-between py-0.5 border-b border-hq-border/30"><span>소통 보좌관</span><span class="text-hq-accent">Sonnet 4.6</span></div>
-                    <div class="flex justify-between py-0.5 border-b border-hq-border/30"><span>CTO</span><span class="text-hq-purple">Opus 4.6</span></div>
-                    <div class="flex justify-between py-0.5 border-b border-hq-border/30"><span>프론트엔드</span><span class="text-hq-accent">Sonnet 4.6</span></div>
-                    <div class="flex justify-between py-0.5 border-b border-hq-border/30"><span>백엔드</span><span class="text-hq-accent">Sonnet 4.6</span></div>
-                    <div class="flex justify-between py-0.5 border-b border-hq-border/30"><span>인프라</span><span class="text-hq-accent">Sonnet 4.6</span></div>
-                    <div class="flex justify-between py-0.5 border-b border-hq-border/30"><span>AI 모델</span><span class="text-hq-yellow">Gemini 3.0 Pro</span></div>
-                    <div class="flex justify-between py-0.5 border-b border-hq-border/30"><span>CSO</span><span class="text-hq-purple">Opus 4.6</span></div>
-                    <div class="flex justify-between py-0.5 border-b border-hq-border/30"><span>시장조사</span><span class="text-hq-yellow">Gemini 3.0 Pro</span></div>
-                    <div class="flex justify-between py-0.5 border-b border-hq-border/30"><span>사업계획서</span><span class="text-hq-purple">Opus 4.6</span></div>
-                    <div class="flex justify-between py-0.5 border-b border-hq-border/30"><span>재무모델링</span><span class="text-hq-green">GPT-5.2</span></div>
-                    <div class="flex justify-between py-0.5 border-b border-hq-border/30"><span>CLO</span><span class="text-hq-purple">Opus 4.6</span></div>
-                    <div class="flex justify-between py-0.5 border-b border-hq-border/30"><span>저작권</span><span class="text-hq-purple">Opus 4.6</span></div>
-                    <div class="flex justify-between py-0.5 border-b border-hq-border/30"><span>특허/약관</span><span class="text-hq-purple">Opus 4.6</span></div>
-                    <div class="flex justify-between py-0.5 border-b border-hq-border/30"><span>CMO</span><span class="text-hq-yellow">Gemini 3.0 Pro</span></div>
-                    <div class="flex justify-between py-0.5 border-b border-hq-border/30"><span>설문/리서치</span><span class="text-hq-accent">Sonnet 4.6</span></div>
-                    <div class="flex justify-between py-0.5 border-b border-hq-border/30"><span>콘텐츠</span><span class="text-hq-yellow">Gemini 3.0 Pro</span></div>
-                    <div class="flex justify-between py-0.5 border-b border-hq-border/30"><span>커뮤니티</span><span class="text-hq-accent">Sonnet 4.6</span></div>
-                    <div class="flex justify-between py-0.5 border-b border-hq-border/30"><span>CIO</span><span class="text-hq-green">GPT-5.2 Pro</span></div>
-                    <div class="flex justify-between py-0.5 border-b border-hq-border/30"><span>시황분석</span><span class="text-hq-green">GPT-5.2</span></div>
-                    <div class="flex justify-between py-0.5 border-b border-hq-border/30"><span>종목분석</span><span class="text-hq-green">GPT-5.2</span></div>
-                    <div class="flex justify-between py-0.5 border-b border-hq-border/30"><span>기술적분석</span><span class="text-hq-green">GPT-5.2</span></div>
-                    <div class="flex justify-between py-0.5 border-b border-hq-border/30"><span>리스크관리</span><span class="text-hq-green">GPT-5.2</span></div>
-                    <div class="flex justify-between py-0.5 border-b border-hq-border/30"><span>CPO</span><span class="text-hq-accent">Sonnet 4.6</span></div>
-                    <div class="flex justify-between py-0.5 border-b border-hq-border/30"><span>회사연대기</span><span class="text-hq-accent">Sonnet 4.6</span></div>
-                    <div class="flex justify-between py-0.5 border-b border-hq-border/30"><span>콘텐츠편집</span><span class="text-hq-accent">Sonnet 4.6</span></div>
-                    <div class="flex justify-between py-0.5"><span>아카이브</span><span class="text-hq-muted">Haiku 4.5</span></div>
-                  </div>
-                </div>
                 <div x-show="modelMode === 'manual'" class="mt-1">
                   <div class="text-[10px] text-hq-muted">각 에이전트에 개별 지정된 모델을 사용합니다</div>
                   <div class="text-[10px] text-hq-accent mt-1">에이전트 클릭 → 모델 탭에서 개별 변경 가능</div>
@@ -3980,7 +3946,7 @@
 
           <!-- 서브 탭 -->
           <div class="flex gap-2 mb-6">
-            <template x-for="tab in [{id:'dashboard',l:'대시보드'},{id:'portfolio',l:'포트폴리오'},{id:'strategies',l:'매매 전략'},{id:'watchlist',l:'관심종목'},{id:'history',l:'거래내역'},{id:'signals',l:'시그널'},{id:'performance',l:'CIO 성과'},{id:'shadow',l:'실거래/모의 비교'}]" :key="tab.id">
+            <template x-for="tab in [{id:'dashboard',l:'대시보드'},{id:'shadow',l:'실거래/모의 비교'},{id:'portfolio',l:'포트폴리오'},{id:'watchlist',l:'관심종목'},{id:'history',l:'거래내역'},{id:'strategies',l:'매매전략'},{id:'signals',l:'시그널'},{id:'performance',l:'CIO 성과'}]" :key="tab.id">
               <button @click="trading.tab = tab.id" :class="trading.tab === tab.id ? 'bg-hq-accent/20 text-hq-accent border-hq-accent/30' : 'text-hq-muted border-transparent hover:text-hq-text'" class="px-3 py-1.5 text-xs font-semibold rounded-lg border transition" x-text="tab.l"></button>
             </template>
           </div>
@@ -4233,77 +4199,221 @@
           </div>
 
           <!-- ▸ 서브탭 2: 포트폴리오 -->
-          <div x-show="trading.tab === 'portfolio' && !trading.loading">
-            <div class="glass border border-hq-border rounded-xl p-5 mb-6">
-              <div class="flex items-center justify-between mb-4">
-                <h3 class="text-sm font-bold text-hq-text">포트폴리오 상세</h3>
-                <div class="flex items-center gap-2">
-                  <input type="number" x-model.number="trading.initialCashInput" class="bg-hq-bg border border-hq-border rounded-lg px-2 py-1 text-xs text-hq-text w-36 text-right" placeholder="초기자금">
-                  <button @click="resetTradingPortfolio()" class="bg-hq-red/10 text-hq-red hover:bg-hq-red/20 rounded-lg px-3 py-1 text-xs font-semibold transition">초기화</button>
-                </div>
-              </div>
+          <div x-show="trading.tab === 'portfolio' && !trading.loading"
+               x-data="{
+                 port: null, portLoading: false, portError: '',
+                 history: [],
+                 newInitial: null,
+                 async loadPortfolio() {
+                   this.portLoading = true; this.portError = '';
+                   try {
+                     const [p, h] = await Promise.all([
+                       fetch('/api/trading/portfolio').then(r => r.json()),
+                       fetch('/api/trading/portfolio/history').then(r => r.json()),
+                     ]);
+                     this.port = p;
+                     this.history = (h.snapshots || []).slice(-30);
+                   } catch(e) { this.portError = e.message; }
+                   finally { this.portLoading = false; }
+                 },
+                 fmtMoney(v) {
+                   if (!v && v !== 0) return '-';
+                   return Number(v).toLocaleString('ko-KR') + '원';
+                 },
+                 get pieSlices() {
+                   if (!this.port || !this.port.available) return [];
+                   const holdings = this.port.holdings || [];
+                   const cash = this.port.cash || 0;
+                   const total = this.port.total_eval || cash;
+                   if (total === 0) return [{label:'현금', value:100, color:'#3b82f6'}];
+                   const colors = ['#10b981','#f59e0b','#8b5cf6','#ef4444','#06b6d4','#f97316','#ec4899'];
+                   let slices = [{label:'현금', value: Math.round(cash/total*1000)/10, color:'#3b82f6'}];
+                   holdings.forEach((h,i) => {
+                     const pct = Math.round((h.qty * h.current_price)/total*1000)/10;
+                     if (pct > 0) slices.push({label: h.name||h.ticker, value: pct, color: colors[i % colors.length]});
+                   });
+                   return slices;
+                 },
+                 svgPie(slices) {
+                   if (!slices.length) return '';
+                   let paths = []; let cumPct = 0;
+                   const cx=60, cy=60, r=55;
+                   slices.forEach(s => {
+                     const startAngle = (cumPct/100)*Math.PI*2 - Math.PI/2;
+                     cumPct += s.value;
+                     const endAngle = (cumPct/100)*Math.PI*2 - Math.PI/2;
+                     const x1=cx+r*Math.cos(startAngle), y1=cy+r*Math.sin(startAngle);
+                     const x2=cx+r*Math.cos(endAngle), y2=cy+r*Math.sin(endAngle);
+                     const large = s.value > 50 ? 1 : 0;
+                     if (s.value >= 99.9) {
+                       paths.push(`<circle cx='${cx}' cy='${cy}' r='${r}' fill='${s.color}'/>`);
+                     } else {
+                       paths.push(`<path d='M${cx},${cy} L${x1},${y1} A${r},${r} 0 ${large},1 ${x2},${y2} Z' fill='${s.color}' opacity='0.85'/>`);
+                     }
+                   });
+                   return paths.join('');
+                 },
+                 get linePoints() {
+                   if (!this.history.length) return '';
+                   const vals = this.history.map(s => s.eval || s.cash || 0);
+                   const min = Math.min(...vals), max = Math.max(...vals);
+                   const range = max - min || 1;
+                   const w=280, h=80;
+                   return this.history.map((s,i) => {
+                     const x = (i/(this.history.length-1||1))*w;
+                     const y = h - ((( (s.eval||s.cash||0) - min)/range)*h*0.85 + h*0.05);
+                     return `${x},${y}`;
+                   }).join(' ');
+                 },
+                 get lineColor() {
+                   if (!this.port) return '#3b82f6';
+                   return (this.port.pnl || 0) >= 0 ? '#10b981' : '#ef4444';
+                 }
+               }"
+               x-init="loadPortfolio()">
 
-              <!-- 자산 요약 바 -->
-              <div class="flex gap-6 mb-4 p-3 bg-hq-surface rounded-lg">
-                <div>
-                  <div class="text-[10px] text-hq-muted">초기 자금</div>
-                  <div class="text-sm font-bold text-hq-text" x-text="(trading.portfolio.initial_cash||50000000).toLocaleString() + '원'"></div>
-                </div>
-                <div>
-                  <div class="text-[10px] text-hq-muted">보유 현금</div>
-                  <div class="text-sm font-bold text-hq-cyan" x-text="(trading.portfolio.cash||0).toLocaleString() + '원'"></div>
-                </div>
-                <div>
-                  <div class="text-[10px] text-hq-muted">평가 금액</div>
-                  <div class="text-sm font-bold text-hq-text" x-text="formatKRW((trading.summary.portfolio||{}).total_eval || 0) + '원'"></div>
-                </div>
-                <div>
-                  <div class="text-[10px] text-hq-muted">총 손익</div>
-                  <div class="text-sm font-bold" :class="tradingPnlColor((trading.summary.portfolio||{}).total_pnl || 0)"
-                       x-text="((trading.summary.portfolio||{}).total_pnl >= 0 ? '+' : '') + formatKRW((trading.summary.portfolio||{}).total_pnl || 0) + '원'"></div>
-                </div>
-              </div>
+            <div x-effect="if(trading.tab === 'portfolio') loadPortfolio()"></div>
 
-              <!-- 보유 종목 상세 테이블 -->
-              <template x-if="(trading.portfolio.holdings||[]).length === 0">
-                <div class="text-center text-hq-muted/70 py-8 text-xs">보유 종목이 없습니다 — "주문 실행"으로 매수해보세요</div>
-              </template>
-              <template x-if="(trading.portfolio.holdings||[]).length > 0">
-                <div class="overflow-x-auto">
-                  <table class="w-full text-xs">
-                    <thead>
-                      <tr class="text-hq-muted text-[10px] uppercase tracking-wider border-b border-hq-border">
-                        <th class="py-2 text-left">종목</th>
-                        <th class="py-2 text-right">수량</th>
-                        <th class="py-2 text-right">평균단가</th>
-                        <th class="py-2 text-right">현재가</th>
-                        <th class="py-2 text-right">평가금액</th>
-                        <th class="py-2 text-right">수익률</th>
-                        <th class="py-2 text-right">손익</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <template x-for="h in trading.portfolio.holdings" :key="h.ticker">
-                        <tr class="border-b border-hq-border/30">
-                          <td class="py-2">
-                            <div class="font-bold text-hq-text" x-text="h.name"></div>
-                            <div class="text-[10px] text-hq-muted" x-text="h.ticker"></div>
-                          </td>
-                          <td class="py-2 text-right text-hq-text" x-text="h.qty + '주'"></td>
-                          <td class="py-2 text-right text-hq-text" x-text="(h.avg_price||0).toLocaleString()"></td>
-                          <td class="py-2 text-right text-hq-text" x-text="(h.current_price||0).toLocaleString()"></td>
-                          <td class="py-2 text-right text-hq-text" x-text="((h.current_price||0) * h.qty).toLocaleString()"></td>
-                          <td class="py-2 text-right" :class="tradingPnlColor(h.current_price - h.avg_price)"
-                              x-text="(((h.current_price - h.avg_price) / h.avg_price) * 100).toFixed(2) + '%'"></td>
-                          <td class="py-2 text-right" :class="tradingPnlColor((h.current_price - h.avg_price) * h.qty)"
-                              x-text="((h.current_price - h.avg_price) * h.qty).toLocaleString() + '원'"></td>
-                        </tr>
+            <!-- 로딩 -->
+            <div x-show="portLoading" class="text-center py-12 text-hq-muted text-sm">잔고 조회 중...</div>
+
+            <!-- 에러 또는 미연결 -->
+            <template x-if="!portLoading && (!port || !port.available)">
+              <div class="glass border border-hq-border rounded-xl p-8 text-center">
+                <p class="text-hq-muted text-sm" x-text="port?.reason || '실거래 API 미연결'"></p>
+              </div>
+            </template>
+
+            <!-- 메인 콘텐츠 -->
+            <template x-if="!portLoading && port && port.available">
+              <div class="space-y-4">
+
+                <!-- 요약 카드 4개 -->
+                <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                  <div class="glass border border-hq-border rounded-xl p-4">
+                    <p class="text-[10px] text-hq-muted mb-1">초기 자금</p>
+                    <p class="text-sm font-bold text-hq-text" x-text="fmtMoney(port.initial_capital)"></p>
+                  </div>
+                  <div class="glass border border-hq-border rounded-xl p-4">
+                    <p class="text-[10px] text-hq-muted mb-1">보유 현금</p>
+                    <p class="text-sm font-bold text-hq-accent" x-text="fmtMoney(port.cash)"></p>
+                  </div>
+                  <div class="glass border border-hq-border rounded-xl p-4">
+                    <p class="text-[10px] text-hq-muted mb-1">총 평가금액</p>
+                    <p class="text-sm font-bold text-hq-text" x-text="fmtMoney(port.total_eval)"></p>
+                  </div>
+                  <div class="glass border border-hq-border rounded-xl p-4">
+                    <p class="text-[10px] text-hq-muted mb-1">총 손익</p>
+                    <p class="text-sm font-bold" :class="(port.pnl||0)>=0?'text-hq-green':'text-hq-red'"
+                       x-text="((port.pnl||0)>=0?'+':'')+fmtMoney(port.pnl)+' ('+port.pnl_pct+'%)'"></p>
+                  </div>
+                </div>
+
+                <!-- 파이차트 + 자산 구성 -->
+                <div class="glass border border-hq-border rounded-xl p-5">
+                  <h3 class="text-sm font-bold text-hq-text mb-4">자산 구성</h3>
+                  <div class="flex gap-6 items-center">
+                    <!-- SVG 파이차트 -->
+                    <div class="flex-shrink-0">
+                      <svg width="120" height="120" viewBox="0 0 120 120" x-html="svgPie(pieSlices)"></svg>
+                    </div>
+                    <!-- 범례 -->
+                    <div class="flex-1 space-y-1.5">
+                      <template x-for="slice in pieSlices" :key="slice.label">
+                        <div class="flex items-center justify-between text-xs">
+                          <div class="flex items-center gap-2">
+                            <div class="w-2.5 h-2.5 rounded-full flex-shrink-0" :style="'background:'+slice.color"></div>
+                            <span class="text-hq-text" x-text="slice.label"></span>
+                          </div>
+                          <span class="text-hq-muted" x-text="slice.value+'%'"></span>
+                        </div>
                       </template>
-                    </tbody>
-                  </table>
+                      <template x-if="!pieSlices.length">
+                        <p class="text-xs text-hq-muted">데이터 없음</p>
+                      </template>
+                    </div>
+                  </div>
                 </div>
-              </template>
-            </div>
+
+                <!-- 보유 종목 테이블 -->
+                <template x-if="port.holdings && port.holdings.length > 0">
+                  <div class="glass border border-hq-border rounded-xl p-5">
+                    <h3 class="text-sm font-bold text-hq-text mb-4">보유 종목</h3>
+                    <div class="space-y-2">
+                      <template x-for="h in port.holdings" :key="h.ticker">
+                        <div class="flex items-center justify-between py-2 border-b border-hq-border/30 last:border-0">
+                          <div>
+                            <p class="text-xs font-semibold text-hq-text" x-text="h.name||h.ticker"></p>
+                            <p class="text-[10px] text-hq-muted" x-text="h.qty+'주 · 평균 '+fmtMoney(h.avg_price)"></p>
+                          </div>
+                          <div class="text-right">
+                            <p class="text-xs font-bold" :class="(h.eval_profit||0)>=0?'text-hq-green':'text-hq-red'"
+                               x-text="((h.eval_profit||0)>=0?'+':'')+fmtMoney(h.eval_profit)"></p>
+                            <p class="text-[10px] text-hq-muted" x-text="fmtMoney(h.current_price)"></p>
+                          </div>
+                        </div>
+                      </template>
+                    </div>
+                  </div>
+                </template>
+                <template x-if="!port.holdings || port.holdings.length === 0">
+                  <div class="glass border border-hq-border rounded-xl p-6 text-center text-hq-muted/70 text-xs">
+                    보유 종목이 없습니다
+                  </div>
+                </template>
+
+                <!-- 수익률 라인 차트 -->
+                <div class="glass border border-hq-border rounded-xl p-5">
+                  <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-sm font-bold text-hq-text">수익률 추이 (최근 30일)</h3>
+                    <span class="text-[10px] text-hq-muted">데이터 누적 중</span>
+                  </div>
+                  <template x-if="history.length >= 2">
+                    <div>
+                      <svg width="100%" height="90" viewBox="0 0 280 90" preserveAspectRatio="none" class="w-full">
+                        <!-- 격자선 -->
+                        <line x1="0" y1="45" x2="280" y2="45" stroke="#374151" stroke-width="0.5" stroke-dasharray="4,4"/>
+                        <!-- 라인 -->
+                        <polyline :points="linePoints" fill="none" :stroke="lineColor" stroke-width="2" stroke-linejoin="round"/>
+                        <!-- 점 -->
+                        <template x-for="(s, i) in history" :key="i">
+                          <circle
+                            :cx="(i/(history.length-1||1))*280"
+                            :cy="90 - (((s.eval||s.cash||0) - Math.min(...history.map(x=>x.eval||x.cash||0))) / (Math.max(...history.map(x=>x.eval||x.cash||0)) - Math.min(...history.map(x=>x.eval||x.cash||0))||1)) * 90*0.85 - 90*0.05"
+                            r="2.5"
+                            :fill="lineColor"/>
+                        </template>
+                      </svg>
+                      <div class="flex justify-between text-[9px] text-hq-muted mt-1">
+                        <span x-text="history[0]?.date||''"></span>
+                        <span x-text="history[history.length-1]?.date||''"></span>
+                      </div>
+                    </div>
+                  </template>
+                  <template x-if="history.length < 2">
+                    <div class="text-center py-6 text-hq-muted/70 text-xs">
+                      데이터가 쌓이면 차트가 표시됩니다 (현재 <span x-text="history.length"></span>일)
+                    </div>
+                  </template>
+                </div>
+
+                <!-- 초기 자금 설정 -->
+                <div class="glass border border-hq-border rounded-xl p-4">
+                  <div class="flex items-center gap-3">
+                    <input type="number" x-model.number="newInitial" placeholder="초기 자금 변경 (원)"
+                           class="flex-1 bg-hq-bg border border-hq-border rounded-lg px-3 py-2 text-xs text-hq-text font-mono"/>
+                    <button @click="async () => {
+                      if (!newInitial || newInitial <= 0) return;
+                      await fetch('/api/trading/portfolio/set-initial', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({amount:newInitial})});
+                      await loadPortfolio();
+                    }" class="bg-hq-surface border border-hq-border hover:border-hq-accent/30 rounded-lg px-4 py-2 text-xs text-hq-muted transition">
+                      초기 자금 변경
+                    </button>
+                  </div>
+                </div>
+
+              </div>
+            </template>
           </div>
 
           <!-- ▸ 서브탭 3: 매매 전략 -->
@@ -9199,9 +9309,13 @@
             const res = await fetch('/api/agents/apply-recommended', { method: 'POST' }).then(r => r.json());
             if (res.success) {
               this.modelMode = 'recommended';
-              await this.saveModelMode();
+              await fetch('/api/model-mode', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ mode: 'recommended' }),
+              }).catch(() => {});
               this.showToast(`권장 모델 적용 완료 (${res.applied_count}명)`, 'success');
-              await this.loadAgents();
+              try { await this.loadAgentsAndTools(); } catch {}
             } else {
               this.showToast('적용 실패', 'error');
             }
