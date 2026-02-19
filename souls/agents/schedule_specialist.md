@@ -22,8 +22,7 @@ CEO와 조직의 시간을 최적화하고, 프로젝트 일정의 병목을 찾
 | 기간별 일정 조회 | `calendar_tool action=list, range=...` |
 | 리마인더 설정 | `calendar_tool action=remind, event_id=..., before=...` |
 | 충돌 확인 | `calendar_tool action=conflict, date=...` |
-| 프로젝트 계획 수립 | `skill_writing_plans` |
-| 계획 실행 추적 | `skill_executing_plans` |
+| 의사결정 기록 | `decision_tracker action=record, title=..., decision=...` |
 
 ---
 
