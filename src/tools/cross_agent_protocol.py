@@ -14,6 +14,8 @@ logger = logging.getLogger("corthex.tools.cross_agent_protocol")
 
 # ── 실시간 에이전트 호출 콜백 (mini_server.py가 시작 시 등록) ──
 _call_agent_callback: Any | None = None
+# ── SSE broadcast 콜백 (내부통신 실시간 스트림) ──
+_sse_broadcast_callback: Any | None = None
 
 
 def register_call_agent(fn: Any) -> None:
@@ -25,6 +27,15 @@ def register_call_agent(fn: Any) -> None:
     global _call_agent_callback
     _call_agent_callback = fn
     logger.info("cross_agent_protocol: _call_agent 콜백 등록 완료")
+
+
+def register_sse_broadcast(fn: Any) -> None:
+    """mini_server.py가 서버 시작 시 SSE broadcast 함수를 등록합니다.
+    P2P 메시지 저장 시 내부통신 패널에 실시간 push됩니다.
+    """
+    global _sse_broadcast_callback
+    _sse_broadcast_callback = fn
+    logger.info("cross_agent_protocol: SSE broadcast 콜백 등록 완료")
 
 
 def _get_conn() -> sqlite3.Connection:
@@ -53,7 +64,7 @@ class CrossAgentProtocolTool(BaseTool):
     """에이전트 간 횡적 협업 프로토콜 — 작업 요청, 정보 공유, 작업 인계, 결과 수집."""
 
     def _save_msg(self, msg: dict) -> None:
-        """새 메시지를 DB에 저장."""
+        """새 메시지를 DB에 저장 + SSE broadcast."""
         try:
             conn = _get_conn()
             conn.execute(
@@ -74,6 +85,28 @@ class CrossAgentProtocolTool(BaseTool):
             conn.close()
         except Exception as e:
             logger.error("cross_agent_protocol DB 저장 실패: %s", e)
+
+        # SSE broadcast — 내부통신 패널에 실시간 push
+        if _sse_broadcast_callback is not None:
+            try:
+                import asyncio
+                sse_data = {
+                    "id": f"ca_{msg['id']}",
+                    "sender": msg.get("from", "unknown"),
+                    "receiver": msg.get("to", ""),
+                    "message": msg.get("task", msg.get("message", msg.get("next_task", ""))),
+                    "log_type": msg.get("type", "p2p"),
+                    "source": "cross_agent",
+                    "status": msg.get("status", "대기"),
+                    "created_at": msg.get("created_at", datetime.now().isoformat()),
+                }
+                loop = asyncio.get_event_loop()
+                if loop.is_running():
+                    asyncio.ensure_future(_sse_broadcast_callback(sse_data))
+                else:
+                    loop.run_until_complete(_sse_broadcast_callback(sse_data))
+            except Exception as e:
+                logger.debug("SSE broadcast 실패 (무시 가능): %s", e)
 
     def _update_msg(self, msg: dict) -> None:
         """기존 메시지 상태/내용 업데이트."""

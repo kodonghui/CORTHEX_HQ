@@ -25,6 +25,12 @@
 **파일 수정 안전 규칙**
 - `web/templates/index.html`은 **Write 도구로 전체 덮어쓰기 절대 금지** → 반드시 Edit 도구로 부분 수정만 할 것 (전체 덮어쓰면 수천 줄 유실 위험)
 
+**외부 API 코딩 시 최신정보 확인 의무 (중요!)**
+- KIS(한국투자증권), Google, OpenAI, Anthropic 등 **외부 API를 사용하는 코드를 작성/수정할 때는 반드시 WebSearch로 최신 공식 문서를 먼저 확인**할 것
+- 기억에만 의존해서 TR_ID, 엔드포인트, 파라미터명 등을 쓰면 안 됨 — 공식 문서/GitHub 샘플에서 확인 후 코딩
+- **KIS OpenAPI 공식 참고처**: [KIS Developers 포털](https://apiportal.koreainvestment.com), [공식 GitHub](https://github.com/koreainvestment/open-trading-api)
+- 과거 사고: TR_ID를 일본용(TTTS0308U)으로 잘못 써서 미국주식 주문이 안 된 사건 (2026-02-20)
+
 ---
 
 ## 프로젝트 정보
