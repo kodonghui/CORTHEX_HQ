@@ -6159,9 +6159,136 @@ async def post_delegation_log(request: Request):
                 await _c.send_json({"event": "delegation_log_update", "data": _log_data})
             except Exception:
                 pass
+        # SSE broadcast (B안 내부통신 실시간)
+        await _broadcast_comms({
+            "id": f"dl_{row_id}", "sender": sender, "receiver": receiver,
+            "message": message, "log_type": body.get("log_type", "delegation"),
+            "source": "delegation", "created_at": datetime.now(KST).isoformat(),
+        })
         return {"success": True, "id": row_id}
     except Exception as e:
         return {"success": False, "error": str(e)}
+
+
+# ── 내부통신 통합 API (delegation_log + cross_agent_messages 통합) ──
+
+@app.get("/api/comms/messages")
+async def get_comms_messages(limit: int = 100, msg_type: str = ""):
+    """내부통신 통합 메시지 조회 — delegation_log + cross_agent_messages 병합."""
+    try:
+        from db import get_connection
+        conn = get_connection()
+        messages = []
+
+        # 1) delegation_log
+        try:
+            rows = conn.execute(
+                "SELECT id, sender, receiver, message, log_type, created_at "
+                "FROM delegation_log ORDER BY created_at DESC LIMIT ?",
+                (limit,),
+            ).fetchall()
+            for r in rows:
+                lt = r["log_type"] or "delegation"
+                if msg_type and lt != msg_type:
+                    continue
+                messages.append({
+                    "id": f"dl_{r['id']}",
+                    "sender": r["sender"],
+                    "receiver": r["receiver"],
+                    "message": r["message"],
+                    "log_type": lt,
+                    "source": "delegation",
+                    "created_at": r["created_at"],
+                })
+        except Exception:
+            pass
+
+        # 2) cross_agent_messages
+        try:
+            rows2 = conn.execute(
+                "SELECT id, msg_type, from_agent, to_agent, data, status, created_at "
+                "FROM cross_agent_messages ORDER BY created_at DESC LIMIT ?",
+                (limit,),
+            ).fetchall()
+            for r in rows2:
+                import json as _j
+                try:
+                    data = _j.loads(r["data"]) if r["data"] else {}
+                except Exception:
+                    data = {}
+                lt = r["msg_type"] or "p2p"
+                if msg_type and lt != msg_type:
+                    continue
+                msg_text = data.get("task", data.get("message", data.get("next_task", "")))
+                messages.append({
+                    "id": f"ca_{r['id']}",
+                    "sender": r["from_agent"],
+                    "receiver": r["to_agent"],
+                    "message": msg_text,
+                    "log_type": lt,
+                    "source": "cross_agent",
+                    "status": r["status"],
+                    "created_at": r["created_at"],
+                })
+        except Exception:
+            pass
+
+        conn.close()
+
+        # 시간순 정렬 (최신 먼저)
+        messages.sort(key=lambda x: x.get("created_at", ""), reverse=True)
+        return messages[:limit]
+    except Exception:
+        return []
+
+
+# ── SSE 엔드포인트 (B안: 내부통신 실시간 스트림) ──
+_sse_clients: list[asyncio.Queue] = []
+
+
+@app.get("/api/comms/stream")
+async def comms_sse_stream():
+    """SSE(Server-Sent Events) 실시간 내부통신 스트림.
+    프론트엔드에서 EventSource('/api/comms/stream')로 연결.
+    새 delegation_log / cross_agent_messages 발생 시 즉시 push.
+    """
+    from fastapi.responses import StreamingResponse
+    import json as _j
+
+    queue: asyncio.Queue = asyncio.Queue()
+    _sse_clients.append(queue)
+
+    async def event_generator():
+        try:
+            # 연결 확인 이벤트
+            yield f"event: connected\ndata: {_j.dumps({'status':'ok'})}\n\n"
+            while True:
+                try:
+                    msg = await asyncio.wait_for(queue.get(), timeout=30)
+                    yield f"event: comms\ndata: {_j.dumps(msg, ensure_ascii=False)}\n\n"
+                except asyncio.TimeoutError:
+                    # keepalive — 30초마다 ping
+                    yield f": keepalive\n\n"
+        except asyncio.CancelledError:
+            pass
+        finally:
+            if queue in _sse_clients:
+                _sse_clients.remove(queue)
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
+
+
+async def _broadcast_comms(msg_data: dict):
+    """SSE 클라이언트들에게 내부통신 메시지 broadcast."""
+    for q in _sse_clients[:]:
+        try:
+            await q.put(msg_data)
+        except Exception:
+            pass
 
 
 @app.post("/api/consult")
@@ -6208,6 +6335,12 @@ async def consult_manager_api(request: Request):
                 await _c.send_json({"event": "delegation_log_update", "data": _log_data})
             except Exception:
                 pass
+        # SSE broadcast
+        await _broadcast_comms({
+            "id": f"dl_{row_id}", "sender": from_agent, "receiver": to_agent,
+            "message": msg_text, "log_type": "consult",
+            "source": "delegation", "created_at": datetime.now(KST).isoformat(),
+        })
 
         return {
             "success": True,
@@ -8948,9 +9081,10 @@ async def on_startup():
     _init_tool_pool()
     # cross_agent_protocol 실시간 콜백 등록
     try:
-        from src.tools.cross_agent_protocol import register_call_agent
+        from src.tools.cross_agent_protocol import register_call_agent, register_sse_broadcast
         register_call_agent(_call_agent)
-        _log("[P2P] cross_agent_protocol 콜백 등록 완료 ✅")
+        register_sse_broadcast(_broadcast_comms)
+        _log("[P2P] cross_agent_protocol 콜백 등록 완료 ✅ (에이전트 호출 + SSE broadcast)")
     except Exception as e:
         _log(f"[P2P] cross_agent_protocol 콜백 등록 실패: {e}")
     # PENDING 배치 또는 진행 중인 체인이 있으면 폴러 시작

@@ -2089,6 +2089,9 @@
             <button @click="delegationLogFilter = 'report'"
                     :class="delegationLogFilter === 'report' ? 'bg-hq-green/20 text-hq-green' : 'text-hq-muted hover:text-hq-text'"
                     class="text-[10px] px-2 py-1 rounded-md font-semibold transition">보고</button>
+            <button @click="delegationLogFilter = 'p2p'"
+                    :class="delegationLogFilter === 'p2p' ? 'bg-hq-orange/20 text-hq-orange' : 'text-hq-muted hover:text-hq-text'"
+                    class="text-[10px] px-2 py-1 rounded-md font-semibold transition">P2P</button>
             <button @click="delegationLogFilter = 'flow'"
                     :class="delegationLogFilter === 'flow' ? 'bg-hq-purple/20 text-hq-purple' : 'text-hq-muted hover:text-hq-text'"
                     class="text-[10px] px-2 py-1 rounded-md font-semibold transition">흐름도</button>
@@ -2128,8 +2131,8 @@
                 <!-- 유형 배지 -->
                 <div class="px-3 pb-2.5">
                   <span class="text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider"
-                        :class="log.log_type === 'delegation' ? 'bg-hq-cyan/15 text-hq-cyan' : 'bg-hq-green/15 text-hq-green'"
-                        x-text="log.log_type === 'delegation' ? '위임' : '보고'"></span>
+                        :class="log.source === 'cross_agent' ? 'bg-hq-orange/15 text-hq-orange' : (log.log_type === 'delegation' ? 'bg-hq-cyan/15 text-hq-cyan' : (log.log_type === 'consult' ? 'bg-hq-purple/15 text-hq-purple' : 'bg-hq-green/15 text-hq-green'))"
+                        x-text="log.source === 'cross_agent' ? 'P2P' : (log.log_type === 'delegation' ? '위임' : (log.log_type === 'consult' ? '협의' : '보고'))"></span>
                 </div>
               </div>
             </template>
@@ -2166,8 +2169,8 @@
                     <div class="text-[10px] text-hq-muted/60 line-clamp-2 leading-relaxed"
                          x-text="stripMarkdown(log.message)"></div>
                     <span class="inline-block mt-1 text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider"
-                          :class="log.log_type === 'delegation' ? 'bg-hq-cyan/10 text-hq-cyan' : 'bg-hq-green/10 text-hq-green'"
-                          x-text="log.log_type === 'delegation' ? '위임' : '보고'"></span>
+                          :class="log.source === 'cross_agent' ? 'bg-hq-orange/10 text-hq-orange' : (log.log_type === 'delegation' ? 'bg-hq-cyan/10 text-hq-cyan' : 'bg-hq-green/10 text-hq-green')"
+                          x-text="log.source === 'cross_agent' ? 'P2P' : (log.log_type === 'delegation' ? '위임' : '보고')"></span>
                   </div>
                 </div>
               </template>
@@ -2175,8 +2178,8 @@
           </div>
           <!-- 푸터 -->
           <div class="px-4 py-2 border-t border-hq-border/30 shrink-0 flex items-center gap-2">
-            <span class="w-1.5 h-1.5 rounded-full bg-hq-green animate-pulse"></span>
-            <span class="text-[10px] text-hq-muted/60">실시간</span>
+            <span class="w-1.5 h-1.5 rounded-full animate-pulse" :class="_commsSSE ? 'bg-hq-green' : 'bg-hq-muted/40'"></span>
+            <span class="text-[10px] text-hq-muted/60" x-text="_commsSSE ? 'SSE 실시간' : '대기'"></span>
             <span class="text-[10px] text-hq-muted/40 ml-auto" x-text="delegationLogs.length + '건'"></span>
           </div>
         </div>
@@ -6887,10 +6890,14 @@
 
             case 'delegation_log_update':
               if (msg.data) {
-                // 맨 앞에 추가 (최신 순)
-                this.delegationLogs.unshift(msg.data);
-                if (this.delegationLogs.length > 50) {
-                  this.delegationLogs = this.delegationLogs.slice(0, 50);
+                // SSE와 중복 방지: id 기반 체크
+                const wsId = 'dl_' + (msg.data.id || '');
+                if (!this.delegationLogs.find(l => l.id === wsId || l.id === msg.data.id)) {
+                  msg.data.source = msg.data.source || 'delegation';
+                  this.delegationLogs.unshift(msg.data);
+                  if (this.delegationLogs.length > 100) {
+                    this.delegationLogs = this.delegationLogs.slice(0, 100);
+                  }
                 }
               }
               break;
@@ -7415,11 +7422,10 @@
 
         fetchDelegationLogs(silent = false) {
           if (!silent) this.delegationLogLoading = true;
-          fetch('/api/delegation-log?limit=50')
+          fetch('/api/comms/messages?limit=50')
             .then(r => r.json())
             .then(data => {
-              const newLogs = (data.logs || data || []).reverse();
-              // 새 항목이 있을 때만 업데이트 (깜박임 방지)
+              const newLogs = (Array.isArray(data) ? data : []).reverse();
               if (newLogs.length !== this.delegationLogs.length ||
                   (newLogs[0]||{}).id !== (this.delegationLogs[0]||{}).id) {
                 this.delegationLogs = newLogs;
@@ -7428,19 +7434,36 @@
             })
             .catch(() => { if (!silent) this.delegationLogLoading = false; });
         },
+        _commsSSE: null,
+        _connectCommsSSE() {
+          if (this._commsSSE) return;
+          try {
+            this._commsSSE = new EventSource('/api/comms/stream');
+            this._commsSSE.addEventListener('comms', (e) => {
+              try {
+                const msg = JSON.parse(e.data);
+                // 중복 방지: 이미 있는 id는 건너뜀
+                if (!this.delegationLogs.find(l => l.id === msg.id)) {
+                  this.delegationLogs.unshift(msg);
+                  if (this.delegationLogs.length > 100) this.delegationLogs = this.delegationLogs.slice(0, 100);
+                }
+              } catch(err) {}
+            });
+            this._commsSSE.onerror = () => {
+              // 재연결 시도 (브라우저가 자동으로 함)
+            };
+          } catch(err) {}
+        },
         toggleDelegationLog() {
           this.showDelegationLog = !this.showDelegationLog;
           if (this.showDelegationLog) {
-            // 최초 1회만 REST로 기존 로그 로드, 이후 실시간 업데이트는 WebSocket으로만 처리
             this.fetchDelegationLogs();
-            // 폴링 제거 — WebSocket delegation_log_update 이벤트로 실시간 수신
-          } else {
-            // 패널 닫을 때 혹시 남은 타이머 정리 (이전 버전 호환)
-            if (this._delegationPollTimer) { clearInterval(this._delegationPollTimer); this._delegationPollTimer = null; }
+            this._connectCommsSSE();
           }
         },
         getFilteredDelegationLogs() {
           if (this.delegationLogFilter === 'all') return this.delegationLogs;
+          if (this.delegationLogFilter === 'p2p') return this.delegationLogs.filter(l => l.source === 'cross_agent');
           return this.delegationLogs.filter(l => l.log_type === this.delegationLogFilter);
         },
 
