@@ -133,6 +133,16 @@ tools:
   name_ko: 계약서 자동 검토기
   description: 계약서 텍스트에서 위험/불리 조항 자동 탐지 및 필수 조항 누락 체크
 
+- tool_id: nda_analyzer
+  name: NDA Analyzer
+  name_ko: NDA 분석기
+  description: 비밀유지계약(NDA/기밀유지계약) 조항별 리스크 분석, 불리 조항 탐지, 비교분석, 초안 가이드라인
+
+- tool_id: license_scanner
+  name: License Scanner
+  name_ko: 라이선스 스캐너
+  description: 오픈소스/소프트웨어 라이선스 의무·제한사항 분석 및 호환성 검사, 카피레프트 전파 위험 진단
+
 - tool_id: ip_portfolio_manager
   name: IP Portfolio Manager
   name_ko: IP 포트폴리오 관리기
