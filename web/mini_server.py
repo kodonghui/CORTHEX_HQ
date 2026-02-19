@@ -5695,7 +5695,8 @@ async def apply_recommended_models():
     pool = _init_tool_pool()
     if pool and hasattr(pool, "set_agent_model"):
         for agent in AGENTS:
-            pool.set_agent_model(agent["agent_id"], agent["model_name"])
+            _temp = _AGENTS_DETAIL.get(agent["agent_id"], {}).get("temperature", 0.7)
+            pool.set_agent_model(agent["agent_id"], agent["model_name"], temperature=_temp)
     return {"success": True, "applied_count": len(AGENTS)}
 
 
@@ -5736,7 +5737,8 @@ async def restore_agent_defaults():
     if pool and hasattr(pool, "set_agent_model"):
         for agent_id, vals in defaults.items():
             if "model_name" in vals:
-                pool.set_agent_model(agent_id, vals["model_name"])
+                _temp = _AGENTS_DETAIL.get(agent_id, {}).get("temperature", 0.7)
+                pool.set_agent_model(agent_id, vals["model_name"], temperature=_temp)
     return {"success": True, "restored_count": len(defaults), "source": source}
 
 
@@ -5769,7 +5771,8 @@ async def bulk_change_model(request: Request):
     pool = _init_tool_pool()
     if pool and hasattr(pool, "set_agent_model"):
         for a in AGENTS:
-            pool.set_agent_model(a["agent_id"], new_model)
+            _temp = _AGENTS_DETAIL.get(a["agent_id"], {}).get("temperature", 0.7)
+            pool.set_agent_model(a["agent_id"], new_model, temperature=_temp)
     return {"success": True, "changed": changed, "model_name": new_model, "reasoning_effort": reasoning}
 
 
@@ -5810,7 +5813,8 @@ async def save_agent_model(agent_id: str, request: Request):
     # ToolPool 모델 등록 업데이트 (Skill 도구가 변경된 모델을 사용하도록)
     pool = _init_tool_pool()
     if pool and hasattr(pool, "set_agent_model"):
-        pool.set_agent_model(agent_id, new_model)
+        _temp = _AGENTS_DETAIL.get(agent_id, {}).get("temperature", 0.7)
+        pool.set_agent_model(agent_id, new_model, temperature=_temp)
     return {"success": True, "agent_id": agent_id, "model": new_model}
 
 
@@ -8651,13 +8655,15 @@ def _init_tool_pool():
         _tool_pool = pool
         # AGENTS 초기 모델을 풀에 등록 (Skill 도구가 caller 에이전트 모델을 따라가도록)
         for a in AGENTS:
-            pool.set_agent_model(a["agent_id"], a.get("model_name", "claude-sonnet-4-6"))
+            _temp = _AGENTS_DETAIL.get(a["agent_id"], {}).get("temperature", 0.7)
+            pool.set_agent_model(a["agent_id"], a.get("model_name", "claude-sonnet-4-6"), temperature=_temp)
         # DB에 저장된 에이전트 모델 덮어씌우기 (사용자가 UI에서 변경한 값 우선)
         try:
             overrides = _load_data("agent_overrides", {})
             for agent_id, vals in overrides.items():
                 if "model_name" in vals:
-                    pool.set_agent_model(agent_id, vals["model_name"])
+                    _temp = _AGENTS_DETAIL.get(agent_id, {}).get("temperature", 0.7)
+                    pool.set_agent_model(agent_id, vals["model_name"], temperature=_temp)
         except Exception:
             pass
         _log(f"[TOOLS] ToolPool 초기화 완료: {loaded}개 도구 로드 ✅")

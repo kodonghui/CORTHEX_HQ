@@ -70,7 +70,7 @@ class MacroRegimeTool(BaseTool):
                 "2026년 2월 현재 한국 경제의 거시경제 국면을 종합 판단해주세요. "
                 "최신 경제 데이터를 기반으로 분석하고, 투자 전략을 제안해주세요."
             ),
-            caller_model=kwargs.get("_caller_model"),
+            caller_model=kwargs.get("_caller_model"), caller_temperature=kwargs.get("_caller_temperature"),
         )
 
         header = (
@@ -97,7 +97,7 @@ class MacroRegimeTool(BaseTool):
                 "현재 국면을 하나 선택하고 근거를 제시하세요. 한국어."
             ),
             user_prompt="현재 한국 경기 국면을 4분면으로 분류해주세요.",
-            caller_model=kwargs.get("_caller_model"),
+            caller_model=kwargs.get("_caller_model"), caller_temperature=kwargs.get("_caller_temperature"),
         )
 
         results = [f"📊 경기 국면 4분면 분류"]
@@ -124,7 +124,7 @@ class MacroRegimeTool(BaseTool):
                 "한국어로 구체적 숫자와 함께."
             ),
             user_prompt="2026년 2월 한국 금리 환경을 분석해주세요.",
-            caller_model=kwargs.get("_caller_model"),
+            caller_model=kwargs.get("_caller_model"), caller_temperature=kwargs.get("_caller_temperature"),
         )
         return f"📊 금리 환경 분석\n\n{analysis}"
 
@@ -144,7 +144,7 @@ class MacroRegimeTool(BaseTool):
                 "한국어로 구체적 숫자와 함께."
             ),
             user_prompt="2026년 2월 한국 경기 선행지표를 분석해주세요.",
-            caller_model=kwargs.get("_caller_model"),
+            caller_model=kwargs.get("_caller_model"), caller_temperature=kwargs.get("_caller_temperature"),
         )
         return f"📊 경기 선행지표 분석\n\n{analysis}"
 
@@ -165,6 +165,6 @@ class MacroRegimeTool(BaseTool):
                 "한국어로 구체적으로."
             ),
             user_prompt="현재 경기 국면에 맞는 투자 전략을 제안해주세요.",
-            caller_model=kwargs.get("_caller_model"),
+            caller_model=kwargs.get("_caller_model"), caller_temperature=kwargs.get("_caller_temperature"),
         )
         return f"📊 경기 국면별 투자 전략\n\n{analysis}"

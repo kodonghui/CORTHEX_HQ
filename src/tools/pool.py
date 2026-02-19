@@ -24,11 +24,14 @@ class ToolPool:
         self._tools: dict[str, BaseTool] = {}
         self._model_router = model_router
         self._agent_models: dict[str, str] = {}  # agent_id → model_name 매핑
+        self._agent_temperatures: dict[str, float] = {}  # agent_id → temperature
 
-    def set_agent_model(self, agent_id: str, model: str) -> None:
-        """에이전트 모델을 풀에 등록. Skill 도구가 caller 모델을 사용할 수 있게 함."""
+    def set_agent_model(self, agent_id: str, model: str, temperature: float | None = None) -> None:
+        """에이전트 모델/temperature를 풀에 등록. 도구가 caller 설정을 따르도록."""
         if agent_id and model:
             self._agent_models[agent_id] = model
+        if agent_id and temperature is not None:
+            self._agent_temperatures[agent_id] = temperature
 
     def register(self, tool: BaseTool) -> None:
         self._tools[tool.tool_id] = tool
@@ -86,6 +89,7 @@ class ToolPool:
             "customer_ltv_model": "src.tools.customer_ltv_model.CustomerLtvModelTool",
             "rfm_segmentation": "src.tools.rfm_segmentation.RfmSegmentationTool",
             "content_quality_scorer": "src.tools.content_quality_scorer.ContentQualityScorerTool",
+            "pricing_sensitivity": "src.tools.pricing_sensitivity.PricingSensitivityTool",
             "seo_analyzer": "src.tools.seo_analyzer.SeoAnalyzerTool",
             "sentiment_analyzer": "src.tools.sentiment_analyzer.SentimentAnalyzerTool",
             "hashtag_recommender": "src.tools.hashtag_recommender.HashtagRecommenderTool",
@@ -252,12 +256,21 @@ class ToolPool:
         if tool_id not in self._tools:
             raise ToolNotFoundError(tool_id)
         logger.info("[%s] 도구 호출: %s", caller_id, tool_id)
-        # caller 에이전트의 모델을 kwargs에 주입 (Skill 도구가 caller 모델을 사용하도록)
-        if "_caller_model" not in kwargs and caller_id:
-            caller_model = self._agent_models.get(caller_id)
-            if caller_model:
-                kwargs["_caller_model"] = caller_model
-        return await self._tools[tool_id].execute(caller_id=caller_id, **kwargs)
+        tool = self._tools[tool_id]
+        # caller 에이전트의 모델/temperature를 kwargs에 주입
+        if caller_id:
+            if "_caller_model" not in kwargs:
+                caller_model = self._agent_models.get(caller_id)
+                if caller_model:
+                    kwargs["_caller_model"] = caller_model
+            if "_caller_temperature" not in kwargs:
+                caller_temp = self._agent_temperatures.get(caller_id)
+                if caller_temp is not None:
+                    kwargs["_caller_temperature"] = caller_temp
+        # 도구 인스턴스에 caller 설정 주입 — _llm_call()이 자동으로 사용
+        tool._current_caller_model = kwargs.get("_caller_model")
+        tool._current_caller_temperature = kwargs.get("_caller_temperature")
+        return await tool.execute(caller_id=caller_id, **kwargs)
 
     def list_tools(self) -> list[dict]:
         return [
