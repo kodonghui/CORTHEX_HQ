@@ -730,6 +730,8 @@ agents:
   - precedent_analyzer
   - trademark_similarity
   - contract_reviewer
+  - ip_portfolio_manager
+  - ai_governance_checker
   - law_change_monitor
   - web_search
   - real_web_search
@@ -907,6 +909,10 @@ agents:
   - rfm_segmentation
   - content_quality_scorer
   - pricing_sensitivity
+  - churn_risk_scorer
+  - marketing_attribution
+  - cohort_retention
+  - viral_coefficient
 - agent_id: survey_specialist
   name: Survey/Research Specialist
   name_ko: 설문/리서치 Specialist

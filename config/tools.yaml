@@ -133,10 +133,99 @@ tools:
   name_ko: 계약서 자동 검토기
   description: 계약서 텍스트에서 위험/불리 조항 자동 탐지 및 필수 조항 누락 체크
 
+- tool_id: ip_portfolio_manager
+  name: IP Portfolio Manager
+  name_ko: IP 포트폴리오 관리기
+  description: 기업의 지식재산권(특허, 상표, 디자인, 저작권) 포트폴리오 분석·관리 및 IP 전략 수립
+
+- tool_id: ai_governance_checker
+  name: AI Governance Checker
+  name_ko: AI 거버넌스 검사기
+  description: AI 시스템의 거버넌스·윤리·규제 준수(EU AI Act, ISO 42001, OECD AI 원칙) 체계적 검증
+
 - tool_id: law_change_monitor
   name: Law Change Monitor
   name_ko: 법령 변경 알리미
   description: 관련 법령의 개정/신설/폐지 자동 감지 및 사업 영향 분석
+
+- tool_id: regulation_radar
+  name: Regulation Radar
+  name_ko: 규제 동향 레이더
+  description: 국내외 규제 동향 실시간 모니터링 및 사업 영향 분석 — OECD RIA 방법론 기반, 산업별 규제 스캔, 국가별 비교, 시행 일정표
+  parameters:
+    type: object
+    properties:
+      action:
+        type: string
+        enum:
+        - scan
+        - impact
+        - timeline
+        - compare
+        description: scan=규제동향스캔, impact=사업영향분석, timeline=시행일정표, compare=국가별비교
+      industry:
+        type: string
+        description: '산업/기술 분야 (예: AI, 핀테크, 이커머스, 플랫폼, 제조, SaaS)'
+      name:
+        type: string
+        description: '관심 분야명 (예: 개인정보보호, 암호자산, ESG)'
+      regulation:
+        type: string
+        description: 규제명 또는 규제 설명 (impact 사용 시 필수)
+      business_description:
+        type: string
+        description: 사업 설명 (impact 사용 시 필수)
+      regulation_topic:
+        type: string
+        description: '규제 주제 (compare 사용 시 필수, 예: AI 규제, 개인정보보호)'
+      countries:
+        type: string
+        description: '비교 국가 쉼표 구분 (compare 사용 시, 기본값: 한국,미국,EU)'
+    required:
+    - action
+
+- tool_id: dispute_simulator
+  name: Dispute Simulator
+  name_ko: 법적 분쟁 시뮬레이터
+  description: 법적 분쟁 시나리오 시뮬레이션 및 결과 예측 — 게임이론(Nash), 의사결정트리(Raiffa), 비용 추정, 최적 대응 전략
+  parameters:
+    type: object
+    properties:
+      action:
+        type: string
+        enum:
+        - simulate
+        - outcome
+        - strategy
+        - cost
+        description: simulate=시나리오시뮬레이션, outcome=결과예측, strategy=전략수립, cost=비용추정
+      dispute_description:
+        type: string
+        description: 분쟁 상황 설명 (필수)
+      name:
+        type: string
+        description: 사건명 (simulate 사용 시, 선택)
+      evidence:
+        type: string
+        description: 증거/근거 텍스트 (outcome 사용 시, 선택)
+      goal:
+        type: string
+        enum:
+        - 승소
+        - 합의
+        - 비용최소화
+        description: '전략 목표 (strategy 사용 시, 기본값: 승소)'
+      dispute_type:
+        type: string
+        enum:
+        - 민사
+        - 형사
+        - 행정
+        - 중재
+        description: '분쟁 유형 (cost 사용 시, 기본값: 민사)'
+    required:
+    - action
+    - dispute_description
 
 - tool_id: github_tool
   name: GitHub API
@@ -724,6 +813,125 @@ tools:
         description: 제품/서비스명 (티어 설계용)
     required:
     - action
+- tool_id: churn_risk_scorer
+  name: Churn Risk Scorer
+  name_ko: 이탈 위험 점수
+  description: 교수급 이탈 위험 분석 — Cox PH 생존분석 기반 이탈 점수(0~100), Kaplan-Meier 생존곡선, 요인분석, 방지전략
+  parameters:
+    type: object
+    properties:
+      action:
+        type: string
+        enum: [full, score, batch, survival, factors, strategy]
+        description: full=종합, score=개별점수, batch=일괄평가, survival=생존곡선, factors=요인분석, strategy=방지전략
+      recency_days:
+        type: integer
+      frequency_decline:
+        type: number
+      support_tickets:
+        type: integer
+      payment_issues:
+        type: integer
+      engagement_score:
+        type: integer
+      tenure_months:
+        type: integer
+      customers:
+        type: string
+      monthly_revenue_per_customer:
+        type: integer
+      total_customers:
+        type: integer
+    required: [action]
+- tool_id: marketing_attribution
+  name: Marketing Attribution
+  name_ko: 마케팅 채널 기여도
+  description: 교수급 채널 기여도 — Shapley Value + Markov Chain + 6가지 기여모델 비교 + ROI 예산 재배분
+  parameters:
+    type: object
+    properties:
+      action:
+        type: string
+        enum: [full, shapley, markov, compare, roi, path]
+        description: full=종합, shapley=공정기여도, markov=전환확률, compare=6모델비교, roi=ROI분석, path=경로분석
+      paths_json:
+        type: string
+      channel_costs:
+        type: string
+      monthly_budget:
+        type: integer
+    required: [action]
+- tool_id: cohort_retention
+  name: Cohort Retention
+  name_ko: 코호트 리텐션
+  description: 교수급 코호트 리텐션 — 히트맵, 커브 피팅(지수/로그/멱함수), sBG 모델 예측, NRR/GRR, 업종 벤치마크
+  parameters:
+    type: object
+    properties:
+      action:
+        type: string
+        enum: [full, heatmap, curve, benchmark, revenue, predict]
+        description: full=종합, heatmap=히트맵, curve=커브피팅, benchmark=벤치마크, revenue=매출리텐션, predict=예측
+      cohort_json:
+        type: string
+      industry:
+        type: string
+        enum: [saas_b2b, saas_b2c, ecommerce, mobile_app, gaming, fintech, media]
+      starting_mrr:
+        type: integer
+      expansion_mrr:
+        type: integer
+      contraction_mrr:
+        type: integer
+      churned_mrr:
+        type: integer
+      predict_months:
+        type: integer
+    required: [action]
+- tool_id: viral_coefficient
+  name: Viral Coefficient
+  name_ko: 바이럴 계수
+  description: 교수급 바이럴 분석 — K-factor, Bass 확산 모델(S자 곡선), SIR 시뮬레이션, 업종 벤치마크, 루프 최적화
+  parameters:
+    type: object
+    properties:
+      action:
+        type: string
+        enum: [full, kfactor, bass, simulate, benchmark, optimize]
+        description: full=종합, kfactor=바이럴계수, bass=확산모델, simulate=시뮬레이션, benchmark=벤치마크, optimize=최적화
+      invites_per_user:
+        type: number
+        description: 사용자당 평균 초대 수
+      invite_conversion:
+        type: number
+        description: 초대 전환율 (0~1)
+      current_users:
+        type: integer
+        description: 현재 사용자 수
+      k_factor:
+        type: number
+        description: 바이럴 계수 (벤치마크/시뮬레이션용)
+      innovation_coeff:
+        type: number
+        description: Bass 혁신 계수 p (기본 0.03)
+      imitation_coeff:
+        type: number
+        description: Bass 모방 계수 q (기본 0.38)
+      market_potential:
+        type: integer
+        description: 시장 잠재 규모
+      industry:
+        type: string
+        enum: [messaging, social_media, marketplace, saas_b2b, saas_b2c, ecommerce, gaming, fintech, content, education]
+      seed_users:
+        type: integer
+      total_market:
+        type: integer
+      monthly_churn_rate:
+        type: number
+      simulation_months:
+        type: integer
+    required: [action]
 - tool_id: backtest_engine
   name: Backtest Engine
   name_ko: 포트폴리오 백테스터
