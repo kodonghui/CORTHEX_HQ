@@ -3374,9 +3374,86 @@ def _default_trading_settings() -> dict:
         "auto_stop_loss": True,       # 자동 손절 활성화
         "auto_take_profit": True,     # 자동 익절 활성화
         "auto_execute": False,        # CIO 시그널 기반 자동 주문 실행 (안전장치: 기본 OFF)
-        "min_confidence": 70,         # 자동매매 최소 신뢰도 (%)
+        # --- 신뢰도 임계값 (연구 기반 조정) ---
+        # 근거: LLM은 실제 정확도보다 10~20% 과신 (FinGPT 2023, GPT-4 Trading 2024 논문)
+        # 한국장 손익비 1:2 (손절 -5%, 익절 +10%) → 손익분기 승률 ≒ 33%
+        # LLM 실제 방향성 예측 정확도 55~65% → 임계값 65% = 과신 할인 적용 후 최소 수익선
+        "min_confidence": 65,         # 자동매매 최소 신뢰도 (%, 연구 기반: 기존 70→65)
         "kis_connected": False,       # KIS(한국투자증권) API 연결 여부
         "paper_trading": True,        # 모의투자 모드 (실거래 전)
+        # --- AI 자기보정(Self-Calibration) ---
+        # 원리: Platt Scaling 단순화 — 실제 승률/예측 신뢰도 비율로 보정 계수 계산
+        # factor < 1.0: AI 과신 → 유효 신뢰도 하향 보정 / factor > 1.0: AI 겸손 → 상향
+        "calibration_enabled": True,  # AI 자기보정 활성화
+        "calibration_lookback": 20,   # 보정 계산에 사용할 최근 거래 수
+    }
+
+
+def _compute_calibration_factor(lookback: int = 20) -> dict:
+    """실제 승률 vs 예측 신뢰도 비율로 AI 자기보정 계수를 계산합니다.
+
+    방법론: Platt Scaling 단순화 버전
+    - LLM은 예측 신뢰도를 실제 정확도보다 과대 보고하는 경향이 있음
+      (FinGPT 2023 / GPT-4 Trading 2024 논문에서 10~20% 과신 확인)
+    - 보정 계수(factor) = 실제 승률 / 예측 평균 신뢰도
+    - factor < 1: AI 과신 → 유효 신뢰도 하향 / factor > 1: AI 겸손 → 상향
+    - 안전 범위: 0.5 ~ 1.5 (극단적 보정 방지)
+    """
+    import re as _re
+    history = _load_data("trading_history", [])
+    bot_trades = [
+        h for h in history
+        if h.get("auto_bot", False) or "신뢰도" in h.get("strategy", "")
+    ]
+    recent = bot_trades[:lookback]
+
+    if len(recent) < 5:
+        return {
+            "factor": 1.0, "win_rate": None, "avg_confidence": None,
+            "n": len(recent), "note": f"데이터 부족 ({len(recent)}건, 최소 5건 필요) — 보정 미적용",
+        }
+
+    closed = [h for h in recent if h.get("action") == "sell" and "pnl" in h]
+    if not closed:
+        return {
+            "factor": 1.0, "win_rate": None, "avg_confidence": None,
+            "n": 0, "note": "평가 가능한 매도 기록 없음 — 보정 미적용",
+        }
+
+    wins = sum(1 for t in closed if t.get("pnl", 0) > 0)
+    actual_win_rate = wins / len(closed)
+
+    confidences = []
+    for t in closed:
+        m = _re.search(r"신뢰도\s*(\d+)", t.get("strategy", ""))
+        if m:
+            confidences.append(int(m.group(1)) / 100.0)
+
+    if not confidences:
+        return {
+            "factor": 1.0, "win_rate": round(actual_win_rate * 100, 1),
+            "avg_confidence": None, "n": len(closed),
+            "note": "신뢰도 기록 없음 — 보정 미적용",
+        }
+
+    avg_confidence = sum(confidences) / len(confidences)
+    raw_factor = actual_win_rate / avg_confidence if avg_confidence > 0 else 1.0
+    factor = round(max(0.5, min(1.5, raw_factor)), 3)
+
+    diff = actual_win_rate * 100 - avg_confidence * 100
+    if diff < -5:
+        note = f"AI 과신 (예측 {avg_confidence*100:.0f}% → 실제 {actual_win_rate*100:.0f}%) → 신뢰도 {factor:.2f}배 하향 보정"
+    elif diff > 5:
+        note = f"AI 겸손 (예측 {avg_confidence*100:.0f}% → 실제 {actual_win_rate*100:.0f}%) → 신뢰도 {factor:.2f}배 상향 보정"
+    else:
+        note = f"AI 보정 미미 (예측≒실제, factor={factor:.2f})"
+
+    return {
+        "factor": factor,
+        "win_rate": round(actual_win_rate * 100, 1),
+        "avg_confidence": round(avg_confidence * 100, 1),
+        "n": len(closed),
+        "note": note,
     }
 
 
@@ -4078,6 +4155,129 @@ async def get_trading_bot_status():
     }
 
 
+@app.get("/api/trading/calibration")
+async def get_trading_calibration():
+    """AI 자기보정 현황 조회 — 실제 승률 vs 예측 신뢰도 비교."""
+    settings = _load_data("trading_settings", _default_trading_settings())
+    return _compute_calibration_factor(settings.get("calibration_lookback", 20))
+
+
+@app.post("/api/trading/bot/run-now")
+async def run_trading_now():
+    """지금 즉시 CIO 분석 + 매매 판단 실행 (장 시간 무관, 수동 트리거).
+
+    봇 ON/OFF 상태와 무관하게 즉시 1회 분석을 실행합니다.
+    자동 주문 실행 여부는 auto_execute 설정을 그대로 따릅니다.
+    """
+    settings = _load_data("trading_settings", _default_trading_settings())
+    watchlist = _load_data("trading_watchlist", [])
+
+    if not watchlist:
+        return {"success": False, "message": "관심종목이 없습니다. 먼저 종목을 추가하세요."}
+
+    # 장 시간 확인 (수동 실행은 강제 실행 — 장 마감이어도 진행)
+    is_open, market = _is_market_open(settings)
+    if not is_open:
+        market = "KR"  # 장 마감 시 한국장 기준으로 분석
+    market_watchlist = [w for w in watchlist if w.get("market", "KR") == market] or watchlist
+
+    # 자기보정 계수 계산
+    calibration = _compute_calibration_factor(settings.get("calibration_lookback", 20))
+    calibration_factor = calibration.get("factor", 1.0) if settings.get("calibration_enabled", True) else 1.0
+
+    tickers_info = ", ".join([f"{w['name']}({w['ticker']})" for w in market_watchlist[:10]])
+    strategies = _load_data("trading_strategies", [])
+    active_strats = [s for s in strategies if s.get("active")]
+    strats_info = ", ".join([s["name"] for s in active_strats[:5]]) or "기본 전략"
+
+    cal_section = ""
+    if calibration.get("win_rate") is not None:
+        diff = calibration["win_rate"] - (calibration.get("avg_confidence") or calibration["win_rate"])
+        direction = "보수적으로" if diff < -5 else ("적극적으로" if diff > 5 else "현재 수준으로")
+        cal_section = f"""
+
+## 📊 당신의 최근 예측 성과 (자기보정 참고)
+- 최근 {calibration['n']}건 실제 승률: {calibration['win_rate']}%
+- 평균 예측 신뢰도: {calibration.get('avg_confidence', 'N/A')}%
+- {calibration['note']}
+→ 이 데이터를 반영하여 이번 신뢰도를 {direction} 설정하세요."""
+
+    market_label = "한국" if market == "KR" else "미국"
+    prompt = f"""[수동 즉시 분석 요청 — {market_label}장]
+
+## 분석 대상 ({len(market_watchlist)}개 종목)
+{tickers_info}
+
+## 활성 전략: {strats_info}{cal_section}
+
+## 분석 요청
+각 전문가에게 아래 분석을 지시하세요:
+- **시황분석**: {'코스피/코스닥 지수 흐름, 외국인/기관 동향, 금리/환율' if market == 'KR' else 'S&P500/나스닥, 미국 금리/고용지표, 달러 강세'}
+- **종목분석**: 각 종목 재무 건전성, PER/PBR, 최근 실적
+- **기술적분석**: RSI, MACD, 이동평균선, 볼린저밴드
+- **리스크관리**: 손절가, 적정 포지션 크기, 전체 포트폴리오 리스크
+
+## 최종 산출물 (반드시 이 형식으로)
+[시그널] 종목명 (종목코드) | 매수/매도/관망 | 신뢰도 0~100% | 근거 한줄"""
+
+    save_activity_log("cio_manager", f"🔍 수동 즉시 분석 시작: {market_label}장 {len(market_watchlist)}개 종목", "info")
+    cio_result = await _manager_with_delegation("cio_manager", prompt)
+    content = cio_result.get("content", "")
+    cost = cio_result.get("cost_usd", 0)
+
+    parsed_signals = _parse_cio_signals(content, market_watchlist)
+
+    # 신호 저장
+    signals = _load_data("trading_signals", [])
+    new_signal = {
+        "id": f"sig_manual_{datetime.now(KST).strftime('%Y%m%d%H%M%S')}",
+        "date": datetime.now(KST).isoformat(),
+        "market": market,
+        "analysis": content,
+        "tickers": [w["ticker"] for w in market_watchlist[:10]],
+        "parsed_signals": parsed_signals,
+        "strategy": "cio_manual_analysis",
+        "analyzed_by": f"CIO + 전문가 {cio_result.get('specialists_used', 0)}명 (수동 실행)",
+        "cost_usd": cost,
+        "auto_bot": False,
+        "manual_run": True,
+    }
+    signals.insert(0, new_signal)
+    if len(signals) > 200:
+        signals = signals[:200]
+    _save_data("trading_signals", signals)
+
+    # 자동 주문 실행 (auto_execute=True 일 때만)
+    min_confidence = settings.get("min_confidence", 65)
+    orders_triggered = 0
+    if settings.get("auto_execute", False):
+        for sig in parsed_signals:
+            if sig["action"] not in ("buy", "sell"):
+                continue
+            effective_conf = sig.get("confidence", 0) * calibration_factor
+            if effective_conf < min_confidence:
+                continue
+            orders_triggered += 1
+            save_activity_log("cio_manager",
+                f"[수동] {sig['action']} 시그널: {sig.get('name', sig['ticker'])} 유효신뢰도 {effective_conf:.0f}%",
+                "info")
+
+    save_activity_log("cio_manager",
+        f"✅ 수동 분석 완료: {len(parsed_signals)}개 시그널 (주문 {orders_triggered}건, 비용 ${cost:.4f})", "info")
+
+    return {
+        "success": True,
+        "market": market_label,
+        "signals_count": len(parsed_signals),
+        "signals": parsed_signals,
+        "orders_triggered": orders_triggered,
+        "calibration": calibration,
+        "calibration_factor": calibration_factor,
+        "cost_usd": cost,
+        "analysis_preview": content[:500] + "..." if len(content) > 500 else content,
+    }
+
+
 def _is_market_open(settings: dict) -> tuple[bool, str]:
     """한국/미국 장 시간인지 확인합니다. (둘 중 하나라도 열려있으면 True)"""
     now = datetime.now(KST)
@@ -4173,12 +4373,28 @@ async def _trading_bot_loop():
             active = [s for s in strategies if s.get("active")]
             strats_info = ", ".join([s["name"] for s in active[:5]]) or "기본 전략"
 
+            # 자기보정 계수 계산 (Platt Scaling 단순화)
+            calibration = _compute_calibration_factor(settings.get("calibration_lookback", 20))
+            calibration_factor = calibration.get("factor", 1.0) if settings.get("calibration_enabled", True) else 1.0
+
+            cal_section = ""
+            if settings.get("calibration_enabled", True) and calibration.get("win_rate") is not None:
+                diff = calibration["win_rate"] - (calibration.get("avg_confidence") or calibration["win_rate"])
+                direction = "보수적으로" if diff < -5 else ("적극적으로" if diff > 5 else "현재 수준으로")
+                cal_section = f"""
+
+## 📊 당신의 최근 예측 성과 (자기보정 참고)
+- 최근 {calibration['n']}건 실제 승률: {calibration['win_rate']}%
+- 평균 예측 신뢰도: {calibration.get('avg_confidence', 'N/A')}%
+- {calibration['note']}
+→ 이 데이터를 반영하여 이번 신뢰도를 {direction} 설정하세요."""
+
             prompt = f"""[자동매매 봇 — {market_name}장 정기 분석]
 
 ## 분석 대상 ({len(market_watchlist)}개 종목)
 {tickers_info}
 
-## 활성 전략: {strats_info}
+## 활성 전략: {strats_info}{cal_section}
 
 ## 분석 요청
 각 전문가에게 아래 분석을 지시하세요:
@@ -4228,7 +4444,10 @@ async def _trading_bot_loop():
                 for sig in parsed_signals:
                     if sig["action"] not in ("buy", "sell"):
                         continue
-                    if sig.get("confidence", 0) < min_confidence:
+                    # 자기보정 적용: 유효 신뢰도 = raw × calibration_factor
+                    # factor < 1 (AI 과신) → 유효 신뢰도 하락 → 더 엄격한 필터
+                    effective_conf = sig.get("confidence", 0) * calibration_factor
+                    if effective_conf < min_confidence:
                         continue
 
                     ticker = sig["ticker"]
