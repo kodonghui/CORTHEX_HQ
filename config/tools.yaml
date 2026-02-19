@@ -199,6 +199,71 @@ tools:
         description: 분석 기간 일수 (기본 200일, 장기 지표용)
     required:
     - action
+# ─── CMO 마케팅·고객처 교수급 도구 ───
+- tool_id: funnel_analyzer
+  name: Funnel Analyzer
+  name_ko: AARRR 퍼널 분석기
+  description: 교수급 AARRR 퍼널 분석 — 전환율/이탈률 계산, 병목 자동 진단, 성장 건강도(Quick Ratio), 업종별 벤치마크 비교, 개선 효과 시뮬레이션
+  model_name: gemini-3-pro-preview
+  parameters:
+    type: object
+    properties:
+      action:
+        type: string
+        enum:
+        - full
+        - analyze
+        - bottleneck
+        - growth
+        - benchmark
+        - forecast
+        description: full=종합분석, analyze=퍼널전환율, bottleneck=병목진단, growth=성장건강도, benchmark=벤치마크비교, forecast=개선시뮬레이션
+      visitors:
+        type: integer
+        description: 방문자 수
+      signups:
+        type: integer
+        description: 가입자 수 (Acquisition)
+      activated:
+        type: integer
+        description: 활성화 사용자 수 (Activation)
+      retained:
+        type: integer
+        description: 유지 사용자 수 (Retention)
+      revenue_users:
+        type: integer
+        description: 결제 사용자 수 (Revenue)
+      referrers:
+        type: integer
+        description: 추천 사용자 수 (Referral)
+      industry:
+        type: string
+        enum:
+        - saas
+        - ecommerce
+        - education
+        - media
+        - fintech
+        description: 업종 (벤치마크 비교용)
+      period:
+        type: string
+        description: '측정 기간 (예: 2026-01, weekly)'
+      new_users:
+        type: integer
+        description: 신규 가입 (Growth Accounting용)
+      churned:
+        type: integer
+        description: 이탈 사용자 수 (Growth Accounting용)
+      resurrected:
+        type: integer
+        description: 복귀 사용자 수 (Growth Accounting용)
+      improve_pct:
+        type: number
+        description: 시뮬레이션 개선 폭 (%p, 기본 10)
+    required:
+    - action
+    - visitors
+    - signups
 - tool_id: backtest_engine
   name: Backtest Engine
   name_ko: 포트폴리오 백테스터

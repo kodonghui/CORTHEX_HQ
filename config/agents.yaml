@@ -901,6 +901,7 @@ agents:
   - sns_manager
   - notification_engine
   - cross_agent_protocol
+  - funnel_analyzer
 - agent_id: survey_specialist
   name: Survey/Research Specialist
   name_ko: 설문/리서치 Specialist
