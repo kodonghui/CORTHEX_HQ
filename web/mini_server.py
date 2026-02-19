@@ -4018,6 +4018,23 @@ async def remove_trading_watchlist(ticker: str):
     return {"success": True}
 
 
+@app.put("/api/trading/watchlist/reorder")
+async def reorder_watchlist(request: Request):
+    """관심종목 순서 저장 (드래그 후 호출)."""
+    body = await request.json()
+    tickers = body.get("tickers", [])
+    watchlist = _load_data("trading_watchlist", [])
+    ticker_map = {w["ticker"]: w for w in watchlist}
+    new_watchlist = [ticker_map[t] for t in tickers if t in ticker_map]
+    # 누락된 항목도 뒤에 붙이기 (안전장치)
+    existing = {t for t in tickers}
+    for w in watchlist:
+        if w["ticker"] not in existing:
+            new_watchlist.append(w)
+    _save_data("trading_watchlist", new_watchlist)
+    return {"success": True}
+
+
 @app.get("/api/trading/watchlist/prices")
 async def get_watchlist_prices():
     """관심종목의 실시간 현재가를 조회.
@@ -4388,6 +4405,34 @@ async def generate_trading_signals():
     save_activity_log("cio_manager",
         f"📊 CIO 시그널 완료: {len(watchlist)}개 종목 (매수 {buy_count}, 매도 {sell_count}, 비용 ${cost:.4f})",
         "info")
+
+    # 기밀문서 자동 저장
+    try:
+        now_str = datetime.now(KST).strftime("%Y-%m-%d %H:%M")
+        archive_lines = [f"# CIO 매매 시그널 분석 — {now_str}\n"]
+        for sig in parsed_signals:
+            ticker = sig.get("ticker", "")
+            name = sig.get("name", ticker)
+            action_raw = sig.get("action", "hold")
+            action_label = "매수" if action_raw == "buy" else ("매도" if action_raw == "sell" else "관망")
+            conf = sig.get("confidence", 0)
+            reason = sig.get("reason", "")
+            archive_lines.append(f"## {name} ({ticker}) — {action_label}")
+            archive_lines.append(f"- 신뢰도: {conf}%")
+            archive_lines.append(f"- 분석: {reason}\n")
+        if len(parsed_signals) == 0:
+            archive_lines.append("## 종목별 시그널 파싱 결과 없음\n")
+            archive_lines.append(content[:2000] if content else "")
+        archive_content = "\n".join(archive_lines)
+        filename = f"CIO_시그널_{datetime.now(KST).strftime('%Y%m%d_%H%M')}.md"
+        save_archive(
+            division="finance",
+            filename=filename,
+            content=archive_content,
+            agent_id="cio_manager",
+        )
+    except Exception:
+        pass  # 기밀문서 저장 실패해도 시그널 API는 정상 반환
 
     return {"success": True, "signal": new_signal, "parsed_signals": parsed_signals}
 
