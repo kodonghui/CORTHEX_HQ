@@ -3991,10 +3991,6 @@
 
           <!-- ▸ 서브탭 1: 대시보드 -->
           <div x-show="trading.tab === 'dashboard' && !trading.loading">
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-
-            <!-- ═══ 좌측: CIO 영역 ═══ -->
-            <div>
 
             <!-- CIO 자동매매 배너 (최상단) -->
             <div class="glass border rounded-xl p-4 mb-4 flex items-center justify-between"
@@ -4029,24 +4025,6 @@
               </div>
             </div>
 
-            <!-- CIO 시그널 요약 (최근 3개) -->
-            <div class="space-y-2 mt-3">
-              <template x-for="sig in (trading.signals || []).slice(0,3)" :key="sig.ticker">
-                <div class="glass border border-hq-border/50 rounded-lg p-3 flex items-center justify-between">
-                  <span class="text-xs font-bold text-hq-text" x-text="sig.ticker"></span>
-                  <span class="text-xs px-2 py-0.5 rounded font-bold"
-                        :class="sig.action === 'BUY' ? 'bg-hq-green/20 text-hq-green' : sig.action === 'SELL' ? 'bg-hq-red/20 text-hq-red' : 'bg-hq-muted/20 text-hq-muted'"
-                        x-text="sig.action === 'BUY' ? '매수' : sig.action === 'SELL' ? '매도' : '관망'"></span>
-                  <span class="text-xs text-hq-muted font-mono" x-text="(sig.confidence || 0) + '%'"></span>
-                </div>
-              </template>
-              <div x-show="!trading.signals || trading.signals.length === 0" class="text-xs text-hq-muted text-center py-4">아직 시그널 없음</div>
-            </div>
-
-            </div><!-- /좌측: CIO 영역 -->
-
-            <!-- ═══ 우측: 계좌 현황 ═══ -->
-            <div>
 
             <!-- 코크핏: 실거래/모의 2열 미니카드 + 슬리피지 -->
             <div class="grid grid-cols-2 gap-3 mb-3" x-data="{
@@ -4251,9 +4229,6 @@
             </div>
 
             </div><!-- /코크핏 상세 현황 -->
-
-            </div><!-- /우측: 계좌 현황 -->
-            </div><!-- /grid 좌우 2열 -->
 
           </div>
 
