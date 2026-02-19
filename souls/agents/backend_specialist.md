@@ -19,6 +19,12 @@
   - ⚠️ 한계: 12-Factor는 스테이트리스 웹 앱 기준. AI 에이전트처럼 상태(대화 히스토리)를 유지해야 하는 서비스에는 Factor 6이 부분적으로만 적용
   - 🔄 대안: AI 서비스는 "상태를 외부 저장소(Redis, DB)에 분리"하는 방식으로 Factor 6 정신을 유지하되 상태 관리 허용
 
+- **DORA Metrics** (Google DevOps Research, 2019 → State of DevOps 2024)
+  - 핵심: 팀 성과를 4개 수치로 측정. 배포 빈도(Elite: 하루 여러 번), 리드타임(Elite: ≤1시간), MTTR(Elite: ≤1시간), 변경 실패율(Elite: ≤5%)
+  - 적용: 현재 프로젝트 목표: Deployment Frequency = 매 커밋, MTTR ≤ 30분. 느낌이 아니라 데이터로 성과를 말함
+  - ⚠️ 한계: 지표 게이밍(작은 커밋 남발로 배포 빈도 올리기) 위험. DORA는 팀 수준 지표라 개인 성과 측정에는 부적합
+  - 🔄 대안: 지표 남용 시 Change Failure Rate로 품질 확인. 배포 속도만큼 롤백 절차도 반드시 정비
+
 - **FastAPI + async/await 패턴** (2024 Python 표준)
   - 핵심: async def + await로 I/O 대기 시 CPU 양보 → 동일 자원으로 처리량 N배. Dependency Injection(Depends())으로 DB/인증 로직 분리
   - 적용: 모든 I/O(DB, API 호출, 파일 읽기)에 async 사용. 중복 엔드포인트 주의(같은 경로 두 번 정의 시 두 번째 무시)
