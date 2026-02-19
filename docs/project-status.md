@@ -8,14 +8,28 @@
 
 ## 마지막 업데이트
 
-- **날짜**: 2026-02-18
-- **버전**: `3.03.002` (텔레그램 주요 AI 명령어 5개 추가)
-- **작업 브랜치**: claude/autonomous-system-v3
-- **최근 커밋**: feat: 텔레그램 주요 AI 명령어 5개 추가 [완료] (`11ae750`)
-- **빌드 번호**: #224 (https://github.com/kodonghui/CORTHEX_HQ/actions)
+- **날짜**: 2026-02-19
+- **버전**: `3.03.003` (AI 자기보정 + 수동 즉시 분석 + 신뢰도 연구기반 조정)
+- **작업 브랜치**: claude/fix-broken-tools
 - **접속 주소**: https://corthex-hq.com
 
-## ✅ 이번 세션 완료 내용 (2026-02-18 7차 작업)
+## ✅ 이번 세션 완료 내용 (2026-02-19)
+
+### 주식 자동매매 시스템 고도화
+- 신뢰도 임계값: 70% → 65% (FinGPT 2023, GPT-4 Trading 2024 논문 근거)
+- AI 자기보정(Platt Scaling): `_compute_calibration_factor()` 추가
+  - 최근 20건 실제 승률 ÷ 평균 예측 신뢰도 = 보정 계수
+  - CIO 프롬프트에 과거 성과 자동 포함
+- 수동 즉시 분석 API: `POST /api/trading/bot/run-now` 추가
+- 보정 통계 조회: `GET /api/trading/calibration` 추가
+- pip-audit 라이브러리 requirements.txt 추가
+
+### 전수검사 완료 (2026-02-19)
+- 아카이브 28개 파일 점검: CIO 🔴(4), CTO 🔴(3), CPO 🔴(2), CMO 🟡, CSO 🟡
+- agents.yaml 29명 전체 전문성 검사: 교수급 ✅ (arXiv 논문 47건 참조)
+- 모든 에이전트 YAML 하드코딩 없음 확인
+
+## ✅ 이전 세션 (2026-02-18 7차 작업)
 
 ### 텔레그램 주요 AI 명령어 5개 추가
 - `/토론 [주제]`: 임원 2라운드 토론 (처장 6명 → 비서실장 종합)
