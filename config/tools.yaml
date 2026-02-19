@@ -675,6 +675,55 @@ tools:
     required:
     - action
     - content
+- tool_id: pricing_sensitivity
+  name: Pricing Sensitivity
+  name_ko: 가격 민감도 분석
+  description: 교수급 가격 민감도 분석 — Van Westendorp PSM(4개 교차점), Gabor-Granger 수용도, 가격 탄력성, 수익 최적화, 가격 티어 설계
+  parameters:
+    type: object
+    properties:
+      action:
+        type: string
+        enum:
+        - full
+        - psm
+        - gabor_granger
+        - elasticity
+        - optimize
+        - tier
+        description: full=종합, psm=Van Westendorp, gabor_granger=수용도, elasticity=탄력성, optimize=수익최적화, tier=가격티어
+      too_cheap:
+        type: string
+        description: '너무 싸다 응답 가격들 쉼표 구분 (PSM용)'
+      cheap:
+        type: string
+        description: '싸다 응답 가격들 쉼표 구분 (PSM용)'
+      expensive:
+        type: string
+        description: '비싸다 응답 가격들 쉼표 구분 (PSM용)'
+      too_expensive:
+        type: string
+        description: '너무 비싸다 응답 가격들 쉼표 구분 (PSM용)'
+      current_price:
+        type: integer
+        description: 현재 가격 (탄력성용)
+      current_quantity:
+        type: integer
+        description: 현재 판매량 (탄력성용)
+      new_price:
+        type: integer
+        description: 변경 후 가격 (탄력성용)
+      new_quantity:
+        type: integer
+        description: 변경 후 판매량 (탄력성용)
+      base_price:
+        type: integer
+        description: 기준 가격 (최적화/티어용, 기본 30000)
+      product_name:
+        type: string
+        description: 제품/서비스명 (티어 설계용)
+    required:
+    - action
 - tool_id: backtest_engine
   name: Backtest Engine
   name_ko: 포트폴리오 백테스터
