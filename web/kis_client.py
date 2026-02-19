@@ -47,6 +47,9 @@ _TR = {
 # 토큰 캐시 (메모리)
 _token_cache: dict = {"token": None, "expires": None}
 _token_lock = asyncio.Lock()
+# 토큰 발급 쿨다운 (EGW00133: 1분당 1회 제한)
+_last_token_request: Optional[datetime] = None
+_TOKEN_COOLDOWN_SEC = 65  # 1분 5초 여유
 
 # DB 토큰 캐시 키 (모의/실거래 구분)
 _DB_TOKEN_KEY = "kis_token_mock" if KIS_IS_MOCK else "kis_token_real"
@@ -106,16 +109,28 @@ async def _get_token() -> str:
             logger.info("[KIS] DB에서 토큰 복원 (만료까지 %s분)", int((db_expires - now).total_seconds() // 60))
             return db_token
 
-        # 3순위: KIS API 신규 발급
+        # 3순위: KIS API 신규 발급 (쿨다운 체크 — 1분당 1회 제한)
+        global _last_token_request
+        if _last_token_request is not None:
+            elapsed = (datetime.now() - _last_token_request).total_seconds()
+            if elapsed < _TOKEN_COOLDOWN_SEC:
+                wait = int(_TOKEN_COOLDOWN_SEC - elapsed)
+                raise Exception(f"KIS 토큰 발급 대기 중 ({wait}초 후 재시도 가능, 1분당 1회 제한)")
+        _last_token_request = datetime.now()
         async with httpx.AsyncClient(timeout=10) as client:
             resp = await client.post(
                 f"{KIS_BASE}/oauth2/tokenP",
+                headers={"Content-Type": "application/json; charset=utf-8"},
                 json={
                     "grant_type": "client_credentials",
                     "appkey": KIS_APP_KEY,
                     "appsecret": KIS_APP_SECRET,
                 },
             )
+            if not resp.is_success:
+                body = resp.text
+                logger.error("[KIS] 토큰 발급 실패 %s: %s", resp.status_code, body)
+                raise Exception(f"KIS 토큰 발급 실패 ({resp.status_code}): {body}")
             resp.raise_for_status()
             data = resp.json()
             token = data["access_token"]
