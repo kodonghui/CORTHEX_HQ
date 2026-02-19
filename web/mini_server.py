@@ -7000,23 +7000,32 @@ async def _save_to_notion(agent_id: str, title: str, content: str,
             with urllib.request.urlopen(req, timeout=10) as resp:
                 return json.loads(resp.read().decode("utf-8"))
         except urllib.error.HTTPError as e:
-            err_body = e.read().decode("utf-8", errors="replace")[:200]
-            _log(f"[Notion] HTTP {e.code} 오류: {err_body}")
-            _add_notion_log("FAIL", title, db=db_name, error=f"HTTP {e.code}: {err_body}")
-            return None
+            err_body = e.read().decode("utf-8", errors="replace")[:300]
+            _log(f"[Notion] HTTP {e.code} 오류 ({db_name}): {err_body}")
+            # 오류 원인 힌트: 400=속성명 불일치(Name vs 제목), 401=API키 오류, 404=DB ID 오류
+            return {"_error": f"HTTP {e.code}: {err_body}"}
         except Exception as e:
-            _log(f"[Notion] 요청 실패: {e}")
-            _add_notion_log("FAIL", title, db=db_name, error=str(e))
-            return None
+            _log(f"[Notion] 요청 실패 ({db_name}): {e}")
+            return {"_error": str(e)}
 
     try:
         result = await asyncio.to_thread(_do_request)
+        # _error 키가 있으면 _do_request 내부에서 오류 발생 — 이미 _log에 기록됨
+        if result and "_error" in result:
+            _add_notion_log("FAIL", title, db=db_name, error=result["_error"])
+            return None
         if result and result.get("url"):
             _log(f"[Notion] 저장 완료 ({db_name}): {title[:50]} → {result['url']}")
             _add_notion_log("OK", title, db=db_name, url=result["url"])
             return result["url"]
+        elif result:
+            # 응답은 왔지만 url 필드가 없는 경우 — 응답 내용 로깅해서 디버깅 가능하게
+            resp_snippet = str(result)[:200]
+            _log(f"[Notion] 응답에 URL 없음 ({db_name}): {resp_snippet}")
+            _add_notion_log("FAIL", title, db=db_name, error=f"응답에 URL 없음: {resp_snippet}")
         else:
-            _add_notion_log("FAIL", title, db=db_name, error="응답에 URL 없음")
+            # result가 None — _do_request가 예외 없이 None 반환 (이론상 발생 안 함)
+            _add_notion_log("FAIL", title, db=db_name, error="응답 없음(None)")
     except Exception as e:
         _log(f"[Notion] 비동기 실행 실패: {e}")
         _add_notion_log("FAIL", title, db=db_name, error=str(e))
@@ -7031,8 +7040,11 @@ async def get_notion_log():
         "logs": _notion_log,
         "total": len(_notion_log),
         "api_key_set": bool(_NOTION_API_KEY),
-        "db_secretary": _NOTION_DB_SECRETARY[:8] + "..." if _NOTION_DB_SECRETARY else "",
-        "db_output": _NOTION_DB_ID[:8] + "..." if _NOTION_DB_ID else "",
+        "db_secretary": _NOTION_DB_SECRETARY[:8] + "..." if _NOTION_DB_SECRETARY else "(미설정)",
+        # _NOTION_DB_ID는 NOTION_DEFAULT_DB_ID 환경변수 → 없으면 NOTION_DB_OUTPUT 폴백
+        "db_output_active": _NOTION_DB_ID[:8] + "..." if _NOTION_DB_ID else "(미설정)",
+        "db_output_fallback": _NOTION_DB_OUTPUT[:8] + "..." if _NOTION_DB_OUTPUT else "(미설정)",
+        "db_id_source": "NOTION_DEFAULT_DB_ID" if os.getenv("NOTION_DEFAULT_DB_ID") else "NOTION_DB_OUTPUT(폴백)",
     }
 
 
