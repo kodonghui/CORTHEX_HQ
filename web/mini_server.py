@@ -5082,6 +5082,39 @@ async def save_agent_defaults():
     return {"success": True, "saved_count": len(overrides)}
 
 
+@app.get("/api/agents/recommended-models")
+async def get_recommended_models():
+    """AGENTS 상수에 하드코딩된 권장 모델 목록 반환."""
+    return {
+        agent["agent_id"]: {
+            "model_name": agent["model_name"],
+            "reasoning_effort": MODEL_REASONING_MAP.get(agent["model_name"], "medium"),
+        }
+        for agent in AGENTS
+    }
+
+
+@app.post("/api/agents/apply-recommended")
+async def apply_recommended_models():
+    """AGENTS 상수에 하드코딩된 권장 모델을 모든 에이전트에 즉시 적용."""
+    overrides = _load_data("agent_overrides", {})
+    for agent in AGENTS:
+        aid = agent["agent_id"]
+        model = agent["model_name"]
+        overrides[aid] = {
+            "model_name": model,
+            "reasoning_effort": MODEL_REASONING_MAP.get(model, "medium"),
+        }
+    _save_data("agent_overrides", overrides)
+    for a in AGENTS:
+        a["model_name"] = overrides[a["agent_id"]]["model_name"]
+    pool = _init_tool_pool()
+    if pool and hasattr(pool, "set_agent_model"):
+        for agent in AGENTS:
+            pool.set_agent_model(agent["agent_id"], agent["model_name"])
+    return {"success": True, "applied_count": len(AGENTS)}
+
+
 @app.post("/api/agents/restore-defaults")
 async def restore_agent_defaults():
     """저장된 기본값 스냅샷으로 전체 에이전트 모델/추론 복원.
@@ -8053,6 +8086,10 @@ async def on_startup():
     # 관심종목 시세 1분 자동 갱신 태스크 시작
     asyncio.create_task(_auto_refresh_prices())
     _log("[PRICE] 시세 자동 갱신 태스크 시작 ✅ (1분 간격)")
+    # KIS 토큰 매일 오전 7시 자동 갱신 스케줄러 시작
+    from kis_client import start_daily_token_renewal
+    asyncio.create_task(start_daily_token_renewal())
+    _log("[KIS] 토큰 자동 갱신 스케줄러 시작 ✅ (매일 KST 07:00)")
 
 
 @app.on_event("shutdown")
