@@ -17,7 +17,7 @@ class ToolConfig(BaseModel):
     name: str
     name_ko: str
     description: str
-    model_name: str = "gpt-5-mini"
+    model_name: str = ""
 
 
 class BaseTool(ABC):
@@ -42,16 +42,14 @@ class BaseTool(ABC):
         user_prompt: str,
         caller_model: str | None = None,
     ) -> str:
-        """Make an LLM call powered by this tool's assigned model.
+        """Make an LLM call — 호출한 에이전트의 모델을 사용합니다.
 
-        caller_model이 있으면 해당 모델을 우선 사용하고,
-        없으면 tools.yaml에 설정된 model_name으로 폴백합니다.
-        model_router가 지원하지 않는 모델(Gemini 등)이면 config 기본값으로 폴백합니다.
+        우선순위: caller_model(에이전트 모델) → 최종 폴백(gpt-5-mini)
+        tools.yaml의 model_name은 사용하지 않음 — 에이전트가 결정.
         """
-        # model_router는 gpt-*/o*-*/claude-*/gemini-* 지원
         _SUPPORTED_PREFIXES = ("gpt-", "o1-", "o3-", "o4-", "o5-", "claude-", "gemini-")
         _is_supported = caller_model and any(caller_model.startswith(p) for p in _SUPPORTED_PREFIXES)
-        model = (caller_model if _is_supported else None) or self.config.model_name or "claude-sonnet-4-6"
+        model = (caller_model if _is_supported else None) or "gpt-5-mini"
         response = await self.model_router.complete(
             model_name=model,
             messages=[
