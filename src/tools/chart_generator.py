@@ -43,6 +43,25 @@ class ChartGeneratorTool(BaseTool):
     """데이터를 막대/꺾은선/원형/캔들차트 등으로 시각화하는 도구."""
 
     async def execute(self, **kwargs: Any) -> Any:
+        # query만 있고 데이터가 없는 경우 (tools.yaml 파라미터 스키마 미정의 시 폴백)
+        # query를 data JSON으로 파싱 시도, 실패 시 사용법 안내 반환
+        query = kwargs.get("query", "")
+        if query and not kwargs.get("data") and not kwargs.get("labels") and not kwargs.get("values"):
+            try:
+                import json as _json
+                parsed = _json.loads(query)
+                kwargs["data"] = parsed
+            except Exception:
+                return (
+                    "차트를 생성하려면 데이터가 필요합니다.\n\n"
+                    "올바른 사용법:\n"
+                    "- action: bar/line/pie/scatter 중 선택\n"
+                    "- labels: 'X축 항목1, X축 항목2, ...'\n"
+                    "- values: '값1, 값2, ...'\n"
+                    "- 또는 data: '{\"항목1\": 값1, \"항목2\": 값2}' (JSON 형태)\n\n"
+                    "예시: action=bar, labels='1월,2월,3월', values='100,200,300', title='월별 매출'"
+                )
+
         action = kwargs.get("action", "bar")
         if action == "bar":
             return await self._bar(kwargs)
