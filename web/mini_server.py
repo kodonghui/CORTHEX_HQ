@@ -3824,9 +3824,43 @@ async def get_trading_summary():
 
 @app.get("/api/trading/portfolio")
 async def get_trading_portfolio():
-    """포트폴리오 전체 데이터."""
-    portfolio = _load_data("trading_portfolio", _default_portfolio())
-    return portfolio
+    """실거래 KIS 잔고 기반 포트폴리오 조회 + 스냅샷 자동 저장"""
+    try:
+        from kis_client import get_balance, KIS_APP_KEY
+        if not KIS_APP_KEY:
+            return {"available": False, "reason": "KIS 미설정"}
+        bal = await get_balance()
+        if not bal.get("success"):
+            return {"available": False, "reason": bal.get("error", "조회 실패")}
+
+        cash = bal.get("cash", 0)
+        holdings = bal.get("holdings", [])
+        total_eval = bal.get("total_eval", cash)
+
+        # 초기 자금: DB에서 로드 (없으면 최초 조회 시 현재 총자산으로 설정)
+        from db import load_setting, save_setting, save_portfolio_snapshot
+        initial = load_setting("portfolio_initial_capital", None)
+        if initial is None:
+            initial = total_eval if total_eval > 0 else cash
+            save_setting("portfolio_initial_capital", initial)
+
+        pnl = total_eval - initial
+        pnl_pct = round((pnl / initial * 100), 2) if initial > 0 else 0.0
+
+        # 스냅샷 저장 (오늘 기준)
+        save_portfolio_snapshot(cash, total_eval, pnl, pnl_pct)
+
+        return {
+            "available": True,
+            "cash": cash,
+            "holdings": holdings,
+            "total_eval": total_eval,
+            "initial_capital": initial,
+            "pnl": pnl,
+            "pnl_pct": pnl_pct,
+        }
+    except Exception as e:
+        return {"available": False, "reason": str(e)}
 
 
 @app.post("/api/trading/portfolio")
@@ -4905,6 +4939,31 @@ async def get_mock_trading_balance():
         return result
     except Exception as e:
         return {"available": False, "error": str(e)}
+
+
+@app.get("/api/trading/portfolio/history")
+async def get_portfolio_history():
+    """포트폴리오 일별 스냅샷 조회 (라인차트용)"""
+    try:
+        from db import load_portfolio_snapshots
+        return {"snapshots": load_portfolio_snapshots()}
+    except Exception as e:
+        return {"snapshots": [], "error": str(e)}
+
+
+@app.post("/api/trading/portfolio/set-initial")
+async def set_portfolio_initial(request: Request):
+    """초기 자금 수동 설정"""
+    try:
+        body = await request.json()
+        amount = int(body.get("amount", 0))
+        if amount <= 0:
+            return {"success": False, "error": "금액은 0보다 커야 합니다"}
+        from db import save_setting
+        save_setting("portfolio_initial_capital", amount)
+        return {"success": True, "initial_capital": amount}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
 
 
 @app.get("/api/trading/mock/holdings")
