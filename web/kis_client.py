@@ -16,9 +16,9 @@ import httpx
 logger = logging.getLogger("corthex.kis")
 
 # 환경변수
-KIS_APP_KEY = os.getenv("KOREA_INVEST_APP_KEY", "")
-KIS_APP_SECRET = os.getenv("KOREA_INVEST_APP_SECRET", "")
-_KIS_ACCOUNT_RAW = os.getenv("KOREA_INVEST_ACCOUNT", "")
+KIS_APP_KEY = os.getenv("KOREA_INVEST_APP_KEY", "").strip()
+KIS_APP_SECRET = os.getenv("KOREA_INVEST_APP_SECRET", "").strip()
+_KIS_ACCOUNT_RAW = os.getenv("KOREA_INVEST_ACCOUNT", "").strip()
 KIS_IS_MOCK = os.getenv("KOREA_INVEST_IS_MOCK", "true").lower() in ("true", "1", "yes")
 
 # 계좌번호 파싱 (예: "44049763-01" 또는 "4404976301")
@@ -36,9 +36,9 @@ KIS_BASE_MOCK = "https://openapivts.koreainvestment.com:29443"
 KIS_BASE = KIS_BASE_MOCK if KIS_IS_MOCK else KIS_BASE_REAL
 
 # 모의투자 전용 설정 (Shadow Trading 비교용)
-MOCK_APP_KEY = os.getenv("KOREA_INVEST_MOCK_APP_KEY", "")
-MOCK_APP_SECRET = os.getenv("KOREA_INVEST_MOCK_APP_SECRET", "")
-MOCK_ACCOUNT_RAW = os.getenv("KOREA_INVEST_MOCK_ACCOUNT", "")
+MOCK_APP_KEY = os.getenv("KOREA_INVEST_MOCK_APP_KEY", "").strip()
+MOCK_APP_SECRET = os.getenv("KOREA_INVEST_MOCK_APP_SECRET", "").strip()
+MOCK_ACCOUNT_RAW = os.getenv("KOREA_INVEST_MOCK_ACCOUNT", "").strip()
 MOCK_BASE = "https://openapivts.koreainvestment.com:29443"
 MOCK_ACCOUNT_NO = MOCK_ACCOUNT_RAW.split("-")[0] if "-" in MOCK_ACCOUNT_RAW else MOCK_ACCOUNT_RAW
 MOCK_ACCOUNT_CODE = MOCK_ACCOUNT_RAW.split("-")[1] if "-" in MOCK_ACCOUNT_RAW else "01"
