@@ -5084,19 +5084,29 @@ async def save_agent_defaults():
 
 @app.post("/api/agents/restore-defaults")
 async def restore_agent_defaults():
-    """agents.yaml 하드코딩 기본값으로 전체 에이전트 모델/추론 복원."""
-    # agents.yaml을 직접 읽어서 하드코딩 기본값으로 복원
-    yaml_data = _load_config("agents")
-    defaults = {}
-    for agent in yaml_data.get("agents", []):
-        aid = agent.get("agent_id")
-        if aid:
-            defaults[aid] = {
-                "model_name": agent.get("model_name", "claude-sonnet-4-6"),
-                "reasoning_effort": agent.get("reasoning_effort", "medium"),
-            }
+    """저장된 기본값 스냅샷으로 전체 에이전트 모델/추론 복원.
+    "현재를 기본값으로 저장"으로 저장한 스냅샷(agent_model_defaults)을 우선 사용.
+    스냅샷 없으면 agents.yaml 하드코딩 값으로 복원.
+    """
+    # 1순위: 사용자가 저장한 스냅샷 (agent_model_defaults)
+    saved_defaults = _load_data("agent_model_defaults", {})
+    if saved_defaults:
+        defaults = saved_defaults
+        source = "snapshot"
+    else:
+        # 2순위: agents.yaml 하드코딩 기본값 (스냅샷 없을 때만)
+        yaml_data = _load_config("agents")
+        defaults = {}
+        for agent in yaml_data.get("agents", []):
+            aid = agent.get("agent_id")
+            if aid:
+                defaults[aid] = {
+                    "model_name": agent.get("model_name", "claude-sonnet-4-6"),
+                    "reasoning_effort": agent.get("reasoning_effort", "medium"),
+                }
+        source = "yaml"
     if not defaults:
-        return {"error": "agents.yaml에서 에이전트를 찾을 수 없습니다."}
+        return {"error": "복원할 기본값이 없습니다. 먼저 '현재를 기본값으로 저장'을 눌러주세요."}
     _save_data("agent_overrides", defaults)
     for agent_id, vals in defaults.items():
         for a in AGENTS:
@@ -5110,7 +5120,7 @@ async def restore_agent_defaults():
         for agent_id, vals in defaults.items():
             if "model_name" in vals:
                 pool.set_agent_model(agent_id, vals["model_name"])
-    return {"success": True, "restored_count": len(defaults)}
+    return {"success": True, "restored_count": len(defaults), "source": source}
 
 
 @app.put("/api/agents/bulk-model")
