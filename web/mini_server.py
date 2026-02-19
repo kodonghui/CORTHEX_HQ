@@ -4636,6 +4636,39 @@ async def get_kis_status():
     }
 
 
+@app.get("/api/trading/mock/balance")
+async def get_mock_trading_balance():
+    """모의투자 잔고 조회"""
+    try:
+        from kis_client import get_mock_balance
+        result = await get_mock_balance()
+        return result
+    except Exception as e:
+        return {"available": False, "error": str(e)}
+
+
+@app.get("/api/trading/mock/holdings")
+async def get_mock_trading_holdings():
+    """모의투자 보유종목 조회"""
+    try:
+        from kis_client import get_mock_holdings
+        result = await get_mock_holdings()
+        return result
+    except Exception as e:
+        return {"available": False, "holdings": [], "error": str(e)}
+
+
+@app.get("/api/trading/shadow/compare")
+async def get_shadow_compare():
+    """실거래 vs 모의투자 비교"""
+    try:
+        from kis_client import get_shadow_comparison
+        result = await get_shadow_comparison()
+        return result
+    except Exception as e:
+        return {"available": False, "error": str(e)}
+
+
 @app.post("/api/trading/portfolio/reset")
 async def reset_trading_portfolio(request: Request):
     """포트폴리오 초기화 (모의투자 리셋)."""

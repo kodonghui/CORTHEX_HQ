@@ -35,6 +35,14 @@ KIS_BASE_REAL = "https://openapi.koreainvestment.com:9443"
 KIS_BASE_MOCK = "https://openapivts.koreainvestment.com:29443"
 KIS_BASE = KIS_BASE_MOCK if KIS_IS_MOCK else KIS_BASE_REAL
 
+# 모의투자 전용 설정 (Shadow Trading 비교용)
+MOCK_APP_KEY = os.getenv("KOREA_INVEST_MOCK_APP_KEY", "")
+MOCK_APP_SECRET = os.getenv("KOREA_INVEST_MOCK_APP_SECRET", "")
+MOCK_ACCOUNT_RAW = os.getenv("KOREA_INVEST_MOCK_ACCOUNT", "")
+MOCK_BASE = "https://openapivts.koreainvestment.com:29443"
+MOCK_ACCOUNT_NO = MOCK_ACCOUNT_RAW.split("-")[0] if "-" in MOCK_ACCOUNT_RAW else MOCK_ACCOUNT_RAW
+MOCK_ACCOUNT_CODE = MOCK_ACCOUNT_RAW.split("-")[1] if "-" in MOCK_ACCOUNT_RAW else "01"
+
 # TR_ID (모의투자 vs 실거래)
 # 모의투자 TR_ID는 앞에 'V' 붙음
 _TR = {
@@ -53,6 +61,12 @@ _TOKEN_COOLDOWN_SEC = 65  # 1분 5초 여유
 
 # DB 토큰 캐시 키 (모의/실거래 구분)
 _DB_TOKEN_KEY = "kis_token_mock" if KIS_IS_MOCK else "kis_token_real"
+
+# 모의투자 전용 토큰 캐시 (Shadow Trading용, 기존 캐시와 별도)
+_mock_token_cache: dict = {"token": None, "expires": None}
+_mock_token_lock = asyncio.Lock()
+_last_mock_token_request: Optional[datetime] = None
+_DB_MOCK_TOKEN_KEY = "kis_shadow_token_mock"  # Shadow Trading 전용 DB 키
 
 
 def _load_token_from_db() -> tuple[str | None, datetime | None]:
@@ -355,3 +369,212 @@ async def start_daily_token_renewal() -> None:
 
         await asyncio.sleep(wait_seconds)
         await _force_renew_token()
+
+
+# ──────────────────────────────────────────────────────────
+# Shadow Trading (모의투자 전용 클라이언트)
+# 실거래 코드와 독립적으로 동작 — 기존 함수 건드리지 않음
+# ──────────────────────────────────────────────────────────
+
+def is_mock_configured() -> bool:
+    """Shadow Trading(모의투자) API 설정 완료 여부."""
+    return bool(MOCK_APP_KEY and MOCK_APP_SECRET and MOCK_ACCOUNT_NO)
+
+
+async def _get_mock_token() -> str:
+    """Shadow Trading 전용 OAuth2 토큰 발급.
+    우선순위: 메모리 캐시 → DB 캐시 → KIS 모의투자 API 신규 발급
+    기존 _get_token()과 완전히 독립 (캐시, 락, DB 키 모두 별도)
+    """
+    if not MOCK_APP_KEY:
+        raise Exception("모의투자 App Key 미설정 (KOREA_INVEST_MOCK_APP_KEY)")
+
+    async with _mock_token_lock:
+        now = datetime.now()
+
+        # 1순위: 메모리 캐시
+        if _mock_token_cache["token"] and _mock_token_cache["expires"] and now < _mock_token_cache["expires"]:
+            return _mock_token_cache["token"]
+
+        # 2순위: DB 캐시 (서버 재시작 후에도 살아있음)
+        try:
+            from db import load_setting
+            cached = load_setting(_DB_MOCK_TOKEN_KEY)
+            if cached and isinstance(cached, dict):
+                db_token = cached.get("token")
+                expires_str = cached.get("expires")
+                if db_token and expires_str:
+                    expires = datetime.fromisoformat(expires_str)
+                    if now < expires:
+                        _mock_token_cache["token"] = db_token
+                        _mock_token_cache["expires"] = expires
+                        logger.info("[KIS-Shadow] DB에서 모의투자 토큰 복원 (만료까지 %s분)", int((expires - now).total_seconds() // 60))
+                        return db_token
+        except Exception:
+            pass
+
+        # 3순위: KIS 모의투자 API 신규 발급 (쿨다운 체크)
+        global _last_mock_token_request
+        if _last_mock_token_request is not None:
+            elapsed = (datetime.now() - _last_mock_token_request).total_seconds()
+            if elapsed < _TOKEN_COOLDOWN_SEC:
+                wait = int(_TOKEN_COOLDOWN_SEC - elapsed)
+                raise Exception(f"모의투자 토큰 발급 대기 중 ({wait}초 후 재시도 가능, 1분당 1회 제한)")
+        _last_mock_token_request = datetime.now()
+
+        async with httpx.AsyncClient(timeout=10) as client:
+            resp = await client.post(
+                f"{MOCK_BASE}/oauth2/tokenP",
+                headers={"Content-Type": "application/json; charset=utf-8"},
+                json={
+                    "grant_type": "client_credentials",
+                    "appkey": MOCK_APP_KEY,
+                    "appsecret": MOCK_APP_SECRET,
+                },
+            )
+            if not resp.is_success:
+                body = resp.text
+                logger.error("[KIS-Shadow] 모의투자 토큰 발급 실패 %s: %s", resp.status_code, body)
+                raise Exception(f"모의투자 토큰 발급 실패 ({resp.status_code}): {body}")
+            resp.raise_for_status()
+            data = resp.json()
+            token = data["access_token"]
+            expires_in = int(data.get("expires_in", 86400))
+            expires = now + timedelta(seconds=expires_in - 300)  # 5분 여유
+            _mock_token_cache["token"] = token
+            _mock_token_cache["expires"] = expires
+            try:
+                from db import save_setting
+                save_setting(_DB_MOCK_TOKEN_KEY, {"token": token, "expires": expires.isoformat()})
+            except Exception:
+                pass
+            logger.info("[KIS-Shadow] 모의투자 토큰 신규 발급 (만료: %s분 후)", expires_in // 60)
+            return token
+
+
+async def get_mock_balance() -> dict:
+    """Shadow Trading: 모의투자 계좌 잔고 조회.
+
+    Returns:
+        {"cash": int, "holdings": [...], "total_eval": int, "success": bool, "is_mock": True}
+        미설정 시: {"available": False, "reason": str, "is_mock": True}
+    """
+    if not MOCK_APP_KEY:
+        return {"available": False, "reason": "모의투자 App Key 미설정 (KOREA_INVEST_MOCK_APP_KEY)", "is_mock": True}
+
+    try:
+        token = await _get_mock_token()
+        async with httpx.AsyncClient(timeout=15) as client:
+            resp = await client.get(
+                f"{MOCK_BASE}/uapi/domestic-stock/v1/trading/inquire-balance",
+                headers={
+                    "authorization": f"Bearer {token}",
+                    "appkey": MOCK_APP_KEY,
+                    "appsecret": MOCK_APP_SECRET,
+                    "tr_id": "VTTC8434R",  # 모의투자 잔고조회 TR_ID
+                },
+                params={
+                    "CANO": MOCK_ACCOUNT_NO,
+                    "ACNT_PRDT_CD": MOCK_ACCOUNT_CODE,
+                    "AFHR_FLPR_YN": "N",
+                    "OFL_YN": "",
+                    "INQR_DVSN": "02",
+                    "UNPR_DVSN": "01",
+                    "FUND_STTL_ICLD_YN": "N",
+                    "FNCG_AMT_AUTO_RDPT_YN": "N",
+                    "PRCS_DVSN": "01",
+                    "CTX_AREA_FK100": "",
+                    "CTX_AREA_NK100": "",
+                },
+            )
+            data = resp.json()
+            output1 = data.get("output1", [])  # 보유 종목
+            output2 = data.get("output2", [{}])  # 계좌 요약
+
+            cash = int((output2[0] if output2 else {}).get("dnca_tot_amt", "0") or "0")
+            total_eval = int((output2[0] if output2 else {}).get("tot_evlu_amt", "0") or "0")
+
+            holdings = []
+            for item in output1:
+                qty = int(item.get("hldg_qty", "0") or "0")
+                if qty > 0:
+                    holdings.append({
+                        "ticker": item.get("pdno", ""),
+                        "name": item.get("prdt_name", ""),
+                        "qty": qty,
+                        "avg_price": int(item.get("pchs_avg_pric", "0") or "0"),
+                        "current_price": int(item.get("prpr", "0") or "0"),
+                        "eval_profit": int(item.get("evlu_pfls_amt", "0") or "0"),
+                    })
+
+            return {
+                "success": True,
+                "available": True,
+                "cash": cash,
+                "holdings": holdings,
+                "total_eval": total_eval,
+                "mode": "모의투자",
+                "is_mock": True,
+            }
+    except Exception as e:
+        logger.error("[KIS-Shadow] 모의투자 잔고 조회 실패: %s", e)
+        return {"success": False, "available": False, "cash": 0, "holdings": [], "total_eval": 0, "error": str(e), "is_mock": True}
+
+
+async def get_mock_holdings() -> dict:
+    """Shadow Trading: 모의투자 보유종목 조회.
+
+    Returns:
+        {"success": bool, "holdings": [...], "is_mock": True}
+        각 항목: {"ticker", "name", "qty", "avg_price", "current_price", "eval_profit"}
+    """
+    if not MOCK_APP_KEY:
+        return {"available": False, "reason": "모의투자 App Key 미설정 (KOREA_INVEST_MOCK_APP_KEY)", "holdings": [], "is_mock": True}
+
+    try:
+        balance = await get_mock_balance()
+        holdings = balance.get("holdings", [])
+        return {
+            "success": balance.get("success", False),
+            "available": balance.get("available", False),
+            "holdings": holdings,
+            "count": len(holdings),
+            "is_mock": True,
+        }
+    except Exception as e:
+        logger.error("[KIS-Shadow] 모의투자 보유종목 조회 실패: %s", e)
+        return {"success": False, "available": False, "holdings": [], "count": 0, "error": str(e), "is_mock": True}
+
+
+async def get_shadow_comparison() -> dict:
+    """Shadow Trading: 실거래 vs 모의투자 비교.
+
+    실거래와 모의투자 잔고를 동시에 조회하여 비교 데이터를 반환.
+    슬리피지(slippage) — 실거래와 모의 수익률 차이 — 는 향후 누적 데이터 기반으로 계산 예정.
+
+    Returns:
+        {
+            "real": {...},   # 실거래 잔고 (get_balance() 결과)
+            "mock": {...},   # 모의투자 잔고 (get_mock_balance() 결과)
+            "available": bool,  # 둘 다 정상 조회된 경우 True
+            "slip_rate": None,  # 슬리피지 (추후 계산)
+        }
+    """
+    real_result, mock_result = await asyncio.gather(
+        get_balance(),
+        get_mock_balance(),
+        return_exceptions=True,
+    )
+
+    # gather에서 예외가 반환된 경우 오류 dict로 변환
+    if isinstance(real_result, Exception):
+        real_result = {"success": False, "error": str(real_result)}
+    if isinstance(mock_result, Exception):
+        mock_result = {"success": False, "error": str(mock_result), "is_mock": True}
+
+    return {
+        "real": real_result,
+        "mock": mock_result,
+        "available": real_result.get("success", False) and mock_result.get("success", False),
+        "slip_rate": None,  # 슬리피지 — 실거래와 모의 수익률 차이, 누적 데이터 후 계산
+    }
