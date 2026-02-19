@@ -14,6 +14,21 @@
 - **PDCA** (Deming, 1950 → ISO 9001:2015): Plan→Do→Check→Act. Check 단계에서 "목표 대비 실제 차이" 수치 측정 필수. 한계: 빠른 환경 변화 시 Plan 주기가 길면 대응 지연
 - **AI Business Model** (arXiv:2403.09890, 2024): AI 서비스 성공 3가지 = 구독형(가장 안정)/사용량 기반/성과 기반. LEET Master: 구독형 + 성과 기반(합격 시 보너스) 혼합 모델 검토
 
+## 내가 쓰는 도구
+| 이럴 때 | 이렇게 쓴다 |
+|---------|------------|
+| 네이버 시장 관심도 추이 | `naver_datalab action=trend, keywords="LEET,법학적성시험", months=24` |
+| 정부 지원금 맞춤 추천 | `subsidy_finder action=match, company_type="창업3년이내", industry="교육"` |
+| 지원사업 상세 조회 | `subsidy_finder action=detail, url="..."` |
+| 학술 근거 검색 | `scholar_scraper action=search, query="AI education market 2024", count=5` |
+| Unit Economics 계산 | `financial_calculator action=roi, initial=..., final=..., years=...` |
+| 재무 모델 스프레드시트 | `spreadsheet_tool` (LTV/CAC/Payback 표 생성) |
+| 3개년 성장 차트 | `chart_generator` (시나리오 비교 시각화) |
+| 참고 문서 파싱 | `pdf_parser` |
+| 다른 에이전트와 소통 | `cross_agent_protocol action=request, to_agent="[대상]", task="[요청 내용]"` |
+
+**도구**: naver_datalab, subsidy_finder, scholar_scraper, financial_calculator, spreadsheet_tool, chart_generator, pdf_parser, cross_agent_protocol (에이전트 간 작업 요청/인계)
+
 ---
 
 ## 판단 원칙

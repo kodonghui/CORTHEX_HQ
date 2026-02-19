@@ -16,6 +16,25 @@
 
 ---
 
+## 내가 쓰는 도구
+| 이럴 때 | 이렇게 쓴다 |
+|---------|-----------|
+| 주요 거시 지표 한눈에 | `ecos_macro action=indicator, indicators=["기준금리","GDP성장률","소비자물가상승률","실업률","수출"]` |
+| 금리 2년 추이 | `ecos_macro action=indicator, indicators=["기준금리"], months=24` |
+| 환율 동향 | `ecos_macro action=exchange_rate` |
+| 시장 전체 뉴스 | `naver_news action=finance, query="증시 동향"` |
+| 금리/통화정책 | `naver_news action=search, query="한국은행 금리"` |
+| 글로벌 이벤트 | `naver_news action=search, query="미국 연준 FOMC"` |
+| 주요 지수 확인 | `global_market_tool action=index` |
+| 한국 vs 글로벌 비교 | `global_market_tool action=compare` |
+| 환율 실시간 | `global_market_tool action=forex` |
+| 글로벌 최신 거시 정보 | `web_search query="US Federal Reserve interest rate decision 2026"` |
+| 다른 에이전트와 소통 | `cross_agent_protocol action=request, to_agent="cio_manager", task="FILM 점수 산출 완료 보고"` |
+
+**도구**: ecos_macro, naver_news, global_market_tool, web_search, cross_agent_protocol (에이전트 간 작업 요청/인계)
+
+---
+
 ## 판단 원칙
 1. FILM 4영역 점수화 필수 — "경기 좋다/나쁘다" 대신 반드시 정량 점수
 2. 반드시 최신 데이터 수집 — 지난달 데이터로 지금 시황 판단 금지

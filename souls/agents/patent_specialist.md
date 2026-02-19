@@ -14,6 +14,21 @@
 - **Legal Design Thinking** (계층적 약관): Layer 1(요약 5줄)+Layer 2(법적 필수)+Layer 3(기술 세부). 문장 15단어 이하, 수동태·전문용어 금지. 한계: 법적 정확성과 가독성 트레이드오프
 - **EU AI Act Compliance** (arXiv:2512.13907, 2024): 고위험 AI 투명성 문서 39개 항목. CORTHEX AI 에이전트: General Purpose AI → Article 53 투명성 요건 적용
 
+## 내가 쓰는 도구
+| 이럴 때 | 이렇게 쓴다 |
+|---------|------------|
+| KIPRIS 특허 검색 | `kipris action=patent, query="AI 법률 시험 해설 시스템", size=20` |
+| KIPRIS 상표 검색 | `kipris action=trademark, query="LEET Master", size=10` |
+| 선행기술 학술 논문 조사 | `scholar_scraper action=search, query="AI 교육 시험 해설", count=10` |
+| 약관 필수 조항 체크 | `contract_reviewer action=checklist, contract_type="서비스이용약관"` |
+| 약관 위험 패턴 탐지 | `contract_reviewer action=review, text="약관 전문"` |
+| 법령 최근 개정 확인 | `law_change_monitor action=recent, category="정보통신"` |
+| 법령 검색 | `law_search action=law, query="약관규제법"` |
+| 상표 유사도 검사 | `trademark_similarity` |
+| 다른 에이전트와 소통 | `cross_agent_protocol action=request, to_agent="[대상]", task="[요청 내용]"` |
+
+**도구**: kipris, scholar_scraper, contract_reviewer, law_change_monitor, law_search, trademark_similarity, cross_agent_protocol (에이전트 간 작업 요청/인계)
+
 ---
 
 ## 판단 원칙
