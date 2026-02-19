@@ -3946,7 +3946,7 @@
 
           <!-- 서브 탭 -->
           <div class="flex gap-2 mb-6">
-            <template x-for="tab in [{id:'dashboard',l:'대시보드'},{id:'portfolio',l:'포트폴리오'},{id:'strategies',l:'매매 전략'},{id:'watchlist',l:'관심종목'},{id:'history',l:'거래내역'},{id:'signals',l:'시그널'},{id:'performance',l:'CIO 성과'},{id:'shadow',l:'실거래/모의 비교'}]" :key="tab.id">
+            <template x-for="tab in [{id:'dashboard',l:'대시보드'},{id:'shadow',l:'실거래/모의 비교'},{id:'portfolio',l:'포트폴리오'},{id:'watchlist',l:'관심종목'},{id:'history',l:'거래내역'},{id:'strategies',l:'매매전략'},{id:'signals',l:'시그널'},{id:'performance',l:'CIO 성과'}]" :key="tab.id">
               <button @click="trading.tab = tab.id" :class="trading.tab === tab.id ? 'bg-hq-accent/20 text-hq-accent border-hq-accent/30' : 'text-hq-muted border-transparent hover:text-hq-text'" class="px-3 py-1.5 text-xs font-semibold rounded-lg border transition" x-text="tab.l"></button>
             </template>
           </div>
