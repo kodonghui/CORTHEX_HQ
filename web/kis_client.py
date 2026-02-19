@@ -52,6 +52,22 @@ _TR = {
     "balance": "VTTC8434R" if KIS_IS_MOCK else "TTTC8434R",
 }
 
+# 해외주식 TR_ID (모의투자 vs 실거래)
+_TR_OVERSEAS = {
+    "buy":     "VTTS0308U" if KIS_IS_MOCK else "TTTS0308U",
+    "sell":    "VTTS0307U" if KIS_IS_MOCK else "TTTS0307U",
+    "price":   "HHDFS00000300",   # 해외 현재가 (모의/실거래 동일)
+    "balance": "VTTS3012R" if KIS_IS_MOCK else "TTTS3012R",
+}
+
+# 해외주식 거래소 코드
+_EXCHANGE_CODES = {
+    "NASDAQ": "NASD",
+    "NYSE": "NYSE",
+    "AMEX": "AMEX",
+    "NASD": "NASD",
+}
+
 # 토큰 캐시 (메모리)
 _token_cache: dict = {"token": None, "expires": None}
 _token_lock = asyncio.Lock()
@@ -612,3 +628,314 @@ async def get_shadow_comparison() -> dict:
         "available": real_result.get("success", False) and mock_result.get("success", False),
         "slip_rate": None,  # 슬리피지 — 실거래와 모의 수익률 차이, 누적 데이터 후 계산
     }
+
+
+# ──────────────────────────────────────────────────────────
+# 해외주식 (미국주식) — 현재가 / 주문 / 잔고
+# KIS OpenAPI 해외주식 엔드포인트 사용
+# ──────────────────────────────────────────────────────────
+
+def _detect_exchange(symbol: str) -> str:
+    """미국 주식 심볼로 거래소 추정. 기본값 NASD(나스닥)."""
+    # 대부분의 미국 주식은 나스닥/NYSE — 기본 NASD로 설정
+    return "NASD"
+
+
+async def get_overseas_price(symbol: str, exchange: str = "") -> dict:
+    """해외주식 현재가 조회.
+
+    Args:
+        symbol: 종목 심볼 (예: "AAPL", "TSLA", "NVDA")
+        exchange: 거래소 코드 (NASD, NYSE, AMEX). 비어있으면 자동 추정
+    Returns:
+        {"price": float, "change": float, "change_pct": float, "volume": int, ...}
+    """
+    if not is_configured():
+        return {"success": False, "message": "KIS API 미설정"}
+
+    excd = _EXCHANGE_CODES.get(exchange.upper(), "") if exchange else _detect_exchange(symbol)
+
+    try:
+        token = await _get_token()
+        async with httpx.AsyncClient(timeout=15) as client:
+            resp = await client.get(
+                f"{KIS_BASE}/uapi/overseas-price/v1/quotations/price",
+                headers={
+                    "authorization": f"Bearer {token}",
+                    "appkey": KIS_APP_KEY,
+                    "appsecret": KIS_APP_SECRET,
+                    "tr_id": _TR_OVERSEAS["price"],
+                },
+                params={
+                    "AUTH": "",
+                    "EXCD": excd,
+                    "SYMB": symbol.upper(),
+                },
+            )
+            data = resp.json()
+            output = data.get("output", {})
+
+            if not output or data.get("rt_cd") != "0":
+                msg = data.get("msg1", "알 수 없는 오류")
+                return {"success": False, "message": f"해외주식 현재가 조회 실패: {msg}"}
+
+            price = float(output.get("last", "0") or "0")
+            prev_close = float(output.get("base", "0") or "0")
+            change = price - prev_close if prev_close else 0
+            change_pct = (change / prev_close * 100) if prev_close else 0
+            volume = int(output.get("tvol", "0") or "0")
+
+            logger.info("[KIS] 해외주식 %s 현재가: $%.2f (%+.2f%%)", symbol, price, change_pct)
+            return {
+                "success": True,
+                "symbol": symbol.upper(),
+                "exchange": excd,
+                "price": price,
+                "prev_close": prev_close,
+                "change": change,
+                "change_pct": change_pct,
+                "volume": volume,
+                "high": float(output.get("high", "0") or "0"),
+                "low": float(output.get("low", "0") or "0"),
+                "open": float(output.get("open", "0") or "0"),
+                "currency": "USD",
+            }
+    except Exception as e:
+        logger.error("[KIS] 해외주식 현재가 조회 실패 (%s): %s", symbol, e)
+        return {"success": False, "message": str(e)}
+
+
+async def place_overseas_order(
+    symbol: str,
+    action: str,       # "buy" or "sell"
+    qty: int,
+    price: float = 0,  # 0 = 시장가
+    exchange: str = "",
+) -> dict:
+    """해외주식 주문 실행 (매수/매도).
+
+    Args:
+        symbol: 종목 심볼 (예: "AAPL")
+        action: "buy" or "sell"
+        qty: 주문 수량
+        price: 주문 단가 (0=시장가, LOT 방식)
+        exchange: 거래소 코드 (NASD, NYSE, AMEX)
+    Returns:
+        {"success": bool, "order_no": str, "message": str}
+    """
+    if not is_configured():
+        return {"success": False, "message": "KIS API 미설정", "order_no": ""}
+
+    if action not in ("buy", "sell"):
+        return {"success": False, "message": f"잘못된 action: {action}", "order_no": ""}
+
+    excd = _EXCHANGE_CODES.get(exchange.upper(), "") if exchange else _detect_exchange(symbol)
+    # 해외주식 주문: ORD_DVSN "00"=지정가, "31"=시장가(MOC)
+    order_type = "00" if price > 0 else "00"  # 해외 시장가는 0원 지정가로 처리
+    mode = "모의투자" if KIS_IS_MOCK else "실거래"
+
+    try:
+        token = await _get_token()
+        async with httpx.AsyncClient(timeout=15) as client:
+            resp = await client.post(
+                f"{KIS_BASE}/uapi/overseas-stock/v1/trading/order",
+                headers={
+                    "authorization": f"Bearer {token}",
+                    "appkey": KIS_APP_KEY,
+                    "appsecret": KIS_APP_SECRET,
+                    "tr_id": _TR_OVERSEAS[action],
+                    "content-type": "application/json",
+                },
+                json={
+                    "CANO": KIS_ACCOUNT_NO,
+                    "ACNT_PRDT_CD": KIS_ACCOUNT_CODE,
+                    "OVRS_EXCG_CD": excd,
+                    "PDNO": symbol.upper(),
+                    "ORD_DVSN": order_type,
+                    "ORD_QTY": str(qty),
+                    "OVRS_ORD_UNPR": f"{price:.2f}" if price > 0 else "0",
+                    "ORD_SVR_DVSN_CD": "0",
+                },
+            )
+            data = resp.json()
+
+            rt_cd = data.get("rt_cd", "1")
+            msg = data.get("msg1", "")
+            order_no = data.get("output", {}).get("ODNO", "")
+            success = rt_cd == "0"
+
+            action_kr = "매수" if action == "buy" else "매도"
+            if success:
+                logger.info("[KIS %s] 해외 %s %s %d주 주문 완료 (주문번호: %s)", mode, action_kr, symbol, qty, order_no)
+            else:
+                logger.warning("[KIS %s] 해외 %s %s %d주 주문 실패: %s", mode, action_kr, symbol, qty, msg)
+
+            return {
+                "success": success,
+                "order_no": order_no,
+                "message": msg,
+                "mode": mode,
+                "market": "US",
+                "raw": data,
+            }
+    except Exception as e:
+        logger.error("[KIS] 해외주식 주문 실패 (%s %s): %s", action, symbol, e)
+        return {"success": False, "message": str(e), "order_no": ""}
+
+
+async def get_overseas_balance() -> dict:
+    """해외주식 계좌 잔고 조회.
+
+    Returns:
+        {"cash_usd": float, "holdings": [...], "total_eval_usd": float, "success": bool}
+    """
+    if not is_configured():
+        return {"success": False, "available": False, "cash_usd": 0, "holdings": [], "total_eval_usd": 0}
+
+    try:
+        token = await _get_token()
+        async with httpx.AsyncClient(timeout=15) as client:
+            resp = await client.get(
+                f"{KIS_BASE}/uapi/overseas-stock/v1/trading/inquire-balance",
+                headers={
+                    "authorization": f"Bearer {token}",
+                    "appkey": KIS_APP_KEY,
+                    "appsecret": KIS_APP_SECRET,
+                    "tr_id": _TR_OVERSEAS["balance"],
+                },
+                params={
+                    "CANO": KIS_ACCOUNT_NO,
+                    "ACNT_PRDT_CD": KIS_ACCOUNT_CODE,
+                    "OVRS_EXCG_CD": "NASD",
+                    "TR_CRCY_CD": "USD",
+                    "CTX_AREA_FK200": "",
+                    "CTX_AREA_NK200": "",
+                },
+            )
+            data = resp.json()
+
+            if data.get("rt_cd") != "0":
+                msg = data.get("msg1", "알 수 없는 오류")
+                logger.warning("[KIS] 해외주식 잔고 조회 실패: %s", msg)
+                return {"success": False, "available": False, "message": msg, "cash_usd": 0, "holdings": [], "total_eval_usd": 0}
+
+            output1 = data.get("output1", [])  # 보유 종목
+            output2 = data.get("output2", {})   # 계좌 요약 (dict일 수도 있음)
+
+            # output2가 리스트인 경우 처리
+            if isinstance(output2, list):
+                out2 = output2[0] if output2 else {}
+            else:
+                out2 = output2
+
+            cash_usd = float(out2.get("frcr_pchs_amt1", "0") or "0")
+            total_eval_usd = float(out2.get("tot_evlu_pfls_amt", "0") or "0")
+
+            holdings = []
+            for item in output1:
+                qty = int(float(item.get("ovrs_cblc_qty", "0") or "0"))
+                if qty > 0:
+                    avg_price = float(item.get("pchs_avg_pric", "0") or "0")
+                    current_price = float(item.get("now_pric2", "0") or "0")
+                    eval_profit = float(item.get("frcr_evlu_pfls_amt", "0") or "0")
+                    holdings.append({
+                        "symbol": item.get("ovrs_pdno", ""),
+                        "name": item.get("ovrs_item_name", ""),
+                        "exchange": item.get("ovrs_excg_cd", ""),
+                        "qty": qty,
+                        "avg_price": avg_price,
+                        "current_price": current_price,
+                        "eval_profit": eval_profit,
+                        "currency": "USD",
+                    })
+
+            mode = "모의투자" if KIS_IS_MOCK else "실거래"
+            logger.info("[KIS] 해외주식 잔고 조회 완료 (%s) — %d종목 보유", mode, len(holdings))
+
+            return {
+                "success": True,
+                "available": True,
+                "cash_usd": cash_usd,
+                "holdings": holdings,
+                "total_eval_usd": total_eval_usd,
+                "mode": mode,
+                "market": "US",
+            }
+    except Exception as e:
+        logger.error("[KIS] 해외주식 잔고 조회 실패: %s", e)
+        return {"success": False, "available": False, "cash_usd": 0, "holdings": [], "total_eval_usd": 0, "error": str(e)}
+
+
+async def get_mock_overseas_balance() -> dict:
+    """Shadow Trading: 모의투자 해외주식 잔고 조회.
+
+    Returns:
+        {"cash_usd": float, "holdings": [...], "total_eval_usd": float, "success": bool, "is_mock": True}
+    """
+    if not MOCK_APP_KEY:
+        return {"available": False, "reason": "모의투자 App Key 미설정", "is_mock": True}
+
+    try:
+        token = await _get_mock_token()
+        async with httpx.AsyncClient(timeout=15) as client:
+            resp = await client.get(
+                f"{MOCK_BASE}/uapi/overseas-stock/v1/trading/inquire-balance",
+                headers={
+                    "authorization": f"Bearer {token}",
+                    "appkey": MOCK_APP_KEY,
+                    "appsecret": MOCK_APP_SECRET,
+                    "tr_id": "VTTS3012R",
+                },
+                params={
+                    "CANO": MOCK_ACCOUNT_NO,
+                    "ACNT_PRDT_CD": MOCK_ACCOUNT_CODE,
+                    "OVRS_EXCG_CD": "NASD",
+                    "TR_CRCY_CD": "USD",
+                    "CTX_AREA_FK200": "",
+                    "CTX_AREA_NK200": "",
+                },
+            )
+            data = resp.json()
+
+            if data.get("rt_cd") != "0":
+                msg = data.get("msg1", "알 수 없는 오류")
+                return {"success": False, "available": False, "message": msg, "is_mock": True}
+
+            output1 = data.get("output1", [])
+            output2 = data.get("output2", {})
+            if isinstance(output2, list):
+                out2 = output2[0] if output2 else {}
+            else:
+                out2 = output2
+
+            cash_usd = float(out2.get("frcr_pchs_amt1", "0") or "0")
+            total_eval_usd = float(out2.get("tot_evlu_pfls_amt", "0") or "0")
+
+            holdings = []
+            for item in output1:
+                qty = int(float(item.get("ovrs_cblc_qty", "0") or "0"))
+                if qty > 0:
+                    holdings.append({
+                        "symbol": item.get("ovrs_pdno", ""),
+                        "name": item.get("ovrs_item_name", ""),
+                        "exchange": item.get("ovrs_excg_cd", ""),
+                        "qty": qty,
+                        "avg_price": float(item.get("pchs_avg_pric", "0") or "0"),
+                        "current_price": float(item.get("now_pric2", "0") or "0"),
+                        "eval_profit": float(item.get("frcr_evlu_pfls_amt", "0") or "0"),
+                        "currency": "USD",
+                    })
+
+            return {
+                "success": True,
+                "available": True,
+                "cash_usd": cash_usd,
+                "holdings": holdings,
+                "total_eval_usd": total_eval_usd,
+                "mode": "모의투자",
+                "is_mock": True,
+                "market": "US",
+            }
+    except Exception as e:
+        logger.error("[KIS-Shadow] 모의투자 해외주식 잔고 조회 실패: %s", e)
+        return {"success": False, "available": False, "cash_usd": 0, "holdings": [], "total_eval_usd": 0, "error": str(e), "is_mock": True}

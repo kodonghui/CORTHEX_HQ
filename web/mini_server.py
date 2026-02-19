@@ -5064,6 +5064,28 @@ async def get_mock_trading_balance():
         return {"available": False, "error": str(e)}
 
 
+@app.get("/api/trading/overseas/balance")
+async def get_overseas_trading_balance():
+    """해외주식 잔고 조회 (실거래)"""
+    try:
+        from kis_client import get_overseas_balance
+        result = await get_overseas_balance()
+        return result
+    except Exception as e:
+        return {"available": False, "error": str(e)}
+
+
+@app.get("/api/trading/overseas/mock-balance")
+async def get_overseas_mock_balance():
+    """해외주식 모의투자 잔고 조회"""
+    try:
+        from kis_client import get_mock_overseas_balance
+        result = await get_mock_overseas_balance()
+        return result
+    except Exception as e:
+        return {"available": False, "error": str(e), "is_mock": True}
+
+
 @app.get("/api/trading/portfolio/history")
 async def get_portfolio_history():
     """포트폴리오 일별 스냅샷 조회 (라인차트용)"""

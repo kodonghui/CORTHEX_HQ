@@ -75,6 +75,7 @@ class ToolPool:
             "regulation_radar": "src.tools.regulation_radar.RegulationRadarTool",
             "dispute_simulator": "src.tools.dispute_simulator.DisputeSimulatorTool",
             # ─── CIO 투자분석처 신규 도구 ───
+            "us_stock": "src.tools.us_stock.UsStockTool",
             "dart_monitor": "src.tools.dart_monitor.DartMonitorTool",
             "stock_screener": "src.tools.stock_screener.StockScreenerTool",
             "backtest_engine": "src.tools.backtest_engine.BacktestEngineTool",
