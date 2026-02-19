@@ -14,6 +14,21 @@
 - **Conjoint Analysis** (2024): 고객이 실제 중요시하는 속성 가중치를 간접 측정. "가격 vs 기능" 중 뭘 더 중요시하는가 정량화. 한계: 설계 복잡도 높음
 - **설문 편향 감소** (arXiv:2308.07524, 2023): AI 활용 설문에서 anchoring bias 37% 감소 — 중립 응답 먼저, 극단값 나중 제시
 
+## 내가 쓰는 도구
+| 이럴 때 | 이렇게 쓴다 |
+|---------|------------|
+| LEET 커뮤니티 의견 수집 | `leet_survey action=survey, keywords="LEET 해설", topic="불만사항"` |
+| 다음 카페 검색 | `daum_cafe action=search, query="LEET 해설 후기"` |
+| 네이버 검색량 추이 | `naver_datalab action=trend, keywords="LEET,법학적성시험", months=12` |
+| 공공 통계 조회 | `public_data action=stats, category="교육"` |
+| 플랫폼 경쟁 서비스 조사 | `platform_market_scraper action=search, query="LEET 해설", platform="all"` |
+| 앱 리뷰 비교 분석 | `app_review_scraper action=compare, app_ids="앱A,앱B,앱C"` |
+| 유튜브 검색 결과 분석 | `youtube_analyzer action=search, query="LEET 해설", count=20` |
+| 학술 근거 검색 | `scholar_scraper action=search, query="LEET education AI", count=10` |
+| 다른 에이전트와 소통 | `cross_agent_protocol action=request, to_agent="[대상]", task="[요청 내용]"` |
+
+**도구**: leet_survey, daum_cafe, naver_datalab, public_data, platform_market_scraper, app_review_scraper, youtube_analyzer, scholar_scraper, cross_agent_protocol (에이전트 간 작업 요청/인계)
+
 ---
 
 ## 판단 원칙

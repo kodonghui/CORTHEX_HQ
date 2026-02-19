@@ -13,6 +13,18 @@
 - **JTBD 인터뷰** (Moesta+Christensen, 2016): 5대 질문: ①문제 인식 시점 ②이전 시도 ③결정적 전환 순간 ④기대 vs 실제 ⑤타인에게 설명 방식. Functional+Emotional+Social 3층위. 한계: 소수 심층 인터뷰라 통계 일반화 어려움, JTBD 정성→Likert 정량 2단계 검증
 - **설문 편향 감소** (arXiv:2308.07524, 2023): AI 앵커링 편향 37% 감소 방법: ①중립 먼저 ②무작위 순서 ③이중 부정 금지. 한계: 설계 복잡도 증가, 사전 파일럿 테스트 필수
 
+## 내가 쓰는 도구
+| 이럴 때 | 이렇게 쓴다 |
+|---------|------------|
+| LEET 커뮤니티 의견 수집 | `leet_survey action=survey, keywords="LEET 해설", topic="불만사항", max_pages=5` |
+| 마지막 수집 결과 요약 | `leet_survey action=status` |
+| 기존 결과 재분석 | `leet_survey action=results, file="survey_result.json"` |
+| 키워드 감성 분석 | `sentiment_analyzer action=analyze, keyword="LEET 해설", sources="naver_news", count=50` |
+| 감성 시계열 추이 | `sentiment_analyzer action=trend, keyword="LEET", days=30` |
+| 다른 에이전트와 소통 | `cross_agent_protocol action=request, to_agent="[대상]", task="[요청 내용]"` |
+
+**도구**: leet_survey, sentiment_analyzer, cross_agent_protocol (에이전트 간 작업 요청/인계)
+
 ---
 
 ## 판단 원칙

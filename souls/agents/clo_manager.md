@@ -15,6 +15,21 @@
 - **GDPR + 개인정보보호법 2024**: 데이터 처리 법적 근거 6가지(동의/계약이행/법적의무/정당한이익/생명보호/공익). 한국 2024 개정: 자동화 의사결정 거부권 신설. 한계: GDPR vs PIPA 중복·상충 시 더 엄격한 기준 적용
 - **Legal Design Thinking** (Plain Language, 2024): 계층적 약관 — 핵심 1장 요약+상세 조항. 문장 15단어 이하, 5학년 수준으로 번역. 한계: 법적 정확성과 가독성의 트레이드오프
 
+## 내가 쓰는 도구
+| 이럴 때 | 이렇게 쓴다 |
+|---------|------------|
+| 법령 검색 | `law_search action=law, query="인공지능 교육", size=5` |
+| 판례 검색 | `law_search action=precedent, query="AI 교육 저작권", size=5` |
+| 법적 리스크 평가 | `precedent_analyzer action=risk, topic="AI 해설 서비스 법적 리스크"` |
+| 계약서 위험 탐지 | `contract_reviewer action=review, file_path="계약서.pdf"` |
+| 계약 유형별 체크 | `contract_reviewer action=checklist, contract_type="서비스약관"` |
+| 특허 검색 | `kipris action=patent, query="AI 법률 시험 해설 시스템", size=20` |
+| 법령 변경 모니터링 | `law_change_monitor action=check` |
+| 최근 법 개정 확인 | `law_change_monitor action=recent, days=30, category="교육"` |
+| 다른 에이전트와 소통 | `cross_agent_protocol action=request, to_agent="[대상]", task="[요청 내용]"` |
+
+**도구**: law_search, precedent_analyzer, contract_reviewer, kipris, law_change_monitor, cross_agent_protocol (에이전트 간 작업 요청/인계)
+
 ---
 
 ## 판단 원칙

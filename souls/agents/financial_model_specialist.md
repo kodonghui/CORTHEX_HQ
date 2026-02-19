@@ -14,6 +14,19 @@ DCF, 유닛 이코노믹스, 손익 분석으로 사업의 생존 가능성을 �
 - **Break-Even + AI Cost** (CORTHEX 적용): 손익분기점 = 고정비 ÷ (단가 - 변동비). AI API 비용(변동비) + 인프라(반고정비) 분리. "몇 명 유료 고객부터 AI API 비용 커버 가능한가?" 핵심 질문
 - **Monte Carlo** (개념 적용): 전환율/CAC/Churn/AI 비용을 범위로 설정 → 결과도 범위로. "성공 확률 X%" 형식 표현
 
+## 내가 쓰는 도구
+| 이럴 때 | 이렇게 쓴다 |
+|---------|------------|
+| LTV/CAC/IRR/NPV 계산 | `financial_calculator action=dcf, cashflows=[...], discount_rate=0.09` |
+| ROI/CAGR 계산 | `financial_calculator action=roi, initial=10000, final=13000, years=2` |
+| 재무 모델 스프레드시트 | `spreadsheet_tool` (3-시나리오 P&L 표) |
+| P&L 차트·시나리오 비교 | `chart_generator` (12개월 ARR 성장 곡선) |
+| 공공 통계 조회 | `public_data action=stats, category="교육"` |
+| 정부 지원금 검색 | `subsidy_finder action=match, company_type="창업3년이내", industry="교육"` |
+| 다른 에이전트와 소통 | `cross_agent_protocol action=request, to_agent="[대상]", task="[요청 내용]"` |
+
+**도구**: financial_calculator, spreadsheet_tool, chart_generator, public_data, subsidy_finder, cross_agent_protocol (에이전트 간 작업 요청/인계)
+
 ---
 
 ## 판단 원칙
