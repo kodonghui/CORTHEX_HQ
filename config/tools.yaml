@@ -1,1115 +1,488 @@
-# ===========================================
-# CORTHEX HQ - Tool Pool Configuration (도구 설정)
-# ===========================================
-# 에이전트가 필요 시 호출하는 전문 도구 목록
-
 tools:
-  - tool_id: "patent_attorney"
-    name: "Patent Attorney"
-    name_ko: "변리사"
-    description: "특허 출원, 선행기술 조사, 특허 침해 분석"
-    model_name: "gpt-5-mini"
-
-  - tool_id: "tax_accountant"
-    name: "Tax Accountant"
-    name_ko: "세무사"
-    description: "세무 관련 조언, 절세 전략, 세금 계산"
-    model_name: "gpt-5-mini"
-
-  - tool_id: "designer"
-    name: "Designer"
-    name_ko: "디자이너"
-    description: "UI/UX 디자인 조언, 디자인 시스템, 와이어프레임"
-    model_name: "gpt-5-mini"
-
-  - tool_id: "translator"
-    name: "Translator"
-    name_ko: "번역가"
-    description: "한영/영한 번역, 기술 문서 번역"
-    model_name: "gpt-5-mini"
-
-  - tool_id: "web_search"
-    name: "Web Search"
-    name_ko: "웹검색"
-    description: "실시간 웹 검색 및 정보 수집"
-    model_name: "gpt-5-mini"
-
-  - tool_id: "daum_cafe"
-    name: "Daum Cafe Search"
-    name_ko: "다음 카페 검색"
-    description: "다음 카페 글 검색 및 본문 크롤링, 소비자 반응 분석 (카카오 API)"
-    model_name: "gpt-5-mini"
-
-  # ─── SNS 연동 도구 ───
-
-  - tool_id: "leet_survey"
-    name: "LEET Survey"
-    name_ko: "LEET 해설 서베이"
-    description: "6개 커뮤니티(다음카페/네이버카페/네이버블로그/오르비/디시인사이드/티스토리)에서 LEET 해설 부정의견 자동 수집·분석"
-    model_name: "gpt-5-mini"
-
-  - tool_id: "sns_manager"
-    name: "SNS Manager"
-    name_ko: "SNS 매니저"
-    description: "Tistory/YouTube/Instagram/LinkedIn/네이버카페/네이버블로그/다음카페 통합 퍼블리싱 (CEO 승인 큐 포함)"
-    model_name: "gpt-5-mini"
-
-  # ═══════════════════════════════════════════
-  #  부서별 전문가 도구 (실제 외부 API 연동)
-  # ═══════════════════════════════════════════
-
-  # ─── CIO 투자분석처 도구 ───
-
-  - tool_id: "kr_stock"
-    name: "Korean Stock Data"
-    name_ko: "한국 주식 데이터"
-    description: "한국거래소 주가/거래량 조회, 기술적 지표(RSI/MACD/BB) 자동 계산, 시가총액 순위 (pykrx)"
-    model_name: "gpt-5-mini"
-    parameters:
-      type: object
-      properties:
-        action:
-          type: string
-          enum: [price, ohlcv, indicators, market_cap]
-          description: "수행할 작업. price=주가조회, ohlcv=기간별 데이터, indicators=기술적지표, market_cap=시가총액순위"
-        ticker:
-          type: string
-          description: "종목코드 (예: 005930). ticker 또는 name 중 하나 필수"
-        name:
-          type: string
-          description: "종목명 (예: 삼성전자). ticker 또는 name 중 하나 필수"
-        days:
-          type: integer
-          description: "조회 기간 (일수, 기본값 30)"
-        market:
-          type: string
-          enum: [KOSPI, KOSDAQ]
-          description: "시장 구분 (market_cap action에만 사용, 기본값 KOSPI)"
-        top_n:
-          type: integer
-          description: "시가총액 상위 N개 (market_cap action에만 사용, 기본값 20)"
-      required: [action]
-
-  - tool_id: "dart_api"
-    name: "DART Financial Statements"
-    name_ko: "DART 재무제표"
-    description: "금융감독원 DART 기업 재무제표(매출/영업이익/순이익), 기업정보, 최신 공시 조회"
-    model_name: "gpt-5-mini"
-    parameters:
-      type: object
-      properties:
-        action:
-          type: string
-          enum: ["financial", "company", "disclosure"]
-          description: "financial=재무제표 조회, company=기업정보, disclosure=최신 공시"
-        company:
-          type: string
-          description: "기업명 (예: 삼성전자, SK하이닉스, LG에너지솔루션)"
-        year:
-          type: string
-          description: "조회 연도 (예: 2024, 기본값: 2024)"
-        report_code:
-          type: string
-          description: "공시 유형 코드 (11011=사업보고서, 기본값: 11011)"
-      required: ["action", "company"]
-
-  - tool_id: "naver_news"
-    name: "Naver News Search"
-    name_ko: "네이버 뉴스 검색"
-    description: "네이버 검색 API로 최신 뉴스 검색, 금융/시장 뉴스 분석"
-    model_name: "gpt-5-mini"
-
-  - tool_id: "ecos_macro"
-    name: "ECOS Macro Indicators"
-    name_ko: "한국은행 경제 지표"
-    description: "한국은행 ECOS API로 기준금리, GDP, CPI, 환율 등 거시경제 지표 조회"
-    model_name: "gpt-5-mini"
-
-  # ─── CSO 사업기획처 도구 ───
-
-  - tool_id: "naver_datalab"
-    name: "Naver DataLab Trends"
-    name_ko: "네이버 데이터랩"
-    description: "네이버 데이터랩 API로 키워드 검색량 추이(최대 5개 비교) 및 쇼핑 트렌드 분석"
-    model_name: "gpt-5-mini"
-
-  - tool_id: "public_data"
-    name: "Public Data Portal"
-    name_ko: "공공데이터"
-    description: "공공데이터포털 API로 인구, 교육, 경제 등 정부 통계 데이터 조회"
-    model_name: "gpt-5-mini"
-
-  - tool_id: "platform_market_scraper"
-    name: "Platform Market Scraper"
-    name_ko: "플랫폼 시장 조사기"
-    description: "크몽/탈잉/클래스101 플랫폼에서 서비스 가격·리뷰·판매량 수집 및 시장 분석"
-    model_name: "gpt-5-mini"
-
-  # ─── CLO 법무IP처 도구 ───
-
-  - tool_id: "kipris"
-    name: "KIPRIS Patent/Trademark Search"
-    name_ko: "특허/상표 검색"
-    description: "KIPRIS Plus API로 특허, 상표, 디자인 검색 및 분석"
-    model_name: "gpt-5-mini"
-
-  - tool_id: "law_search"
-    name: "Law/Precedent Search"
-    name_ko: "법령/판례 검색"
-    description: "국가법령정보센터 API로 법령 조문 및 판례 검색"
-    model_name: "gpt-5-mini"
-
-  - tool_id: "precedent_analyzer"
-    name: "Precedent Analyzer"
-    name_ko: "판례 트렌드 분석기"
-    description: "특정 법률 분야의 판례를 대량 수집하여 판결 경향(연도별 건수, 승소율, 키워드) 분석"
-    model_name: "gpt-5-mini"
-
-  - tool_id: "trademark_similarity"
-    name: "Trademark Similarity Checker"
-    name_ko: "상표 유사도 검사기"
-    description: "브랜드명/상표명의 기존 등록 상표 대비 유사도(글자·발음·외관) 자동 판별"
-    model_name: "gpt-5-mini"
-
-  - tool_id: "contract_reviewer"
-    name: "Contract Reviewer"
-    name_ko: "계약서 자동 검토기"
-    description: "계약서 텍스트에서 위험/불리 조항 자동 탐지 및 필수 조항 누락 체크"
-    model_name: "gpt-5-mini"
-
-  - tool_id: "law_change_monitor"
-    name: "Law Change Monitor"
-    name_ko: "법령 변경 알리미"
-    description: "관련 법령의 개정/신설/폐지 자동 감지 및 사업 영향 분석"
-    model_name: "gpt-5-mini"
-
-  # ─── CTO 기술개발처 도구 ───
-
-  - tool_id: "github_tool"
-    name: "GitHub API"
-    name_ko: "GitHub"
-    description: "GitHub REST API로 이슈, PR, 커밋 이력, 저장소 통계 조회"
-    model_name: "gpt-5-mini"
-
-  - tool_id: "code_quality"
-    name: "Code Quality Check"
-    name_ko: "코드 품질 검사"
-    description: "bandit(보안), ruff(린팅), pytest(테스트)로 코드 품질 종합 검사"
-    model_name: "gpt-5-mini"
-
-  # ─── CPO 출판기록처 도구 ───
-
-  - tool_id: "notion_api"
-    name: "Notion Integration"
-    name_ko: "노션 연동"
-    description: "Notion API로 페이지 생성/수정, 데이터베이스 쿼리, 마크다운 자동 변환"
-    model_name: "gpt-5-mini"
-
-  - tool_id: "doc_converter"
-    name: "Document Converter"
-    name_ko: "문서 변환"
-    description: "pandoc으로 마크다운을 PDF, DOCX, ePub(전자책)으로 변환"
-    model_name: "gpt-5-mini"
-
-  # ─── CIO 투자분석처 신규 도구 ───
-
-  - tool_id: "dart_monitor"
-    name: "DART Monitor"
-    name_ko: "공시 알리미"
-    description: "DART 공시 자동 감시 — 관심 기업의 새 공시를 자동 감지하고 주가 영향 분석"
-    model_name: "gpt-5-mini"
-
-  - tool_id: "stock_screener"
-    name: "Stock Screener"
-    name_ko: "종목 스크리너"
-    description: "한국 상장사 조건 필터링 — PER/PBR/시가총액/거래량 기반 스크리닝 + 프리셋 전략(가치주/성장주/배당주/모멘텀)"
-    model_name: "gpt-5-mini"
-
-  - tool_id: "backtest_engine"
-    name: "Backtest Engine"
-    name_ko: "포트폴리오 백테스터"
-    description: "투자 전략 백테스트 — 골든크로스/RSI/MACD/바이앤홀드 전략을 과거 데이터로 시뮬레이션 (수익률/MDD/샤프비율)"
-    model_name: "gpt-5-mini"
-
-  - tool_id: "insider_tracker"
-    name: "Insider Tracker"
-    name_ko: "내부자 거래 추적기"
-    description: "대주주/임원 자사주 매매 감지 — DART 임원·주요주주 소유보고 분석, 시장 전체 지분 변동 스캔"
-    model_name: "gpt-5-mini"
-    parameters:
-      type: object
-      properties:
-        action:
-          type: string
-          enum: ["track", "scan", "alert"]
-          description: "track=특정기업 내부자거래 추적, scan=전체시장 스캔, alert=내부자 알림 설정"
-        company:
-          type: string
-          description: "기업명 (track 사용 시 필수, 예: 삼성전자)"
-        days:
-          type: integer
-          description: "조회 기간 일수 (기본값: 90)"
-      required: ["action"]
-
-  - tool_id: "dividend_calendar"
-    name: "Dividend Calendar"
-    name_ko: "배당 캘린더"
-    description: "배당 일정/이력/상위 종목 — 월별 배당 종목, 기업별 배당 이력, 배당수익률 TOP 종목 조회"
-    model_name: "gpt-5-mini"
-
-  # ─── CMO 마케팅고객처 신규 도구 ───
-
-  - tool_id: "seo_analyzer"
-    name: "SEO Analyzer"
-    name_ko: "SEO 분석기"
-    description: "웹사이트 SEO(검색엔진 최적화) 종합 감사 — 메타태그, 콘텐츠, 기술, 성능 14개 항목 100점 만점 점검 및 개선안 제시"
-    model_name: "gpt-5-mini"
-
-  - tool_id: "sentiment_analyzer"
-    name: "Sentiment Analyzer"
-    name_ko: "SNS 감정 분석기"
-    description: "네이버 뉴스/블로그 기반 키워드 여론 분석 — 긍정/부정/중립 비율, 감정 추이, 종합 여론 보고서 생성"
-    model_name: "gpt-5-mini"
-
-  - tool_id: "hashtag_recommender"
-    name: "Hashtag Recommender"
-    name_ko: "해시태그 추천기"
-    description: "SNS 게시물용 해시태그 자동 추천 — 대형/중형/소형 최적 조합, 인스타그램/유튜브/틱톡 플랫폼별 전략"
-    model_name: "gpt-5-mini"
-
-  - tool_id: "email_optimizer"
-    name: "Email Optimizer"
-    name_ko: "이메일 마케팅 최적화기"
-    description: "마케팅 이메일 제목 효과 예측 및 개선 — 8개 규칙 100점 만점 점수 산정, 제목 개선안, A/B 테스트 쌍 생성"
-    model_name: "gpt-5-mini"
-
-  - tool_id: "competitor_sns_monitor"
-    name: "Competitor SNS Monitor"
-    name_ko: "경쟁사 SNS 모니터"
-    description: "경쟁사 SNS 활동 자동 수집·분석 — 네이버블로그/인스타그램/유튜브 감시 목록 관리 및 전략 보고서 생성"
-    model_name: "gpt-5-mini"
-
-  # ─── CSO 사업기획처 신규 도구 ───
-
-  - tool_id: "competitor_monitor"
-    name: "Competitor Monitor"
-    name_ko: "경쟁사 웹사이트 감지기"
-    description: "경쟁사 웹사이트 변경사항 자동 감지 (URL 등록 → 스냅샷 비교 → 변경 분석)"
-    model_name: "gpt-5-mini"
-
-  - tool_id: "app_review_scraper"
-    name: "App Review Scraper"
-    name_ko: "앱 리뷰 수집기"
-    description: "구글 플레이스토어 앱 리뷰 대량 수집 + 별점 분포·키워드·추이 분석"
-    model_name: "gpt-5-mini"
-
-  - tool_id: "youtube_analyzer"
-    name: "YouTube Analyzer"
-    name_ko: "유튜브 분석기"
-    description: "유튜브 채널 영상 데이터 수집 + 콘텐츠 전략·벤치마킹 분석"
-    model_name: "gpt-5-mini"
-
-  - tool_id: "subsidy_finder"
-    name: "Subsidy Finder"
-    name_ko: "정부 지원금 찾기"
-    description: "기업마당/K-Startup 정부 지원사업 검색 + 우리 회사 조건 매칭·신청 전략"
-    model_name: "gpt-5-mini"
-
-  - tool_id: "naver_place_scraper"
-    name: "Naver Place Scraper"
-    name_ko: "네이버 플레이스 리뷰 수집기"
-    description: "네이버 플레이스(지도) 매장/학원 리뷰 수집 + 만족·불만 요인 분석"
-    model_name: "gpt-5-mini"
-
-  - tool_id: "scholar_scraper"
-    name: "Scholar Scraper"
-    name_ko: "학술 논문 검색기"
-    description: "Google Scholar 논문 검색 + 연도별 트렌드·인용 분석, 사업 활용 학술 근거 제공"
-    model_name: "gpt-5-mini"
-
-  # ─── CTO 기술개발처 신규 도구 ───
-
-  - tool_id: "uptime_monitor"
-    name: "Uptime Monitor"
-    name_ko: "웹사이트 상태 모니터"
-    description: "웹사이트 가동 상태 확인, 응답 속도 측정, 다운 감지 및 이력 관리"
-    model_name: "gpt-5-mini"
-
-  - tool_id: "security_scanner"
-    name: "Security Scanner"
-    name_ko: "보안 취약점 스캐너"
-    description: "프로젝트 의존성 패키지의 알려진 보안 취약점(CVE) 검사 (pip-audit / OSV API)"
-    model_name: "gpt-5-mini"
-
-  - tool_id: "log_analyzer"
-    name: "Log Analyzer"
-    name_ko: "에러 로그 분석기"
-    description: "로그 파일 분석 — 에러 유형/빈도/패턴 자동 통계, 시간대별 분포 시각화"
-    model_name: "gpt-5-mini"
-
-  - tool_id: "api_benchmark"
-    name: "API Benchmark"
-    name_ko: "API 성능 측정기"
-    description: "도구/API 응답 속도(P50/P95/P99) 및 성공률 측정, 성능 보고서 생성"
-    model_name: "gpt-5-mini"
-
-  # ─── CPO 출판기록처 신규 도구 ───
-
-  - tool_id: "report_generator"
-    name: "Report Generator"
-    name_ko: "보고서 자동 생성기"
-    description: "투자보고서/시장분석/주간보고 등 전문 마크다운·HTML 보고서 자동 생성"
-    model_name: "gpt-5-mini"
-
-  - tool_id: "meeting_formatter"
-    name: "Meeting Formatter"
-    name_ko: "회의록 자동 정리기"
-    description: "회의 내용에서 결정사항/할일/담당자 자동 추출, 구조화된 회의록 생성"
-    model_name: "gpt-5-mini"
-
-  # ─── 전사 공통 도구 ───
-
-  - tool_id: "newsletter_builder"
-    name: "Newsletter Builder"
-    name_ko: "자동 뉴스레터 생성기"
-    description: "주간/월간 뉴스레터 자동 생성 (뉴스, 트렌드, 커뮤니티, 팁 섹션 포함)"
-    model_name: "gpt-5-mini"
-
-  # ═══════════════════════════════════════════
-  # Phase 1: 최우선 신규 도구
-  # ═══════════════════════════════════════════
-
-  - tool_id: "real_web_search"
-    name: "Real Web Search"
-    name_ko: "실시간 웹 검색"
-    description: "SerpAPI를 통한 실시간 구글 검색 — 웹/뉴스/이미지 검색 및 결과 분석"
-    model_name: "gpt-5-mini"
-
-  - tool_id: "spreadsheet_tool"
-    name: "Spreadsheet Tool"
-    name_ko: "스프레드시트 도구"
-    description: "엑셀(xlsx)/CSV 파일 읽기·쓰기·분석 — 데이터 필터링, 통계 요약, 피벗 테이블"
-    model_name: "gpt-5-mini"
-
-  - tool_id: "chart_generator"
-    name: "Chart Generator"
-    name_ko: "차트 생성기"
-    description: "데이터를 막대/꺾은선/원형/산점도/캔들차트로 시각화 — PNG 또는 HTML"
-    model_name: "gpt-5-mini"
-    parameters:
-      type: object
-      properties:
-        action:
-          type: string
-          enum: [bar, line, pie, scatter, candlestick, dashboard]
-          description: "차트 유형. bar=막대, line=꺾은선, pie=원형, scatter=산점도, candlestick=캔들차트, dashboard=대시보드"
-        title:
-          type: string
-          description: "차트 제목"
-        labels:
-          type: string
-          description: "X축 레이블 목록 (쉼표 구분 문자열, 예: 1월,2월,3월)"
-        values:
-          type: string
-          description: "Y축 값 목록 (쉼표 구분 문자열, 예: 100,200,300)"
-        data:
-          type: string
-          description: "데이터 JSON 문자열. dict({레이블:값}) 또는 list([{name:..., value:...}]) 형태"
-        xlabel:
-          type: string
-          description: "X축 이름"
-        ylabel:
-          type: string
-          description: "Y축 이름"
-      required: [action]
-
-  - tool_id: "pdf_parser"
-    name: "PDF Parser"
-    name_ko: "PDF 파서"
-    description: "PDF 파일에서 텍스트/표 추출 — 페이지별 추출, 내용 요약, 텍스트 검색"
-    model_name: "gpt-5-mini"
-
-  - tool_id: "prompt_tester"
-    name: "Prompt Tester"
-    name_ko: "프롬프트 테스터"
-    description: "프롬프트를 여러 AI 모델로 실행·비교 — 모델별 응답 비교, A/B 테스트, 품질 평가"
-    model_name: "gpt-5-mini"
-
-  - tool_id: "embedding_tool"
-    name: "Embedding Tool"
-    name_ko: "임베딩 도구"
-    description: "텍스트를 AI 벡터로 변환 — 임베딩, 유사도 계산, 일괄 처리, 클러스터링"
-    model_name: "gpt-5-mini"
-
-  - tool_id: "token_counter"
-    name: "Token Counter"
-    name_ko: "토큰 카운터"
-    description: "AI 모델 토큰 수 계산 — 토큰 수, 예상 비용 산출, 토큰 한도 맞춤 자르기"
-    model_name: "gpt-5-mini"
-
-  # ═══════════════════════════════════════════
-  # Phase 2: 중요 신규 도구
-  # ═══════════════════════════════════════════
-
-  - tool_id: "notification_engine"
-    name: "Notification Engine"
-    name_ko: "알림 엔진"
-    description: "텔레그램·이메일로 자동 알림 발송 — 메시지/보고서 알림, 템플릿 발송, 이력 관리"
-    model_name: "gpt-5-mini"
-    parameters:
-      type: object
-      properties:
-        action:
-          type: string
-          enum: ["send", "template", "history"]
-          description: "send=즉시 알림 발송, template=템플릿으로 발송, history=발송 이력 조회"
-        message:
-          type: string
-          description: "알림 메시지 내용 (send 사용 시 필수)"
-        channel:
-          type: string
-          enum: ["telegram", "email", "all"]
-          description: "발송 채널 (기본값: telegram)"
-        title:
-          type: string
-          description: "알림 제목 (선택)"
-        template_name:
-          type: string
-          description: "템플릿 이름 (template 사용 시 필수)"
-      required: ["action"]
-
-  - tool_id: "global_market_tool"
-    name: "Global Market Tool"
-    name_ko: "글로벌 시장 도구"
-    description: "글로벌 주식/지수/암호화폐/환율 조회 — 미국·일본·유럽 주식, 비트코인 시세, 환율"
-    model_name: "gpt-5-mini"
-    parameters:
-      type: object
-      properties:
-        action:
-          type: string
-          enum: ["stock", "index", "crypto", "forex", "compare"]
-          description: "stock=해외주식 조회, index=글로벌지수, crypto=암호화폐, forex=환율, compare=비교"
-        symbol:
-          type: string
-          description: "주식 심볼 (stock 사용 시 필수, 예: AAPL, TSLA, NVDA)"
-        indices:
-          type: string
-          description: "조회할 지수 목록 (index 사용 시, 예: SP500,NASDAQ,DOW)"
-        coins:
-          type: string
-          description: "암호화폐 목록 (crypto 사용 시, 기본값: bitcoin,ethereum)"
-        period:
-          type: string
-          description: "조회 기간 (compare 사용 시, 예: 1mo, 3mo, 1y)"
-      required: ["action"]
-
-  - tool_id: "financial_calculator"
-    name: "Financial Calculator"
-    name_ko: "재무 계산기"
-    description: "재무 분석 계산 — DCF 기업가치, NPV/IRR, 대출 시뮬레이션, ROI/CAGR, 손익분기점"
-    model_name: "gpt-5-mini"
-
-  - tool_id: "calendar_tool"
-    name: "Calendar Tool"
-    name_ko: "캘린더 도구"
-    description: "Google Calendar 연동 — 일정 조회·생성·수정·삭제, 검색, 빈 시간 확인"
-    model_name: "gpt-5-mini"
-
-  - tool_id: "email_sender"
-    name: "Email Sender"
-    name_ko: "이메일 발송기"
-    description: "이메일 자동 발송 — 텍스트/HTML 이메일, 초안 작성, 템플릿, 대량 발송"
-    model_name: "gpt-5-mini"
-
-  # ═══════════════════════════════════════════
-  # Phase 3: 미래 투자 신규 도구
-  # ═══════════════════════════════════════════
-
-  - tool_id: "vector_knowledge"
-    name: "Vector Knowledge Base"
-    name_ko: "벡터 지식베이스"
-    description: "의미 기반 지식 검색(RAG) — 자연어 검색, 문서 벡터 저장, 파일 일괄 추가"
-    model_name: "gpt-5-mini"
-
-  - tool_id: "decision_tracker"
-    name: "Decision Tracker"
-    name_ko: "의사결정 추적기"
-    description: "의사결정 기록·추적 — 결정 배경/선택지/이유 기록, 결과 업데이트, 패턴 분석"
-    model_name: "gpt-5-mini"
-
-  - tool_id: "image_generator"
-    name: "Image Generator"
-    name_ko: "이미지 생성기"
-    description: "AI 이미지 생성 — DALL-E 3로 이미지 생성, 기존 이미지 편집/변형"
-    model_name: "gpt-5-mini"
-
-  - tool_id: "audio_transcriber"
-    name: "Audio Transcriber"
-    name_ko: "음성 변환기"
-    description: "음성/오디오를 텍스트로 변환 — 한국어 STT, 자동 번역, 녹음 요약, 회의록 변환"
-    model_name: "gpt-5-mini"
-
-  - tool_id: "cross_agent_protocol"
-    name: "Cross Agent Protocol"
-    name_ko: "에이전트 협업 프로토콜"
-    description: "에이전트 간 횡적 협업 — 작업 요청, 정보 공유, 작업 인계, 결과 수집·종합"
-    model_name: "gpt-5-mini"
-
-  # ═══════════════════════════════════════════
-  # My Skills Plugin — 전문 스킬 도구
-  # ═══════════════════════════════════════════
-  # my-skills-collection 플러그인의 104개 스킬 중
-  # 에이전트 역할에 맞는 핵심 스킬을 도구로 등록
-
-  # ─── 마케팅 & 성장 스킬 ───
-
-  - tool_id: "skill_copywriting"
-    name: "Copywriting Skill"
-    name_ko: "카피라이팅 스킬"
-    description: "홈페이지, 랜딩페이지, 가격 페이지 등 마케팅 글을 처음부터 새로 써주는 전문 스킬"
-    model_name: "gpt-5-mini"
-
-  - tool_id: "skill_copy_editing"
-    name: "Copy Editing Skill"
-    name_ko: "카피 편집 스킬"
-    description: "이미 있는 마케팅 글을 분석하고 더 설득력 있게 다듬어주는 전문 스킬"
-    model_name: "gpt-5-mini"
-
-  - tool_id: "skill_social_content"
-    name: "Social Content Skill"
-    name_ko: "SNS 콘텐츠 스킬"
-    description: "LinkedIn, X(트위터), 인스타그램 등 SNS 플랫폼별 최적화된 콘텐츠 제작 스킬"
-    model_name: "gpt-5-mini"
-
-  - tool_id: "skill_email_sequence"
-    name: "Email Sequence Skill"
-    name_ko: "이메일 시퀀스 스킬"
-    description: "자동 이메일 시리즈 설계 — 웰컴, 너처링, 재참여 등 목적별 이메일 시퀀스 기획"
-    model_name: "gpt-5-mini"
-
-  - tool_id: "skill_seo_audit"
-    name: "SEO Audit Skill"
-    name_ko: "SEO 감사 스킬"
-    description: "사이트 SEO 건강 검진 — 왜 구글에서 안 나오는지 점검하고 개선안 제시"
-    model_name: "gpt-5-mini"
-
-  - tool_id: "skill_schema_markup"
-    name: "Schema Markup Skill"
-    name_ko: "스키마 마크업 스킬"
-    description: "구글 검색 결과에 별점, 가격 등 풍부한 정보가 표시되게 구조화 데이터 코드 생성"
-    model_name: "gpt-5-mini"
-
-  - tool_id: "skill_content_strategy"
-    name: "Content Strategy Skill"
-    name_ko: "콘텐츠 전략 스킬"
-    description: "블로그, SNS, 뉴스레터 등 어떤 콘텐츠를 만들지 전략 수립 스킬"
-    model_name: "gpt-5-mini"
-
-  - tool_id: "skill_page_cro"
-    name: "Page CRO Skill"
-    name_ko: "페이지 전환율 최적화 스킬"
-    description: "마케팅 페이지의 전환율(방문자→고객) 개선 — 레이아웃, CTA, 신뢰 요소 분석"
-    model_name: "gpt-5-mini"
-
-  - tool_id: "skill_form_cro"
-    name: "Form CRO Skill"
-    name_ko: "폼 전환율 최적화 스킬"
-    description: "문의/데모 요청 등 폼 최적화 — 이탈률 줄이고 완료율 높이는 개선안"
-    model_name: "gpt-5-mini"
-
-  - tool_id: "skill_marketing_ideas"
-    name: "Marketing Ideas Skill"
-    name_ko: "마케팅 아이디어 스킬"
-    description: "139개 검증된 SaaS 마케팅 전술 라이브러리에서 현재 상황에 맞는 아이디어 추천"
-    model_name: "gpt-5-mini"
-
-  - tool_id: "skill_marketing_psychology"
-    name: "Marketing Psychology Skill"
-    name_ko: "마케팅 심리학 스킬"
-    description: "70+ 심리학 멘탈 모델을 마케팅에 적용 — 가격, 카피, UI에 설득 원칙 적용"
-    model_name: "gpt-5-mini"
-
-  - tool_id: "skill_pricing_strategy"
-    name: "Pricing Strategy Skill"
-    name_ko: "가격 전략 스킬"
-    description: "SaaS 가격 및 요금제 설계 — 무료/유료 구분, 티어 구성, 가격 심리학 적용"
-    model_name: "gpt-5-mini"
-
-  - tool_id: "skill_launch_strategy"
-    name: "Launch Strategy Skill"
-    name_ko: "런칭 전략 스킬"
-    description: "제품/기능 출시 전략 — Product Hunt, 베타 런칭, 사전 예약 등 단계별 런칭 계획"
-    model_name: "gpt-5-mini"
-
-  - tool_id: "skill_competitor_alternatives"
-    name: "Competitor Alternatives Skill"
-    name_ko: "경쟁사 비교 스킬"
-    description: "경쟁사 비교 페이지 제작 — '우리 vs 경쟁사' 비교표, 차별점 강조 콘텐츠"
-    model_name: "gpt-5-mini"
-
-  - tool_id: "skill_paid_ads"
-    name: "Paid Ads Skill"
-    name_ko: "유료 광고 스킬"
-    description: "Google, Meta, LinkedIn 등 유료 광고 캠페인 설계 — 타겟팅, 예산, 카피 작성"
-    model_name: "gpt-5-mini"
-
-  - tool_id: "skill_referral_program"
-    name: "Referral Program Skill"
-    name_ko: "추천인 프로그램 스킬"
-    description: "고객이 친구를 데려오는 추천인 시스템 설계 — 인센티브, 메커닉스, 추적 구조"
-    model_name: "gpt-5-mini"
-
-  # ─── 개발 프로세스 스킬 ───
-
-  - tool_id: "skill_tdd_workflow"
-    name: "TDD Workflow Skill"
-    name_ko: "TDD 워크플로우 스킬"
-    description: "테스트 주도 개발(TDD) — 테스트를 먼저 쓰고 코드 작성하는 유연한 워크플로우"
-    model_name: "gpt-5-mini"
-
-  - tool_id: "skill_verification_loop"
-    name: "Verification Loop Skill"
-    name_ko: "종합 검증 스킬"
-    description: "6단계 종합 검증 — 빌드→타입→린트→테스트→보안→diff 순서로 배포 전 품질 보증"
-    model_name: "gpt-5-mini"
-
-  - tool_id: "skill_systematic_debugging"
-    name: "Systematic Debugging Skill"
-    name_ko: "체계적 디버깅 스킬"
-    description: "감으로 찾지 않고 단계적·논리적으로 버그 원인을 추적하는 디버깅 방법론"
-    model_name: "gpt-5-mini"
-
-  - tool_id: "skill_code_review"
-    name: "Code Review Skill"
-    name_ko: "코드 리뷰 스킬"
-    description: "코드 리뷰 요청 및 피드백 대응 — 주요 기능 완료 후 머지 전 코드 품질 검토"
-    model_name: "gpt-5-mini"
-
-  - tool_id: "skill_writing_plans"
-    name: "Writing Plans Skill"
-    name_ko: "구현 계획서 스킬"
-    description: "복잡한 기능 개발 전 구현 계획서 작성 — 단계별 목표, 기술 선택, 리스크 분석"
-    model_name: "gpt-5-mini"
-
-  # ─── 코딩 패턴 & 표준 스킬 ───
-
-  - tool_id: "skill_coding_standards"
-    name: "Coding Standards Skill"
-    name_ko: "코딩 표준 스킬"
-    description: "TypeScript, JavaScript, React, Node.js 코딩 규칙과 모범 사례 자동 적용"
-    model_name: "gpt-5-mini"
-
-  - tool_id: "skill_frontend_patterns"
-    name: "Frontend Patterns Skill"
-    name_ko: "프론트엔드 패턴 스킬"
-    description: "React, Next.js 컴포넌트 설계 패턴 — 상태 관리, 성능 최적화, 접근성"
-    model_name: "gpt-5-mini"
-
-  - tool_id: "skill_frontend_design"
-    name: "Frontend Design Skill"
-    name_ko: "프론트엔드 디자인 스킬"
-    description: "고퀄리티 UI 디자인 — 미학, 타이포그래피, 색상, 애니메이션 가이드라인"
-    model_name: "gpt-5-mini"
-
-  - tool_id: "skill_backend_patterns"
-    name: "Backend Patterns Skill"
-    name_ko: "백엔드 패턴 스킬"
-    description: "Node.js/Express/FastAPI 백엔드 설계 패턴 — API, 캐싱, 인증, 에러 처리"
-    model_name: "gpt-5-mini"
-
-  - tool_id: "skill_python_patterns"
-    name: "Python Patterns Skill"
-    name_ko: "Python 패턴 스킬"
-    description: "Python 코딩 스타일, 타입 힌트, 에러 처리, 동시성 등 모범 사례"
-    model_name: "gpt-5-mini"
-
-  - tool_id: "skill_security_review"
-    name: "Security Review Skill"
-    name_ko: "보안 코드 리뷰 스킬"
-    description: "코드 보안 검토 체크리스트 — 인증, 입력 검증, 시크릿 관리, OWASP Top 10"
-    model_name: "gpt-5-mini"
-
-  # ─── 도구 & 유틸리티 스킬 ───
-
-  - tool_id: "skill_code_documenter"
-    name: "Code Documenter Skill"
-    name_ko: "코드 문서화 스킬"
-    description: "코드베이스 분석 후 기술 문서 자동 생성 — API 문서, 아키텍처 다이어그램"
-    model_name: "gpt-5-mini"
-
-  - tool_id: "skill_changelog_generator"
-    name: "Changelog Generator Skill"
-    name_ko: "변경 로그 생성 스킬"
-    description: "Git 커밋 히스토리에서 사용자 친화적 변경 로그/릴리스 노트 자동 생성"
-    model_name: "gpt-5-mini"
-
-  - tool_id: "skill_last30days"
-    name: "Last 30 Days Research Skill"
-    name_ko: "최근 30일 트렌드 스킬"
-    description: "최근 30일간 Reddit, X, 웹에서 특정 주제의 최신 동향/트렌드 리서치"
-    model_name: "gpt-5-mini"
-
-  - tool_id: "skill_canvas_design"
-    name: "Canvas Design Skill"
-    name_ko: "디자인 제작 스킬"
-    description: "포스터, 배너, 인포그래픽 등 시각 디자인 제작 — PNG/PDF 출력"
-    model_name: "gpt-5-mini"
-
-  - tool_id: "skill_defuddle"
-    name: "Defuddle Skill"
-    name_ko: "웹 콘텐츠 추출 스킬"
-    description: "웹 페이지에서 핵심 텍스트만 깔끔하게 추출 — 광고/메뉴 제거, 본문만 추출"
-    model_name: "gpt-5-mini"
-
-  - tool_id: "skill_brainstorming"
-    name: "Brainstorming Skill"
-    name_ko: "브레인스토밍 스킬"
-    description: "코드 쓰기 전에 아이디어→설계→스펙 변환 — 체계적 아이디어 기획 프로세스"
-    model_name: "gpt-5-mini"
-
-  - tool_id: "skill_handoff"
-    name: "Handoff Skill"
-    name_ko: "세션 인계 스킬"
-    description: "세션 끝날 때 다음 세션에 맥락 전달 — 핸드오프 문서 자동 생성"
-    model_name: "gpt-5-mini"
-
-  - tool_id: "skill_mcp_builder"
-    name: "MCP Builder Skill"
-    name_ko: "MCP 서버 구축 스킬"
-    description: "외부 API와 AI를 연결하는 MCP 서버 구축 가이드 — Slack, GitHub 등 연동"
-    model_name: "gpt-5-mini"
-
-  # ─── 마케팅 추가 스킬 ───
-
-  - tool_id: "skill_programmatic_seo"
-    name: "Programmatic SEO Skill"
-    name_ko: "대량 SEO 페이지 생성 스킬"
-    description: "템플릿으로 SEO 페이지를 대량 생성(100~1000개) — '[도구]+[용도]' 패턴 페이지"
-    model_name: "gpt-5-mini"
-
-  - tool_id: "skill_signup_flow_cro"
-    name: "Signup Flow CRO Skill"
-    name_ko: "가입 플로우 최적화 스킬"
-    description: "가입 과정 최적화 — 가입 단계에서 이탈하는 사용자를 줄이는 개선안"
-    model_name: "gpt-5-mini"
-
-  - tool_id: "skill_onboarding_cro"
-    name: "Onboarding CRO Skill"
-    name_ko: "온보딩 최적화 스킬"
-    description: "가입 후 첫 경험 최적화 — 사용자가 '아하!' 하는 순간까지 이끄는 플로우 설계"
-    model_name: "gpt-5-mini"
-
-  - tool_id: "skill_popup_cro"
-    name: "Popup CRO Skill"
-    name_ko: "팝업 최적화 스킬"
-    description: "팝업/모달 최적화 — 리드 수집 팝업, 이탈 방지 팝업 설계 및 전환율 개선"
-    model_name: "gpt-5-mini"
-
-  - tool_id: "skill_paywall_upgrade_cro"
-    name: "Paywall Upgrade CRO Skill"
-    name_ko: "페이월 업그레이드 스킬"
-    description: "무료→유료 전환 화면 최적화 — 유료 결제 페이지 이탈률 감소 전략"
-    model_name: "gpt-5-mini"
-
-  - tool_id: "skill_free_tool_strategy"
-    name: "Free Tool Strategy Skill"
-    name_ko: "무료 도구 전략 스킬"
-    description: "리드 생성용 무료 도구 기획 — 무료 계산기/도구로 잠재 고객 유입 전략"
-    model_name: "gpt-5-mini"
-
-  - tool_id: "skill_product_marketing_context"
-    name: "Product Marketing Context Skill"
-    name_ko: "제품 마케팅 컨텍스트 스킬"
-    description: "제품 마케팅 기초 문서 작성 — 다른 마케팅 스킬들이 참조하는 핵심 컨텍스트"
-    model_name: "gpt-5-mini"
-
-  # ─── 개발 프로세스 추가 스킬 ───
-
-  - tool_id: "skill_test_driven_development"
-    name: "Test Driven Development Skill"
-    name_ko: "TDD 엄격 모드 스킬"
-    description: "엄격한 TDD — 테스트를 먼저 쓰고, 그다음 코드 작성하는 규율 중심 개발"
-    model_name: "gpt-5-mini"
-
-  - tool_id: "skill_eval_harness"
-    name: "Eval Harness Skill"
-    name_ko: "평가 기반 개발 스킬"
-    description: "평가 기반 개발(EDD) — 테스트 케이스를 먼저 정의하고 AI/ML 기능 개발"
-    model_name: "gpt-5-mini"
-
-  - tool_id: "skill_verification_before_completion"
-    name: "Verification Before Completion Skill"
-    name_ko: "완료 전 검증 스킬"
-    description: "작업 '완료'라고 말하기 전에 반드시 테스트/빌드/린트 검증 실행"
-    model_name: "gpt-5-mini"
-
-  - tool_id: "skill_requesting_code_review"
-    name: "Requesting Code Review Skill"
-    name_ko: "코드 리뷰 요청 스킬"
-    description: "주요 기능 완료 후 머지 전 코드 리뷰를 요청하는 체계적 프로세스"
-    model_name: "gpt-5-mini"
-
-  - tool_id: "skill_receiving_code_review"
-    name: "Receiving Code Review Skill"
-    name_ko: "코드 리뷰 수신 스킬"
-    description: "코드 리뷰 피드백을 받을 때 분석·대응하는 방법론"
-    model_name: "gpt-5-mini"
-
-  - tool_id: "skill_create_pr"
-    name: "Create PR Skill"
-    name_ko: "PR 생성 스킬"
-    description: "GitHub 풀 리퀘스트(코드 합치기 요청) 생성 — 제목, 설명, 리뷰어 지정"
-    model_name: "gpt-5-mini"
-
-  - tool_id: "skill_executing_plans"
-    name: "Executing Plans Skill"
-    name_ko: "계획 실행 스킬"
-    description: "미리 짠 구현 계획을 단계별로 체계적으로 실행하는 프로세스"
-    model_name: "gpt-5-mini"
-
-  - tool_id: "skill_dispatching_parallel_agents"
-    name: "Dispatching Parallel Agents Skill"
-    name_ko: "병렬 에이전트 실행 스킬"
-    description: "여러 작업을 동시에 처리 — 서로 관련 없는 작업을 병렬로 배분·실행"
-    model_name: "gpt-5-mini"
-
-  - tool_id: "skill_subagent_driven_development"
-    name: "Subagent Driven Development Skill"
-    name_ko: "서브에이전트 개발 스킬"
-    description: "각 작업마다 별도 에이전트가 독립적으로 담당하는 개발 방식"
-    model_name: "gpt-5-mini"
-
-  - tool_id: "skill_finishing_branch"
-    name: "Finishing Branch Skill"
-    name_ko: "브랜치 마무리 스킬"
-    description: "개발 브랜치 마무리 — 머지, PR 생성, 또는 폐기 등 브랜치 정리 프로세스"
-    model_name: "gpt-5-mini"
-
-  - tool_id: "skill_git_worktrees"
-    name: "Git Worktrees Skill"
-    name_ko: "Git Worktree 스킬"
-    description: "Git worktree로 격리된 작업 공간 만들기 — 메인 코드 영향 없이 독립 작업"
-    model_name: "gpt-5-mini"
-
-  - tool_id: "skill_strategic_compact"
-    name: "Strategic Compact Skill"
-    name_ko: "전략적 압축 스킬"
-    description: "대화가 길어질 때 핵심만 압축 — 맥락 유지하면서 토큰 절약"
-    model_name: "gpt-5-mini"
-
-  - tool_id: "skill_brainstorm"
-    name: "Brainstorm Skill"
-    name_ko: "아이디어 기획 스킬"
-    description: "여러 세션에 걸친 아이디어 기획 — SaaS 아이디어, 전략, 책 등 큰 프로젝트 구상"
-    model_name: "gpt-5-mini"
-
-  # ─── 코딩 패턴 추가 스킬 ───
-
-  - tool_id: "skill_senior_frontend"
-    name: "Senior Frontend Skill"
-    name_ko: "시니어 프론트엔드 스킬"
-    description: "시니어급 React/Next.js 개발 패턴 — 스캐폴딩, 접근성, 성능 분석"
-    model_name: "gpt-5-mini"
-
-  - tool_id: "skill_artifacts_builder"
-    name: "Artifacts Builder Skill"
-    name_ko: "아티팩트 빌더 스킬"
-    description: "복잡한 HTML/React 아티팩트(미리보기 가능한 UI) 생성"
-    model_name: "gpt-5-mini"
-
-  - tool_id: "skill_python_testing"
-    name: "Python Testing Skill"
-    name_ko: "Python 테스트 스킬"
-    description: "pytest 기반 테스트 전략 — 픽스처, 모킹, 커버리지, 통합 테스트"
-    model_name: "gpt-5-mini"
-
-  - tool_id: "skill_java_coding_standards"
-    name: "Java Coding Standards Skill"
-    name_ko: "Java 코딩 표준 스킬"
-    description: "Java 코딩 규칙 — 명명 규칙, 불변성, Optional, 스트림, 예외 처리"
-    model_name: "gpt-5-mini"
-
-  - tool_id: "skill_springboot_patterns"
-    name: "Spring Boot Patterns Skill"
-    name_ko: "Spring Boot 패턴 스킬"
-    description: "Spring Boot 아키텍처 패턴 — REST API, 서비스 레이어, 캐싱, 설정"
-    model_name: "gpt-5-mini"
-
-  - tool_id: "skill_springboot_security"
-    name: "Spring Boot Security Skill"
-    name_ko: "Spring Boot 보안 스킬"
-    description: "Spring Boot 보안 — 인증, JWT, CSRF 방지, SQL 인젝션 방지"
-    model_name: "gpt-5-mini"
-
-  - tool_id: "skill_springboot_tdd"
-    name: "Spring Boot TDD Skill"
-    name_ko: "Spring Boot TDD 스킬"
-    description: "Spring Boot TDD — JUnit 5, MockMvc, Testcontainers 활용"
-    model_name: "gpt-5-mini"
-
-  - tool_id: "skill_springboot_verification"
-    name: "Spring Boot Verification Skill"
-    name_ko: "Spring Boot 검증 스킬"
-    description: "Spring Boot 배포 전 검증 — 빌드, 정적분석, 테스트, 보안 스캔"
-    model_name: "gpt-5-mini"
-
-  - tool_id: "skill_jpa_patterns"
-    name: "JPA Patterns Skill"
-    name_ko: "JPA 패턴 스킬"
-    description: "JPA/Hibernate 데이터베이스 패턴 — 엔티티, 관계, 쿼리 최적화, N+1 해결"
-    model_name: "gpt-5-mini"
-
-  - tool_id: "skill_django_patterns"
-    name: "Django Patterns Skill"
-    name_ko: "Django 패턴 스킬"
-    description: "Django 아키텍처 패턴 — ORM, REST Framework, 캐싱, 미들웨어"
-    model_name: "gpt-5-mini"
-
-  - tool_id: "skill_django_security"
-    name: "Django Security Skill"
-    name_ko: "Django 보안 스킬"
-    description: "Django 보안 — 인증, CSRF, XSS, SQL 인젝션 방지, 시크릿 관리"
-    model_name: "gpt-5-mini"
-
-  - tool_id: "skill_django_tdd"
-    name: "Django TDD Skill"
-    name_ko: "Django TDD 스킬"
-    description: "Django TDD — pytest-django, Factory Boy 활용 테스트 전략"
-    model_name: "gpt-5-mini"
-
-  - tool_id: "skill_django_verification"
-    name: "Django Verification Skill"
-    name_ko: "Django 검증 스킬"
-    description: "Django 배포 전 검증 — 마이그레이션, 린팅, 테스트, 보안 스캔"
-    model_name: "gpt-5-mini"
-
-  - tool_id: "skill_golang_patterns"
-    name: "Golang Patterns Skill"
-    name_ko: "Go 패턴 스킬"
-    description: "Go 코딩 패턴 — 인터페이스, 에러 처리, 동시성(goroutine/channel)"
-    model_name: "gpt-5-mini"
-
-  - tool_id: "skill_golang_testing"
-    name: "Golang Testing Skill"
-    name_ko: "Go 테스트 스킬"
-    description: "Go 테스트 패턴 — 테이블 기반 테스트, 벤치마크, 퍼징"
-    model_name: "gpt-5-mini"
-
-  - tool_id: "skill_cpp_testing"
-    name: "C++ Testing Skill"
-    name_ko: "C++ 테스트 스킬"
-    description: "C++ 테스트 — GoogleTest, CTest, 새니타이저, 커버리지 분석"
-    model_name: "gpt-5-mini"
-
-  - tool_id: "skill_postgres_patterns"
-    name: "PostgreSQL Patterns Skill"
-    name_ko: "PostgreSQL 패턴 스킬"
-    description: "PostgreSQL 모범 사례 — 인덱스, 쿼리 최적화, 스키마 설계, 보안"
-    model_name: "gpt-5-mini"
-
-  - tool_id: "skill_clickhouse_io"
-    name: "ClickHouse Skill"
-    name_ko: "ClickHouse 분석 DB 스킬"
-    description: "ClickHouse 분석 DB 패턴 — OLAP, 실시간 집계, MergeTree 엔진"
-    model_name: "gpt-5-mini"
-
-  - tool_id: "skill_security_scan"
-    name: "Security Scan Skill"
-    name_ko: "보안 스캔 스킬"
-    description: "Claude Code 설정 파일 보안 스캔 — CLAUDE.md, MCP 설정 감사"
-    model_name: "gpt-5-mini"
-
-  # ─── 도구 & 유틸리티 추가 스킬 ───
-
-  - tool_id: "skill_theme_factory"
-    name: "Theme Factory Skill"
-    name_ko: "테마 팩토리 스킬"
-    description: "슬라이드, 문서 등에 일관된 테마(색상/폰트) 적용 — 프레젠테이션 디자인"
-    model_name: "gpt-5-mini"
-
-  - tool_id: "skill_developer_growth"
-    name: "Developer Growth Analysis Skill"
-    name_ko: "개발자 성장 분석 스킬"
-    description: "코딩 패턴 분석 + 성장 리포트 — 개발 실력 현황과 개선점 분석"
-    model_name: "gpt-5-mini"
-
-  - tool_id: "skill_route_researcher"
-    name: "Route Researcher Skill"
-    name_ko: "등반 루트 조사 스킬"
-    description: "북미 산악 등반 루트 조사 — 난이도, 시즌, 장비, 위험 요소 분석"
-    model_name: "gpt-5-mini"
-
-  - tool_id: "skill_obsidian_markdown"
-    name: "Obsidian Markdown Skill"
-    name_ko: "Obsidian 마크다운 스킬"
-    description: "Obsidian 전용 마크다운 문법 — 위키링크, 콜아웃, 프로퍼티 등 작성"
-    model_name: "gpt-5-mini"
-
-  - tool_id: "skill_obsidian_cli"
-    name: "Obsidian CLI Skill"
-    name_ko: "Obsidian CLI 스킬"
-    description: "CLI로 Obsidian 볼트 조작 — 노트 읽기, 쓰기, 검색, 태그 관리"
-    model_name: "gpt-5-mini"
-
-  - tool_id: "skill_obsidian_bases"
-    name: "Obsidian Bases Skill"
-    name_ko: "Obsidian Bases 스킬"
-    description: "Obsidian Bases(.base 파일) 생성 — 노션 데이터베이스 같은 뷰 생성"
-    model_name: "gpt-5-mini"
-
-  - tool_id: "skill_json_canvas"
-    name: "JSON Canvas Skill"
-    name_ko: "JSON 캔버스 스킬"
-    description: "Obsidian Canvas(.canvas 파일) 생성/편집 — 마인드맵, 비주얼 노트"
-    model_name: "gpt-5-mini"
-
-  - tool_id: "skill_configure_ecc"
-    name: "Configure ECC Skill"
-    name_ko: "ECC 설정 스킬"
-    description: "Everything Claude Code 스킬 모음 설치 도우미 — 새 프로젝트 세팅"
-    model_name: "gpt-5-mini"
-
-  - tool_id: "skill_nutrient_doc"
-    name: "Nutrient Document Processing Skill"
-    name_ko: "문서 처리 스킬"
-    description: "Nutrient API로 문서 처리 — PDF 변환, OCR 텍스트 추출, 전자 서명"
-    model_name: "gpt-5-mini"
-
-  - tool_id: "skill_pensieve"
-    name: "Pensieve Skill"
-    name_ko: "의도 라우팅 스킬"
-    description: "사용자 의도를 파악해서 올바른 도구/파이프라인으로 자동 연결"
-    model_name: "gpt-5-mini"
-
-  # ─── 자동 학습 & 메타 스킬 ───
-
-  - tool_id: "skill_continuous_learning"
-    name: "Continuous Learning Skill"
-    name_ko: "지속 학습 스킬"
-    description: "세션에서 재사용 가능한 패턴을 자동 추출하여 메모리에 저장"
-    model_name: "gpt-5-mini"
-
-  - tool_id: "skill_continuous_learning_v2"
-    name: "Continuous Learning V2 Skill"
-    name_ko: "지속 학습 V2 스킬"
-    description: "진화된 패턴 학습 — '본능' 기반 학습 + 신뢰도 점수 시스템"
-    model_name: "gpt-5-mini"
-
-  - tool_id: "skill_using_superpowers"
-    name: "Using Superpowers Skill"
-    name_ko: "슈퍼파워 활용 스킬"
-    description: "대화 시작 시 어떤 스킬을 쓸지 자동 판단하는 가이드 시스템"
-    model_name: "gpt-5-mini"
-
-  - tool_id: "skill_iterative_retrieval"
-    name: "Iterative Retrieval Skill"
-    name_ko: "점진적 정보 수집 스킬"
-    description: "필요한 정보를 점진적으로 수집 — 멀티 에이전트 환경 맥락 부족 문제 해결"
-    model_name: "gpt-5-mini"
-
-  - tool_id: "skill_project_guidelines"
-    name: "Project Guidelines Skill"
-    name_ko: "프로젝트 가이드라인 스킬"
-    description: "프로젝트별 전용 스킬을 만들 때 참고할 템플릿 — 커스텀 스킬 제작"
-    model_name: "gpt-5-mini"
+- tool_id: patent_attorney
+  name: Patent Attorney
+  name_ko: 변리사
+  description: 특허 출원, 선행기술 조사, 특허 침해 분석
+  model_name: gpt-5-mini
+- tool_id: tax_accountant
+  name: Tax Accountant
+  name_ko: 세무사
+  description: 세무 관련 조언, 절세 전략, 세금 계산
+  model_name: gpt-5-mini
+- tool_id: designer
+  name: Designer
+  name_ko: 디자이너
+  description: UI/UX 디자인 조언, 디자인 시스템, 와이어프레임
+  model_name: gpt-5-mini
+- tool_id: translator
+  name: Translator
+  name_ko: 번역가
+  description: 한영/영한 번역, 기술 문서 번역
+  model_name: gpt-5-mini
+- tool_id: web_search
+  name: Web Search
+  name_ko: 웹검색
+  description: 실시간 웹 검색 및 정보 수집
+  model_name: gpt-5-mini
+- tool_id: daum_cafe
+  name: Daum Cafe Search
+  name_ko: 다음 카페 검색
+  description: 다음 카페 글 검색 및 본문 크롤링, 소비자 반응 분석 (카카오 API)
+  model_name: gpt-5-mini
+- tool_id: leet_survey
+  name: LEET Survey
+  name_ko: LEET 해설 서베이
+  description: 6개 커뮤니티(다음카페/네이버카페/네이버블로그/오르비/디시인사이드/티스토리)에서 LEET 해설 부정의견 자동 수집·분석
+  model_name: gpt-5-mini
+- tool_id: sns_manager
+  name: SNS Manager
+  name_ko: SNS 매니저
+  description: Tistory/YouTube/Instagram/LinkedIn/네이버카페/네이버블로그/다음카페 통합 퍼블리싱 (CEO 승인
+    큐 포함)
+  model_name: gpt-5-mini
+- tool_id: kr_stock
+  name: Korean Stock Data
+  name_ko: 한국 주식 데이터
+  description: 한국거래소 주가/거래량 조회, 기술적 지표(RSI/MACD/BB) 자동 계산, 시가총액 순위 (pykrx)
+  model_name: gpt-5-mini
+  parameters:
+    type: object
+    properties:
+      action:
+        type: string
+        enum:
+        - price
+        - ohlcv
+        - indicators
+        - market_cap
+        description: 수행할 작업. price=주가조회, ohlcv=기간별 데이터, indicators=기술적지표, market_cap=시가총액순위
+      ticker:
+        type: string
+        description: '종목코드 (예: 005930). ticker 또는 name 중 하나 필수'
+      name:
+        type: string
+        description: '종목명 (예: 삼성전자). ticker 또는 name 중 하나 필수'
+      days:
+        type: integer
+        description: 조회 기간 (일수, 기본값 30)
+      market:
+        type: string
+        enum:
+        - KOSPI
+        - KOSDAQ
+        description: 시장 구분 (market_cap action에만 사용, 기본값 KOSPI)
+      top_n:
+        type: integer
+        description: 시가총액 상위 N개 (market_cap action에만 사용, 기본값 20)
+    required:
+    - action
+- tool_id: dart_api
+  name: DART Financial Statements
+  name_ko: DART 재무제표
+  description: 금융감독원 DART 기업 재무제표(매출/영업이익/순이익), 기업정보, 최신 공시 조회
+  model_name: gpt-5-mini
+  parameters:
+    type: object
+    properties:
+      action:
+        type: string
+        enum:
+        - financial
+        - company
+        - disclosure
+        description: financial=재무제표 조회, company=기업정보, disclosure=최신 공시
+      company:
+        type: string
+        description: '기업명 (예: 삼성전자, SK하이닉스, LG에너지솔루션)'
+      year:
+        type: string
+        description: '조회 연도 (예: 2024, 기본값: 2024)'
+      report_code:
+        type: string
+        description: '공시 유형 코드 (11011=사업보고서, 기본값: 11011)'
+    required:
+    - action
+    - company
+- tool_id: naver_news
+  name: Naver News Search
+  name_ko: 네이버 뉴스 검색
+  description: 네이버 검색 API로 최신 뉴스 검색, 금융/시장 뉴스 분석
+  model_name: gpt-5-mini
+- tool_id: ecos_macro
+  name: ECOS Macro Indicators
+  name_ko: 한국은행 경제 지표
+  description: 한국은행 ECOS API로 기준금리, GDP, CPI, 환율 등 거시경제 지표 조회
+  model_name: gpt-5-mini
+- tool_id: naver_datalab
+  name: Naver DataLab Trends
+  name_ko: 네이버 데이터랩
+  description: 네이버 데이터랩 API로 키워드 검색량 추이(최대 5개 비교) 및 쇼핑 트렌드 분석
+  model_name: gpt-5-mini
+- tool_id: public_data
+  name: Public Data Portal
+  name_ko: 공공데이터
+  description: 공공데이터포털 API로 인구, 교육, 경제 등 정부 통계 데이터 조회
+  model_name: gpt-5-mini
+- tool_id: platform_market_scraper
+  name: Platform Market Scraper
+  name_ko: 플랫폼 시장 조사기
+  description: 크몽/탈잉/클래스101 플랫폼에서 서비스 가격·리뷰·판매량 수집 및 시장 분석
+  model_name: gpt-5-mini
+- tool_id: kipris
+  name: KIPRIS Patent/Trademark Search
+  name_ko: 특허/상표 검색
+  description: KIPRIS Plus API로 특허, 상표, 디자인 검색 및 분석
+  model_name: gpt-5-mini
+- tool_id: law_search
+  name: Law/Precedent Search
+  name_ko: 법령/판례 검색
+  description: 국가법령정보센터 API로 법령 조문 및 판례 검색
+  model_name: gpt-5-mini
+- tool_id: precedent_analyzer
+  name: Precedent Analyzer
+  name_ko: 판례 트렌드 분석기
+  description: 특정 법률 분야의 판례를 대량 수집하여 판결 경향(연도별 건수, 승소율, 키워드) 분석
+  model_name: gpt-5-mini
+- tool_id: trademark_similarity
+  name: Trademark Similarity Checker
+  name_ko: 상표 유사도 검사기
+  description: 브랜드명/상표명의 기존 등록 상표 대비 유사도(글자·발음·외관) 자동 판별
+  model_name: gpt-5-mini
+- tool_id: contract_reviewer
+  name: Contract Reviewer
+  name_ko: 계약서 자동 검토기
+  description: 계약서 텍스트에서 위험/불리 조항 자동 탐지 및 필수 조항 누락 체크
+  model_name: gpt-5-mini
+- tool_id: law_change_monitor
+  name: Law Change Monitor
+  name_ko: 법령 변경 알리미
+  description: 관련 법령의 개정/신설/폐지 자동 감지 및 사업 영향 분석
+  model_name: gpt-5-mini
+- tool_id: github_tool
+  name: GitHub API
+  name_ko: GitHub
+  description: GitHub REST API로 이슈, PR, 커밋 이력, 저장소 통계 조회
+  model_name: gpt-5-mini
+- tool_id: code_quality
+  name: Code Quality Check
+  name_ko: 코드 품질 검사
+  description: bandit(보안), ruff(린팅), pytest(테스트)로 코드 품질 종합 검사
+  model_name: gpt-5-mini
+- tool_id: notion_api
+  name: Notion Integration
+  name_ko: 노션 연동
+  description: Notion API로 페이지 생성/수정, 데이터베이스 쿼리, 마크다운 자동 변환
+  model_name: gpt-5-mini
+- tool_id: doc_converter
+  name: Document Converter
+  name_ko: 문서 변환
+  description: pandoc으로 마크다운을 PDF, DOCX, ePub(전자책)으로 변환
+  model_name: gpt-5-mini
+- tool_id: dart_monitor
+  name: DART Monitor
+  name_ko: 공시 알리미
+  description: DART 공시 자동 감시 — 관심 기업의 새 공시를 자동 감지하고 주가 영향 분석
+  model_name: gpt-5-mini
+- tool_id: stock_screener
+  name: Stock Screener
+  name_ko: 종목 스크리너
+  description: 한국 상장사 조건 필터링 — PER/PBR/시가총액/거래량 기반 스크리닝 + 프리셋 전략(가치주/성장주/배당주/모멘텀)
+  model_name: gpt-5-mini
+- tool_id: backtest_engine
+  name: Backtest Engine
+  name_ko: 포트폴리오 백테스터
+  description: 투자 전략 백테스트 — 골든크로스/RSI/MACD/바이앤홀드 전략을 과거 데이터로 시뮬레이션 (수익률/MDD/샤프비율)
+  model_name: gpt-5-mini
+- tool_id: insider_tracker
+  name: Insider Tracker
+  name_ko: 내부자 거래 추적기
+  description: 대주주/임원 자사주 매매 감지 — DART 임원·주요주주 소유보고 분석, 시장 전체 지분 변동 스캔
+  model_name: gpt-5-mini
+  parameters:
+    type: object
+    properties:
+      action:
+        type: string
+        enum:
+        - track
+        - scan
+        - alert
+        description: track=특정기업 내부자거래 추적, scan=전체시장 스캔, alert=내부자 알림 설정
+      company:
+        type: string
+        description: '기업명 (track 사용 시 필수, 예: 삼성전자)'
+      days:
+        type: integer
+        description: '조회 기간 일수 (기본값: 90)'
+    required:
+    - action
+- tool_id: dividend_calendar
+  name: Dividend Calendar
+  name_ko: 배당 캘린더
+  description: 배당 일정/이력/상위 종목 — 월별 배당 종목, 기업별 배당 이력, 배당수익률 TOP 종목 조회
+  model_name: gpt-5-mini
+- tool_id: seo_analyzer
+  name: SEO Analyzer
+  name_ko: SEO 분석기
+  description: 웹사이트 SEO(검색엔진 최적화) 종합 감사 — 메타태그, 콘텐츠, 기술, 성능 14개 항목 100점 만점 점검 및 개선안
+    제시
+  model_name: gpt-5-mini
+- tool_id: sentiment_analyzer
+  name: Sentiment Analyzer
+  name_ko: SNS 감정 분석기
+  description: 네이버 뉴스/블로그 기반 키워드 여론 분석 — 긍정/부정/중립 비율, 감정 추이, 종합 여론 보고서 생성
+  model_name: gpt-5-mini
+- tool_id: hashtag_recommender
+  name: Hashtag Recommender
+  name_ko: 해시태그 추천기
+  description: SNS 게시물용 해시태그 자동 추천 — 대형/중형/소형 최적 조합, 인스타그램/유튜브/틱톡 플랫폼별 전략
+  model_name: gpt-5-mini
+- tool_id: email_optimizer
+  name: Email Optimizer
+  name_ko: 이메일 마케팅 최적화기
+  description: 마케팅 이메일 제목 효과 예측 및 개선 — 8개 규칙 100점 만점 점수 산정, 제목 개선안, A/B 테스트 쌍 생성
+  model_name: gpt-5-mini
+- tool_id: competitor_sns_monitor
+  name: Competitor SNS Monitor
+  name_ko: 경쟁사 SNS 모니터
+  description: 경쟁사 SNS 활동 자동 수집·분석 — 네이버블로그/인스타그램/유튜브 감시 목록 관리 및 전략 보고서 생성
+  model_name: gpt-5-mini
+- tool_id: competitor_monitor
+  name: Competitor Monitor
+  name_ko: 경쟁사 웹사이트 감지기
+  description: 경쟁사 웹사이트 변경사항 자동 감지 (URL 등록 → 스냅샷 비교 → 변경 분석)
+  model_name: gpt-5-mini
+- tool_id: app_review_scraper
+  name: App Review Scraper
+  name_ko: 앱 리뷰 수집기
+  description: 구글 플레이스토어 앱 리뷰 대량 수집 + 별점 분포·키워드·추이 분석
+  model_name: gpt-5-mini
+- tool_id: youtube_analyzer
+  name: YouTube Analyzer
+  name_ko: 유튜브 분석기
+  description: 유튜브 채널 영상 데이터 수집 + 콘텐츠 전략·벤치마킹 분석
+  model_name: gpt-5-mini
+- tool_id: subsidy_finder
+  name: Subsidy Finder
+  name_ko: 정부 지원금 찾기
+  description: 기업마당/K-Startup 정부 지원사업 검색 + 우리 회사 조건 매칭·신청 전략
+  model_name: gpt-5-mini
+- tool_id: naver_place_scraper
+  name: Naver Place Scraper
+  name_ko: 네이버 플레이스 리뷰 수집기
+  description: 네이버 플레이스(지도) 매장/학원 리뷰 수집 + 만족·불만 요인 분석
+  model_name: gpt-5-mini
+- tool_id: scholar_scraper
+  name: Scholar Scraper
+  name_ko: 학술 논문 검색기
+  description: Google Scholar 논문 검색 + 연도별 트렌드·인용 분석, 사업 활용 학술 근거 제공
+  model_name: gpt-5-mini
+- tool_id: uptime_monitor
+  name: Uptime Monitor
+  name_ko: 웹사이트 상태 모니터
+  description: 웹사이트 가동 상태 확인, 응답 속도 측정, 다운 감지 및 이력 관리
+  model_name: gpt-5-mini
+- tool_id: security_scanner
+  name: Security Scanner
+  name_ko: 보안 취약점 스캐너
+  description: 프로젝트 의존성 패키지의 알려진 보안 취약점(CVE) 검사 (pip-audit / OSV API)
+  model_name: gpt-5-mini
+- tool_id: log_analyzer
+  name: Log Analyzer
+  name_ko: 에러 로그 분석기
+  description: 로그 파일 분석 — 에러 유형/빈도/패턴 자동 통계, 시간대별 분포 시각화
+  model_name: gpt-5-mini
+- tool_id: api_benchmark
+  name: API Benchmark
+  name_ko: API 성능 측정기
+  description: 도구/API 응답 속도(P50/P95/P99) 및 성공률 측정, 성능 보고서 생성
+  model_name: gpt-5-mini
+- tool_id: report_generator
+  name: Report Generator
+  name_ko: 보고서 자동 생성기
+  description: 투자보고서/시장분석/주간보고 등 전문 마크다운·HTML 보고서 자동 생성
+  model_name: gpt-5-mini
+- tool_id: meeting_formatter
+  name: Meeting Formatter
+  name_ko: 회의록 자동 정리기
+  description: 회의 내용에서 결정사항/할일/담당자 자동 추출, 구조화된 회의록 생성
+  model_name: gpt-5-mini
+- tool_id: newsletter_builder
+  name: Newsletter Builder
+  name_ko: 자동 뉴스레터 생성기
+  description: 주간/월간 뉴스레터 자동 생성 (뉴스, 트렌드, 커뮤니티, 팁 섹션 포함)
+  model_name: gpt-5-mini
+- tool_id: real_web_search
+  name: Real Web Search
+  name_ko: 실시간 웹 검색
+  description: SerpAPI를 통한 실시간 구글 검색 — 웹/뉴스/이미지 검색 및 결과 분석
+  model_name: gpt-5-mini
+- tool_id: spreadsheet_tool
+  name: Spreadsheet Tool
+  name_ko: 스프레드시트 도구
+  description: 엑셀(xlsx)/CSV 파일 읽기·쓰기·분석 — 데이터 필터링, 통계 요약, 피벗 테이블
+  model_name: gpt-5-mini
+- tool_id: chart_generator
+  name: Chart Generator
+  name_ko: 차트 생성기
+  description: 데이터를 막대/꺾은선/원형/산점도/캔들차트로 시각화 — PNG 또는 HTML
+  model_name: gpt-5-mini
+  parameters:
+    type: object
+    properties:
+      action:
+        type: string
+        enum:
+        - bar
+        - line
+        - pie
+        - scatter
+        - candlestick
+        - dashboard
+        description: 차트 유형. bar=막대, line=꺾은선, pie=원형, scatter=산점도, candlestick=캔들차트,
+          dashboard=대시보드
+      title:
+        type: string
+        description: 차트 제목
+      labels:
+        type: string
+        description: 'X축 레이블 목록 (쉼표 구분 문자열, 예: 1월,2월,3월)'
+      values:
+        type: string
+        description: 'Y축 값 목록 (쉼표 구분 문자열, 예: 100,200,300)'
+      data:
+        type: string
+        description: 데이터 JSON 문자열. dict({레이블:값}) 또는 list([{name:..., value:...}])
+          형태
+      xlabel:
+        type: string
+        description: X축 이름
+      ylabel:
+        type: string
+        description: Y축 이름
+    required:
+    - action
+- tool_id: pdf_parser
+  name: PDF Parser
+  name_ko: PDF 파서
+  description: PDF 파일에서 텍스트/표 추출 — 페이지별 추출, 내용 요약, 텍스트 검색
+  model_name: gpt-5-mini
+- tool_id: prompt_tester
+  name: Prompt Tester
+  name_ko: 프롬프트 테스터
+  description: 프롬프트를 여러 AI 모델로 실행·비교 — 모델별 응답 비교, A/B 테스트, 품질 평가
+  model_name: gpt-5-mini
+- tool_id: embedding_tool
+  name: Embedding Tool
+  name_ko: 임베딩 도구
+  description: 텍스트를 AI 벡터로 변환 — 임베딩, 유사도 계산, 일괄 처리, 클러스터링
+  model_name: gpt-5-mini
+- tool_id: token_counter
+  name: Token Counter
+  name_ko: 토큰 카운터
+  description: AI 모델 토큰 수 계산 — 토큰 수, 예상 비용 산출, 토큰 한도 맞춤 자르기
+  model_name: gpt-5-mini
+- tool_id: notification_engine
+  name: Notification Engine
+  name_ko: 알림 엔진
+  description: 텔레그램·이메일로 자동 알림 발송 — 메시지/보고서 알림, 템플릿 발송, 이력 관리
+  model_name: gpt-5-mini
+  parameters:
+    type: object
+    properties:
+      action:
+        type: string
+        enum:
+        - send
+        - template
+        - history
+        description: send=즉시 알림 발송, template=템플릿으로 발송, history=발송 이력 조회
+      message:
+        type: string
+        description: 알림 메시지 내용 (send 사용 시 필수)
+      channel:
+        type: string
+        enum:
+        - telegram
+        - email
+        - all
+        description: '발송 채널 (기본값: telegram)'
+      title:
+        type: string
+        description: 알림 제목 (선택)
+      template_name:
+        type: string
+        description: 템플릿 이름 (template 사용 시 필수)
+    required:
+    - action
+- tool_id: global_market_tool
+  name: Global Market Tool
+  name_ko: 글로벌 시장 도구
+  description: 글로벌 주식/지수/암호화폐/환율 조회 — 미국·일본·유럽 주식, 비트코인 시세, 환율
+  model_name: gpt-5-mini
+  parameters:
+    type: object
+    properties:
+      action:
+        type: string
+        enum:
+        - stock
+        - index
+        - crypto
+        - forex
+        - compare
+        description: stock=해외주식 조회, index=글로벌지수, crypto=암호화폐, forex=환율, compare=비교
+      symbol:
+        type: string
+        description: '주식 심볼 (stock 사용 시 필수, 예: AAPL, TSLA, NVDA)'
+      indices:
+        type: string
+        description: '조회할 지수 목록 (index 사용 시, 예: SP500,NASDAQ,DOW)'
+      coins:
+        type: string
+        description: '암호화폐 목록 (crypto 사용 시, 기본값: bitcoin,ethereum)'
+      period:
+        type: string
+        description: '조회 기간 (compare 사용 시, 예: 1mo, 3mo, 1y)'
+    required:
+    - action
+- tool_id: financial_calculator
+  name: Financial Calculator
+  name_ko: 재무 계산기
+  description: 재무 분석 계산 — DCF 기업가치, NPV/IRR, 대출 시뮬레이션, ROI/CAGR, 손익분기점
+  model_name: gpt-5-mini
+- tool_id: calendar_tool
+  name: Calendar Tool
+  name_ko: 캘린더 도구
+  description: Google Calendar 연동 — 일정 조회·생성·수정·삭제, 검색, 빈 시간 확인
+  model_name: gpt-5-mini
+- tool_id: email_sender
+  name: Email Sender
+  name_ko: 이메일 발송기
+  description: 이메일 자동 발송 — 텍스트/HTML 이메일, 초안 작성, 템플릿, 대량 발송
+  model_name: gpt-5-mini
+- tool_id: vector_knowledge
+  name: Vector Knowledge Base
+  name_ko: 벡터 지식베이스
+  description: 의미 기반 지식 검색(RAG) — 자연어 검색, 문서 벡터 저장, 파일 일괄 추가
+  model_name: gpt-5-mini
+- tool_id: decision_tracker
+  name: Decision Tracker
+  name_ko: 의사결정 추적기
+  description: 의사결정 기록·추적 — 결정 배경/선택지/이유 기록, 결과 업데이트, 패턴 분석
+  model_name: gpt-5-mini
+- tool_id: image_generator
+  name: Image Generator
+  name_ko: 이미지 생성기
+  description: AI 이미지 생성 — DALL-E 3로 이미지 생성, 기존 이미지 편집/변형
+  model_name: gpt-5-mini
+- tool_id: audio_transcriber
+  name: Audio Transcriber
+  name_ko: 음성 변환기
+  description: 음성/오디오를 텍스트로 변환 — 한국어 STT, 자동 번역, 녹음 요약, 회의록 변환
+  model_name: gpt-5-mini
+- tool_id: cross_agent_protocol
+  name: Cross Agent Protocol
+  name_ko: 에이전트 협업 프로토콜
+  description: 에이전트 간 횡적 협업 — 작업 요청, 정보 공유, 작업 인계, 결과 수집·종합
+  model_name: gpt-5-mini
