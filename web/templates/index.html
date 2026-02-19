@@ -2331,20 +2331,18 @@
               </button>
             </div>
           </div>
-          <!-- 내부통신 토글 (항상 표시) -->
-          <div class="flex items-center mt-2 max-w-4xl mx-auto">
+          <!-- 하단 툴바: 내부통신 + 프리셋 + 내보내기/비우기 한 행 -->
+          <div class="flex items-center gap-2 flex-wrap mt-2 max-w-4xl mx-auto overflow-x-auto scrollbar-thin">
             <button @click="toggleDelegationLog()" title="에이전트 내부통신 로그"
                     :class="showDelegationLog ? 'text-hq-cyan bg-hq-cyan/10 border-hq-cyan/30' : 'text-hq-muted/70 hover:text-hq-cyan border-transparent'"
-                    class="text-[10px] flex items-center gap-1 transition border rounded-lg px-2 py-1">
+                    class="text-[10px] flex items-center gap-1 transition border rounded-lg px-2 py-1 shrink-0">
               <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                       d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
               </svg>
               내부통신
             </button>
-          </div>
-          <!-- Preset Chips + 대화 내보내기 (프리셋이 있거나 메시지가 있을 때만 표시) -->
-          <div x-show="(presets.items && presets.items.length > 0) || messages.length > 0" class="flex items-center gap-2 flex-wrap mt-2 max-w-4xl mx-auto overflow-x-auto scrollbar-thin">
+            <span class="text-hq-border/50 text-xs shrink-0 select-none">|</span>
             <template x-for="p in presets.items" :key="p.name">
               <button @click="sendPreset(p.command)"
                       :disabled="systemStatus === 'working'"
@@ -4102,8 +4100,9 @@
               <!-- 연결됐으나 잔고 조회 실패 시 -->
               <template x-if="(trading.summary.settings||{}).kis_connected && !(trading.summary.kis_balance||{}).success">
                 <div class="text-center py-4 text-xs text-hq-yellow/80">
-                  KIS API 연결 확인 중... API 키가 실거래용인지 확인해주세요.<br>
-                  <span class="text-hq-muted/60 text-[10px]">KIS 앱 → Open API → 실거래 신청 필요 (모의투자 키와 별도)</span>
+                  <div class="mb-1">KIS 잔고 조회 중... 잠시 후 자동으로 연결됩니다.</div>
+                  <div x-show="(trading.summary.kis_balance||{}).error" x-text="'오류: ' + ((trading.summary.kis_balance||{}).error||'')" class="text-hq-muted/60 text-[10px] mb-1"></div>
+                  <button @click="loadTradingData()" class="mt-1 text-[10px] text-hq-accent hover:underline">지금 다시 조회</button>
                 </div>
               </template>
               <!-- 미연결 시 안내 -->
@@ -6978,20 +6977,30 @@
           return this.agentNames[id] || id;
         },
 
-        fetchDelegationLogs() {
-          this.delegationLogLoading = true;
+        fetchDelegationLogs(silent = false) {
+          if (!silent) this.delegationLogLoading = true;
           fetch('/api/delegation-log?limit=50')
             .then(r => r.json())
             .then(data => {
-              this.delegationLogs = (data.logs || data || []).reverse();
-              this.delegationLogLoading = false;
+              const newLogs = (data.logs || data || []).reverse();
+              // 새 항목이 있을 때만 업데이트 (깜박임 방지)
+              if (newLogs.length !== this.delegationLogs.length ||
+                  (newLogs[0]||{}).id !== (this.delegationLogs[0]||{}).id) {
+                this.delegationLogs = newLogs;
+              }
+              if (!silent) this.delegationLogLoading = false;
             })
-            .catch(() => { this.delegationLogLoading = false; });
+            .catch(() => { if (!silent) this.delegationLogLoading = false; });
         },
         toggleDelegationLog() {
           this.showDelegationLog = !this.showDelegationLog;
           if (this.showDelegationLog) {
-            this.fetchDelegationLogs(); // 최초 1회만 로드, 이후는 WebSocket 실시간
+            this.fetchDelegationLogs();
+            // 5초마다 자동 갱신
+            this._delegationPollTimer = setInterval(() => this.fetchDelegationLogs(true), 5000);
+          } else {
+            clearInterval(this._delegationPollTimer);
+            this._delegationPollTimer = null;
           }
         },
         getFilteredDelegationLogs() {
@@ -9143,10 +9152,14 @@
 
         // ── #12: Tab grouping helpers ──
         getPrimaryTabs() {
-          return this.tabs.filter(t => ['home', 'command', 'performance', 'history', 'schedule', 'trading'].includes(t.id));
+          // 메인 탭 순서: 작전현황 / 사령관실 / 작전일지 / 기밀문서 / 전략실 / 크론기지
+          const order = ['home', 'command', 'history', 'archive', 'trading', 'schedule'];
+          return order.map(id => this.tabs.find(t => t.id === id)).filter(Boolean);
         },
         getSecondaryTabs() {
-          return this.tabs.filter(t => !['home', 'command', 'performance', 'history', 'schedule', 'trading'].includes(t.id));
+          // 더보기: 자동화 / 통신로그 / 작전일지 / 정보국 / 통신국
+          const order = ['workflow', 'activityLog', 'history', 'knowledge', 'sns'];
+          return order.map(id => this.tabs.find(t => t.id === id)).filter(Boolean);
         },
 
         // ── #4: Publishing division support ──
