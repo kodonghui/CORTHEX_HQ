@@ -2794,7 +2794,6 @@
                   질문 길이/내용에 따라 Haiku(저비용) 또는 Sonnet(고품질) 자동 선택
                 </div>
                 <div x-show="modelMode === 'recommended'" class="mt-1">
-                  <div class="text-[10px] text-hq-green font-bold mb-2">✓ 권장 모델 적용됨 — 에이전트별 최적 설정</div>
                   <div class="grid grid-cols-1 gap-0.5 text-[9px] text-hq-muted max-h-40 overflow-y-auto">
                     <div class="flex justify-between py-0.5 border-b border-hq-border/30"><span>비서실장</span><span class="text-hq-accent">Sonnet 4.6</span></div>
                     <div class="flex justify-between py-0.5 border-b border-hq-border/30"><span>기록 보좌관</span><span class="text-hq-muted">Haiku 4.5</span></div>
@@ -9199,9 +9198,13 @@
             const res = await fetch('/api/agents/apply-recommended', { method: 'POST' }).then(r => r.json());
             if (res.success) {
               this.modelMode = 'recommended';
-              await this.saveModelMode();
+              await fetch('/api/model-mode', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ mode: 'recommended' }),
+              }).catch(() => {});
               this.showToast(`권장 모델 적용 완료 (${res.applied_count}명)`, 'success');
-              await this.loadAgents();
+              try { await this.loadAgentsAndTools(); } catch {}
             } else {
               this.showToast('적용 실패', 'error');
             }
