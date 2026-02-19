@@ -301,8 +301,11 @@ async def get_balance() -> dict:
             output1 = data.get("output1", [])  # 보유 종목
             output2 = data.get("output2", [{}])  # 계좌 요약
 
-            cash = int((output2[0] if output2 else {}).get("dnca_tot_amt", "0") or "0")
-            total_eval = int((output2[0] if output2 else {}).get("tot_evlu_amt", "0") or "0")
+            out2 = output2[0] if output2 else {}
+            # nxdy_excc_amt: 익일정산금 = 실제 주문에 사용 가능한 현금 (가장 정확)
+            # dnca_tot_amt는 미결제 금액까지 포함해 실제보다 크게 나올 수 있어 사용 금지
+            cash = int(out2.get("nxdy_excc_amt", "0") or "0")
+            total_eval = int(out2.get("tot_evlu_amt", "0") or "0")
 
             holdings = []
             for item in output1:
@@ -494,8 +497,11 @@ async def get_mock_balance() -> dict:
             output1 = data.get("output1", [])  # 보유 종목
             output2 = data.get("output2", [{}])  # 계좌 요약
 
-            cash = int((output2[0] if output2 else {}).get("dnca_tot_amt", "0") or "0")
-            total_eval = int((output2[0] if output2 else {}).get("tot_evlu_amt", "0") or "0")
+            out2 = output2[0] if output2 else {}
+            # nxdy_excc_amt: 익일정산금 = 실제 주문에 사용 가능한 현금 (가장 정확)
+            # dnca_tot_amt는 미결제 금액까지 포함해 실제보다 크게 나올 수 있어 사용 금지
+            cash = int(out2.get("nxdy_excc_amt", "0") or "0")
+            total_eval = int(out2.get("tot_evlu_amt", "0") or "0")
 
             holdings = []
             for item in output1:
