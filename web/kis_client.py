@@ -239,4 +239,4 @@ async def get_balance() -> dict:
             }
     except Exception as e:
         logger.error("[KIS] 잔고 조회 실패: %s", e)
-        return {"success": False, "cash": 0, "holdings": [], "total_eval": 0}
+        return {"success": False, "cash": 0, "holdings": [], "total_eval": 0, "error": str(e)}
