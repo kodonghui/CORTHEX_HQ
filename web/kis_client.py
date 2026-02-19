@@ -130,7 +130,6 @@ async def _get_token() -> str:
             if elapsed < _TOKEN_COOLDOWN_SEC:
                 wait = int(_TOKEN_COOLDOWN_SEC - elapsed)
                 raise Exception(f"KIS 토큰 발급 대기 중 ({wait}초 후 재시도 가능, 1분당 1회 제한)")
-        _last_token_request = datetime.now()
         async with httpx.AsyncClient(timeout=10) as client:
             resp = await client.post(
                 f"{KIS_BASE}/oauth2/tokenP",
@@ -144,6 +143,8 @@ async def _get_token() -> str:
             if not resp.is_success:
                 body = resp.text
                 logger.error("[KIS] 토큰 발급 실패 %s: %s", resp.status_code, body)
+                # 실패 시에도 쿨다운 시작 (EGW00133 rate limit 방지)
+                _last_token_request = datetime.now()
                 raise Exception(f"KIS 토큰 발급 실패 ({resp.status_code}): {body}")
             resp.raise_for_status()
             data = resp.json()
@@ -153,6 +154,8 @@ async def _get_token() -> str:
             _token_cache["token"] = token
             _token_cache["expires"] = expires
             _save_token_to_db(token, expires)
+            # 성공 시에만 쿨다운 시작 (다음 발급까지 65초 대기)
+            _last_token_request = datetime.now()
             mode = "모의투자" if KIS_IS_MOCK else "실거래"
             logger.info("[KIS] 액세스 토큰 신규 발급 (%s, 만료: %s분 후)", mode, expires_in // 60)
             return token
