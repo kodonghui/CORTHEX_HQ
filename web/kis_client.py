@@ -270,7 +270,7 @@ async def get_balance() -> dict:
         {"cash": int, "holdings": [...], "total_eval": int, "success": bool}
     """
     if not is_configured():
-        return {"success": False, "cash": 0, "holdings": [], "total_eval": 0}
+        return {"success": False, "available": False, "cash": 0, "holdings": [], "total_eval": 0}
 
     try:
         token = await _get_token()
@@ -322,6 +322,7 @@ async def get_balance() -> dict:
 
             return {
                 "success": True,
+                "available": True,
                 "cash": cash,
                 "holdings": holdings,
                 "total_eval": total_eval,
@@ -329,7 +330,7 @@ async def get_balance() -> dict:
             }
     except Exception as e:
         logger.error("[KIS] 잔고 조회 실패: %s", e)
-        return {"success": False, "cash": 0, "holdings": [], "total_eval": 0, "error": str(e)}
+        return {"success": False, "available": False, "cash": 0, "holdings": [], "total_eval": 0, "error": str(e)}
 
 
 async def _force_renew_token() -> None:

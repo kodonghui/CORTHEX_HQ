@@ -4293,6 +4293,13 @@ async def get_trading_signals():
     return _load_data("trading_signals", [])
 
 
+@app.get("/api/trading/decisions")
+async def get_trading_decisions():
+    """매매 결정 일지 반환 (최근 50건)."""
+    decisions = load_setting("trading_decisions", [])
+    return {"decisions": decisions[-50:]}
+
+
 @app.delete("/api/trading/signals/{signal_id}")
 async def delete_trading_signal(signal_id: str):
     """개별 매매 시그널 삭제."""
@@ -4346,10 +4353,12 @@ async def generate_trading_signals():
 - **기술적분석**: 각 관심종목의 RSI, MACD, 이동평균선, 볼린저밴드 지표 확인
 - **리스크관리**: 포지션 크기 적정성, 손절가, 전체 포트폴리오 리스크
 
-## 최종 산출물 (반드시 이 형식으로)
-각 종목에 대해 다음 형식의 결론을 포함해주세요:
-[시그널] 종목명 (종목코드) | 매수/매도/관망 | 신뢰도 0~100% | 근거 한줄
-[시그널] 종목명 (종목코드) | 매수/매도/관망 | 신뢰도 0~100% | 근거 한줄"""
+## 최종 산출물 (반드시 아래 형식 그대로 — 예시처럼 정확히)
+[시그널] 삼성전자 (005930) | 매수 | 신뢰도 72% | 반도체 수요 회복 + RSI 과매도 구간
+[시그널] 카카오 (035720) | 매도 | 신뢰도 61% | PER 과대평가, 금리 민감 섹터 약세
+[시그널] LG에너지솔루션 (373220) | 관망 | 신뢰도 45% | 혼조세, 방향성 불명확
+
+※ 주의: 신뢰도는 반드시 0~100 사이 숫자 + % 기호. 각 종목마다 독립적으로 계산할 것."""
 
     if not is_ai_ready():
         # AI 미연결 시 더미 시그널
@@ -4375,10 +4384,36 @@ async def generate_trading_signals():
 
     # CIO + 4명 전문가에게 위임 (실제 도구 사용 + 병렬 분석)
     save_activity_log("cio_manager", f"📊 자동매매 시그널 생성 — {len(watchlist)}개 종목 분석 시작", "info")
-    cio_result = await _manager_with_delegation("cio_manager", prompt)
+
+    # 1단계: CIO 독자 분석 (전문가 보고서 참고 없이 독립적 판단)
+    cio_solo_prompt = (
+        f"다음 관심종목들에 대해 당신만의 독자적인 투자 분석을 작성하세요 (전문가 보고서 참고 없이):\n{tickers_info or '없음'}\n\n"
+        f"활성 전략: {strats_info or '기본 전략'}\n\n"
+        f"각 종목에 대해 현재 시장 환경, 섹터 동향, 밸류에이션 관점에서 독립적으로 판단하고 "
+        f"매수/매도/관망 의견을 제시하세요. 최종 산출물은 반드시 아래 형식으로:\n"
+        f"[시그널] 삼성전자 (005930) | 매수 | 신뢰도 72% | 반도체 수요 회복 신호\n"
+        f"[시그널] 카카오 (035720) | 관망 | 신뢰도 48% | 방향성 불명확\n"
+        f"※ 신뢰도는 종목별로 독립적으로 0~100 숫자 + % 기호로 표기"
+    )
+    cio_soul = _load_agent_prompt("cio_manager")
+    cio_solo_model = select_model(cio_solo_prompt, override=_get_model_override("cio_manager"))
+    save_activity_log("cio_manager", "📊 CIO 독자 분석 시작 (전문가 위임 전 독립 판단)", "info")
+    cio_solo_result = await ask_ai(cio_solo_prompt, system_prompt=cio_soul, model=cio_solo_model)
+    cio_solo_content = cio_solo_result.get("content", "") if isinstance(cio_solo_result, dict) else ""
+    cio_solo_cost = cio_solo_result.get("cost_usd", 0) if isinstance(cio_solo_result, dict) else 0
+
+    # 2단계: 전문가 4명 병렬 분석 + CIO 종합 (기존 흐름)
+    # 최종 종합 프롬프트에 CIO 독자 분석을 포함시켜 위임
+    prompt_with_solo = (
+        f"{prompt}\n\n"
+        f"## CIO 독자 사전 분석 (전문가 보고서 참고 전 작성한 독립 판단)\n"
+        f"{cio_solo_content[:1000] if cio_solo_content else '분석 없음'}\n\n"
+        f"위 독자 분석과 전문가 보고서를 모두 반영하여 최종 시그널을 결정하세요."
+    )
+    cio_result = await _manager_with_delegation("cio_manager", prompt_with_solo)
 
     content = cio_result.get("content", "")
-    cost = cio_result.get("cost_usd", 0)
+    cost = cio_result.get("cost_usd", 0) + cio_solo_cost
     specialists_used = cio_result.get("specialists_used", 0)
 
     # CIO 분석 결과에서 시그널 파싱
@@ -4434,6 +4469,30 @@ async def generate_trading_signals():
     except Exception:
         pass  # 기밀문서 저장 실패해도 시그널 API는 정상 반환
 
+    # 매매 결정 일지 저장 (parsed_signals 기반)
+    try:
+        decisions = load_setting("trading_decisions", [])
+        for sig in parsed_signals:
+            action_raw = sig.get("action", "hold")
+            action_label = "매수" if action_raw == "buy" else ("매도" if action_raw == "sell" else "관망")
+            decision = {
+                "id": str(_uuid.uuid4()),
+                "created_at": datetime.now(KST).isoformat(),
+                "ticker": sig.get("ticker", ""),
+                "ticker_name": sig.get("name", sig.get("ticker", "")),
+                "action": action_label,
+                "confidence": sig.get("confidence", 0),
+                "reason": sig.get("reason", ""),
+                "expert_opinions": sig.get("expert_opinions", []),
+                "executed": False,
+            }
+            decisions.append(decision)
+        if len(decisions) > 50:
+            decisions = decisions[-50:]
+        save_setting("trading_decisions", decisions)
+    except Exception:
+        pass  # 결정 일지 저장 실패해도 정상 반환
+
     return {"success": True, "signal": new_signal, "parsed_signals": parsed_signals}
 
 
@@ -4442,8 +4501,8 @@ def _parse_cio_signals(content: str, watchlist: list) -> list:
     import re
     parsed = []
 
-    # [시그널] 패턴 매칭
-    pattern = r'\[시그널\]\s*(.+?)\s*\((.+?)\)\s*\|\s*(매수|매도|관망|buy|sell|hold)\s*\|\s*(\d+)%?\s*\|\s*(.+)'
+    # [시그널] 패턴 매칭 (신뢰도 앞에 "신뢰도:" 텍스트 있어도 처리)
+    pattern = r'\[시그널\]\s*(.+?)\s*[\(（](.+?)[\)）]\s*\|\s*(매수|매도|관망|buy|sell|hold)\s*\|\s*(?:신뢰도[:\s]*)?\s*(\d+)\s*%?\s*\|\s*(.+)'
     matches = re.findall(pattern, content, re.IGNORECASE)
 
     for name, ticker, action, confidence, reason in matches:
@@ -4458,27 +4517,38 @@ def _parse_cio_signals(content: str, watchlist: list) -> list:
             "reason": reason.strip(),
         })
 
-    # [시그널] 패턴이 없으면 관심종목 기반으로 키워드 파싱
+    # [시그널] 패턴이 없으면 관심종목 기반으로 키워드 파싱 (종목별 개별 컨텍스트 기준)
     if not parsed:
         for w in watchlist:
             action = "hold"
             confidence = 50
             reason = ""
             name = w.get("name", w["ticker"])
-            if name in content or w["ticker"] in content:
-                lower_content = content.lower()
-                if any(k in content for k in ["매수", "적극 매수", "buy", "진입"]):
-                    action = "buy"
-                    confidence = 65
-                elif any(k in content for k in ["매도", "sell", "청산", "익절"]):
-                    action = "sell"
-                    confidence = 65
-                # 근거 추출 (종목명 주변 문장)
-                idx = content.find(name)
-                if idx >= 0:
-                    reason = content[idx:idx+100].split("\n")[0]
+            ticker = w["ticker"]
+            # 이 종목이 보고서에 언급됐는지 확인
+            name_idx = content.find(name)
+            ticker_idx = content.find(ticker)
+            ref_idx = name_idx if name_idx >= 0 else ticker_idx
+            if ref_idx < 0:
+                continue  # 언급 안 된 종목은 제외
+            # 해당 종목 주변 300자만 컨텍스트로 사용 (전체 보고서 X)
+            ctx = content[ref_idx:ref_idx + 300]
+            if any(k in ctx for k in ["매수", "적극 매수", "buy", "진입"]):
+                action = "buy"
+            elif any(k in ctx for k in ["매도", "sell", "청산", "익절"]):
+                action = "sell"
+            # 컨텍스트에서 신뢰도 숫자 추출 (예: "신뢰도 72%" / "72%")
+            conf_match = re.search(r'신뢰도[:\s]*(\d+)\s*%?', ctx)
+            if conf_match:
+                confidence = int(conf_match.group(1))
+            else:
+                pct_match = re.search(r'(\d{2,3})\s*%', ctx)
+                if pct_match:
+                    confidence = int(pct_match.group(1))
+            # 근거 추출
+            reason = ctx.split("\n")[0].strip()
             parsed.append({
-                "ticker": w["ticker"],
+                "ticker": ticker,
                 "name": name,
                 "market": w.get("market", "KR"),
                 "action": action,
@@ -4597,8 +4667,12 @@ async def run_trading_now():
 - **기술적분석**: RSI, MACD, 이동평균선, 볼린저밴드
 - **리스크관리**: 손절가, 적정 포지션 크기, 전체 포트폴리오 리스크
 
-## 최종 산출물 (반드시 이 형식으로)
-[시그널] 종목명 (종목코드) | 매수/매도/관망 | 신뢰도 0~100% | 근거 한줄"""
+## 최종 산출물 (반드시 아래 형식 그대로 — 예시처럼 정확히)
+[시그널] 삼성전자 (005930) | 매수 | 신뢰도 72% | 반도체 수요 회복 + RSI 과매도 구간
+[시그널] 카카오 (035720) | 매도 | 신뢰도 61% | PER 과대평가, 금리 민감 섹터 약세
+[시그널] LG에너지솔루션 (373220) | 관망 | 신뢰도 45% | 혼조세, 방향성 불명확
+
+※ 주의: 신뢰도는 종목별로 독립적으로 계산, 0~100 숫자 + % 기호로 표기"""
 
     save_activity_log("cio_manager", f"🔍 수동 즉시 분석 시작: {market_label}장 {len(market_watchlist)}개 종목", "info")
     cio_result = await _manager_with_delegation("cio_manager", prompt)
@@ -4783,8 +4857,12 @@ async def _trading_bot_loop():
 - **기술적분석**: RSI, MACD, 이동평균선, 볼린저밴드
 - **리스크관리**: 손절가, 적정 포지션 크기, 전체 포트폴리오 리스크
 
-## 최종 산출물 (반드시 이 형식으로)
-[시그널] 종목명 (종목코드) | 매수/매도/관망 | 신뢰도 0~100% | 근거 한줄"""
+## 최종 산출물 (반드시 아래 형식 그대로 — 예시처럼 정확히)
+[시그널] 삼성전자 (005930) | 매수 | 신뢰도 72% | 반도체 수요 회복 + RSI 과매도 구간
+[시그널] 카카오 (035720) | 매도 | 신뢰도 61% | PER 과대평가, 금리 민감 섹터 약세
+[시그널] LG에너지솔루션 (373220) | 관망 | 신뢰도 45% | 혼조세, 방향성 불명확
+
+※ 주의: 신뢰도는 종목별로 독립적으로 계산, 0~100 숫자 + % 기호로 표기"""
 
             cio_result = await _manager_with_delegation("cio_manager", prompt)
             content = cio_result.get("content", "")
@@ -5929,6 +6007,50 @@ async def consult_manager_api(request: Request):
 
 
 # ── 아카이브 API ──
+
+def _parse_archive_frontmatter(content: str) -> dict:
+    """아카이브 content의 YAML 프론트매터에서 importance/tags를 추출합니다.
+
+    프론트매터 형식:
+    ---
+    importance: 중요
+    tags: ["태그1", "태그2"]
+    ---
+    (본문)
+    """
+    meta = {"importance": "일반", "tags": []}
+    if not content or not content.startswith("---"):
+        return meta
+    try:
+        end = content.find("\n---", 3)
+        if end == -1:
+            return meta
+        front = content[3:end].strip()
+        for line in front.splitlines():
+            if line.startswith("importance:"):
+                meta["importance"] = line.split(":", 1)[1].strip().strip('"').strip("'")
+            elif line.startswith("tags:"):
+                raw = line.split(":", 1)[1].strip()
+                if raw.startswith("["):
+                    import json as _json
+                    try:
+                        meta["tags"] = _json.loads(raw)
+                    except Exception:
+                        meta["tags"] = []
+                elif raw:
+                    meta["tags"] = [t.strip() for t in raw.split(",") if t.strip()]
+    except Exception:
+        pass
+    return meta
+
+
+def _build_archive_frontmatter(importance: str = "일반", tags: list = None) -> str:
+    """importance/tags를 YAML 프론트매터 문자열로 변환합니다."""
+    import json as _json
+    tags = tags or []
+    return f"---\nimportance: {importance}\ntags: {_json.dumps(tags, ensure_ascii=False)}\n---\n"
+
+
 @app.delete("/api/archive/all")
 async def delete_all_archives_api():
     """모든 기밀문서를 삭제합니다."""
@@ -5943,7 +6065,41 @@ async def delete_all_archives_api():
 
 @app.get("/api/archive")
 async def get_archive_list(division: str = None, limit: int = 100):
-    return list_archives(division=division, limit=limit)
+    docs = list_archives(division=division, limit=limit)
+    # importance/tags 필드를 각 문서에 추가 (content가 없으므로 별도 조회 없이 기본값 반환)
+    # 목록 조회는 content를 포함하지 않으므로 기본값 사용; 상세 조회에서 실제 값 반환
+    for doc in docs:
+        doc.setdefault("importance", "일반")
+        doc.setdefault("tags", [])
+    return docs
+
+
+@app.post("/api/archive")
+async def create_archive_api(request: Request):
+    """기밀문서를 직접 저장합니다. importance/tags 필드를 지원합니다."""
+    try:
+        body = await request.json()
+        division = body.get("division", "general")
+        filename = body.get("filename", "")
+        content = body.get("content", "")
+        agent_id = body.get("agent_id", "")
+        importance = body.get("importance", "일반")
+        tags = body.get("tags", [])
+        if not filename or not content:
+            return {"success": False, "error": "filename과 content는 필수입니다"}
+        # importance/tags를 YAML 프론트매터로 content 앞에 삽입
+        front = _build_archive_frontmatter(importance=importance, tags=tags)
+        full_content = front + content
+        row_id = save_archive(
+            division=division,
+            filename=filename,
+            content=full_content,
+            agent_id=agent_id or None,
+        )
+        save_activity_log("system", f"📁 기밀문서 저장: {division}/{filename} [중요도: {importance}]", "info")
+        return {"success": True, "id": row_id, "importance": importance, "tags": tags}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
 
 
 @app.get("/api/archive/{division}/{filename}")
@@ -5951,6 +6107,10 @@ async def get_archive_file(division: str, filename: str):
     doc = db_get_archive(division, filename)
     if not doc:
         return {"error": "not found"}
+    # content에서 importance/tags 파싱
+    meta = _parse_archive_frontmatter(doc.get("content", ""))
+    doc["importance"] = meta.get("importance", "일반")
+    doc["tags"] = meta.get("tags", [])
     return doc
 
 
