@@ -68,6 +68,7 @@ git checkout main && git pull origin main
 | 네이버 | `NAVER_CLIENT_ID`, `NAVER_CLIENT_SECRET`, `NAVER_ID`, `NAVER_PW`, `NAVER_BLOG_ID`, `NAVER_REDIRECT_URI` |
 | 다음 | `DAUM_CAFE_ID`, `DAUM_CAFE_BOARD_ID`, `DAUM_ID`, `DAUM_PW` |
 | 서버 | `SERVER_IP_ARM`, `SERVER_SSH_KEY_ARM` (건드리지 말 것) |
+| 한국투자증권(KIS) | `KOREA_INVEST_APP_KEY`, `KOREA_INVEST_APP_SECRET`, `KOREA_INVEST_ACCOUNT`, `KOREA_INVEST_IS_MOCK` |
 | 기타 | `SNS_BROWSER_HEADLESS` |
 
 **API 키 값이 필요하면** → `gh secret list --repo kodonghui/CORTHEX_HQ`로 목록만 확인 가능 (값은 GitHub에서 보안상 숨김)
