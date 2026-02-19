@@ -87,8 +87,8 @@ agents:
   - skill_using_superpowers
   - skill_pensieve
 - agent_id: report_specialist
-  name: General Specialist
-  name_ko: 기록 보좌관
+  name: Information Aide
+  name_ko: 정보 보좌관
   role: specialist
   division: secretary
   model_name: claude-haiku-4-5
@@ -120,9 +120,14 @@ agents:
     \ (BLUF)**: 첫 줄에 \"결론: X\" → 이후 근거 설명\n- **행동 지침 포함**: \"CEO님이 결정할 것: Z\" 형식으로\
     \ 종결"
   capabilities:
-  - 보고서 요약
+  - 아침 브리핑
+  - 뉴스 큐레이션
+  - 정보 요약
   superior_id: chief_of_staff
   allowed_tools:
+  - naver_news
+  - web_search
+  - real_web_search
   - skill_strategic_compact
 - agent_id: schedule_specialist
   name: Strategy Specialist
@@ -164,8 +169,8 @@ agents:
   - skill_writing_plans
   - skill_executing_plans
 - agent_id: relay_specialist
-  name: Communications Specialist
-  name_ko: 소통 보좌관
+  name: Quality Inspector
+  name_ko: 검수 보좌관
   role: specialist
   division: secretary
   model_name: claude-sonnet-4-6
@@ -192,9 +197,14 @@ agents:
     응답 속도\", \"Throughput\"은 \"처리량\"으로\n- **결론 먼저 (BLUF)**: 첫 줄에 \"결론: X\" → 이후 근거\
     \ 설명\n- **행동 지침 포함**: \"이 데이터의 의미: Y / CEO님이 결정할 것: Z\" 형식으로 종결"
   capabilities:
-  - 정보 중계
+  - 보고서 품질 검수
+  - 팩트체크
+  - 출력물 포맷 정리
   superior_id: chief_of_staff
   allowed_tools:
+  - web_search
+  - real_web_search
+  - naver_news
   - cross_agent_protocol
   - skill_iterative_retrieval
 - agent_id: cto_manager
