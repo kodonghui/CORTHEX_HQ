@@ -141,6 +141,7 @@ CREATE TABLE IF NOT EXISTS conversation_messages (
 );
 
 CREATE INDEX IF NOT EXISTS idx_conversation_created_at ON conversation_messages(created_at);
+CREATE INDEX IF NOT EXISTS idx_conversation_task_id ON conversation_messages(task_id);
 
 -- 에이전트별 AI 호출 기록 테이블: 전력분석용
 CREATE TABLE IF NOT EXISTS agent_calls (
@@ -833,7 +834,9 @@ def load_setting(key: str, default=None):
 # ── Conversation Messages CRUD ──
 
 def save_conversation_message(message_type: str, **kwargs) -> int:
-    """대화 메시지를 DB에 저장합니다. 반환: row id."""
+    """대화 메시지를 DB에 저장합니다. 반환: row id.
+    result 타입이고 task_id가 있으면 중복 저장을 방지합니다 (서버+클라이언트 양쪽 저장 대비).
+    """
     conn = get_connection()
     try:
         # 허용된 필드만 필터링
@@ -842,6 +845,16 @@ def save_conversation_message(message_type: str, **kwargs) -> int:
             "model", "time_seconds", "cost", "quality_score", "task_id", "source"
         }
         filtered = {k: v for k, v in kwargs.items() if k in allowed}
+
+        # result 타입 + task_id가 있으면 중복 체크
+        task_id = filtered.get("task_id")
+        if message_type == "result" and task_id:
+            existing = conn.execute(
+                "SELECT id FROM conversation_messages WHERE type='result' AND task_id=?",
+                (task_id,)
+            ).fetchone()
+            if existing:
+                return existing["id"]  # 이미 있으면 기존 id 반환 (중복 저장 생략)
 
         # 컬럼과 값 준비
         columns = ["type", "created_at"] + list(filtered.keys())
