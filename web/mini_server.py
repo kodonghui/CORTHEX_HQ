@@ -631,6 +631,11 @@ async def get_agent(agent_id: str):
         if a["agent_id"] == agent_id:
             # agents.yaml에서 상세 정보 보충 (allowed_tools, capabilities 등)
             detail = _AGENTS_DETAIL.get(agent_id, {})
+            # DB 오버라이드 우선 적용 (사용자가 변경한 모델/추론레벨 보존)
+            overrides = _load_data("agent_overrides", {})
+            override = overrides.get(agent_id, {})
+            model_name = override.get("model_name") or detail.get("model_name") or a.get("model_name", "")
+            reasoning_effort = override.get("reasoning_effort") or detail.get("reasoning_effort", "")
             # 소울 로드 우선순위: 1) DB 오버라이드 → 2) souls/*.md 파일 → 3) agents.yaml
             soul_override = load_setting(f"soul_{agent_id}")
             if soul_override is not None:
@@ -647,13 +652,14 @@ async def get_agent(agent_id: str):
                     system_prompt = detail.get("system_prompt", "")
             return {
                 **a,
+                "model_name": model_name,           # DB 오버라이드 우선 (YAML 하드코딩 덮어쓰기)
                 "system_prompt": system_prompt,
                 "capabilities": detail.get("capabilities", []),
                 "allowed_tools": detail.get("allowed_tools", []),
                 "subordinate_ids": detail.get("subordinate_ids", []),
                 "superior_id": detail.get("superior_id", ""),
                 "temperature": detail.get("temperature", 0.3),
-                "reasoning_effort": detail.get("reasoning_effort", ""),
+                "reasoning_effort": reasoning_effort,  # DB 오버라이드 우선
             }
     return {"error": "not found"}
 
