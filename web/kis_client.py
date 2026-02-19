@@ -38,9 +38,41 @@ _TR = {
     "balance": "VTTC8434R" if KIS_IS_MOCK else "TTTC8434R",
 }
 
-# 토큰 캐시
+# 토큰 캐시 (메모리)
 _token_cache: dict = {"token": None, "expires": None}
 _token_lock = asyncio.Lock()
+
+# DB 토큰 캐시 키 (모의/실거래 구분)
+_DB_TOKEN_KEY = "kis_token_mock" if KIS_IS_MOCK else "kis_token_real"
+
+
+def _load_token_from_db() -> tuple[str | None, datetime | None]:
+    """DB에서 토큰 로드. (서버 재시작 후에도 토큰 유지)"""
+    try:
+        from db import load_setting
+        cached = load_setting(_DB_TOKEN_KEY)
+        if cached and isinstance(cached, dict):
+            token = cached.get("token")
+            expires_str = cached.get("expires")
+            if token and expires_str:
+                expires = datetime.fromisoformat(expires_str)
+                if datetime.now() < expires:
+                    return token, expires
+    except Exception:
+        pass
+    return None, None
+
+
+def _save_token_to_db(token: str, expires: datetime) -> None:
+    """토큰을 DB에 저장 (서버 재시작해도 유지됨)."""
+    try:
+        from db import save_setting
+        save_setting(_DB_TOKEN_KEY, {
+            "token": token,
+            "expires": expires.isoformat(),
+        })
+    except Exception:
+        pass
 
 
 def is_configured() -> bool:
@@ -49,12 +81,26 @@ def is_configured() -> bool:
 
 
 async def _get_token() -> str:
-    """OAuth2 액세스 토큰 발급 (만료 시 자동 갱신)."""
+    """OAuth2 액세스 토큰 발급.
+    우선순위: 메모리 캐시 → DB 캐시 → KIS API 신규 발급
+    (서버 재시작 후에도 24시간 내 토큰 재사용, 분당 1회 제한 회피)
+    """
     async with _token_lock:
         now = datetime.now()
+
+        # 1순위: 메모리 캐시
         if _token_cache["token"] and _token_cache["expires"] and now < _token_cache["expires"]:
             return _token_cache["token"]
 
+        # 2순위: DB 캐시 (서버 재시작 후에도 살아있음)
+        db_token, db_expires = _load_token_from_db()
+        if db_token and db_expires:
+            _token_cache["token"] = db_token
+            _token_cache["expires"] = db_expires
+            logger.info("[KIS] DB에서 토큰 복원 (만료까지 %s분)", int((db_expires - now).total_seconds() // 60))
+            return db_token
+
+        # 3순위: KIS API 신규 발급
         async with httpx.AsyncClient(timeout=10) as client:
             resp = await client.post(
                 f"{KIS_BASE}/oauth2/tokenP",
@@ -66,12 +112,15 @@ async def _get_token() -> str:
             )
             resp.raise_for_status()
             data = resp.json()
-            _token_cache["token"] = data["access_token"]
+            token = data["access_token"]
             expires_in = int(data.get("expires_in", 86400))
-            _token_cache["expires"] = now + timedelta(seconds=expires_in - 300)
+            expires = now + timedelta(seconds=expires_in - 300)  # 5분 여유
+            _token_cache["token"] = token
+            _token_cache["expires"] = expires
+            _save_token_to_db(token, expires)
             mode = "모의투자" if KIS_IS_MOCK else "실거래"
-            logger.info("[KIS] 액세스 토큰 발급 완료 (%s, 만료: %s분 후)", mode, expires_in // 60)
-            return _token_cache["token"]
+            logger.info("[KIS] 액세스 토큰 신규 발급 (%s, 만료: %s분 후)", mode, expires_in // 60)
+            return token
 
 
 async def get_current_price(ticker: str) -> int:
