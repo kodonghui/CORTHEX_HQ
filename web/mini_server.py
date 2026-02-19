@@ -5898,16 +5898,51 @@ async def get_activity_logs(limit: int = 50, agent_id: str = None):
 # ── 협업 로그 API ──
 
 @app.get("/api/delegation-log")
-async def get_delegation_log(agent: str = None, limit: int = 100):
+async def get_delegation_log(agent: str = None, division: str = None, limit: int = 100):
     """에이전트 간 위임/협업 로그를 조회합니다.
 
-    ?agent=비서실장 처럼 쿼리 파라미터를 지정하면 해당 에이전트 관련 로그만 반환합니다.
+    ?agent=비서실장 — 특정 에이전트 관련 로그만 반환
+    ?division=cio  — 해당 처 팀 전체 관련 로그 반환 (cio/cto/cmo/cso/clo/cpo)
     """
     try:
-        from db import list_delegation_logs
-        logs = list_delegation_logs(agent=agent, limit=limit)
-        return logs
-    except Exception as e:
+        import sqlite3
+        from db import list_delegation_logs, get_connection
+
+        if division:
+            # 처별 키워드 매핑 (sender/receiver LIKE 검색)
+            _div_keywords: dict[str, list[str]] = {
+                "cio": ["CIO", "투자분석", "stock_analysis", "market_condition", "technical_analysis", "risk_management"],
+                "cto": ["CTO", "기술개발", "frontend", "backend", "infra", "ai_model"],
+                "cmo": ["CMO", "마케팅", "survey", "content_spec", "community"],
+                "cso": ["CSO", "사업기획", "business_plan", "market_research", "financial_model"],
+                "clo": ["CLO", "법무", "copyright", "patent"],
+                "cpo": ["CPO", "출판", "chronicle", "editor_spec", "archive"],
+            }
+            keywords = _div_keywords.get(division.lower(), [])
+            if not keywords:
+                return []
+            conn = get_connection()
+            try:
+                placeholders = " OR ".join(["sender LIKE ? OR receiver LIKE ?" for _ in keywords])
+                params = []
+                for k in keywords:
+                    params.extend([f"%{k}%", f"%{k}%"])
+                params.append(limit)
+                rows = conn.execute(
+                    f"SELECT id, sender, receiver, message, task_id, log_type, created_at "
+                    f"FROM delegation_log WHERE ({placeholders}) "
+                    f"ORDER BY created_at DESC LIMIT ?",
+                    params,
+                ).fetchall()
+                return [dict(r) for r in rows]
+            except sqlite3.OperationalError:
+                return []
+            finally:
+                conn.close()
+        else:
+            logs = list_delegation_logs(agent=agent, limit=limit)
+            return logs
+    except Exception:
         return []
 
 

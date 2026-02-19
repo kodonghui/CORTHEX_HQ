@@ -222,6 +222,13 @@ jobs:
               "$VENV_PIP" install -r /home/ubuntu/CORTHEX_HQ/requirements.txt 2>&1
               # 시세 조회 핵심 패키지 강제 설치 (requirements.txt 설치 실패 시 보완)
               "$VENV_PIP" install yfinance pykrx --quiet 2>&1 || echo "⚠️ yfinance/pykrx 설치 실패"
+              # 도구 필수 패키지 강제 설치 (의존성 충돌 우회 — requirements.txt 실패 시 보완)
+              "$VENV_PIP" install notion-client --quiet 2>&1 || echo "⚠️ notion-client 설치 실패"
+              "$VENV_PIP" install chromadb --quiet 2>&1 || echo "⚠️ chromadb 설치 실패"
+              "$VENV_PIP" install bandit ruff pytest pytest-cov --quiet 2>&1 || echo "⚠️ bandit/ruff/pytest 설치 실패"
+              "$VENV_PIP" install numpy-financial --quiet 2>&1 || echo "⚠️ numpy-financial 설치 실패"
+              "$VENV_PIP" install "pandas-ta>=0.3.14b" --quiet 2>&1 || echo "⚠️ pandas-ta 설치 실패"
+              "$VENV_PIP" install yt-dlp google-play-scraper --quiet 2>&1 || echo "⚠️ yt-dlp/google-play-scraper 설치 실패"
               echo "✅ yfinance: $("$VENV_PYTHON" -c 'import yfinance; print(yfinance.__version__)' 2>/dev/null || echo '미설치')"
               echo "✅ pykrx: $("$VENV_PYTHON" -c 'import pykrx; print("설치됨")' 2>/dev/null || echo '미설치')"
             else
