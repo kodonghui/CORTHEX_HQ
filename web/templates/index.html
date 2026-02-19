@@ -2768,11 +2768,16 @@
                     <span class="text-hq-accent">&#9881;</span> AI 모델 모드
                   </h3>
                 </div>
-                <div class="flex gap-2 mb-3">
+                <div class="flex gap-1.5 mb-3">
                   <button @click="modelMode = 'auto'; saveModelMode()"
                           :class="modelMode === 'auto' ? 'bg-hq-accent text-white' : 'bg-hq-bg text-hq-muted border border-hq-border'"
                           class="flex-1 text-xs font-bold px-3 py-2 rounded-lg transition">
                     자동
+                  </button>
+                  <button @click="applyRecommendedModels()"
+                          :class="modelMode === 'recommended' ? 'bg-hq-green text-white' : 'bg-hq-bg text-hq-muted border border-hq-border'"
+                          class="flex-1 text-xs font-bold px-3 py-2 rounded-lg transition">
+                    권장
                   </button>
                   <button @click="modelMode = 'manual'; saveModelMode()"
                           :class="modelMode === 'manual' ? 'bg-hq-accent text-white' : 'bg-hq-bg text-hq-muted border border-hq-border'"
@@ -2782,6 +2787,40 @@
                 </div>
                 <div x-show="modelMode === 'auto'" class="text-[10px] text-hq-muted">
                   질문 길이/내용에 따라 Haiku(저비용) 또는 Sonnet(고품질) 자동 선택
+                </div>
+                <div x-show="modelMode === 'recommended'" class="mt-1">
+                  <div class="text-[10px] text-hq-green font-bold mb-2">✓ 권장 모델 적용됨 — 에이전트별 최적 설정</div>
+                  <div class="grid grid-cols-1 gap-0.5 text-[9px] text-hq-muted max-h-40 overflow-y-auto">
+                    <div class="flex justify-between py-0.5 border-b border-hq-border/30"><span>비서실장</span><span class="text-hq-accent">Sonnet 4.6</span></div>
+                    <div class="flex justify-between py-0.5 border-b border-hq-border/30"><span>기록 보좌관</span><span class="text-hq-muted">Haiku 4.5</span></div>
+                    <div class="flex justify-between py-0.5 border-b border-hq-border/30"><span>일정 보좌관</span><span class="text-hq-muted">Haiku 4.5</span></div>
+                    <div class="flex justify-between py-0.5 border-b border-hq-border/30"><span>소통 보좌관</span><span class="text-hq-accent">Sonnet 4.6</span></div>
+                    <div class="flex justify-between py-0.5 border-b border-hq-border/30"><span>CTO</span><span class="text-hq-purple">Opus 4.6</span></div>
+                    <div class="flex justify-between py-0.5 border-b border-hq-border/30"><span>프론트엔드</span><span class="text-hq-accent">Sonnet 4.6</span></div>
+                    <div class="flex justify-between py-0.5 border-b border-hq-border/30"><span>백엔드</span><span class="text-hq-accent">Sonnet 4.6</span></div>
+                    <div class="flex justify-between py-0.5 border-b border-hq-border/30"><span>인프라</span><span class="text-hq-accent">Sonnet 4.6</span></div>
+                    <div class="flex justify-between py-0.5 border-b border-hq-border/30"><span>AI 모델</span><span class="text-hq-yellow">Gemini 3.0 Pro</span></div>
+                    <div class="flex justify-between py-0.5 border-b border-hq-border/30"><span>CSO</span><span class="text-hq-purple">Opus 4.6</span></div>
+                    <div class="flex justify-between py-0.5 border-b border-hq-border/30"><span>시장조사</span><span class="text-hq-yellow">Gemini 3.0 Pro</span></div>
+                    <div class="flex justify-between py-0.5 border-b border-hq-border/30"><span>사업계획서</span><span class="text-hq-purple">Opus 4.6</span></div>
+                    <div class="flex justify-between py-0.5 border-b border-hq-border/30"><span>재무모델링</span><span class="text-hq-green">GPT-5.2</span></div>
+                    <div class="flex justify-between py-0.5 border-b border-hq-border/30"><span>CLO</span><span class="text-hq-purple">Opus 4.6</span></div>
+                    <div class="flex justify-between py-0.5 border-b border-hq-border/30"><span>저작권</span><span class="text-hq-purple">Opus 4.6</span></div>
+                    <div class="flex justify-between py-0.5 border-b border-hq-border/30"><span>특허/약관</span><span class="text-hq-purple">Opus 4.6</span></div>
+                    <div class="flex justify-between py-0.5 border-b border-hq-border/30"><span>CMO</span><span class="text-hq-yellow">Gemini 3.0 Pro</span></div>
+                    <div class="flex justify-between py-0.5 border-b border-hq-border/30"><span>설문/리서치</span><span class="text-hq-accent">Sonnet 4.6</span></div>
+                    <div class="flex justify-between py-0.5 border-b border-hq-border/30"><span>콘텐츠</span><span class="text-hq-yellow">Gemini 3.0 Pro</span></div>
+                    <div class="flex justify-between py-0.5 border-b border-hq-border/30"><span>커뮤니티</span><span class="text-hq-accent">Sonnet 4.6</span></div>
+                    <div class="flex justify-between py-0.5 border-b border-hq-border/30"><span>CIO</span><span class="text-hq-green">GPT-5.2 Pro</span></div>
+                    <div class="flex justify-between py-0.5 border-b border-hq-border/30"><span>시황분석</span><span class="text-hq-green">GPT-5.2</span></div>
+                    <div class="flex justify-between py-0.5 border-b border-hq-border/30"><span>종목분석</span><span class="text-hq-green">GPT-5.2</span></div>
+                    <div class="flex justify-between py-0.5 border-b border-hq-border/30"><span>기술적분석</span><span class="text-hq-green">GPT-5.2</span></div>
+                    <div class="flex justify-between py-0.5 border-b border-hq-border/30"><span>리스크관리</span><span class="text-hq-green">GPT-5.2</span></div>
+                    <div class="flex justify-between py-0.5 border-b border-hq-border/30"><span>CPO</span><span class="text-hq-accent">Sonnet 4.6</span></div>
+                    <div class="flex justify-between py-0.5 border-b border-hq-border/30"><span>회사연대기</span><span class="text-hq-accent">Sonnet 4.6</span></div>
+                    <div class="flex justify-between py-0.5 border-b border-hq-border/30"><span>콘텐츠편집</span><span class="text-hq-accent">Sonnet 4.6</span></div>
+                    <div class="flex justify-between py-0.5"><span>아카이브</span><span class="text-hq-muted">Haiku 4.5</span></div>
+                  </div>
                 </div>
                 <div x-show="modelMode === 'manual'" class="mt-1">
                   <div class="text-[10px] text-hq-muted">각 에이전트에 개별 지정된 모델을 사용합니다</div>
@@ -8902,6 +8941,20 @@
             const label = this.modelMode === 'auto' ? '자동 모드 (질문에 따라 자동 선택)' : '수동 모드 (에이전트별 개별 모델)';
             this.showToast(label, 'success');
           } catch { this.showToast('모델 모드 변경 실패', 'error'); }
+        },
+
+        async applyRecommendedModels() {
+          try {
+            const res = await fetch('/api/agents/apply-recommended', { method: 'POST' }).then(r => r.json());
+            if (res.success) {
+              this.modelMode = 'recommended';
+              await this.saveModelMode();
+              this.showToast(`권장 모델 적용 완료 (${res.applied_count}명)`, 'success');
+              await this.loadAgents();
+            } else {
+              this.showToast('적용 실패', 'error');
+            }
+          } catch { this.showToast('적용 실패', 'error'); }
         },
 
         async saveAgentDefaults() {
