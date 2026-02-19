@@ -498,9 +498,11 @@ async def get_mock_balance() -> dict:
             output2 = data.get("output2", [{}])  # 계좌 요약
 
             out2 = output2[0] if output2 else {}
-            # nxdy_excc_amt: 익일정산금 = 실제 주문에 사용 가능한 현금 (가장 정확)
-            # dnca_tot_amt는 미결제 금액까지 포함해 실제보다 크게 나올 수 있어 사용 금지
-            cash = int(out2.get("nxdy_excc_amt", "0") or "0")
+            # 모의투자 대회 계좌는 nxdy_excc_amt(익일정산금)이 0으로 올 수 있음
+            # 이 경우 dnca_tot_amt(예수금 총액)으로 폴백
+            _nxdy = int(out2.get("nxdy_excc_amt", "0") or "0")
+            _dnca = int(out2.get("dnca_tot_amt", "0") or "0")
+            cash = _nxdy if _nxdy > 0 else _dnca
             total_eval = int(out2.get("tot_evlu_amt", "0") or "0")
 
             holdings = []
