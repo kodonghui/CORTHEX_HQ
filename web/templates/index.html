@@ -5027,23 +5027,39 @@
             <input type="number" x-model.number="trading.settings.min_confidence" placeholder="70" class="w-full bg-hq-bg border border-hq-border rounded-lg px-3 py-2 text-sm text-hq-text text-right">
           </div>
         </div>
-        <div class="flex flex-wrap items-center gap-3 p-3 bg-hq-surface rounded-lg">
-          <label class="flex items-center gap-2 text-xs text-hq-text cursor-pointer">
-            <input type="checkbox" x-model="trading.settings.auto_stop_loss" class="rounded">
-            <span>자동 손절</span>
-          </label>
-          <label class="flex items-center gap-2 text-xs text-hq-text cursor-pointer">
-            <input type="checkbox" x-model="trading.settings.auto_take_profit" class="rounded">
-            <span>자동 익절</span>
-          </label>
-          <label class="flex items-center gap-2 text-xs text-hq-text cursor-pointer">
-            <input type="checkbox" x-model="trading.settings.paper_trading" class="rounded">
-            <span>모의투자</span>
-          </label>
+        <!-- 자동매매 실행 대상 (마스터 + 서브 3-체크박스) -->
+        <div class="p-3 bg-hq-surface rounded-lg space-y-2">
+          <p class="text-[10px] font-bold text-hq-muted mb-2">자동매매 실행 대상</p>
+          <!-- 마스터: 자동매매 전체 활성화 -->
           <label class="flex items-center gap-2 text-xs text-hq-text cursor-pointer">
             <input type="checkbox" x-model="trading.settings.auto_execute" class="rounded">
-            <span class="text-hq-yellow font-bold">CIO 자동실행</span>
+            <span class="text-hq-yellow font-bold">CIO 자동실행 (신뢰도 이상 시 자동 매수/매도)</span>
           </label>
+          <!-- 서브: 실거래/모의 독립 체크 (자동실행 꺼져있으면 회색) -->
+          <div class="ml-4 space-y-1.5 border-l-2 border-hq-border pl-3"
+               :class="trading.settings.auto_execute ? 'opacity-100' : 'opacity-40 pointer-events-none'">
+            <label class="flex items-center gap-2 text-xs text-hq-text cursor-pointer">
+              <input type="checkbox" x-model="trading.settings.enable_real" class="rounded accent-green-500">
+              <span class="text-hq-green font-semibold">실거래 계좌에 주문</span>
+              <span class="text-hq-muted/60 text-[10px]">KIS 44049763</span>
+            </label>
+            <label class="flex items-center gap-2 text-xs text-hq-text cursor-pointer">
+              <input type="checkbox" x-model="trading.settings.enable_mock" class="rounded accent-purple-500">
+              <span class="text-hq-purple font-semibold">모의투자 계좌에 주문</span>
+              <span class="text-hq-muted/60 text-[10px]">KIS 00112233 (Shadow Trading)</span>
+            </label>
+          </div>
+          <!-- 손절/익절 -->
+          <div class="flex gap-4 pt-1 border-t border-hq-border/50">
+            <label class="flex items-center gap-2 text-xs text-hq-text cursor-pointer">
+              <input type="checkbox" x-model="trading.settings.auto_stop_loss" class="rounded">
+              <span>자동 손절</span>
+            </label>
+            <label class="flex items-center gap-2 text-xs text-hq-text cursor-pointer">
+              <input type="checkbox" x-model="trading.settings.auto_take_profit" class="rounded">
+              <span>자동 익절</span>
+            </label>
+          </div>
         </div>
         <div class="bg-hq-purple/10 border border-hq-purple/20 rounded-lg p-3 text-[10px] text-hq-purple">
           <strong>CIO 자동매매</strong>: 봇이 켜져 있으면 5분마다 CIO + 전문가 4명이 관심종목을 분석합니다. "CIO 자동실행"을 켜면 신뢰도 70% 이상 시그널을 자동 매수/매도합니다.
