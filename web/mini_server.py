@@ -550,24 +550,59 @@ async def websocket_endpoint(ws: WebSocket):
                         update_task(task["task_id"], status="running")
                         result = await _process_ai_command(cmd_text, task["task_id"], target_agent_id=ws_target_agent_id)
                         if "error" in result:
-                            await ws.send_json({
-                                "event": "result",
-                                "data": {"content": f"❌ {result['error']}", "sender_id": result.get("agent_id", "chief_of_staff"), "handled_by": result.get("handled_by", "비서실장"), "time_seconds": 0, "cost": 0}
-                            })
+                            _result_payload = {"content": f"❌ {result['error']}", "sender_id": result.get("agent_id", "chief_of_staff"), "handled_by": result.get("handled_by", "비서실장"), "time_seconds": 0, "cost": 0}
+                            # 서버 측 DB 저장 — WebSocket 손실 시에도 새로고침 후 복원 가능
+                            try:
+                                save_conversation_message(
+                                    "result",
+                                    content=_result_payload["content"],
+                                    sender_id=_result_payload["sender_id"],
+                                    handled_by=_result_payload["handled_by"],
+                                    time_seconds=0,
+                                    cost=0,
+                                    task_id=task["task_id"],
+                                    source="web",
+                                )
+                            except Exception:
+                                pass
+                            for _c in connected_clients[:]:
+                                try:
+                                    await _c.send_json({"event": "result", "data": _result_payload})
+                                except Exception:
+                                    pass
                         else:
-                            await ws.send_json({
-                                "event": "result",
-                                "data": {
-                                    "content": result.get("content", ""),
-                                    "sender_id": result.get("agent_id", "chief_of_staff"),
-                                    "handled_by": result.get("handled_by", "비서실장"),
-                                    "delegation": result.get("delegation", ""),
-                                    "time_seconds": result.get("time_seconds", 0),
-                                    "cost": result.get("total_cost_usd", result.get("cost_usd", 0)),
-                                    "model": result.get("model", ""),
-                                    "routing_method": result.get("routing_method", ""),
-                                }
-                            })
+                            _result_data = {
+                                "content": result.get("content", ""),
+                                "sender_id": result.get("agent_id", "chief_of_staff"),
+                                "handled_by": result.get("handled_by", "비서실장"),
+                                "delegation": result.get("delegation", ""),
+                                "time_seconds": result.get("time_seconds", 0),
+                                "cost": result.get("total_cost_usd", result.get("cost_usd", 0)),
+                                "model": result.get("model", ""),
+                                "routing_method": result.get("routing_method", ""),
+                                "task_id": task["task_id"],
+                            }
+                            # 서버 측 DB 저장 — WebSocket 손실 시에도 새로고침 후 복원 가능
+                            try:
+                                save_conversation_message(
+                                    "result",
+                                    content=_result_data["content"],
+                                    sender_id=_result_data["sender_id"],
+                                    handled_by=_result_data["handled_by"],
+                                    delegation=_result_data.get("delegation", ""),
+                                    model=_result_data.get("model", ""),
+                                    time_seconds=_result_data.get("time_seconds", 0),
+                                    cost=_result_data.get("cost", 0),
+                                    task_id=task["task_id"],
+                                    source="web",
+                                )
+                            except Exception:
+                                pass
+                            for _c in connected_clients[:]:
+                                try:
+                                    await _c.send_json({"event": "result", "data": _result_data})
+                                except Exception:
+                                    pass
                     else:
                         update_task(task["task_id"], status="completed",
                                     result_summary="AI 미연결 — 접수만 완료",

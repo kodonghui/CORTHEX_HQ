@@ -1589,8 +1589,13 @@
                   <div class="text-[10px] text-hq-muted uppercase tracking-wider">오늘 사용량</div>
                 </div>
               </div>
-              <!-- 프로바이더별 막대 -->
-              <div class="space-y-1.5">
+              <!-- 로딩 중 스피너 -->
+              <div x-show="!dashboard.loaded" class="flex items-center justify-center py-3 gap-2 text-[11px] text-hq-muted">
+                <svg class="animate-spin w-3.5 h-3.5" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+                로딩 중...
+              </div>
+              <!-- 프로바이더별 막대 (데이터 로드 완료 후 표시) -->
+              <div x-show="dashboard.loaded" class="space-y-1.5">
                 <template x-for="p in [
                   {id:'anthropic', label:'Claude', color:'hq-purple'},
                   {id:'openai', label:'GPT', color:'hq-green'},
@@ -1606,6 +1611,8 @@
                     <span class="w-6 text-right font-mono text-hq-muted" x-text="dashboard.providerCalls?.[p.id] || 0"></span>
                   </div>
                 </template>
+                <!-- 오늘 호출 없을 때 안내 -->
+                <div x-show="dashboard.loaded && dashboard.totalAiCalls === 0" class="text-center text-[10px] text-hq-muted/60 pt-1">오늘 AI 호출 없음</div>
               </div>
               <!-- 예산 바 -->
               <div class="mt-2 pt-2 border-t border-hq-border/30">
@@ -9157,8 +9164,8 @@
           return order.map(id => this.tabs.find(t => t.id === id)).filter(Boolean);
         },
         getSecondaryTabs() {
-          // 더보기: 자동화 / 통신로그 / 작전일지 / 정보국 / 통신국
-          const order = ['workflow', 'activityLog', 'history', 'knowledge', 'sns'];
+          // 더보기: 자동화 / 크론기지 / 통신로그 / 작전일지 / 정보국 / 통신국
+          const order = ['workflow', 'schedule', 'activityLog', 'history', 'knowledge', 'sns'];
           return order.map(id => this.tabs.find(t => t.id === id)).filter(Boolean);
         },
 
