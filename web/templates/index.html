@@ -3958,6 +3958,11 @@
                       x-text="(trading.summary.settings||{}).paper_trading !== false ? '모의투자' : '실거래'"></span>
                 <span class="text-[10px] px-2 py-1 rounded-full" :class="(trading.summary.settings||{}).kis_connected ? 'bg-hq-green/10 text-hq-green' : 'bg-hq-muted/10 text-hq-muted'"
                       x-text="(trading.summary.settings||{}).kis_connected ? 'KIS 연결' : 'KIS 미연결'"></span>
+                <button @click="runTradingNow()" :disabled="trading.runningNow"
+                        class="rounded-lg px-4 py-1.5 text-xs font-bold transition bg-hq-accent/20 text-hq-accent hover:bg-hq-accent/30 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5">
+                  <svg x-show="trading.runningNow" class="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+                  <span x-text="trading.runningNow ? '분석 중...' : '지금 분석'"></span>
+                </button>
                 <button @click="toggleTradingBot()" class="rounded-lg px-4 py-1.5 text-xs font-bold transition"
                         :class="trading.botActive ? 'bg-hq-red/20 text-hq-red hover:bg-hq-red/30' : 'bg-hq-green/20 text-hq-green hover:bg-hq-green/30'"
                         x-text="trading.botActive ? '중지' : '시작'"></button>
@@ -5990,6 +5995,8 @@
           signals: [],
           settings: {},
           botActive: false,
+          runningNow: false,
+          calibration: null,
           // 주문 폼
           orderForm: { action: 'buy', ticker: '', name: '', qty: 0, price: 0 },
           // 전략 추가 폼
@@ -8652,6 +8659,27 @@
           if (val >= 1000000) return (val / 10000).toFixed(0) + '만';
           if (val >= 1000) return val.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
           return val.toFixed(2);
+        },
+
+        async runTradingNow() {
+          if (this.trading.runningNow) return;
+          this.trading.runningNow = true;
+          this.showToast('CIO + 전문가 4명 즉시 분석 중... (30초~1분)', 'info');
+          try {
+            const res = await fetch('/api/trading/bot/run-now', {method:'POST'}).then(r => r.json());
+            const sigs = res.signals || [];
+            const buy = sigs.filter(s => s.action === 'buy').length;
+            const sell = sigs.filter(s => s.action === 'sell').length;
+            const orders = res.orders_triggered || 0;
+            const cal = res.calibration;
+            if (cal) this.trading.calibration = cal;
+            let msg = `즉시 분석 완료! 매수 ${buy}건, 매도 ${sell}건`;
+            if (orders > 0) msg += ` · 주문 ${orders}건 실행`;
+            if (cal && cal.win_rate !== undefined) msg += ` · 최근 승률 ${cal.win_rate}%`;
+            this.showToast(msg, orders > 0 ? 'success' : 'info');
+            await this.loadTradingSummary();
+          } catch { this.showToast('즉시 분석 실패', 'error'); }
+          finally { this.trading.runningNow = false; }
         },
 
         async toggleTradingBot() {
