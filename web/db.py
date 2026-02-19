@@ -1279,3 +1279,28 @@ def get_pending_verifications(days_threshold: int = 3) -> list:
         return []
     finally:
         conn.close()
+
+
+# ── Portfolio Snapshots ──
+
+def save_portfolio_snapshot(total_cash: int, total_eval: int, total_pnl: int, pnl_pct: float) -> None:
+    """일별 포트폴리오 스냅샷 저장 (날짜별 1개, 덮어씀)"""
+    from datetime import date
+    today = date.today().isoformat()
+    snapshots = load_setting("portfolio_snapshots", [])
+    # 오늘 것 있으면 업데이트, 없으면 추가
+    updated = False
+    for s in snapshots:
+        if s.get("date") == today:
+            s.update({"cash": total_cash, "eval": total_eval, "pnl": total_pnl, "pnl_pct": pnl_pct})
+            updated = True
+            break
+    if not updated:
+        snapshots.append({"date": today, "cash": total_cash, "eval": total_eval, "pnl": total_pnl, "pnl_pct": pnl_pct})
+    # 최근 90일만 보관
+    snapshots = sorted(snapshots, key=lambda x: x["date"])[-90:]
+    save_setting("portfolio_snapshots", snapshots)
+
+def load_portfolio_snapshots() -> list:
+    """포트폴리오 스냅샷 목록 조회 (최근 90일)"""
+    return load_setting("portfolio_snapshots", [])
