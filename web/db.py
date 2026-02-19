@@ -196,6 +196,34 @@ CREATE INDEX IF NOT EXISTS idx_delegation_log_sender ON delegation_log(sender);
 CREATE INDEX IF NOT EXISTS idx_delegation_log_receiver ON delegation_log(receiver);
 CREATE INDEX IF NOT EXISTS idx_delegation_log_task_id ON delegation_log(task_id);
 CREATE INDEX IF NOT EXISTS idx_delegation_log_created_at ON delegation_log(created_at);
+
+-- CIO 예측 추적 테이블: CIO의 종목 예측 및 사후 검증 결과 저장
+CREATE TABLE IF NOT EXISTS cio_predictions (
+    id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+    ticker              TEXT NOT NULL,
+    ticker_name         TEXT,
+    direction           TEXT NOT NULL,
+    confidence          REAL DEFAULT 0.0,
+    predicted_price     INTEGER,
+    target_price        INTEGER,
+    stop_loss           INTEGER,
+    analysis_summary    TEXT,
+    task_id             TEXT,
+    analyzed_at         TEXT NOT NULL,
+    verify_at_3d        TEXT,
+    verify_at_7d        TEXT,
+    actual_price_3d     INTEGER,
+    actual_price_7d     INTEGER,
+    correct_3d          INTEGER,
+    correct_7d          INTEGER,
+    verified_at         TEXT,
+    created_at          DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_cio_predictions_ticker ON cio_predictions(ticker);
+CREATE INDEX IF NOT EXISTS idx_cio_predictions_analyzed_at ON cio_predictions(analyzed_at);
+CREATE INDEX IF NOT EXISTS idx_cio_predictions_direction ON cio_predictions(direction);
+CREATE INDEX IF NOT EXISTS idx_cio_predictions_task_id ON cio_predictions(task_id);
 """
 
 
@@ -1030,6 +1058,223 @@ def list_delegation_logs(agent: str = None, limit: int = 100) -> list:
                 (limit,),
             ).fetchall()
         return [dict(r) for r in rows]
+    except sqlite3.OperationalError:
+        return []
+    finally:
+        conn.close()
+
+
+# ── CIO Predictions CRUD ──
+
+def save_cio_prediction(
+    ticker: str,
+    direction: str,
+    analyzed_at: str = None,
+    ticker_name: str = None,
+    confidence: float = 0.0,
+    predicted_price: int = None,
+    target_price: int = None,
+    stop_loss: int = None,
+    analysis_summary: str = None,
+    task_id: str = None,
+) -> int:
+    """CIO의 종목 예측을 저장합니다. 반환값: 예측 ID."""
+    now_str = analyzed_at or datetime.now(KST).isoformat()
+    try:
+        now_dt = (
+            datetime.fromisoformat(now_str.replace("Z", "+00:00"))
+            if analyzed_at
+            else datetime.now(KST)
+        )
+    except ValueError:
+        now_dt = datetime.now(KST)
+    verify_3d = (now_dt + timedelta(days=3)).isoformat()
+    verify_7d = (now_dt + timedelta(days=7)).isoformat()
+
+    conn = get_connection()
+    try:
+        cur = conn.execute(
+            """INSERT INTO cio_predictions
+               (ticker, ticker_name, direction, confidence, predicted_price, target_price, stop_loss,
+                analysis_summary, task_id, analyzed_at, verify_at_3d, verify_at_7d)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (
+                ticker,
+                ticker_name,
+                direction.upper(),
+                confidence,
+                predicted_price,
+                target_price,
+                stop_loss,
+                analysis_summary[:500] if analysis_summary else None,
+                task_id,
+                now_str,
+                verify_3d,
+                verify_7d,
+            ),
+        )
+        conn.commit()
+        return cur.lastrowid
+    except sqlite3.OperationalError:
+        return 0
+    finally:
+        conn.close()
+
+
+def update_cio_prediction_result(
+    prediction_id: int,
+    actual_price_3d: int = None,
+    actual_price_7d: int = None,
+) -> None:
+    """3일/7일 후 실제 주가를 기록하고 예측 정확도를 계산합니다."""
+    conn = get_connection()
+    try:
+        row = conn.execute(
+            "SELECT direction, predicted_price FROM cio_predictions WHERE id=?",
+            (prediction_id,),
+        ).fetchone()
+        if not row:
+            return
+        direction, predicted_price = row["direction"], row["predicted_price"]
+
+        correct_3d = None
+        correct_7d = None
+
+        if actual_price_3d is not None and predicted_price is not None:
+            went_up = actual_price_3d > predicted_price
+            correct_3d = 1 if (direction == "BUY" and went_up) or (direction == "SELL" and not went_up) else 0
+
+        if actual_price_7d is not None and predicted_price is not None:
+            went_up = actual_price_7d > predicted_price
+            correct_7d = 1 if (direction == "BUY" and went_up) or (direction == "SELL" and not went_up) else 0
+
+        conn.execute(
+            """UPDATE cio_predictions SET
+               actual_price_3d=?, actual_price_7d=?, correct_3d=?, correct_7d=?,
+               verified_at=?
+               WHERE id=?""",
+            (
+                actual_price_3d,
+                actual_price_7d,
+                correct_3d,
+                correct_7d,
+                datetime.now(KST).isoformat(),
+                prediction_id,
+            ),
+        )
+        conn.commit()
+    except sqlite3.OperationalError:
+        pass
+    finally:
+        conn.close()
+
+
+def load_cio_predictions(limit: int = 50, unverified_only: bool = False) -> list:
+    """CIO 예측 목록 조회. unverified_only=True이면 검증 미완료만 반환."""
+    cols = [
+        "id", "ticker", "ticker_name", "direction", "confidence", "predicted_price",
+        "analysis_summary", "task_id", "analyzed_at", "verify_at_3d", "verify_at_7d",
+        "actual_price_3d", "actual_price_7d", "correct_3d", "correct_7d", "verified_at",
+    ]
+    col_sql = ", ".join(cols)
+    conn = get_connection()
+    try:
+        if unverified_only:
+            rows = conn.execute(
+                f"SELECT {col_sql} FROM cio_predictions "
+                "WHERE correct_7d IS NULL ORDER BY analyzed_at DESC LIMIT ?",
+                (limit,),
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                f"SELECT {col_sql} FROM cio_predictions "
+                "ORDER BY analyzed_at DESC LIMIT ?",
+                (limit,),
+            ).fetchall()
+        return [dict(zip(cols, tuple(r))) for r in rows]
+    except sqlite3.OperationalError:
+        return []
+    finally:
+        conn.close()
+
+
+def get_cio_performance_summary() -> dict:
+    """CIO 예측 성과 요약. 전체/최근 20건/방향별 정확도 포함."""
+    conn = get_connection()
+    try:
+        total = conn.execute("SELECT COUNT(*) FROM cio_predictions").fetchone()[0]
+        verified = conn.execute(
+            "SELECT COUNT(*) FROM cio_predictions WHERE correct_7d IS NOT NULL"
+        ).fetchone()[0]
+        correct_7d = conn.execute(
+            "SELECT COUNT(*) FROM cio_predictions WHERE correct_7d=1"
+        ).fetchone()[0]
+
+        recent = conn.execute(
+            "SELECT direction, correct_7d FROM cio_predictions "
+            "WHERE correct_7d IS NOT NULL ORDER BY analyzed_at DESC LIMIT 20"
+        ).fetchall()
+        recent_correct = sum(1 for r in recent if r[1] == 1)
+        recent_total = len(recent)
+
+        buy_total = conn.execute(
+            "SELECT COUNT(*) FROM cio_predictions WHERE direction='BUY' AND correct_7d IS NOT NULL"
+        ).fetchone()[0]
+        buy_correct = conn.execute(
+            "SELECT COUNT(*) FROM cio_predictions WHERE direction='BUY' AND correct_7d=1"
+        ).fetchone()[0]
+        sell_total = conn.execute(
+            "SELECT COUNT(*) FROM cio_predictions WHERE direction='SELL' AND correct_7d IS NOT NULL"
+        ).fetchone()[0]
+        sell_correct = conn.execute(
+            "SELECT COUNT(*) FROM cio_predictions WHERE direction='SELL' AND correct_7d=1"
+        ).fetchone()[0]
+
+        return {
+            "total": total,
+            "verified": verified,
+            "overall_accuracy": round(correct_7d / verified * 100, 1) if verified > 0 else None,
+            "recent_20_accuracy": round(recent_correct / recent_total * 100, 1) if recent_total > 0 else None,
+            "recent_correct": recent_correct,
+            "recent_total": recent_total,
+            "buy_accuracy": round(buy_correct / buy_total * 100, 1) if buy_total > 0 else None,
+            "sell_accuracy": round(sell_correct / sell_total * 100, 1) if sell_total > 0 else None,
+        }
+    except sqlite3.OperationalError:
+        return {}
+    finally:
+        conn.close()
+
+
+def get_pending_verifications(days_threshold: int = 3) -> list:
+    """검증이 필요한 예측 목록 반환 (3일 또는 7일이 지났지만 아직 검증 안 된 것)."""
+    now = datetime.now(KST).isoformat()
+    conn = get_connection()
+    try:
+        if days_threshold == 3:
+            rows = conn.execute(
+                "SELECT id, ticker, verify_at_3d, predicted_price "
+                "FROM cio_predictions "
+                "WHERE correct_3d IS NULL AND verify_at_3d <= ? "
+                "ORDER BY verify_at_3d ASC LIMIT 20",
+                (now,),
+            ).fetchall()
+            return [
+                {"id": r[0], "ticker": r[1], "verify_at": r[2], "predicted_price": r[3], "days": 3}
+                for r in rows
+            ]
+        else:
+            rows = conn.execute(
+                "SELECT id, ticker, verify_at_7d, predicted_price "
+                "FROM cio_predictions "
+                "WHERE correct_7d IS NULL AND verify_at_7d <= ? "
+                "ORDER BY verify_at_7d ASC LIMIT 20",
+                (now,),
+            ).fetchall()
+            return [
+                {"id": r[0], "ticker": r[1], "verify_at": r[2], "predicted_price": r[3], "days": 7}
+                for r in rows
+            ]
     except sqlite3.OperationalError:
         return []
     finally:

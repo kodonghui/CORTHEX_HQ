@@ -2955,6 +2955,236 @@ def _should_run_schedule(schedule: dict, now: datetime) -> bool:
     return False
 
 
+# ────────────────────────────────────────────────────────────────
+# CIO 자기학습 크론 + Shadow Trading 알림
+# ────────────────────────────────────────────────────────────────
+
+async def _cio_prediction_verifier():
+    """CIO 예측 사후검증: 3일·7일 경과한 예측의 실제 주가 조회 → 맞음/틀림 DB 저장 (매일 KST 03:00)."""
+    import pytz as _pytz_v
+    _KST_v = _pytz_v.timezone("Asia/Seoul")
+    _logger_v = logging.getLogger("corthex.cio_verify")
+    _logger_v.info("[CIO검증] 주가 사후검증 루프 시작")
+
+    while True:
+        try:
+            now = datetime.now(_KST_v)
+            # 매일 03:00 KST에 실행
+            target = now.replace(hour=3, minute=0, second=0, microsecond=0)
+            if now >= target:
+                target = target + timedelta(days=1)
+            wait_sec = (target - now).total_seconds()
+            await asyncio.sleep(wait_sec)
+
+            _logger_v.info("[CIO검증] 사후검증 시작")
+            try:
+                from db import get_pending_verifications, update_cio_prediction_result
+                from kis_client import get_current_price
+
+                for days in [3, 7]:
+                    pending = get_pending_verifications(days_threshold=days)
+                    for p in pending:
+                        try:
+                            price = await get_current_price(p["ticker"])
+                            if days == 3:
+                                update_cio_prediction_result(p["id"], actual_price_3d=price)
+                            else:
+                                update_cio_prediction_result(p["id"], actual_price_7d=price)
+                            _logger_v.info("[CIO검증] %s %d일 검증 완료: %d원", p["ticker"], days, price)
+                        except Exception as e:
+                            _logger_v.warning("[CIO검증] %s 주가 조회 실패: %s", p["ticker"], e)
+
+                save_activity_log("system", "✅ CIO 예측 사후검증 완료", "info")
+            except ImportError as e:
+                _logger_v.warning("[CIO검증] 필요 함수 미구현 — 스킵: %s", e)
+        except Exception as e:
+            _logger_v.error("[CIO검증] 에러: %s", e)
+            await asyncio.sleep(3600)  # 에러 시 1시간 후 재시도
+
+
+async def _cio_weekly_soul_update():
+    """매주 일요일 KST 02:00: CLO가 CIO 오류 패턴 분석 → cio_manager.md 자동 업데이트."""
+    import pytz as _pytz_s
+    import re as _re_s
+    _KST_s = _pytz_s.timezone("Asia/Seoul")
+    _logger_s = logging.getLogger("corthex.cio_soul")
+    _logger_s.info("[CIO소울] 주간 soul 업데이트 루프 시작")
+
+    while True:
+        try:
+            now = datetime.now(_KST_s)
+            # 다음 일요일 02:00 KST 계산 (weekday: 월=0, 일=6)
+            days_until_sunday = (6 - now.weekday()) % 7
+            if days_until_sunday == 0 and now.hour >= 2:
+                days_until_sunday = 7
+            target = (now + timedelta(days=days_until_sunday)).replace(
+                hour=2, minute=0, second=0, microsecond=0
+            )
+            wait_sec = (target - now).total_seconds()
+            await asyncio.sleep(wait_sec)
+
+            try:
+                from db import load_cio_predictions, get_cio_performance_summary
+                summary = get_cio_performance_summary()
+                recent = load_cio_predictions(limit=20)
+            except ImportError as e:
+                _logger_s.warning("[CIO소울] 필요 함수 미구현 — 스킵: %s", e)
+                continue
+
+            # 검증된 예측(7일 결과 있는 것)만 필터링
+            verified = [p for p in recent if p.get("correct_7d") is not None]
+            if len(verified) < 3:
+                _logger_s.info(
+                    "[CIO소울] 검증된 예측 %d건 — 업데이트 스킵 (최소 3건 필요)", len(verified)
+                )
+                continue
+
+            predictions_text = "\n".join([
+                f"- {p['ticker']}({p.get('ticker_name', '')}) {p['direction']}: "
+                f"{'✅맞음' if p['correct_7d'] == 1 else '❌틀림'} "
+                f"(예측가 {p.get('predicted_price', '-')}원 → 7일후 {p.get('actual_price_7d', '-')}원)"
+                for p in verified
+            ])
+
+            analysis_prompt = (
+                "당신은 CLO(준법감시인)입니다. CIO(투자분석처장)의 최근 투자 예측 결과를 분석하여,\n"
+                "반복되는 오류 패턴을 찾고 cio_manager.md에 추가할 규칙을 제안하세요.\n\n"
+                f"## CIO 최근 예측 결과\n"
+                f"전체 정확도: {summary.get('overall_accuracy', '-')}%\n"
+                f"최근 20건 정확도: {summary.get('recent_20_accuracy', '-')}%\n"
+                f"매수 정확도: {summary.get('buy_accuracy', '-')}%\n"
+                f"매도 정확도: {summary.get('sell_accuracy', '-')}%\n\n"
+                f"## 개별 예측 결과\n{predictions_text}\n\n"
+                "## 요청\n"
+                "1. 반복 오류 패턴 3가지 분석 (예: '반도체 섹터 과대평가 경향')\n"
+                "2. 각 패턴에 대한 개선 규칙 제안 (cio_manager.md에 추가할 마크다운 형식)\n"
+                "3. 답변은 반드시 아래 형식:\n"
+                "---SOUL_UPDATE_START---\n"
+                "[마크다운 형식의 규칙 내용]\n"
+                "---SOUL_UPDATE_END---"
+            )
+
+            try:
+                result_dict = await _call_agent("clo_manager", analysis_prompt)
+                result = result_dict.get("content", "") if isinstance(result_dict, dict) else str(result_dict)
+                if not result:
+                    _logger_s.warning("[CIO소울] CLO 응답 없음")
+                    continue
+
+                match = _re_s.search(
+                    r"---SOUL_UPDATE_START---\n(.*?)\n---SOUL_UPDATE_END---",
+                    result,
+                    _re_s.DOTALL,
+                )
+                if not match:
+                    _logger_s.warning("[CIO소울] soul 업데이트 내용 추출 실패")
+                    continue
+
+                new_content = match.group(1).strip()
+                soul_path = os.path.normpath(
+                    os.path.join(os.path.dirname(__file__), "..", "souls", "agents", "cio_manager.md")
+                )
+
+                if os.path.exists(soul_path):
+                    update_date = datetime.now(_KST_s).strftime("%Y-%m-%d")
+                    update_section = (
+                        f"\n\n## 자동 학습 업데이트 ({update_date})\n\n{new_content}"
+                    )
+                    with open(soul_path, "a", encoding="utf-8") as _f:
+                        _f.write(update_section)
+                    _logger_s.info("[CIO소울] soul 업데이트 완료 (%s)", update_date)
+                    save_activity_log("system", f"CIO soul 주간 업데이트 완료 ({update_date})", "info")
+                else:
+                    _logger_s.warning("[CIO소울] soul 파일 없음: %s", soul_path)
+            except Exception as e:
+                _logger_s.error("[CIO소울] CLO 분석 실패: %s", e)
+
+        except Exception as e:
+            _logger_s.error("[CIO소울] 에러: %s", e)
+            await asyncio.sleep(3600)
+
+
+async def _shadow_trading_alert():
+    """Shadow Trading 알림: 모의투자 2주 수익률 +5% 달성 시 텔레그램으로 실거래 전환 추천 (매일 KST 09:00)."""
+    import pytz as _pytz_a
+    _KST_a = _pytz_a.timezone("Asia/Seoul")
+    _logger_a = logging.getLogger("corthex.shadow_alert")
+    _logger_a.info("[Shadow알림] Shadow Trading 알림 루프 시작")
+
+    while True:
+        try:
+            now = datetime.now(_KST_a)
+            # 매일 09:00 KST에 실행
+            target = now.replace(hour=9, minute=0, second=0, microsecond=0)
+            if now >= target:
+                target = target + timedelta(days=1)
+            wait_sec = (target - now).total_seconds()
+            await asyncio.sleep(wait_sec)
+
+            try:
+                from kis_client import get_shadow_comparison
+                shadow = await get_shadow_comparison()
+            except (ImportError, Exception) as e:
+                _logger_a.warning("[Shadow알림] shadow 데이터 조회 실패 — 스킵: %s", e)
+                continue
+
+            mock_data = shadow.get("mock", {})
+            if not mock_data.get("available"):
+                continue
+
+            # 2주 수익률 히스토리 추적 (DB에 보관)
+            mock_history = load_setting("shadow_mock_history") or []
+            today_entry = {
+                "date": now.strftime("%Y-%m-%d"),
+                "total_eval": mock_data.get("total_eval", 0),
+                "cash": mock_data.get("cash", 0),
+            }
+            mock_history.append(today_entry)
+            mock_history = mock_history[-30:]  # 30일치만 보관
+            save_setting("shadow_mock_history", mock_history)
+
+            # 2주(14일) 전 데이터와 비교
+            if len(mock_history) >= 14:
+                old_entry = mock_history[-14]
+                old_eval = old_entry.get("total_eval", 0)
+                new_eval = today_entry.get("total_eval", 0)
+
+                if old_eval > 0:
+                    profit_rate = (new_eval - old_eval) / old_eval * 100
+
+                    if profit_rate >= 5.0:  # B안: 2주 +5% 이상 기준
+                        msg = (
+                            f"[Shadow Trading 알림]\n\n"
+                            f"모의투자 2주 수익률: +{profit_rate:.1f}% 달성!\n"
+                            f"기준: 2주 +5% 이상 -> 실거래 전환 추천\n\n"
+                            f"모의 현재 평가액: {new_eval:,}원\n"
+                            f"2주 전 평가액: {old_eval:,}원\n\n"
+                            f"전략실 -> '실거래/모의 비교' 탭에서 확인하세요."
+                        )
+                        if _telegram_app:
+                            ceo_id = os.getenv("TELEGRAM_CEO_CHAT_ID", "")
+                            if ceo_id:
+                                try:
+                                    await _telegram_app.bot.send_message(
+                                        chat_id=int(ceo_id),
+                                        text=msg,
+                                    )
+                                    _logger_a.info(
+                                        "[Shadow알림] 실거래 전환 추천 알림 발송 (수익률 %.1f%%)", profit_rate
+                                    )
+                                    save_activity_log(
+                                        "system",
+                                        f"Shadow Trading 알림: +{profit_rate:.1f}%",
+                                        "info",
+                                    )
+                                except Exception as e:
+                                    _logger_a.error("[Shadow알림] 텔레그램 발송 실패: %s", e)
+
+        except Exception as e:
+            _logger_a.error("[Shadow알림] 에러: %s", e)
+            await asyncio.sleep(3600)
+
+
 async def _cron_loop():
     """1분마다 예약된 작업을 확인하고 실행합니다."""
     logger = logging.getLogger("corthex.cron")
@@ -8158,6 +8388,12 @@ async def on_startup():
     from kis_client import start_daily_token_renewal
     asyncio.create_task(start_daily_token_renewal())
     _log("[KIS] 토큰 자동 갱신 스케줄러 시작 ✅ (매일 KST 07:00)")
+    asyncio.create_task(_cio_prediction_verifier())
+    _log("[CIO] 예측 사후검증 스케줄러 시작 ✅ (매일 KST 03:00)")
+    asyncio.create_task(_cio_weekly_soul_update())
+    _log("[CIO] 주간 soul 자동 업데이트 스케줄러 시작 ✅ (매주 일요일 KST 02:00)")
+    asyncio.create_task(_shadow_trading_alert())
+    _log("[Shadow] Shadow Trading 알림 스케줄러 시작 ✅ (매일 KST 09:00, +5% 기준)")
 
 
 @app.on_event("shutdown")
