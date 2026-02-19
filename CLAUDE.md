@@ -2,9 +2,12 @@
 
 ## ⚡ 최우선 규칙 (어느 컴퓨터에서든 반드시 적용)
 
-**세션 시작 시**
-- 반드시 `git status` 확인 → 미커밋 파일 있으면 CEO에게 보고 후 처리 방향 물어볼 것 (내 판단으로 묶어서 배포 금지)
-- CORTHEX 요청이 오면 질문 전에 먼저 코드 탐색: `docs/project-status.md` → `docs/updates/` 최근 파일 → 관련 코드 Read
+**세션 시작 시 — 반드시 이 순서로 (장치 전환 여부 무관, 항상)**
+1. `git fetch origin && git status` 실행
+   - 미커밋 파일 있으면 → **작업 중지**. CEO에게 "미커밋 작업이 있습니다. 커밋할까요?" 물어볼 것
+   - 깨끗하면(nothing to commit) → `git checkout main && git pull origin main` 즉시 실행
+2. 이유: CEO는 항상 작업을 main에 머지한 후 장치를 이동함 → 새 세션 = 항상 최신 main에서 시작
+3. CORTHEX 요청이 오면 질문 전에 먼저 코드 탐색: `docs/project-status.md` → `docs/updates/` 최근 파일 → 관련 코드 Read
 
 **소통 규칙 (예외 없이)**
 - CEO는 비개발자 → 전문 용어 쓸 때 괄호 안에 쉬운 설명 필수. 존댓말 사용
@@ -18,7 +21,6 @@
 **Git 규칙**
 - 매 작업마다 `origin/main` 기준 새 브랜치: `git checkout -b claude/작업명 origin/main`
 - 마지막 커밋에 `[완료]` 포함해야 자동 머지 작동
-- 장치 전환 언급 시 → `git fetch origin` → `git checkout main && git pull` → 새 브랜치 순서
 
 **파일 수정 안전 규칙**
 - `web/templates/index.html`은 **Write 도구로 전체 덮어쓰기 절대 금지** → 반드시 Edit 도구로 부분 수정만 할 것 (전체 덮어쓰면 수천 줄 유실 위험)
