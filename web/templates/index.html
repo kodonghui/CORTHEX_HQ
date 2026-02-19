@@ -3914,7 +3914,12 @@
           <div class="flex items-center justify-between mb-6">
             <div>
               <h2 class="text-lg font-bold text-hq-text font-mono tracking-normal">TRADING OPS</h2>
-              <p class="text-xs text-hq-muted">키움증권 자동매매 시스템 — 모의투자 모드</p>
+              <p class="text-xs text-hq-muted">
+                한국투자증권 자동매매 —
+                <span :class="(trading.summary.settings||{}).kis_connected ? 'text-hq-green' : 'text-hq-muted/60'"
+                      x-text="(trading.summary.settings||{}).kis_connected ? 'KIS 연결됨' : 'KIS 미연결'"></span>
+                <span x-show="trading.lastRefresh" class="text-hq-muted/50 ml-2" x-text="'· ' + trading.lastRefresh + ' 기준'"></span>
+              </p>
             </div>
             <div class="flex items-center gap-3">
               <button @click="trading.tab='signals'; generateTradingSignals()" class="bg-hq-purple/20 text-hq-purple hover:bg-hq-purple/30 rounded-lg px-3 py-1.5 text-xs font-semibold transition">
@@ -3999,29 +4004,41 @@
               </div>
             </div>
 
-            <!-- KIS 실계좌 잔고 (연결된 경우에만 표시) -->
-            <template x-if="(trading.summary.settings||{}).kis_connected && trading.summary.kis_balance && trading.summary.kis_balance.success">
-              <div class="glass border border-hq-green/30 rounded-xl p-4 mb-6">
-                <div class="flex items-center justify-between mb-3">
-                  <div class="flex items-center gap-2">
-                    <span class="text-xs font-bold text-hq-green">KIS 실계좌</span>
-                    <span class="text-[10px] px-2 py-0.5 rounded-full bg-hq-yellow/10 text-hq-yellow" x-text="(trading.summary.kis_balance||{}).mode || '모의투자'"></span>
-                  </div>
-                  <span class="text-[10px] text-hq-muted">한국투자증권</span>
+            <!-- KIS 실계좌 잔고 — 항상 표시 (상태에 따라 다른 내용) -->
+            <div class="glass rounded-xl p-4 mb-6 border"
+                 :class="(trading.summary.settings||{}).kis_connected && (trading.summary.kis_balance||{}).success ? 'border-hq-green/30' : (trading.summary.settings||{}).kis_connected ? 'border-hq-yellow/30' : 'border-hq-border'">
+              <div class="flex items-center justify-between mb-3">
+                <div class="flex items-center gap-2">
+                  <div class="w-2 h-2 rounded-full"
+                       :class="(trading.summary.settings||{}).kis_connected && (trading.summary.kis_balance||{}).success ? 'bg-hq-green animate-pulse' : (trading.summary.settings||{}).kis_connected ? 'bg-hq-yellow animate-pulse' : 'bg-hq-muted/30'"></div>
+                  <span class="text-xs font-bold"
+                        :class="(trading.summary.settings||{}).kis_connected && (trading.summary.kis_balance||{}).success ? 'text-hq-green' : (trading.summary.settings||{}).kis_connected ? 'text-hq-yellow' : 'text-hq-muted'"
+                        x-text="(trading.summary.settings||{}).kis_connected && (trading.summary.kis_balance||{}).success ? 'KIS 실계좌 연결됨' : (trading.summary.settings||{}).kis_connected ? 'KIS 연결됨 (잔고 조회 중...)' : 'KIS 미연결 — 설정에서 API 키 확인'"></span>
+                  <span x-show="(trading.summary.kis_balance||{}).mode" class="text-[10px] px-2 py-0.5 rounded-full"
+                        :class="(trading.summary.kis_balance||{}).mode === '실거래' ? 'bg-hq-red/10 text-hq-red' : 'bg-hq-yellow/10 text-hq-yellow'"
+                        x-text="(trading.summary.kis_balance||{}).mode"></span>
                 </div>
-                <div class="grid grid-cols-3 gap-3">
-                  <div class="bg-hq-surface rounded-lg p-3">
-                    <div class="text-[10px] text-hq-muted mb-1">예수금(현금)</div>
-                    <div class="text-sm font-bold text-hq-cyan" x-text="((trading.summary.kis_balance||{}).cash||0).toLocaleString() + '원'"></div>
-                  </div>
-                  <div class="bg-hq-surface rounded-lg p-3">
-                    <div class="text-[10px] text-hq-muted mb-1">총 평가금액</div>
-                    <div class="text-sm font-bold text-hq-text" x-text="((trading.summary.kis_balance||{}).total_eval||0).toLocaleString() + '원'"></div>
-                  </div>
-                  <div class="bg-hq-surface rounded-lg p-3">
-                    <div class="text-[10px] text-hq-muted mb-1">보유 종목</div>
-                    <div class="text-sm font-bold text-hq-text" x-text="((trading.summary.kis_balance||{}).holdings||[]).length + '종목'"></div>
-                  </div>
+                <div class="flex items-center gap-2">
+                  <span class="text-[10px] text-hq-muted">한국투자증권</span>
+                  <button @click="loadTradingSummary()" class="text-[10px] text-hq-muted/50 hover:text-hq-accent transition" title="새로고침">⟳</button>
+                </div>
+              </div>
+              <!-- 연결 성공 시: 잔고 3칸 -->
+              <template x-if="(trading.summary.settings||{}).kis_connected && (trading.summary.kis_balance||{}).success">
+                <div>
+                  <div class="grid grid-cols-3 gap-3">
+                    <div class="bg-hq-surface rounded-lg p-3">
+                      <div class="text-[10px] text-hq-muted mb-1">예수금(현금)</div>
+                      <div class="text-sm font-bold text-hq-cyan" x-text="((trading.summary.kis_balance||{}).cash||0).toLocaleString() + '원'"></div>
+                    </div>
+                    <div class="bg-hq-surface rounded-lg p-3">
+                      <div class="text-[10px] text-hq-muted mb-1">총 평가금액</div>
+                      <div class="text-sm font-bold text-hq-text" x-text="((trading.summary.kis_balance||{}).total_eval||0).toLocaleString() + '원'"></div>
+                    </div>
+                    <div class="bg-hq-surface rounded-lg p-3">
+                      <div class="text-[10px] text-hq-muted mb-1">보유 종목</div>
+                      <div class="text-sm font-bold text-hq-text" x-text="((trading.summary.kis_balance||{}).holdings||[]).length + '종목'"></div>
+                    </div>
                 </div>
                 <!-- 보유 종목 상세 (있는 경우만) -->
                 <template x-if="((trading.summary.kis_balance||{}).holdings||[]).length > 0">
@@ -4043,6 +4060,20 @@
                 </template>
               </div>
             </template>
+              <!-- 연결됐으나 잔고 조회 실패 시 -->
+              <template x-if="(trading.summary.settings||{}).kis_connected && !(trading.summary.kis_balance||{}).success">
+                <div class="text-center py-4 text-xs text-hq-yellow/80">
+                  KIS API 연결 확인 중... API 키가 실거래용인지 확인해주세요.<br>
+                  <span class="text-hq-muted/60 text-[10px]">KIS 앱 → Open API → 실거래 신청 필요 (모의투자 키와 별도)</span>
+                </div>
+              </template>
+              <!-- 미연결 시 안내 -->
+              <template x-if="!(trading.summary.settings||{}).kis_connected">
+                <div class="text-center py-4 text-xs text-hq-muted/70">
+                  설정 → KOREA_INVEST_APP_KEY / APP_SECRET / ACCOUNT 환경변수 등록 후 배포
+                </div>
+              </template>
+            </div>
 
             <!-- 2단 레이아웃: 보유종목 + 최근거래 -->
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
@@ -4096,22 +4127,71 @@
               </div>
             </div>
 
-            <!-- 시그널 미리보기 -->
+            <!-- 리스크 미터 -->
+            <div class="glass border border-hq-border rounded-xl p-4 mb-6">
+              <div class="flex items-center justify-between mb-3">
+                <h3 class="text-sm font-bold text-hq-text/80">📊 리스크 미터</h3>
+                <span class="text-[10px] text-hq-muted">포트폴리오 건전성</span>
+              </div>
+              <div class="grid grid-cols-3 gap-3">
+                <!-- 현금 비중 -->
+                <div class="bg-hq-surface rounded-lg p-3">
+                  <div class="text-[10px] text-hq-muted mb-1">현금 비중</div>
+                  <div class="text-sm font-bold"
+                       :class="(() => { const ratio = (trading.summary.portfolio||{}).total_asset > 0 ? ((trading.summary.portfolio||{}).cash / (trading.summary.portfolio||{}).total_asset * 100) : 100; return ratio >= 30 ? 'text-hq-green' : ratio >= 10 ? 'text-hq-yellow' : 'text-hq-red'; })()"
+                       x-text="(() => { const ratio = (trading.summary.portfolio||{}).total_asset > 0 ? ((trading.summary.portfolio||{}).cash / (trading.summary.portfolio||{}).total_asset * 100) : 100; return ratio.toFixed(0) + '%'; })()"></div>
+                  <div class="text-[10px] mt-0.5"
+                       :class="(() => { const ratio = (trading.summary.portfolio||{}).total_asset > 0 ? ((trading.summary.portfolio||{}).cash / (trading.summary.portfolio||{}).total_asset * 100) : 100; return ratio >= 30 ? 'text-hq-green/60' : ratio >= 10 ? 'text-hq-yellow/60' : 'text-hq-red/60'; })()"
+                       x-text="(() => { const ratio = (trading.summary.portfolio||{}).total_asset > 0 ? ((trading.summary.portfolio||{}).cash / (trading.summary.portfolio||{}).total_asset * 100) : 100; return ratio >= 30 ? '🟢 안전' : ratio >= 10 ? '🟡 주의' : '🔴 위험'; })()"></div>
+                </div>
+                <!-- 수익률 -->
+                <div class="bg-hq-surface rounded-lg p-3">
+                  <div class="text-[10px] text-hq-muted mb-1">총 수익률</div>
+                  <div class="text-sm font-bold" :class="tradingPnlColor((trading.summary.portfolio||{}).total_pnl || 0)"
+                       x-text="(((trading.summary.portfolio||{}).pnl_pct || 0) >= 0 ? '+' : '') + ((trading.summary.portfolio||{}).pnl_pct || 0) + '%'"></div>
+                  <div class="text-[10px] mt-0.5 text-hq-muted/60"
+                       x-text="(trading.summary.portfolio||{}).holdings_count > 0 ? (trading.summary.portfolio||{}).holdings_count + '종목 보유' : '보유 없음'"></div>
+                </div>
+                <!-- 오늘 거래 -->
+                <div class="bg-hq-surface rounded-lg p-3">
+                  <div class="text-[10px] text-hq-muted mb-1">오늘 손익</div>
+                  <div class="text-sm font-bold" :class="tradingPnlColor((trading.summary.today||{}).pnl || 0)"
+                       x-text="(((trading.summary.today||{}).pnl || 0) >= 0 ? '+' : '') + formatKRW((trading.summary.today||{}).pnl || 0) + '원'"></div>
+                  <div class="text-[10px] mt-0.5 text-hq-muted/60" x-text="(trading.summary.today||{}).trades + '번 거래'"></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- CIO 시그널 — 실행 버튼 포함 -->
             <div class="glass border border-hq-purple/15 rounded-xl p-4 hover-glow">
               <div class="flex items-center justify-between mb-3">
-                <h3 class="text-sm font-bold text-hq-purple/80">최근 CIO 시그널</h3>
-                <span class="text-[10px] text-hq-muted" x-text="trading.signals.length + '개 시그널'"></span>
+                <h3 class="text-sm font-bold text-hq-purple/80">🎯 CIO 시그널</h3>
+                <div class="flex items-center gap-2">
+                  <span class="text-[10px] text-hq-muted" x-text="trading.signals.length + '개'"></span>
+                  <button @click="trading.tab='signals'; generateTradingSignals()" class="text-[10px] px-2 py-1 rounded-lg bg-hq-purple/20 text-hq-purple hover:bg-hq-purple/30 transition">+ 분석 요청</button>
+                </div>
               </div>
               <template x-if="trading.signals.length === 0">
-                <div class="text-center text-hq-muted/70 py-6 text-xs">시그널이 없습니다 — "CIO 분석 요청" 버튼을 눌러보세요</div>
+                <div class="text-center text-hq-muted/70 py-6 text-xs">시그널이 없습니다 — "분석 요청" 버튼을 눌러보세요</div>
               </template>
               <div class="space-y-2">
                 <template x-for="s in trading.signals.slice(0, 5)" :key="s.id">
-                  <div class="bg-hq-surface rounded-lg px-3 py-2">
-                    <div class="flex items-center justify-between mb-1">
-                      <span class="text-[10px] font-mono text-hq-muted" x-text="(s.date||'').substring(0, 16)"></span>
+                  <div class="bg-hq-surface rounded-lg px-3 py-2.5">
+                    <div class="flex items-center justify-between mb-1.5">
+                      <div class="flex items-center gap-2">
+                        <span class="text-[10px] font-bold px-2 py-0.5 rounded-full"
+                              :class="(s.action||'').toLowerCase().includes('매수') || (s.action||'').toLowerCase().includes('buy') ? 'bg-hq-green/15 text-hq-green' : (s.action||'').toLowerCase().includes('매도') || (s.action||'').toLowerCase().includes('sell') ? 'bg-hq-red/15 text-hq-red' : 'bg-hq-purple/15 text-hq-purple'"
+                              x-text="s.action || s.strategy || 'AI'"></span>
+                        <span class="text-[10px] font-bold text-hq-text" x-text="s.ticker || s.name || ''"></span>
+                        <span class="text-[10px] text-hq-muted" x-text="(s.date||'').substring(5, 16)"></span>
+                      </div>
                       <div class="flex items-center gap-1.5">
-                        <span class="text-[10px] px-2 py-0.5 rounded-full bg-hq-purple/10 text-hq-purple" x-text="s.strategy || 'ai'"></span>
+                        <template x-if="s.ticker && ((s.action||'').includes('매수') || (s.action||'').includes('buy') || (s.action||'').includes('매도') || (s.action||'').includes('sell'))">
+                          <button @click="trading.orderForm = {action: ((s.action||'').toLowerCase().includes('매도') || (s.action||'').toLowerCase().includes('sell')) ? 'sell' : 'buy', ticker: s.ticker||'', name: s.name||s.ticker||'', qty: 1, price: 0}; trading.showOrderModal = true"
+                                  class="text-[10px] px-2 py-0.5 rounded font-bold transition"
+                                  :class="(s.action||'').toLowerCase().includes('매도') || (s.action||'').toLowerCase().includes('sell') ? 'bg-hq-red/20 text-hq-red hover:bg-hq-red/30' : 'bg-hq-green/20 text-hq-green hover:bg-hq-green/30'"
+                                  x-text="((s.action||'').toLowerCase().includes('매도') || (s.action||'').toLowerCase().includes('sell')) ? '매도 실행' : '매수 실행'"></button>
+                        </template>
                         <button @click="deleteSignal(s.id)" class="text-hq-muted/40 hover:text-hq-red text-sm transition" title="삭제">&times;</button>
                       </div>
                     </div>
@@ -5987,6 +6067,8 @@
         trading: {
           tab: 'dashboard',
           loading: false,
+          refreshInterval: null,
+          lastRefresh: '',
           summary: { portfolio: {}, strategies: {}, watchlist_count: 0, today: {}, signals_count: 0, bot_active: false, settings: {} },
           portfolio: { cash: 0, initial_cash: 50000000, holdings: [] },
           strategies: [],
@@ -7289,7 +7371,15 @@
           if (tabId === 'knowledge') this.loadKnowledge();
           if (tabId === 'archive') this.loadArchive();
           if (tabId === 'sns') this.loadSNS();
-          if (tabId === 'trading') this.loadTradingSummary();
+          if (tabId === 'trading') {
+            this.loadTradingSummary();
+            clearInterval(this.trading.refreshInterval);
+            this.trading.refreshInterval = setInterval(() => {
+              if (this.activeTab === 'trading') this.loadTradingSummary();
+            }, 30000);
+          } else {
+            clearInterval(this.trading.refreshInterval);
+          }
           if (tabId === 'command') {
             this.$nextTick(() => { this.scrollToBottom(); });
             this.loadRecentTasksForCommand();
@@ -8466,6 +8556,7 @@
             this.trading.signals = Array.isArray(signals) ? signals : [];
             this.trading.botActive = summary.bot_active || false;
             this.trading.settings = summary.settings || {};
+            this.trading.lastRefresh = new Date().toLocaleTimeString('ko-KR', {hour:'2-digit',minute:'2-digit',second:'2-digit'});
             // 관심종목이 있으면 시세도 자동 조회 (캐시가 비어있을 때만)
             if (this.trading.watchlist.length > 0 && Object.keys(this.trading.watchPrices).length === 0) {
               this.loadWatchlistPrices();
