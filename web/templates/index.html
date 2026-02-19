@@ -7488,13 +7488,12 @@
         toggleDelegationLog() {
           this.showDelegationLog = !this.showDelegationLog;
           if (this.showDelegationLog) {
+            // 최초 1회만 REST로 기존 로그 로드, 이후 실시간 업데이트는 WebSocket으로만 처리
             this.fetchDelegationLogs();
-            // 5초마다 자동 갱신 (기존 타이머 누수 방지)
-            if (this._delegationPollTimer) { clearInterval(this._delegationPollTimer); this._delegationPollTimer = null; }
-            this._delegationPollTimer = setInterval(() => this.fetchDelegationLogs(true), 5000);
+            // 폴링 제거 — WebSocket delegation_log_update 이벤트로 실시간 수신
           } else {
-            clearInterval(this._delegationPollTimer);
-            this._delegationPollTimer = null;
+            // 패널 닫을 때 혹시 남은 타이머 정리 (이전 버전 호환)
+            if (this._delegationPollTimer) { clearInterval(this._delegationPollTimer); this._delegationPollTimer = null; }
           }
         },
         getFilteredDelegationLogs() {

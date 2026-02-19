@@ -7320,18 +7320,32 @@ async def _delegate_to_specialists(manager_id: str, text: str) -> list[dict]:
     if not specialists:
         return []
 
-    # 위임 로그 자동 기록
+    # 위임 로그 자동 기록 + WebSocket broadcast
     try:
         from db import save_delegation_log
+        import time as _time
         mgr_name = _AGENT_NAMES.get(manager_id, manager_id)
         for spec_id in specialists:
             spec_name = _SPECIALIST_NAMES.get(spec_id, spec_id)
-            save_delegation_log(
+            row_id = save_delegation_log(
                 sender=mgr_name,
                 receiver=spec_name,
                 message=text[:500],
                 log_type="delegation",
             )
+            _log_data = {
+                "id": row_id,
+                "sender": mgr_name,
+                "receiver": spec_name,
+                "message": text[:300],
+                "log_type": "delegation",
+                "created_at": _time.time(),
+            }
+            for _c in connected_clients[:]:
+                try:
+                    await _c.send_json({"event": "delegation_log_update", "data": _log_data})
+                except Exception:
+                    pass
     except Exception:
         pass
 
@@ -7344,18 +7358,32 @@ async def _delegate_to_specialists(manager_id: str, text: str) -> list[dict]:
         if isinstance(r, Exception):
             processed.append({"agent_id": spec_id, "name": _SPECIALIST_NAMES.get(spec_id, spec_id), "error": str(r)[:100], "cost_usd": 0})
         else:
-            # 전문가 결과 보고 로그 자동 기록
+            # 전문가 결과 보고 로그 자동 기록 + WebSocket broadcast
             try:
                 from db import save_delegation_log
+                import time as _time
                 spec_name = _SPECIALIST_NAMES.get(spec_id, spec_id)
                 mgr_name = _AGENT_NAMES.get(manager_id, manager_id)
                 content_preview = r.get("content", "")[:300] if isinstance(r, dict) else str(r)[:300]
-                save_delegation_log(
+                row_id = save_delegation_log(
                     sender=spec_name,
                     receiver=mgr_name,
                     message=content_preview,
                     log_type="report",
                 )
+                _log_data = {
+                    "id": row_id,
+                    "sender": spec_name,
+                    "receiver": mgr_name,
+                    "message": content_preview,
+                    "log_type": "report",
+                    "created_at": _time.time(),
+                }
+                for _c in connected_clients[:]:
+                    try:
+                        await _c.send_json({"event": "delegation_log_update", "data": _log_data})
+                    except Exception:
+                        pass
             except Exception:
                 pass
             processed.append(r)
