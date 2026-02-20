@@ -349,6 +349,13 @@ async def get_balance() -> dict:
                         "eval_profit": int(item.get("evlu_pfls_amt", "0") or "0"),
                     })
 
+            # tot_evlu_amt가 현금을 포함하지 않는 경우 보정
+            # (모의투자 서버 등에서 보유종목 평가액만 반환하는 경우)
+            holdings_eval = sum(h["qty"] * h["current_price"] for h in holdings)
+            computed_total = cash + holdings_eval
+            if total_eval < computed_total:
+                total_eval = computed_total
+
             return {
                 "success": True,
                 "available": True,
