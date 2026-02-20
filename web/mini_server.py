@@ -4562,7 +4562,9 @@ def _parse_cio_signals(content: str, watchlist: list) -> list:
     # 예: [시그널] 삼성전자 (005930) | 매수(분할) | 신뢰도 68% |
     # 예: [시그널] 한화솔루션 (009830) | 매도(비중 축소) | 신뢰도 64% |
     # 예: [시그널] 한화시스템 (272210) | 관망/부분익절 | 신뢰도 52% |
-    pattern = r'\[시그널\]\s*(.+?)\s*[\(（]([A-Za-z0-9]+)[\)）]\s*\|\s*(매수|매도|관망|buy|sell|hold)\b[^\|]*\|\s*(?:신뢰도[:\s]*)?\s*(\d+)\s*%?\s*\|?\s*(.*)'
+    # 예: [시그널] 두산에너빌리티 (034020) | 조건부 매수 | 신뢰도 58% |
+    # [^\|]*? 로 "조건부", "적극", "분할" 등 매수/매도/관망 앞 수식어 허용
+    pattern = r'\[시그널\]\s*(.+?)\s*[\(（]([A-Za-z0-9]+)[\)）]\s*\|\s*[^\|]*?(매수|매도|관망|buy|sell|hold)\b[^\|]*\|\s*(?:신뢰도[:\s]*)?\s*(\d+)\s*%?\s*\|?\s*(.*)'
     matches = re.findall(pattern, content, re.IGNORECASE)
 
     for name, ticker, action, confidence, reason in matches:
@@ -5413,6 +5415,80 @@ async def cio_debug_tools():
         }
     except Exception as e:
         return {"error": str(e)[:500], "type": type(e).__name__}
+
+
+# ═══════════════════════════════════════════════════════════════
+# 범용 디버그 엔드포인트 — 버그 발생 시 CEO에게 URL 제공용
+# ═══════════════════════════════════════════════════════════════
+
+@app.get("/api/debug/ai-providers")
+async def debug_ai_providers():
+    """AI 프로바이더 연결 상태 진단 — GPT/Claude/Gemini 중 뭐가 켜져있는지 확인."""
+    import ai_handler as _ah
+    providers = _ah.get_available_providers()
+    env_keys = {
+        "ANTHROPIC_API_KEY": bool(os.getenv("ANTHROPIC_API_KEY", "")),
+        "OPENAI_API_KEY": bool(os.getenv("OPENAI_API_KEY", "")),
+        "GOOGLE_API_KEY": bool(os.getenv("GOOGLE_API_KEY", "")),
+    }
+    client_info = {
+        "anthropic": type(_ah._anthropic_client).__name__ if _ah._anthropic_client else None,
+        "openai": type(_ah._openai_client).__name__ if _ah._openai_client else None,
+        "google": type(_ah._google_client).__name__ if _ah._google_client else None,
+    }
+    env_key_map = {"anthropic": "ANTHROPIC_API_KEY", "openai": "OPENAI_API_KEY", "google": "GOOGLE_API_KEY"}
+    return {
+        "providers_available": providers,
+        "env_keys_present": env_keys,
+        "client_types": client_info,
+        "diagnosis": {
+            k: ("정상" if providers.get(k) else
+                ("API 키 없음" if not env_keys.get(env_key_map[k]) else
+                 "키 있으나 클라이언트 초기화 실패"))
+            for k in ["anthropic", "openai", "google"]
+        },
+    }
+
+
+@app.get("/api/debug/agent-calls")
+async def debug_agent_calls():
+    """최근 AI 호출 기록 10건 — 어떤 모델/프로바이더로 호출됐는지 확인."""
+    try:
+        conn = __import__("db").get_connection()
+        rows = conn.execute(
+            "SELECT agent_id, model, provider, cost_usd, input_tokens, output_tokens, "
+            "time_seconds, success, created_at FROM agent_calls "
+            "ORDER BY created_at DESC LIMIT 10"
+        ).fetchall()
+        conn.close()
+        return {
+            "recent_calls": [
+                {
+                    "agent_id": r[0], "model": r[1], "provider": r[2],
+                    "cost_usd": round(r[3], 4) if r[3] else 0,
+                    "tokens": f"{r[4] or 0}+{r[5] or 0}",
+                    "time_sec": round(r[6], 1) if r[6] else 0,
+                    "success": bool(r[7]), "created_at": r[8],
+                }
+                for r in rows
+            ],
+            "total_count": len(rows),
+        }
+    except Exception as e:
+        return {"error": str(e)[:300]}
+
+
+@app.get("/api/debug/cio-signals")
+async def debug_cio_signals():
+    """CIO 시그널 파싱 상태 — 시그널이 왜 안 뜨는지 확인."""
+    signals_data = load_setting("trading_signals") or {}
+    decisions = load_setting("trading_decisions") or []
+    return {
+        "saved_signals": signals_data,
+        "saved_decisions_count": len(decisions),
+        "latest_decisions": decisions[-3:] if decisions else [],
+        "watchlist": load_setting("watchlist") or [],
+    }
 
 
 @app.get("/api/trading/mock/balance")

@@ -485,9 +485,9 @@ async def _call_anthropic(
     total_input_tokens = resp.usage.input_tokens
     total_output_tokens = resp.usage.output_tokens
 
-    # tool_use 블록 처리 루프 (최대 5회 반복)
+    # tool_use 블록 처리 루프 (최대 10회 반복 — 기술적분석 등 복합 도구 워크플로우 지원)
     if tools and tool_executor:
-        for _ in range(5):
+        for _ in range(10):
             tool_calls = [b for b in resp.content if b.type == "tool_use"]
             if not tool_calls:
                 break
@@ -600,9 +600,9 @@ async def _call_google(
     total_input_tokens += getattr(usage, "prompt_token_count", 0) if usage else 0
     total_output_tokens += getattr(usage, "candidates_token_count", 0) if usage else 0
 
-    # function call 처리 루프 (최대 5회)
+    # function call 처리 루프 (최대 10회 — 복합 도구 워크플로우 지원)
     if gemini_tools and tool_executor:
-        for _ in range(5):
+        for _ in range(10):
             # Gemini 응답에서 function_call 파트 추출
             func_calls = []
             if resp.candidates and resp.candidates[0].content and resp.candidates[0].content.parts:
@@ -725,9 +725,9 @@ async def _call_openai(
     total_input_tokens = resp.usage.prompt_tokens if resp.usage else 0
     total_output_tokens = resp.usage.completion_tokens if resp.usage else 0
 
-    # tool_calls 처리 루프 (최대 5회)
+    # tool_calls 처리 루프 (최대 10회 — 기술적분석 등 복합 도구 워크플로우 지원)
     if tools and tool_executor:
-        for _ in range(5):
+        for _ in range(10):
             msg = resp.choices[0].message
             if not msg.tool_calls:
                 break
