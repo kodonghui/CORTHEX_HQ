@@ -5141,6 +5141,54 @@ async def get_kis_status():
     }
 
 
+@app.get("/api/trading/kis/debug")
+async def kis_debug():
+    """KIS API 원본 응답 확인 (디버그용)."""
+    if not _KIS_AVAILABLE or not _kis_configured():
+        return {"error": "KIS 미설정", "available": False}
+    try:
+        from kis_client import (
+            _get_token, KIS_BASE, KIS_APP_KEY, KIS_APP_SECRET,
+            KIS_ACCOUNT_NO, KIS_ACCOUNT_CODE, _TR, KIS_IS_MOCK as _mock,
+        )
+        import httpx as _hx
+
+        token = await _get_token()
+        async with _hx.AsyncClient(timeout=15) as client:
+            resp = await client.get(
+                f"{KIS_BASE}/uapi/domestic-stock/v1/trading/inquire-balance",
+                headers={
+                    "authorization": f"Bearer {token}",
+                    "appkey": KIS_APP_KEY,
+                    "appsecret": KIS_APP_SECRET,
+                    "tr_id": _TR["balance"],
+                },
+                params={
+                    "CANO": KIS_ACCOUNT_NO,
+                    "ACNT_PRDT_CD": KIS_ACCOUNT_CODE,
+                    "AFHR_FLPR_YN": "N", "OFL_YN": "",
+                    "INQR_DVSN": "02", "UNPR_DVSN": "01",
+                    "FUND_STTL_ICLD_YN": "N", "FNCG_AMT_AUTO_RDPT_YN": "N",
+                    "PRCS_DVSN": "01", "CTX_AREA_FK100": "", "CTX_AREA_NK100": "",
+                },
+            )
+            data = resp.json()
+        return {
+            "mode": "모의투자" if _mock else "실거래",
+            "base_url": KIS_BASE,
+            "account": f"****{KIS_ACCOUNT_NO[-4:]}",
+            "tr_id": _TR["balance"],
+            "http_status": resp.status_code,
+            "rt_cd": data.get("rt_cd"),
+            "msg_cd": data.get("msg_cd"),
+            "msg1": data.get("msg1"),
+            "output1_count": len(data.get("output1", [])),
+            "output2_sample": data.get("output2", [{}])[:1],
+        }
+    except Exception as e:
+        return {"error": str(e)}
+
+
 @app.get("/api/trading/mock/balance")
 async def get_mock_trading_balance():
     """모의투자 잔고 조회"""

@@ -327,6 +327,15 @@ async def get_balance() -> dict:
                 },
             )
             data = resp.json()
+
+            # API 에러 응답 확인 (토큰 만료, 권한 없음 등)
+            rt_cd = data.get("rt_cd", "")
+            if rt_cd != "0":
+                msg = data.get("msg1", "알 수 없는 오류")
+                logger.error("[KIS] 잔고 조회 API 오류: rt_cd=%s, msg=%s", rt_cd, msg)
+                return {"success": False, "available": True, "cash": 0, "holdings": [],
+                        "total_eval": 0, "error": f"KIS API: {msg} (rt_cd={rt_cd})"}
+
             output1 = data.get("output1", [])  # 보유 종목
             output2 = data.get("output2", [{}])  # 계좌 요약
 
