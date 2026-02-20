@@ -5024,49 +5024,47 @@
 
               <div x-show="!shadowLoading && !shadowError && shadowData" class="space-y-4">
 
-                <!-- 한국장 비교 -->
-                <div class="text-[10px] text-hq-muted font-bold uppercase tracking-wider mb-1">🇰🇷 한국장</div>
+                <!-- 실거래: 한국 | 미국 -->
+                <div class="text-[10px] text-hq-muted font-bold uppercase tracking-wider mb-1">실거래</div>
                 <div class="grid grid-cols-2 gap-3">
                   <div class="bg-hq-panel border border-hq-green/30 rounded-xl p-4">
                     <div class="flex items-center gap-2 mb-2">
                       <div class="w-2 h-2 rounded-full bg-hq-green"></div>
-                      <span class="text-xs font-bold text-hq-green">실거래</span>
+                      <span class="text-xs font-bold text-hq-green">🇰🇷 한국</span>
                     </div>
-                    <div class="text-lg font-bold text-hq-text font-mono" x-text="(shadowData&&(shadowData.real||{}).available) ? fmtKRW(shadowData.real.total_eval||0) : '—'"></div>
-                    <div class="text-[10px] text-hq-muted mt-1" x-text="(shadowData&&(shadowData.real||{}).available) ? '현금 '+fmtKRW(shadowData.real.cash||0) : 'KIS 연결 필요'"></div>
-                    <div class="text-[10px] text-hq-muted" x-text="(shadowData&&(shadowData.real||{}).available) ? '보유 '+((shadowData.real.holdings||[]).length)+'종목' : ''"></div>
+                    <div class="text-lg font-bold text-hq-text font-mono" x-text="(shadowData&&(shadowData.real||{}).success) ? fmtKRW(shadowData.real.total_eval||0) : '—'"></div>
+                    <div class="text-[10px] text-hq-muted mt-1" x-text="(shadowData&&(shadowData.real||{}).success) ? '현금 '+fmtKRW(shadowData.real.cash||0)+' · '+((shadowData.real.holdings||[]).length)+'종목' : 'KIS 미연결'"></div>
                   </div>
-                  <div class="bg-hq-panel border border-hq-purple/30 rounded-xl p-4">
-                    <div class="flex items-center gap-2 mb-2">
-                      <div class="w-2 h-2 rounded-full bg-hq-purple"></div>
-                      <span class="text-xs font-bold text-hq-purple">모의투자</span>
-                    </div>
-                    <div class="text-lg font-bold text-hq-text font-mono" x-text="(shadowData&&(shadowData.mock||{}).available) ? fmtKRW(shadowData.mock.total_eval||0) : '—'"></div>
-                    <div class="text-[10px] text-hq-muted mt-1" x-text="(shadowData&&(shadowData.mock||{}).available) ? '현금 '+fmtKRW(shadowData.mock.cash||0) : '모의 Key 등록 필요'"></div>
-                    <div class="text-[10px] text-hq-muted" x-text="(shadowData&&(shadowData.mock||{}).available) ? '보유 '+((shadowData.mock.holdings||[]).length)+'종목' : ''"></div>
-                  </div>
-                </div>
-
-                <!-- 미국장 비교 -->
-                <div class="text-[10px] text-hq-muted font-bold uppercase tracking-wider mt-4 mb-1">🇺🇸 미국장</div>
-                <div class="grid grid-cols-2 gap-3">
                   <div class="bg-hq-panel border border-hq-green/30 rounded-xl p-4">
                     <div class="flex items-center gap-2 mb-2">
                       <div class="w-2 h-2 rounded-full bg-hq-green"></div>
-                      <span class="text-xs font-bold text-hq-green">실거래</span>
+                      <span class="text-xs font-bold text-hq-green">🇺🇸 미국</span>
                     </div>
                     <div class="text-lg font-bold text-hq-text font-mono" x-text="(usReal&&usReal.success) ? fmtUSD(usReal.total_eval_usd||0) : '—'"></div>
                     <div class="text-[10px] text-hq-muted mt-0.5 font-mono" x-text="(usReal&&usReal.success&&(usReal.total_eval_usd||0)>0) ? '≈ '+fmtKRW((usReal.total_eval_usd||0)*fxRate) : ''"></div>
-                    <div class="text-[10px] text-hq-muted mt-1" x-text="(usReal&&usReal.success) ? '현금 '+fmtUSD(usReal.cash_usd||0)+' · 보유 '+((usReal.holdings||[]).length)+'종목' : '해외 미연결'"></div>
+                    <div class="text-[10px] text-hq-muted mt-1" x-text="(usReal&&usReal.success) ? '현금 '+fmtUSD(usReal.cash_usd||0)+' · '+((usReal.holdings||[]).length)+'종목' : '해외 미연결'"></div>
+                  </div>
+                </div>
+
+                <!-- 모의투자: 한국 | 미국 -->
+                <div class="text-[10px] text-hq-muted font-bold uppercase tracking-wider mt-4 mb-1">모의투자</div>
+                <div class="grid grid-cols-2 gap-3">
+                  <div class="bg-hq-panel border border-hq-purple/30 rounded-xl p-4">
+                    <div class="flex items-center gap-2 mb-2">
+                      <div class="w-2 h-2 rounded-full bg-hq-purple"></div>
+                      <span class="text-xs font-bold text-hq-purple">🇰🇷 한국</span>
+                    </div>
+                    <div class="text-lg font-bold text-hq-text font-mono" x-text="(shadowData&&((shadowData.mock||{}).available||(shadowData.mock||{}).success)) ? fmtKRW(shadowData.mock.total_eval||0) : '—'"></div>
+                    <div class="text-[10px] text-hq-muted mt-1" x-text="(shadowData&&((shadowData.mock||{}).available||(shadowData.mock||{}).success)) ? '현금 '+fmtKRW(shadowData.mock.cash||0)+' · '+((shadowData.mock.holdings||[]).length)+'종목' : '모의 미연결'"></div>
                   </div>
                   <div class="bg-hq-panel border border-hq-purple/30 rounded-xl p-4">
                     <div class="flex items-center gap-2 mb-2">
                       <div class="w-2 h-2 rounded-full bg-hq-purple"></div>
-                      <span class="text-xs font-bold text-hq-purple">모의투자</span>
+                      <span class="text-xs font-bold text-hq-purple">🇺🇸 미국</span>
                     </div>
                     <div class="text-lg font-bold text-hq-text font-mono" x-text="(usMock&&usMock.success) ? fmtUSD(usMock.total_eval_usd||0) : '—'"></div>
                     <div class="text-[10px] text-hq-muted mt-0.5 font-mono" x-text="(usMock&&usMock.success&&(usMock.total_eval_usd||0)>0) ? '≈ '+fmtKRW((usMock.total_eval_usd||0)*fxRate) : ''"></div>
-                    <div class="text-[10px] text-hq-muted mt-1" x-text="(usMock&&usMock.success) ? '현금 '+fmtUSD(usMock.cash_usd||0)+' · 보유 '+((usMock.holdings||[]).length)+'종목' : '해외 모의 미연결'"></div>
+                    <div class="text-[10px] text-hq-muted mt-1" x-text="(usMock&&usMock.success) ? '현금 '+fmtUSD(usMock.cash_usd||0)+' · '+((usMock.holdings||[]).length)+'종목' : '해외 모의 미연결'"></div>
                   </div>
                 </div>
 
