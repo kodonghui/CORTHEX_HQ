@@ -1812,6 +1812,55 @@
           "action"
         ]
       }
+    },
+    {
+      "tool_id": "trading_executor",
+      "name": "Trading Order Executor (VECTOR)",
+      "name_ko": "매매 주문 실행 (VECTOR)",
+      "description": "매수/매도 주문을 실행합니다. paper_trading 모드면 가상 포트폴리오만 업데이트하고, 실거래 모드면 KIS API로 실제 주문을 넣습니다. 한국주식은 시장가(price=0), 미국주식은 지정가 필수.\n",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "buy",
+              "sell"
+            ],
+            "description": "매수 또는 매도"
+          },
+          "ticker": {
+            "type": "string",
+            "description": "종목코드 (한국: 005930, 미국: AAPL)"
+          },
+          "qty": {
+            "type": "integer",
+            "description": "주문 수량"
+          },
+          "price": {
+            "type": "number",
+            "description": "지정가 (한국주식 0=시장가, 미국주식은 필수)"
+          },
+          "market": {
+            "type": "string",
+            "enum": [
+              "KR",
+              "US"
+            ],
+            "description": "시장 (KR=한국, US=미국)"
+          },
+          "reason": {
+            "type": "string",
+            "description": "주문 사유 (분석 근거)"
+          }
+        },
+        "required": [
+          "action",
+          "ticker",
+          "qty",
+          "market"
+        ]
+      }
     }
   ]
 }

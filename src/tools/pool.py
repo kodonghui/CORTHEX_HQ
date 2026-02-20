@@ -144,6 +144,7 @@ class ToolPool:
             "audio_transcriber": "src.tools.audio_transcriber.AudioTranscriberTool",
             "cross_agent_protocol": "src.tools.cross_agent_protocol.CrossAgentProtocolTool",
             "trading_settings_control": "src.tools.trading_settings_control.TradingSettingsControlTool",
+            "trading_executor": "src.tools.trading_executor.TradingExecutorTool",
             # ─── Skill 도구 (89개) — 마케팅/개발/코딩패턴/유틸 ───
             "skill_copywriting": "src.tools.skill_tool.SkillTool",
             "skill_copy_editing": "src.tools.skill_tool.SkillTool",

@@ -1196,6 +1196,7 @@ agents:
   - earnings_surprise
   - macro_regime
   - trading_settings_control
+  - trading_executor
 - agent_id: market_condition_specialist
   name: Market Condition Specialist
   name_ko: 시황분석 Specialist
