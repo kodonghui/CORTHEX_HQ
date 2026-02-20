@@ -87,7 +87,7 @@
 | `gpt-5.2` | GPT-5.2 | 투자 분석가들 |
 | `gpt-5` | GPT-5 | 일반 OpenAI |
 | `gpt-5-mini` | GPT-5 Mini | 경량 OpenAI |
-| `gemini-3-pro-preview` | Gemini 3.0 Pro | CMO, 콘텐츠 |
+| `gemini-3.1-pro-preview` | Gemini 3.1 Pro | CMO, 콘텐츠 |
 | `gemini-2.5-pro` | Gemini 2.5 Pro | Gemini 고급 |
 | `gemini-2.5-flash` | Gemini 2.5 Flash | 경량 Gemini |
 

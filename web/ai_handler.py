@@ -58,7 +58,7 @@ _PRICING = {
     "claude-sonnet-4-6": {"input": 3.00, "output": 15.00},
     "claude-haiku-4-5-20251001": {"input": 0.25, "output": 1.25},
     # Google Gemini
-    "gemini-3-pro-preview": {"input": 2.50, "output": 15.00},
+    "gemini-3.1-pro-preview": {"input": 2.00, "output": 12.00},
     "gemini-2.5-pro": {"input": 1.25, "output": 10.00},
     "gemini-2.5-flash": {"input": 0.15, "output": 0.60},
     # OpenAI
