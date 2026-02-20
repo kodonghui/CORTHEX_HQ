@@ -5068,13 +5068,13 @@ async def run_trading_now():
         if order_size == 0:
             try:
                 if use_kis:
-                    _bal = await kis_client.get_balance()
+                    _bal = await _kis_balance()
                     account_balance = _bal.get("cash", 0) if _bal.get("success") else 0
                 else:
                     _port = _load_data("trading_portfolio", _default_portfolio())
                     account_balance = _port.get("cash", 0)
-            except Exception:
-                pass
+            except Exception as bal_err:
+                logger.warning("[수동 분석] 잔고 조회 오류: %s", bal_err)
             if account_balance <= 0:
                 account_balance = 1_000_000
                 save_activity_log("cio_manager", "CIO 비중 모드: 잔고 조회 실패, 기본 100만원 사용", "warning")
@@ -5408,13 +5408,13 @@ async def _trading_bot_loop():
                 if order_size == 0:
                     try:
                         if use_kis:
-                            _bal = await kis_client.get_balance()
+                            _bal = await _kis_balance()
                             account_balance = _bal.get("cash", 0) if _bal.get("success") else 0
                         else:
                             _port = _load_data("trading_portfolio", _default_portfolio())
                             account_balance = _port.get("cash", 0)
-                    except Exception:
-                        pass
+                    except Exception as bal_err:
+                        logger.warning("[자동매매 봇] 잔고 조회 오류: %s", bal_err)
                     if account_balance <= 0:
                         account_balance = 1_000_000
                         save_activity_log("cio_manager", "CIO 비중 모드: 잔고 조회 실패, 기본 100만원 사용", "warning")
