@@ -7173,6 +7173,8 @@
             case 'activity_log':
               { const now = new Date(); const d = now.toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/\.\s*/g, '.').replace(/\.$/, ''); const t = now.toLocaleTimeString('ko-KR', { timeZone: 'Asia/Seoul', hour12: false, hour: '2-digit', minute: '2-digit' }); msg.data.timeDate = d; msg.data.timeClock = t; msg.data.time = d + ' ' + t; }
               msg.data.timestamp = Date.now();
+              msg.data.action = msg.data.message || msg.data.action || '';
+              if (!msg.data.action) break;
               this.activityLogs.push(msg.data);
               if (this.activityLogs.length > 50) this.activityLogs = this.activityLogs.slice(-50);
               this.saveActivityLogs();
@@ -7191,6 +7193,12 @@
                 if (!this.delegationLogs.find(l => l.id === wsId || l.id === msg.data.id)) {
                   msg.data.source = msg.data.source || 'delegation';
                   this.delegationLogs.unshift(msg.data);
+                  // 시간순 내림차순 정렬
+                  this.delegationLogs.sort((a, b) => {
+                    const ta = new Date(a.created_at || 0).getTime();
+                    const tb = new Date(b.created_at || 0).getTime();
+                    return tb - ta;
+                  });
                   if (this.delegationLogs.length > 100) {
                     this.delegationLogs = this.delegationLogs.slice(0, 100);
                   }
@@ -7721,7 +7729,13 @@
           fetch('/api/comms/messages?limit=50')
             .then(r => r.json())
             .then(data => {
-              const newLogs = (Array.isArray(data) ? data : []).reverse();
+              const newLogs = (Array.isArray(data) ? data : []);
+              // 시간순 내림차순 정렬 (최신 → 오래된 순)
+              newLogs.sort((a, b) => {
+                const ta = new Date(a.created_at || 0).getTime();
+                const tb = new Date(b.created_at || 0).getTime();
+                return tb - ta;
+              });
               if (newLogs.length !== this.delegationLogs.length ||
                   (newLogs[0]||{}).id !== (this.delegationLogs[0]||{}).id) {
                 this.delegationLogs = newLogs;
@@ -7741,6 +7755,12 @@
                 // 중복 방지: 이미 있는 id는 건너뜀
                 if (!this.delegationLogs.find(l => l.id === msg.id)) {
                   this.delegationLogs.unshift(msg);
+                  // 시간순 내림차순 정렬 (최신 → 오래된 순)
+                  this.delegationLogs.sort((a, b) => {
+                    const ta = new Date(a.created_at || 0).getTime();
+                    const tb = new Date(b.created_at || 0).getTime();
+                    return tb - ta;
+                  });
                   if (this.delegationLogs.length > 100) this.delegationLogs = this.delegationLogs.slice(0, 100);
                 }
               } catch(err) {}
