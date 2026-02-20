@@ -5208,6 +5208,64 @@ async def kis_debug_us():
         return {"error": str(e)}
 
 
+@app.get("/api/trading/cio/debug")
+async def cio_debug():
+    """CIO 전문가 도구 스키마 + 테스트 호출 (디버그용)."""
+    try:
+        from ai_handler import _load_tool_schemas, ask_ai
+        # CIO 전문가(시황분석) 허용 도구
+        detail = _AGENTS_DETAIL.get("market_analyst", {})
+        allowed = detail.get("allowed_tools", [])
+        schemas = _load_tool_schemas(allowed_tools=allowed)
+        openai_tools = schemas.get("openai", [])
+        # 스키마 요약 + 테스트 호출
+        tool_names = [t["function"]["name"] for t in openai_tools]
+        tool_count = len(openai_tools)
+        # 간단한 테스트 호출 (도구 없이)
+        test_result = await ask_ai("안녕하세요, 테스트입니다. 한 줄로 응답해주세요.",
+                                   system_prompt="간단히 응답", model="gpt-5.2")
+        return {
+            "specialist": "market_analyst (시황분석)",
+            "allowed_tools": allowed,
+            "openai_tool_count": tool_count,
+            "openai_tool_names": tool_names,
+            "openai_first_tool_schema": openai_tools[0] if openai_tools else None,
+            "test_call_result": test_result.get("content", "")[:200] if "error" not in test_result else test_result["error"],
+            "test_call_error": test_result.get("error"),
+        }
+    except Exception as e:
+        return {"error": str(e)[:500]}
+
+
+@app.get("/api/trading/cio/debug-tools")
+async def cio_debug_tools():
+    """CIO 전문가에게 도구 포함 테스트 호출 (실제 400 에러 재현)."""
+    try:
+        from ai_handler import _load_tool_schemas, ask_ai
+        detail = _AGENTS_DETAIL.get("market_analyst", {})
+        allowed = detail.get("allowed_tools", [])
+        schemas = _load_tool_schemas(allowed_tools=allowed)
+        anthropic_tools = schemas.get("anthropic", [])
+        # 도구 포함 테스트 — 실제 _call_agent와 동일 경로
+        async def _dummy_executor(name, args):
+            return f"[테스트] {name} 호출됨: {args}"
+        result = await ask_ai(
+            "테스트입니다. global_market_tool action=index 로 현재 시장 지수를 알려주세요.",
+            system_prompt="간단히 도구를 사용해 응답하세요.",
+            model="gpt-5.2",
+            tools=anthropic_tools,
+            tool_executor=_dummy_executor,
+        )
+        return {
+            "success": "error" not in result,
+            "content": result.get("content", "")[:300],
+            "error": result.get("error"),
+            "tools_count": len(anthropic_tools),
+        }
+    except Exception as e:
+        return {"error": str(e)[:500], "type": type(e).__name__}
+
+
 @app.get("/api/trading/mock/balance")
 async def get_mock_trading_balance():
     """모의투자 잔고 조회"""

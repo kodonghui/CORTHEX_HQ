@@ -11,6 +11,7 @@ mini_server.py에서 import하여 사용합니다.
 """
 from __future__ import annotations
 
+import copy
 import json
 import os
 import time
@@ -222,15 +223,20 @@ def _load_tool_schemas(allowed_tools: list | None = None) -> dict:
     # 2) Anthropic 포맷으로 빌드 (기준 포맷)
     anthropic_schemas = _build_tool_schemas(tool_configs, allowed_tools)
 
-    # 3) OpenAI 포맷으로 변환
+    # 3) OpenAI 포맷으로 변환 (GPT-5.2 strict-compatible)
     openai_schemas = []
     for t in anthropic_schemas:
+        schema = copy.deepcopy(t.get("input_schema", {"type": "object", "properties": {}}))
+        if schema.get("properties"):
+            schema["required"] = list(schema["properties"].keys())
+            schema["additionalProperties"] = False
         openai_schemas.append({
             "type": "function",
             "function": {
                 "name": t["name"],
                 "description": t.get("description", ""),
-                "parameters": t.get("input_schema", {"type": "object", "properties": {}}),
+                "strict": True,
+                "parameters": schema,
             },
         })
 
@@ -845,17 +851,28 @@ async def ask_ai(
             provider_tools = tools
         elif provider == "openai":
             # OpenAI function calling 포맷으로 변환
-            # GPT-5.2는 strict 모드가 기본 → required에 모든 properties 필요
-            # 우리 도구는 optional 파라미터가 많으므로 strict: False로 비활성화
+            # GPT-5.2는 strict schema를 기본 적용:
+            #   - required에 모든 properties 포함 필수
+            #   - additionalProperties: false 필수
+            # 두 가지 방어: strict: false 시도 + strict-compatible 스키마로 변환
             provider_tools = []
             for t in tools:
+                schema = copy.deepcopy(t.get("input_schema", {"type": "object", "properties": {}}))
+                # strict-compatible: 모든 properties를 required로 + additionalProperties: false
+                if schema.get("properties"):
+                    schema["required"] = list(schema["properties"].keys())
+                    schema["additionalProperties"] = False
+                elif schema.get("type") == "object":
+                    schema.setdefault("properties", {})
+                    schema["required"] = []
+                    schema["additionalProperties"] = False
                 provider_tools.append({
                     "type": "function",
                     "function": {
                         "name": t["name"],
                         "description": t.get("description", ""),
-                        "strict": False,
-                        "parameters": t.get("input_schema", {"type": "object", "properties": {}}),
+                        "strict": True,
+                        "parameters": schema,
                     },
                 })
         elif provider == "google":
@@ -885,8 +902,12 @@ async def ask_ai(
         else:
             return {"error": f"알 수 없는 프로바이더: {provider}"}
     except Exception as e:
-        logger.error("AI 호출 실패 (%s/%s): %s", provider, model, e)
-        return {"error": f"AI 호출 실패 ({provider}): {str(e)[:200]}"}
+        err_str = str(e)
+        logger.error("AI 호출 실패 (%s/%s): %s", provider, model, err_str[:500])
+        # 400 에러 상세 로깅 (디버깅용)
+        if "400" in err_str or "BadRequest" in type(e).__name__:
+            logger.error("=== 400 에러 전문 ===\n%s\n=== 끝 ===", err_str[:2000])
+        return {"error": f"AI 호출 실패 ({provider}): {err_str[:500]}"}
 
     elapsed = time.time() - start
 
