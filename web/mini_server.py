@@ -8074,7 +8074,7 @@ async def _start_telegram_bot() -> None:
                     delegation = result.get("delegation", "")
                     model_short = model.split("-")[1] if "-" in model else model
                     # 담당자 표시: 처장 이름 또는 비서실장
-                    footer_who = result.get("handled_by") or delegation or "비서실장"
+                    footer_who = delegation if delegation else "비서실장"
                     await update.message.reply_text(
                         f"{content}\n\n"
                         f"─────\n"
@@ -9862,12 +9862,13 @@ async def _process_ai_command(text: str, task_id: str, target_agent_id: str | No
         result["total_cost_usd"] = total_cost
         return result
 
-    # 5) 부서 위임 — 처장 → 전문가 (비서실장은 중계만 — 상태 표시 안 함)
+    # 5) 부서 위임 — 비서실장이 적합한 처장에게 전달
     target_name = _AGENT_NAMES.get(target_id, target_id)
-    # 비서실장은 중계 역할만 하므로 상태 표시등 켜지 않음 (CEO 혼란 방지)
+    await _broadcast_status("chief_of_staff", "working", 0.1, f"{target_name}에게 위임 중...")
 
     # 처장이 자기 전문가를 호출 → 결과 검수 → 종합 보고서
     delegation_result = await _manager_with_delegation(target_id, text)
+    await _broadcast_status("chief_of_staff", "done", 1.0, "위임 완료")
 
     if "error" in delegation_result:
         update_task(task_id, status="failed",
@@ -9879,9 +9880,9 @@ async def _process_ai_command(text: str, task_id: str, target_agent_id: str | No
     # 6) 결과 정리
     total_cost = routing_cost + delegation_result.get("cost_usd", 0)
     specs_used = delegation_result.get("specialists_used", 0)
-    delegation_label = target_name
+    delegation_label = f"비서실장 → {target_name}"
     if specs_used:
-        delegation_label += f" + 전문가 {specs_used}명"
+        delegation_label += f" → 전문가 {specs_used}명"
 
     content = delegation_result.get("content", "")
     header = f"📋 **{target_name}** 보고"
