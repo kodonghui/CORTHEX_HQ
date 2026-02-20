@@ -4261,10 +4261,16 @@ async def update_trading_watchlist(ticker: str, request: Request):
 @app.delete("/api/trading/watchlist/{ticker}")
 async def remove_trading_watchlist(ticker: str):
     """관심 종목 삭제."""
+    # URL 디코딩 (특수문자 티커 대응)
+    from urllib.parse import unquote
+    ticker = unquote(ticker).strip()
     watchlist = _load_data("trading_watchlist", [])
+    original_len = len(watchlist)
     watchlist = [w for w in watchlist if w.get("ticker") != ticker]
     _save_data("trading_watchlist", watchlist)
-    return {"success": True}
+    removed = original_len - len(watchlist)
+    logger.info("[관심종목] 삭제: %s (제거 %d건, 남은 %d건)", ticker, removed, len(watchlist))
+    return {"success": True, "removed": removed, "watchlist": watchlist}
 
 
 @app.put("/api/trading/watchlist/reorder")

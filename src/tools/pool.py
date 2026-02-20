@@ -76,6 +76,17 @@ class ToolPool:
             "dispute_simulator": "src.tools.dispute_simulator.DisputeSimulatorTool",
             # ─── CIO 투자분석처 신규 도구 ───
             "us_stock": "src.tools.us_stock.UsStockTool",
+            # ─── CIO 미국 주식 전문 도구 10종 ───
+            "sec_edgar": "src.tools.sec_edgar.SecEdgarTool",
+            "us_financial_analyzer": "src.tools.us_financial_analyzer.UsFinancialAnalyzerTool",
+            "us_technical_analyzer": "src.tools.us_technical_analyzer.UsTechnicalAnalyzerTool",
+            "options_flow": "src.tools.options_flow.OptionsFlowTool",
+            "macro_fed_tracker": "src.tools.macro_fed_tracker.MacroFedTrackerTool",
+            "sector_rotation": "src.tools.sector_rotation.SectorRotationTool",
+            "earnings_ai": "src.tools.earnings_ai.EarningsAiTool",
+            "sentiment_nlp": "src.tools.sentiment_nlp.SentimentNlpTool",
+            "portfolio_optimizer_v2": "src.tools.portfolio_optimizer_v2.PortfolioOptimizerV2Tool",
+            "correlation_analyzer": "src.tools.correlation_analyzer.CorrelationAnalyzerTool",
             "dart_monitor": "src.tools.dart_monitor.DartMonitorTool",
             "stock_screener": "src.tools.stock_screener.StockScreenerTool",
             "backtest_engine": "src.tools.backtest_engine.BacktestEngineTool",
