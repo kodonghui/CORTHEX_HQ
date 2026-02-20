@@ -478,6 +478,19 @@ git checkout main && git pull origin main
 - **사고 2 (다크모드, 2026-02-15)**: `.bg-grid`에 `opacity` 애니메이션 직접 걸어서 글자/카드 전부 안 보임 → `::before` 가상 요소로 분리. `opacity` 애니메이션은 콘텐츠 있는 요소에 직접 걸면 안 됨
 - **사고 3 (부서 목록 빈 화면, 2026-02-15)**: `yaml2json.py` 변환 목록에 새 yaml 파일 추가 안 해서 빈 데이터 반환됨 → 새 yaml 추가 시 반드시 yaml2json.py 변환 목록에도 추가
 - **사고 4 (서브에이전트 브랜치 전환, 2026-02-19)**: 서브에이전트가 `git checkout`으로 브랜치를 바꿔서 팀장의 index.html 수정사항 6개 전부 유실됨 → 서브에이전트는 git 명령어 절대 금지. 모든 git 작업은 팀장만 수행
+- **사고 5 (KIS 토큰 만료, 2026-02-20)**: `KOREA_INVEST_IS_MOCK`을 true→false로 변경 후, DB에 캐시된 모의투자 토큰이 실거래 서버에서 "만료된 token" 에러 → `get_balance()`에 토큰 만료 자동 재발급 로직 추가. **IS_MOCK 변경 시 반드시 토큰 캐시 무효화 필요**
+
+## 원격 디버그 URL 패턴 (중요!)
+- **API 문제 발생 시, CEO에게 디버그 URL을 제공하고 응답을 받아서 원인 파악** — 서버 SSH 없이도 진단 가능
+- CEO가 브라우저에서 URL을 열면 JSON 응답이 나옴 → 그걸 복사해서 보내주면 원인 즉시 파악
+- **기존 디버그 엔드포인트 목록**:
+  - `https://corthex-hq.com/api/trading/kis/debug` — KIS 한국장 잔고 API 원본 응답 (rt_cd, msg1 등)
+  - `https://corthex-hq.com/api/trading/kis/debug-us` — KIS 미국장 잔고 API 원본 응답
+  - `https://corthex-hq.com/api/trading/kis/status` — KIS 연결 상태 (모드, 계좌번호 마스킹)
+  - `https://corthex-hq.com/deploy-status.json` — 배포 상태 (빌드 번호, 시간)
+- **새 디버그 엔드포인트 추가 시**: `mini_server.py`에 `/api/trading/kis/debug-*` 패턴으로 추가
+- **보안**: 계좌번호는 마스킹(`****9763`), API 키는 노출하지 않을 것
+- **이 방식을 쓰는 이유**: Oracle Cloud 서버에 SSH 접속 불가할 때도 CEO가 브라우저 하나로 진단 가능
 
 ## AI 도구 자동호출 규칙 (Function Calling)
 - **ai_handler.py**의 `ask_ai()`가 `tools` + `tool_executor` 파라미터를 받아서 3개 프로바이더 모두 도구 자동호출 지원

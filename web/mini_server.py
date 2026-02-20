@@ -5189,6 +5189,25 @@ async def kis_debug():
         return {"error": str(e)}
 
 
+@app.get("/api/trading/kis/debug-us")
+async def kis_debug_us():
+    """해외주식 KIS API 원본 응답 확인 (디버그용)."""
+    if not _KIS_AVAILABLE or not _kis_configured():
+        return {"error": "KIS 미설정", "available": False}
+    try:
+        from kis_client import (
+            get_overseas_balance, KIS_IS_MOCK as _mock, KIS_BASE,
+        )
+        result = await get_overseas_balance()
+        return {
+            "mode": "모의투자" if _mock else "실거래",
+            "base_url": KIS_BASE,
+            "result": result,
+        }
+    except Exception as e:
+        return {"error": str(e)}
+
+
 @app.get("/api/trading/mock/balance")
 async def get_mock_trading_balance():
     """모의투자 잔고 조회"""
