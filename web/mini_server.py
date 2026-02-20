@@ -3569,7 +3569,7 @@ async def _broadcast_workflow_progress(step_index: int, total_steps: int, status
 
 # ── 자동매매 시스템 (KIS 한국투자증권 프레임워크) ──
 
-_trading_bot_active = False  # 자동매매 봇 ON/OFF
+_trading_bot_active = False  # 자동매매 봇 ON/OFF (startup 이벤트에서 DB 복원)
 _trading_bot_task = None     # 자동매매 봇 asyncio Task
 
 # ── 시세 캐시 (1분 자동 갱신) ──
@@ -4638,6 +4638,8 @@ async def toggle_trading_bot():
     global _trading_bot_active, _trading_bot_task
 
     _trading_bot_active = not _trading_bot_active
+    # DB에 상태 저장 → 배포/재시작 후에도 유지
+    save_setting("trading_bot_active", _trading_bot_active)
 
     if _trading_bot_active:
         if _trading_bot_task is None or _trading_bot_task.done():
@@ -9220,6 +9222,12 @@ async def on_startup():
     if active_batches or active_chains:
         _ensure_batch_poller()
         _log(f"[BATCH] 미완료 배치 {len(active_batches)}개 + 체인 {len(active_chains)}개 감지 — 폴러 자동 시작")
+    # 자동매매 봇 상태 DB에서 복원 (배포/재시작 후에도 유지)
+    global _trading_bot_active, _trading_bot_task
+    _trading_bot_active = bool(load_setting("trading_bot_active", False))
+    if _trading_bot_active:
+        _trading_bot_task = asyncio.create_task(_trading_bot_loop())
+        _log("[TRADING] 자동매매 봇 DB 상태 복원 → 자동 재시작 ✅")
     # 관심종목 시세 1분 자동 갱신 태스크 시작
     asyncio.create_task(_auto_refresh_prices())
     _log("[PRICE] 시세 자동 갱신 태스크 시작 ✅ (1분 간격)")

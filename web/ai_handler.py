@@ -130,25 +130,24 @@ _PROJECT_ROOT = Path(__file__).resolve().parent.parent
 def _build_tool_schemas(tool_configs: list, allowed_tools: list | None = None) -> list:
     """tools.yaml의 도구 정의를 Anthropic tool_use 포맷으로 변환합니다.
 
-    tools.yaml의 도구는 파라미터(입력값) 정의가 없으므로,
-    범용적인 'query' (질문/명령) 파라미터를 기본으로 넣어줍니다.
+    tools.yaml의 파라미터 형식:
+      1) parameters 없음 → 기본 query 파라미터
+      2) 평면(flat) 형식 → {"action": {"type": "string", ...}, ...}
+      3) JSON Schema 형식 → {"type": "object", "properties": {...}}
 
-    반환 예시:
-    [
-        {
-            "name": "web_search",
-            "description": "실시간 웹 검색 및 정보 수집",
-            "input_schema": {
-                "type": "object",
-                "properties": {
-                    "query": {"type": "string", "description": "도구에 전달할 질문 또는 명령"}
-                },
-                "required": ["query"]
+    2)를 자동으로 3)으로 변환합니다.
+    """
+    _DEFAULT_SCHEMA = {
+        "type": "object",
+        "properties": {
+            "query": {
+                "type": "string",
+                "description": "도구에 전달할 질문 또는 명령",
             }
         },
-        ...
-    ]
-    """
+        "required": ["query"],
+    }
+
     schemas = []
     for tool in tool_configs:
         tool_id = tool.get("tool_id", "")
@@ -157,24 +156,36 @@ def _build_tool_schemas(tool_configs: list, allowed_tools: list | None = None) -
         if allowed_tools and tool_id not in allowed_tools:
             continue
 
-        # 도구에 parameters가 정의되어 있으면 사용, 없으면 기본 query 파라미터
         params = tool.get("parameters")
         if not params:
-            params = {
+            # 파라미터 없음 → 기본 query
+            input_schema = _DEFAULT_SCHEMA.copy()
+        elif params.get("type") == "object" and "properties" in params:
+            # 이미 JSON Schema 형식
+            input_schema = params
+        else:
+            # 평면(flat) 형식 → JSON Schema로 변환
+            properties = {}
+            required = []
+            for pname, pdef in params.items():
+                if not isinstance(pdef, dict):
+                    continue
+                prop = {k: v for k, v in pdef.items() if k != "required"}
+                if not prop.get("type"):
+                    prop["type"] = "string"
+                properties[pname] = prop
+                if pdef.get("required"):
+                    required.append(pname)
+            input_schema = {
                 "type": "object",
-                "properties": {
-                    "query": {
-                        "type": "string",
-                        "description": "도구에 전달할 질문 또는 명령",
-                    }
-                },
-                "required": ["query"],
+                "properties": properties,
+                "required": required if required else ["action"] if "action" in properties else list(properties.keys())[:1],
             }
 
         schema = {
             "name": tool_id,
             "description": tool.get("description", tool.get("name_ko", tool_id)),
-            "input_schema": params,
+            "input_schema": input_schema,
         }
         schemas.append(schema)
     return schemas
@@ -227,9 +238,18 @@ def _load_tool_schemas(allowed_tools: list | None = None) -> dict:
     openai_schemas = []
     for t in anthropic_schemas:
         schema = copy.deepcopy(t.get("input_schema", {"type": "object", "properties": {}}))
-        if schema.get("properties"):
-            schema["required"] = list(schema["properties"].keys())
-            schema["additionalProperties"] = False
+        # 안전장치: type이 없거나 object가 아닌 경우 강제 보정
+        if schema.get("type") != "object":
+            schema = {"type": "object", "properties": {"query": {"type": "string", "description": "도구에 전달할 질문"}}, "required": ["query"]}
+        if not schema.get("properties"):
+            schema["properties"] = {"query": {"type": "string", "description": "도구에 전달할 질문"}}
+        # strict 모드: 모든 프로퍼티를 required에 넣고 additionalProperties: false
+        schema["required"] = list(schema["properties"].keys())
+        schema["additionalProperties"] = False
+        # enum 내부에 None이 있으면 제거 (GPT-5.2 strict가 거부함)
+        for prop in schema["properties"].values():
+            if isinstance(prop.get("enum"), list):
+                prop["enum"] = [e for e in prop["enum"] if e is not None]
         openai_schemas.append({
             "type": "function",
             "function": {
@@ -851,21 +871,20 @@ async def ask_ai(
             provider_tools = tools
         elif provider == "openai":
             # OpenAI function calling 포맷으로 변환
-            # GPT-5.2는 strict schema를 기본 적용:
-            #   - required에 모든 properties 포함 필수
-            #   - additionalProperties: false 필수
-            # 두 가지 방어: strict: false 시도 + strict-compatible 스키마로 변환
+            # GPT-5.2 strict 모드: required에 전 프로퍼티 + additionalProperties: false
             provider_tools = []
             for t in tools:
                 schema = copy.deepcopy(t.get("input_schema", {"type": "object", "properties": {}}))
-                # strict-compatible: 모든 properties를 required로 + additionalProperties: false
-                if schema.get("properties"):
-                    schema["required"] = list(schema["properties"].keys())
-                    schema["additionalProperties"] = False
-                elif schema.get("type") == "object":
-                    schema.setdefault("properties", {})
-                    schema["required"] = []
-                    schema["additionalProperties"] = False
+                # 안전장치: type이 없거나 object가 아닌 경우 강제 보정
+                if schema.get("type") != "object":
+                    schema = {"type": "object", "properties": {"query": {"type": "string", "description": "도구에 전달할 질문"}}, "required": ["query"]}
+                if not schema.get("properties"):
+                    schema["properties"] = {"query": {"type": "string", "description": "도구에 전달할 질문"}}
+                schema["required"] = list(schema["properties"].keys())
+                schema["additionalProperties"] = False
+                for prop in schema["properties"].values():
+                    if isinstance(prop.get("enum"), list):
+                        prop["enum"] = [e for e in prop["enum"] if e is not None]
                 provider_tools.append({
                     "type": "function",
                     "function": {
