@@ -5285,7 +5285,7 @@ async def _run_trading_now_inner():
         if order_size == 0:
             try:
                 if use_kis:
-                    _bal = await kis_client.get_balance()
+                    _bal = await _kis_balance()
                     account_balance = _bal.get("cash", 0) if _bal.get("success") else 0
                 else:
                     _port = _load_data("trading_portfolio", _default_portfolio())
@@ -5642,7 +5642,7 @@ async def _trading_bot_loop():
                 if order_size == 0:
                     try:
                         if use_kis:
-                            _bal = await kis_client.get_balance()
+                            _bal = await _kis_balance()
                             account_balance = _bal.get("cash", 0) if _bal.get("success") else 0
                         else:
                             _port = _load_data("trading_portfolio", _default_portfolio())
