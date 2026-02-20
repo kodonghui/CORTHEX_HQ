@@ -9342,12 +9342,56 @@ DEBATE_ROTATION = [
     ["cso_manager", "cmo_manager", "cto_manager", "cio_manager", "cpo_manager", "clo_manager"],
 ]
 
+# 처장별 토론 관점 — 1라운드에서 각자 무엇을 분석해야 하는지 구체적으로 지시
+_DEBATE_LENSES: dict[str, str] = {
+    "cio_manager": (
+        "투자/재무 관점에서 분석하세요:\n"
+        "- 이 주제가 회사 재무에 미치는 영향 (매출, 비용, ROI 수치 추정)\n"
+        "- 실행 시 재무 리스크와 기회비용\n"
+        "- 시장/경쟁 환경에서 타이밍이 적절한지 근거 제시"
+    ),
+    "cto_manager": (
+        "기술 실현 가능성 관점에서 분석하세요:\n"
+        "- 현재 기술 스택으로 구현 가능한지, 추가 필요한 기술은 무엇인지\n"
+        "- 개발 리소스 (인력, 시간, 비용) 현실적 추정\n"
+        "- 기술적 리스크 (확장성, 유지보수, 보안) 구체적으로"
+    ),
+    "cso_manager": (
+        "사업 전략 관점에서 분석하세요:\n"
+        "- 시장 규모와 경쟁 구도 (구체적 수치나 사례 인용)\n"
+        "- 우리의 차별화 포인트가 무엇이고 경쟁 우위가 지속 가능한지\n"
+        "- 실행 전략의 단계와 우선순위"
+    ),
+    "cmo_manager": (
+        "마케팅/고객 관점에서 분석하세요:\n"
+        "- 타겟 고객이 이것을 정말 원하는지, 어떤 근거가 있는지\n"
+        "- 고객 획득 비용(CAC)과 채널 전략의 현실성\n"
+        "- 브랜드/포지셔닝에 미치는 영향"
+    ),
+    "clo_manager": (
+        "법무/리스크 관점에서 분석하세요:\n"
+        "- 법적 리스크와 규제 이슈 (구체적 법령이나 판례 인용)\n"
+        "- 지식재산권 보호 방안 또는 침해 위험\n"
+        "- 계약/약관/개인정보 관련 주의사항"
+    ),
+    "cpo_manager": (
+        "제품/콘텐츠 관점에서 분석하세요:\n"
+        "- 사용자 경험과 제품 완성도에 미치는 영향\n"
+        "- 콘텐츠 전략 및 지식 자산으로서의 가치\n"
+        "- 실행 시 품질 기준과 기록/문서화 방안"
+    ),
+}
+
 
 async def _call_agent_debate(agent_id: str, topic: str, history: str, extra_instruction: str) -> str:
     """토론용 에이전트 호출 — 주제 + 이전 발언 + 추가 지시를 결합하여 호출."""
     prompt = (
+        f"[임원 토론 모드]\n"
+        f"지금은 CEO가 소집한 임원 토론입니다. 보고서가 아니라 \"토론 발언\"으로 답하세요.\n"
+        f"형식적인 보고서 틀(## 처장 의견, ## 팀원 보고서 요약 등)은 사용하지 마세요.\n"
+        f"대신 당신의 핵심 주장을 명확히 밝히고, 근거를 들어 설득하세요.\n\n"
         f"[토론 주제]\n{topic}\n\n"
-        f"[이전 발언들]\n{history if history else '(첫 발언, 독립적으로 의견 제시)'}\n\n"
+        f"[이전 발언들]\n{history if history else '(첫 발언입니다. 다른 처장의 의견 없이 독립적으로 발언하세요.)'}\n\n"
         f"{extra_instruction}"
     )
     result = await _call_agent(agent_id, prompt)
@@ -9367,13 +9411,20 @@ async def _broadcast_with_debate(ceo_message: str, rounds: int = 2) -> dict:
         ordered_managers = [m for m in DEBATE_ROTATION[rotation_idx] if m in manager_ids]
 
         if round_num == 1:
-            # 라운드 1: 병렬 — 서로 모르고 독립 의견 제시
-            debate_append = (
-                "\n\n[토론 규칙]\n"
-                "이 질문에 대한 당신의 독립적인 전문 의견을 제시하세요. "
-                "반드시 당신 부서의 관점에서 구체적으로 분석하세요."
-            )
-            tasks = [_call_agent_debate(mid, ceo_message, "", debate_append) for mid in ordered_managers]
+            # 라운드 1: 병렬 — 서로 모르고 독립 의견 제시 (처장별 맞춤 분석 관점)
+            tasks = []
+            for mid in ordered_managers:
+                lens = _DEBATE_LENSES.get(mid, "당신의 전문 분야 관점에서 구체적으로 분석하세요.")
+                r1_instruction = (
+                    f"\n\n[1라운드 — 독립 의견 제시]\n"
+                    f"{lens}\n\n"
+                    f"[발언 규칙]\n"
+                    f"- 결론을 먼저 한 문장으로 제시한 뒤 근거를 대세요\n"
+                    f"- \"~할 수 있다\", \"~이 좋을 것이다\" 같은 모호한 표현 금지. 구체적 수치, 사례, 기한을 넣으세요\n"
+                    f"- CEO가 의사결정할 수 있는 정보를 주세요. 교과서 내용 복붙이 아니라 이 상황에 맞는 판단을 하세요\n"
+                    f"- 300자 이상 800자 이하로 핵심만"
+                )
+                tasks.append(_call_agent_debate(mid, ceo_message, "", r1_instruction))
             responses = await asyncio.gather(*tasks, return_exceptions=True)
             for mid, resp in zip(ordered_managers, responses):
                 if not isinstance(resp, Exception):
@@ -9382,10 +9433,16 @@ async def _broadcast_with_debate(ceo_message: str, rounds: int = 2) -> dict:
         else:
             # 라운드 2+: 순차 — 이전 라운드 전체를 읽고 반박/보강
             rebuttal_instruction = (
-                "\n\n[재반박 라운드]\n이전 발언들을 읽고:\n"
-                "1. 다른 처장 의견 중 문제점 최소 1가지 구체적으로 지적\n"
-                "2. '동의합니다', '좋은 의견입니다' 같은 빈 동의 표현은 절대 금지\n"
-                "3. 자신의 입장을 더 명확히 강화하거나 수정"
+                f"\n\n[{round_num}라운드 — 반박 및 보강]\n"
+                "위 발언들을 읽고 아래 3가지를 반드시 수행하세요:\n\n"
+                "1. **반박**: 다른 처장 의견 중 가장 취약한 논리나 빠진 관점을 구체적으로 지적하세요.\n"
+                "   - 누구의 어떤 주장이 왜 틀렸거나 부족한지 이름을 거론하여 명확히 밝히세요.\n"
+                "   - \"일리 있지만\"으로 시작하는 빈 양보 표현 금지.\n\n"
+                "2. **새로운 정보 추가**: 1라운드에서 아무도 언급하지 않은 새로운 관점, 데이터, 리스크를 하나 이상 제시하세요.\n\n"
+                "3. **입장 표명**: 이 주제에 대한 당신의 최종 입장을 한 문장으로 명확히 밝히세요.\n"
+                "   찬성/반대/조건부 찬성 중 하나를 선택하고 그 이유를 대세요.\n\n"
+                "- '동의합니다', '좋은 의견입니다', '각 처장의 의견을 존중합니다' 같은 빈 동의/예의 표현은 절대 금지\n"
+                "- 300자 이상 800자 이하로 핵심만"
             )
             for mid in ordered_managers:
                 mgr_name = _AGENT_NAMES.get(mid, mid)
@@ -9394,13 +9451,21 @@ async def _broadcast_with_debate(ceo_message: str, rounds: int = 2) -> dict:
 
     # 비서실장이 토론 결과 종합
     synthesis_prompt = (
+        f"[임원 토론 종합 보고]\n\n"
         f"[토론 주제]\n{ceo_message}\n\n"
         f"[처장들의 토론 내용]\n{debate_history}\n\n"
-        "위 토론을 바탕으로:\n"
-        "1. 핵심 합의 사항 (처장들이 공통으로 동의한 점)\n"
-        "2. 주요 이견 (처장들 간 대립된 관점)\n"
-        "3. CEO를 위한 최종 권고사항\n"
-        "을 정리해서 보고해주세요."
+        "위 토론을 바탕으로 CEO에게 보고하세요. 아래 형식을 따르세요:\n\n"
+        "## 한줄 결론\n"
+        "(이 토론의 결론을 CEO가 즉시 이해할 수 있는 한 문장으로)\n\n"
+        "## 핵심 쟁점 (처장 간 실제로 대립한 것만)\n"
+        "| 쟁점 | 찬성 측 | 반대 측 | 판정 |\n"
+        "(형식적으로 이견이 없는 항목은 제외. 실제 의견 충돌만 기록)\n\n"
+        "## 전원 합의 사항\n"
+        "(처장들이 실제로 공통 동의한 핵심 포인트만. 없으면 '없음')\n\n"
+        "## CEO 결정 필요 사항\n"
+        "(CEO가 결정해야 할 구체적 선택지를 A/B 형태로 제시. 각 선택지의 장단점 1줄씩)\n\n"
+        "## 비서실장 권고\n"
+        "(당신의 판단으로 어떤 방향이 나은지, 그 이유와 함께)"
     )
 
     final_result = await _call_agent("chief_of_staff", synthesis_prompt)
