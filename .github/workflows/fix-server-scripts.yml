@@ -1,0 +1,47 @@
+name: 🔧 서버 스크립트 수정 (비밀번호 안 바꿈)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 서버 스크립트 수정
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.SERVER_IP_ARM }}
+          username: ubuntu
+          key: ${{ secrets.SERVER_SSH_KEY_ARM }}
+          script: |
+            # start-claude.sh 수정 (CORTHEX_HQ 폴더에서 시작)
+            cat > /home/ubuntu/start-claude.sh << 'SCRIPTEOF'
+            #!/bin/bash
+            cd /home/ubuntu/CORTHEX_HQ
+            if tmux has-session -t claude 2>/dev/null; then
+              tmux attach -t claude
+            else
+              tmux new -s claude -d
+              tmux send-keys -t claude 'cd /home/ubuntu/CORTHEX_HQ && claude' Enter
+              tmux attach -t claude
+            fi
+            SCRIPTEOF
+            chmod +x /home/ubuntu/start-claude.sh
+
+            # 로그인 시 자동으로 Claude Code 시작
+            BASHRC="/home/ubuntu/.bashrc"
+            if ! grep -q "start-claude" "$BASHRC" 2>/dev/null; then
+              cat >> "$BASHRC" << 'BASHEOF'
+
+            # 모바일 SSH 접속 시 자동으로 Claude Code 시작
+            if [ -n "$SSH_CONNECTION" ] && [ -z "$TMUX" ]; then
+              cd /home/ubuntu/CORTHEX_HQ
+              exec /home/ubuntu/start-claude.sh
+            fi
+            BASHEOF
+              echo "✅ 로그인 시 Claude Code 자동 시작 설정 완료"
+            else
+              echo "✅ 이미 설정되어 있음"
+            fi
+
+            echo "🎉 완료! 다음 접속부터 Claude Code가 자동으로 뜹니다."
