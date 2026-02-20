@@ -8,32 +8,53 @@
 
 ## 마지막 업데이트
 
-- **날짜**: 2026-02-20 (저녁 세션)
-- **버전**: `3.02.002`
-- **최신 빌드**: #371
-- **작업 브랜치**: main (이전: claude/shadow-layout-fix)
+- **날짜**: 2026-02-21 (새벽 세션)
+- **버전**: `3.01.004`
+- **최신 빌드**: #392
+- **작업 브랜치**: claude/fix-log-issues
 - **접속 주소**: https://corthex-hq.com
 
 ---
 
-## 오늘 완료한 작업 (2026-02-20 저녁 세션)
+## 🎉 첫 실매매 성공! (2026-02-21 04:38 KST)
+
+**NVDA(엔비디아) 1주 매수 @ $189.115 — KIS 실계좌 체결 완료!**
+
+- CIO(GPT-5.2 Pro)가 5개 종목 자동 분석 → NVDA 매수 판단(신뢰도 74%) → KIS API 주문 → 체결
+- CEO가 KIS 앱에서 직접 확인: 보유잔고 1주, +58원(+0.02%)
+- 상세 기록: `docs/updates/2026-02-21_첫-실매매-성공.md`
+
+---
+
+## 오늘 완료한 작업 (2026-02-21)
+
+| 빌드 | PR | 내용 |
+|------|-----|------|
+| #388 | #414 | **KIS 국내주식 TR_ID 신버전 교체** — 구TR(TTTC0802U) → 신TR(TTTC0012U). 매매 안 된 핵심 원인 |
+| #388 | #414 | **통신로그 탭 메인 승격** + 활동로그/교신로그 서브탭 통합 |
+| #392 | #414 | **활동로그 이모지/내용 표시 수정** — SSE message→action 매핑 추가 |
+| #392 | #414 | **교신로그 시간 정렬 수정** — created_at 기준 내림차순 |
+| #392 | #414 | **P2P 에이전트 ID 해석 순서 수정** — equity_analyst → 종목분석 Specialist |
+| #392 | #414 | **활동로그 폴링 노이즈 제거** |
+
+## 이전 작업 (2026-02-20 저녁 세션)
 
 | 빌드 | PR | 내용 |
 |------|-----|------|
 | #366 | #387 | 대시보드 슬리피지 간소화 + 최근거래/교신로그 확대 + 작전일지 삭제 버튼 |
 | #367 | #388 | **VECTOR(trading_executor) 도구 구현** — CIO가 직접 매수/매도 주문 실행 |
-| #368 | #389 | 포트폴리오 🗑️ 초기화 버튼 추가 |
+| #368 | #389 | 포트폴리오 초기화 버튼 추가 |
 | #369-370 | #390 | **수동 매매 KIS 실주문 연동** + 가상/실거래 모드 구분 + 주문 모달 한국/미국 선택 |
 | 수동배포 | — | KIS 모의투자 키 3개 GitHub Secrets 등록 (MOCK_APP_KEY/SECRET/ACCOUNT) |
 | #371 | #395 | 실/모의 비교 탭 레이아웃 변경 → 실거래(한국|미국) / 모의투자(한국|미국) |
 
 ### 주요 변경 파일
-- `src/tools/trading_executor.py` — **신규**: VECTOR 도구 (CIO → KIS API 주문)
-- `src/tools/pool.py` — trading_executor 등록
-- `config/tools.yaml` — trading_executor 스키마 추가
-- `config/agents.yaml` — CIO allowed_tools에 trading_executor 추가
-- `web/mini_server.py` — 수동 매매 KIS 연동, 작전일지 DELETE API
-- `web/templates/index.html` — 초기화 버튼, 주문 모달 개선, 레이아웃 변경
+- `web/kis_client.py` — KIS TR_ID 신버전 교체, 해외 모의투자 매도 TR 수정
+- `web/templates/index.html` — 통신로그 통합, 활동로그 SSE 수정, 교신로그 정렬
+- `web/mini_server.py` — 폴링 노이즈 스킵, JSON 파싱 에러 처리
+- `src/tools/cross_agent_protocol.py` — P2P 에이전트 ID 사전 해석
+- `src/tools/trading_executor.py` — VECTOR 도구 (CIO → KIS API 주문)
+- `docs/kis-api-reference.md` — KIS 공식 TR_ID 참고 문서 신규
 
 ---
 
