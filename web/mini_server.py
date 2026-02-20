@@ -4628,7 +4628,7 @@ async def generate_trading_signals():
     # 종목 정보 정리 (한국/미국 구분)
     kr_tickers = [w for w in watchlist if w.get("market", "KR") == "KR"]
     us_tickers = [w for w in watchlist if w.get("market") == "US"]
-    tickers_info = ", ".join([f"{w['name']}({w['ticker']})" for w in watchlist[:10]])
+    tickers_info = ", ".join([f"{w['name']}({w['ticker']})" for w in watchlist])
     strats_info = ", ".join([s["name"] for s in active_strategies[:5]])
 
     # 투자 성향 정보
@@ -4748,7 +4748,7 @@ async def generate_trading_signals():
         "id": f"sig_{datetime.now(KST).strftime('%Y%m%d%H%M%S')}",
         "date": datetime.now(KST).isoformat(),
         "analysis": content,
-        "tickers": [w["ticker"] for w in watchlist[:10]],
+        "tickers": [w["ticker"] for w in watchlist],
         "parsed_signals": parsed_signals,
         "strategy": "cio_analysis",
         "analyzed_by": f"CIO 포함 {specialists_used + 1}명",
@@ -4773,17 +4773,27 @@ async def generate_trading_signals():
             action_raw = sig.get("action", "hold")
             if action_raw in ("buy", "sell"):
                 direction = "BUY" if action_raw == "buy" else "SELL"
+                # 현재가 조회 (검증 기준가 — 3일/7일 후 비교용)
+                current_price = 0
+                try:
+                    from kis_client import get_overseas_price as _gop
+                    _pd = await _gop(sig["ticker"])
+                    current_price = int(float(_pd.get("price", 0) or 0))
+                except Exception:
+                    pass
                 save_cio_prediction(
                     ticker=sig.get("ticker", ""),
                     direction=direction,
                     ticker_name=sig.get("name", ""),
                     confidence=sig.get("confidence", 0),
+                    predicted_price=current_price or None,
                     target_price=sig.get("target_price"),
                     analysis_summary=sig.get("reason", ""),
                     task_id=sig_id,
                 )
-    except Exception:
-        pass  # 예측 저장 실패해도 시그널은 정상 반환
+        logger.info("[CIO성과] %d건 예측 저장 완료 (sig_id=%s)", len([s for s in parsed_signals if s.get("action") in ("buy", "sell")]), sig_id)
+    except Exception as e:
+        logger.warning("[CIO성과] 예측 저장 실패: %s", e)
 
     # 기밀문서 자동 저장 (CIO 독자분석 + 전체 분석 포함)
     try:
@@ -5186,7 +5196,7 @@ async def _run_trading_now_inner():
     calibration = _compute_calibration_factor(settings.get("calibration_lookback", 20))
     calibration_factor = calibration.get("factor", 1.0) if settings.get("calibration_enabled", True) else 1.0
 
-    tickers_info = ", ".join([f"{w['name']}({w['ticker']})" for w in market_watchlist[:10]])
+    tickers_info = ", ".join([f"{w['name']}({w['ticker']})" for w in market_watchlist])
     strategies = _load_data("trading_strategies", [])
     active_strats = [s for s in strategies if s.get("active")]
     strats_info = ", ".join([s["name"] for s in active_strats[:5]]) or "기본 전략"
@@ -5541,7 +5551,7 @@ async def _trading_bot_loop():
                 "info")
 
             # CIO + 전문가 팀에게 분석 위임
-            tickers_info = ", ".join([f"{w['name']}({w['ticker']})" for w in market_watchlist[:10]])
+            tickers_info = ", ".join([f"{w['name']}({w['ticker']})" for w in market_watchlist])
             strategies = _load_data("trading_strategies", [])
             active = [s for s in strategies if s.get("active")]
             strats_info = ", ".join([s["name"] for s in active[:5]]) or "기본 전략"
