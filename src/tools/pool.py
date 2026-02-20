@@ -86,10 +86,8 @@ class ToolPool:
             "portfolio_optimizer": "src.tools.portfolio_optimizer.PortfolioOptimizerTool",
             "risk_calculator": "src.tools.risk_calculator.RiskCalculatorTool",
             "sector_rotator": "src.tools.sector_rotator.SectorRotatorTool",
-            "sentiment_scorer": "src.tools.sentiment_scorer.SentimentScorerTool",
             "pair_analyzer": "src.tools.pair_analyzer.PairAnalyzerTool",
             "earnings_surprise": "src.tools.earnings_surprise.EarningsSurpriseTool",
-            "macro_regime": "src.tools.macro_regime.MacroRegimeTool",
             # ─── CMO 마케팅고객처 신규 도구 ───
             "funnel_analyzer": "src.tools.funnel_analyzer.FunnelAnalyzerTool",
             "ab_test_engine": "src.tools.ab_test_engine.AbTestEngineTool",
@@ -147,22 +145,14 @@ class ToolPool:
             "trading_executor": "src.tools.trading_executor.TradingExecutorTool",
             # ─── CMO Gemini 이미지 생성 (8유형 통합) ───
             "gemini_image_generator": "src.tools.gemini_image_generator.GeminiImageGeneratorTool",
-            # ─── Phase 2: 교수급 전문 도구 (25개) ───
-            # CTO 기술개발처
-            "architecture_evaluator": "src.tools.architecture_evaluator.ArchitectureEvaluatorTool",
-            "performance_profiler": "src.tools.performance_profiler.PerformanceProfilerTool",
-            "tech_debt_analyzer": "src.tools.tech_debt_analyzer.TechDebtAnalyzerTool",
-            "system_design_advisor": "src.tools.system_design_advisor.SystemDesignAdvisorTool",
-            "ai_model_evaluator": "src.tools.ai_model_evaluator.AIModelEvaluatorTool",
+            # ─── Phase 2: 교수급 전문 도구 ───
             # CSO 사업기획처
             "market_sizer": "src.tools.market_sizer.MarketSizer",
             "business_model_scorer": "src.tools.business_model_scorer.BusinessModelScorer",
-            "competitive_mapper": "src.tools.competitive_mapper.CompetitiveMapper",
             "growth_forecaster": "src.tools.growth_forecaster.GrowthForecaster",
             "scenario_simulator": "src.tools.scenario_simulator.ScenarioSimulator",
             # CPO 출판기록처 교수급
             "document_summarizer": "src.tools.document_summarizer.DocumentSummarizerTool",
-            "terms_generator": "src.tools.terms_generator.TermsGeneratorTool",
             "communication_optimizer": "src.tools.communication_optimizer.CommunicationOptimizerTool",
             # 비서실 교수급
             "agenda_optimizer": "src.tools.agenda_optimizer.AgendaOptimizerTool",
@@ -170,13 +160,7 @@ class ToolPool:
             "meeting_effectiveness": "src.tools.meeting_effectiveness.MeetingEffectivenessTool",
             "delegation_analyzer": "src.tools.delegation_analyzer.DelegationAnalyzerTool",
             "stakeholder_mapper": "src.tools.stakeholder_mapper.StakeholderMapperTool",
-            # CLO 법무IP처 교수급
-            "compliance_checker": "src.tools.compliance_checker.ComplianceCheckerTool",
-            "privacy_auditor": "src.tools.privacy_auditor.PrivacyAuditorTool",
-            "risk_communicator": "src.tools.risk_communicator.RiskCommunicatorTool",
-            "risk_matrix": "src.tools.risk_matrix.RiskMatrixTool",
             # CSO/CMO 공용 교수급
-            "pricing_optimizer": "src.tools.pricing_optimizer.PricingOptimizer",
             "customer_cohort_analyzer": "src.tools.customer_cohort_analyzer.CustomerCohortAnalyzer",
             "swot_quantifier": "src.tools.swot_quantifier.SwotQuantifier",
             # ─── Skill 도구 (89개) — 마케팅/개발/코딩패턴/유틸 ───
