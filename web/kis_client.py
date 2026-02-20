@@ -54,10 +54,10 @@ _TR = {
 
 # 해외주식 TR_ID (모의투자 vs 실거래) — 미국 주식 전용
 # 주의: 미국=TTTT, 일본=TTTS0308U/TTTS0307U — 혼동 금지!
-# ⚠️ 모의투자 매도: VTTT1001U (공식문서 기준, VTTT1006U 아님!)
+# 모의투자 TR_ID 규칙: 첫 글자 T→V (KIS 공식 GitHub 기준)
 _TR_OVERSEAS = {
     "buy":     "VTTT1002U" if KIS_IS_MOCK else "TTTT1002U",   # 미국 매수
-    "sell":    "VTTT1001U" if KIS_IS_MOCK else "TTTT1006U",   # 미국 매도 (모의: VTTT1001U)
+    "sell":    "VTTT1006U" if KIS_IS_MOCK else "TTTT1006U",   # 미국 매도 (모의: T→V 규칙)
     "price":   "HHDFS00000300",   # 해외 현재가 (모의/실거래 동일)
     "balance": "VTTS3012R" if KIS_IS_MOCK else "TTTS3012R",
     "present_balance": "VTRP6504R" if KIS_IS_MOCK else "CTRP6504R",  # 체결기준현재잔고 (외화예수금 포함)
