@@ -73,6 +73,11 @@ agents:
   - notion_api
   - decision_tracker
   - cross_agent_protocol
+  - agenda_optimizer
+  - priority_matrix
+  - meeting_effectiveness
+  - delegation_analyzer
+  - stakeholder_mapper
 - agent_id: report_specialist
   name: Information Aide
   name_ko: 정보 보좌관
@@ -263,6 +268,11 @@ agents:
   - token_counter
   - notification_engine
   - cross_agent_protocol
+  - architecture_evaluator
+  - performance_profiler
+  - tech_debt_analyzer
+  - system_design_advisor
+  - ai_model_evaluator
 - agent_id: frontend_specialist
   name: Frontend Specialist
   name_ko: 프론트엔드 Specialist
@@ -351,6 +361,9 @@ agents:
   - log_analyzer
   - api_benchmark
   - cross_agent_protocol
+  - architecture_evaluator
+  - performance_profiler
+  - tech_debt_analyzer
 - agent_id: infra_specialist
   name: DB/Infrastructure Specialist
   name_ko: DB/인프라 Specialist
@@ -396,6 +409,8 @@ agents:
   - log_analyzer
   - api_benchmark
   - cross_agent_protocol
+  - performance_profiler
+  - system_design_advisor
 - agent_id: ai_model_specialist
   name: AI Model Specialist
   name_ko: AI 모델 Specialist
@@ -449,6 +464,7 @@ agents:
   - token_counter
   - vector_knowledge
   - cross_agent_protocol
+  - ai_model_evaluator
 - agent_id: cso_manager
   name: CSO Manager
   name_ko: 사업기획처장 (CSO)
@@ -509,6 +525,14 @@ agents:
   - financial_calculator
   - decision_tracker
   - cross_agent_protocol
+  - market_sizer
+  - business_model_scorer
+  - competitive_mapper
+  - growth_forecaster
+  - scenario_simulator
+  - pricing_optimizer
+  - customer_cohort_analyzer
+  - swot_quantifier
 - agent_id: market_research_specialist
   name: Market Research Specialist
   name_ko: 시장조사 Specialist
@@ -740,6 +764,10 @@ agents:
   - web_search
   - real_web_search
   - cross_agent_protocol
+  - compliance_checker
+  - privacy_auditor
+  - risk_communicator
+  - risk_matrix
 - agent_id: copyright_specialist
   name: Copyright Specialist
   name_ko: 저작권 Specialist
@@ -927,6 +955,10 @@ agents:
   - marketing_attribution
   - cohort_retention
   - viral_coefficient
+  - gemini_image_generator
+  - pricing_optimizer
+  - customer_cohort_analyzer
+  - swot_quantifier
 - agent_id: survey_specialist
   name: Survey/Research Specialist
   name_ko: 설문/리서치 Specialist
@@ -1601,6 +1633,9 @@ agents:
   - newsletter_builder
   - decision_tracker
   - cross_agent_protocol
+  - document_summarizer
+  - terms_generator
+  - communication_optimizer
 - agent_id: chronicle_specialist
   name: Company Chronicle Specialist
   name_ko: 회사연대기 Specialist

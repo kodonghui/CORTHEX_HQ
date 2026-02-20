@@ -36,7 +36,12 @@
         "email_sender",
         "notion_api",
         "decision_tracker",
-        "cross_agent_protocol"
+        "cross_agent_protocol",
+        "agenda_optimizer",
+        "priority_matrix",
+        "meeting_effectiveness",
+        "delegation_analyzer",
+        "stakeholder_mapper"
       ]
     },
     {
@@ -135,7 +140,12 @@
         "embedding_tool",
         "token_counter",
         "notification_engine",
-        "cross_agent_protocol"
+        "cross_agent_protocol",
+        "architecture_evaluator",
+        "performance_profiler",
+        "tech_debt_analyzer",
+        "system_design_advisor",
+        "ai_model_evaluator"
       ]
     },
     {
@@ -181,7 +191,10 @@
         "security_scanner",
         "log_analyzer",
         "api_benchmark",
-        "cross_agent_protocol"
+        "cross_agent_protocol",
+        "architecture_evaluator",
+        "performance_profiler",
+        "tech_debt_analyzer"
       ]
     },
     {
@@ -205,7 +218,9 @@
         "security_scanner",
         "log_analyzer",
         "api_benchmark",
-        "cross_agent_protocol"
+        "cross_agent_protocol",
+        "performance_profiler",
+        "system_design_advisor"
       ]
     },
     {
@@ -228,7 +243,8 @@
         "embedding_tool",
         "token_counter",
         "vector_knowledge",
-        "cross_agent_protocol"
+        "cross_agent_protocol",
+        "ai_model_evaluator"
       ]
     },
     {
@@ -263,7 +279,15 @@
         "real_web_search",
         "financial_calculator",
         "decision_tracker",
-        "cross_agent_protocol"
+        "cross_agent_protocol",
+        "market_sizer",
+        "business_model_scorer",
+        "competitive_mapper",
+        "growth_forecaster",
+        "scenario_simulator",
+        "pricing_optimizer",
+        "customer_cohort_analyzer",
+        "swot_quantifier"
       ]
     },
     {
@@ -381,7 +405,11 @@
         "dispute_simulator",
         "web_search",
         "real_web_search",
-        "cross_agent_protocol"
+        "cross_agent_protocol",
+        "compliance_checker",
+        "privacy_auditor",
+        "risk_communicator",
+        "risk_matrix"
       ]
     },
     {
@@ -483,7 +511,11 @@
         "churn_risk_scorer",
         "marketing_attribution",
         "cohort_retention",
-        "viral_coefficient"
+        "viral_coefficient",
+        "gemini_image_generator",
+        "pricing_optimizer",
+        "customer_cohort_analyzer",
+        "swot_quantifier"
       ]
     },
     {
@@ -754,7 +786,10 @@
         "meeting_formatter",
         "newsletter_builder",
         "decision_tracker",
-        "cross_agent_protocol"
+        "cross_agent_protocol",
+        "document_summarizer",
+        "terms_generator",
+        "communication_optimizer"
       ]
     },
     {
