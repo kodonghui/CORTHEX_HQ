@@ -332,9 +332,48 @@ async def get_balance() -> dict:
             rt_cd = data.get("rt_cd", "")
             if rt_cd != "0":
                 msg = data.get("msg1", "알 수 없는 오류")
-                logger.error("[KIS] 잔고 조회 API 오류: rt_cd=%s, msg=%s", rt_cd, msg)
-                return {"success": False, "available": True, "cash": 0, "holdings": [],
-                        "total_eval": 0, "error": f"KIS API: {msg} (rt_cd={rt_cd})"}
+                msg_cd = data.get("msg_cd", "")
+                logger.error("[KIS] 잔고 조회 API 오류: rt_cd=%s, msg_cd=%s, msg=%s", rt_cd, msg_cd, msg)
+
+                # 토큰 만료 시 → 캐시 삭제 + 신규 발급 후 1회 재시도
+                if "만료" in msg or msg_cd == "EGW00123":
+                    logger.info("[KIS] 토큰 만료 감지 — 캐시 삭제 후 재발급 시도")
+                    _token_cache["token"] = None
+                    _token_cache["expires"] = None
+                    _save_token_to_db("", datetime.now())  # DB 캐시도 무효화
+                    try:
+                        new_token = await _get_token()
+                        async with httpx.AsyncClient(timeout=15) as client2:
+                            resp2 = await client2.get(
+                                f"{KIS_BASE}/uapi/domestic-stock/v1/trading/inquire-balance",
+                                headers={
+                                    "authorization": f"Bearer {new_token}",
+                                    "appkey": KIS_APP_KEY,
+                                    "appsecret": KIS_APP_SECRET,
+                                    "tr_id": _TR["balance"],
+                                },
+                                params={
+                                    "CANO": KIS_ACCOUNT_NO,
+                                    "ACNT_PRDT_CD": KIS_ACCOUNT_CODE,
+                                    "AFHR_FLPR_YN": "N", "OFL_YN": "",
+                                    "INQR_DVSN": "02", "UNPR_DVSN": "01",
+                                    "FUND_STTL_ICLD_YN": "N", "FNCG_AMT_AUTO_RDPT_YN": "N",
+                                    "PRCS_DVSN": "01", "CTX_AREA_FK100": "", "CTX_AREA_NK100": "",
+                                },
+                            )
+                            data = resp2.json()
+                            if data.get("rt_cd") == "0":
+                                logger.info("[KIS] 토큰 재발급 후 잔고 조회 성공!")
+                            else:
+                                return {"success": False, "available": True, "cash": 0, "holdings": [],
+                                        "total_eval": 0, "error": f"KIS API: {data.get('msg1')} (재시도 실패)"}
+                    except Exception as retry_err:
+                        logger.error("[KIS] 토큰 재발급 후 재시도 실패: %s", retry_err)
+                        return {"success": False, "available": True, "cash": 0, "holdings": [],
+                                "total_eval": 0, "error": f"토큰 재발급 실패: {retry_err}"}
+                else:
+                    return {"success": False, "available": True, "cash": 0, "holdings": [],
+                            "total_eval": 0, "error": f"KIS API: {msg} (rt_cd={rt_cd})"}
 
             output1 = data.get("output1", [])  # 보유 종목
             output2 = data.get("output2", [{}])  # 계좌 요약
