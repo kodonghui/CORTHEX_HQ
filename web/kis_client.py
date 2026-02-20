@@ -981,19 +981,32 @@ async def get_overseas_balance() -> dict:
             logger.error("[KIS] 해외잔고 %s 조회 예외: %s", excd, e)
             return {"excd": excd, "data": {"rt_cd": "-1", "msg1": str(e)}}
 
+    async def _fetch_all(tkn: str):
+        """보유종목 + 외화예수금 동시 조회 (토큰 재시도용 내부 함수)."""
+        ex_tasks = [_query_exchange(tkn, ex) for ex in _US_EXCHANGES]
+        cash_t = _get_overseas_cash_usd(tkn)
+        res = await asyncio.gather(*ex_tasks, cash_t, return_exceptions=True)
+        c_result = res[-1]
+        c_usd = c_result if isinstance(c_result, (int, float)) else 0.0
+        return res[:-1], c_usd
+
     try:
         token = await _get_token()
+        exchange_results, cash_usd = await _fetch_all(token)
 
-        # 보유종목 조회 + 외화예수금 조회 동시 실행
-        exchange_tasks = [_query_exchange(token, ex) for ex in _US_EXCHANGES]
-        cash_task = _get_overseas_cash_usd(token)
-        all_tasks = exchange_tasks + [cash_task]
-        results = await asyncio.gather(*all_tasks, return_exceptions=True)
-
-        # 마지막 결과 = 외화예수금
-        cash_result = results[-1]
-        cash_usd = cash_result if isinstance(cash_result, (int, float)) else 0.0
-        exchange_results = results[:-1]
+        # 토큰 만료 감지 → 캐시 삭제 + 재발급 + 1회 재시도
+        first_msg = ""
+        for r in exchange_results:
+            if not isinstance(r, Exception):
+                first_msg = r.get("data", {}).get("msg1", "")
+                break
+        if "만료" in first_msg:
+            logger.info("[KIS] 해외잔고 토큰 만료 감지 — 재발급 후 재시도")
+            _token_cache["token"] = None
+            _token_cache["expires"] = None
+            _save_token_to_db("", datetime.now())
+            token = await _get_token()
+            exchange_results, cash_usd = await _fetch_all(token)
 
         all_holdings = []
         total_purchase = 0.0
