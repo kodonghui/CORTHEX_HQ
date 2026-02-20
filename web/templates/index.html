@@ -3934,6 +3934,9 @@
               <button @click="trading.showOrderModal = true" class="bg-hq-green/20 text-hq-green hover:bg-hq-green/30 rounded-lg px-3 py-1.5 text-xs font-semibold transition">
                 📈 주문 실행
               </button>
+              <button @click="resetTradingPortfolio()" class="bg-hq-red/10 text-hq-red/70 hover:bg-hq-red/20 hover:text-hq-red rounded-lg px-3 py-1.5 text-xs font-semibold transition">
+                🗑️ 초기화
+              </button>
               <button @click="trading.showSettingsModal = true; trading.settings = {...(trading.summary.settings || {})}" class="bg-hq-surface border border-hq-border hover:border-hq-accent/30 rounded-lg px-3 py-1.5 text-xs text-hq-muted transition">
                 ⚙️ 설정
               </button>
