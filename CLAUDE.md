@@ -1,5 +1,16 @@
 # CORTHEX HQ - Claude 작업 규칙
 
+## 🔴🔴🔴 Cloudflare 보안 로그 열려 있음 (2026-02-21 ~ 2026-03-07) 🔴🔴🔴
+
+**현재 Cloudflare 보안이 열려 있어서 웹 로그를 전부 볼 수 있습니다!**
+
+- **버그 수정 시**: `corthex-hq.com`에서 직접 테스트하고, Cloudflare 대시보드 또는 서버 로그(`/var/log/nginx/error.log`, `/home/ubuntu/CORTHEX_HQ/web/` 서버 로그)에서 에러를 확인할 것
+- **API 에러 디버깅**: 브라우저 개발자 도구(F12 → Network 탭)에서 실패하는 요청 확인 가능
+- **서버 로그 확인**: SSH로 서버 접속하여 `journalctl -u corthex -f` 또는 mini_server.py 로그 확인
+- **⚠️ 이 설정은 2026-03-07에 만료됩니다. 만료일이 다가오면 CEO에게 "Cloudflare 보안 설정 2주 만료 임박" 알려줄 것!**
+
+---
+
 ## ⚡ 세션 시작 (매 세션 반드시)
 1. `git fetch origin && git status` 실행
    - 미커밋 있으면 → **작업 중지**, CEO에게 "미커밋 있습니다. 커밋할까요?" 물어볼 것
