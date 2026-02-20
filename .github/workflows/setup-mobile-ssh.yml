@@ -63,17 +63,31 @@ jobs:
             PASS=$(openssl rand -base64 16 | tr -d '/+=')
             echo "ubuntu:${PASS}" | sudo chpasswd
 
-            # 6단계: SSH 비밀번호 접속 활성화
+            # 6단계: SSH 비밀번호 접속 활성화 (메인 설정 + cloud-init 오버라이드)
             SSHD_CONFIG="/etc/ssh/sshd_config"
             sudo cp "$SSHD_CONFIG" "${SSHD_CONFIG}.bak"
             sudo sed -i 's/^PasswordAuthentication no/PasswordAuthentication yes/' "$SSHD_CONFIG"
             sudo sed -i 's/^#PasswordAuthentication.*/PasswordAuthentication yes/' "$SSHD_CONFIG"
-            # 혹시 설정이 안 바뀌었으면 직접 추가
             if ! grep -q "^PasswordAuthentication yes" "$SSHD_CONFIG"; then
               echo "PasswordAuthentication yes" | sudo tee -a "$SSHD_CONFIG"
             fi
+            # cloud-init 오버라이드 파일도 수정 (Ubuntu Cloud에서 메인 설정을 덮어씀)
+            for f in /etc/ssh/sshd_config.d/*.conf; do
+              if [ -f "$f" ]; then
+                sudo sed -i 's/^PasswordAuthentication no/PasswordAuthentication yes/' "$f"
+                echo "  수정됨: $f"
+              fi
+            done
+            # KbdInteractiveAuthentication도 활성화 (Ubuntu 22.04+)
+            sudo sed -i 's/^KbdInteractiveAuthentication no/KbdInteractiveAuthentication yes/' "$SSHD_CONFIG"
+            sudo sed -i 's/^#KbdInteractiveAuthentication.*/KbdInteractiveAuthentication yes/' "$SSHD_CONFIG"
+            for f in /etc/ssh/sshd_config.d/*.conf; do
+              if [ -f "$f" ]; then
+                sudo sed -i 's/^KbdInteractiveAuthentication no/KbdInteractiveAuthentication yes/' "$f"
+              fi
+            done
             sudo systemctl restart sshd
-            echo "✅ SSH 비밀번호 접속 활성화 완료"
+            echo "✅ SSH 비밀번호 접속 활성화 완료 (cloud-init 오버라이드 포함)"
 
             # 7단계: fail2ban 설정 (무차별 비밀번호 시도 차단)
             sudo systemctl enable fail2ban
