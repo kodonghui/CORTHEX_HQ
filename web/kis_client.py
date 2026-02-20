@@ -44,19 +44,20 @@ MOCK_ACCOUNT_NO = MOCK_ACCOUNT_RAW.split("-")[0] if "-" in MOCK_ACCOUNT_RAW else
 MOCK_ACCOUNT_CODE = MOCK_ACCOUNT_RAW.split("-")[1] if "-" in MOCK_ACCOUNT_RAW else "01"
 
 # TR_ID (모의투자 vs 실거래)
-# 모의투자 TR_ID는 앞에 'V' 붙음
+# ⚠️ 2025년 신 TR_ID 적용 필수 — 구TR(0801U/0802U)은 사전고지 없이 차단됨
 _TR = {
-    "buy":     "VTTC0802U" if KIS_IS_MOCK else "TTTC0802U",
-    "sell":    "VTTC0801U" if KIS_IS_MOCK else "TTTC0801U",
+    "buy":     "VTTC0012U" if KIS_IS_MOCK else "TTTC0012U",   # 신TR (구: TTTC0802U)
+    "sell":    "VTTC0011U" if KIS_IS_MOCK else "TTTC0011U",   # 신TR (구: TTTC0801U)
     "price":   "FHKST01010100",   # 현재가 (모의/실거래 동일)
     "balance": "VTTC8434R" if KIS_IS_MOCK else "TTTC8434R",
 }
 
 # 해외주식 TR_ID (모의투자 vs 실거래) — 미국 주식 전용
 # 주의: 미국=TTTT, 일본=TTTS0308U/TTTS0307U — 혼동 금지!
+# ⚠️ 모의투자 매도: VTTT1001U (공식문서 기준, VTTT1006U 아님!)
 _TR_OVERSEAS = {
     "buy":     "VTTT1002U" if KIS_IS_MOCK else "TTTT1002U",   # 미국 매수
-    "sell":    "VTTT1006U" if KIS_IS_MOCK else "TTTT1006U",   # 미국 매도
+    "sell":    "VTTT1001U" if KIS_IS_MOCK else "TTTT1006U",   # 미국 매도 (모의: VTTT1001U)
     "price":   "HHDFS00000300",   # 해외 현재가 (모의/실거래 동일)
     "balance": "VTTS3012R" if KIS_IS_MOCK else "TTTS3012R",
     "present_balance": "VTRP6504R" if KIS_IS_MOCK else "CTRP6504R",  # 체결기준현재잔고 (외화예수금 포함)
@@ -269,6 +270,9 @@ async def place_order(
                     "ORD_DVSN": order_type,
                     "ORD_QTY": str(qty),
                     "ORD_UNPR": str(price),
+                    "SLL_TYPE": "01" if action == "sell" else "",  # 매도시: 01(일반), 매수시: 공란
+                    "EXCG_ID_DVSN_CD": "",  # 공란(기본값)
+                    "CNDT_PRIC": "",        # 조건부가격(공란=미사용)
                 },
             )
             data = resp.json()
@@ -282,7 +286,7 @@ async def place_order(
             if success:
                 logger.info("[KIS %s] %s %s %d주 주문 완료 (주문번호: %s)", mode, action_kr, ticker, qty, order_no)
             else:
-                logger.warning("[KIS %s] %s %s %d주 주문 실패: %s", mode, action_kr, ticker, qty, msg)
+                logger.warning("[KIS %s] %s %s %d주 주문 실패: %s (rt_cd=%s)", mode, action_kr, ticker, qty, msg, rt_cd)
 
             return {
                 "success": success,

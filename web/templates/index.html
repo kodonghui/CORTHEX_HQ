@@ -3452,12 +3452,31 @@
         </div>
       </div>
 
-      <!-- ═══ Activity Log View (활동 로그) ═══ -->
-      <div x-show="viewMode === 'chat' && activeTab === 'activityLog'" class="flex-1 overflow-y-auto scrollbar-thin p-6 bg-grid">
-        <div class="max-w-4xl mx-auto fade-in-up">
+      <!-- ═══ 통신로그 (활동 로그 + 교신 로그 통합) ═══ -->
+      <div x-show="viewMode === 'chat' && activeTab === 'activityLog'" x-cloak
+           x-init="$watch('activeTab', v => { if (v === 'activityLog') { restoreActivityLogs(); fetchDelegationLogs(true); _connectCommsSSE(); } })"
+           class="flex-1 overflow-y-auto scrollbar-thin p-6 bg-grid">
+        <div class="max-w-5xl mx-auto fade-in-up">
+          <!-- 헤더 + 서브탭 -->
           <div class="flex items-center justify-between mb-4">
-            <h2 class="text-lg font-bold text-hq-text font-mono tracking-normal">ACTIVITY LOG</h2>
-            <div class="flex items-center gap-3">
+            <div class="flex items-center gap-4">
+              <h2 class="text-lg font-bold text-hq-text font-mono tracking-normal">COMMS LOG</h2>
+              <!-- 서브탭 전환 -->
+              <div class="flex bg-hq-surface border border-hq-border rounded-lg overflow-hidden">
+                <button @click="commsLogSubTab = 'activity'"
+                        :class="commsLogSubTab === 'activity' ? 'bg-hq-accent/20 text-hq-accent font-bold' : 'text-hq-muted hover:text-hq-text'"
+                        class="px-3 py-1.5 text-[11px] font-semibold transition">
+                  활동 로그 <span class="font-mono ml-1" x-text="activityLogs.length"></span>
+                </button>
+                <button @click="commsLogSubTab = 'comms'"
+                        :class="commsLogSubTab === 'comms' ? 'bg-hq-cyan/20 text-hq-cyan font-bold' : 'text-hq-muted hover:text-hq-text'"
+                        class="px-3 py-1.5 text-[11px] font-semibold transition border-l border-hq-border">
+                  교신 로그 <span class="font-mono ml-1" x-text="delegationLogs.length"></span>
+                </button>
+              </div>
+            </div>
+            <!-- 필터 (활동 로그일 때) -->
+            <div x-show="commsLogSubTab === 'activity'" class="flex items-center gap-3">
               <select x-model="activityLogFilter"
                       class="bg-hq-surface border border-hq-border rounded-lg px-3 py-1.5 text-xs text-hq-text min-w-[120px]">
                 <option value="all">전체 에이전트</option>
@@ -3465,15 +3484,44 @@
                   <option :value="id" x-text="name"></option>
                 </template>
               </select>
-              <span class="text-xs text-hq-muted" x-text="activityLogs.length + '건'"></span>
+            </div>
+            <!-- 필터 (교신 로그일 때) -->
+            <div x-show="commsLogSubTab === 'comms'" class="flex items-center gap-2">
+              <button @click="delegationLogFilter = 'all'"
+                      :class="delegationLogFilter === 'all' ? 'bg-hq-accent/20 text-hq-accent' : 'text-hq-muted hover:text-hq-text'"
+                      class="text-[10px] px-2 py-1 rounded-md font-semibold transition">전체</button>
+              <button @click="delegationLogFilter = 'delegation'"
+                      :class="delegationLogFilter === 'delegation' ? 'bg-hq-cyan/20 text-hq-cyan' : 'text-hq-muted hover:text-hq-text'"
+                      class="text-[10px] px-2 py-1 rounded-md font-semibold transition">위임</button>
+              <button @click="delegationLogFilter = 'report'"
+                      :class="delegationLogFilter === 'report' ? 'bg-hq-green/20 text-hq-green' : 'text-hq-muted hover:text-hq-text'"
+                      class="text-[10px] px-2 py-1 rounded-md font-semibold transition">보고</button>
+              <button @click="delegationLogFilter = 'p2p'"
+                      :class="delegationLogFilter === 'p2p' ? 'bg-hq-orange/20 text-hq-orange' : 'text-hq-muted hover:text-hq-text'"
+                      class="text-[10px] px-2 py-1 rounded-md font-semibold transition">P2P</button>
+              <button @click="fetchDelegationLogs()" title="새로고침"
+                      class="text-hq-muted hover:text-hq-accent transition p-1 rounded ml-1">
+                <svg class="w-3.5 h-3.5" :class="delegationLogLoading ? 'animate-spin' : ''"
+                     fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                </svg>
+              </button>
             </div>
           </div>
-          <div class="text-[11px] text-hq-muted/80 mb-4 bg-hq-surface border border-hq-border/50 rounded-lg px-3 py-2">
-            웹에서 일어나는 모든 활동이 실시간으로 기록됩니다. 최근 50건까지 표시됩니다.
+
+          <!-- SSE 연결 상태 표시 -->
+          <div class="flex items-center gap-2 mb-3 text-[11px]">
+            <span class="w-1.5 h-1.5 rounded-full animate-pulse" :class="wsConnected ? 'bg-hq-green' : 'bg-hq-red'"></span>
+            <span class="text-hq-muted/60" x-text="wsConnected ? '실시간 연결됨' : '연결 대기'"></span>
+            <span class="w-1.5 h-1.5 rounded-full animate-pulse ml-3" :class="_commsSSE ? 'bg-hq-cyan' : 'bg-hq-muted/40'"></span>
+            <span class="text-hq-muted/60" x-text="_commsSSE ? '교신 SSE 연결됨' : '교신 SSE 대기'"></span>
           </div>
-          <div class="space-y-1">
+
+          <!-- ── 활동 로그 서브탭 ── -->
+          <div x-show="commsLogSubTab === 'activity'" class="space-y-1">
             <template x-for="(log, i) in activityLogs.filter(l => activityLogFilter === 'all' || l.agent_id === activityLogFilter).slice().reverse()" :key="i">
-              <div class="flex items-center gap-3 bg-hq-surface border border-hq-border/30 rounded-lg px-4 py-2.5 hover:bg-hq-surface transition">
+              <div class="flex items-center gap-3 bg-hq-surface border border-hq-border/30 rounded-lg px-4 py-2.5 hover:bg-hq-surface/80 transition">
                 <div class="shrink-0 text-right" style="min-width:72px;">
                   <div class="text-[10px] font-mono text-hq-muted/60 leading-tight" x-text="log.timeDate || log.time?.split(' ')[0] || ''"></div>
                   <div class="text-[13px] font-mono font-semibold text-hq-muted leading-tight" x-text="log.timeClock || log.time?.split(' ')[1] || log.time || ''"></div>
@@ -3486,6 +3534,55 @@
             </template>
             <template x-if="activityLogs.length === 0">
               <div class="text-center text-hq-muted/80 py-12">아직 활동 로그가 없습니다. 에이전트에 작업을 지시하면 여기에 표시됩니다.</div>
+            </template>
+          </div>
+
+          <!-- ── 교신 로그 서브탭 ── -->
+          <div x-show="commsLogSubTab === 'comms'" class="space-y-1.5">
+            <template x-for="log in getFilteredDelegationLogs()" :key="log.id">
+              <div class="rounded-lg border border-hq-border/20 bg-hq-surface overflow-hidden transition-all hover:bg-hq-surface/80 hover:border-hq-border/40 hover:shadow-sm"
+                   :style="'border-left: 3px solid ' + getDeptColor(log.sender)">
+                <!-- 헤더: 발신 → 수신 + 시간 -->
+                <div class="flex items-center justify-between px-4 pt-2.5 pb-1">
+                  <div class="flex items-center gap-1.5 min-w-0">
+                    <span class="w-6 h-6 rounded-md flex items-center justify-center text-[8px] font-bold shrink-0"
+                          :class="getAgentAvatarClass(log.sender)" x-text="getAgentInitials(log.sender)"></span>
+                    <span class="text-[11px] font-bold truncate max-w-[120px]"
+                          :style="'color:' + getDeptColor(log.sender)"
+                          x-text="getAgentName(log.sender) || log.sender"></span>
+                    <svg class="w-3 h-3 text-hq-muted/40 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/>
+                    </svg>
+                    <span class="text-[11px] font-semibold text-hq-text/80 truncate max-w-[120px]"
+                          x-text="getAgentName(log.receiver) || log.receiver"></span>
+                    <!-- 로그 타입 뱃지 -->
+                    <span class="text-[9px] px-1.5 py-0.5 rounded-full font-bold ml-1"
+                          :class="{
+                            'bg-hq-cyan/15 text-hq-cyan': log.log_type === 'delegation',
+                            'bg-hq-green/15 text-hq-green': log.log_type === 'report',
+                            'bg-hq-orange/15 text-hq-orange': log.source === 'cross_agent',
+                            'bg-hq-purple/15 text-hq-purple': !['delegation','report'].includes(log.log_type) && log.source !== 'cross_agent'
+                          }"
+                          x-text="log.log_type === 'delegation' ? '위임' : log.log_type === 'report' ? '보고' : log.source === 'cross_agent' ? 'P2P' : log.log_type || '기타'"></span>
+                  </div>
+                  <span class="text-[10px] font-mono text-hq-muted/50 shrink-0 ml-2"
+                        :title="formatTime(log.created_at)"
+                        x-text="relativeTimeStr(log.created_at)"></span>
+                </div>
+                <!-- 메시지 본문 -->
+                <div class="px-4 pb-2.5 pt-1">
+                  <p class="text-xs text-hq-text/80 leading-relaxed line-clamp-3" x-text="log.message"></p>
+                </div>
+              </div>
+            </template>
+            <template x-if="delegationLogs.length === 0 && !delegationLogLoading">
+              <div class="text-center text-hq-muted/80 py-12">
+                <div class="text-sm mb-1">아직 교신 로그가 없습니다</div>
+                <div class="text-[11px] text-hq-muted/50">CIO 분석 또는 에이전트 작업 시 실시간으로 표시됩니다</div>
+              </div>
+            </template>
+            <template x-if="delegationLogLoading">
+              <div class="text-center text-hq-muted/60 py-8 text-xs animate-pulse">교신 로그 불러오는 중...</div>
             </template>
           </div>
         </div>
@@ -6524,6 +6621,7 @@
         totalCost: 0,
         totalTokens: 0,
         activityLogs: [],
+        commsLogSubTab: 'activity',  // 'activity' | 'comms' — 통신로그 탭 내 서브탭
         activeAgents: {},
         agentToolCallCount: {},  // 에이전트별 도구 호출 횟수 (진행률 계산용)
         // 내부통신 (delegation log)
@@ -9573,6 +9671,20 @@
             const timer = setTimeout(() => ctrl.abort(), 600000);
             const resp = await fetch('/api/trading/bot/run-now', {method:'POST', signal: ctrl.signal});
             clearTimeout(timer);
+            if (!resp.ok) {
+              const text = await resp.text();
+              const isProxy = text.includes('<!DOCTYPE') || text.includes('<html');
+              throw new Error(isProxy
+                ? `서버 프록시 타임아웃 (${resp.status}) — 분석은 서버에서 계속 진행 중입니다. 1~2분 후 새로고침하세요`
+                : `서버 오류 (${resp.status}): ${text.slice(0, 150)}`);
+            }
+            const contentType = resp.headers.get('content-type') || '';
+            if (!contentType.includes('application/json')) {
+              const text = await resp.text();
+              throw new Error(text.includes('<!DOCTYPE')
+                ? '서버 프록시 타임아웃 — 분석은 서버에서 계속 진행 중입니다. 1~2분 후 새로고침하세요'
+                : `예상치 못한 응답 형식: ${text.slice(0, 100)}`);
+            }
             const res = await resp.json();
             if (!res.success && res.message) {
               this.showToast(res.message, 'error');
@@ -9959,13 +10071,13 @@
 
         // ── #12: Tab grouping helpers ──
         getPrimaryTabs() {
-          // 메인 탭 순서: 작전현황 / 사령관실 / 작전일지 / 전략실 / 기밀문서
-          const order = ['home', 'command', 'history', 'trading', 'archive'];
+          // 메인 탭 순서: 작전현황 / 사령관실 / 통신로그 / 전략실 / 작전일지
+          const order = ['home', 'command', 'activityLog', 'trading', 'history'];
           return order.map(id => this.tabs.find(t => t.id === id)).filter(Boolean);
         },
         getSecondaryTabs() {
-          // 더보기: 자동화 / 크론기지 / 통신로그 / 작전일지 / 정보국 / 통신국
-          const order = ['workflow', 'schedule', 'activityLog', 'history', 'knowledge', 'sns'];
+          // 더보기: 기밀문서 / 자동화 / 크론기지 / 정보국 / 통신국
+          const order = ['archive', 'workflow', 'schedule', 'knowledge', 'sns'];
           return order.map(id => this.tabs.find(t => t.id === id)).filter(Boolean);
         },
 

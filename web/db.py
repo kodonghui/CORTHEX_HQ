@@ -663,7 +663,7 @@ def list_activity_logs(limit: int = 50, agent_id: str = None) -> list:
     """활동 로그를 조회합니다."""
     conn = get_connection()
     try:
-        query = "SELECT agent_id, message, level, time, timestamp FROM activity_logs"
+        query = "SELECT agent_id, message, level, time, timestamp, created_at FROM activity_logs"
         params = []
         if agent_id:
             query += " WHERE agent_id = ?"
