@@ -4525,7 +4525,18 @@ async def generate_trading_signals():
     except Exception:
         pass  # 기밀문서 저장 실패해도 시그널 API는 정상 반환
 
-    # 매매 결정 일지 저장 (parsed_signals 기반)
+    # 매매 결정 일지 저장
+    _save_decisions(parsed_signals)
+
+    return {"success": True, "signal": new_signal, "parsed_signals": parsed_signals}
+
+
+def _save_decisions(parsed_signals: list) -> None:
+    """시그널을 매매 결정 일지(trading_decisions)에 저장합니다.
+
+    P2-1 수정: 수동 분석(run_trading_now), 자동봇(_trading_bot_loop),
+    스케줄 분석(generate_trading_signals) 모두에서 호출.
+    """
     try:
         decisions = load_setting("trading_decisions", [])
         for sig in parsed_signals:
@@ -4547,9 +4558,22 @@ async def generate_trading_signals():
             decisions = decisions[-50:]
         save_setting("trading_decisions", decisions)
     except Exception:
-        pass  # 결정 일지 저장 실패해도 정상 반환
+        pass
 
-    return {"success": True, "signal": new_signal, "parsed_signals": parsed_signals}
+
+def _cio_confidence_weight(confidence: float) -> float:
+    """CIO 신뢰도 기반 포트폴리오 비중 산출 (Kelly Criterion 단순화).
+
+    CEO 승인 B안: CIO가 비중(%) 결정 → 시스템이 잔고×비중으로 주수 계산.
+    75%+ → 20%, 65%+ → 15%, 55%+ → 10%, 기타 → 5%
+    """
+    if confidence >= 75:
+        return 0.20
+    elif confidence >= 65:
+        return 0.15
+    elif confidence >= 55:
+        return 0.10
+    return 0.05
 
 
 def _parse_cio_signals(content: str, watchlist: list) -> list:
@@ -4781,13 +4805,34 @@ async def run_trading_now():
         signals = signals[:200]
     _save_data("trading_signals", signals)
 
+    # 매매 결정 일지 저장 (P2-1: 수동 분석에서도 decisions 저장)
+    _save_decisions(parsed_signals)
+
     # 자동 주문 실행 (auto_execute=True 일 때만)
     min_confidence = settings.get("min_confidence", 65)
-    order_size = settings.get("order_size", 1_000_000)
+    order_size = settings.get("order_size", 0)  # 0 = CIO 비중 자율, >0 = 고정 금액
     orders_triggered = 0
     if settings.get("auto_execute", False):
         paper_mode = settings.get("paper_trading", True)
         use_kis = _KIS_AVAILABLE and not paper_mode and _kis_configured()
+
+        # CIO 비중 기반 매수(B안): order_size=0이면 잔고×비중으로 자동 산출
+        account_balance = 0
+        if order_size == 0:
+            try:
+                if use_kis:
+                    _bal = await kis_client.get_balance()
+                    account_balance = _bal.get("cash", 0) if _bal.get("success") else 0
+                else:
+                    _port = _load_data("trading_portfolio", _default_portfolio())
+                    account_balance = _port.get("cash", 0)
+            except Exception:
+                pass
+            if account_balance <= 0:
+                account_balance = 1_000_000
+                save_activity_log("cio_manager", "CIO 비중 모드: 잔고 조회 실패, 기본 100만원 사용", "warning")
+            save_activity_log("cio_manager",
+                f"CIO 비중 모드: 계좌잔고 {account_balance:,.0f}원 기준 자동 주수 산출", "info")
 
         for sig in parsed_signals:
             if sig["action"] not in ("buy", "sell"):
@@ -4820,7 +4865,8 @@ async def run_trading_now():
                         _fx = load_setting("fx_rate_usd_krw", 1450)
                     except Exception:
                         pass
-                    qty = max(1, int(order_size / (price * _fx)))
+                    _order_amt = order_size if order_size > 0 else int(account_balance * _cio_confidence_weight(effective_conf))
+                    qty = max(1, int(_order_amt / (price * _fx)))
                 else:
                     if _KIS_AVAILABLE and _kis_configured():
                         price = await _kis_price(ticker)
@@ -4829,7 +4875,8 @@ async def run_trading_now():
                         price = target_w.get("target_price", 0) if target_w else 0
                     if price <= 0:
                         price = 50000
-                    qty = max(1, int(order_size / price))
+                    _order_amt = order_size if order_size > 0 else int(account_balance * _cio_confidence_weight(effective_conf))
+                    qty = max(1, int(_order_amt / price))
 
                 if use_kis:
                     mode_str = "실거래" if not KIS_IS_MOCK else "모의투자(KIS)"
@@ -5097,14 +5144,33 @@ async def _trading_bot_loop():
                 signals = signals[:200]
             _save_data("trading_signals", signals)
 
+            # 매매 결정 일지 저장 (P2-1: 자동봇에서도 decisions 저장)
+            _save_decisions(parsed_signals)
+
             # 자동 주문 실행 (auto_execute=True + 신뢰도 충족 시)
             auto_execute = settings.get("auto_execute", False)
             min_confidence = settings.get("min_confidence", 70)
-            order_size = settings.get("order_size", 1_000_000)
+            order_size = settings.get("order_size", 0)  # 0 = CIO 비중 자율
 
             if auto_execute:
                 paper_mode = settings.get("paper_trading", True)
                 use_kis = _KIS_AVAILABLE and not paper_mode and _kis_configured()
+
+                # CIO 비중 기반 매수(B안): order_size=0이면 잔고×비중으로 자동 산출
+                account_balance = 0
+                if order_size == 0:
+                    try:
+                        if use_kis:
+                            _bal = await kis_client.get_balance()
+                            account_balance = _bal.get("cash", 0) if _bal.get("success") else 0
+                        else:
+                            _port = _load_data("trading_portfolio", _default_portfolio())
+                            account_balance = _port.get("cash", 0)
+                    except Exception:
+                        pass
+                    if account_balance <= 0:
+                        account_balance = 1_000_000
+                        save_activity_log("cio_manager", "CIO 비중 모드: 잔고 조회 실패, 기본 100만원 사용", "warning")
 
                 for sig in parsed_signals:
                     if sig["action"] not in ("buy", "sell"):
@@ -5139,7 +5205,8 @@ async def _trading_bot_loop():
                                 _fx = load_setting("fx_rate_usd_krw", 1450)
                             except Exception:
                                 pass
-                            qty = max(1, int(order_size / (price * _fx)))
+                            _order_amt = order_size if order_size > 0 else int(account_balance * _cio_confidence_weight(effective_conf))
+                            qty = max(1, int(_order_amt / (price * _fx)))
                         else:
                             # ── 한국주식 현재가 조회 ──
                             if _KIS_AVAILABLE and _kis_configured():
@@ -5149,7 +5216,8 @@ async def _trading_bot_loop():
                                 price = target_w.get("target_price", 0) if target_w else 0
                             if price <= 0:
                                 price = 50000  # 가격 미설정 시 기본값
-                            qty = max(1, int(order_size / price))
+                            _order_amt = order_size if order_size > 0 else int(account_balance * _cio_confidence_weight(effective_conf))
+                            qty = max(1, int(_order_amt / price))
 
                         if use_kis:
                             mode_str = "실거래" if not KIS_IS_MOCK else "모의투자(KIS)"
