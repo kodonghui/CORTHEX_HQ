@@ -12,6 +12,7 @@
 | 4 | **관심종목 삭제→재추가 버그** | 삭제한 종목 다시 넣으면 "이미 추가한 항목" 에러. Cloudflare 로그 활용해서 디버깅 | 중간 |
 | 5 | **soul 로딩 우선순위 변경** | 현재: DB오버라이드 > souls/*.md > agents.yaml. 웹에서 soul 안 만지니까 불필요한 DB 우선순위 제거하거나, souls/*.md를 1순위로 단순화 | 낮음 |
 | 6 | **CEO 수동 서버 작업 중지 기능** | 즉시분석 등 장시간 작업을 CEO가 웹에서 직접 중지시킬 수 있는 방법 구현. (웹 UI에 "중지" 버튼 or 서버 프로세스 킬 방법) | 중간 |
+| 7 | **SerpAPI 무료 크레딧 75% 소진 — 대안 찾기** | SerpAPI 무료 플랜 거의 다 씀. 대안 검토: Google Custom Search API (무료 100회/일), Brave Search API, DuckDuckGo 무료, 또는 SerpAPI 유료 전환 비용 비교 | 높음 |
 
 ---
 
