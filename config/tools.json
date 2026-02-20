@@ -1861,6 +1861,921 @@
           "market"
         ]
       }
+    },
+    {
+      "tool_id": "architecture_evaluator",
+      "name": "Architecture Evaluator",
+      "name_ko": "아키텍처 평가 도구",
+      "description": "ISO/IEC 25010 품질모델 기반 아키텍처 종합 평가. SOLID 원칙, 디자인 패턴, 안티패턴, 결합도/응집도, DDD, 마이그레이션 전략 분석.\n",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "evaluate",
+              "solid",
+              "patterns",
+              "antipatterns",
+              "coupling",
+              "migration",
+              "ddd",
+              "full"
+            ],
+            "description": "evaluate=종합평가, solid=SOLID분석, patterns=디자인패턴, antipatterns=안티패턴탐지, coupling=결합도분석, migration=마이그레이션전략, ddd=도메인주도설계, full=전체리포트"
+          },
+          "code": {
+            "type": "string",
+            "description": "분석할 코드 또는 아키텍처 설명"
+          },
+          "context": {
+            "type": "string",
+            "description": "프로젝트 맥락 (기술스택, 팀규모, 비즈니스 도메인)"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      }
+    },
+    {
+      "tool_id": "performance_profiler",
+      "name": "Performance Profiler",
+      "name_ko": "성능 프로파일러",
+      "description": "Brendan Gregg USE Method + Big-O 복잡도 + USL 확장성 분석. 병목탐지, 메모리분석, DB최적화, API지연시간 P50/P95/P99 분석.\n",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "analyze",
+              "complexity",
+              "bottleneck",
+              "memory",
+              "scalability",
+              "database",
+              "api",
+              "optimize",
+              "full"
+            ],
+            "description": "analyze=종합분석, complexity=복잡도, bottleneck=병목탐지, memory=메모리, scalability=확장성, database=DB성능, api=API지연, optimize=최적화제안, full=전체리포트"
+          },
+          "code": {
+            "type": "string",
+            "description": "분석할 코드 또는 시스템 설명"
+          },
+          "context": {
+            "type": "string",
+            "description": "실행 환경 (서버 스펙, 트래픽 규모, SLA 요구사항)"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      }
+    },
+    {
+      "tool_id": "tech_debt_analyzer",
+      "name": "Tech Debt Analyzer",
+      "name_ko": "기술부채 분석기",
+      "description": "SQALE 방법론 + Fowler Quadrant 기반 기술부채 종합 평가. 코드스멜 탐지, 비즈니스 영향도, WSJF 우선순위, 상환 로드맵 생성.\n",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "assess",
+              "classify",
+              "smells",
+              "impact",
+              "prioritize",
+              "roadmap",
+              "metrics",
+              "full"
+            ],
+            "description": "assess=종합평가, classify=유형분류, smells=코드스멜, impact=영향도, prioritize=우선순위, roadmap=로드맵, metrics=측정지표, full=전체리포트"
+          },
+          "code": {
+            "type": "string",
+            "description": "분석할 코드 또는 프로젝트 설명"
+          },
+          "context": {
+            "type": "string",
+            "description": "프로젝트 맥락 (개발기간, 팀규모, 배포주기)"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      }
+    },
+    {
+      "tool_id": "system_design_advisor",
+      "name": "System Design Advisor",
+      "name_ko": "시스템 설계 자문 도구",
+      "description": "CAP 정리 + DDIA(Designing Data-Intensive Applications) 기반 시스템 설계 자문. 확장성, 데이터저장소 선택, 통신패턴, 신뢰성, 보안, 관측성 설계.\n",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "design",
+              "scalability",
+              "datastore",
+              "communication",
+              "reliability",
+              "security",
+              "observability",
+              "full"
+            ],
+            "description": "design=종합설계, scalability=확장성, datastore=저장소선택, communication=통신패턴, reliability=신뢰성, security=보안, observability=관측성, full=전체리포트"
+          },
+          "requirements": {
+            "type": "string",
+            "description": "시스템 요구사항 (사용자수, QPS, 데이터량, SLA)"
+          },
+          "context": {
+            "type": "string",
+            "description": "기존 시스템 맥락 또는 신규 설계 배경"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      }
+    },
+    {
+      "tool_id": "ai_model_evaluator",
+      "name": "AI Model Evaluator",
+      "name_ko": "AI 모델 평가 도구",
+      "description": "HELM 프레임워크 + Chatbot Arena 기반 AI 모델 종합 평가. 모델 비교, 벤치마크, 비용분석, 안전성, 배포전략, 프롬프트엔지니어링 분석.\n",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "evaluate",
+              "compare",
+              "select",
+              "benchmark",
+              "cost",
+              "safety",
+              "deploy",
+              "prompt",
+              "full"
+            ],
+            "description": "evaluate=종합평가, compare=모델비교, select=모델추천, benchmark=벤치마크, cost=비용분석, safety=안전성, deploy=배포전략, prompt=프롬프트분석, full=전체리포트"
+          },
+          "target": {
+            "type": "string",
+            "description": "평가 대상 모델 또는 용도"
+          },
+          "requirements": {
+            "type": "string",
+            "description": "요구사항 (성능, 비용, 지연시간 제약)"
+          },
+          "context": {
+            "type": "string",
+            "description": "사용 맥락 (도메인, 사용자 규모, 보안 요구)"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      }
+    },
+    {
+      "tool_id": "market_sizer",
+      "name": "Market Sizer",
+      "name_ko": "시장규모 추정 도구",
+      "description": "TAM/SAM/SOM을 Top-down + Bottom-up + Fermi 3가지 방법론으로 교차검증. 산업별 침투율, 성장률(CAGR), 시장단계별 벤치마크 제공.\n",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "full",
+              "top_down",
+              "bottom_up",
+              "fermi",
+              "compare",
+              "growth"
+            ],
+            "description": "full=종합분석, top_down=탑다운, bottom_up=바텀업, fermi=페르미추정, compare=교차비교, growth=성장률예측"
+          },
+          "industry": {
+            "type": "string",
+            "description": "산업/시장 (예: SaaS_B2B, FinTech, AI_Service)"
+          },
+          "target": {
+            "type": "string",
+            "description": "분석 대상 제품/서비스"
+          },
+          "context": {
+            "type": "string",
+            "description": "추가 맥락 (지역, 고객세그먼트)"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      }
+    },
+    {
+      "tool_id": "business_model_scorer",
+      "name": "Business Model Scorer",
+      "name_ko": "비즈니스 모델 채점 도구",
+      "description": "Osterwalder BMC 9블록 + 유닛이코노믹스(LTV/CAC) + 린스타트업 가설검증 기반 비즈니스 모델 종합 평가 및 채점.\n",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "score",
+              "bmc",
+              "unit_economics",
+              "hypothesis",
+              "pivot",
+              "full"
+            ],
+            "description": "score=종합채점, bmc=BMC분석, unit_economics=유닛이코노믹스, hypothesis=가설검증, pivot=피봇전략, full=전체리포트"
+          },
+          "model": {
+            "type": "string",
+            "description": "비즈니스 모델 설명"
+          },
+          "context": {
+            "type": "string",
+            "description": "시장/경쟁 맥락"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      }
+    },
+    {
+      "tool_id": "competitive_mapper",
+      "name": "Competitive Mapper",
+      "name_ko": "경쟁 지형도 도구",
+      "description": "Porter 5-Forces + 전략 그룹 매핑 + Blue Ocean 전략 캔버스 기반 경쟁 환경 종합 분석 및 포지셔닝 전략 도출.\n",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "map",
+              "five_forces",
+              "strategic_group",
+              "blue_ocean",
+              "positioning",
+              "full"
+            ],
+            "description": "map=경쟁지형도, five_forces=5Forces, strategic_group=전략그룹, blue_ocean=블루오션, positioning=포지셔닝, full=전체리포트"
+          },
+          "industry": {
+            "type": "string",
+            "description": "산업/시장"
+          },
+          "competitors": {
+            "type": "string",
+            "description": "주요 경쟁사 목록"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      }
+    },
+    {
+      "tool_id": "growth_forecaster",
+      "name": "Growth Forecaster",
+      "name_ko": "성장 예측 도구",
+      "description": "Bass Diffusion Model + S-curve + Cohort 분석 기반 성장 예측. 사용자 증가, 매출 예측, 시나리오별 성장 경로 시뮬레이션.\n",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "forecast",
+              "bass_model",
+              "s_curve",
+              "cohort",
+              "scenario",
+              "full"
+            ],
+            "description": "forecast=종합예측, bass_model=Bass모델, s_curve=S커브, cohort=코호트분석, scenario=시나리오, full=전체리포트"
+          },
+          "data": {
+            "type": "string",
+            "description": "현재 지표 데이터 (사용자수, 매출, 성장률)"
+          },
+          "context": {
+            "type": "string",
+            "description": "시장/제품 맥락"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      }
+    },
+    {
+      "tool_id": "scenario_simulator",
+      "name": "Scenario Simulator",
+      "name_ko": "시나리오 시뮬레이터",
+      "description": "Monte Carlo 시뮬레이션 + Decision Tree + 민감도 분석 기반 사업 시나리오 시뮬레이션 및 의사결정 지원.\n",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "simulate",
+              "monte_carlo",
+              "decision_tree",
+              "sensitivity",
+              "war_game",
+              "full"
+            ],
+            "description": "simulate=종합시뮬레이션, monte_carlo=몬테카를로, decision_tree=의사결정트리, sensitivity=민감도, war_game=워게임, full=전체리포트"
+          },
+          "scenario": {
+            "type": "string",
+            "description": "시나리오 설명 (변수, 가정, 조건)"
+          },
+          "context": {
+            "type": "string",
+            "description": "사업 맥락"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      }
+    },
+    {
+      "tool_id": "document_summarizer",
+      "name": "Document Summarizer",
+      "name_ko": "문서 요약 도구",
+      "description": "학술 수준 문서 요약 — ROUGE 최적화 + 추출적/추상적 요약 이중 방식. 보고서, 논문, 회의록, 법률문서 등 다양한 문서 유형 지원.\n",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "summarize",
+              "extract",
+              "abstract",
+              "compare",
+              "key_points",
+              "full"
+            ],
+            "description": "summarize=종합요약, extract=추출적요약, abstract=추상적요약, compare=문서비교, key_points=핵심포인트, full=전체리포트"
+          },
+          "document": {
+            "type": "string",
+            "description": "요약할 문서 내용"
+          },
+          "doc_type": {
+            "type": "string",
+            "description": "문서 유형 (report, paper, minutes, legal, article)"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      }
+    },
+    {
+      "tool_id": "terms_generator",
+      "name": "Terms Generator",
+      "name_ko": "용어집 생성 도구",
+      "description": "도메인 특화 용어집 자동 생성 — ISO 704 용어작업 원칙 준거. 기술/법률/비즈니스/의학 등 전문분야 용어 정의, 동의어, 관련어 매핑.\n",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "generate",
+              "define",
+              "synonym",
+              "hierarchy",
+              "translate",
+              "full"
+            ],
+            "description": "generate=용어집생성, define=정의작성, synonym=동의어매핑, hierarchy=계층구조, translate=다국어, full=전체리포트"
+          },
+          "domain": {
+            "type": "string",
+            "description": "도메인 (tech, legal, business, medical)"
+          },
+          "terms": {
+            "type": "string",
+            "description": "용어 목록 또는 문서"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      }
+    },
+    {
+      "tool_id": "communication_optimizer",
+      "name": "Communication Optimizer",
+      "name_ko": "커뮤니케이션 최적화 도구",
+      "description": "Flesch-Kincaid 가독성 + 설득 심리학(Cialdini) 기반 문서 커뮤니케이션 최적화. 독자 맞춤 톤/수준 조정, 구조화, 시각적 포맷팅 제안.\n",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "optimize",
+              "readability",
+              "persuasion",
+              "structure",
+              "tone",
+              "full"
+            ],
+            "description": "optimize=종합최적화, readability=가독성분석, persuasion=설득력, structure=구조화, tone=톤조정, full=전체리포트"
+          },
+          "text": {
+            "type": "string",
+            "description": "최적화할 텍스트"
+          },
+          "audience": {
+            "type": "string",
+            "description": "대상 독자 (executive, developer, customer, investor)"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      }
+    },
+    {
+      "tool_id": "agenda_optimizer",
+      "name": "Agenda Optimizer",
+      "name_ko": "안건 최적화 도구",
+      "description": "회의 안건 최적화 — Parkinson 법칙 + 인지부하 이론 기반 시간 배분. 안건 우선순위, 최적 순서, 시간 할당, 참석자 매핑.\n",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "optimize",
+              "prioritize",
+              "allocate",
+              "sequence",
+              "full"
+            ],
+            "description": "optimize=종합최적화, prioritize=우선순위, allocate=시간배분, sequence=순서최적화, full=전체리포트"
+          },
+          "agenda": {
+            "type": "string",
+            "description": "안건 목록"
+          },
+          "context": {
+            "type": "string",
+            "description": "회의 맥락 (목적, 참석자, 제한시간)"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      }
+    },
+    {
+      "tool_id": "priority_matrix",
+      "name": "Priority Matrix",
+      "name_ko": "우선순위 매트릭스 도구",
+      "description": "Eisenhower 매트릭스 + RICE 스코어링 + MoSCoW 기반 다차원 우선순위 결정. 업무 분류, 긴급도/중요도 평가, 자원 배분 최적화.\n",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "matrix",
+              "eisenhower",
+              "rice",
+              "moscow",
+              "weighted",
+              "full"
+            ],
+            "description": "matrix=종합매트릭스, eisenhower=아이젠하워, rice=RICE스코어, moscow=MoSCoW, weighted=가중치, full=전체리포트"
+          },
+          "tasks": {
+            "type": "string",
+            "description": "우선순위 결정할 업무/프로젝트 목록"
+          },
+          "criteria": {
+            "type": "string",
+            "description": "평가 기준 (비용, 영향도, 긴급도)"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      }
+    },
+    {
+      "tool_id": "meeting_effectiveness",
+      "name": "Meeting Effectiveness",
+      "name_ko": "회의 효과성 분석 도구",
+      "description": "회의 효과성 측정 — ROI 산출(참석자×시간×시급 vs 산출물 가치). 패턴 분석, 개선 제안, 회의 문화 진단.\n",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "analyze",
+              "roi",
+              "patterns",
+              "improve",
+              "culture",
+              "full"
+            ],
+            "description": "analyze=종합분석, roi=ROI산출, patterns=패턴분석, improve=개선제안, culture=문화진단, full=전체리포트"
+          },
+          "meeting_data": {
+            "type": "string",
+            "description": "회의 데이터 (참석자, 시간, 안건, 결과)"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      }
+    },
+    {
+      "tool_id": "delegation_analyzer",
+      "name": "Delegation Analyzer",
+      "name_ko": "위임 분석 도구",
+      "description": "Hersey-Blanchard 상황적 리더십 모델 기반 위임 전략 분석. 팀원 역량/의지 매트릭스, 위임 수준 결정, 모니터링 빈도 추천.\n",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "analyze",
+              "assess",
+              "assign",
+              "monitor",
+              "full"
+            ],
+            "description": "analyze=종합분석, assess=역량평가, assign=업무배정, monitor=모니터링전략, full=전체리포트"
+          },
+          "task": {
+            "type": "string",
+            "description": "위임할 업무"
+          },
+          "team": {
+            "type": "string",
+            "description": "팀원 정보 (역량, 경험, 현재 업무량)"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      }
+    },
+    {
+      "tool_id": "stakeholder_mapper",
+      "name": "Stakeholder Mapper",
+      "name_ko": "이해관계자 매핑 도구",
+      "description": "Mitchell의 현저성 모델(Power/Legitimacy/Urgency) 기반 이해관계자 매핑. 영향력/관심도 매트릭스, 커뮤니케이션 전략, 갈등 예측.\n",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "map",
+              "salience",
+              "influence",
+              "communication",
+              "conflict",
+              "full"
+            ],
+            "description": "map=종합매핑, salience=현저성분석, influence=영향력매트릭스, communication=소통전략, conflict=갈등예측, full=전체리포트"
+          },
+          "stakeholders": {
+            "type": "string",
+            "description": "이해관계자 목록 및 정보"
+          },
+          "project": {
+            "type": "string",
+            "description": "프로젝트/이슈 맥락"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      }
+    },
+    {
+      "tool_id": "compliance_checker",
+      "name": "Compliance Checker",
+      "name_ko": "컴플라이언스 점검 도구",
+      "description": "GDPR/CCPA/개인정보보호법/전자상거래법 등 주요 규제 준수 여부 점검. 체크리스트 기반 진단, 위반 위험도 평가, 시정 방안 제시.\n",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "check",
+              "gdpr",
+              "privacy",
+              "ecommerce",
+              "labor",
+              "full"
+            ],
+            "description": "check=종합점검, gdpr=GDPR, privacy=개인정보, ecommerce=전자상거래, labor=노동법, full=전체리포트"
+          },
+          "target": {
+            "type": "string",
+            "description": "점검 대상 (서비스, 정책, 약관)"
+          },
+          "jurisdiction": {
+            "type": "string",
+            "description": "관할권 (KR, EU, US, global)"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      }
+    },
+    {
+      "tool_id": "privacy_auditor",
+      "name": "Privacy Auditor",
+      "name_ko": "프라이버시 감사 도구",
+      "description": "개인정보 영향평가(PIA) + DPIA(Data Protection Impact Assessment) 기반 감사. 데이터 흐름 분석, 동의 관리, 보존기간, 국외이전 적법성 점검.\n",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "audit",
+              "pia",
+              "data_flow",
+              "consent",
+              "retention",
+              "transfer",
+              "full"
+            ],
+            "description": "audit=종합감사, pia=영향평가, data_flow=데이터흐름, consent=동의관리, retention=보존기간, transfer=국외이전, full=전체리포트"
+          },
+          "system": {
+            "type": "string",
+            "description": "감사 대상 시스템/서비스"
+          },
+          "data_types": {
+            "type": "string",
+            "description": "처리하는 개인정보 유형"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      }
+    },
+    {
+      "tool_id": "risk_communicator",
+      "name": "Risk Communicator",
+      "name_ko": "리스크 커뮤니케이션 도구",
+      "description": "위기 커뮤니케이션 전략 수립 — Coombs SCCT(Situational Crisis Communication Theory) 기반. 위기 유형 분류, 대응 전략, 이해관계자별 메시지, 타임라인 제시.\n",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "communicate",
+              "classify",
+              "strategy",
+              "message",
+              "timeline",
+              "full"
+            ],
+            "description": "communicate=종합전략, classify=위기분류, strategy=대응전략, message=메시지작성, timeline=타임라인, full=전체리포트"
+          },
+          "crisis": {
+            "type": "string",
+            "description": "위기 상황 설명"
+          },
+          "stakeholders": {
+            "type": "string",
+            "description": "주요 이해관계자"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      }
+    },
+    {
+      "tool_id": "risk_matrix",
+      "name": "Risk Matrix",
+      "name_ko": "리스크 매트릭스 도구",
+      "description": "ISO 31000 기반 리스크 평가 매트릭스 — 발생확률 × 영향도 매핑. 리스크 식별, 정량/정성 평가, 완화 전략, 잔여 리스크 모니터링.\n",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "assess",
+              "identify",
+              "quantify",
+              "mitigate",
+              "monitor",
+              "full"
+            ],
+            "description": "assess=종합평가, identify=식별, quantify=정량화, mitigate=완화전략, monitor=모니터링, full=전체리포트"
+          },
+          "risks": {
+            "type": "string",
+            "description": "리스크 목록 또는 프로젝트 설명"
+          },
+          "context": {
+            "type": "string",
+            "description": "조직/프로젝트 맥락"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      }
+    },
+    {
+      "tool_id": "pricing_optimizer",
+      "name": "Pricing Optimizer",
+      "name_ko": "가격 최적화 도구",
+      "description": "Van Westendorp PSM + Conjoint Analysis + 가격탄력성 기반 최적 가격 도출. 심리적 가격, 번들링, 프리미엄/프리미엄 전략, 경쟁 기반 가격.\n",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "optimize",
+              "psm",
+              "elasticity",
+              "bundle",
+              "competitive",
+              "full"
+            ],
+            "description": "optimize=종합최적화, psm=PSM분석, elasticity=가격탄력성, bundle=번들링, competitive=경쟁가격, full=전체리포트"
+          },
+          "product": {
+            "type": "string",
+            "description": "제품/서비스 설명"
+          },
+          "market_data": {
+            "type": "string",
+            "description": "시장/경쟁 가격 데이터"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      }
+    },
+    {
+      "tool_id": "customer_cohort_analyzer",
+      "name": "Customer Cohort Analyzer",
+      "name_ko": "고객 코호트 분석 도구",
+      "description": "코호트 기반 고객 행동 분석 — 리텐션 커브, 이탈 예측, LTV 세그먼트. RFM 연동, 액션별 코호트, 시계열 트렌드.\n",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "analyze",
+              "retention",
+              "churn",
+              "ltv",
+              "segment",
+              "full"
+            ],
+            "description": "analyze=종합분석, retention=리텐션, churn=이탈예측, ltv=LTV분석, segment=세그먼트, full=전체리포트"
+          },
+          "data": {
+            "type": "string",
+            "description": "고객 데이터 설명"
+          },
+          "period": {
+            "type": "string",
+            "description": "분석 기간"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      }
+    },
+    {
+      "tool_id": "swot_quantifier",
+      "name": "SWOT Quantifier",
+      "name_ko": "SWOT 정량화 도구",
+      "description": "SWOT 분석의 정량화 — TOWS 매트릭스 + AHP(Analytic Hierarchy Process) 기반. 강점/약점/기회/위협에 가중치 부여, 전략 우선순위 도출.\n",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "analyze",
+              "quantify",
+              "tows",
+              "ahp",
+              "strategy",
+              "full"
+            ],
+            "description": "analyze=종합분석, quantify=정량화, tows=TOWS매트릭스, ahp=AHP분석, strategy=전략도출, full=전체리포트"
+          },
+          "company": {
+            "type": "string",
+            "description": "기업/제품 설명"
+          },
+          "context": {
+            "type": "string",
+            "description": "시장/경쟁 맥락"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      }
+    },
+    {
+      "tool_id": "gemini_image_generator",
+      "name": "Gemini Image Generator",
+      "name_ko": "Gemini 이미지 생성 도구",
+      "description": "Gemini AI 기반 마케팅 이미지 생성 — 8가지 유형 통합. 배너, 카드뉴스, 인포그래픽, 썸네일, 로고, 광고, 소셜포스트, 제품목업.\n",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "banner",
+              "card_news",
+              "infographic",
+              "thumbnail",
+              "logo",
+              "ad_creative",
+              "social_post",
+              "product_mockup",
+              "full"
+            ],
+            "description": "banner=배너, card_news=카드뉴스, infographic=인포그래픽, thumbnail=썸네일, logo=로고, ad_creative=광고, social_post=소셜포스트, product_mockup=제품목업, full=종합세트"
+          },
+          "topic": {
+            "type": "string",
+            "description": "주제/제품명"
+          },
+          "style": {
+            "type": "string",
+            "description": "스타일 (minimal, corporate, playful, luxury, tech)"
+          },
+          "text_overlay": {
+            "type": "string",
+            "description": "이미지 위 텍스트"
+          },
+          "size": {
+            "type": "string",
+            "description": "크기 (1024x1024, 1920x1080, 1080x1080 등)"
+          },
+          "context": {
+            "type": "string",
+            "description": "추가 맥락/요구사항"
+          }
+        },
+        "required": [
+          "action",
+          "topic"
+        ]
+      }
     }
   ]
 }
