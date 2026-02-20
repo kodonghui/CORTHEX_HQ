@@ -8,37 +8,79 @@
 
 ## 마지막 업데이트
 
-- **날짜**: 2026-02-19 (저녁 세션)
-- **버전**: `3.02.000` (P2P 프로토콜 전원 확장 + 도구 파라미터 수정)
-- **작업 브랜치**: `claude/p2p-protocol-expansion`
+- **날짜**: 2026-02-20 (새벽~오전 세션)
+- **버전**: `3.02.001`
+- **빌드**: #360
+- **작업 브랜치**: `claude/fix-gpt-routing-debug`
 - **접속 주소**: https://corthex-hq.com
 
 ---
 
-## ✅ 이번 세션 완료 (2026-02-19 저녁)
+## ✅ 이번 세션 완료 (2026-02-20)
+
+### 빌드 #358~#360: CIO 시그널 + 자동매매 + 디버그 시스템
+
+1. **도구 스키마 type:None 근본 수정** (빌드#358)
+   - tools.yaml → JSON 변환 시 type:None 자동 제거
+   - GPT-5.2 strict 모드 호환 스키마 변환
+
+2. **시그널 파싱 + 자동매매 실행 + 교신로그 SSE** (빌드#359)
+   - `_parse_cio_signals()` regex 구현
+   - paper trading + KIS 실거래 주문 로직
+   - `_delegate_to_specialists()`에서 SSE broadcast 추가
+
+3. **GPT 라우팅 디버그 + 시그널 파싱 보완** (빌드#360)
+   - "조건부 매수" 등 복합 표현 regex 수정 (시그널 탭 비어있던 원인)
+   - 도구 호출 제한 5→10회 확대 (기술적분석 Specialist 보고서 미제출 원인)
+   - 디버그 엔드포인트 3개: `/api/debug/ai-providers`, `agent-calls`, `cio-signals`
+   - 교신로그 SSE 실시간 (LIVE 표시, 위임/보고 색 구분)
+   - CLAUDE.md 디버그 URL 규칙 간결화 + 업데이트/버그리포트 기록 규칙
+
+### 발견된 핵심 버그: GPT 0회 문제
+- **대시보드에서 Claude 6회, GPT 0회** — CIO팀(5명) 전원 GPT 모델인데 Claude로 폴백 중
+- `ai_handler.py`의 `_pick_fallback_model()`: OpenAI 사용 불가 → Claude 자동 대체
+- 서버에 openai v2.21.0 설치 + API 키 설정 확인됨 → **런타임 초기화 실패 의심**
+- CEO에게 `/api/debug/ai-providers` URL 확인 요청 중 (결과 대기)
+
+### ❌ 남은 작업 — 우선순위 정리
+
+**P0 — 결과 대기 중**
+- GPT 0회 원인 확인 (`/api/debug/ai-providers` CEO 확인 대기)
+- 매매 실행 결과 확인 (분석 진행 중)
+
+**P1 — 다음 작업**
+- CLAUDE.md 다이어트 (500줄 → 핵심만 남기기, CEO 논의 후 실행)
+
+**P2 — 전략실 전수검사 (CLAUDE.md 다이어트 후)**
+- P2-1: 교신로그 탭 전환 시 사라지는 버그
+- P2-2: 교신로그에 도구 사용 과정 실시간 표시 (대화창처럼)
+- P2-3: CIO 독자 분석 병렬 실행 (위임 후 놀지 않게)
+- P2-4: 새로고침 시 진행 중 분석에 재연결
+- P2-5: 시세 새로고침 SSE 방식 (B안 추천 — CEO 승인)
+- P2-6: CIO가 분석 후 목표가 산출 (CEO 관심종목 목표가는 무시)
+- P2-7: 사령관실 내부통신 C안 (SSE 상시 + P2P 실시간 + 뱃지 + 네트워크 다이어그램)
+- P2-8: 전략실 교신로그 C안 (사령관실 C안 이후)
+
+**대기 중 (일시 중단)**
+- CMO 이미지 도구 8개 tools.yaml + agents.yaml 등록 (src/tools/gemini_*.py 생성 완료, 미커밋)
+- CTO/CSO/CPO/비서실 교수급 도구 개발
+
+### CEO 확정 결정 (이번 세션)
+- 사령관실 내부통신 **C안** 승인 (풀 업그레이드)
+- 전략실 교신로그 **C안** 승인 (사령관실 C안 이후)
+- 시세 새로고침 **B안** (SSE 방식) 추천에 동의
+- 디버그 URL: **어디든 버그 시 그때그때 만들어서 CEO에게 적극 제공**
+- CLAUDE.md 다이어트 필요 (500줄 → 줄여야)
+- 관심종목 목표가는 무시 (CEO "백만원까지 올랐으면 좋겠다" 수준)
+
+---
+
+## ✅ 이전 세션 (2026-02-19 저녁)
 
 ### P2P 에이전트 소통 확장 (CEO 확정 설계 — docs/design-decisions.md 참조)
-- **cross_agent_protocol 29명 전원 개방**: 기존 8명(처장+비서실 일부)만 쓸 수 있던 P2P 도구를 29명 전원에게 개방
-  - agents.yaml `allowed_tools`에 21명 추가 (기존 8명 + 신규 21명 = 29명)
-- **tools.yaml 파라미터 스키마 추가**: cross_agent_protocol의 12개 파라미터(action, to_agent, task, message 등) 스키마 정의
-- **register_call_agent 콜백 등록**: mini_server.py 서버 시작 시 `_call_agent` 함수를 cross_agent_protocol에 등록
-  - 이전까지 DB 저장만 하고 실제 AI 호출 안 됨 → 이제 실시간 호출 가능
-
-### 도구 파라미터 파싱 수정 (이전 세션 미완료 항목)
-- prompt_tester/embedding_tool/token_counter → tools.yaml 파라미터 스키마 추가
-- dart_api count 파라미터 추가
-- deploy.yml pytest-mock 추가
-
-### CEO 확정 설계 결정 문서 생성
-- `docs/design-decisions.md` — 반복 논의 방지용 (지금 분석 C안, 전략실 협업로그, P2P 전원 개방)
-
-### ❌ 남은 작업 (다음 세션)
-
-1. **Soul에 도구 사용 안내 복구**: 이전 세션에서 Soul 도구 섹션 전부 삭제됨 → 도구 활용 안내 재작성 필요
-2. **"지금 분석" UI 구현 (C안)**: 대시보드 버튼 → CIO 분석 → 매매 결정 일지 → 전략실 협업로그
-3. **내부통신 P2P 메시지 표시**: cross_agent_messages를 사령관실 내부통신에서도 보이게
-4. **교수급 파이썬 도구 재작성**: 61개 실제 도구 코드 품질 업그레이드
-5. **Soul 다이어트 실제 적용**: Claude Desktop 가이드 따라 수정
+- cross_agent_protocol 29명 전원 개방
+- tools.yaml 파라미터 스키마 추가
+- register_call_agent 콜백 등록
 
 ---
 
