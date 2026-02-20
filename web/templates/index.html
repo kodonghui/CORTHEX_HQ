@@ -7037,6 +7037,9 @@
           this.loadFeedbackStats();
           // Restore activity logs from localStorage (#13)
           this.restoreActivityLogs();
+          // Restore delegation logs (교신로그) from DB
+          this.fetchDelegationLogs(true);
+          this._connectCommsSSE();
           // Restore conversation
           this.loadConversation();
           this.connectWebSocket();

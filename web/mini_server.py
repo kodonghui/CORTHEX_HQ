@@ -3864,6 +3864,8 @@ def _default_trading_settings() -> dict:
         "min_confidence": 65,         # 자동매매 최소 신뢰도 (%, 연구 기반: 기존 70→65)
         "kis_connected": False,       # KIS(한국투자증권) API 연결 여부
         "paper_trading": True,        # 모의투자 모드 (실거래 전)
+        "enable_real": True,          # 실거래 계좌에 주문
+        "enable_mock": False,         # 모의투자 계좌에 주문
         # --- AI 자기보정(Self-Calibration) ---
         # 원리: Platt Scaling 단순화 — 실제 승률/예측 신뢰도 비율로 보정 계수 계산
         # factor < 1.0: AI 과신 → 유효 신뢰도 하향 보정 / factor > 1.0: AI 겸손 → 상향
@@ -4039,31 +4041,44 @@ async def get_trading_portfolio():
         kr_cash = kr_bal.get("cash", 0) if kr_ok else 0
         kr_holdings = kr_bal.get("holdings", []) if kr_ok else []
         kr_total = kr_bal.get("total_eval", kr_cash) if kr_ok else 0
+        # 한국장 PnL = 보유종목 평가손익 합산 (환전은 손익이 아님!)
+        kr_holdings_pnl = sum(h.get("eval_profit", 0) for h in kr_holdings)
+        kr_purchase_total = sum(h.get("purchase_amount", 0) for h in kr_holdings)
+        kr_pnl = kr_holdings_pnl
+        kr_pnl_pct = round((kr_pnl / kr_purchase_total * 100), 2) if kr_purchase_total > 0 else 0.0
         kr_initial = load_setting("portfolio_initial_capital", None)
         if kr_initial is None and kr_ok:
             kr_initial = kr_total if kr_total > 0 else kr_cash
             save_setting("portfolio_initial_capital", kr_initial)
         kr_initial = kr_initial or 0
-        kr_pnl = kr_total - kr_initial
-        kr_pnl_pct = round((kr_pnl / kr_initial * 100), 2) if kr_initial > 0 else 0.0
 
         # ── 미국장 ──
         us_cash_usd = us_bal.get("cash_usd", 0) if us_ok else 0
         us_holdings = us_bal.get("holdings", []) if us_ok else []
         us_total_usd = us_bal.get("total_eval_usd", us_cash_usd) if us_ok else 0
+        # 미국장 PnL = 보유종목 평가손익 합산 (환전은 손익이 아님!)
+        us_holdings_pnl = sum(h.get("eval_profit", 0) for h in us_holdings)
+        us_purchase_total = sum(h.get("qty", 0) * h.get("avg_price", 0) for h in us_holdings)
+        us_pnl_usd = us_holdings_pnl
+        us_pnl_pct = round((us_pnl_usd / us_purchase_total * 100), 2) if us_purchase_total > 0 else 0.0
         us_initial_usd = load_setting("portfolio_initial_capital_usd", None)
         if us_initial_usd is None and us_ok and us_total_usd > 0:
             us_initial_usd = us_total_usd
             save_setting("portfolio_initial_capital_usd", us_initial_usd)
         us_initial_usd = us_initial_usd or 0
-        us_pnl_usd = us_total_usd - us_initial_usd
-        us_pnl_pct = round((us_pnl_usd / us_initial_usd * 100), 2) if us_initial_usd > 0 else 0.0
 
         # ── 총합 (원화 환산) ──
         us_total_krw = us_total_usd * fx_rate
-        us_initial_krw = us_initial_usd * fx_rate
         grand_total = kr_total + us_total_krw
-        grand_initial = kr_initial + us_initial_krw
+        # 총 입금액 기준 PnL (환전은 단순 이동이므로 총액에 영향 없음)
+        total_deposit = load_setting("portfolio_total_deposit", None)
+        if total_deposit is None:
+            # 첫 실행: 기존 초기자금 합산 또는 현재 총자산
+            us_initial_krw = us_initial_usd * fx_rate
+            fallback = kr_initial + us_initial_krw
+            total_deposit = fallback if fallback > 0 else grand_total
+            save_setting("portfolio_total_deposit", total_deposit)
+        grand_initial = total_deposit
         grand_pnl = grand_total - grand_initial
         grand_pnl_pct = round((grand_pnl / grand_initial * 100), 2) if grand_initial > 0 else 0.0
 
@@ -4750,10 +4765,41 @@ async def generate_trading_signals():
         f"📊 CIO 시그널 완료: {len(watchlist)}개 종목 (매수 {buy_count}, 매도 {sell_count}, 비용 ${cost:.4f})",
         "info")
 
-    # 기밀문서 자동 저장
+    # CIO 성과 추적: 예측을 cio_predictions 테이블에 저장
+    try:
+        from db import save_cio_prediction
+        sig_id = new_signal["id"]
+        for sig in parsed_signals:
+            action_raw = sig.get("action", "hold")
+            if action_raw in ("buy", "sell"):
+                direction = "BUY" if action_raw == "buy" else "SELL"
+                save_cio_prediction(
+                    ticker=sig.get("ticker", ""),
+                    direction=direction,
+                    ticker_name=sig.get("name", ""),
+                    confidence=sig.get("confidence", 0),
+                    target_price=sig.get("target_price"),
+                    analysis_summary=sig.get("reason", ""),
+                    task_id=sig_id,
+                )
+    except Exception:
+        pass  # 예측 저장 실패해도 시그널은 정상 반환
+
+    # 기밀문서 자동 저장 (CIO 독자분석 + 전체 분석 포함)
     try:
         now_str = datetime.now(KST).strftime("%Y-%m-%d %H:%M")
         archive_lines = [f"# CIO 매매 시그널 분석 — {now_str}\n"]
+        # CIO 독자 분석 내용 포함
+        if cio_solo_content:
+            archive_lines.append("## CIO 독자 사전 분석 (전문가 보고 전 독립 판단)\n")
+            archive_lines.append(cio_solo_content[:2000])
+            archive_lines.append("\n---\n")
+        # CIO 최종 종합 분석 전문
+        archive_lines.append("## CIO 최종 종합 분석\n")
+        archive_lines.append(content[:3000] if content else "분석 내용 없음")
+        archive_lines.append("\n---\n")
+        # 종목별 시그널 요약
+        archive_lines.append("## 종목별 시그널 요약\n")
         for sig in parsed_signals:
             ticker = sig.get("ticker", "")
             name = sig.get("name", ticker)
@@ -4761,11 +4807,11 @@ async def generate_trading_signals():
             action_label = "매수" if action_raw == "buy" else ("매도" if action_raw == "sell" else "관망")
             conf = sig.get("confidence", 0)
             reason = sig.get("reason", "")
-            archive_lines.append(f"## {name} ({ticker}) — {action_label}")
+            archive_lines.append(f"### {name} ({ticker}) — {action_label}")
             archive_lines.append(f"- 신뢰도: {conf}%")
             archive_lines.append(f"- 분석: {reason}\n")
         if len(parsed_signals) == 0:
-            archive_lines.append("## 종목별 시그널 파싱 결과 없음\n")
+            archive_lines.append("### 종목별 시그널 파싱 결과 없음\n")
             archive_lines.append(content[:2000] if content else "")
         archive_content = "\n".join(archive_lines)
         filename = f"CIO_시그널_{datetime.now(KST).strftime('%Y%m%d_%H%M')}.md"
@@ -5572,8 +5618,10 @@ async def _trading_bot_loop():
             order_size = settings.get("order_size", 0)  # 0 = CIO 비중 자율
 
             if auto_execute:
+                enable_real = settings.get("enable_real", True)
+                enable_mock = settings.get("enable_mock", False)
                 paper_mode = settings.get("paper_trading", True)
-                use_kis = _KIS_AVAILABLE and not paper_mode and _kis_configured()
+                use_kis = enable_real and _KIS_AVAILABLE and not paper_mode and _kis_configured()
 
                 # CIO 비중 기반 매수(B안): order_size=0이면 잔고×비중으로 자동 산출
                 account_balance = 0
@@ -6286,6 +6334,11 @@ async def set_portfolio_initial(request: Request):
         if us_amount is not None and float(us_amount) >= 0:
             save_setting("portfolio_initial_capital_usd", float(us_amount))
             result["initial_capital_usd"] = float(us_amount)
+        # 총 입금액 (원화, 환전과 무관한 전체 투자금)
+        total_deposit = body.get("total_deposit")
+        if total_deposit is not None and float(total_deposit) >= 0:
+            save_setting("portfolio_total_deposit", float(total_deposit))
+            result["total_deposit"] = float(total_deposit)
         # 환율 수동 설정
         fx_rate = body.get("fx_rate")
         if fx_rate and float(fx_rate) > 0:
