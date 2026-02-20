@@ -4412,6 +4412,25 @@ async def get_trading_decisions():
     return {"decisions": decisions[-50:]}
 
 
+@app.delete("/api/trading/decisions/{decision_id}")
+async def delete_trading_decision(decision_id: str):
+    """개별 매매 결정 삭제."""
+    decisions = load_setting("trading_decisions", [])
+    before = len(decisions)
+    decisions = [d for d in decisions if d.get("id") != decision_id]
+    if len(decisions) == before:
+        return {"success": False, "error": "해당 결정을 찾을 수 없습니다"}
+    save_setting("trading_decisions", decisions)
+    return {"success": True, "remaining": len(decisions)}
+
+
+@app.delete("/api/trading/decisions")
+async def delete_all_trading_decisions():
+    """매매 결정 일지 전체 삭제."""
+    save_setting("trading_decisions", [])
+    return {"success": True, "message": "전체 삭제 완료"}
+
+
 @app.delete("/api/trading/signals/{signal_id}")
 async def delete_trading_signal(signal_id: str):
     """개별 매매 시그널 삭제."""
