@@ -3664,6 +3664,62 @@ def _default_portfolio() -> dict:
     }
 
 
+# ── 투자 성향 시스템 (CEO B안 승인: 성향 + CIO 자율) ──
+
+# 성향별 안전 범위 — CIO가 이 범위 안에서만 자유롭게 변경 가능
+RISK_PROFILES = {
+    "aggressive": {
+        "label": "공격적", "emoji": "🔥",
+        "cash_reserve":       {"min": 5,  "max": 20,  "default": 10},
+        "max_position_pct":   {"min": 15, "max": 35,  "default": 30},
+        "min_confidence":     {"min": 50, "max": 75,  "default": 55},
+        "default_stop_loss":  {"min": -12,"max": -3,  "default": -8},
+        "default_take_profit":{"min": 5,  "max": 40,  "default": 15},
+        "max_daily_trades":   {"min": 5,  "max": 20,  "default": 15},
+        "max_daily_loss_pct": {"min": 2,  "max": 8,   "default": 5},
+        "order_size":         {"min": 0,  "max": 10_000_000, "default": 0},
+    },
+    "balanced": {
+        "label": "균형", "emoji": "⚖️",
+        "cash_reserve":       {"min": 15, "max": 35,  "default": 20},
+        "max_position_pct":   {"min": 10, "max": 25,  "default": 20},
+        "min_confidence":     {"min": 55, "max": 80,  "default": 65},
+        "default_stop_loss":  {"min": -8, "max": -2,  "default": -5},
+        "default_take_profit":{"min": 5,  "max": 25,  "default": 10},
+        "max_daily_trades":   {"min": 3,  "max": 15,  "default": 10},
+        "max_daily_loss_pct": {"min": 1,  "max": 5,   "default": 3},
+        "order_size":         {"min": 0,  "max": 5_000_000, "default": 0},
+    },
+    "conservative": {
+        "label": "보수적", "emoji": "🐢",
+        "cash_reserve":       {"min": 30, "max": 60,  "default": 40},
+        "max_position_pct":   {"min": 5,  "max": 15,  "default": 10},
+        "min_confidence":     {"min": 65, "max": 90,  "default": 75},
+        "default_stop_loss":  {"min": -5, "max": -1,  "default": -3},
+        "default_take_profit":{"min": 3,  "max": 15,  "default": 8},
+        "max_daily_trades":   {"min": 1,  "max": 8,   "default": 5},
+        "max_daily_loss_pct": {"min": 1,  "max": 3,   "default": 2},
+        "order_size":         {"min": 0,  "max": 2_000_000, "default": 0},
+    },
+}
+
+
+def _get_risk_profile() -> str:
+    """현재 투자 성향 조회 (DB에서)."""
+    return load_setting("trading_risk_profile", "aggressive")
+
+
+def _clamp_setting(key: str, value, profile: str = None) -> float | int:
+    """설정값을 현재 투자 성향의 안전 범위 내로 클램핑합니다."""
+    if profile is None:
+        profile = _get_risk_profile()
+    ranges = RISK_PROFILES.get(profile, RISK_PROFILES["balanced"])
+    r = ranges.get(key)
+    if r is None:
+        return value
+    return max(r["min"], min(r["max"], value))
+
+
 def _default_trading_settings() -> dict:
     """기본 자동매매 설정."""
     return {
@@ -3672,7 +3728,7 @@ def _default_trading_settings() -> dict:
         "max_daily_loss_pct": 3,      # 일일 최대 손실 (%)
         "default_stop_loss_pct": -5,  # 기본 손절 (%)
         "default_take_profit_pct": 10, # 기본 익절 (%)
-        "order_size": 1_000_000,      # 기본 주문 금액 (원)
+        "order_size": 0,              # 0 = CIO 비중 자율
         "trading_hours_kr": {"start": "09:00", "end": "15:20"},   # 한국 장 시간
         "trading_hours_us": {"start": "22:30", "end": "05:00"},   # 미국 장 시간 (KST 기준, 서머타임 시 23:30)
         "trading_hours": {"start": "09:00", "end": "15:20"},      # 하위호환
@@ -4391,8 +4447,21 @@ async def generate_trading_signals():
     tickers_info = ", ".join([f"{w['name']}({w['ticker']})" for w in watchlist[:10]])
     strats_info = ", ".join([s["name"] for s in active_strategies[:5]])
 
+    # 투자 성향 정보
+    _profile = _get_risk_profile()
+    _profile_info = RISK_PROFILES.get(_profile, RISK_PROFILES["balanced"])
+    _profile_label = f"{_profile_info['label']} ({_profile})"
+    _max_pos = _profile_info["max_position_pct"]["max"]
+    _cash_reserve = _profile_info["cash_reserve"]["default"]
+
     # CIO에게 보내는 분석 명령
     prompt = f"""[자동매매 시스템] 관심종목 종합 분석을 요청합니다.
+
+## CEO 투자 성향: {_profile_label} {_profile_info['emoji']}
+- 종목당 최대 비중: {_max_pos}%
+- 현금 유보: {_cash_reserve}%
+- 전 종목 비중 합계 ≤ {100 - _cash_reserve}% (현금 유보분 제외)
+- Kelly Criterion, 현대 포트폴리오 이론, 분산투자 원칙을 기반으로 비중을 산출하세요
 
 ## 관심종목 ({len(watchlist)}개)
 {tickers_info or '없음'}
@@ -4410,11 +4479,12 @@ async def generate_trading_signals():
 - **리스크관리**: 포지션 크기 적정성, 손절가, 전체 포트폴리오 리스크
 
 ## 최종 산출물 (반드시 아래 형식 그대로 — 예시처럼 정확히)
-[시그널] 삼성전자 (005930) | 매수 | 신뢰도 72% | 목표가 85000 | 반도체 수요 회복 + RSI 과매도 구간
-[시그널] 카카오 (035720) | 매도 | 신뢰도 61% | 목표가 42000 | PER 과대평가, 금리 민감 섹터 약세
-[시그널] LG에너지솔루션 (373220) | 관망 | 신뢰도 45% | 목표가 0 | 혼조세, 방향성 불명확
+[시그널] 삼성전자 (005930) | 매수 | 신뢰도 72% | 비중 15% | 목표가 85000 | 반도체 수요 회복 + RSI 과매도 구간
+[시그널] 카카오 (035720) | 매도 | 신뢰도 61% | 비중 0% | 목표가 42000 | PER 과대평가, 금리 민감 섹터 약세
+[시그널] LG에너지솔루션 (373220) | 관망 | 신뢰도 45% | 비중 5% | 목표가 0 | 혼조세, 방향성 불명확
 
 ※ 주의: 신뢰도는 반드시 0~100 사이 숫자 + % 기호. 각 종목마다 독립적으로 계산할 것.
+※ 비중: 포트폴리오 내 해당 종목 비중(%). 매도 종목은 0%. 전 종목 비중 합계 ≤ {100 - _cash_reserve}%.
 ※ 목표가: 매수 종목은 목표 매도가, 매도 종목은 목표 재진입가, 관망은 0. 반드시 숫자만 (쉼표 없이)."""
 
     if not is_ai_ready():
@@ -4444,13 +4514,13 @@ async def generate_trading_signals():
 
     # 1단계: CIO 독자 분석 (전문가 보고서 참고 없이 독립적 판단)
     cio_solo_prompt = (
-        f"다음 관심종목들에 대해 당신만의 독자적인 투자 분석을 작성하세요 (전문가 보고서 참고 없이):\n{tickers_info or '없음'}\n\n"
+        f"CEO 투자 성향: {_profile_label}. 관심종목 독자 분석을 작성하세요:\n{tickers_info or '없음'}\n\n"
         f"활성 전략: {strats_info or '기본 전략'}\n\n"
         f"각 종목에 대해 현재 시장 환경, 섹터 동향, 밸류에이션 관점에서 독립적으로 판단하고 "
-        f"매수/매도/관망 의견을 제시하세요. 최종 산출물은 반드시 아래 형식으로:\n"
-        f"[시그널] 삼성전자 (005930) | 매수 | 신뢰도 72% | 목표가 85000 | 반도체 수요 회복 신호\n"
-        f"[시그널] 카카오 (035720) | 관망 | 신뢰도 48% | 목표가 0 | 방향성 불명확\n"
-        f"※ 신뢰도는 종목별로 독립적으로 0~100 숫자 + % 기호로 표기. 목표가는 숫자만."
+        f"매수/매도/관망 + 포트폴리오 비중(%) + 목표가를 제시하세요. 최종 산출물은 반드시 아래 형식으로:\n"
+        f"[시그널] 삼성전자 (005930) | 매수 | 신뢰도 72% | 비중 15% | 목표가 85000 | 반도체 수요 회복 신호\n"
+        f"[시그널] 카카오 (035720) | 관망 | 신뢰도 48% | 비중 5% | 목표가 0 | 방향성 불명확\n"
+        f"※ 신뢰도는 종목별로 독립적으로 0~100 숫자 + % 기호. 비중은 전 종목 합계 ≤ {100 - _cash_reserve}%. 목표가는 숫자만."
     )
     cio_soul = _load_agent_prompt("cio_manager")
     cio_solo_model = select_model(cio_solo_prompt, override=_get_model_override("cio_manager"))
@@ -4563,9 +4633,7 @@ def _save_decisions(parsed_signals: list) -> None:
 
 
 def _cio_confidence_weight(confidence: float) -> float:
-    """CIO 신뢰도 기반 포트폴리오 비중 산출 (Kelly Criterion 단순화).
-
-    CEO 승인 B안: CIO가 비중(%) 결정 → 시스템이 잔고×비중으로 주수 계산.
+    """CIO 신뢰도 기반 포트폴리오 비중 폴백 (CIO가 비중을 산출하지 않은 경우).
     75%+ → 20%, 65%+ → 15%, 55%+ → 10%, 기타 → 5%
     """
     if confidence >= 75:
@@ -4577,25 +4645,31 @@ def _cio_confidence_weight(confidence: float) -> float:
     return 0.05
 
 
+def _get_signal_weight(sig: dict, fallback_conf: float = 50) -> float:
+    """시그널에서 비중(0~1 비율)을 가져옵니다. CIO 비중 우선, 없으면 신뢰도 기반 폴백."""
+    w = sig.get("weight", 0)
+    if w and w > 0:
+        return w / 100.0
+    return _cio_confidence_weight(fallback_conf)
+
+
 def _parse_cio_signals(content: str, watchlist: list) -> list:
     """CIO 분석 결과에서 종목별 매수/매도/관망 시그널을 추출합니다."""
     import re
     parsed = []
     seen_tickers = set()
 
-    # [시그널] 패턴 — CIO가 실제로 쓰는 형식에 맞춤
-    # 예: [시그널] 삼성전자 (005930) | 매수 | 신뢰도 72% | 목표가 85000 | 이유
-    # 예: [시그널] 카카오 (035720) | 매도(비중 축소) | 신뢰도 64% | 이유 (목표가 없을 수도)
-    # 목표가 필드는 선택적 (기존 시그널 호환)
-    pattern = r'\[시그널\]\s*(.+?)\s*[\(（]([A-Za-z0-9]+)[\)）]\s*\|\s*[^\|]*?(매수|매도|관망|buy|sell|hold)\b[^\|]*\|\s*(?:신뢰도[:\s]*)?\s*(\d+)\s*%?\s*\|\s*(?:목표가\s*(\d+)\s*\|\s*)?(.*)'
+    # [시그널] 패턴 — 비중 + 목표가 포함 (최신 형식)
+    # 예: [시그널] 삼성전자 (005930) | 매수 | 신뢰도 72% | 비중 15% | 목표가 85000 | 이유
+    pattern = r'\[시그널\]\s*(.+?)\s*[\(（]([A-Za-z0-9]+)[\)）]\s*\|\s*[^\|]*?(매수|매도|관망|buy|sell|hold)\b[^\|]*\|\s*(?:신뢰도[:\s]*)?\s*(\d+)\s*%?\s*\|\s*(?:비중\s*(\d+)\s*%?\s*\|\s*)?(?:목표가\s*(\d+)\s*\|\s*)?(.*)'
     matches = re.findall(pattern, content, re.IGNORECASE)
 
-    # 기존 형식 (목표가 없는 것) 호환용 폴백
+    # 기존 형식 (비중/목표가 없는 것) 호환용 폴백
     if not matches:
-        pattern_legacy = r'\[시그널\]\s*(.+?)\s*[\(（]([A-Za-z0-9]+)[\)）]\s*\|\s*[^\|]*?(매수|매도|관망|buy|sell|hold)\b[^\|]*\|\s*(?:신뢰도[:\s]*)?\s*(\d+)\s*%?\s*\|?\s*()(.*)'
+        pattern_legacy = r'\[시그널\]\s*(.+?)\s*[\(（]([A-Za-z0-9]+)[\)）]\s*\|\s*[^\|]*?(매수|매도|관망|buy|sell|hold)\b[^\|]*\|\s*(?:신뢰도[:\s]*)?\s*(\d+)\s*%?\s*\|?\s*()()(.*)'
         matches = re.findall(pattern_legacy, content, re.IGNORECASE)
 
-    for name, ticker, action, confidence, target_price_str, reason in matches:
+    for name, ticker, action, confidence, weight_str, target_price_str, reason in matches:
         ticker = ticker.strip()
         if ticker in seen_tickers:
             continue  # 같은 종목 중복 시그널 방지 (요약 섹션 중복)
@@ -4620,9 +4694,28 @@ def _parse_cio_signals(content: str, watchlist: list) -> list:
             "market": market,
             "action": action_map.get(action.lower(), "hold"),
             "confidence": int(confidence),
+            "weight": int(weight_str) if weight_str and weight_str.isdigit() else 0,
             "target_price": int(target_price_str) if target_price_str and target_price_str.isdigit() else 0,
             "reason": reason_text or "CIO 종합 분석 참조",
         })
+
+    # 비중 안전장치: 종목당 최대 비중 + 총합 제한 (투자 성향 기반)
+    if parsed:
+        _profile = _get_risk_profile()
+        _ranges = RISK_PROFILES.get(_profile, RISK_PROFILES["balanced"])
+        _max_pos = _ranges["max_position_pct"]["max"]
+        _cash_reserve = _ranges["cash_reserve"]["default"]
+        _max_total = 100 - _cash_reserve
+        # 종목당 클램핑
+        for sig in parsed:
+            if sig["weight"] > _max_pos:
+                sig["weight"] = _max_pos
+        # 총합 제한
+        total_weight = sum(s["weight"] for s in parsed)
+        if total_weight > _max_total and total_weight > 0:
+            ratio = _max_total / total_weight
+            for sig in parsed:
+                sig["weight"] = max(1, int(sig["weight"] * ratio))
 
     # [시그널] 패턴이 없으면 관심종목 기반으로 키워드 파싱 (종목별 개별 컨텍스트 기준)
     if not parsed:
@@ -4681,6 +4774,108 @@ async def save_trading_settings(request: Request):
     _save_data("trading_settings", settings)
     save_activity_log("system", "⚙️ 자동매매 설정 업데이트", "info")
     return {"success": True, "settings": settings}
+
+
+# ── 투자 성향 API ──
+
+@app.get("/api/trading/risk-profile")
+async def get_risk_profile():
+    """현재 투자 성향 + 안전 범위 조회."""
+    profile = _get_risk_profile()
+    ranges = RISK_PROFILES.get(profile, RISK_PROFILES["balanced"])
+    settings = _load_data("trading_settings", _default_trading_settings())
+    history = load_setting("trading_settings_history", [])
+    return {
+        "profile": profile,
+        "label": ranges["label"],
+        "emoji": ranges["emoji"],
+        "ranges": {k: v for k, v in ranges.items() if k not in ("label", "emoji")},
+        "current_settings": settings,
+        "change_history": history[-20:],
+    }
+
+
+@app.post("/api/trading/risk-profile")
+async def set_risk_profile(request: Request):
+    """투자 성향 변경 (CEO만 변경 가능)."""
+    body = await request.json()
+    profile = body.get("profile", "balanced")
+    if profile not in RISK_PROFILES:
+        return {"success": False, "error": f"유효하지 않은 성향: {profile}. aggressive/balanced/conservative 중 선택"}
+    save_setting("trading_risk_profile", profile)
+    # 성향 변경 시 현재 설정을 새 성향의 기본값으로 리셋
+    ranges = RISK_PROFILES[profile]
+    settings = _load_data("trading_settings", _default_trading_settings())
+    for key in ("max_position_pct", "min_confidence", "max_daily_trades", "max_daily_loss_pct", "order_size"):
+        if key in ranges:
+            settings[key] = ranges[key]["default"]
+    settings["default_stop_loss_pct"] = ranges["default_stop_loss"]["default"]
+    settings["default_take_profit_pct"] = ranges["default_take_profit"]["default"]
+    _save_data("trading_settings", settings)
+    # 변경 이력 기록
+    history = load_setting("trading_settings_history", [])
+    history.append({
+        "changed_at": datetime.now(KST).isoformat(),
+        "changed_by": "CEO",
+        "action": "성향 변경",
+        "detail": f"{ranges['label']} ({profile}) 으로 변경 → 설정값 기본값으로 리셋",
+    })
+    if len(history) > 100:
+        history = history[-100:]
+    save_setting("trading_settings_history", history)
+    save_activity_log("system", f"🎯 투자 성향 변경: {ranges['label']} {ranges['emoji']}", "info")
+    return {"success": True, "profile": profile, "settings": settings}
+
+
+@app.post("/api/trading/settings/cio-update")
+async def cio_update_trading_settings(request: Request):
+    """CIO가 도구를 통해 자동매매 설정을 변경합니다 (안전 범위 내에서만).
+
+    body: {changes: {key: value, ...}, reason: str}
+    """
+    body = await request.json()
+    changes = body.get("changes", {})
+    reason = body.get("reason", "CIO 자율 판단")
+    if not changes:
+        return {"success": False, "error": "변경할 항목이 없습니다"}
+
+    profile = _get_risk_profile()
+    settings = _load_data("trading_settings", _default_trading_settings())
+    applied = {}
+    rejected = {}
+
+    # 설정 키 매핑 (도구 파라미터명 → 실제 설정 키)
+    _key_map = {
+        "default_stop_loss": "default_stop_loss_pct",
+        "default_take_profit": "default_take_profit_pct",
+    }
+
+    for key, value in changes.items():
+        setting_key = _key_map.get(key, key)
+        clamped = _clamp_setting(key, value, profile)
+        if clamped != value:
+            rejected[key] = f"{value} → {clamped} (안전 범위로 조정됨)"
+        settings[setting_key] = clamped
+        applied[key] = clamped
+
+    _save_data("trading_settings", settings)
+
+    # 변경 이력 기록
+    history = load_setting("trading_settings_history", [])
+    history.append({
+        "changed_at": datetime.now(KST).isoformat(),
+        "changed_by": "CIO",
+        "action": "설정 자율 변경",
+        "detail": reason,
+        "applied": applied,
+        "rejected": rejected,
+    })
+    if len(history) > 100:
+        history = history[-100:]
+    save_setting("trading_settings_history", history)
+    save_activity_log("cio_manager", f"⚙️ CIO 설정 변경: {', '.join(f'{k}={v}' for k, v in applied.items())} | {reason}", "info")
+
+    return {"success": True, "applied": applied, "rejected": rejected, "settings": settings}
 
 
 @app.post("/api/trading/bot/toggle")
@@ -4870,7 +5065,7 @@ async def run_trading_now():
                         _fx = load_setting("fx_rate_usd_krw", 1450)
                     except Exception:
                         pass
-                    _order_amt = order_size if order_size > 0 else int(account_balance * _cio_confidence_weight(effective_conf))
+                    _order_amt = order_size if order_size > 0 else int(account_balance * _get_signal_weight(sig, effective_conf))
                     qty = max(1, int(_order_amt / (price * _fx)))
                 else:
                     if _KIS_AVAILABLE and _kis_configured():
@@ -4880,7 +5075,7 @@ async def run_trading_now():
                         price = target_w.get("target_price", 0) if target_w else 0
                     if price <= 0:
                         price = 50000
-                    _order_amt = order_size if order_size > 0 else int(account_balance * _cio_confidence_weight(effective_conf))
+                    _order_amt = order_size if order_size > 0 else int(account_balance * _get_signal_weight(sig, effective_conf))
                     qty = max(1, int(_order_amt / price))
 
                 if use_kis:
@@ -5210,7 +5405,7 @@ async def _trading_bot_loop():
                                 _fx = load_setting("fx_rate_usd_krw", 1450)
                             except Exception:
                                 pass
-                            _order_amt = order_size if order_size > 0 else int(account_balance * _cio_confidence_weight(effective_conf))
+                            _order_amt = order_size if order_size > 0 else int(account_balance * _get_signal_weight(sig, effective_conf))
                             qty = max(1, int(_order_amt / (price * _fx)))
                         else:
                             # ── 한국주식 현재가 조회 ──
@@ -5221,7 +5416,7 @@ async def _trading_bot_loop():
                                 price = target_w.get("target_price", 0) if target_w else 0
                             if price <= 0:
                                 price = 50000  # 가격 미설정 시 기본값
-                            _order_amt = order_size if order_size > 0 else int(account_balance * _cio_confidence_weight(effective_conf))
+                            _order_amt = order_size if order_size > 0 else int(account_balance * _get_signal_weight(sig, effective_conf))
                             qty = max(1, int(_order_amt / price))
 
                         if use_kis:

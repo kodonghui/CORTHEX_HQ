@@ -610,7 +610,8 @@
         "sentiment_scorer",
         "pair_analyzer",
         "earnings_surprise",
-        "macro_regime"
+        "macro_regime",
+        "trading_settings_control"
       ]
     },
     {

@@ -1316,3 +1316,27 @@ tools:
     tags:
       type: string
       description: "현황 조회 시 필터 태그 (status 시, 선택)"
+
+- tool_id: trading_settings_control
+  name: Trading Settings Control
+  name_ko: 자동매매 설정 제어
+  description: 자동매매 설정값을 조회하거나 변경합니다. CEO 투자 성향별 안전 범위 내에서만 변경 가능합니다.
+
+  parameters:
+    type: object
+    properties:
+      action:
+        type: string
+        enum:
+        - get_settings
+        - update_settings
+        - get_risk_profile
+        description: "수행할 작업 — get_settings: 현재 설정 조회, update_settings: 설정 변경, get_risk_profile: 투자 성향 및 안전 범위 조회"
+      changes:
+        type: object
+        description: "변경할 설정 (update_settings 시 필수). 예: {\"min_confidence\": 60, \"default_stop_loss\": -7}"
+      reason:
+        type: string
+        description: "변경 사유 (update_settings 시 필수). 예: '시장 변동성 증가로 손절 기준 완화'"
+    required:
+    - action
