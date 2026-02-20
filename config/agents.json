@@ -611,7 +611,8 @@
         "pair_analyzer",
         "earnings_surprise",
         "macro_regime",
-        "trading_settings_control"
+        "trading_settings_control",
+        "trading_executor"
       ]
     },
     {
