@@ -4407,7 +4407,7 @@
                x-data="{
                  port: null, portLoading: false, portError: '',
                  history: [],
-                 newInitialKrw: null, newInitialUsd: null,
+                 newInitialKrw: null, newInitialUsd: null, newTotalDeposit: null,
                  async loadPortfolio() {
                    this.portLoading = true; this.portError = '';
                    try {
@@ -4625,10 +4625,16 @@
                   </template>
                 </div>
 
-                <!-- 초기 자금 설정 (KRW + USD 분리) -->
+                <!-- 초기 자금 설정 -->
                 <div class="glass border border-hq-border rounded-xl p-4">
                   <h4 class="text-xs font-bold text-hq-text mb-3">초기 자금 설정</h4>
-                  <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+                  <p class="text-[10px] text-hq-muted mb-3">환전(원→달러)은 손익이 아닙니다. "총 입금액"에 KIS에 실제 입금한 총액을 입력하세요.</p>
+                  <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
+                    <div>
+                      <label class="text-[10px] text-hq-muted mb-1 block">총 입금액 (원)</label>
+                      <input type="number" x-model.number="newTotalDeposit" :placeholder="fmtKRW(port.initial_capital||0)"
+                             class="w-full bg-hq-bg border border-hq-accent/30 rounded-lg px-3 py-2 text-xs text-hq-text font-mono"/>
+                    </div>
                     <div>
                       <label class="text-[10px] text-hq-muted mb-1 block">한국장 초기자금 (원)</label>
                       <input type="number" x-model.number="newInitialKrw" :placeholder="fmtKRW(port.kr?.initial_capital||0)"
@@ -4642,11 +4648,12 @@
                   </div>
                   <button @click="async () => {
                     const body = {};
+                    if (newTotalDeposit > 0) body.total_deposit = newTotalDeposit;
                     if (newInitialKrw > 0) body.amount_krw = newInitialKrw;
                     if (newInitialUsd >= 0 && newInitialUsd !== null) body.amount_usd = newInitialUsd;
                     if (!Object.keys(body).length) return;
                     await fetch('/api/trading/portfolio/set-initial', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
-                    newInitialKrw = null; newInitialUsd = null;
+                    newInitialKrw = null; newInitialUsd = null; newTotalDeposit = null;
                     await loadPortfolio();
                   }" class="w-full bg-hq-surface border border-hq-border hover:border-hq-accent/30 rounded-lg py-2 text-xs text-hq-muted transition">
                     초기 자금 변경
