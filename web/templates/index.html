@@ -4010,11 +4010,13 @@
               },
               krTotal() {
                 const kis = (trading.summary.kis_balance||{});
-                return kis.success ? (kis.total_eval||0) : (this.mockBal&&this.mockBal.available ? (this.mockBal.total_eval||0) : 0);
+                if (kis.success) return kis.total_eval || kis.cash || 0;
+                if (this.mockBal && this.mockBal.available) return this.mockBal.total_eval || this.mockBal.cash || 0;
+                return 0;
               },
               usTotal() {
-                if(this.usBal&&this.usBal.success) return this.usBal.total_eval_usd||0;
-                if(this.usMockBal&&this.usMockBal.success) return this.usMockBal.total_eval_usd||0;
+                if(this.usBal&&this.usBal.success) return this.usBal.total_eval_usd || this.usBal.cash_usd || 0;
+                if(this.usMockBal&&this.usMockBal.success) return this.usMockBal.total_eval_usd || this.usMockBal.cash_usd || 0;
                 return 0;
               },
               grandTotal() { return this.krTotal() + Math.round(this.usTotal() * this.fxRate); },
