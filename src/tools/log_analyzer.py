@@ -8,6 +8,8 @@
   - action="analyze": 로그 파일 전체 분석 (log_file, level, hours)
   - action="top_errors": 가장 많이 발생하는 에러 Top N (top_n)
   - action="timeline": 시간대별 에러 발생 빈도 (log_file, hours)
+  - action="activity": DB 활동 로그 조회 (agent_id, level, keyword, limit)
+  - action="trading": 자동매매 관련 활동 로그만 필터 분석 (hours, limit)
 
 필요 환경변수: 없음
 의존 라이브러리: 없음 (순수 파이썬)
@@ -67,10 +69,14 @@ class LogAnalyzerTool(BaseTool):
             return await self._top_errors(kwargs)
         elif action == "timeline":
             return self._timeline(kwargs)
+        elif action == "activity":
+            return await self._activity_logs(kwargs)
+        elif action == "trading":
+            return await self._trading_logs(kwargs)
         else:
             return (
                 f"알 수 없는 action: {action}. "
-                "analyze, top_errors, timeline 중 하나를 사용하세요."
+                "analyze, top_errors, timeline, activity, trading 중 하나를 사용하세요."
             )
 
     # ── 로그 파싱 ──
@@ -273,3 +279,253 @@ class LogAnalyzerTool(BaseTool):
             lines.append(f"\n⚠️ 피크 시간대: {peak_hour:02d}시 ({hour_counts[peak_hour]}건)")
 
         return "\n".join(lines)
+
+    # ── DB 활동 로그 분석 ──
+
+    @staticmethod
+    def _get_activity_logs(
+        agent_id: str | None = None,
+        level: str | None = None,
+        keyword: str | None = None,
+        limit: int = 200,
+        hours: int | None = None,
+    ) -> list[dict]:
+        """DB activity_logs 테이블에서 로그를 조회합니다."""
+        try:
+            from web.db import get_connection
+        except ImportError:
+            try:
+                import sys
+                from pathlib import Path as _P
+                sys.path.insert(0, str(_P(__file__).resolve().parents[2]))
+                from web.db import get_connection
+            except ImportError:
+                return []
+
+        conn = get_connection()
+        try:
+            query = (
+                "SELECT agent_id, message, level, time, timestamp, created_at "
+                "FROM activity_logs"
+            )
+            conditions: list[str] = []
+            params: list[Any] = []
+
+            if agent_id:
+                conditions.append("agent_id = ?")
+                params.append(agent_id)
+            if level:
+                conditions.append("level = ?")
+                params.append(level.lower())
+            if hours:
+                cutoff_ms = int(
+                    (datetime.now(KST) - timedelta(hours=hours)).timestamp() * 1000
+                )
+                conditions.append("timestamp >= ?")
+                params.append(cutoff_ms)
+
+            if conditions:
+                query += " WHERE " + " AND ".join(conditions)
+            query += " ORDER BY timestamp DESC LIMIT ?"
+            params.append(limit)
+
+            rows = conn.execute(query, params).fetchall()
+            results = [dict(r) for r in rows]
+
+            # 키워드 필터 (SQL LIKE보다 유연한 Python 필터)
+            if keyword:
+                kw_lower = keyword.lower()
+                results = [r for r in results if kw_lower in r.get("message", "").lower()]
+
+            return results
+        finally:
+            conn.close()
+
+    async def _activity_logs(self, kwargs: dict[str, Any]) -> str:
+        """DB 활동 로그를 조회하고 분석합니다."""
+        agent_id = kwargs.get("agent_id")
+        level = kwargs.get("level")
+        keyword = kwargs.get("keyword")
+        limit = int(kwargs.get("limit", 100))
+        hours = int(kwargs.get("hours", 24)) if kwargs.get("hours") else None
+
+        logs = self._get_activity_logs(
+            agent_id=agent_id, level=level, keyword=keyword,
+            limit=limit, hours=hours,
+        )
+
+        if not logs:
+            filter_desc = []
+            if agent_id:
+                filter_desc.append(f"에이전트={agent_id}")
+            if level:
+                filter_desc.append(f"레벨={level}")
+            if keyword:
+                filter_desc.append(f"키워드={keyword}")
+            if hours:
+                filter_desc.append(f"최근 {hours}시간")
+            return f"활동 로그가 없습니다. (필터: {', '.join(filter_desc) or '없음'})"
+
+        # 레벨별 건수
+        level_counts = Counter(log.get("level", "info") for log in logs)
+
+        # 에이전트별 건수
+        agent_counts = Counter(log.get("agent_id", "unknown") for log in logs)
+
+        lines = [
+            "## 활동 로그 분석",
+            f"조회 건수: {len(logs):,}건",
+        ]
+        if agent_id:
+            lines.append(f"에이전트 필터: {agent_id}")
+        if keyword:
+            lines.append(f"키워드 필터: {keyword}")
+        if hours:
+            lines.append(f"기간: 최근 {hours}시간")
+
+        lines.append("\n### 레벨별 건수")
+        for lvl in ["error", "warning", "info"]:
+            cnt = level_counts.get(lvl, 0)
+            if cnt > 0:
+                emoji = {"error": "🔴", "warning": "🟡", "info": "🔵"}.get(lvl, "⚪")
+                lines.append(f"  {emoji} {lvl}: {cnt:,}건")
+
+        if len(agent_counts) > 1:
+            lines.append("\n### 에이전트별 건수")
+            for aid, cnt in agent_counts.most_common(10):
+                lines.append(f"  {aid}: {cnt:,}건")
+
+        # 최근 로그 목록 (최대 30건)
+        lines.append(f"\n### 최근 로그 (최대 30건)")
+        for log in logs[:30]:
+            lvl_icon = {"error": "🔴", "warning": "🟡", "info": "🔵"}.get(
+                log.get("level", ""), "⚪"
+            )
+            lines.append(
+                f"  {lvl_icon} [{log.get('time', '')}] "
+                f"({log.get('agent_id', '')}) {log.get('message', '')[:120]}"
+            )
+
+        result = "\n".join(lines)
+
+        # LLM 분석
+        analysis = await self._llm_call(
+            system_prompt=(
+                "당신은 CORTHEX HQ 시스템 운영 전문가입니다.\n"
+                "활동 로그를 분석하여 다음을 정리하세요:\n"
+                "1. 전체 흐름 요약 (무슨 일이 있었는지)\n"
+                "2. 에러나 경고가 있다면 원인 추정\n"
+                "3. 개선 제안\n"
+                "한국어로, CEO(비개발자)도 이해할 수 있게 작성하세요."
+            ),
+            user_prompt=result,
+        )
+
+        return f"{result}\n\n---\n\n## AI 분석\n\n{analysis}"
+
+    async def _trading_logs(self, kwargs: dict[str, Any]) -> str:
+        """자동매매 관련 활동 로그만 필터하여 상세 분석합니다."""
+        hours = int(kwargs.get("hours", 24))
+        limit = int(kwargs.get("limit", 200))
+
+        # CIO 에이전트 + 시스템의 매매 관련 로그 수집
+        cio_logs = self._get_activity_logs(
+            agent_id="cio_manager", limit=limit, hours=hours,
+        )
+        system_trading_logs = self._get_activity_logs(
+            agent_id="system", keyword="매매", limit=limit, hours=hours,
+        )
+        system_trading_logs += self._get_activity_logs(
+            agent_id="system", keyword="trading", limit=limit, hours=hours,
+        )
+
+        # 중복 제거 (timestamp 기준)
+        seen_ts = set()
+        all_logs = []
+        for log in cio_logs + system_trading_logs:
+            ts = log.get("timestamp", 0)
+            if ts not in seen_ts:
+                seen_ts.add(ts)
+                all_logs.append(log)
+
+        # 시간순 정렬 (오래된 순 → 흐름 파악 용이)
+        all_logs.sort(key=lambda x: x.get("timestamp", 0))
+
+        if not all_logs:
+            return f"최근 {hours}시간 내 자동매매 관련 로그가 없습니다."
+
+        # 분류
+        errors = [l for l in all_logs if l.get("level") == "error"]
+        warnings = [l for l in all_logs if l.get("level") == "warning"]
+        orders = [l for l in all_logs if any(
+            kw in l.get("message", "") for kw in ["KIS 주문", "매수 성공", "매도 성공", "주문 실패", "주문 전송"]
+        )]
+        skipped = [l for l in all_logs if "건너뜀" in l.get("message", "") or "부족" in l.get("message", "")]
+        analysis_starts = [l for l in all_logs if "분석 시작" in l.get("message", "")]
+
+        lines = [
+            f"## 자동매매 로그 분석 (최근 {hours}시간)",
+            f"전체 로그: {len(all_logs):,}건",
+            f"  - 🔴 에러: {len(errors)}건",
+            f"  - 🟡 경고: {len(warnings)}건",
+            f"  - 📊 분석 시작: {len(analysis_starts)}건",
+            f"  - 🎯 주문 시도: {len(orders)}건",
+            f"  - ⏭️ 건너뜀: {len(skipped)}건",
+        ]
+
+        if errors:
+            lines.append("\n### 🔴 에러 목록 (매매 실패 원인)")
+            for log in errors:
+                lines.append(
+                    f"  [{log.get('time', '')}] {log.get('message', '')[:150]}"
+                )
+
+        if warnings:
+            lines.append("\n### 🟡 경고 목록")
+            for log in warnings[:10]:
+                lines.append(
+                    f"  [{log.get('time', '')}] {log.get('message', '')[:150]}"
+                )
+
+        if skipped:
+            lines.append("\n### ⏭️ 건너뛴 시그널 (왜 매매가 안 됐는지)")
+            for log in skipped:
+                lines.append(
+                    f"  [{log.get('time', '')}] {log.get('message', '')[:150]}"
+                )
+
+        if orders:
+            lines.append("\n### 🎯 실제 주문 내역")
+            for log in orders:
+                lines.append(
+                    f"  [{log.get('time', '')}] {log.get('message', '')[:150]}"
+                )
+
+        # 전체 시간순 흐름 (최대 50건)
+        lines.append(f"\n### 📋 전체 흐름 (시간순, 최대 50건)")
+        for log in all_logs[:50]:
+            lvl_icon = {"error": "🔴", "warning": "🟡", "info": "🔵"}.get(
+                log.get("level", ""), "⚪"
+            )
+            lines.append(
+                f"  {lvl_icon} [{log.get('time', '')}] {log.get('message', '')[:120]}"
+            )
+
+        result = "\n".join(lines)
+
+        # LLM 분석 — 매매 실패 원인 특화
+        analysis = await self._llm_call(
+            system_prompt=(
+                "당신은 CORTHEX HQ 자동매매 시스템 전문가입니다.\n"
+                "아래 매매 로그를 분석하여 다음을 정리하세요:\n"
+                "1. **매매가 실행됐는지 여부** — 실제 주문이 나갔는지\n"
+                "2. **실패 원인** — 왜 매매가 안 됐는지 (에러, 신뢰도 부족, KIS 미연결 등)\n"
+                "3. **흐름 재구성** — 버튼 클릭 → 분석 → 시그널 → 주문까지 어디서 끊겼는지\n"
+                "4. **해결 방법** — 구체적 조치 사항\n"
+                "한국어로, CEO(비개발자)도 이해할 수 있게 쉽게 작성하세요.\n"
+                "기술 용어는 괄호 안에 설명을 넣으세요."
+            ),
+            user_prompt=result,
+        )
+
+        return f"{result}\n\n---\n\n## AI 진단\n\n{analysis}"
