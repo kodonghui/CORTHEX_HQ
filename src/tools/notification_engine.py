@@ -11,7 +11,33 @@ from src.tools.base import BaseTool
 
 logger = logging.getLogger("corthex.tools.notification_engine")
 
-NOTIFICATION_LOG = os.path.join(os.getcwd(), "data", "notifications.json")
+_DB_KEY = "notification_logs"
+
+
+def _db_load(default=None):
+    """DB에서 알림 로그 로드."""
+    try:
+        import sys
+        web_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "web")
+        if web_dir not in sys.path:
+            sys.path.insert(0, web_dir)
+        from db import load_setting
+        return load_setting(_DB_KEY, default)
+    except Exception:
+        return default
+
+
+def _db_save(value):
+    """DB에 알림 로그 저장."""
+    try:
+        import sys
+        web_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "web")
+        if web_dir not in sys.path:
+            sys.path.insert(0, web_dir)
+        from db import save_setting
+        save_setting(_DB_KEY, value)
+    except Exception as e:
+        logger.error("notification_logs DB 저장 실패: %s", e)
 
 
 def _get_httpx():
@@ -73,16 +99,10 @@ class NotificationEngineTool(BaseTool):
             return f"텔레그램 발송 오류: {e}"
 
     def _save_log(self, channel: str, message: str, result: str) -> None:
-        """발송 이력 저장."""
-        os.makedirs(os.path.dirname(NOTIFICATION_LOG), exist_ok=True)
-
-        logs: list[dict] = []
-        if os.path.isfile(NOTIFICATION_LOG):
-            try:
-                with open(NOTIFICATION_LOG, "r", encoding="utf-8") as f:
-                    logs = json.load(f)
-            except Exception:
-                logs = []
+        """발송 이력 저장 (SQLite DB)."""
+        logs: list[dict] = _db_load([])
+        if not isinstance(logs, list):
+            logs = []
 
         logs.append({
             "timestamp": datetime.now().isoformat(),
@@ -93,8 +113,7 @@ class NotificationEngineTool(BaseTool):
 
         # 최근 500건만 유지
         logs = logs[-500:]
-        with open(NOTIFICATION_LOG, "w", encoding="utf-8") as f:
-            json.dump(logs, f, ensure_ascii=False, indent=2)
+        _db_save(logs)
 
     async def _send(self, kwargs: dict) -> str:
         """알림 발송."""
@@ -172,17 +191,12 @@ class NotificationEngineTool(BaseTool):
         return await self._send(kwargs)
 
     async def _history(self, kwargs: dict) -> str:
-        """발송 이력 조회."""
+        """발송 이력 조회 (SQLite DB)."""
         limit = int(kwargs.get("limit", 20))
 
-        if not os.path.isfile(NOTIFICATION_LOG):
+        logs = _db_load([])
+        if not logs:
             return "발송 이력이 없습니다."
-
-        try:
-            with open(NOTIFICATION_LOG, "r", encoding="utf-8") as f:
-                logs = json.load(f)
-        except Exception:
-            return "이력 파일을 읽을 수 없습니다."
 
         recent = logs[-limit:]
         lines = [f"## 알림 발송 이력 (최근 {len(recent)}건)\n"]

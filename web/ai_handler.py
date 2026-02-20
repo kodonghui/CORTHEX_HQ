@@ -53,19 +53,19 @@ except ImportError:
 
 # ── 모델 가격표 (1M 토큰당 USD) ──
 _PRICING = {
-    # Anthropic
-    "claude-opus-4-6": {"input": 15.00, "output": 75.00},
+    # Anthropic (models.yaml 동기화 2026-02-21)
+    "claude-opus-4-6": {"input": 5.00, "output": 25.00},
     "claude-sonnet-4-6": {"input": 3.00, "output": 15.00},
-    "claude-haiku-4-5-20251001": {"input": 0.25, "output": 1.25},
+    "claude-haiku-4-5-20251001": {"input": 0.80, "output": 4.00},
     # Google Gemini
     "gemini-3.1-pro-preview": {"input": 2.00, "output": 12.00},
     "gemini-2.5-pro": {"input": 1.25, "output": 10.00},
     "gemini-2.5-flash": {"input": 0.15, "output": 0.60},
     # OpenAI
-    "gpt-5.2-pro": {"input": 18.00, "output": 90.00},
-    "gpt-5.2": {"input": 5.00, "output": 25.00},
-    "gpt-5": {"input": 2.50, "output": 10.00},
-    "gpt-5-mini": {"input": 0.50, "output": 2.00},
+    "gpt-5.2-pro": {"input": 21.00, "output": 168.00},
+    "gpt-5.2": {"input": 1.75, "output": 14.00},
+    "gpt-5": {"input": 1.25, "output": 10.00},
+    "gpt-5-mini": {"input": 0.25, "output": 2.00},
 }
 
 # ── reasoning_effort 관련 상수 ──
@@ -637,6 +637,8 @@ async def _call_google(
                     )
 
             # 대화를 이어서 재호출 (function_response를 포함)
+            if not resp.candidates:
+                break
             contents = [
                 user_message,
                 resp.candidates[0].content,
@@ -728,6 +730,8 @@ async def _call_openai(
     # tool_calls 처리 루프 (최대 10회 — 기술적분석 등 복합 도구 워크플로우 지원)
     if tools and tool_executor:
         for _ in range(10):
+            if not resp.choices:
+                break
             msg = resp.choices[0].message
             if not msg.tool_calls:
                 break
@@ -774,7 +778,7 @@ async def _call_openai(
                 total_input_tokens += resp.usage.prompt_tokens
                 total_output_tokens += resp.usage.completion_tokens
 
-    content = resp.choices[0].message.content or ""
+    content = resp.choices[0].message.content or "" if resp.choices else ""
 
     return {
         "content": content,

@@ -7080,6 +7080,13 @@
               if (r.ok) { const d = await r.json(); if (d.today_cost !== undefined) this.totalCost = d.today_cost; }
             } catch(e) {}
           }, 30000);
+          // 페이지 언로드 시 SSE/WebSocket/타이머 정리 (메모리 누수 방지)
+          window.addEventListener('beforeunload', () => {
+            try { if (this.ws) this.ws.close(); } catch(e) {}
+            try { if (this._commsSSE) this._commsSSE.close(); } catch(e) {}
+            try { if (this._cioSSE) this._cioSSE.close(); } catch(e) {}
+            try { if (this.trading?.refreshInterval) clearInterval(this.trading.refreshInterval); } catch(e) {}
+          });
         },
 
         // ── Theme ──
@@ -8206,12 +8213,6 @@
             this.showToast('추론 정도 변경 실패: ' + (e.message || '서버 연결 오류'), 'error');
           }
           setTimeout(() => { this.agentConfigSaveStatus = ''; }, 2500);
-        },
-
-        // ── 헬퍼: 사무실 뷰 카드에 모델+추론 반영 ──
-        _updateAgentCardLabel(agentId) {
-          this.agentModels[agentId] = this.agentConfigData?.model_name || '';
-          this.agentReasonings[agentId] = this.agentConfigData?.reasoning_effort || '';
         },
 
         // ── Tab Switching ──

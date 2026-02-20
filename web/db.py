@@ -797,8 +797,10 @@ def get_monthly_cost() -> float:
     """
     conn = get_connection()
     try:
-        now = datetime.now()
-        month_start = now.strftime("%Y-%m-01 00:00:00")
+        # KST 월 시작을 UTC ISO 형식으로 변환 (DB 저장 형식과 일치)
+        kst_month_start = _now_kst().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        utc_month_start = kst_month_start.astimezone(timezone.utc)
+        month_start = utc_month_start.strftime("%Y-%m-%dT%H:%M:%S")
 
         # tasks 테이블 비용
         row = conn.execute(

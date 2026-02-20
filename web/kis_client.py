@@ -344,7 +344,7 @@ async def get_balance() -> dict:
                 logger.error("[KIS] 잔고 조회 API 오류: rt_cd=%s, msg_cd=%s, msg=%s", rt_cd, msg_cd, msg)
 
                 # 토큰 만료 시 → 캐시 삭제 + 신규 발급 후 1회 재시도
-                if "만료" in msg or msg_cd == "EGW00123":
+                if msg_cd == "EGW00123" or "만료" in msg or "expired" in msg.lower():
                     logger.info("[KIS] 토큰 만료 감지 — 캐시 삭제 후 재발급 시도")
                     _token_cache["token"] = None
                     _token_cache["expires"] = None
@@ -1035,7 +1035,12 @@ async def get_overseas_balance() -> dict:
             if not isinstance(r, Exception):
                 first_msg = r.get("data", {}).get("msg1", "")
                 break
-        if "만료" in first_msg:
+        first_msg_cd = ""
+        for r in exchange_results:
+            if not isinstance(r, Exception):
+                first_msg_cd = r.get("data", {}).get("msg_cd", "")
+                break
+        if first_msg_cd == "EGW00123" or "만료" in first_msg or "expired" in first_msg.lower():
             logger.info("[KIS] 해외잔고 토큰 만료 감지 — 재발급 후 재시도")
             _token_cache["token"] = None
             _token_cache["expires"] = None
