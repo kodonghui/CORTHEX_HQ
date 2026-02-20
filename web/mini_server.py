@@ -5759,6 +5759,48 @@ async def debug_cio_signals():
     }
 
 
+@app.get("/api/debug/trading-holdings")
+async def debug_trading_holdings():
+    """매매 보유종목 디버그 — KIS 잔고 vs 내부 포트폴리오 vs 거래내역 비교."""
+    portfolio = _load_data("trading_portfolio", _default_portfolio())
+    history = _load_data("trading_history", [])
+    settings = _load_data("trading_settings", _default_trading_settings())
+
+    # KIS 실거래 잔고
+    kis_bal = None
+    if _KIS_AVAILABLE and _kis_configured():
+        try:
+            kis_bal = await _kis_balance()
+        except Exception as e:
+            kis_bal = {"error": str(e)}
+
+    # KIS 모의 잔고
+    kis_mock = None
+    try:
+        from kis_client import get_mock_balance
+        kis_mock = await get_mock_balance()
+    except Exception as e:
+        kis_mock = {"error": str(e)}
+
+    # 최근 매수 기록
+    recent_buys = [t for t in history[:30] if t.get("action") == "buy"]
+
+    return {
+        "kis_available": _KIS_AVAILABLE,
+        "kis_configured": _kis_configured() if _KIS_AVAILABLE else False,
+        "kis_is_mock": KIS_IS_MOCK,
+        "paper_trading": settings.get("paper_trading", True),
+        "kis_real_balance": kis_bal,
+        "kis_mock_balance": kis_mock,
+        "internal_portfolio": {
+            "cash": portfolio.get("cash", 0),
+            "holdings": portfolio.get("holdings", []),
+            "updated_at": portfolio.get("updated_at"),
+        },
+        "recent_buys": recent_buys[:10],
+    }
+
+
 @app.get("/api/trading/mock/balance")
 async def get_mock_trading_balance():
     """모의투자 잔고 조회"""

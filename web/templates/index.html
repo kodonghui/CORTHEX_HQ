@@ -4066,75 +4066,75 @@
               </div>
               <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
                 <!-- 실거래 한국장 -->
-                <div class="glass border border-l-4 border-hq-green/20 border-l-hq-green rounded-xl p-5 lg:p-6">
-                  <div class="flex items-center justify-between mb-4">
-                    <div class="flex items-center gap-2">
-                      <span class="text-base">🇰🇷</span>
-                      <span class="text-base font-bold text-hq-green">한국장</span>
+                <div class="glass border border-l-4 border-hq-green/20 border-l-hq-green rounded-xl p-3 lg:p-4">
+                  <div class="flex items-center justify-between mb-2">
+                    <div class="flex items-center gap-1.5">
+                      <span class="text-sm">🇰🇷</span>
+                      <span class="text-sm font-bold text-hq-green">한국장</span>
                     </div>
-                    <span class="text-xs px-2 py-0.5 rounded-full border"
+                    <span class="text-[10px] px-1.5 py-0.5 rounded-full border"
                           :class="(trading.summary.settings||{}).kis_connected ? 'border-hq-green/30 bg-hq-green/10 text-hq-green' : 'border-hq-muted/30 text-hq-muted'"
                           x-text="(trading.summary.settings||{}).kis_connected ? 'KIS 연결' : 'KIS 미연결'"></span>
                   </div>
-                  <div class="text-3xl lg:text-4xl font-bold font-mono text-hq-text mb-2"
+                  <div class="text-xl lg:text-2xl font-bold font-mono text-hq-text"
                        x-text="fmtKRW((trading.summary.kis_balance||{}).total_eval || (trading.summary.kis_balance||{}).cash || 0)"></div>
-                  <div class="flex items-center gap-4 mt-2 text-sm text-hq-muted">
+                  <div class="flex items-center gap-3 mt-1 text-xs text-hq-muted">
                     <span x-text="'현금 ' + fmtKRW((trading.summary.kis_balance||{}).cash || 0)"></span>
                     <span x-text="'보유 ' + ((trading.summary.kis_balance||{}).holdings||[]).length + '종목'"></span>
                   </div>
-                  <div class="mt-4 space-y-2">
-                    <template x-for="h in ((trading.summary.kis_balance||{}).holdings||[]).slice(0,5)" :key="h.ticker">
-                      <div class="flex items-center justify-between bg-hq-surface/50 rounded-lg px-3 py-2 cursor-pointer hover:bg-hq-accent/10 transition"
+                  <div class="mt-2 space-y-1">
+                    <template x-for="h in ((trading.summary.kis_balance||{}).holdings||[]).slice(0,3)" :key="h.ticker">
+                      <div class="flex items-center justify-between bg-hq-surface/50 rounded px-2 py-1 cursor-pointer hover:bg-hq-accent/10 transition"
                            @click="openStockChart && openStockChart(h.ticker, h.name, 'KR')">
-                        <div class="text-sm font-semibold text-hq-text truncate max-w-[140px]" x-text="h.name"></div>
-                        <div class="flex items-center gap-3">
-                          <span class="text-sm font-mono text-hq-text" x-text="fmtKRW(h.current_price)"></span>
-                          <span class="text-sm font-mono" :class="(h.eval_profit||0)>=0?'text-hq-green':'text-hq-red'"
+                        <div class="text-xs font-semibold text-hq-text truncate max-w-[120px]" x-text="h.name"></div>
+                        <div class="flex items-center gap-2">
+                          <span class="text-xs font-mono text-hq-text" x-text="fmtKRW(h.current_price)"></span>
+                          <span class="text-xs font-mono" :class="(h.eval_profit||0)>=0?'text-hq-green':'text-hq-red'"
                                 x-text="((h.eval_profit||0)>=0?'+':'') + fmtKRW(h.eval_profit||0)"></span>
                         </div>
                       </div>
                     </template>
                     <template x-if="((trading.summary.kis_balance||{}).holdings||[]).length === 0">
-                      <div class="text-sm text-hq-muted/50 text-center py-4">실거래 보유종목 없음</div>
+                      <div class="text-xs text-hq-muted/50 text-center py-2">실거래 보유종목 없음</div>
                     </template>
                   </div>
                 </div>
                 <!-- 실거래 미국장 -->
-                <div class="glass border border-l-4 border-hq-cyan/20 border-l-hq-cyan rounded-xl p-5 lg:p-6">
-                  <div class="flex items-center justify-between mb-4">
-                    <div class="flex items-center gap-2">
-                      <span class="text-base">🇺🇸</span>
-                      <span class="text-base font-bold text-hq-cyan">미국장</span>
+                <div class="glass border border-l-4 border-hq-cyan/20 border-l-hq-cyan rounded-xl p-3 lg:p-4">
+                  <div class="flex items-center justify-between mb-2">
+                    <div class="flex items-center gap-1.5">
+                      <span class="text-sm">🇺🇸</span>
+                      <span class="text-sm font-bold text-hq-cyan">미국장</span>
                     </div>
-                    <span class="text-xs px-2 py-0.5 rounded-full border"
+                    <span class="text-[10px] px-1.5 py-0.5 rounded-full border"
                           :class="(usBal&&usBal.success) ? 'border-hq-cyan/30 bg-hq-cyan/10 text-hq-cyan' : 'border-hq-muted/30 text-hq-muted'"
                           x-text="(usBal&&usBal.success) ? 'KIS 연결' : '미연결'"></span>
                   </div>
-                  <div class="flex items-baseline gap-3">
-                    <span class="text-3xl lg:text-4xl font-bold font-mono text-hq-text" x-text="fmtUSD(usTotal())"></span>
-                    <span class="text-sm font-mono text-hq-muted" x-text="usTotal() > 0 ? '≈ ' + fmtKRW(usTotal() * fxRate) : ''"></span>
+                  <div class="flex items-baseline gap-2">
+                    <span class="text-xl lg:text-2xl font-bold font-mono text-hq-text" x-text="fmtUSD(usTotal())"></span>
+                    <span class="text-xs font-mono text-hq-muted" x-text="usTotal() > 0 ? '≈ ' + fmtKRW(usTotal() * fxRate) : ''"></span>
                   </div>
-                  <div class="flex items-center gap-4 mt-2 text-sm text-hq-muted">
+                  <div class="flex items-center gap-3 mt-1 text-xs text-hq-muted">
                     <span x-text="'현금 ' + fmtUSD((usBal||{}).cash_usd || 0)"></span>
                     <span x-text="'보유 ' + ((usBal||{}).holdings||[]).length + '종목'"></span>
                   </div>
-                  <div class="mt-4 space-y-2">
-                    <template x-for="h in ((usBal||{}).holdings||[]).slice(0,5)" :key="h.symbol">
-                      <div class="flex items-center justify-between bg-hq-surface/50 rounded-lg px-3 py-2 cursor-pointer hover:bg-hq-accent/10 transition"
+                  <div class="mt-2 space-y-1">
+                    <template x-for="h in ((usBal||{}).holdings||[]).slice(0,3)" :key="h.symbol">
+                      <div class="flex items-center justify-between bg-hq-surface/50 rounded px-2 py-1 cursor-pointer hover:bg-hq-accent/10 transition"
                            @click="openStockChart && openStockChart(h.symbol, h.name, 'US')">
-                        <div class="flex items-center gap-2">
-                          <span class="text-sm font-semibold text-hq-text" x-text="h.symbol"></span>
-                          <span class="text-xs text-hq-muted truncate max-w-[100px]" x-text="h.name"></span>
+                        <div class="flex items-center gap-1.5">
+                          <span class="text-xs font-semibold text-hq-text" x-text="h.symbol"></span>
+                          <span class="text-[10px] text-hq-muted truncate max-w-[80px]" x-text="h.name"></span>
                         </div>
-                        <div class="flex items-center gap-3">
-                          <span class="text-sm font-mono text-hq-text" x-text="fmtUSD(h.current_price)"></span>
-                          <span class="text-sm font-mono" :class="(h.eval_profit||0)>=0?'text-hq-green':'text-hq-red'"
+                        <div class="flex items-center gap-2">
+                          <span class="text-xs font-mono text-hq-text" x-text="fmtUSD(h.current_price)"></span>
+                          <span class="text-xs font-mono" :class="(h.eval_profit||0)>=0?'text-hq-green':'text-hq-red'"
                                 x-text="((h.eval_profit||0)>=0?'+':'') + fmtUSD(h.eval_profit||0)"></span>
                         </div>
                       </div>
                     </template>
                     <template x-if="((usBal||{}).holdings||[]).length === 0">
-                      <div class="text-sm text-hq-muted/50 text-center py-4">실거래 보유종목 없음</div>
+                      <div class="text-xs text-hq-muted/50 text-center py-2">실거래 보유종목 없음</div>
                     </template>
                   </div>
                 </div>
@@ -4146,73 +4146,73 @@
               </div>
               <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
                 <!-- 모의투자 한국장 -->
-                <div class="glass border border-l-4 border-hq-purple/20 border-l-hq-purple rounded-xl p-5 lg:p-6">
-                  <div class="flex items-center justify-between mb-4">
-                    <div class="flex items-center gap-2">
-                      <span class="text-base">🇰🇷</span>
-                      <span class="text-base font-bold text-hq-purple">한국장</span>
+                <div class="glass border border-l-4 border-hq-purple/20 border-l-hq-purple rounded-xl p-3 lg:p-4">
+                  <div class="flex items-center justify-between mb-2">
+                    <div class="flex items-center gap-1.5">
+                      <span class="text-sm">🇰🇷</span>
+                      <span class="text-sm font-bold text-hq-purple">한국장</span>
                     </div>
-                    <span class="text-xs px-2 py-0.5 rounded-full border border-hq-purple/30 bg-hq-purple/10 text-hq-purple">모의</span>
+                    <span class="text-[10px] px-1.5 py-0.5 rounded-full border border-hq-purple/30 bg-hq-purple/10 text-hq-purple">모의</span>
                   </div>
-                  <div class="text-3xl lg:text-4xl font-bold font-mono text-hq-text mb-2"
+                  <div class="text-xl lg:text-2xl font-bold font-mono text-hq-text"
                        x-text="fmtKRW((mockBal||{}).total_eval || (mockBal||{}).cash || 0)"></div>
-                  <div class="flex items-center gap-4 mt-2 text-sm text-hq-muted">
+                  <div class="flex items-center gap-3 mt-1 text-xs text-hq-muted">
                     <span x-text="'현금 ' + fmtKRW((mockBal||{}).cash || 0)"></span>
                     <span x-text="'보유 ' + ((mockBal||{}).holdings||[]).length + '종목'"></span>
                   </div>
-                  <div class="mt-4 space-y-2">
-                    <template x-for="h in ((mockBal||{}).holdings||[]).slice(0,5)" :key="h.ticker">
-                      <div class="flex items-center justify-between bg-hq-surface/50 rounded-lg px-3 py-2 cursor-pointer hover:bg-hq-accent/10 transition"
+                  <div class="mt-2 space-y-1">
+                    <template x-for="h in ((mockBal||{}).holdings||[]).slice(0,3)" :key="h.ticker">
+                      <div class="flex items-center justify-between bg-hq-surface/50 rounded px-2 py-1 cursor-pointer hover:bg-hq-accent/10 transition"
                            @click="openStockChart && openStockChart(h.ticker, h.name, 'KR')">
-                        <div class="text-sm font-semibold text-hq-text truncate max-w-[140px]" x-text="h.name"></div>
-                        <div class="flex items-center gap-3">
-                          <span class="text-sm font-mono text-hq-text" x-text="fmtKRW(h.current_price)"></span>
-                          <span class="text-sm font-mono" :class="(h.eval_profit||0)>=0?'text-hq-green':'text-hq-red'"
+                        <div class="text-xs font-semibold text-hq-text truncate max-w-[120px]" x-text="h.name"></div>
+                        <div class="flex items-center gap-2">
+                          <span class="text-xs font-mono text-hq-text" x-text="fmtKRW(h.current_price)"></span>
+                          <span class="text-xs font-mono" :class="(h.eval_profit||0)>=0?'text-hq-green':'text-hq-red'"
                                 x-text="((h.eval_profit||0)>=0?'+':'') + fmtKRW(h.eval_profit||0)"></span>
                         </div>
                       </div>
                     </template>
                     <template x-if="((mockBal||{}).holdings||[]).length === 0">
-                      <div class="text-sm text-hq-muted/50 text-center py-4">모의 보유종목 없음</div>
+                      <div class="text-xs text-hq-muted/50 text-center py-2">모의 보유종목 없음</div>
                     </template>
                   </div>
                 </div>
                 <!-- 모의투자 미국장 -->
-                <div class="glass border border-l-4 border-hq-purple/20 border-l-hq-purple rounded-xl p-5 lg:p-6">
-                  <div class="flex items-center justify-between mb-4">
-                    <div class="flex items-center gap-2">
-                      <span class="text-base">🇺🇸</span>
-                      <span class="text-base font-bold text-hq-purple">미국장</span>
+                <div class="glass border border-l-4 border-hq-purple/20 border-l-hq-purple rounded-xl p-3 lg:p-4">
+                  <div class="flex items-center justify-between mb-2">
+                    <div class="flex items-center gap-1.5">
+                      <span class="text-sm">🇺🇸</span>
+                      <span class="text-sm font-bold text-hq-purple">미국장</span>
                     </div>
-                    <span class="text-xs px-2 py-0.5 rounded-full border border-hq-purple/30 bg-hq-purple/10 text-hq-purple">모의</span>
+                    <span class="text-[10px] px-1.5 py-0.5 rounded-full border border-hq-purple/30 bg-hq-purple/10 text-hq-purple">모의</span>
                   </div>
-                  <div class="flex items-baseline gap-3">
-                    <span class="text-3xl lg:text-4xl font-bold font-mono text-hq-text"
+                  <div class="flex items-baseline gap-2">
+                    <span class="text-xl lg:text-2xl font-bold font-mono text-hq-text"
                           x-text="fmtUSD((usMockBal||{}).total_eval_usd || (usMockBal||{}).cash_usd || 0)"></span>
-                    <span class="text-sm font-mono text-hq-muted"
+                    <span class="text-xs font-mono text-hq-muted"
                           x-text="(usMockBal||{}).cash_usd ? '≈ ' + fmtKRW(((usMockBal||{}).total_eval_usd || (usMockBal||{}).cash_usd || 0) * fxRate) : ''"></span>
                   </div>
-                  <div class="flex items-center gap-4 mt-2 text-sm text-hq-muted">
+                  <div class="flex items-center gap-3 mt-1 text-xs text-hq-muted">
                     <span x-text="'현금 ' + fmtUSD((usMockBal||{}).cash_usd || 0)"></span>
                     <span x-text="'보유 ' + ((usMockBal||{}).holdings||[]).length + '종목'"></span>
                   </div>
-                  <div class="mt-4 space-y-2">
-                    <template x-for="h in ((usMockBal||{}).holdings||[]).slice(0,5)" :key="h.symbol">
-                      <div class="flex items-center justify-between bg-hq-surface/50 rounded-lg px-3 py-2 cursor-pointer hover:bg-hq-accent/10 transition"
+                  <div class="mt-2 space-y-1">
+                    <template x-for="h in ((usMockBal||{}).holdings||[]).slice(0,3)" :key="h.symbol">
+                      <div class="flex items-center justify-between bg-hq-surface/50 rounded px-2 py-1 cursor-pointer hover:bg-hq-accent/10 transition"
                            @click="openStockChart && openStockChart(h.symbol, h.name, 'US')">
-                        <div class="flex items-center gap-2">
-                          <span class="text-sm font-semibold text-hq-text" x-text="h.symbol"></span>
-                          <span class="text-xs text-hq-muted truncate max-w-[100px]" x-text="h.name"></span>
+                        <div class="flex items-center gap-1.5">
+                          <span class="text-xs font-semibold text-hq-text" x-text="h.symbol"></span>
+                          <span class="text-[10px] text-hq-muted truncate max-w-[80px]" x-text="h.name"></span>
                         </div>
-                        <div class="flex items-center gap-3">
-                          <span class="text-sm font-mono text-hq-text" x-text="fmtUSD(h.current_price)"></span>
-                          <span class="text-sm font-mono" :class="(h.eval_profit||0)>=0?'text-hq-green':'text-hq-red'"
+                        <div class="flex items-center gap-2">
+                          <span class="text-xs font-mono text-hq-text" x-text="fmtUSD(h.current_price)"></span>
+                          <span class="text-xs font-mono" :class="(h.eval_profit||0)>=0?'text-hq-green':'text-hq-red'"
                                 x-text="((h.eval_profit||0)>=0?'+':'') + fmtUSD(h.eval_profit||0)"></span>
                         </div>
                       </div>
                     </template>
                     <template x-if="((usMockBal||{}).holdings||[]).length === 0">
-                      <div class="text-sm text-hq-muted/50 text-center py-4">모의 보유종목 없음</div>
+                      <div class="text-xs text-hq-muted/50 text-center py-2">모의 보유종목 없음</div>
                     </template>
                   </div>
                 </div>
@@ -4781,39 +4781,59 @@
             <div x-effect="if(trading.tab === 'signals') {
               fetch('/api/trading/decisions').then(r=>r.ok?r.json():{decisions:[]}).then(d=>{ trading.decisions = d.decisions||[]; }).catch(()=>{});
             }"></div>
-            <!-- 작전일지 -->
-            <div class="flex items-center justify-between mb-4">
+            <!-- 작전일지 (분석별 그룹핑) -->
+            <div class="flex items-center justify-between mb-3">
               <div>
                 <h3 class="text-sm font-bold text-hq-text">작전일지</h3>
-                <p class="text-[10px] text-hq-muted mt-0.5">CIO + 전문가 4명의 매매 결정 기록</p>
+                <p class="text-[10px] text-hq-muted mt-0.5">CIO + 전문가 4명의 매매 결정 기록 (분석별 그룹)</p>
               </div>
             </div>
 
-            <div>
+            <div x-data="{
+              expandedGroup: null,
+              get grouped() {
+                const groups = {};
+                (trading.decisions||[]).forEach(d => {
+                  const key = (d.created_at||'').slice(0,16);
+                  if (!groups[key]) groups[key] = { time: key, items: [] };
+                  groups[key].items.push(d);
+                });
+                return Object.values(groups).sort((a,b) => b.time.localeCompare(a.time));
+              }
+            }">
               <div x-show="trading.decisions.length === 0" class="text-xs text-hq-muted/60 text-center py-4">
                 아직 매매 결정 이력이 없습니다
               </div>
-              <template x-for="d in trading.decisions" :key="d.id">
+              <template x-for="(g, gi) in grouped" :key="g.time">
                 <div class="glass border border-hq-border rounded-xl mb-2 overflow-hidden">
-                  <!-- 헤더 (항상 표시) -->
-                  <div @click="trading.expandedDecision = trading.expandedDecision === d.id ? null : d.id"
-                       class="flex items-center gap-3 p-3 cursor-pointer hover:bg-hq-surface/50">
-                    <span :class="d.action === '매수' ? 'text-hq-green' : d.action === '매도' ? 'text-hq-red' : 'text-hq-muted'"
-                          class="text-xs font-bold w-8" x-text="d.action"></span>
-                    <span class="text-xs text-hq-muted" x-text="d.created_at?.slice(0,16)?.replace('T',' ')"></span>
-                    <span class="text-sm font-medium flex-1" x-text="d.ticker_name || d.ticker"></span>
-                    <span class="text-xs text-hq-muted" x-text="(d.confidence||0) + '%'"></span>
-                    <svg :class="trading.expandedDecision === d.id ? 'rotate-180' : ''" class="w-3 h-3 transition-transform text-hq-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
-                  </div>
-                  <!-- 상세 (펼쳤을 때) -->
-                  <div x-show="trading.expandedDecision === d.id" class="border-t border-hq-border p-3 text-xs space-y-2">
-                    <div><span class="text-hq-muted">이유:</span> <span x-text="d.reason"></span></div>
-                    <div x-show="d.expert_opinions && d.expert_opinions.length > 0">
-                      <span class="text-hq-muted">전문가 의견:</span>
-                      <template x-for="e in (d.expert_opinions||[])" :key="e.expert">
-                        <span class="ml-2 text-hq-muted/80"><span x-text="e.expert"></span>: <span x-text="e.recommendation"></span></span>
+                  <!-- 그룹 헤더 (분석 세션 단위) -->
+                  <div @click="expandedGroup = expandedGroup === g.time ? null : g.time"
+                       class="flex items-center gap-3 p-2.5 cursor-pointer hover:bg-hq-surface/50">
+                    <svg :class="expandedGroup === g.time ? 'rotate-90' : ''" class="w-3 h-3 transition-transform text-hq-muted flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                    <span class="text-[10px] text-hq-muted font-mono" x-text="g.time.replace('T',' ')"></span>
+                    <span class="text-xs text-hq-text font-medium" x-text="'CIO 분석 (' + g.items.length + '종목)'"></span>
+                    <div class="flex-1 flex items-center justify-end gap-1.5">
+                      <template x-for="d in g.items.slice(0,5)" :key="d.id">
+                        <span class="text-[10px] px-1.5 py-0.5 rounded-full border"
+                              :class="d.action==='매수'?'border-hq-green/30 bg-hq-green/10 text-hq-green':d.action==='매도'?'border-hq-red/30 bg-hq-red/10 text-hq-red':'border-hq-muted/30 text-hq-muted'"
+                              x-text="(d.ticker_name||d.ticker).slice(0,4)"></span>
                       </template>
                     </div>
+                  </div>
+                  <!-- 그룹 내용 (펼쳤을 때) -->
+                  <div x-show="expandedGroup === g.time" class="border-t border-hq-border">
+                    <template x-for="d in g.items" :key="d.id">
+                      <div class="border-b border-hq-border/50 last:border-b-0 p-2.5">
+                        <div class="flex items-center gap-2 mb-1">
+                          <span :class="d.action==='매수'?'text-hq-green':d.action==='매도'?'text-hq-red':'text-hq-muted'"
+                                class="text-[10px] font-bold w-6" x-text="d.action"></span>
+                          <span class="text-xs font-medium text-hq-text" x-text="d.ticker_name||d.ticker"></span>
+                          <span class="text-[10px] font-mono text-hq-muted" x-text="'(' + d.ticker + ')'"></span>
+                          <span class="ml-auto text-[10px] font-mono text-hq-accent" x-text="'신뢰도 ' + (d.confidence||0) + '%'"></span>
+                        </div>
+                        <div x-show="d.reason" class="text-[11px] text-hq-muted/80 leading-relaxed line-clamp-2 pl-8" x-text="d.reason"></div>
+                      </div>
+                    </template>
                   </div>
                 </div>
               </template>
