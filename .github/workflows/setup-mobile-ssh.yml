@@ -1,0 +1,112 @@
+name: 📱 모바일 SSH 셋업 (1회용)
+
+# 수동으로만 실행 (GitHub Actions 페이지에서 버튼 클릭)
+on:
+  workflow_dispatch:
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 서버에 모바일 접속 환경 구성
+        uses: appleboy/ssh-action@v1
+        env:
+          SERVER_IP: ${{ secrets.SERVER_IP_ARM }}
+          ANTHROPIC_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        with:
+          host: ${{ secrets.SERVER_IP_ARM }}
+          username: ubuntu
+          key: ${{ secrets.SERVER_SSH_KEY_ARM }}
+          envs: SERVER_IP,ANTHROPIC_KEY
+          script: |
+            echo "========================================="
+            echo "📱 모바일 SSH 셋업 시작"
+            echo "========================================="
+
+            # 1단계: tmux 설치 (세션 유지 도구)
+            echo "📦 tmux 설치 중..."
+            sudo apt-get update -y -qq
+            sudo apt-get install -y tmux fail2ban
+            echo "✅ tmux 설치 완료: $(tmux -V)"
+
+            # 2단계: Node.js 설치 (Claude Code용)
+            if ! command -v node &>/dev/null; then
+              echo "📦 Node.js 설치 중..."
+              curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+              sudo apt-get install -y nodejs
+            fi
+            echo "✅ Node.js: $(node -v)"
+            echo "✅ npm: $(npm -v)"
+
+            # 3단계: Claude Code CLI 설치
+            if ! command -v claude &>/dev/null; then
+              echo "📦 Claude Code CLI 설치 중..."
+              sudo npm install -g @anthropic-ai/claude-code
+            fi
+            echo "✅ Claude Code: $(claude --version 2>/dev/null || echo '설치됨')"
+
+            # 4단계: Claude Code 환경변수 설정
+            BASHRC="/home/ubuntu/.bashrc"
+            if ! grep -q "ANTHROPIC_API_KEY" "$BASHRC" 2>/dev/null; then
+              echo "export ANTHROPIC_API_KEY=${ANTHROPIC_KEY}" >> "$BASHRC"
+              echo "✅ ANTHROPIC_API_KEY를 .bashrc에 추가"
+            fi
+
+            # 5단계: 비밀번호 생성 + 설정
+            PASS=$(openssl rand -base64 16 | tr -d '/+=')
+            echo "ubuntu:${PASS}" | sudo chpasswd
+
+            # 6단계: SSH 비밀번호 접속 활성화
+            SSHD_CONFIG="/etc/ssh/sshd_config"
+            sudo cp "$SSHD_CONFIG" "${SSHD_CONFIG}.bak"
+            sudo sed -i 's/^PasswordAuthentication no/PasswordAuthentication yes/' "$SSHD_CONFIG"
+            sudo sed -i 's/^#PasswordAuthentication.*/PasswordAuthentication yes/' "$SSHD_CONFIG"
+            # 혹시 설정이 안 바뀌었으면 직접 추가
+            if ! grep -q "^PasswordAuthentication yes" "$SSHD_CONFIG"; then
+              echo "PasswordAuthentication yes" | sudo tee -a "$SSHD_CONFIG"
+            fi
+            sudo systemctl restart sshd
+            echo "✅ SSH 비밀번호 접속 활성화 완료"
+
+            # 7단계: fail2ban 설정 (무차별 비밀번호 시도 차단)
+            sudo systemctl enable fail2ban
+            sudo systemctl start fail2ban
+            echo "✅ fail2ban 활성화 (비밀번호 무차별 시도 차단)"
+
+            # 8단계: tmux 편의 설정
+            cat > /home/ubuntu/.tmux.conf << 'TMUXEOF'
+            set -g mouse on
+            set -g history-limit 10000
+            set -g status-bg colour235
+            set -g status-fg white
+            TMUXEOF
+            echo "✅ tmux 설정 완료 (마우스 스크롤 지원)"
+
+            # 9단계: 간편 시작 스크립트 생성
+            cat > /home/ubuntu/start-claude.sh << 'SCRIPTEOF'
+            #!/bin/bash
+            # tmux 세션이 있으면 붙이고, 없으면 새로 만들기
+            if tmux has-session -t claude 2>/dev/null; then
+              tmux attach -t claude
+            else
+              tmux new -s claude -d
+              tmux send-keys -t claude 'claude' Enter
+              tmux attach -t claude
+            fi
+            SCRIPTEOF
+            chmod +x /home/ubuntu/start-claude.sh
+            echo "✅ 간편 시작 스크립트 생성 (start-claude.sh)"
+
+            echo ""
+            echo "========================================="
+            echo "📱 Termius 앱에 입력할 접속 정보"
+            echo "========================================="
+            echo "Hostname: ${SERVER_IP}"
+            echo "Username: ubuntu"
+            echo "Password: ${PASS}"
+            echo "========================================="
+            echo ""
+            echo "📌 접속 후 이것만 치세요:"
+            echo "   ./start-claude.sh"
+            echo ""
+            echo "🎉 모바일 SSH 셋업 완료!"
