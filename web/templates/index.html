@@ -5363,126 +5363,148 @@
     </div>
   </div>
 
-  <!-- ═══ Trading Settings Modal (자동매매 설정) ═══ -->
+  <!-- ═══ Trading Settings Modal (자동매매 설정 — CEO 읽기 전용 + 성향 슬라이더) ═══ -->
   <div x-show="trading.showSettingsModal" x-transition.opacity
        class="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
        @click.self="trading.showSettingsModal = false" style="display: none;">
-    <div class="bg-hq-panel border border-hq-border rounded-2xl w-full max-w-[500px] mx-4 p-6 max-h-[90vh] overflow-y-auto" @click.stop>
+    <div class="bg-hq-panel border border-hq-border rounded-2xl w-full max-w-[520px] mx-4 p-6 max-h-[90vh] overflow-y-auto" @click.stop
+         x-data="{
+           riskProfile: 'aggressive',
+           changeHistory: [],
+           saving: false,
+           async loadProfile() {
+             try {
+               const res = await fetch('/api/trading/risk-profile').then(r=>r.json());
+               this.riskProfile = res.profile || 'aggressive';
+               this.changeHistory = res.change_history || [];
+             } catch {}
+           },
+           async setProfile(p) {
+             this.saving = true;
+             try {
+               const res = await fetch('/api/trading/risk-profile', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({profile:p})}).then(r=>r.json());
+               if (res.success) { this.riskProfile = p; $dispatch('trading-settings-updated'); }
+             } catch {}
+             this.saving = false;
+             await this.loadProfile();
+           }
+         }" x-init="loadProfile()">
+
       <div class="flex items-center justify-between mb-5">
         <h2 class="text-lg font-bold text-hq-text">자동매매 설정</h2>
         <button @click="trading.showSettingsModal = false" class="text-hq-muted hover:text-hq-text text-xl">&times;</button>
       </div>
-      <div class="space-y-4">
-        <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="text-[10px] text-hq-muted block mb-1">종목당 최대 비중 (%)</label>
-            <input type="number" x-model.number="trading.settings.max_position_pct" class="w-full bg-hq-bg border border-hq-border rounded-lg px-3 py-1.5 text-sm text-hq-text text-right">
-          </div>
-          <div>
-            <label class="text-[10px] text-hq-muted block mb-1">일일 최대 거래 횟수</label>
-            <input type="number" x-model.number="trading.settings.max_daily_trades" class="w-full bg-hq-bg border border-hq-border rounded-lg px-3 py-1.5 text-sm text-hq-text text-right">
-          </div>
-        </div>
-        <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="text-[10px] text-hq-muted block mb-1">일일 최대 손실 (%)</label>
-            <input type="number" x-model.number="trading.settings.max_daily_loss_pct" class="w-full bg-hq-bg border border-hq-border rounded-lg px-3 py-1.5 text-sm text-hq-text text-right">
-          </div>
-          <div>
-            <label class="text-[10px] text-hq-muted block mb-1">기본 주문 금액 (원)</label>
-            <input type="number" x-model.number="trading.settings.order_size" class="w-full bg-hq-bg border border-hq-border rounded-lg px-3 py-1.5 text-sm text-hq-text text-right">
-          </div>
-        </div>
-        <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="text-[10px] text-hq-muted block mb-1">기본 손절 (%)</label>
-            <input type="number" x-model.number="trading.settings.default_stop_loss_pct" class="w-full bg-hq-bg border border-hq-border rounded-lg px-3 py-1.5 text-sm text-hq-text text-right">
-          </div>
-          <div>
-            <label class="text-[10px] text-hq-muted block mb-1">기본 익절 (%)</label>
-            <input type="number" x-model.number="trading.settings.default_take_profit_pct" class="w-full bg-hq-bg border border-hq-border rounded-lg px-3 py-1.5 text-sm text-hq-text text-right">
-          </div>
-        </div>
-        <div x-data="{ showTradingHours: false }">
-          <button @click="showTradingHours = !showTradingHours" class="flex items-center gap-1 text-[10px] text-hq-muted font-semibold mt-2 mb-1 hover:text-hq-text transition">
-            <span x-text="showTradingHours ? '▼' : '▶'"></span>
-            <span>장 시간 (KST 기준)</span>
+
+      <!-- 투자 성향 슬라이더 (CEO가 유일하게 변경 가능한 것) -->
+      <div class="mb-5 p-4 bg-hq-surface rounded-xl border border-hq-border">
+        <p class="text-xs font-bold text-hq-text mb-3">투자 성향</p>
+        <div class="flex gap-2">
+          <button @click="setProfile('conservative')" :disabled="saving"
+                  :class="riskProfile === 'conservative' ? 'bg-blue-500/20 text-blue-400 border-blue-500/40 ring-1 ring-blue-500/30' : 'bg-hq-bg text-hq-muted border-hq-border hover:border-blue-500/30'"
+                  class="flex-1 border rounded-xl py-3 text-center transition">
+            <div class="text-lg mb-0.5">🐢</div>
+            <div class="text-xs font-bold">보수적</div>
           </button>
-          <div x-show="showTradingHours" x-transition class="space-y-3" style="display:none;">
-            <div class="grid grid-cols-2 gap-3">
-              <div>
-                <label class="text-[10px] text-hq-muted block mb-1">한국장 시작</label>
-                <input x-model="trading.settings.trading_hours_kr && trading.settings.trading_hours_kr.start" placeholder="09:00" class="w-full bg-hq-bg border border-hq-border rounded-lg px-3 py-1.5 text-sm text-hq-text font-mono">
-              </div>
-              <div>
-                <label class="text-[10px] text-hq-muted block mb-1">한국장 마감</label>
-                <input x-model="trading.settings.trading_hours_kr && trading.settings.trading_hours_kr.end" placeholder="15:20" class="w-full bg-hq-bg border border-hq-border rounded-lg px-3 py-1.5 text-sm text-hq-text font-mono">
-              </div>
-            </div>
-            <div class="grid grid-cols-2 gap-3">
-              <div>
-                <label class="text-[10px] text-hq-muted block mb-1">미국장 시작 (KST)</label>
-                <input x-model="trading.settings.trading_hours_us && trading.settings.trading_hours_us.start" placeholder="22:30" class="w-full bg-hq-bg border border-hq-border rounded-lg px-3 py-1.5 text-sm text-hq-text font-mono">
-              </div>
-              <div>
-                <label class="text-[10px] text-hq-muted block mb-1">미국장 마감 (KST)</label>
-                <input x-model="trading.settings.trading_hours_us && trading.settings.trading_hours_us.end" placeholder="05:00" class="w-full bg-hq-bg border border-hq-border rounded-lg px-3 py-1.5 text-sm text-hq-text font-mono">
-              </div>
-            </div>
+          <button @click="setProfile('balanced')" :disabled="saving"
+                  :class="riskProfile === 'balanced' ? 'bg-hq-yellow/20 text-hq-yellow border-hq-yellow/40 ring-1 ring-hq-yellow/30' : 'bg-hq-bg text-hq-muted border-hq-border hover:border-hq-yellow/30'"
+                  class="flex-1 border rounded-xl py-3 text-center transition">
+            <div class="text-lg mb-0.5">⚖️</div>
+            <div class="text-xs font-bold">균형</div>
+          </button>
+          <button @click="setProfile('aggressive')" :disabled="saving"
+                  :class="riskProfile === 'aggressive' ? 'bg-hq-red/20 text-hq-red border-hq-red/40 ring-1 ring-hq-red/30' : 'bg-hq-bg text-hq-muted border-hq-border hover:border-hq-red/30'"
+                  class="flex-1 border rounded-xl py-3 text-center transition">
+            <div class="text-lg mb-0.5">🔥</div>
+            <div class="text-xs font-bold">공격적</div>
+          </button>
+        </div>
+        <p class="text-[9px] text-hq-muted mt-2 text-center">CIO가 이 성향에 맞춰 안전 범위 내에서 자율적으로 설정을 조정합니다</p>
+      </div>
+
+      <!-- 현재 설정값 (읽기 전용) -->
+      <div class="mb-4">
+        <p class="text-[10px] font-bold text-hq-muted mb-2">현재 설정 (CIO 자율 관리)</p>
+        <div class="grid grid-cols-3 gap-2">
+          <div class="bg-hq-bg rounded-lg p-2.5 text-center border border-hq-border/50">
+            <div class="text-[9px] text-hq-muted">종목당 최대</div>
+            <div class="text-sm font-bold text-hq-text font-mono" x-text="(trading.settings.max_position_pct || 20) + '%'"></div>
+          </div>
+          <div class="bg-hq-bg rounded-lg p-2.5 text-center border border-hq-border/50">
+            <div class="text-[9px] text-hq-muted">최소 신뢰도</div>
+            <div class="text-sm font-bold text-hq-text font-mono" x-text="(trading.settings.min_confidence || 65) + '%'"></div>
+          </div>
+          <div class="bg-hq-bg rounded-lg p-2.5 text-center border border-hq-border/50">
+            <div class="text-[9px] text-hq-muted">주문 금액</div>
+            <div class="text-sm font-bold text-hq-text font-mono" x-text="(trading.settings.order_size || 0) === 0 ? 'CIO 자율' : (trading.settings.order_size||0).toLocaleString()"></div>
+          </div>
+          <div class="bg-hq-bg rounded-lg p-2.5 text-center border border-hq-border/50">
+            <div class="text-[9px] text-hq-muted">손절</div>
+            <div class="text-sm font-bold text-hq-red font-mono" x-text="(trading.settings.default_stop_loss_pct || -5) + '%'"></div>
+          </div>
+          <div class="bg-hq-bg rounded-lg p-2.5 text-center border border-hq-border/50">
+            <div class="text-[9px] text-hq-muted">익절</div>
+            <div class="text-sm font-bold text-hq-green font-mono" x-text="'+' + (trading.settings.default_take_profit_pct || 10) + '%'"></div>
+          </div>
+          <div class="bg-hq-bg rounded-lg p-2.5 text-center border border-hq-border/50">
+            <div class="text-[9px] text-hq-muted">일일 최대</div>
+            <div class="text-sm font-bold text-hq-text font-mono" x-text="(trading.settings.max_daily_trades || 10) + '회'"></div>
           </div>
         </div>
-        <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="text-[10px] text-hq-muted block mb-1">자동매매 최소 신뢰도 (%)</label>
-            <input type="number" x-model.number="trading.settings.min_confidence" placeholder="70" class="w-full bg-hq-bg border border-hq-border rounded-lg px-3 py-1.5 text-sm text-hq-text text-right">
-          </div>
-        </div>
-        <!-- 자동매매 실행 대상 (마스터 + 서브 3-체크박스) -->
-        <div class="p-3 bg-hq-surface rounded-lg space-y-2">
-          <p class="text-[10px] font-bold text-hq-muted mb-2">자동매매 실행 대상</p>
-          <!-- 마스터: 자동매매 전체 활성화 -->
+      </div>
+
+      <!-- 자동매매 실행 대상 (이것만 CEO가 직접 토글) -->
+      <div class="p-3 bg-hq-surface rounded-lg space-y-2 mb-4">
+        <p class="text-[10px] font-bold text-hq-muted mb-2">자동매매 실행 대상</p>
+        <label class="flex items-center gap-2 text-xs text-hq-text cursor-pointer">
+          <input type="checkbox" x-model="trading.settings.auto_execute" class="rounded">
+          <span class="text-hq-yellow font-bold">CIO 자동실행 (신뢰도 이상 시 자동 매수/매도)</span>
+        </label>
+        <div class="ml-4 space-y-1.5 border-l-2 border-hq-border pl-3"
+             :class="trading.settings.auto_execute ? 'opacity-100' : 'opacity-40 pointer-events-none'">
           <label class="flex items-center gap-2 text-xs text-hq-text cursor-pointer">
-            <input type="checkbox" x-model="trading.settings.auto_execute" class="rounded">
-            <span class="text-hq-yellow font-bold">CIO 자동실행 (신뢰도 이상 시 자동 매수/매도)</span>
+            <input type="checkbox" x-model="trading.settings.enable_real" class="rounded accent-green-500">
+            <span class="text-hq-green font-semibold">실거래 계좌에 주문</span>
           </label>
-          <!-- 서브: 실거래/모의 독립 체크 (자동실행 꺼져있으면 회색) -->
-          <div class="ml-4 space-y-1.5 border-l-2 border-hq-border pl-3"
-               :class="trading.settings.auto_execute ? 'opacity-100' : 'opacity-40 pointer-events-none'">
-            <label class="flex items-center gap-2 text-xs text-hq-text cursor-pointer">
-              <input type="checkbox" x-model="trading.settings.enable_real" class="rounded accent-green-500">
-              <span class="text-hq-green font-semibold">실거래 계좌에 주문</span>
-              <span class="text-hq-muted/60 text-[10px]">KIS 50168576</span>
-            </label>
-            <label class="flex items-center gap-2 text-xs text-hq-text cursor-pointer">
-              <input type="checkbox" x-model="trading.settings.enable_mock" class="rounded accent-purple-500">
-              <span class="text-hq-purple font-semibold">모의투자 계좌에 주문</span>
-              <span class="text-hq-muted/60 text-[10px]">KIS 00112233 (Shadow Trading)</span>
-            </label>
-          </div>
-          <!-- 손절/익절 -->
-          <div class="flex gap-4 pt-1 border-t border-hq-border/50">
-            <label class="flex items-center gap-2 text-xs text-hq-text cursor-pointer">
-              <input type="checkbox" x-model="trading.settings.auto_stop_loss" class="rounded">
-              <span>자동 손절</span>
-            </label>
-            <label class="flex items-center gap-2 text-xs text-hq-text cursor-pointer">
-              <input type="checkbox" x-model="trading.settings.auto_take_profit" class="rounded">
-              <span>자동 익절</span>
-            </label>
-          </div>
+          <label class="flex items-center gap-2 text-xs text-hq-text cursor-pointer">
+            <input type="checkbox" x-model="trading.settings.enable_mock" class="rounded accent-purple-500">
+            <span class="text-hq-purple font-semibold">모의투자 계좌에 주문</span>
+          </label>
         </div>
-        <div class="bg-hq-purple/10 border border-hq-purple/20 rounded-lg p-3 text-[10px] text-hq-purple">
-          <strong>CIO 자동매매</strong>: 봇이 켜져 있으면 하루 2회(09:10 한국장 · 14:50 미국장) CIO + 전문가 4명이 관심종목을 분석합니다. "CIO 자동실행"을 켜면 신뢰도 <span x-text="trading.settings.min_confidence || 70"></span>% 이상 시그널을 자동 매수/매도합니다.
+        <div class="flex gap-4 pt-1 border-t border-hq-border/50">
+          <label class="flex items-center gap-2 text-xs text-hq-text cursor-pointer">
+            <input type="checkbox" x-model="trading.settings.auto_stop_loss" class="rounded">
+            <span>자동 손절</span>
+          </label>
+          <label class="flex items-center gap-2 text-xs text-hq-text cursor-pointer">
+            <input type="checkbox" x-model="trading.settings.auto_take_profit" class="rounded">
+            <span>자동 익절</span>
+          </label>
         </div>
-        <div x-show="!(trading.summary.settings||{}).kis_connected"
-             class="bg-hq-yellow/10 border border-hq-yellow/20 rounded-lg p-3 text-[10px] text-hq-yellow">
-          KIS(한국투자증권) API 미연결 — 현재 모의투자 모드. 미국 주식은 yfinance 데이터 사용.
+      </div>
+      <button @click="saveTradingSettings()" class="w-full bg-hq-accent/20 text-hq-accent hover:bg-hq-accent/30 rounded-lg py-2.5 text-sm font-bold transition mb-4">실행 대상 저장</button>
+
+      <!-- CIO 변경 이력 -->
+      <div x-show="changeHistory.length > 0" x-data="{ showHistory: false }">
+        <button @click="showHistory = !showHistory" class="flex items-center gap-1 text-[10px] text-hq-muted font-semibold hover:text-hq-text transition w-full">
+          <span x-text="showHistory ? '▼' : '▶'"></span>
+          <span>설정 변경 이력</span>
+          <span class="text-hq-accent ml-1" x-text="changeHistory.length + '건'"></span>
+        </button>
+        <div x-show="showHistory" x-transition class="mt-2 space-y-1.5 max-h-40 overflow-y-auto">
+          <template x-for="h in [...changeHistory].reverse().slice(0,10)" :key="h.changed_at">
+            <div class="bg-hq-bg rounded-lg px-3 py-2 text-[9px] border border-hq-border/30">
+              <div class="flex items-center justify-between">
+                <span class="font-bold" :class="h.changed_by === 'CIO' ? 'text-hq-cyan' : 'text-hq-yellow'" x-text="h.changed_by"></span>
+                <span class="text-hq-muted font-mono" x-text="h.changed_at ? h.changed_at.slice(5,16).replace('T',' ') : ''"></span>
+              </div>
+              <div class="text-hq-text mt-0.5" x-text="h.detail || h.action"></div>
+            </div>
+          </template>
         </div>
-        <div x-show="(trading.summary.settings||{}).kis_connected"
-             class="bg-hq-green/10 border border-hq-green/20 rounded-lg p-3 text-[10px] text-hq-green">
-          ✅ KIS(한국투자증권) API 연결됨 — 실거래 주문 가능.
-        </div>
-        <button @click="saveTradingSettings()" class="w-full bg-hq-accent/20 text-hq-accent hover:bg-hq-accent/30 rounded-lg py-2.5 text-sm font-bold transition">설정 저장</button>
+      </div>
+
+      <div x-show="(trading.summary.settings||{}).kis_connected" class="bg-hq-green/10 border border-hq-green/20 rounded-lg p-3 text-[10px] text-hq-green mt-3">
+        ✅ KIS(한국투자증권) API 연결됨 — 실거래 주문 가능.
       </div>
     </div>
   </div>
