@@ -4277,6 +4277,9 @@
                         <span class="text-[9px] text-hq-muted/60 shrink-0"
                               x-text="(getAgentName(log.receiver)||log.receiver).replace('투자분석처장','CIO').replace(' Specialist','')"></span>
                         <span class="text-[8px] text-hq-muted/40 flex-1 line-clamp-1" x-text="stripMarkdown(log.message)"></span>
+                        <template x-if="log.tools_used && log.tools_used.length > 0">
+                          <span class="text-[8px] text-hq-accent/60 shrink-0 ml-1" x-text="'[' + log.tools_used.length + ' tools]'"></span>
+                        </template>
                       </div>
                     </template>
                   </div>
@@ -4838,23 +4841,34 @@
                }"
                x-init="load()">
 
-            <!-- 정확도 요약 카드 -->
-            <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+            <!-- 성과 요약 카드 (1행: 총예측/검증/전체 승률 / 2행: 최근20/매수/매도 승률) -->
+            <div class="grid grid-cols-3 gap-3 mb-4">
               <div class="glass border border-hq-border rounded-xl p-4 text-center">
                 <p class="text-[10px] text-hq-muted mb-1">전체 예측</p>
-                <p class="text-2xl font-bold text-hq-text" x-text="perfData ? (perfData.total_predictions || 0) : '-'"></p>
+                <p class="text-2xl font-bold text-hq-text" x-text="perfData ? (perfData.total || 0) : '-'"></p>
+              </div>
+              <div class="glass border border-hq-border rounded-xl p-4 text-center">
+                <p class="text-[10px] text-hq-muted mb-1">검증 완료</p>
+                <p class="text-2xl font-bold text-hq-text" x-text="perfData ? (perfData.verified || 0) : '-'"></p>
               </div>
               <div class="glass border border-hq-green/30 rounded-xl p-4 text-center">
-                <p class="text-[10px] text-hq-muted mb-1">3일 정확도</p>
-                <p class="text-2xl font-bold text-hq-green" x-text="perfData ? ((perfData.accuracy_3d || 0).toFixed(1) + '%') : '-'"></p>
+                <p class="text-[10px] text-hq-muted mb-1">전체 승률</p>
+                <p class="text-2xl font-bold text-hq-green" x-text="perfData && perfData.overall_accuracy !== null ? perfData.overall_accuracy + '%' : '-'"></p>
               </div>
+            </div>
+            <div class="grid grid-cols-3 gap-3 mb-6">
               <div class="glass border border-hq-cyan/30 rounded-xl p-4 text-center">
-                <p class="text-[10px] text-hq-muted mb-1">7일 정확도</p>
-                <p class="text-2xl font-bold text-hq-cyan" x-text="perfData ? ((perfData.accuracy_7d || 0).toFixed(1) + '%') : '-'"></p>
+                <p class="text-[10px] text-hq-muted mb-1">최근 20건</p>
+                <p class="text-2xl font-bold text-hq-cyan" x-text="perfData && perfData.recent_20_accuracy !== null ? perfData.recent_20_accuracy + '%' : '-'"></p>
+                <p class="text-[9px] text-hq-muted mt-0.5" x-text="perfData ? (perfData.recent_correct || 0) + '/' + (perfData.recent_total || 0) : ''"></p>
               </div>
-              <div class="glass border border-hq-yellow/30 rounded-xl p-4 text-center">
-                <p class="text-[10px] text-hq-muted mb-1">검증 대기</p>
-                <p class="text-2xl font-bold text-hq-yellow" x-text="perfData ? (perfData.pending_count || 0) : '-'"></p>
+              <div class="glass border border-hq-red/30 rounded-xl p-4 text-center">
+                <p class="text-[10px] text-hq-muted mb-1">매수 승률</p>
+                <p class="text-2xl font-bold text-hq-red" x-text="perfData && perfData.buy_accuracy !== null ? perfData.buy_accuracy + '%' : '-'"></p>
+              </div>
+              <div class="glass border border-blue-500/30 rounded-xl p-4 text-center">
+                <p class="text-[10px] text-hq-muted mb-1">매도 승률</p>
+                <p class="text-2xl font-bold text-blue-400" x-text="perfData && perfData.sell_accuracy !== null ? perfData.sell_accuracy + '%' : '-'"></p>
               </div>
             </div>
 
@@ -8007,12 +8021,14 @@
           if (tabId === 'sns') this.loadSNS();
           if (tabId === 'trading') {
             this.loadTradingSummary();
+            this._connectCioSSE();
             clearInterval(this.trading.refreshInterval);
             this.trading.refreshInterval = setInterval(() => {
               if (this.activeTab === 'trading') this.loadTradingSummary(true);
             }, 30000);
           } else {
             clearInterval(this.trading.refreshInterval);
+            this._disconnectCioSSE();
           }
           if (tabId === 'command') {
             this.$nextTick(() => { this.scrollToBottom(); });
@@ -9470,7 +9486,7 @@
             this.trading.cioLogs = Array.isArray(logs) ? logs : [];
             await this.loadTradingSummary();
           } catch { this.showToast('즉시 분석 실패', 'error'); }
-          finally { this.trading.runningNow = false; this._disconnectCioSSE(); }
+          finally { this.trading.runningNow = false; }
         },
 
         async toggleTradingBot() {

@@ -4410,11 +4410,12 @@ async def generate_trading_signals():
 - **리스크관리**: 포지션 크기 적정성, 손절가, 전체 포트폴리오 리스크
 
 ## 최종 산출물 (반드시 아래 형식 그대로 — 예시처럼 정확히)
-[시그널] 삼성전자 (005930) | 매수 | 신뢰도 72% | 반도체 수요 회복 + RSI 과매도 구간
-[시그널] 카카오 (035720) | 매도 | 신뢰도 61% | PER 과대평가, 금리 민감 섹터 약세
-[시그널] LG에너지솔루션 (373220) | 관망 | 신뢰도 45% | 혼조세, 방향성 불명확
+[시그널] 삼성전자 (005930) | 매수 | 신뢰도 72% | 목표가 85000 | 반도체 수요 회복 + RSI 과매도 구간
+[시그널] 카카오 (035720) | 매도 | 신뢰도 61% | 목표가 42000 | PER 과대평가, 금리 민감 섹터 약세
+[시그널] LG에너지솔루션 (373220) | 관망 | 신뢰도 45% | 목표가 0 | 혼조세, 방향성 불명확
 
-※ 주의: 신뢰도는 반드시 0~100 사이 숫자 + % 기호. 각 종목마다 독립적으로 계산할 것."""
+※ 주의: 신뢰도는 반드시 0~100 사이 숫자 + % 기호. 각 종목마다 독립적으로 계산할 것.
+※ 목표가: 매수 종목은 목표 매도가, 매도 종목은 목표 재진입가, 관망은 0. 반드시 숫자만 (쉼표 없이)."""
 
     if not is_ai_ready():
         # AI 미연결 시 더미 시그널
@@ -4447,9 +4448,9 @@ async def generate_trading_signals():
         f"활성 전략: {strats_info or '기본 전략'}\n\n"
         f"각 종목에 대해 현재 시장 환경, 섹터 동향, 밸류에이션 관점에서 독립적으로 판단하고 "
         f"매수/매도/관망 의견을 제시하세요. 최종 산출물은 반드시 아래 형식으로:\n"
-        f"[시그널] 삼성전자 (005930) | 매수 | 신뢰도 72% | 반도체 수요 회복 신호\n"
-        f"[시그널] 카카오 (035720) | 관망 | 신뢰도 48% | 방향성 불명확\n"
-        f"※ 신뢰도는 종목별로 독립적으로 0~100 숫자 + % 기호로 표기"
+        f"[시그널] 삼성전자 (005930) | 매수 | 신뢰도 72% | 목표가 85000 | 반도체 수요 회복 신호\n"
+        f"[시그널] 카카오 (035720) | 관망 | 신뢰도 48% | 목표가 0 | 방향성 불명확\n"
+        f"※ 신뢰도는 종목별로 독립적으로 0~100 숫자 + % 기호로 표기. 목표가는 숫자만."
     )
     cio_soul = _load_agent_prompt("cio_manager")
     cio_solo_model = select_model(cio_solo_prompt, override=_get_model_override("cio_manager"))
@@ -4583,15 +4584,18 @@ def _parse_cio_signals(content: str, watchlist: list) -> list:
     seen_tickers = set()
 
     # [시그널] 패턴 — CIO가 실제로 쓰는 형식에 맞춤
-    # 예: [시그널] 삼성전자 (005930) | 매수(분할) | 신뢰도 68% |
-    # 예: [시그널] 한화솔루션 (009830) | 매도(비중 축소) | 신뢰도 64% |
-    # 예: [시그널] 한화시스템 (272210) | 관망/부분익절 | 신뢰도 52% |
-    # 예: [시그널] 두산에너빌리티 (034020) | 조건부 매수 | 신뢰도 58% |
-    # [^\|]*? 로 "조건부", "적극", "분할" 등 매수/매도/관망 앞 수식어 허용
-    pattern = r'\[시그널\]\s*(.+?)\s*[\(（]([A-Za-z0-9]+)[\)）]\s*\|\s*[^\|]*?(매수|매도|관망|buy|sell|hold)\b[^\|]*\|\s*(?:신뢰도[:\s]*)?\s*(\d+)\s*%?\s*\|?\s*(.*)'
+    # 예: [시그널] 삼성전자 (005930) | 매수 | 신뢰도 72% | 목표가 85000 | 이유
+    # 예: [시그널] 카카오 (035720) | 매도(비중 축소) | 신뢰도 64% | 이유 (목표가 없을 수도)
+    # 목표가 필드는 선택적 (기존 시그널 호환)
+    pattern = r'\[시그널\]\s*(.+?)\s*[\(（]([A-Za-z0-9]+)[\)）]\s*\|\s*[^\|]*?(매수|매도|관망|buy|sell|hold)\b[^\|]*\|\s*(?:신뢰도[:\s]*)?\s*(\d+)\s*%?\s*\|\s*(?:목표가\s*(\d+)\s*\|\s*)?(.*)'
     matches = re.findall(pattern, content, re.IGNORECASE)
 
-    for name, ticker, action, confidence, reason in matches:
+    # 기존 형식 (목표가 없는 것) 호환용 폴백
+    if not matches:
+        pattern_legacy = r'\[시그널\]\s*(.+?)\s*[\(（]([A-Za-z0-9]+)[\)）]\s*\|\s*[^\|]*?(매수|매도|관망|buy|sell|hold)\b[^\|]*\|\s*(?:신뢰도[:\s]*)?\s*(\d+)\s*%?\s*\|?\s*()(.*)'
+        matches = re.findall(pattern_legacy, content, re.IGNORECASE)
+
+    for name, ticker, action, confidence, target_price_str, reason in matches:
         ticker = ticker.strip()
         if ticker in seen_tickers:
             continue  # 같은 종목 중복 시그널 방지 (요약 섹션 중복)
@@ -4616,6 +4620,7 @@ def _parse_cio_signals(content: str, watchlist: list) -> list:
             "market": market,
             "action": action_map.get(action.lower(), "hold"),
             "confidence": int(confidence),
+            "target_price": int(target_price_str) if target_price_str and target_price_str.isdigit() else 0,
             "reason": reason_text or "CIO 종합 분석 참조",
         })
 
@@ -8152,12 +8157,15 @@ async def _delegate_to_specialists(manager_id: str, text: str) -> list[dict]:
                     message=content_preview,
                     log_type="report",
                 )
+                _tools = r.get("tools_used", []) if isinstance(r, dict) else []
+                _tools_unique = list(dict.fromkeys(_tools))[:5]  # 중복 제거, 최대 5개
                 _log_data = {
                     "id": row_id,
                     "sender": spec_name,
                     "receiver": mgr_name,
                     "message": content_preview,
                     "log_type": "report",
+                    "tools_used": _tools_unique,
                     "created_at": _time.time(),
                 }
                 for _c in connected_clients[:]:
@@ -8169,6 +8177,7 @@ async def _delegate_to_specialists(manager_id: str, text: str) -> list[dict]:
                 await _broadcast_comms({
                     "id": f"dl_{row_id}", "sender": spec_name, "receiver": mgr_name,
                     "message": content_preview, "log_type": "report",
+                    "tools_used": _tools_unique,
                     "source": "delegation", "created_at": datetime.now(KST).isoformat(),
                 })
             except Exception:
