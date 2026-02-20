@@ -5055,11 +5055,12 @@ async def run_trading_now():
     # 매매 결정 일지 저장 (P2-1: 수동 분석에서도 decisions 저장)
     _save_decisions(parsed_signals)
 
-    # 자동 주문 실행 (auto_execute=True 일 때만)
+    # 수동 즉시 실행 → auto_execute 설정 무관하게 항상 주문 진행
+    # (CEO가 버튼을 직접 누른 것 = 매매 의사 표시)
     min_confidence = settings.get("min_confidence", 65)
     order_size = settings.get("order_size", 0)  # 0 = CIO 비중 자율, >0 = 고정 금액
     orders_triggered = 0
-    if settings.get("auto_execute", False):
+    if True:  # 수동 실행은 항상 매매 진행 (auto_execute 체크 제거)
         paper_mode = settings.get("paper_trading", True)
         use_kis = _KIS_AVAILABLE and not paper_mode and _kis_configured()
 
