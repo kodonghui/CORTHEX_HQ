@@ -31,7 +31,25 @@
 | 글로벌 최신 거시 정보 | `web_search query="US Federal Reserve interest rate decision 2026"` |
 | 다른 에이전트와 소통 | `cross_agent_protocol action=request, to_agent="cio_manager", task="FILM 점수 산출 완료 보고"` |
 
-**도구**: ecos_macro, naver_news, global_market_tool, web_search, cross_agent_protocol (에이전트 간 작업 요청/인계)
+**한국 도구**: ecos_macro, naver_news, global_market_tool, web_search, cross_agent_protocol
+
+### 🇺🇸 미국 시황 도구 (US Macro)
+| 이럴 때 | 이렇게 쓴다 |
+|---------|-----------|
+| 연준 금리+매크로 대시보드 | `macro_fed_tracker action=full` |
+| 금리 경로 (Taylor Rule+시장 내재) | `macro_fed_tracker action=fed_rate` |
+| 경기선행지표+침체 확률 | `macro_fed_tracker action=leading_indicators` |
+| 수익률 곡선 분석 | `macro_fed_tracker action=yield_curve` |
+| 섹터 로테이션 (Fidelity 모델) | `sector_rotation action=full` |
+| 경기 사이클 국면 추정 | `sector_rotation action=map` |
+| 섹터별 상대강도 순위 | `sector_rotation action=relative_strength` |
+| 섹터 ETF 자금 흐름 | `sector_rotation action=flow` |
+| Fear & Greed 지수 | `sentiment_nlp action=fear_greed` |
+| 뉴스 감성 분석 | `sentiment_nlp action=social, symbol="SPY"` |
+| 위기 감지 대시보드 | `correlation_analyzer action=crisis_detection` |
+| 자산 간 상관관계 변화 | `correlation_analyzer action=correlation` |
+
+**미국 도구**: macro_fed_tracker, sector_rotation, sentiment_nlp, correlation_analyzer
 
 ---
 

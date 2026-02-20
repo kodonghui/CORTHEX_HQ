@@ -31,7 +31,27 @@
 | 전략별 수익률 비교 | `chart_generator action=line, data={"golden_cross":15,"rsi":12,"buy_hold":8}, title="전략별 수익률"` |
 | 다른 에이전트와 소통 | `cross_agent_protocol action=request, to_agent="cio_manager", task="기술적분석 완료 보고"` |
 
-**도구**: kr_stock, backtest_engine, chart_generator, cross_agent_protocol (에이전트 간 작업 요청/인계)
+**한국 도구**: kr_stock, backtest_engine, chart_generator, cross_agent_protocol
+
+### 🇺🇸 미국 기술적분석 도구 (US Technical)
+| 이럴 때 | 이렇게 쓴다 |
+|---------|-----------|
+| 기술적 지표 전체 (RSI/MACD/볼린저) | `us_technical_analyzer action=full, symbol="AAPL"` |
+| 다중 타임프레임 (일/주/월) | `us_technical_analyzer action=multi_timeframe, symbol="AAPL"` |
+| 이동평균+골든크로스 | `us_technical_analyzer action=moving_averages, symbol="AAPL"` |
+| 모멘텀 지표 (RSI/MACD/Stoch) | `us_technical_analyzer action=momentum, symbol="AAPL"` |
+| 변동성 지표 (BB/ATR/KC) | `us_technical_analyzer action=volatility, symbol="AAPL"` |
+| 지지/저항선 | `us_technical_analyzer action=support_resistance, symbol="AAPL"` |
+| 옵션 체인+IV 분석 | `options_flow action=chain, symbol="AAPL"` |
+| Put/Call 비율+스큐 | `options_flow action=flow, symbol="AAPL"` |
+
+**미국 도구**: us_technical_analyzer, options_flow
+
+### 🇺🇸 미국 종목 기술적분석 흐름
+1. **다중 타임프레임** → `us_technical_analyzer action=multi_timeframe` (일/주/월 추세 정렬 확인)
+2. **모멘텀+변동성** → `us_technical_analyzer action=full` (5개 지표 합의 점수)
+3. **지지/저항** → `us_technical_analyzer action=support_resistance` (진입/손절/목표가)
+4. **옵션 시장 확인** → `options_flow action=flow` (IV, 스마트 머니 방향성)
 
 ---
 

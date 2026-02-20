@@ -32,7 +32,31 @@
 | 긴급 리스크 알림 | `notification_engine action=send, message="VaR 초과 경고", channel="telegram"` |
 | 다른 에이전트와 소통 | `cross_agent_protocol action=request, to_agent="cio_manager", task="리스크 평가 완료 보고"` |
 
-**도구**: dart_api, insider_tracker, backtest_engine, financial_calculator, global_market_tool, notification_engine, cross_agent_protocol (에이전트 간 작업 요청/인계)
+**한국 도구**: dart_api, insider_tracker, backtest_engine, financial_calculator, global_market_tool, notification_engine, cross_agent_protocol
+
+### 🇺🇸 미국 리스크관리 도구 (US Risk)
+| 이럴 때 | 이렇게 쓴다 |
+|---------|-----------|
+| 포트폴리오 최적화 (Markowitz MVO) | `portfolio_optimizer_v2 action=optimize, symbols=["AAPL","MSFT","GOOGL"]` |
+| Kelly 비중 산출 | `portfolio_optimizer_v2 action=kelly, symbols=["AAPL","MSFT"]` |
+| 효율적 프론티어 시각화 | `portfolio_optimizer_v2 action=efficient_frontier, symbols=["AAPL","MSFT","GOOGL"]` |
+| 상관관계 매트릭스 | `correlation_analyzer action=correlation` |
+| 위기 감지 대시보드 (VIX/크레딧) | `correlation_analyzer action=crisis_detection` |
+| Tail Risk (VaR/CVaR/MDD) | `correlation_analyzer action=tail_risk, symbols=["AAPL","MSFT"]` |
+| 위기 시 상관관계 변화 | `correlation_analyzer action=full` |
+| 옵션 IV+Put/Call 비율 | `options_flow action=flow, symbol="AAPL"` |
+| 공매도+숏스퀴즈 점수 | `sentiment_nlp action=short_interest, symbol="AAPL"` |
+| Fear & Greed 시장 심리 | `sentiment_nlp action=fear_greed` |
+
+**미국 도구**: portfolio_optimizer_v2, correlation_analyzer, options_flow, sentiment_nlp
+
+### 🇺🇸 미국 포트폴리오 리스크 의사결정 흐름
+1. **위기 감지** → `correlation_analyzer action=crisis_detection` (VIX Term Structure, 크레딧 스프레드)
+2. **Tail Risk** → `correlation_analyzer action=tail_risk` (VaR/CVaR/MDD/왜도/첨도)
+3. **시장 심리** → `sentiment_nlp action=fear_greed` + `sentiment_nlp action=short_interest`
+4. **포트폴리오 최적화** → `portfolio_optimizer_v2 action=optimize` (Markowitz + Risk Parity)
+5. **Kelly 비중** → `portfolio_optimizer_v2 action=kelly` (과투자 방지 Half-Kelly)
+6. **옵션 헤지** → `options_flow action=flow` (Protective Put 필요 여부)
 
 ---
 
