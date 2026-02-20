@@ -97,11 +97,14 @@ jobs:
             chmod +x /home/ubuntu/start-claude.sh
             echo "✅ 간편 시작 스크립트 생성 (start-claude.sh)"
 
+            # IP를 GitHub가 자동 마스킹하므로, 점(.)을 치환해서 출력
+            SAFE_IP=$(echo "${SERVER_IP}" | sed 's/\./ . /g')
+
             echo ""
             echo "========================================="
             echo "📱 Termius 앱에 입력할 접속 정보"
             echo "========================================="
-            echo "Hostname: ${SERVER_IP}"
+            echo "Hostname (점 사이 공백 제거하세요): ${SAFE_IP}"
             echo "Username: ubuntu"
             echo "Password: ${PASS}"
             echo "========================================="
