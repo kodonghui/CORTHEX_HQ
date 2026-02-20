@@ -88,6 +88,10 @@ _token_lock = asyncio.Lock()
 _last_token_request: Optional[datetime] = None
 _TOKEN_COOLDOWN_SEC = 65  # 1분 5초 여유
 
+# 잔고 캐시 — 토큰 만료 등으로 조회 실패 시 마지막 성공 결과 반환 (₩0 방지)
+_last_balance_cache: dict = {}
+_last_mock_balance_cache: dict = {}
+
 # DB 토큰 캐시 키 (모의/실거래 구분)
 _DB_TOKEN_KEY = "kis_token_mock" if KIS_IS_MOCK else "kis_token_real"
 
@@ -404,7 +408,7 @@ async def get_balance() -> dict:
             if total_eval < computed_total:
                 total_eval = computed_total
 
-            return {
+            result = {
                 "success": True,
                 "available": True,
                 "cash": cash,
@@ -412,8 +416,19 @@ async def get_balance() -> dict:
                 "total_eval": total_eval,
                 "mode": "모의투자" if KIS_IS_MOCK else "실거래",
             }
+            # 성공 시 캐시 저장 (다음 실패 시 ₩0 대신 이 값 반환)
+            _last_balance_cache.clear()
+            _last_balance_cache.update(result)
+            return result
     except Exception as e:
         logger.error("[KIS] 잔고 조회 실패: %s", e)
+        # 캐시된 마지막 성공 결과가 있으면 반환 (₩0 방지)
+        if _last_balance_cache.get("success"):
+            logger.info("[KIS] 토큰 만료로 조회 실패 — 캐시된 잔고 반환")
+            cached = dict(_last_balance_cache)
+            cached["cached"] = True
+            cached["cache_reason"] = f"토큰 갱신 중: {str(e)[:100]}"
+            return cached
         return {"success": False, "available": False, "cash": 0, "holdings": [], "total_eval": 0, "error": str(e)}
 
 
@@ -649,7 +664,7 @@ async def get_mock_balance() -> dict:
                     "eval_profit": int(item.get("evlu_pfls_amt", "0") or "0"),
                 })
 
-        return {
+        result = {
             "success": True,
             "available": True,
             "cash": cash,
@@ -658,8 +673,19 @@ async def get_mock_balance() -> dict:
             "mode": "모의투자",
             "is_mock": True,
         }
+        # 성공 시 캐시 저장 (다음 실패 시 ₩0 대신 이 값 반환)
+        _last_mock_balance_cache.clear()
+        _last_mock_balance_cache.update(result)
+        return result
     except Exception as e:
         logger.error("[KIS-Shadow] 모의투자 잔고 조회 실패: %s", e)
+        # 캐시된 마지막 성공 결과가 있으면 반환 (₩0 방지)
+        if _last_mock_balance_cache.get("success"):
+            logger.info("[KIS-Shadow] 토큰 만료로 조회 실패 — 캐시된 잔고 반환")
+            cached = dict(_last_mock_balance_cache)
+            cached["cached"] = True
+            cached["cache_reason"] = f"토큰 갱신 중: {str(e)[:100]}"
+            return cached
         return {"success": False, "available": False, "cash": 0, "holdings": [], "total_eval": 0, "error": str(e), "is_mock": True}
 
 
