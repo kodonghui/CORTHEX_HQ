@@ -1425,7 +1425,48 @@
       "tool_id": "log_analyzer",
       "name": "Log Analyzer",
       "name_ko": "에러 로그 분석기",
-      "description": "로그 파일 분석 — 에러 유형/빈도/패턴 자동 통계, 시간대별 분포 시각화"
+      "description": "로그 분석 — 파일 로그(analyze/top_errors/timeline) + DB 활동 로그(activity/trading). activity: 에이전트별/레벨별/키워드별 활동 로그 조회. trading: 자동매매 흐름 추적 (버튼 클릭→분석→시그널→주문까지 어디서 실패했는지 진단)",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "analyze",
+              "top_errors",
+              "timeline",
+              "activity",
+              "trading"
+            ],
+            "description": "analyze=파일 로그 분석, top_errors=에러 빈도 Top N, timeline=시간대별 분포, activity=DB 활동 로그 조회, trading=자동매매 로그 진단"
+          },
+          "agent_id": {
+            "type": "string",
+            "description": "에이전트 ID 필터 (예: cio_manager, system). activity 액션에서 사용"
+          },
+          "level": {
+            "type": "string",
+            "enum": [
+              "error",
+              "warning",
+              "info"
+            ],
+            "description": "로그 레벨 필터"
+          },
+          "keyword": {
+            "type": "string",
+            "description": "메시지 내 키워드 검색 (예: 매매, KIS, 주문)"
+          },
+          "hours": {
+            "type": "integer",
+            "description": "최근 N시간 내 로그만 조회 (기본 24)"
+          },
+          "limit": {
+            "type": "integer",
+            "description": "최대 조회 건수 (기본 100~200)"
+          }
+        }
+      }
     },
     {
       "tool_id": "api_benchmark",
