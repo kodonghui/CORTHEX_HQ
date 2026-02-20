@@ -16,6 +16,76 @@ logger = logging.getLogger("corthex.tools.cross_agent_protocol")
 _call_agent_callback: Any | None = None
 # ── SSE broadcast 콜백 (내부통신 실시간 스트림) ──
 _sse_broadcast_callback: Any | None = None
+# ── 유효한 에이전트 ID 목록 (mini_server.py 시작 시 등록) ──
+_valid_agent_ids: set[str] = set()
+
+# AI가 흔히 지어내는 가짜 이름 → 실제 에이전트 ID 매핑
+_AGENT_ALIAS: dict[str, str] = {
+    # CIO 소속 전문가 — AI가 자주 줄여서 씀
+    "risk_manager": "risk_management_specialist",
+    "risk_analyst": "risk_management_specialist",
+    "risk_specialist": "risk_management_specialist",
+    "fundamental_analyst": "stock_analysis_specialist",
+    "stock_analyst": "stock_analysis_specialist",
+    "equity_analyst": "stock_analysis_specialist",
+    "macro_analyst": "market_condition_specialist",
+    "market_analyst": "market_condition_specialist",
+    "market_specialist": "market_condition_specialist",
+    "technical_analyst": "technical_analysis_specialist",
+    "chart_analyst": "technical_analysis_specialist",
+    # 기타 부서 — AI가 줄여 쓸 수 있는 패턴
+    "frontend_developer": "frontend_specialist",
+    "backend_developer": "backend_specialist",
+    "patent_lawyer": "patent_specialist",
+    "copyright_lawyer": "copyright_specialist",
+    "market_researcher": "market_research_specialist",
+    "content_creator": "content_specialist",
+    "community_manager": "community_specialist",
+}
+
+
+def register_valid_agents(agent_ids: list[str]) -> None:
+    """mini_server.py가 서버 시작 시 유효한 에이전트 ID 목록을 등록합니다."""
+    global _valid_agent_ids
+    _valid_agent_ids = set(agent_ids)
+    logger.info("cross_agent_protocol: 유효 에이전트 %d개 등록", len(_valid_agent_ids))
+
+
+def _resolve_agent_id(raw_id: str) -> str:
+    """AI가 보낸 에이전트 ID를 실제 유효한 ID로 변환합니다.
+
+    1) 이미 유효한 ID → 그대로 반환
+    2) 별칭(alias) 테이블에 있음 → 매핑된 ID 반환
+    3) 부분 문자열 매칭 — raw_id가 실제 ID의 일부를 포함하면 반환
+    4) 어디에도 없으면 → 원본 반환 (caller가 에러 처리)
+    """
+    if not _valid_agent_ids:
+        return raw_id  # 목록 미등록 시 검증 생략
+
+    # 1) 정확 일치
+    if raw_id in _valid_agent_ids:
+        return raw_id
+
+    # 2) 별칭 테이블
+    alias_resolved = _AGENT_ALIAS.get(raw_id)
+    if alias_resolved and alias_resolved in _valid_agent_ids:
+        logger.info("에이전트 ID 별칭 매핑: %s → %s", raw_id, alias_resolved)
+        return alias_resolved
+
+    # 3) 부분 문자열 매칭 — raw_id의 핵심 단어가 실제 ID에 포함되는지
+    raw_parts = raw_id.replace("_", " ").split()
+    best_match = None
+    best_score = 0
+    for valid_id in _valid_agent_ids:
+        score = sum(1 for part in raw_parts if part in valid_id)
+        if score > best_score:
+            best_score = score
+            best_match = valid_id
+    if best_match and best_score >= 1:
+        logger.info("에이전트 ID 퍼지 매핑: %s → %s (score=%d)", raw_id, best_match, best_score)
+        return best_match
+
+    return raw_id
 
 
 def register_call_agent(fn: Any) -> None:
@@ -211,6 +281,14 @@ class CrossAgentProtocolTool(BaseTool):
 
         self._save_msg(msg)
         logger.info("에이전트 간 요청: %s → %s (ID: %s)", from_agent, to_agent, msg["id"])
+
+        # 에이전트 ID 검증 + 자동 매핑 (AI가 가짜 이름 보내는 문제 방지)
+        resolved_id = _resolve_agent_id(to_agent)
+        if resolved_id != to_agent:
+            logger.info("cross_agent_protocol: AI가 보낸 '%s' → 실제 ID '%s'로 변환", to_agent, resolved_id)
+            msg["to"] = resolved_id  # DB 기록도 실제 ID로
+            msg["original_to"] = to_agent  # 원본 보존
+            to_agent = resolved_id
 
         # 실시간 에이전트 호출 (콜백이 등록된 경우)
         if _call_agent_callback is not None:

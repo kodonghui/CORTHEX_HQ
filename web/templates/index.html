@@ -3456,7 +3456,7 @@
       <div x-show="viewMode === 'chat' && activeTab === 'activityLog'" class="flex-1 overflow-y-auto scrollbar-thin p-6 bg-grid">
         <div class="max-w-4xl mx-auto fade-in-up">
           <div class="flex items-center justify-between mb-4">
-            <h2 class="text-lg font-bold text-hq-text font-mono tracking-normal">COMM LOG</h2>
+            <h2 class="text-lg font-bold text-hq-text font-mono tracking-normal">ACTIVITY LOG</h2>
             <div class="flex items-center gap-3">
               <select x-model="activityLogFilter"
                       class="bg-hq-surface border border-hq-border rounded-lg px-3 py-1.5 text-xs text-hq-text min-w-[120px]">
@@ -3469,7 +3469,7 @@
             </div>
           </div>
           <div class="text-[11px] text-hq-muted/80 mb-4 bg-hq-surface border border-hq-border/50 rounded-lg px-3 py-2">
-            실시간 WebSocket 로그입니다. 페이지 새로고침 시 초기화됩니다.
+            웹에서 일어나는 모든 활동이 실시간으로 기록됩니다. 최근 50건까지 표시됩니다.
           </div>
           <div class="space-y-1">
             <template x-for="(log, i) in activityLogs.filter(l => activityLogFilter === 'all' || l.agent_id === activityLogFilter).slice().reverse()" :key="i">
@@ -9827,12 +9827,23 @@
 
         // ── #13: Activity Log Persistence ──
         restoreActivityLogs() {
-          // 페이지 새로고침 시 초기화 — 이번 세션 로그만 표시
-          this.activityLogs = [];
-          localStorage.removeItem('corthex-activity-logs');
+          // DB에서 최근 활동 로그 불러오기 (페이지 새로고침해도 이력 유지)
+          fetch('/api/activity-logs?limit=50')
+            .then(r => r.json())
+            .then(logs => {
+              if (Array.isArray(logs)) {
+                this.activityLogs = logs.reverse().map(l => {
+                  const d = l.created_at ? new Date(l.created_at) : new Date();
+                  const dateStr = d.toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/\.\s*/g, '.').replace(/\.$/, '');
+                  const timeStr = d.toLocaleTimeString('ko-KR', { timeZone: 'Asia/Seoul', hour12: false, hour: '2-digit', minute: '2-digit' });
+                  return { ...l, action: l.message || l.action || '', timeDate: dateStr, timeClock: timeStr, time: dateStr + ' ' + timeStr, timestamp: l.timestamp || d.getTime() };
+                });
+              }
+            })
+            .catch(() => { this.activityLogs = []; });
         },
         saveActivityLogs() {
-          // 세션 중에는 메모리에만 보관 (새로고침 시 자동 초기화)
+          // DB에 자동 저장되므로 별도 저장 불필요
         },
 
         // ── #14: Task History Pagination ──

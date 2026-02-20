@@ -169,6 +169,90 @@ KST = timezone(timedelta(hours=9))
 
 app = FastAPI(title="CORTHEX HQ")
 
+# ── 전체 활동 로깅 미들웨어 (CEO 요청: 웹에서 일어나는 일 전부 로그) ──
+# 정적 파일, 헬스체크 등 노이즈를 제외한 모든 API 요청을 activity_log에 기록
+_LOG_SKIP_PREFIXES = ("/static", "/favicon", "/deploy-status", "/ws")
+_LOG_SKIP_EXACT = {"/", "/api/health", "/api/agents/status", "/api/dashboard/stats",
+                   "/api/activity-logs", "/api/batch/chain/status"}
+_LOG_DESCRIPTION: dict[str, str] = {
+    # 채팅/AI
+    "POST /api/chat": "💬 채팅 메시지 전송",
+    "POST /api/chat/send": "💬 채팅 메시지 전송",
+    # 에이전트
+    "GET /api/agents": "📋 에이전트 목록 조회",
+    "GET /api/agents/status": "🔵 에이전트 상태 조회",
+    # 자동매매
+    "POST /api/trading/bot/run-now": "🚀 즉시 매매 실행",
+    "POST /api/trading/bot/toggle": "⚡ 자동매매 봇 ON/OFF",
+    "GET /api/trading/portfolio": "💰 포트폴리오 조회",
+    "GET /api/trading/signals": "📊 매매 시그널 조회",
+    "GET /api/trading/watchlist": "👁️ 관심종목 조회",
+    "POST /api/trading/watchlist": "👁️ 관심종목 추가",
+    # KIS
+    "GET /api/kis/balance": "💳 KIS 잔고 조회",
+    "GET /api/kis/status": "🔌 KIS 연결 상태",
+    # 배치
+    "POST /api/batch/chain/start": "⛓️ 배치 체인 시작",
+    "GET /api/batch/chain/status": "⛓️ 배치 체인 상태",
+    # 아카이브
+    "GET /api/archives": "📁 아카이브 조회",
+    # 작업
+    "POST /api/tasks": "📝 작업 생성",
+    "GET /api/tasks": "📝 작업 목록 조회",
+    # 설정
+    "GET /api/settings": "⚙️ 설정 조회",
+    "POST /api/settings": "⚙️ 설정 저장",
+    # 워크플로우
+    "POST /api/workflows/run": "🔄 워크플로우 실행",
+    # 디버그
+    "GET /api/debug/kis-token": "🔍 KIS 토큰 디버그",
+    "GET /api/debug/auto-trading-pipeline": "🔍 자동매매 파이프라인 디버그",
+}
+
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.requests import Request as StarletteRequest
+
+class ActivityLogMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: StarletteRequest, call_next):
+        path = request.url.path
+        method = request.method
+
+        # 노이즈 제외
+        if path in _LOG_SKIP_EXACT or any(path.startswith(p) for p in _LOG_SKIP_PREFIXES):
+            return await call_next(request)
+
+        start = time.time()
+        response = await call_next(request)
+        elapsed = time.time() - start
+
+        # 로그 기록 (비동기 WebSocket broadcast는 startup 이후에만 가능)
+        key = f"{method} {path}"
+        desc = _LOG_DESCRIPTION.get(key, "")
+        status = response.status_code
+        level = "info" if status < 400 else ("warning" if status < 500 else "error")
+
+        # 짧은 요약 생성
+        if desc:
+            action = f"{desc} ({elapsed:.1f}s)"
+        else:
+            action = f"🌐 {method} {path} → {status} ({elapsed:.1f}s)"
+
+        try:
+            log_entry = save_activity_log("system", action, level)
+            # WebSocket broadcast (서버 시작 후에만 동작)
+            clients = globals().get("connected_clients", [])
+            for c in clients[:]:
+                try:
+                    await c.send_json({"event": "activity_log", "data": log_entry})
+                except Exception:
+                    pass
+        except Exception:
+            pass  # 로깅 실패가 요청을 블로킹하면 안 됨
+
+        return response
+
+app.add_middleware(ActivityLogMiddleware)
+
 # ── HTML 서빙 ──
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 TEMPLATE_DIR = os.path.join(BASE_DIR, "templates")
@@ -5080,8 +5164,10 @@ async def _run_trading_now_inner():
     order_size = settings.get("order_size", 0)  # 0 = CIO 비중 자율, >0 = 고정 금액
     orders_triggered = 0
     if True:  # 수동 실행은 항상 매매 진행 (auto_execute 체크 제거)
-        paper_mode = settings.get("paper_trading", True)
-        use_kis = _KIS_AVAILABLE and not paper_mode and _kis_configured()
+        # 수동 실행: KIS가 연결되어 있으면 실제 주문 (paper_trading 설정 무시)
+        # CEO가 "즉시 분석·매매결정" 버튼을 누른 것 = 매매 의사 명시적 표시
+        use_kis = _KIS_AVAILABLE and _kis_configured()
+        paper_mode = not use_kis  # KIS 사용 불가할 때만 가상 모드
 
         # CIO 비중 기반 매수(B안): order_size=0이면 잔고×비중으로 자동 산출
         account_balance = 0
@@ -5902,6 +5988,151 @@ async def debug_trading_holdings():
             "updated_at": portfolio.get("updated_at"),
         },
         "recent_buys": recent_buys[:10],
+    }
+
+
+@app.get("/api/debug/kis-token")
+async def debug_kis_token():
+    """KIS 토큰 상태 디버그 — 토큰 유효성, 만료시간, 캐시 상태, 쿨다운."""
+    info = {"kis_available": _KIS_AVAILABLE, "configured": False}
+    if not _KIS_AVAILABLE:
+        info["error"] = "kis_client 모듈 로드 실패"
+        return info
+    try:
+        from kis_client import (
+            is_configured, KIS_IS_MOCK, KIS_BASE,
+            _token_cache, _last_token_request, _TOKEN_COOLDOWN_SEC,
+            _last_balance_cache, _last_mock_balance_cache,
+            KIS_ACCOUNT_NO, KIS_ACCOUNT_CODE,
+        )
+        info["configured"] = is_configured()
+        info["is_mock"] = KIS_IS_MOCK
+        info["base_url"] = KIS_BASE
+        info["account"] = f"{KIS_ACCOUNT_NO[:4]}****-{KIS_ACCOUNT_CODE}" if KIS_ACCOUNT_NO else "미설정"
+
+        # 토큰 상태
+        now = datetime.now()
+        token = _token_cache.get("token")
+        expires = _token_cache.get("expires")
+        if token and expires:
+            remaining = (expires - now).total_seconds()
+            info["token"] = {
+                "status": "유효" if remaining > 0 else "만료됨",
+                "masked": f"{token[:8]}...{token[-4:]}" if token else None,
+                "expires": expires.isoformat() if expires else None,
+                "remaining_seconds": max(0, int(remaining)),
+                "remaining_human": f"{int(remaining // 3600)}시간 {int((remaining % 3600) // 60)}분" if remaining > 0 else "만료됨",
+            }
+        else:
+            info["token"] = {"status": "토큰 없음 (아직 발급되지 않았거나 서버 재시작됨)"}
+
+        # 쿨다운 상태
+        if _last_token_request:
+            elapsed = (now - _last_token_request).total_seconds()
+            cooldown_remaining = max(0, _TOKEN_COOLDOWN_SEC - elapsed)
+            info["cooldown"] = {
+                "last_request": _last_token_request.isoformat(),
+                "elapsed_seconds": int(elapsed),
+                "remaining_seconds": int(cooldown_remaining),
+                "can_request": cooldown_remaining <= 0,
+            }
+        else:
+            info["cooldown"] = {"last_request": None, "can_request": True}
+
+        # 잔고 캐시 상태
+        info["balance_cache"] = {
+            "real_cached": bool(_last_balance_cache),
+            "mock_cached": bool(_last_mock_balance_cache),
+            "real_total_krw": _last_balance_cache.get("total_krw") if _last_balance_cache else None,
+            "mock_total_krw": _last_mock_balance_cache.get("total_krw") if _last_mock_balance_cache else None,
+        }
+    except Exception as e:
+        info["error"] = str(e)
+    return info
+
+
+@app.get("/api/debug/auto-trading-pipeline")
+async def debug_auto_trading_pipeline():
+    """자동매매 전체 파이프라인 디버그 — KIS 연결부터 주문 실행까지 전 단계."""
+    settings = _load_data("trading_settings", _default_trading_settings())
+    signals = _load_data("trading_signals", [])
+    watchlist = _load_data("trading_watchlist", [])
+    history = _load_data("trading_history", [])
+
+    # KIS 연결 상태
+    kis_ok = _KIS_AVAILABLE and _kis_configured()
+
+    # AI 연결 상태
+    providers = get_available_providers()
+
+    # 최근 시그널
+    latest = signals[0] if signals else {}
+    parsed = latest.get("parsed_signals", [])
+    buy_signals = [s for s in parsed if s.get("action") == "buy"]
+    sell_signals = [s for s in parsed if s.get("action") == "sell"]
+
+    # 파이프라인 단계별 상태
+    pipeline = {
+        "1_ai_connection": {
+            "status": "OK" if any(providers.values()) else "FAIL",
+            "providers": {k: "연결됨" if v else "미연결" for k, v in providers.items()},
+        },
+        "2_watchlist": {
+            "status": "OK" if watchlist else "FAIL",
+            "count": len(watchlist),
+            "tickers": [f"{w['name']}({w['ticker']})" for w in watchlist[:5]],
+        },
+        "3_signal_generation": {
+            "status": "OK" if signals else "FAIL",
+            "latest_date": latest.get("date", "없음"),
+            "analyzed_by": latest.get("analyzed_by", "없음"),
+            "buy_count": len(buy_signals),
+            "sell_count": len(sell_signals),
+            "hold_count": len([s for s in parsed if s.get("action") == "hold"]),
+        },
+        "4_kis_connection": {
+            "status": "OK" if kis_ok else "FAIL",
+            "kis_available": _KIS_AVAILABLE,
+            "kis_configured": _kis_configured() if _KIS_AVAILABLE else False,
+            "is_mock": KIS_IS_MOCK,
+        },
+        "5_order_execution": {
+            "status": "OK" if kis_ok else "BLOCKED",
+            "paper_trading": settings.get("paper_trading", True),
+            "auto_execute": settings.get("auto_execute", False),
+            "note": "수동 즉시실행(버튼)은 paper_trading 무시하고 KIS 실주문 (2026-02-21 수정)",
+            "min_confidence": settings.get("min_confidence", 65),
+            "order_size": settings.get("order_size", 0),
+        },
+        "6_recent_orders": {
+            "count": len(history),
+            "last_5": [{
+                "date": h.get("date", ""),
+                "ticker": h.get("ticker", ""),
+                "action": h.get("action", ""),
+                "status": h.get("status", ""),
+            } for h in history[:5]],
+        },
+    }
+
+    # 전체 판정
+    all_ok = all(
+        pipeline[k]["status"] == "OK"
+        for k in ["1_ai_connection", "2_watchlist", "4_kis_connection"]
+    )
+
+    return {
+        "overall": "READY" if all_ok else "NOT READY",
+        "pipeline": pipeline,
+        "quick_diagnosis": (
+            "모든 단계 정상 — 즉시분석 버튼으로 매매 가능"
+            if all_ok else
+            " / ".join([
+                f"[{k}] {pipeline[k]['status']}"
+                for k in pipeline
+                if pipeline[k]["status"] != "OK"
+            ])
+        ),
     }
 
 
@@ -7783,8 +8014,8 @@ async def _start_telegram_bot() -> None:
                         content = content[:3900] + "\n\n... (결과가 잘렸습니다. 웹에서 전체 확인)"
                     delegation = result.get("delegation", "")
                     model_short = model.split("-")[1] if "-" in model else model
-                    # 비서실장 위임 표시: "비서실장 → CTO" 또는 "비서실장"
-                    footer_who = delegation if delegation else "비서실장"
+                    # 담당자 표시: 처장 이름 또는 비서실장
+                    footer_who = result.get("handled_by") or delegation or "비서실장"
                     await update.message.reply_text(
                         f"{content}\n\n"
                         f"─────\n"
@@ -9572,14 +9803,12 @@ async def _process_ai_command(text: str, task_id: str, target_agent_id: str | No
         result["total_cost_usd"] = total_cost
         return result
 
-    # 5) 부서 위임 — 비서실장 → 처장 → 전문가
+    # 5) 부서 위임 — 처장 → 전문가 (비서실장은 중계만 — 상태 표시 안 함)
     target_name = _AGENT_NAMES.get(target_id, target_id)
-    await _broadcast_status("chief_of_staff", "working", 0.1, f"{target_name}에게 위임 중...")
+    # 비서실장은 중계 역할만 하므로 상태 표시등 켜지 않음 (CEO 혼란 방지)
 
     # 처장이 자기 전문가를 호출 → 결과 검수 → 종합 보고서
     delegation_result = await _manager_with_delegation(target_id, text)
-
-    await _broadcast_status("chief_of_staff", "done", 1.0, "위임 완료")
 
     if "error" in delegation_result:
         update_task(task_id, status="failed",
@@ -9591,9 +9820,9 @@ async def _process_ai_command(text: str, task_id: str, target_agent_id: str | No
     # 6) 결과 정리
     total_cost = routing_cost + delegation_result.get("cost_usd", 0)
     specs_used = delegation_result.get("specialists_used", 0)
-    delegation_label = f"비서실장 → {target_name}"
+    delegation_label = target_name
     if specs_used:
-        delegation_label += f" → 전문가 {specs_used}명"
+        delegation_label += f" + 전문가 {specs_used}명"
 
     content = delegation_result.get("content", "")
     header = f"📋 **{target_name}** 보고"
@@ -9858,9 +10087,10 @@ async def on_startup():
     _init_tool_pool()
     # cross_agent_protocol 실시간 콜백 등록
     try:
-        from src.tools.cross_agent_protocol import register_call_agent, register_sse_broadcast
+        from src.tools.cross_agent_protocol import register_call_agent, register_sse_broadcast, register_valid_agents
         register_call_agent(_call_agent)
         register_sse_broadcast(_broadcast_comms)
+        register_valid_agents([a["agent_id"] for a in AGENTS])
         _log("[P2P] cross_agent_protocol 콜백 등록 완료 ✅ (에이전트 호출 + SSE broadcast)")
     except Exception as e:
         _log(f"[P2P] cross_agent_protocol 콜백 등록 실패: {e}")
