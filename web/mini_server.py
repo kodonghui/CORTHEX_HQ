@@ -171,7 +171,7 @@ app = FastAPI(title="CORTHEX HQ")
 
 # ── 전체 활동 로깅 미들웨어 (CEO 요청: 웹에서 일어나는 일 전부 로그) ──
 # 정적 파일, 헬스체크 등 노이즈를 제외한 모든 API 요청을 activity_log에 기록
-_LOG_SKIP_PREFIXES = ("/static", "/favicon", "/deploy-status", "/ws")
+_LOG_SKIP_PREFIXES = ("/static", "/favicon", "/deploy-status", "/ws", "/api/comms")
 _LOG_SKIP_EXACT = {"/", "/api/health", "/api/agents/status", "/api/dashboard/stats",
                    "/api/activity-logs", "/api/batch/chain/status"}
 _LOG_DESCRIPTION: dict[str, str] = {
@@ -4691,9 +4691,22 @@ async def generate_trading_signals():
     cio_soul = _load_agent_prompt("cio_manager")
     cio_solo_model = select_model(cio_solo_prompt, override=_get_model_override("cio_manager"))
     save_activity_log("cio_manager", "📊 CIO 독자 분석 시작 (전문가 위임 전 독립 판단)", "info")
+    # CIO 독자 분석 → 교신 로그에도 기록 (위임 전 독립 판단)
+    try:
+        from db import save_delegation_log as _sdl
+        _sdl(sender="투자분석처장 (CIO)", receiver="CIO 독자 분석", message="전문가 위임 전 독립 판단 시작", log_type="delegation")
+    except Exception:
+        pass
     cio_solo_result = await ask_ai(cio_solo_prompt, system_prompt=cio_soul, model=cio_solo_model)
     cio_solo_content = cio_solo_result.get("content", "") if isinstance(cio_solo_result, dict) else ""
     cio_solo_cost = cio_solo_result.get("cost_usd", 0) if isinstance(cio_solo_result, dict) else 0
+    # CIO 독자 분석 결과 → 교신 로그에 기록
+    try:
+        _solo_preview = cio_solo_content[:300] if cio_solo_content else "분석 결과 없음"
+        _sdl(sender="CIO 독자 분석", receiver="투자분석처장 (CIO)", message=_solo_preview, log_type="report")
+        await _broadcast_comms({"id": f"cio_solo_{datetime.now(KST).strftime('%H%M%S')}", "sender": "CIO 독자 분석", "receiver": "투자분석처장 (CIO)", "message": _solo_preview, "log_type": "report", "source": "delegation", "created_at": datetime.now(KST).isoformat()})
+    except Exception:
+        pass
 
     # 2단계: 전문가 4명 병렬 분석 + CIO 종합 (기존 흐름)
     # 최종 종합 프롬프트에 CIO 독자 분석을 포함시켜 위임
@@ -4720,7 +4733,7 @@ async def generate_trading_signals():
         "tickers": [w["ticker"] for w in watchlist[:10]],
         "parsed_signals": parsed_signals,
         "strategy": "cio_analysis",
-        "analyzed_by": f"CIO + 전문가 {specialists_used}명",
+        "analyzed_by": f"CIO 포함 {specialists_used + 1}명",
         "cost_usd": cost,
     }
     signals.insert(0, new_signal)
@@ -5180,7 +5193,7 @@ async def _run_trading_now_inner():
         "tickers": [w["ticker"] for w in market_watchlist[:10]],
         "parsed_signals": parsed_signals,
         "strategy": "cio_manual_analysis",
-        "analyzed_by": f"CIO + 전문가 {cio_result.get('specialists_used', 0)}명 (수동 실행)",
+        "analyzed_by": f"CIO 포함 {cio_result.get('specialists_used', 0) + 1}명 (수동 실행)",
         "cost_usd": cost,
         "auto_bot": False,
         "manual_run": True,
@@ -5222,6 +5235,9 @@ async def _run_trading_now_inner():
             save_activity_log("cio_manager",
                 f"CIO 비중 모드: 계좌잔고 {account_balance:,.0f}원 기준 자동 주수 산출", "info")
 
+        save_activity_log("cio_manager",
+            f"📋 매매 실행 시작: 시그널 {len(parsed_signals)}건, 최소신뢰도 {min_confidence}%, order_size={order_size}, KIS={use_kis}", "info")
+
         for sig in parsed_signals:
             if sig["action"] not in ("buy", "sell"):
                 continue
@@ -5235,6 +5251,9 @@ async def _run_trading_now_inner():
             ticker = sig["ticker"]
             sig_market = sig.get("market", market)
             is_us = sig_market.upper() in ("US", "USA", "OVERSEAS") or (ticker.isalpha() and len(ticker) <= 5)
+            action_kr = "매수" if sig["action"] == "buy" else "매도"
+            save_activity_log("cio_manager",
+                f"🎯 {action_kr} 시도: {sig.get('name', ticker)} ({ticker}) 신뢰도 {effective_conf:.0f}% 비중 {sig.get('weight', 0)}%", "info")
 
             try:
                 # 현재가 조회
@@ -5242,19 +5261,23 @@ async def _run_trading_now_inner():
                     if _KIS_AVAILABLE and _kis_configured():
                         us_price_data = await _kis_us_price(ticker)
                         price = us_price_data.get("price", 0) if us_price_data.get("success") else 0
+                        save_activity_log("cio_manager", f"  💵 {ticker} 현재가: ${price:.2f} (KIS 조회)", "info")
                     else:
                         target_w = next((w for w in market_watchlist if w.get("ticker", "").upper() == ticker.upper()), None)
                         price = float(target_w.get("target_price", 0)) if target_w else 0
                     if price <= 0:
-                        save_activity_log("cio_manager", f"[수동/US] {ticker} 현재가 조회 실패 — 건너뜀", "warning")
+                        save_activity_log("cio_manager", f"[수동/US] {ticker} 현재가 조회 실패 (price={price}) — 건너뜀", "warning")
                         continue
                     _fx = 1450
                     try:
                         _fx = load_setting("fx_rate_usd_krw", 1450)
                     except Exception:
                         pass
-                    _order_amt = order_size if order_size > 0 else int(account_balance * _get_signal_weight(sig, effective_conf))
+                    _sig_weight = _get_signal_weight(sig, effective_conf)
+                    _order_amt = order_size if order_size > 0 else int(account_balance * _sig_weight)
                     qty = max(1, int(_order_amt / (price * _fx)))
+                    save_activity_log("cio_manager",
+                        f"  📐 주문 계산: 잔고 {account_balance:,.0f}원 × 비중 {_sig_weight:.1%} = {_order_amt:,.0f}원 → ${price:.2f} × ₩{_fx:.0f} = {qty}주", "info")
                 else:
                     if _KIS_AVAILABLE and _kis_configured():
                         price = await _kis_price(ticker)
@@ -5268,15 +5291,18 @@ async def _run_trading_now_inner():
 
                 if use_kis:
                     mode_str = "실거래" if not KIS_IS_MOCK else "모의투자(KIS)"
-                    action_kr = "매수" if sig["action"] == "buy" else "매도"
+                    save_activity_log("cio_manager",
+                        f"  🚀 KIS 주문 전송: {action_kr} {ticker} {qty}주 @ {'$'+str(round(price,2)) if is_us else str(price)+'원'} ({mode_str})", "info")
                     if is_us:
                         order_result = await _kis_us_order(ticker, sig["action"], qty, price=price)
                     else:
                         order_result = await _kis_order(ticker, sig["action"], qty, price=0)
+                    save_activity_log("cio_manager",
+                        f"  📨 KIS 응답: success={order_result.get('success')}, msg={order_result.get('message', '')[:100]}", "info")
                     if order_result["success"]:
                         orders_triggered += 1
                         save_activity_log("cio_manager",
-                            f"[수동/{mode_str}] {action_kr}: {sig.get('name', ticker)} {qty}주 (신뢰도 {effective_conf:.0f}%)",
+                            f"✅ [수동/{mode_str}] {action_kr} 성공: {sig.get('name', ticker)} {qty}주 (신뢰도 {effective_conf:.0f}%)",
                             "info")
                         history = _load_data("trading_history", [])
                         history.insert(0, {
@@ -5292,7 +5318,7 @@ async def _run_trading_now_inner():
                         _save_data("trading_history", history)
                     else:
                         save_activity_log("cio_manager",
-                            f"[수동/{mode_str}] 주문 실패: {sig.get('name', ticker)} — {order_result['message']}", "warning")
+                            f"❌ [수동/{mode_str}] 주문 실패: {sig.get('name', ticker)} — {order_result.get('message', '원인 불명')}", "error")
                 else:
                     # 가상 포트폴리오 (paper trading)
                     portfolio = _load_data("trading_portfolio", _default_portfolio())
@@ -5355,8 +5381,10 @@ async def _run_trading_now_inner():
                             save_activity_log("cio_manager",
                                 f"[수동/가상] 매도: {sig.get('name', ticker)} {sell_qty}주 x {price:,.0f}원 (손익 {pnl_str})", "info")
             except Exception as order_err:
-                logger.error("[수동 분석] 자동주문 오류 (%s): %s", ticker, order_err)
-                save_activity_log("cio_manager", f"[수동] 주문 오류: {ticker} — {order_err}", "warning")
+                import traceback
+                _tb = traceback.format_exc()
+                logger.error("[수동 분석] 자동주문 오류 (%s): %s\n%s", ticker, order_err, _tb)
+                save_activity_log("cio_manager", f"❌ [수동] 주문 오류: {ticker} — {order_err}", "error")
 
     save_activity_log("cio_manager",
         f"✅ 수동 분석 완료: {len(parsed_signals)}개 시그널 (주문 {orders_triggered}건, 비용 ${cost:.4f})", "info")
@@ -5523,7 +5551,7 @@ async def _trading_bot_loop():
                 "tickers": [w["ticker"] for w in market_watchlist[:10]],
                 "parsed_signals": parsed_signals,
                 "strategy": "cio_bot_analysis",
-                "analyzed_by": f"CIO + 전문가 {cio_result.get('specialists_used', 0)}명",
+                "analyzed_by": f"CIO 포함 {cio_result.get('specialists_used', 0) + 1}명",
                 "cost_usd": cost,
                 "auto_bot": True,
             }
@@ -8878,9 +8906,10 @@ async def _manager_with_delegation(manager_id: str, text: str) -> dict:
     await _broadcast_status(manager_id, "done", 1.0, "보고 완료")
 
     if "error" in synthesis:
-        # 종합 실패 시 전문가 결과만 반환
+        # 종합 실패 시 전문가 결과만 반환 (specialists_used 포함!)
+        _spec_ok = len([r for r in spec_results if "error" not in r])
         content = f"**{mgr_name} 전문가 분석 결과**\n\n" + "\n\n---\n\n".join(spec_parts)
-        return {"agent_id": manager_id, "name": mgr_name, "content": content, "cost_usd": spec_cost}
+        return {"agent_id": manager_id, "name": mgr_name, "content": content, "cost_usd": spec_cost, "specialists_used": _spec_ok}
 
     total_cost = spec_cost + synthesis.get("cost_usd", 0)
     specialists_used = len([r for r in spec_results if "error" not in r])
