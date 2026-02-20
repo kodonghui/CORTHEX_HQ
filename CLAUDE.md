@@ -135,5 +135,10 @@
 - 같은 파일 두 팀원 동시 수정 금지 | 서브에이전트 git 명령어 금지
 - 전수검사 시 → `docs/inspection-protocol.md` 참조
 
+## CEO 문서 (논의/기록용)
+- `docs/ceo-ideas.md` — CEO 아이디어 & 기여 로그 (대화체 + 카드형). **CEO 아이디어/버그 발견 시 자동 업데이트 필수**
+- `docs/monetization.md` — 수익화 논의
+- `docs/defining-age.md` — "Defining Age" 패러다임 + 대화체 콘텐츠
+
 ## 환경 설정
 - gh CLI 없으면 세션 시작 시 설치
