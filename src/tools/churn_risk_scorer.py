@@ -146,16 +146,56 @@ class ChurnRiskScorerTool(BaseTool):
         # 등급 판정
         risk_level = self._classify_risk(churn_score)
 
-        # 이탈 확률 (로지스틱 변환)
-        churn_probability = 1 / (1 + math.exp(-(churn_score - 50) / 15))
+        # ── Cox PH 영감 위험 함수 (Cox, 1972) ──
+        # h(t) = h₀ × exp(Σ βᵢ × xᵢ)
+        # h₀ = baseline hazard (월간 기준 이탈률 5%)
+        baseline_hazard = 0.05
 
-        # 예상 잔존 기간 (지수 분포 가정)
-        hazard_rate = churn_probability / 30  # 월간 위험률 근사
-        expected_months = 1 / hazard_rate if hazard_rate > 0 else 999
+        # 각 인자의 β 계수 = RISK_WEIGHTS의 weight, 정규화된 인자값으로 선형 결합
+        cox_linear_predictor = 0.0
+        se_components = []  # 표준오차 추정용
+        for factor_name, config in self.RISK_WEIGHTS.items():
+            beta = config["weight"]  # β 계수
+            value = inputs.get(factor_name, 0)
+            # 인자값을 0~1 정규화 (threshold 기반 보간 결과 활용)
+            normalized = self._interpolate_risk(value, config["thresholds"])
+            normalized = max(0.0, min(1.0, normalized))
+            cox_linear_predictor += beta * normalized * 5.0  # 스케일링
+            # SE 성분: β² × Var(x) 근사 (분산 = normalized × (1-normalized))
+            var_approx = normalized * (1 - normalized) + 0.01
+            se_components.append((beta * 5.0) ** 2 * var_approx)
+
+        # 위험 함수 (hazard rate)
+        hazard = baseline_hazard * math.exp(cox_linear_predictor)
+
+        # P(다음 달 이탈) = 1 - exp(-hazard)  (생존함수 S(t) = exp(-H(t)))
+        churn_probability = 1.0 - math.exp(-hazard)
+        churn_probability = max(0.0, min(1.0, churn_probability))
+
+        # ── 신뢰구간: ±1 SE (정규 근사) ──
+        se_linear = math.sqrt(sum(se_components)) if se_components else 0.1
+        hazard_upper = baseline_hazard * math.exp(cox_linear_predictor + se_linear)
+        hazard_lower = baseline_hazard * math.exp(cox_linear_predictor - se_linear)
+        prob_upper = min(1.0, 1.0 - math.exp(-hazard_upper))
+        prob_lower = max(0.0, 1.0 - math.exp(-hazard_lower))
+
+        # 예상 잔존 기간 (지수 분포: E[T] = 1/hazard)
+        expected_months = 1.0 / hazard if hazard > 0 else 999.0
 
         result = {
             "churn_score": round(churn_score, 1),
             "churn_probability": f"{churn_probability*100:.1f}%",
+            "churn_probability_ci": {
+                "lower": f"{prob_lower*100:.1f}%",
+                "upper": f"{prob_upper*100:.1f}%",
+                "confidence": "68% (±1 SE)",
+            },
+            "cox_ph_details": {
+                "baseline_hazard": baseline_hazard,
+                "linear_predictor": round(cox_linear_predictor, 4),
+                "hazard_rate": round(hazard, 6),
+                "method": "Cox Proportional Hazards (Cox, 1972) 영감 — h(t) = h₀ × exp(Σ βᵢxᵢ)",
+            },
             "risk_level": risk_level,
             "expected_remaining_months": round(min(expected_months, 60), 1),
             "factor_breakdown": factor_scores,

@@ -37,6 +37,9 @@ from src.tools.base import BaseTool
 
 logger = logging.getLogger("corthex.tools.stakeholder_mapper")
 
+# 타입 힌트 편의용
+_ConnectionMap = dict[str, list[str]]
+
 
 # ═══════════════════════════════════════════════════════
 #  유틸리티 함수
@@ -309,6 +312,9 @@ class StakeholderMapperTool(BaseTool):
             return {"status": "error", "message": "최소 2명의 이해관계자가 필요합니다."}
 
         name_set = {sh.get("name", "") for sh in stakeholders}
+
+        # ── 1단계: 각 노드별 유효 연결 + 연결 맵 구축 ──
+        node_connections: dict[str, list[str]] = {}  # 이름 → 유효 연결 리스트
         results = []
 
         for sh in stakeholders:
@@ -319,10 +325,8 @@ class StakeholderMapperTool(BaseTool):
 
             # Degree centrality: 유효 연결 수 / (n-1)
             valid_connections = [c for c in connections if c in name_set and c != name]
+            node_connections[name] = valid_connections
             degree_centrality = round(len(valid_connections) / (n - 1), 4) if n > 1 else 0.0
-
-            # 가중 중심성 (영향력 유형 반영)
-            weighted_centrality = round(degree_centrality * type_weight, 4)
 
             results.append({
                 "name": name,
@@ -331,11 +335,76 @@ class StakeholderMapperTool(BaseTool):
                 "connections": valid_connections,
                 "connection_count": len(valid_connections),
                 "degree_centrality": degree_centrality,
-                "weighted_centrality": weighted_centrality,
+                "type_weight": type_weight,
             })
+
+        # ── 2단계: 매개 중심성 (Betweenness Centrality) 계산 ──
+        # 간략화된 매개 중심성: 노드 k가 i와 j 사이의 "다리" 역할을 하는 횟수
+        # 조건: k가 i, j 모두와 연결되어 있지만, i와 j는 직접 연결되지 않은 경우 → k에 +1
+        all_names = list(node_connections.keys())
+        betweenness_raw: dict[str, int] = {name: 0 for name in all_names}
+
+        for i_idx in range(len(all_names)):
+            for j_idx in range(i_idx + 1, len(all_names)):
+                node_i = all_names[i_idx]
+                node_j = all_names[j_idx]
+                # i와 j가 직접 연결되어 있는지 확인
+                i_conns = set(node_connections.get(node_i, []))
+                j_conns = set(node_connections.get(node_j, []))
+                directly_connected = node_j in i_conns or node_i in j_conns
+
+                if not directly_connected:
+                    # i와 j 모두에 연결된 노드 k를 찾으면 → k가 다리 역할
+                    for k_name in all_names:
+                        if k_name == node_i or k_name == node_j:
+                            continue
+                        k_conns = set(node_connections.get(k_name, []))
+                        # k가 i, j 모두와 연결 (양방향 중 하나라도)
+                        k_to_i = node_i in k_conns or k_name in i_conns
+                        k_to_j = node_j in k_conns or k_name in j_conns
+                        if k_to_i and k_to_j:
+                            betweenness_raw[k_name] += 1
+
+        # 정규화: 최대 가능 쌍 수 = (n-1)(n-2)/2
+        max_pairs = (n - 1) * (n - 2) / 2 if n > 2 else 1.0
+        betweenness_normalized: dict[str, float] = {
+            name: round(count / max_pairs, 4) for name, count in betweenness_raw.items()
+        }
+
+        # ── 3단계: 가중 중심성 = degree 50% + betweenness 30% + type_weight 20% ──
+        for r in results:
+            name = r["name"]
+            r["betweenness_raw"] = betweenness_raw.get(name, 0)
+            r["betweenness_centrality"] = betweenness_normalized.get(name, 0.0)
+            r["weighted_centrality"] = round(
+                r["degree_centrality"] * 0.5
+                + r["betweenness_centrality"] * 0.3
+                + r["type_weight"] * 0.2,
+                4,
+            )
+            # 브릿지 노드 판별: 매개 중심성 높고 연결도 중간 (상위 50% 이하)
+            # (정렬 후 최종 판별)
 
         # 중심성 기준 정렬
         results.sort(key=lambda x: -x["weighted_centrality"])
+
+        # ── 4단계: 브릿지 노드 식별 ──
+        # 브릿지 = 매개 중심성이 중앙값 이상 + 연결도가 중앙값 이하 → 핵심 연결자
+        degree_values = sorted([r["degree_centrality"] for r in results])
+        between_values = sorted([r["betweenness_centrality"] for r in results])
+        degree_median = degree_values[len(degree_values) // 2] if degree_values else 0
+        between_median = between_values[len(between_values) // 2] if between_values else 0
+
+        bridge_nodes = []
+        for r in results:
+            is_bridge = (
+                r["betweenness_centrality"] > between_median
+                and r["degree_centrality"] <= degree_median
+                and r["betweenness_raw"] > 0
+            )
+            r["is_bridge"] = is_bridge
+            if is_bridge:
+                bridge_nodes.append(r["name"])
 
         # 상위 20% = 핵심 허브
         hub_threshold = max(1, math.ceil(n * 0.2))
@@ -363,20 +432,28 @@ class StakeholderMapperTool(BaseTool):
         network_summary = {
             "total_nodes": n,
             "hubs": hubs,
+            "bridge_nodes": bridge_nodes,
             "hub_ratio": round(len(hubs) / n * 100, 1),
-            "avg_centrality": round(_mean([r["weighted_centrality"] for r in results]), 4),
+            "avg_degree_centrality": round(_mean([r["degree_centrality"] for r in results]), 4),
+            "avg_betweenness_centrality": round(_mean([r["betweenness_centrality"] for r in results]), 4),
+            "avg_weighted_centrality": round(_mean([r["weighted_centrality"] for r in results]), 4),
             "max_centrality": results[0]["weighted_centrality"] if results else 0.0,
+            "centrality_formula": "degree×0.5 + betweenness×0.3 + type_weight×0.2",
             "influence_paths_count": len(influence_paths),
         }
 
         llm = await self._llm_call(
             "당신은 조직 네트워크 분석(ONA) 전문가입니다. 영향력 네트워크 결과를 해석하세요.",
-            f"아래 이해관계자 네트워크 분석 결과를 해석하고, 핵심 허브 활용 전략을 한국어로 정리해주세요.\n\n"
-            f"허브: {hubs}\n비허브: {non_hubs}\n간접 영향 경로: {influence_paths}\n"
-            f"네트워크 요약: {network_summary}"
+            f"아래 이해관계자 네트워크 분석 결과를 해석하고, 핵심 허브 및 브릿지 노드 활용 전략을 한국어로 정리해주세요.\n\n"
+            f"허브 (높은 가중 중심성): {hubs}\n"
+            f"브릿지 노드 (높은 매개 중심성, 중간 연결도 — 핵심 연결자): {bridge_nodes}\n"
+            f"비허브: {non_hubs}\n간접 영향 경로: {influence_paths}\n"
+            f"네트워크 요약: {network_summary}\n\n"
+            f"브릿지 노드를 잃으면 네트워크가 분절되므로, 이들의 관리가 특히 중요합니다."
         )
 
         return {"status": "success", "analysis": "influence", "results": results,
+                "bridge_nodes": bridge_nodes,
                 "influence_paths": influence_paths, "network_summary": network_summary,
                 "llm_interpretation": llm}
 

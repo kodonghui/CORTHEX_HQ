@@ -221,8 +221,27 @@ class GrowthForecaster(BaseTool):
         if current_users <= 0 or market_size <= 0:
             return "S-curve 분석: current_users(현재 사용자), market_size(시장 규모)를 입력하세요."
 
+        # ── 성장률 자동 추정 (growth_rate가 0 이하이면 데이터 기반 추정) ──
+        growth_rate_source = "사용자 입력"
         if growth_rate <= 0:
-            growth_rate = 0.5  # 기본 50%
+            penetration_check = current_users / market_size
+            if 0 < penetration_check < 1 and current_year > 0:
+                # 로지스틱 역산: r = ln(N / (K - N)) / t  (변곡점이 t=0일 때)
+                # 현재 위치에서 성장률 추정: 침투율이 시간에 비해 어느 정도인지
+                try:
+                    # logit(penetration) = r * (t - t0) → 최소 추정으로 r 도출
+                    logit_val = math.log(current_users / (market_size - current_users))
+                    # t0 = 0 가정 시 r ≈ logit(penetration) / current_year
+                    estimated_r = abs(logit_val / current_year) if current_year > 0 else 0.5
+                    # 범위 제한: 0.1 ~ 2.0 (비현실적 값 방지)
+                    growth_rate = max(0.1, min(2.0, estimated_r))
+                    growth_rate_source = f"데이터 기반 자동 추정 (logit 역산, current_year={current_year})"
+                except (ValueError, ZeroDivisionError):
+                    growth_rate = 0.5
+                    growth_rate_source = "기본값 (자동 추정 불가)"
+            else:
+                growth_rate = 0.5  # 기본 50%
+                growth_rate_source = "기본값 (데이터 부족)"
 
         # 로지스틱 S-curve: N(t) = K / (1 + e^(-r*(t-t0)))
         # K = market_size, r = growth_rate
@@ -237,11 +256,29 @@ class GrowthForecaster(BaseTool):
         # 변곡점 (S-curve 가속→감속 전환) = t0 (침투율 50%)
         inflection_year = round(t0)
 
+        # ── 시장 침투 소요 시간 계산 (Time-to-Market Milestones) ──
+        # N(t) = K / (1 + e^(-r*(t-t0))) → t = t0 - ln(K/N - 1) / r
+        time_to_market: dict[str, Any] = {}
+        for target_pct, target_label in [(50, "50%"), (75, "75%"), (90, "90%")]:
+            target_n = market_size * target_pct / 100
+            if 0 < target_n < market_size:
+                try:
+                    t_target = t0 - math.log(market_size / target_n - 1) / growth_rate
+                    years_from_now = t_target - current_year
+                    time_to_market[target_label] = {
+                        "target_year": round(t_target, 1),
+                        "years_from_now": round(max(0, years_from_now), 1),
+                        "target_users": int(target_n),
+                        "achieved": years_from_now <= 0,
+                    }
+                except (ValueError, ZeroDivisionError):
+                    time_to_market[target_label] = {"error": "계산 불가"}
+
         lines = [
             "### S-curve (로지스틱 성장 곡선)",
             "",
             f"**현재 위치:** {current_users:,}명 / {market_size:,}명 (침투율 {penetration:.1%})",
-            f"**성장률(r):** {growth_rate:.2f}",
+            f"**성장률(r):** {growth_rate:.2f} ({growth_rate_source})",
             f"**변곡점 예상:** {inflection_year}년차 (침투율 50% 시점)",
             "",
             "| 연도 | 예상 사용자 | 침투율 | 성장 단계 |",
@@ -282,6 +319,25 @@ class GrowthForecaster(BaseTool):
             bar = "█" * bar_len + "░" * (50 - bar_len)
             marker = "◀" if t == current_year else " "
             lines.append(f"  {t:2d}년 [{bar}] {users/market_size:.0%} {marker}")
+
+        # ── 시장 침투 소요 시간 테이블 ──
+        if time_to_market:
+            lines.extend([
+                "",
+                "### 시장 침투 소요 시간 (Time-to-Market)",
+                "",
+                "| 목표 침투율 | 목표 사용자 수 | 도달 시점 | 남은 기간 | 상태 |",
+                "|-----------|-------------|---------|---------|------|",
+            ])
+            for label, info in time_to_market.items():
+                if "error" in info:
+                    lines.append(f"| {label} | - | - | - | 계산 불가 |")
+                else:
+                    status = "✅ 달성" if info["achieved"] else f"⏳ {info['years_from_now']}년 후"
+                    lines.append(
+                        f"| {label} | {info['target_users']:,}명 | "
+                        f"{info['target_year']}년차 | {info['years_from_now']}년 | {status} |"
+                    )
 
         lines.extend([
             "",

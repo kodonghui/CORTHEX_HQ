@@ -63,13 +63,14 @@ class SwotQuantifier(BaseTool):
             "tows": self._tows_strategy,
             "priority": self._priority_eval,
             "benchmark": self._benchmark,
+            "vrio": self._vrio_analysis,
         }
         handler = actions.get(action)
         if handler:
             return await handler(kwargs)
         return (
             f"알 수 없는 action: {action}. "
-            "full, score, ife_efe, tows, priority, benchmark 중 하나를 사용하세요."
+            "full, score, ife_efe, tows, priority, benchmark, vrio 중 하나를 사용하세요."
         )
 
     # ── 파싱 헬퍼 ──────────────────────────────────────
@@ -124,6 +125,7 @@ class SwotQuantifier(BaseTool):
         ife = await self._ife_efe_matrix(p)
         tows = await self._tows_strategy(p)
         prio = await self._priority_eval(p)
+        vrio = await self._vrio_analysis(p)
 
         lines = [
             "# 🎯 SWOT 정량 분석 종합 보고서",
@@ -131,6 +133,7 @@ class SwotQuantifier(BaseTool):
             "", "## 2. IFE/EFE 매트릭스", ife,
             "", "## 3. TOWS 교차 전략", tows,
             "", "## 4. 전략 우선순위", prio,
+            "", "## 5. VRIO 분석", vrio,
             "", "---",
             "학술 참고: David (2023), Weihrich TOWS (1982), Barney VRIO (2014)",
         ]
@@ -454,4 +457,158 @@ class SwotQuantifier(BaseTool):
             "",
             "📌 **핵심**: 가중치(W) 합계는 카테고리별로 1.0이어야 합니다.",
             "📌 **TOWS**: SO 전략이 최우선, WT 전략은 최후의 수단입니다.",
+        ])
+
+    # ── VRIO: 자원 기반 경쟁우위 분석 ─────────────────────
+
+    async def _vrio_analysis(self, p: dict) -> str:
+        """VRIO 분석 — Barney (2014) 자원기반관점(RBV) 프레임워크.
+
+        VRIO = Value(가치) × Rarity(희소성) × Imitability(모방불가성) × Organization(조직역량).
+        각 자원의 경쟁우위 유형을 V×R×I×O 곱으로 정량 판별합니다.
+        """
+        resources_raw = p.get("resources", "")
+        if not resources_raw:
+            return self._vrio_guide()
+
+        # 파싱: "자원명:V:R:I:O" 형식 (각 1~5)
+        resources: list[dict] = []
+        if isinstance(resources_raw, str):
+            for entry in resources_raw.split(","):
+                parts = entry.strip().split(":")
+                if len(parts) >= 5:
+                    try:
+                        resources.append({
+                            "name": parts[0].strip(),
+                            "V": int(parts[1]),
+                            "R": int(parts[2]),
+                            "I": int(parts[3]),
+                            "O": int(parts[4]),
+                        })
+                    except (ValueError, IndexError):
+                        continue
+        elif isinstance(resources_raw, list):
+            for item in resources_raw:
+                if isinstance(item, dict):
+                    resources.append({
+                        "name": item.get("name", ""),
+                        "V": int(item.get("V", 1)),
+                        "R": int(item.get("R", 1)),
+                        "I": int(item.get("I", 1)),
+                        "O": int(item.get("O", 1)),
+                    })
+
+        if not resources:
+            return self._vrio_guide()
+
+        def _classify(v: int, r: int, i: int, o: int) -> tuple[str, str]:
+            """V×R×I×O 곱 및 패턴으로 경쟁우위 유형 분류.
+
+            Barney (2014) 분류 기준:
+            - V 낮으면 → 경쟁 열위
+            - V만 높으면 → 경쟁 균형
+            - V+R 높고 I 낮으면 → 일시적 우위
+            - V+R+I 높고 O 낮으면 → 미활용 잠재력
+            - 모두 높으면 → 지속적 경쟁우위
+            """
+            product = v * r * i * o
+            if v <= 2:
+                return "경쟁 열위 (Competitive Disadvantage)", "🔴"
+            if r <= 2:
+                return "경쟁 균형 (Competitive Parity)", "🟡"
+            if i <= 2:
+                return "일시적 우위 (Temporary Advantage)", "🔵"
+            if o <= 2:
+                return "미활용 잠재력 (Unused Potential)", "🟠"
+            # V, R, I, O 모두 3 이상 + 곱이 충분히 높으면 지속적 우위
+            if product > 256:
+                return "지속적 경쟁우위 (Sustained Competitive Advantage)", "🟢"
+            if product > 100:
+                return "미활용 잠재력 (Unused Potential)", "🟠"
+            return "일시적 우위 (Temporary Advantage)", "🔵"
+
+        # 분석 결과 테이블
+        lines = [
+            "### VRIO 분석 — 자원기반 경쟁우위 (Barney, 2014)",
+            "",
+            "| 자원/역량 | V(가치) | R(희소성) | I(모방불가) | O(조직역량) | V×R×I×O | 경쟁우위 유형 |",
+            "|---------|--------|---------|----------|----------|---------|-----------|",
+        ]
+
+        advantage_counts: dict[str, int] = {}
+        for res in resources:
+            product = res["V"] * res["R"] * res["I"] * res["O"]
+            adv_type, icon = _classify(res["V"], res["R"], res["I"], res["O"])
+            advantage_counts[adv_type] = advantage_counts.get(adv_type, 0) + 1
+            lines.append(
+                f"| {res['name']} | {res['V']}/5 | {res['R']}/5 | {res['I']}/5 | "
+                f"{res['O']}/5 | {product} | {icon} {adv_type} |"
+            )
+
+        # 요약 통계
+        total = len(resources)
+        sustained = advantage_counts.get("지속적 경쟁우위 (Sustained Competitive Advantage)", 0)
+        unused = advantage_counts.get("미활용 잠재력 (Unused Potential)", 0)
+        temporary = advantage_counts.get("일시적 우위 (Temporary Advantage)", 0)
+        parity = advantage_counts.get("경쟁 균형 (Competitive Parity)", 0)
+        disadvantage = advantage_counts.get("경쟁 열위 (Competitive Disadvantage)", 0)
+
+        lines.extend([
+            "",
+            "### VRIO 분포 요약",
+            f"| 유형 | 개수 | 비율 | 시각화 |",
+            f"|------|------|------|--------|",
+            f"| 🟢 지속적 경쟁우위 | {sustained} | {sustained/total:.0%} | {'█' * sustained}{'░' * (total - sustained)} |",
+            f"| 🟠 미활용 잠재력 | {unused} | {unused/total:.0%} | {'█' * unused}{'░' * (total - unused)} |",
+            f"| 🔵 일시적 우위 | {temporary} | {temporary/total:.0%} | {'█' * temporary}{'░' * (total - temporary)} |",
+            f"| 🟡 경쟁 균형 | {parity} | {parity/total:.0%} | {'█' * parity}{'░' * (total - parity)} |",
+            f"| 🔴 경쟁 열위 | {disadvantage} | {disadvantage/total:.0%} | {'█' * disadvantage}{'░' * (total - disadvantage)} |",
+            "",
+            "### VRIO 전략 권고",
+        ])
+
+        # 전략 권고
+        if sustained > 0:
+            lines.append(f"- **🟢 지속적 경쟁우위 자원({sustained}개)**: 핵심 역량으로 보호·강화. 전략의 중심축으로 활용")
+        if unused > 0:
+            lines.append(f"- **🟠 미활용 잠재력({unused}개)**: 조직 체계(O)를 보강하면 지속적 우위로 전환 가능. 우선 투자 대상")
+        if temporary > 0:
+            lines.append(f"- **🔵 일시적 우위({temporary}개)**: 모방 장벽(I) 구축 시급. 특허, 네트워크 효과, 전환비용 등 검토")
+        if parity > 0:
+            lines.append(f"- **🟡 경쟁 균형({parity}개)**: 차별화 요소 개발 또는 효율성으로 비용 우위 확보")
+        if disadvantage > 0:
+            lines.append(f"- **🔴 경쟁 열위({disadvantage}개)**: 아웃소싱 또는 파트너십으로 보완. 내재화 ROI 재검토")
+
+        lines.extend([
+            "",
+            "📌 **VRIO 핵심 원리** (Barney, 2014):",
+            "   자원이 경쟁우위를 만들려면 4가지가 **모두** 충족되어야 합니다.",
+            "   하나라도 부족하면 우위는 일시적이거나 존재하지 않습니다.",
+        ])
+        return "\n".join(lines)
+
+    def _vrio_guide(self) -> str:
+        return "\n".join([
+            "### VRIO 분석을 위해 필요한 입력값:",
+            "",
+            "각 자원/역량을 '자원명:V:R:I:O' 형식으로 입력 (쉼표 구분):",
+            "",
+            "| 파라미터 | 형식 | 예시 |",
+            "|---------|------|------|",
+            '| resources | "자원명:V:R:I:O" | "AI기술:5:4:4:3,브랜드:4:3:2:4,특허:5:5:5:3" |',
+            "",
+            "**VRIO 축 (각 1~5점):**",
+            "- **V (Value, 가치)**: 이 자원이 외부 기회를 활용하거나 위협을 방어하는가?",
+            "- **R (Rarity, 희소성)**: 소수의 경쟁자만 보유하고 있는가?",
+            "- **I (Imitability, 모방불가성)**: 경쟁자가 모방하기 어려운가? (비용/시간)",
+            "- **O (Organization, 조직역량)**: 이 자원을 충분히 활용할 조직 체계가 있는가?",
+            "",
+            "**경쟁우위 판별 기준 (Barney, 2014):**",
+            "| V | R | I | O | 경쟁우위 유형 |",
+            "|---|---|---|---|-----------|",
+            "| 높 | 높 | 높 | 높 | 🟢 지속적 경쟁우위 |",
+            "| 높 | 높 | 높 | 낮 | 🟠 미활용 잠재력 |",
+            "| 높 | 높 | 낮 | — | 🔵 일시적 우위 |",
+            "| 높 | 낮 | — | — | 🟡 경쟁 균형 |",
+            "| 낮 | — | — | — | 🔴 경쟁 열위 |",
         ])

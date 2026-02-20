@@ -326,6 +326,19 @@ class BusinessModelScorer(BaseTool):
 
     # ── Lean Canvas 완성도 진단 ──────────────────────────
 
+    # 블록별 품질 키워드 (해당 키워드가 포함될수록 구체적인 내용)
+    _CANVAS_KEYWORDS: dict[str, list[str]] = {
+        "problem": ["고통", "불편", "비용", "시간", "문제", "니즈", "고객"],
+        "solution": ["해결", "자동", "플랫폼", "서비스", "제공", "기능"],
+        "uvp": ["유일", "차별", "최초", "독점", "특허", "고유"],
+        "unfair_advantage": ["네트워크", "데이터", "특허", "팀", "경험", "독점"],
+        "customer_segments": ["타겟", "세그먼트", "연령", "직업", "규모", "B2B", "B2C"],
+        "channels": ["SEO", "광고", "SNS", "영업", "파트너", "리퍼럴"],
+        "revenue_streams": ["구독", "과금", "수수료", "라이선스", "광고", "프리미엄"],
+        "cost_structure": ["인건비", "서버", "마케팅", "고정비", "변동비"],
+        "key_metrics": ["DAU", "MAU", "전환율", "이탈률", "NPS", "LTV", "CAC"],
+    }
+
     async def _lean_canvas(self, p: dict) -> str:
         scores = []
         for block in _LEAN_CANVAS_BLOCKS:
@@ -334,18 +347,32 @@ class BusinessModelScorer(BaseTool):
             if isinstance(raw, (int, float)):
                 sc = max(0, min(10, int(raw)))
             elif isinstance(raw, str) and raw.strip():
-                # 길이와 구체성 기반 자동 점수
-                length = len(raw.strip())
+                text = raw.strip()
+                length = len(text)
+
+                # 길이 기반 점수 (기존 로직)
                 if length > 200:
-                    sc = 10
+                    length_score = 10
                 elif length > 100:
-                    sc = 8
+                    length_score = 8
                 elif length > 50:
-                    sc = 6
+                    length_score = 6
                 elif length > 20:
-                    sc = 4
+                    length_score = 4
                 else:
-                    sc = 2
+                    length_score = 2
+
+                # 키워드 매칭 점수 (블록별 품질 키워드 분석)
+                expected_kws = self._CANVAS_KEYWORDS.get(block["key"], [])
+                if expected_kws:
+                    text_lower = text.lower()
+                    matched = sum(1 for kw in expected_kws if kw.lower() in text_lower)
+                    keyword_score = (matched / len(expected_kws)) * 10
+                else:
+                    keyword_score = length_score  # 키워드 없는 블록은 길이 점수 유지
+
+                # 종합: 길이 50% + 키워드 50%
+                sc = max(0, min(10, round(length_score * 0.5 + keyword_score * 0.5)))
             else:
                 sc = 0
             scores.append((block, sc))

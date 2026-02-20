@@ -82,8 +82,54 @@ class ScenarioSimulator(BaseTool):
 
     # ── Monte Carlo: 10,000회 시뮬레이션 ──────────────────
 
+    @staticmethod
+    def _beta_params(low: float, high: float, mode: float) -> tuple[float, float]:
+        """min/max/mode에서 Beta 분포의 alpha/beta 파라미터를 도출.
+
+        PERT 방식 (Malcolm et al., 1959): mode를 기반으로 평균을 추정한 뒤
+        alpha, beta를 역산. lambda=4(표준 PERT 가중치) 사용.
+        """
+        if high <= low:
+            return 2.0, 2.0  # 퇴화 방지
+        # PERT 평균: (low + lambda*mode + high) / (lambda+2)
+        lam = 4.0
+        mean = (low + lam * mode + high) / (lam + 2)
+        # 평균을 [0,1] 범위로 정규화
+        mu = (mean - low) / (high - low)
+        mu = max(0.01, min(0.99, mu))  # 경계값 보호
+        # Method of moments: alpha + beta 를 결정하는 스케일
+        # 분산이 작을수록 alpha+beta가 커짐. PERT에서는 (high-low)^2/36 사용
+        variance = ((high - low) / 6) ** 2
+        var_norm = variance / ((high - low) ** 2) if high > low else 0.04
+        var_norm = max(0.001, min(0.24, var_norm))  # Beta 분포 유효 범위
+        alpha = mu * (mu * (1 - mu) / var_norm - 1)
+        beta = (1 - mu) * (mu * (1 - mu) / var_norm - 1)
+        # 최소값 보장 (alpha, beta > 0)
+        alpha = max(0.5, alpha)
+        beta = max(0.5, beta)
+        return alpha, beta
+
+    @staticmethod
+    def _lognormal_params(low: float, high: float) -> tuple[float, float]:
+        """min/max에서 Log-normal 분포의 mu/sigma를 도출.
+
+        가정: low ≈ P5, high ≈ P95 (90% 신뢰구간).
+        ln(low) = mu - 1.645*sigma, ln(high) = mu + 1.645*sigma 로 역산.
+        Limpert et al. (2001) "Log-normal Distributions across the Sciences" 참고.
+        """
+        if low <= 0:
+            low = 0.01  # log(0) 방지
+        if high <= low:
+            high = low * 2
+        ln_low = math.log(low)
+        ln_high = math.log(high)
+        sigma = (ln_high - ln_low) / (2 * 1.645)
+        sigma = max(0.01, sigma)  # 최소 분산 보장
+        mu = (ln_low + ln_high) / 2
+        return mu, sigma
+
     async def _monte_carlo(self, p: dict) -> str:
-        # 핵심 변수: 각각 (최소, 최대, 기대값) 삼각분포
+        # 핵심 변수: 각각 (최소, 최대, 기대값)
         revenue_min = float(p.get("revenue_min", 0))
         revenue_max = float(p.get("revenue_max", 0))
         revenue_mode = float(p.get("revenue_mode", 0))
@@ -92,21 +138,41 @@ class ScenarioSimulator(BaseTool):
         cost_mode = float(p.get("cost_mode", 0))
         currency = p.get("currency", "만원")
         n_simulations = int(p.get("n_simulations", 10000))
+        distribution = p.get("distribution", "triangular")  # triangular | beta | lognormal
 
         if revenue_max <= 0 or cost_max <= 0:
             return self._monte_carlo_guide()
 
-        # 삼각분포 시뮬레이션 (Triangular Distribution)
+        # mode 기본값 (삼각분포 + Beta 분포에서 사용)
         if revenue_mode <= 0:
             revenue_mode = (revenue_min + revenue_max) / 2
         if cost_mode <= 0:
             cost_mode = (cost_min + cost_max) / 2
 
+        # 분포별 파라미터 사전 계산
+        if distribution == "beta":
+            # Beta-PERT 분포 (Malcolm et al., 1959) — 삼각분포보다 꼬리가 두꺼움
+            rev_a, rev_b = self._beta_params(revenue_min, revenue_max, revenue_mode)
+            cost_a, cost_b = self._beta_params(cost_min, cost_max, cost_mode)
+        elif distribution == "lognormal":
+            # 로그정규분포 (Limpert et al., 2001) — 우측 꼬리가 긴 비대칭 분포
+            rev_mu, rev_sigma = self._lognormal_params(revenue_min, revenue_max)
+            cost_mu, cost_sigma = self._lognormal_params(cost_min, cost_max)
+
         profits = []
         random.seed(42)  # 재현성 보장
         for _ in range(n_simulations):
-            rev = random.triangular(revenue_min, revenue_max, revenue_mode)
-            cost = random.triangular(cost_min, cost_max, cost_mode)
+            if distribution == "beta":
+                # Beta(alpha, beta) → [0,1] 값을 [min, max]로 스케일링
+                rev = revenue_min + random.betavariate(rev_a, rev_b) * (revenue_max - revenue_min)
+                cost = cost_min + random.betavariate(cost_a, cost_b) * (cost_max - cost_min)
+            elif distribution == "lognormal":
+                rev = random.lognormvariate(rev_mu, rev_sigma)
+                cost = random.lognormvariate(cost_mu, cost_sigma)
+            else:
+                # 기본: 삼각분포 (Triangular Distribution)
+                rev = random.triangular(revenue_min, revenue_max, revenue_mode)
+                cost = random.triangular(cost_min, cost_max, cost_mode)
             profits.append(rev - cost)
 
         profits.sort()
@@ -139,10 +205,18 @@ class ScenarioSimulator(BaseTool):
             bins[idx] += 1
         max_bin = max(bins) if bins else 1
 
+        # 분포 표시명
+        _dist_labels = {
+            "triangular": "삼각분포(Triangular)",
+            "beta": "Beta-PERT 분포(Malcolm et al., 1959)",
+            "lognormal": "로그정규분포(Limpert et al., 2001)",
+        }
+        dist_label = _dist_labels.get(distribution, distribution)
+
         lines = [
             f"### Monte Carlo 시뮬레이션 ({n_simulations:,}회)",
             "",
-            "**입력 변수 (삼각분포):**",
+            f"**입력 변수 ({dist_label}):**",
             f"- 매출: {revenue_min:,.0f} ~ {revenue_max:,.0f} (기대: {revenue_mode:,.0f}) {currency}",
             f"- 비용: {cost_min:,.0f} ~ {cost_max:,.0f} (기대: {cost_mode:,.0f}) {currency}",
             "",
@@ -200,8 +274,12 @@ class ScenarioSimulator(BaseTool):
             "| cost_mode | 비용 기대값 | 1500 |",
             "| currency | 단위 | 만원 |",
             "| n_simulations | 시뮬레이션 횟수 | 10000 |",
+            "| distribution | 확률분포 종류 | triangular (기본) |",
             "",
-            "💡 삼각분포(Triangular): 최소, 최대, 가장 가능성 높은 값 3개로 불확실성을 표현합니다.",
+            "**지원 분포:**",
+            "- `triangular` (기본): 삼각분포 — 최소/최대/기대값 3개로 불확실성 표현",
+            "- `beta`: Beta-PERT 분포 — 삼각분포보다 꼬리가 두꺼워 극단값 반영에 유리 (Malcolm et al., 1959)",
+            "- `lognormal`: 로그정규분포 — 우측 꼬리가 긴 비대칭 분포, 매출/비용 같은 양수 변수에 적합 (Limpert et al., 2001)",
         ])
 
     # ── Three Scenario: 보수/기본/낙관 ────────────────────

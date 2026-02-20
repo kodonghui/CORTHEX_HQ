@@ -262,43 +262,178 @@ class EarningsSurpriseTool(BaseTool):
     # ── 4. 서프라이즈 추정 ───────────────────
 
     async def _surprise_estimate(self, kwargs: dict) -> str:
+        """SUE(Standardized Unexpected Earnings) 기반 실적 서프라이즈 추정.
+
+        학술 근거:
+          - SUE = (Actual EPS - Expected EPS) / σ(Unexpected Earnings)
+          - Expected EPS = 계절 조정: 4분기 전 EPS (같은 분기 YoY 비교)
+          - σ = 과거 unexpected earnings 차이의 표준편차
+          - 서프라이즈 확률: 로지스틱 함수 P = 1 / (1 + exp(-SUE))
+          - PEAD 드리프트: SUE > 1이면 발표 후 60일간 +2~5% 추가 수익 기대
+            (Ball & Brown 1968, Bernard & Thomas 1989)
+        """
         name, data, ticker, err = await self._load_data(kwargs)
         if err:
             return err
 
         fund = data["fund"]
+        ohlcv = data["ohlcv"]
         eps_data = fund["EPS"].dropna()
         quarterly_eps = eps_data.resample("QE").last().dropna()
 
-        results = [f"📊 {name} 실적 서프라이즈 가능성 추정"]
+        results = [f"{'='*55}"]
+        results.append(f"📊 {name} SUE 기반 실적 서프라이즈 분석")
+        results.append(f"{'='*55}")
 
-        if len(quarterly_eps) < 4:
-            results.append("EPS 데이터가 부족합니다 (최소 4분기 필요).")
+        if len(quarterly_eps) < 5:
+            results.append("EPS 데이터가 부족합니다 (SUE 계산에 최소 5분기 필요).")
             return "\n".join(results)
 
-        # EPS 트렌드
-        recent = quarterly_eps.iloc[-4:]
-        growth_rates = recent.pct_change().dropna()
-        avg_growth = growth_rates.mean() * 100
+        # ── 1단계: 분기별 EPS 표시 ──
+        results.append(f"\n▸ 분기별 EPS 추이:")
+        for date, eps in quarterly_eps.items():
+            q_label = f"{date.strftime('%Y')}-Q{(date.month-1)//3+1}"
+            results.append(f"  {q_label}: {eps:,.0f}원")
 
-        results.append(f"\n최근 4분기 EPS:")
-        for date, eps in recent.items():
-            results.append(f"  {date.strftime('%Y')}-Q{(date.month-1)//3+1}: {eps:,.0f}원")
+        # ── 2단계: 계절 조정 Expected EPS 계산 ──
+        # Expected EPS = 4분기 전 동일 분기 EPS (seasonal random walk model)
+        # 이는 가장 널리 쓰이는 계절 조정 방식 (Foster 1977, Bernard & Thomas 1990)
+        unexpected_earnings = []  # (date, actual, expected, UE) 튜플 리스트
+        eps_values = list(quarterly_eps.items())
 
-        results.append(f"\n분기별 평균 성장률: {avg_growth:+.1f}%")
+        for i in range(4, len(eps_values)):
+            actual_date, actual_eps = eps_values[i]
+            _, expected_eps = eps_values[i - 4]  # 4분기 전 (동일 분기 전년)
+            ue = actual_eps - expected_eps  # Unexpected Earnings
+            unexpected_earnings.append((actual_date, actual_eps, expected_eps, ue))
 
-        # 추정 (마지막 EPS * (1 + 평균 성장률))
-        next_eps = recent.iloc[-1] * (1 + avg_growth / 100)
-        results.append(f"다음 분기 예상 EPS: {next_eps:,.0f}원")
+        if len(unexpected_earnings) < 2:
+            results.append("\nUE(Unexpected Earnings) 계산을 위한 데이터가 부족합니다.")
+            return "\n".join(results)
 
-        # 서프라이즈 확률 추정
-        surprise_pct = min(90, max(10, 50 + avg_growth * 2))
-        results.append(f"\n어닝 서프라이즈 가능성: {surprise_pct:.0f}%")
-        if surprise_pct > 60:
-            results.append("→ 실적 호전 가능성 높음 (PEAD 매수 전략 고려)")
-        elif surprise_pct < 40:
-            results.append("→ 실적 부진 가능성 (실적 발표 전 리스크 관리)")
+        # ── 3단계: σ(UE) 계산 ──
+        ue_values = [ue for _, _, _, ue in unexpected_earnings]
+        sigma_ue = float(np.std(ue_values, ddof=1))  # 표본 표준편차
+
+        results.append(f"\n▸ Unexpected Earnings 이력 (Actual - Expected):")
+        results.append(f"  {'분기':>10} | {'실제EPS':>10} | {'예상EPS':>10} | {'UE':>10}")
+        results.append(f"  {'-'*48}")
+        for date, actual, expected, ue in unexpected_earnings:
+            q_label = f"{date.strftime('%Y')}-Q{(date.month-1)//3+1}"
+            results.append(f"  {q_label:>10} | {actual:>9,.0f}원 | {expected:>9,.0f}원 | {ue:>+9,.0f}원")
+
+        results.append(f"\n  σ(UE) = {sigma_ue:,.0f}원")
+
+        # ── 4단계: 최근 SUE 계산 ──
+        latest_date, latest_actual, latest_expected, latest_ue = unexpected_earnings[-1]
+
+        if sigma_ue > 0:
+            sue = latest_ue / sigma_ue
         else:
-            results.append("→ 방향성 불확실 (관망)")
+            # σ가 0이면 (변동성 없음) UE 부호로 판단
+            sue = 2.0 if latest_ue > 0 else (-2.0 if latest_ue < 0 else 0.0)
 
+        results.append(f"\n▸ 최근 분기 SUE (Standardized Unexpected Earnings):")
+        results.append(f"  SUE = (Actual - Expected) / σ(UE)")
+        results.append(f"  SUE = ({latest_actual:,.0f} - {latest_expected:,.0f}) / {sigma_ue:,.0f}")
+        results.append(f"  SUE = {sue:+.3f}")
+
+        # ── 5단계: 다음 분기 Expected EPS 추정 ──
+        # 계절 조정: 가장 최근 EPS를 다음 분기 expected로 사용하되
+        # 최근 UE 추세(drift)를 반영
+        next_expected = eps_values[-4][1] if len(eps_values) >= 4 else latest_actual
+        # UE의 최근 추세(drift) 반영 — 평균 UE를 가산
+        avg_ue = sum(ue_values[-4:]) / len(ue_values[-4:]) if len(ue_values) >= 4 else sum(ue_values) / len(ue_values)
+        next_forecast = next_expected + avg_ue
+
+        results.append(f"\n▸ 다음 분기 EPS 추정:")
+        results.append(f"  기준(4분기 전 EPS): {next_expected:,.0f}원")
+        results.append(f"  UE 드리프트 반영: {avg_ue:+,.0f}원")
+        results.append(f"  다음 분기 예상 EPS: {next_forecast:,.0f}원")
+
+        # ── 6단계: 서프라이즈 확률 — 로지스틱 함수 ──
+        # P(surprise) = 1 / (1 + exp(-SUE))
+        # SUE > 0 → 50%+ (긍정적 서프라이즈 가능성)
+        # SUE > 1 → ~73% | SUE > 2 → ~88%
+        surprise_prob = 1.0 / (1.0 + math.exp(-sue))
+        surprise_pct = surprise_prob * 100
+
+        results.append(f"\n{'─'*55}")
+        results.append(f"▸ 어닝 서프라이즈 확률 (로지스틱 모델):")
+        results.append(f"  P(surprise) = 1 / (1 + exp(-SUE))")
+        results.append(f"  P(surprise) = 1 / (1 + exp({-sue:+.3f}))")
+        results.append(f"  = {surprise_pct:.1f}%")
+
+        if surprise_pct > 70:
+            results.append(f"  → 긍정적 서프라이즈 가능성 높음 (SUE={sue:+.2f})")
+        elif surprise_pct > 55:
+            results.append(f"  → 소폭 긍정적 서프라이즈 기대 (SUE={sue:+.2f})")
+        elif surprise_pct > 45:
+            results.append(f"  → 방향성 불확실, 컨센서스 부합 예상 (SUE={sue:+.2f})")
+        elif surprise_pct > 30:
+            results.append(f"  → 소폭 부정적 서프라이즈 우려 (SUE={sue:+.2f})")
+        else:
+            results.append(f"  → 부정적 서프라이즈 가능성 높음 (SUE={sue:+.2f})")
+
+        # ── 7단계: PEAD 드리프트 추정 (Ball & Brown 1968) ──
+        results.append(f"\n▸ PEAD 드리프트 추정 (Post-Earnings Announcement Drift):")
+        results.append(f"  Ball & Brown(1968), Bernard & Thomas(1989) 근거:")
+
+        if sue > 2.0:
+            drift_low, drift_high = 3.5, 5.0
+            results.append(f"  SUE={sue:+.2f} (강한 긍정) → 발표 후 60일간 +{drift_low}~{drift_high}% 드리프트 기대")
+            results.append(f"  전략: 실적 발표 직후 매수 → 60일 보유 (PEAD 수익 추출)")
+        elif sue > 1.0:
+            drift_low, drift_high = 2.0, 3.5
+            results.append(f"  SUE={sue:+.2f} (긍정) → 발표 후 60일간 +{drift_low}~{drift_high}% 드리프트 기대")
+            results.append(f"  전략: 실적 발표 후 매수, 점진적 비중 확대")
+        elif sue > 0:
+            drift_low, drift_high = 0.5, 2.0
+            results.append(f"  SUE={sue:+.2f} (약한 긍정) → 발표 후 60일간 +{drift_low}~{drift_high}% 소폭 드리프트")
+            results.append(f"  전략: 기존 보유 유지, 신규 진입은 신중")
+        elif sue > -1.0:
+            drift_low, drift_high = -2.0, -0.5
+            results.append(f"  SUE={sue:+.2f} (약한 부정) → 발표 후 60일간 {drift_low}~{drift_high}% 하락 드리프트")
+            results.append(f"  전략: 리스크 관리, 손절 기준 점검")
+        elif sue > -2.0:
+            drift_low, drift_high = -3.5, -2.0
+            results.append(f"  SUE={sue:+.2f} (부정) → 발표 후 60일간 {drift_low}~{drift_high}% 하락 드리프트")
+            results.append(f"  전략: 비중 축소 또는 헤지 고려")
+        else:
+            drift_low, drift_high = -5.0, -3.5
+            results.append(f"  SUE={sue:+.2f} (강한 부정) → 발표 후 60일간 {drift_low}~{drift_high}% 하락 드리프트")
+            results.append(f"  전략: 즉시 비중 축소, 실적 회복 확인 전까지 회피")
+
+        # ── 8단계: 과거 PEAD 실증 검증 (이 종목의 실제 데이터) ──
+        results.append(f"\n▸ 과거 PEAD 실증 (이 종목 실제 데이터):")
+        pead_results = []
+        for i, (date, actual, expected, ue) in enumerate(unexpected_earnings):
+            # 실적 발표일 근처에서 60일 후 수익률 측정
+            target_date = date
+            post_data = ohlcv[ohlcv.index >= target_date]
+            if len(post_data) >= 60:
+                price_at_announce = post_data["종가"].iloc[0]
+                price_after_60d = post_data["종가"].iloc[min(59, len(post_data)-1)]
+                drift_actual = (price_after_60d / price_at_announce - 1) * 100
+                local_sue = ue / sigma_ue if sigma_ue > 0 else 0
+                pead_results.append((date, local_sue, drift_actual))
+
+        if pead_results:
+            results.append(f"  {'분기':>10} | {'SUE':>7} | {'60일 수익률':>10}")
+            results.append(f"  {'-'*35}")
+            for date, s, d in pead_results:
+                q_label = f"{date.strftime('%Y')}-Q{(date.month-1)//3+1}"
+                results.append(f"  {q_label:>10} | {s:>+6.2f} | {d:>+8.1f}%")
+
+            # SUE 양/음 그룹별 평균 드리프트
+            pos_drifts = [d for _, s, d in pead_results if s > 0]
+            neg_drifts = [d for _, s, d in pead_results if s < 0]
+            if pos_drifts:
+                results.append(f"\n  SUE > 0 평균 60일 드리프트: {sum(pos_drifts)/len(pos_drifts):+.1f}% (n={len(pos_drifts)})")
+            if neg_drifts:
+                results.append(f"  SUE < 0 평균 60일 드리프트: {sum(neg_drifts)/len(neg_drifts):+.1f}% (n={len(neg_drifts)})")
+        else:
+            results.append("  60일 이상 후속 데이터가 있는 분기가 없어 실증 검증 불가.")
+
+        results.append(f"\n{'='*55}")
         return "\n".join(results)

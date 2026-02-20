@@ -288,12 +288,34 @@ class CommunicationOptimizerTool(BaseTool):
     #  2. persuasion — 설득력 분석
     # ═══════════════════════════════════════════════════════
 
+    # ── Cialdini 정량 탐지 패턴 (regex 기반, LLM 호출 전 사전 계산) ──
+    CIALDINI_PATTERNS: dict[str, str] = {
+        "reciprocity":   r"무료|공짜|선물|보너스|혜택|제공|드립니다|증정|사은품|무상",
+        "scarcity":      r"한정|마감|선착순|오늘만|지금만|남은|마지막|품절 임박|잔여|곧 종료",
+        "authority":     r"전문가|교수|박사|연구|논문|인증|수상|경력|석사|자격증|특허",
+        "consistency":   r"약속|보장|확실|언제나|항상|변함없|일관|꾸준|지속|신뢰",
+        "liking":        r"같이|함께|우리|공감|이해|비슷|친근|편안|소통|공유",
+        "social_proof":  r"후기|리뷰|만족|고객|사용자|명이|인기|베스트셀러|화제|추천수",
+    }
+
     async def _persuasion(self, params: dict) -> dict:
         """Aristotle 수사학 3요소 + Cialdini 6원칙 기반 설득력 정량 평가."""
         message = params.get("message", "")
         goal = params.get("goal", "상대를 설득하여 동의를 얻는 것")
         if not message:
             return {"status": "error", "message": "message 파라미터가 필요합니다."}
+
+        # ── Cialdini 정량 사전 탐지 (regex, LLM 호출 전) ──
+        cialdini_quantified: dict[str, dict] = {}
+        for principle, pattern in self.CIALDINI_PATTERNS.items():
+            matches = re.findall(pattern, message, re.IGNORECASE)
+            count = len(matches)
+            score = min(100, count * 20)  # 시그널 1개=20점, 5개 이상=100점
+            cialdini_quantified[principle] = {
+                "signal_count": count,
+                "signals_found": list(set(matches))[:10],
+                "quantified_score": score,
+            }
 
         prompt_system = (
             "당신은 설득 커뮤니케이션 전문가입니다. Aristotle 수사학과 Cialdini 설득 심리학 프레임워크로 분석하세요.\n\n"
@@ -336,10 +358,24 @@ class CommunicationOptimizerTool(BaseTool):
             for principle in self.CIALDINI_PRINCIPLES:
                 cialdini_details[principle] = False
 
-        # Persuasion Score 계산
+        # ── Cialdini 정량 점수: regex 기반 + LLM 보정 (하이브리드) ──
+        cialdini_final_scores: dict[str, float] = {}
+        for principle in self.CIALDINI_PRINCIPLES:
+            regex_score = cialdini_quantified[principle]["quantified_score"]
+            llm_detected = cialdini_details.get(principle, False)
+            # LLM이 감지했으면 최소 40점 보장, regex 점수와 병합
+            llm_bonus = 40 if llm_detected else 0
+            combined = min(100, max(regex_score, llm_bonus))
+            cialdini_final_scores[principle] = combined
+
+        cialdini_avg = _mean(list(cialdini_final_scores.values()))
+
+        # ── Persuasion Score = Aristotle 60% + Cialdini 정량 40% ──
         aristotle_avg = _mean([ethos, pathos, logos])
-        cialdini_bonus = cialdini_used * 5  # 원칙 1개당 +5점
-        persuasion_score = _clamp(aristotle_avg * 10 + cialdini_bonus)
+        aristotle_score_100 = _clamp(aristotle_avg * 10)  # 1~10 → 0~100 스케일
+        persuasion_score = _clamp(
+            aristotle_score_100 * 0.6 + cialdini_avg * 0.4
+        )
 
         return {
             "status": "success",
@@ -352,13 +388,27 @@ class CommunicationOptimizerTool(BaseTool):
                     "pathos": pathos,
                     "logos": logos,
                     "average": round(aristotle_avg, 1),
+                    "score_100": round(aristotle_score_100, 1),
+                    "weight": "60%",
                 },
                 "cialdini": {
                     "principles_used": cialdini_used,
                     "details": cialdini_details,
-                    "bonus_points": cialdini_bonus,
+                    "quantified_scores": {
+                        k: {
+                            "regex_signals": cialdini_quantified[k]["signal_count"],
+                            "signals_found": cialdini_quantified[k]["signals_found"],
+                            "regex_score": cialdini_quantified[k]["quantified_score"],
+                            "llm_detected": cialdini_details.get(k, False),
+                            "final_score": cialdini_final_scores[k],
+                        }
+                        for k in self.CIALDINI_PRINCIPLES
+                    },
+                    "average_score": round(cialdini_avg, 1),
+                    "weight": "40%",
                     "descriptions": self.CIALDINI_PRINCIPLES,
                 },
+                "scoring_method": "Aristotle(60%) + Cialdini Quantified(40%) 가중 평균",
                 "goal": goal,
             },
             "llm_interpretation": llm_result,

@@ -263,21 +263,65 @@ class MarketSizer(BaseTool):
 
     # ── Fermi: 가정 기반 빠른 근사 ─────────────────────────
 
+    # 한국 시장 기본값 — Fermi 추정 시 population=0 또는 market="KR"이면 자동 적용
+    # 통계청 (2025) 기준 인구 + 산업별 합리적 가정값
+    _KR_DEFAULTS: dict[str, dict] = {
+        "population": 52_000_000,  # 대한민국 인구 (통계청, 2025)
+        "industry_defaults": {
+            "SaaS_B2B": {"target_ratio": 0.08, "awareness": 0.12, "trial": 0.06, "conversion": 0.04},
+            "SaaS_B2C": {"target_ratio": 0.25, "awareness": 0.15, "trial": 0.08, "conversion": 0.03},
+            "EdTech": {"target_ratio": 0.20, "awareness": 0.20, "trial": 0.10, "conversion": 0.04},
+            "FinTech": {"target_ratio": 0.35, "awareness": 0.25, "trial": 0.12, "conversion": 0.05},
+            "HealthTech": {"target_ratio": 0.15, "awareness": 0.08, "trial": 0.04, "conversion": 0.03},
+            "E-Commerce": {"target_ratio": 0.60, "awareness": 0.30, "trial": 0.15, "conversion": 0.06},
+            "AI_Service": {"target_ratio": 0.10, "awareness": 0.10, "trial": 0.05, "conversion": 0.03},
+            "LegalTech": {"target_ratio": 0.05, "awareness": 0.08, "trial": 0.04, "conversion": 0.03},
+            "Gaming": {"target_ratio": 0.40, "awareness": 0.35, "trial": 0.20, "conversion": 0.05},
+            "Marketplace": {"target_ratio": 0.30, "awareness": 0.20, "trial": 0.10, "conversion": 0.04},
+        },
+    }
+
     async def _fermi_estimation(self, p: dict) -> str:
         # Fermi 추정: 큰 수를 작은 가정의 곱으로 분해
         population = int(p.get("population", 0))
+        market = p.get("market", "")
+        industry = p.get("industry", "SaaS_B2B")
         target_ratio = float(p.get("target_ratio", 0))
-        awareness_rate = float(p.get("awareness_rate", 0.10))
-        trial_rate = float(p.get("trial_rate", 0.05))
-        conversion_rate = float(p.get("conversion_rate", 0.03))
+        awareness_rate = float(p.get("awareness_rate", 0))
+        trial_rate = float(p.get("trial_rate", 0))
+        conversion_rate = float(p.get("conversion_rate", 0))
         arpu_yearly = float(p.get("arpu_yearly", 0))
         currency = p.get("currency", "원")
+
+        # 한국 시장 자동 기본값: market="KR" 또는 population=0이면 적용
+        use_kr_defaults = (market.upper() == "KR") or (population <= 0)
+
+        if use_kr_defaults:
+            kr = self._KR_DEFAULTS
+            kr_ind = kr["industry_defaults"].get(industry, kr["industry_defaults"]["SaaS_B2B"])
+            if population <= 0:
+                population = kr["population"]
+            if target_ratio <= 0:
+                target_ratio = kr_ind["target_ratio"]
+            if awareness_rate <= 0:
+                awareness_rate = kr_ind["awareness"]
+            if trial_rate <= 0:
+                trial_rate = kr_ind["trial"]
+            if conversion_rate <= 0:
+                conversion_rate = kr_ind["conversion"]
 
         if population <= 0:
             return self._fermi_guide()
 
+        # 명시적 입력이 없었던 비율에 안전 기본값 적용
         if target_ratio <= 0:
-            target_ratio = 0.10  # 기본 10% 가정
+            target_ratio = 0.10
+        if awareness_rate <= 0:
+            awareness_rate = 0.10
+        if trial_rate <= 0:
+            trial_rate = 0.05
+        if conversion_rate <= 0:
+            conversion_rate = 0.03
 
         target_pop = population * target_ratio
         aware = target_pop * awareness_rate
@@ -285,16 +329,16 @@ class MarketSizer(BaseTool):
         paying = trialed * conversion_rate
 
         if arpu_yearly <= 0:
-            industry = p.get("industry", "SaaS_B2B")
             pen = _PENETRATION_RATES.get(industry, _PENETRATION_RATES["SaaS_B2B"])
             arpu_yearly = pen["avg_arpu_usd"] * 1350
 
         total_rev = paying * arpu_yearly
 
         # 각 단계별 퍼널
+        kr_notice = f"\n> 한국 시장({industry}) 기본값 자동 적용됨 (통계청 2025 + 산업별 벤치마크)\n" if use_kr_defaults else ""
         lines = [
             "### Fermi 추정 (Enrico Fermi 스타일 분해 추정법)",
-            "",
+            kr_notice,
             "**가정 체인 (각 단계의 곱):**",
             "",
             "| 단계 | 비율/수치 | 누적 인원 | 설명 |",
@@ -350,11 +394,16 @@ class MarketSizer(BaseTool):
             "| 파라미터 | 설명 | 예시 |",
             "|---------|------|------|",
             "| population | 전체 모수 (인구, 기업수 등) | 52000000 (한국 인구) |",
+            "| market | 시장 (KR이면 한국 기본값 자동) | KR |",
+            "| industry | 산업 분류 | AI_Service, FinTech 등 |",
             "| target_ratio | 대상 비율 | 0.10 (10%) |",
             "| awareness_rate | 인지율 (서비스를 아는 비율) | 0.10 (10%) |",
             "| trial_rate | 시도율 (써보는 비율) | 0.05 (5%) |",
             "| conversion_rate | 유료 전환율 | 0.03 (3%) |",
             "| arpu_yearly | 연간 객단가 | 360000 (원) |",
+            "",
+            "💡 **간편 모드**: `market=\"KR\"` + `industry=\"AI_Service\"`만 입력하면",
+            "   한국 인구(5,200만) + 산업별 벤치마크가 자동 적용됩니다.",
             "",
             "💡 **Fermi 추정의 핵심**: 정확한 숫자보다 '자릿수'를 맞추는 것이 목표입니다.",
             "   Enrico Fermi는 이 방법으로 원자폭탄 폭발력을 ±50% 이내로 추정했습니다.",

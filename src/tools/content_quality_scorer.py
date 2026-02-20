@@ -453,6 +453,52 @@ class ContentQualityScorerTool(BaseTool):
                                "detail": "키워드 미포함"})
             max_score += 15
 
+            # ─── TF-IDF 기반 키워드 중요도 분석 ───
+            # TF (Term Frequency) = keyword_count / total_words
+            tf = keyword_count / words if words > 0 else 0
+            # IDF (단일 문서 근사) = log(1 + 1 / (keyword_count + 1))
+            idf = math.log(1 + 1 / (keyword_count + 1))
+            tfidf_base = tf * idf
+
+            # 위치 가중치 (positional weighting)
+            kw_lower = keyword.lower()
+            positional_bonus = 0.0
+
+            # 제목에 키워드 = 3x 가중
+            if title and kw_lower in title.lower():
+                positional_bonus += tfidf_base * 3.0
+
+            # 첫 번째 문단에 키워드 = 2x 가중
+            first_para = content.split("\n\n")[0] if "\n\n" in content else content[:300]
+            if kw_lower in first_para.lower():
+                positional_bonus += tfidf_base * 2.0
+
+            # 소제목(heading)에 키워드 = 2x 가중
+            headings = re.findall(r'#{1,3}\s+(.+)|<h[1-6][^>]*>(.+?)</h[1-6]>', content)
+            heading_texts = " ".join(
+                (h[0] or h[1]) for h in headings
+            ).lower() if headings else ""
+            if heading_texts and kw_lower in heading_texts:
+                positional_bonus += tfidf_base * 2.0
+
+            # TF-IDF 종합 점수 (base + positional bonus, 0~15점 스케일)
+            # 최대 positional_bonus = tfidf_base * 7 (제목3 + 첫문단2 + 소제목2)
+            tfidf_combined = tfidf_base + positional_bonus
+            # 정규화: tfidf_combined → 0~15점 (tfidf_combined 0.05 이상이면 만점)
+            tfidf_score = min(15, tfidf_combined / 0.05 * 15) if tfidf_combined > 0 else 0
+
+            checks.append({
+                "item": "TF-IDF 키워드 중요도",
+                "status": "pass" if tfidf_score >= 10 else ("warn" if tfidf_score >= 5 else "fail"),
+                "detail": (
+                    f"TF={tf:.4f}, IDF={idf:.4f}, TF-IDF={tfidf_base:.6f}, "
+                    f"위치 보너스={positional_bonus:.6f}, "
+                    f"종합 TF-IDF 점수={tfidf_score:.1f}/15"
+                ),
+            })
+            total_score += tfidf_score
+            max_score += 15
+
             # 4. 키워드 위치
             first_100 = content[:100].lower()
             if keyword.lower() in first_100:

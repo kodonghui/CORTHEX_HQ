@@ -285,27 +285,239 @@ class SectorRotatorTool(BaseTool):
 
     # ── 4. 업종 순환 사이클 ──────────────────
 
-    async def _rotation_cycle(self, kwargs: dict) -> str:
-        results = [f"📊 업종 순환 사이클 이론 (Sam Stovall)"]
-        results.append(f"\n경기 사이클별 유리한 업종:")
-        results.append(f"  ① 경기 회복기 (Recovery): 금융, 부동산, 경기소비재")
-        results.append(f"  ② 경기 확장기 (Expansion): IT/반도체, 산업재, 소재")
-        results.append(f"  ③ 경기 과열기 (Late Cycle): 에너지, 소재, 필수소비재")
-        results.append(f"  ④ 경기 침체기 (Recession): 필수소비재, 유틸리티, 헬스케어")
+    # 경기순환 업종 분류 (pykrx 업종명 기준)
+    CYCLICAL_SECTORS = ["전기전자", "운수장비", "건설업", "화학"]
+    DEFENSIVE_SECTORS = ["전기가스업", "음식료품", "의약품"]
 
-        # LLM으로 현재 국면 판단
-        analysis = await self._llm_call(
-            system_prompt=(
-                "당신은 업종 순환 이론 전문가입니다. "
-                "현재 한국 경제 상황(2026년 2월 기준)을 고려하여 "
-                "경기 사이클의 어느 국면에 있는지 판단하고, "
-                "유리한 업종과 불리한 업종을 구체적으로 제시하세요. 한국어."
-            ),
-            user_prompt="현재 한국 경기 사이클 국면 판단 + 업종 추천을 해주세요.",
-            caller_model=kwargs.get("_caller_model"), caller_temperature=kwargs.get("_caller_temperature"),
-        )
-        results.append(f"\n🎓 현재 국면 분석:\n{analysis}")
+    async def _rotation_cycle(self, kwargs: dict) -> str:
+        """데이터 기반 업종 순환 사이클 판단 (Stovall Sector Rotation).
+
+        방법: 3개월간 경기민감 업종 vs 방어 업종의 상대강도비율(RSR)을 계산하여
+        경기 국면을 정량적으로 분류한 뒤, LLM에 데이터를 공급해 전문가 코멘터리 생성.
+        """
+        stock = _import_pykrx()
+        if stock is None:
+            return "pykrx 라이브러리가 필요합니다."
+
+        import pandas as pd
+
+        end = datetime.now().strftime("%Y%m%d")
+        start_3m = (datetime.now() - timedelta(days=90)).strftime("%Y%m%d")
+        start_1m = (datetime.now() - timedelta(days=30)).strftime("%Y%m%d")
+
+        # ── 업종별 3개월 수익률 계산 ──
+        async def _sector_return(sector_name: str, start: str, end: str) -> float | None:
+            """pykrx 시가총액 상위 종목에서 업종 대리 수익률 계산."""
+            try:
+                cap_df = await asyncio.to_thread(
+                    stock.get_market_cap_by_ticker, end, market="KOSPI"
+                )
+                tickers = cap_df.nlargest(200, "시가총액").index.tolist()
+
+                sector_returns = []
+                for t in tickers:
+                    try:
+                        # pykrx에서 업종 분류 확인
+                        t_sector = await asyncio.to_thread(
+                            stock.get_market_ticker_name, t
+                        )
+                        # 업종 지수 직접 사용 시도
+                        pass
+                    except Exception:
+                        continue
+                return None
+            except Exception:
+                return None
+
+        # pykrx 업종 지수 방식으로 수익률 직접 조회
+        sector_returns_3m = {}
+        sector_returns_1m = {}
+        all_sectors = list(set(self.CYCLICAL_SECTORS + self.DEFENSIVE_SECTORS))
+
+        for sector in all_sectors:
+            try:
+                df_3m = await asyncio.to_thread(
+                    stock.get_index_ohlcv_by_date, start_3m, end, "1001", sector
+                )
+                if df_3m is not None and not df_3m.empty and len(df_3m) > 5:
+                    ret_3m = (df_3m["종가"].iloc[-1] / df_3m["종가"].iloc[0] - 1) * 100
+                    sector_returns_3m[sector] = ret_3m
+            except Exception:
+                pass
+            try:
+                df_1m = await asyncio.to_thread(
+                    stock.get_index_ohlcv_by_date, start_1m, end, "1001", sector
+                )
+                if df_1m is not None and not df_1m.empty and len(df_1m) > 5:
+                    ret_1m = (df_1m["종가"].iloc[-1] / df_1m["종가"].iloc[0] - 1) * 100
+                    sector_returns_1m[sector] = ret_1m
+            except Exception:
+                pass
+
+        # 업종 지수 실패 시 → 시총 상위 종목 기반 대리 수익률 계산
+        if len(sector_returns_3m) < 4:
+            sector_returns_3m, sector_returns_1m = await self._fallback_sector_returns(
+                stock, start_3m, start_1m, end
+            )
+
+        # ── 상대강도비율(RSR) 계산 ──
+        cyc_rets_3m = [sector_returns_3m[s] for s in self.CYCLICAL_SECTORS if s in sector_returns_3m]
+        def_rets_3m = [sector_returns_3m[s] for s in self.DEFENSIVE_SECTORS if s in sector_returns_3m]
+
+        results = [f"{'='*60}"]
+        results.append(f"📊 업종 순환 사이클 분석 (데이터 기반)")
+        results.append(f"{'='*60}")
+
+        # 개별 업종 수익률 표
+        results.append(f"\n▸ 3개월 업종별 수익률:")
+        results.append(f"  {'업종':>8} | {'3개월':>8} | {'1개월':>8} | {'분류':>6}")
+        results.append(f"  {'-'*42}")
+        for sector in all_sectors:
+            r3 = sector_returns_3m.get(sector)
+            r1 = sector_returns_1m.get(sector)
+            cat = "경기민감" if sector in self.CYCLICAL_SECTORS else "방어"
+            if r3 is not None:
+                r1_str = f"{r1:+6.1f}%" if r1 is not None else "   N/A"
+                results.append(f"  {sector:>8} | {r3:>+6.1f}% | {r1_str} | {cat:>6}")
+
+        if cyc_rets_3m and def_rets_3m:
+            avg_cyc = sum(cyc_rets_3m) / len(cyc_rets_3m)
+            avg_def = sum(def_rets_3m) / len(def_rets_3m)
+
+            # RSR = 경기민감 평균 수익률 / 방어 평균 수익률 (부호 보정)
+            # 두 값 모두 음수이면 비율 해석이 반전되므로 차이 기반으로도 판단
+            if avg_def != 0:
+                rsr = (1 + avg_cyc / 100) / (1 + avg_def / 100)
+            else:
+                rsr = 1.0 + (avg_cyc / 100)
+
+            spread = avg_cyc - avg_def  # 경기민감 - 방어 스프레드
+
+            # ── 경기 국면 분류 (3단계: Stovall Sector Rotation 기반) ──
+            # RSR > 1.20 → 경기민감 업종이 방어 대비 20%+ 초과 → 명확한 확장
+            # 0.80 < RSR ≤ 1.20 → 혼조, 전환 구간
+            # RSR ≤ 0.80 → 방어 업종이 압도적 우위 → 침체/방어 국면
+            if rsr > 1.20:
+                phase = "경기 확장기 (Expansion)"
+                phase_detail = "경기민감 업종이 방어 업종을 20%+ 상회 → 시장이 경기 확장을 반영"
+                phase_advice = "IT/반도체, 산업재, 소재 비중 확대 유리. 방어주 축소"
+            elif rsr > 0.80:
+                phase = "경기 전환기 (Transition)"
+                phase_detail = "경기민감 vs 방어 혼조 → 방향 탐색 구간, 순환 전환점 가능성"
+                phase_advice = "업종 중립 유지, 개별 종목 선별 중심. 양쪽 균형 배분"
+            else:
+                phase = "경기 침체/방어 (Defensive/Recession)"
+                phase_detail = "방어 업종이 경기민감 대비 크게 우위 → 시장이 경기 둔화/침체 반영"
+                phase_advice = "필수소비재, 유틸리티, 헬스케어 비중 확대. 경기민감 축소"
+
+            results.append(f"\n▸ 상대강도비율 (RSR):")
+            results.append(f"  경기민감 평균 수익률: {avg_cyc:+.2f}% ({', '.join(self.CYCLICAL_SECTORS)})")
+            results.append(f"  방어 업종 평균 수익률: {avg_def:+.2f}% ({', '.join(self.DEFENSIVE_SECTORS)})")
+            results.append(f"  RSR = {rsr:.3f}  (스프레드: {spread:+.2f}%p)")
+            results.append(f"\n▸ 판정 기준 (Stovall Sector Rotation):")
+            results.append(f"  RSR > 1.20 → 경기 확장기 | 0.80 < RSR ≤ 1.20 → 경기 전환기 | RSR ≤ 0.80 → 경기 침체/방어")
+            results.append(f"\n{'─'*60}")
+            results.append(f"  ▶ 현재 국면: {phase}")
+            results.append(f"  ▶ 해석: {phase_detail}")
+            results.append(f"  ▶ 전략: {phase_advice}")
+            results.append(f"{'─'*60}")
+
+            # 1개월 모멘텀 방향 확인 (추세 가속/감속 판단)
+            cyc_rets_1m = [sector_returns_1m[s] for s in self.CYCLICAL_SECTORS if s in sector_returns_1m]
+            def_rets_1m = [sector_returns_1m[s] for s in self.DEFENSIVE_SECTORS if s in sector_returns_1m]
+            if cyc_rets_1m and def_rets_1m:
+                avg_cyc_1m = sum(cyc_rets_1m) / len(cyc_rets_1m)
+                avg_def_1m = sum(def_rets_1m) / len(def_rets_1m)
+                spread_1m = avg_cyc_1m - avg_def_1m
+                if spread_1m > spread / 3:
+                    trend = "경기민감 쪽으로 가속 중 (확장 방향)"
+                elif spread_1m < -abs(spread / 3):
+                    trend = "방어 쪽으로 전환 중 (둔화 방향)"
+                else:
+                    trend = "현 국면 유지 중"
+                results.append(f"\n▸ 1개월 추세 방향: {trend}")
+                results.append(f"  (1개월 스프레드: {spread_1m:+.2f}%p vs 3개월: {spread:+.2f}%p)")
+
+            # ── LLM에 데이터를 공급하여 전문가 코멘터리 생성 ──
+            data_for_llm = "\n".join(results)
+            analysis = await self._llm_call(
+                system_prompt=(
+                    "당신은 Sam Stovall 수준의 업종 순환 분석 전문가입니다. "
+                    "아래는 실제 pykrx 시장 데이터로 계산한 경기민감 vs 방어 업종 상대강도비율(RSR)과 "
+                    "자동 분류된 경기 국면입니다. 이 데이터를 기반으로:\n"
+                    "1) 분류가 타당한지 전문가 관점에서 검증하세요\n"
+                    "2) 현재 국면에서 구체적 업종 배분 전략(비중 %포함)을 제안하세요\n"
+                    "3) 향후 1~3개월 국면 전환 가능성과 선행 시그널을 제시하세요\n"
+                    "데이터에 없는 내용을 지어내지 마세요. 한국어로 답변."
+                ),
+                user_prompt=data_for_llm,
+                caller_model=kwargs.get("_caller_model"), caller_temperature=kwargs.get("_caller_temperature"),
+            )
+            results.append(f"\n{'='*60}\n🎓 교수급 업종 순환 분석\n{'='*60}\n{analysis}")
+        else:
+            results.append("\n⚠ 업종 데이터 부족으로 RSR 계산 불가. 최소 경기민감 1개 + 방어 1개 필요.")
+            results.append("경기 사이클별 유리한 업종 (이론):")
+            results.append("  ① 경기 회복기: 금융, 부동산, 경기소비재")
+            results.append("  ② 경기 확장기: IT/반도체, 산업재, 소재")
+            results.append("  ③ 경기 과열기: 에너지, 소재, 필수소비재")
+            results.append("  ④ 경기 침체기: 필수소비재, 유틸리티, 헬스케어")
+
         return "\n".join(results)
+
+    async def _fallback_sector_returns(self, stock, start_3m: str, start_1m: str, end: str) -> tuple[dict, dict]:
+        """업종 지수 직접 조회 실패 시, 시총 상위 종목의 업종 분류로 대리 수익률 계산."""
+        # 업종별 대표 종목 매핑 (pykrx 종목명 기준)
+        sector_proxy = {
+            "전기전자": ["삼성전자", "SK하이닉스", "LG전자"],
+            "운수장비": ["현대차", "기아"],
+            "건설업": ["현대건설", "대우건설", "GS건설"],
+            "화학": ["LG화학", "롯데케미칼", "한화솔루션"],
+            "전기가스업": ["한국전력", "한국가스공사"],
+            "음식료품": ["CJ제일제당", "오뚜기", "농심"],
+            "의약품": ["삼성바이오로직스", "셀트리온", "유한양행"],
+        }
+
+        returns_3m = {}
+        returns_1m = {}
+
+        for sector, proxies in sector_proxy.items():
+            rets_3 = []
+            rets_1 = []
+            for pname in proxies:
+                try:
+                    ticker = None
+                    today = datetime.now().strftime("%Y%m%d")
+                    tickers = await asyncio.to_thread(stock.get_market_ticker_list, today, market="KOSPI")
+                    for t in tickers:
+                        n = await asyncio.to_thread(stock.get_market_ticker_name, t)
+                        if n == pname:
+                            ticker = t
+                            break
+                    if not ticker:
+                        continue
+
+                    ohlcv_3 = await asyncio.to_thread(
+                        stock.get_market_ohlcv_by_date, start_3m, end, ticker
+                    )
+                    if not ohlcv_3.empty and len(ohlcv_3) > 5:
+                        r3 = (ohlcv_3["종가"].iloc[-1] / ohlcv_3["종가"].iloc[0] - 1) * 100
+                        rets_3.append(r3)
+
+                    ohlcv_1 = await asyncio.to_thread(
+                        stock.get_market_ohlcv_by_date, start_1m, end, ticker
+                    )
+                    if not ohlcv_1.empty and len(ohlcv_1) > 5:
+                        r1 = (ohlcv_1["종가"].iloc[-1] / ohlcv_1["종가"].iloc[0] - 1) * 100
+                        rets_1.append(r1)
+                except Exception:
+                    continue
+
+            if rets_3:
+                returns_3m[sector] = sum(rets_3) / len(rets_3)
+            if rets_1:
+                returns_1m[sector] = sum(rets_1) / len(rets_1)
+
+        return returns_3m, returns_1m
 
     # ── 5. 업종 vs KOSPI 비교 ────────────────
 

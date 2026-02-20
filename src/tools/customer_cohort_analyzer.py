@@ -292,8 +292,57 @@ class CustomerCohortAnalyzer(BaseTool):
 
     # ── RFM: 고객 세분화 ─────────────────────────────────
 
+    @staticmethod
+    def _quintile_scores(values: list[float], reverse: bool = False) -> list[int]:
+        """값 목록을 실제 분포 기준 5분위(quintile)로 나눠 1~5 점수 부여.
+
+        Arthur Hughes (1994) RFM 원전: 고객을 각 축별로 균등 5등분.
+        reverse=True면 값이 작을수록 높은 점수 (Recency에 사용: 최근일수록 높은 점수).
+        """
+        if not values:
+            return []
+        n = len(values)
+        # (값, 원래 인덱스) 정렬
+        indexed = sorted(enumerate(values), key=lambda x: x[1], reverse=reverse)
+        scores = [0] * n
+        for rank, (orig_idx, _) in enumerate(indexed):
+            # 균등 5분위: rank 0~(n/5-1) → 5점, 다음 → 4점, ...
+            quintile = min(int(rank / max(n / 5, 1)), 4)
+            scores[orig_idx] = 5 - quintile
+        return scores
+
+    @staticmethod
+    def _classify_rfm(r: int, f: int, m: int) -> tuple[str, str]:
+        """RFM 점수 조합으로 세그먼트 분류 (Hughes, 1994 + Putler 확장).
+
+        Returns: (세그먼트명, 추천 액션)
+        """
+        avg = (r + f + m) / 3
+        if r >= 4 and f >= 4 and m >= 4:
+            return "VIP (Champions)", "독점 혜택, 충성도 프로그램, 신제품 얼리 액세스"
+        if f >= 4 and m >= 4:
+            return "충성 고객 (Loyal)", "업셀/크로스셀, 추천 프로그램, 리워드"
+        if r >= 4 and f >= 3:
+            return "잠재 충성 (Potential Loyalist)", "관계 강화, 멤버십 제안, 개인화 추천"
+        if r >= 4 and f <= 2:
+            return "신규 고객 (New)", "온보딩 최적화, 첫 구매 경험 극대화"
+        if r <= 2 and f >= 3 and m >= 3:
+            return "관심 필요 (At Risk)", "재참여 캠페인, 할인 제공, 피드백 요청"
+        if r <= 2 and f <= 2:
+            return "이탈 위험 (Hibernating)", "윈백 캠페인, 설문 조사, 특별 오퍼"
+        if avg <= 2:
+            return "이탈 (Lost)", "최종 할인 or 포기 (ROI 낮음)"
+        return "일반 고객 (Regular)", "정기 커뮤니케이션, 가치 제안 강화"
+
     async def _rfm_segmentation(self, p: dict) -> str:
         total_customers = int(p.get("total_customers", 0))
+        customers_raw = p.get("customers", None)
+
+        # ── 동적 RFM: 개별 고객 데이터가 제공된 경우 실제 분위수 계산 ──
+        if customers_raw and isinstance(customers_raw, list) and len(customers_raw) > 0:
+            return self._rfm_dynamic(customers_raw)
+
+        # ── 정적 폴백: total_customers만 제공된 경우 업계 평균 비율 적용 ──
         if total_customers <= 0:
             return self._rfm_guide()
 
@@ -310,7 +359,7 @@ class CustomerCohortAnalyzer(BaseTool):
 
         lines = [
             "### RFM 세분화 분석 (Arthur Hughes, 1994)",
-            f"(전체 고객: {total_customers:,}명)",
+            f"(전체 고객: {total_customers:,}명 — 업계 평균 비율 적용)",
             "",
             "| 세그먼트 | RFM 패턴 | 비율 | 예상 고객수 | 추천 전략 |",
             "|---------|---------|------|----------|---------|",
@@ -344,11 +393,150 @@ class CustomerCohortAnalyzer(BaseTool):
             "- **R (Recency)**: 최근성 — 마지막 구매/방문이 얼마나 최근인가 (1=오래됨, 5=최근)",
             "- **F (Frequency)**: 빈도 — 얼마나 자주 구매/방문하는가 (1=드물게, 5=자주)",
             "- **M (Monetary)**: 금액 — 얼마나 많이 소비하는가 (1=적게, 5=많이)",
+            "",
+            "💡 **팁**: customers 파라미터로 개별 고객 데이터를 전달하면 실제 분위수 기반 동적 RFM을 수행합니다.",
+        ])
+        return "\n".join(lines)
+
+    def _rfm_dynamic(self, customers: list[dict]) -> str:
+        """개별 고객 데이터 기반 동적 RFM 세분화.
+
+        각 고객의 recency/frequency/monetary 값으로 실제 5분위(quintile)를 계산하고
+        RFM 점수를 부여합니다. Hughes (1994) 원전 방법론 충실 구현.
+
+        customers: [{recency: int, frequency: int, monetary: float, name?: str}, ...]
+        """
+        # 데이터 정제
+        parsed: list[dict] = []
+        for i, c in enumerate(customers):
+            if not isinstance(c, dict):
+                continue
+            parsed.append({
+                "name": c.get("name", f"고객_{i+1}"),
+                "recency": float(c.get("recency", 0)),
+                "frequency": float(c.get("frequency", 0)),
+                "monetary": float(c.get("monetary", 0)),
+            })
+
+        if not parsed:
+            return self._rfm_guide()
+
+        n = len(parsed)
+
+        # 각 축별 실제 분위수(quintile) 점수 계산
+        r_values = [c["recency"] for c in parsed]
+        f_values = [c["frequency"] for c in parsed]
+        m_values = [c["monetary"] for c in parsed]
+
+        # Recency: 값이 작을수록(최근일수록) 높은 점수 → reverse=True
+        r_scores = self._quintile_scores(r_values, reverse=True)
+        # Frequency, Monetary: 값이 클수록 높은 점수 → reverse=False
+        f_scores = self._quintile_scores(f_values, reverse=False)
+        m_scores = self._quintile_scores(m_values, reverse=False)
+
+        # 각 고객에 점수 부여 + 세그먼트 분류
+        segment_counts: dict[str, int] = {}
+        segment_actions: dict[str, str] = {}
+        scored_customers: list[dict] = []
+
+        for i, c in enumerate(parsed):
+            r, f, m = r_scores[i], f_scores[i], m_scores[i]
+            seg_name, action = self._classify_rfm(r, f, m)
+            segment_counts[seg_name] = segment_counts.get(seg_name, 0) + 1
+            segment_actions[seg_name] = action
+            scored_customers.append({
+                "name": c["name"],
+                "R": r, "F": f, "M": m,
+                "rfm": f"{r}{f}{m}",
+                "segment": seg_name,
+            })
+
+        # 5분위 경계값 계산 (분석 재현성을 위해 표시)
+        def _quintile_boundaries(values: list[float]) -> list[float]:
+            s = sorted(values)
+            return [s[max(0, int(len(s) * q / 5) - 1)] for q in range(1, 6)]
+
+        r_bounds = _quintile_boundaries(r_values)
+        f_bounds = _quintile_boundaries(f_values)
+        m_bounds = _quintile_boundaries(m_values)
+
+        lines = [
+            "### RFM 세분화 분석 — 동적 분위수 기반 (Arthur Hughes, 1994)",
+            f"(전체 고객: {n:,}명 — 실제 데이터 기반 quintile 산출)",
+            "",
+            "### 분위수(Quintile) 경계값",
+            "| 축 | Q1(하위20%) | Q2 | Q3 | Q4 | Q5(상위20%) |",
+            "|---|-----------|---|---|---|-----------|",
+            f"| R (Recency) | ≤{r_bounds[0]:.0f} | ≤{r_bounds[1]:.0f} | ≤{r_bounds[2]:.0f} | ≤{r_bounds[3]:.0f} | ≤{r_bounds[4]:.0f} |",
+            f"| F (Frequency) | ≤{f_bounds[0]:.0f} | ≤{f_bounds[1]:.0f} | ≤{f_bounds[2]:.0f} | ≤{f_bounds[3]:.0f} | ≤{f_bounds[4]:.0f} |",
+            f"| M (Monetary) | ≤{m_bounds[0]:.0f} | ≤{m_bounds[1]:.0f} | ≤{m_bounds[2]:.0f} | ≤{m_bounds[3]:.0f} | ≤{m_bounds[4]:.0f} |",
+            "",
+            "### 세그먼트별 분포",
+            "| 세그먼트 | 고객수 | 비율 | 추천 전략 |",
+            "|---------|-------|------|---------|",
+        ]
+
+        # 세그먼트를 고객수 내림차순 정렬
+        sorted_segs = sorted(segment_counts.items(), key=lambda x: x[1], reverse=True)
+        for seg_name, count in sorted_segs:
+            pct = count / n * 100
+            action = segment_actions[seg_name]
+            lines.append(f"| {seg_name} | {count:,}명 | {pct:.1f}% | {action} |")
+
+        # 상위/하위 고객 샘플 (최대 5명씩)
+        # RFM 합산 점수로 정렬
+        scored_customers.sort(key=lambda x: x["R"] + x["F"] + x["M"], reverse=True)
+
+        if n > 5:
+            lines.extend([
+                "",
+                "### 상위 고객 (RFM 합산 Top 5)",
+                "| 고객 | R | F | M | RFM 코드 | 세그먼트 |",
+                "|------|---|---|---|---------|---------|",
+            ])
+            for c in scored_customers[:5]:
+                lines.append(f"| {c['name']} | {c['R']} | {c['F']} | {c['M']} | {c['rfm']} | {c['segment']} |")
+
+            lines.extend([
+                "",
+                "### 하위 고객 (RFM 합산 Bottom 5)",
+                "| 고객 | R | F | M | RFM 코드 | 세그먼트 |",
+                "|------|---|---|---|---------|---------|",
+            ])
+            for c in scored_customers[-5:]:
+                lines.append(f"| {c['name']} | {c['R']} | {c['F']} | {c['M']} | {c['rfm']} | {c['segment']} |")
+
+        lines.extend([
+            "",
+            "**RFM 축 설명:**",
+            "- **R (Recency)**: 최근성 — 값이 작을수록(최근) 높은 점수 (역순 quintile)",
+            "- **F (Frequency)**: 빈도 — 값이 클수록 높은 점수",
+            "- **M (Monetary)**: 금액 — 값이 클수록 높은 점수",
+            "",
+            f"📌 **분석 기준**: {n:,}명의 실제 분포에서 각 축을 5등분(quintile)하여 1~5점 부여.",
+            "   업계 평균이 아닌 **자사 데이터 기반** 상대 평가입니다.",
         ])
         return "\n".join(lines)
 
     def _rfm_guide(self) -> str:
-        return "RFM 세분화: total_customers(전체 고객수)를 입력하세요."
+        return "\n".join([
+            "### RFM 세분화를 위해 필요한 입력값:",
+            "",
+            "**방법 1 — 간편 (업계 평균 비율 적용):**",
+            "| 파라미터 | 설명 | 예시 |",
+            "|---------|------|------|",
+            "| total_customers | 전체 고객수 | 10000 |",
+            "",
+            "**방법 2 — 동적 분위수 (실제 데이터 기반, 권장):**",
+            "| 파라미터 | 설명 | 예시 |",
+            "|---------|------|------|",
+            '| customers | 고객 리스트 | [{recency: 5, frequency: 12, monetary: 150000}, ...] |',
+            "",
+            "- **recency**: 마지막 구매 이후 경과일 (작을수록 좋음)",
+            "- **frequency**: 구매 횟수 (클수록 좋음)",
+            "- **monetary**: 총 구매 금액 (클수록 좋음)",
+            "- **name** (선택): 고객 식별자",
+        ])
 
     # ── CAC Payback: 회수 기간 ──────────────────────────
 

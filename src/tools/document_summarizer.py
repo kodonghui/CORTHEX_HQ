@@ -165,21 +165,57 @@ class DocumentSummarizerTool(BaseTool):
             words = set(_tokenize_words(s)) - STOPWORDS_KO
             sent_words.append(words)
 
-        # 문장 간 유사도 행렬 구성 (Mihalcea 원 논문 방식)
+        # ─── TF-IDF 가중치 계산 (Luhn, 1958 기반 확장) ───
         n = len(sentences)
+
+        # 각 문장별 단어 빈도 (TF 계산용, 불용어 제거 후)
+        sent_word_lists = []
+        for s in sentences:
+            wl = [w for w in _tokenize_words(s) if w not in STOPWORDS_KO]
+            sent_word_lists.append(wl)
+
+        # DF: 각 단어가 등장하는 문장 수
+        doc_freq: dict[str, int] = {}
+        for words_set in sent_words:
+            for w in words_set:
+                doc_freq[w] = doc_freq.get(w, 0) + 1
+
+        # 문장별 TF-IDF 벡터 (word → tfidf score)
+        sent_tfidf: list[dict[str, float]] = []
+        for wl in sent_word_lists:
+            tfidf_vec: dict[str, float] = {}
+            total_w = len(wl) if wl else 1
+            # 단어 빈도 계산
+            wf: dict[str, int] = {}
+            for w in wl:
+                wf[w] = wf.get(w, 0) + 1
+            for w, cnt in wf.items():
+                tf = cnt / total_w
+                idf = math.log(n / (1 + doc_freq.get(w, 0)))
+                tfidf_vec[w] = tf * idf
+            sent_tfidf.append(tfidf_vec)
+
+        # 문장 간 TF-IDF 가중 유사도 행렬 (Mihalcea 확장)
         similarity_matrix = [[0.0] * n for _ in range(n)]
 
         for i in range(n):
             for j in range(i + 1, n):
                 if not sent_words[i] or not sent_words[j]:
                     continue
-                # sim(s_i, s_j) = |공통단어| / (log|s_i| + log|s_j|)
+                # TF-IDF 가중 Jaccard: Σ(tfidf of common words) / (log|s_i| + log|s_j|)
                 common = sent_words[i] & sent_words[j]
+                if not common:
+                    continue
+                # 공통 단어의 TF-IDF 합산 (양쪽 문장의 평균)
+                tfidf_sum = sum(
+                    (sent_tfidf[i].get(w, 0) + sent_tfidf[j].get(w, 0)) / 2
+                    for w in common
+                )
                 len_i = len(sent_words[i])
                 len_j = len(sent_words[j])
                 denominator = math.log(max(len_i, 1) + 1) + math.log(max(len_j, 1) + 1)
                 if denominator > 0:
-                    sim = len(common) / denominator
+                    sim = tfidf_sum / denominator
                 else:
                     sim = 0.0
                 similarity_matrix[i][j] = sim

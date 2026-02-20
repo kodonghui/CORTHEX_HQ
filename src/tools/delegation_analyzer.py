@@ -204,15 +204,34 @@ class DelegationAnalyzerTool(BaseTool):
             comp = _clamp(float(t.get("competence", 5)), 1.0, 10.0)
             commit = _clamp(float(t.get("commitment", 5)), 1.0, 10.0)
 
-            # D1~D4 판정
-            if comp <= 5 and commit > 5:
-                level_key = "D1"
-            elif comp <= 5 and commit <= 5:
-                level_key = "D2"
-            elif comp > 5 and commit <= 5:
+            # ── 2D 연속 준비도 지수 (Continuous Readiness Index) ──
+            # readiness_index: 능력 60% + 의지 40% 가중 합산, 0~1 스케일
+            readiness_index = (comp * 0.6 + commit * 0.4) / 10.0
+
+            # D1~D4 판정 (연속 스케일 + 의지 비대칭 보정)
+            # 의지가 능력 대비 비정상적으로 낮으면 D3 (능력은 있지만 동기 불안정)
+            commitment_gap = comp - commit  # 양수 = 능력 > 의지
+            commitment_disproportionate = commitment_gap >= 3.0 and comp > 5.0
+
+            if commitment_disproportionate:
+                # 능력은 충분하지만 의지가 비례하지 않게 낮은 경우 → D3 고정
                 level_key = "D3"
+            elif readiness_index < 0.35:
+                level_key = "D1"  # 낮은 능력, 약간의 의지
+            elif readiness_index < 0.50:
+                level_key = "D2"  # 성장 중이지만 고군분투
+            elif readiness_index < 0.75:
+                level_key = "D3"  # 유능하지만 변동성
             else:
-                level_key = "D4"
+                level_key = "D4"  # 완전 준비
+
+            # ── 분류 신뢰도 (경계까지 거리 기반) ──
+            boundaries = [0.35, 0.50, 0.75]
+            min_distance = min(abs(readiness_index - b) for b in boundaries)
+            # 경계에서 멀수록 신뢰도 높음 (최대 거리 ~0.25 → 100%)
+            confidence = min(100.0, min_distance / 0.25 * 100)
+            if commitment_disproportionate:
+                confidence = max(confidence, 70.0)  # 의지 비대칭 보정 시 최소 70% 신뢰
 
             level_info = READINESS_LEVELS[level_key]
             analysis.append({
@@ -220,8 +239,12 @@ class DelegationAnalyzerTool(BaseTool):
                 "assignee": t.get("assignee", "미지정"),
                 "competence": comp,
                 "commitment": commit,
+                "readiness_index": round(readiness_index, 3),
                 "readiness_level": level_key,
                 "readiness_label": level_info["label"],
+                "classification_confidence": round(confidence, 1),
+                "commitment_disproportionate": commitment_disproportionate,
+                "commitment_gap": round(commitment_gap, 1),
                 "leadership_style": level_info["style"],
                 "description": level_info["description"],
                 "leader_behavior": level_info["leader_behavior"],
