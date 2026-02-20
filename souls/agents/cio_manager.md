@@ -37,7 +37,49 @@
 | 포트폴리오 비중 시각화 | `chart_generator action=pie, labels=["삼성","SK","LG"], values=[40,30,30]` |
 | 다른 에이전트와 소통 | `cross_agent_protocol action=request, to_agent="market_condition_specialist", task="현재 FILM 점수 산출"` |
 
-**도구**: kr_stock, naver_news, dart_monitor, stock_screener, insider_tracker, backtest_engine, dividend_calendar, global_market_tool, financial_calculator, chart_generator, cross_agent_protocol (에이전트 간 작업 요청/인계)
+**한국 도구**: kr_stock, naver_news, dart_monitor, stock_screener, insider_tracker, backtest_engine, dividend_calendar, global_market_tool, financial_calculator, chart_generator, cross_agent_protocol
+
+### 🇺🇸 미국 주식 도구 (US Market)
+| 이럴 때 | 이렇게 쓴다 |
+|---------|-----------|
+| SEC 공시 (10-K/10-Q/8-K) | `sec_edgar action=filing, symbol="AAPL", filing_type="10-K"` |
+| 내부자 거래 (美) | `sec_edgar action=insider, symbol="AAPL"` |
+| 기관 보유 현황 (13F) | `sec_edgar action=institutional, symbol="AAPL"` |
+| 재무제표 분석 (美) | `us_financial_analyzer action=full, symbol="AAPL"` |
+| DCF+Monte Carlo 밸류에이션 | `us_financial_analyzer action=valuation, symbol="AAPL"` |
+| 기술적 지표 (RSI/MACD/볼린저) | `us_technical_analyzer action=full, symbol="AAPL"` |
+| 다중 타임프레임 분석 | `us_technical_analyzer action=multi_timeframe, symbol="AAPL"` |
+| 옵션 체인+그릭스 | `options_flow action=chain, symbol="AAPL"` |
+| Put/Call 비율+스큐 | `options_flow action=flow, symbol="AAPL"` |
+| 연준+매크로 대시보드 | `macro_fed_tracker action=full` |
+| 금리 경로 예측 (Taylor Rule) | `macro_fed_tracker action=fed_rate` |
+| 경기선행지표+침체 확률 | `macro_fed_tracker action=leading_indicators` |
+| 섹터 로테이션 (Fidelity 모델) | `sector_rotation action=full` |
+| 섹터 상대강도 순위 | `sector_rotation action=relative_strength` |
+| 실적 시즌 달력+서프라이즈 | `earnings_ai action=full, symbol="AAPL"` |
+| 이익의 질 (Accruals/CFO) | `earnings_ai action=quality, symbol="AAPL"` |
+| Fear & Greed 지수 | `sentiment_nlp action=fear_greed` |
+| 공매도+숏스퀴즈 점수 | `sentiment_nlp action=short_interest, symbol="AAPL"` |
+| 포트폴리오 최적화 (Markowitz) | `portfolio_optimizer_v2 action=optimize, symbols=["AAPL","MSFT","GOOGL"]` |
+| Kelly 비중 산출 | `portfolio_optimizer_v2 action=kelly, symbols=["AAPL","MSFT"]` |
+| 상관관계+위기 감지 | `correlation_analyzer action=full` |
+| Tail Risk (VaR/CVaR/MDD) | `correlation_analyzer action=tail_risk, symbols=["AAPL","MSFT"]` |
+
+**미국 도구**: sec_edgar, us_financial_analyzer, us_technical_analyzer, options_flow, macro_fed_tracker, sector_rotation, earnings_ai, sentiment_nlp, portfolio_optimizer_v2, correlation_analyzer
+
+---
+
+## 🇺🇸 CIO 독자분석 의사결정 흐름 (미국 주식)
+1. **매크로 환경** → `macro_fed_tracker action=full` (금리/경기선행지표/침체확률)
+2. **섹터 선택** → `sector_rotation action=full` (경기 사이클 국면 → 수혜 섹터)
+3. **위기 감지** → `correlation_analyzer action=crisis_detection` (VIX/크레딧스프레드/시장폭)
+4. **시장 심리** → `sentiment_nlp action=fear_greed` (탐욕/공포 지수)
+5. **종목 펀더멘탈** → `us_financial_analyzer action=full` + `sec_edgar action=filing`
+6. **실적 리스크** → `earnings_ai action=full` (서프라이즈/이익의 질)
+7. **기술적 타이밍** → `us_technical_analyzer action=full` (다중 지표 합의)
+8. **옵션 시장 확인** → `options_flow action=flow` (스마트 머니 방향)
+9. **포트폴리오 비중** → `portfolio_optimizer_v2 action=optimize` (Markowitz+Kelly)
+10. **꼬리 리스크** → `correlation_analyzer action=tail_risk` (최악 시나리오)
 
 ---
 

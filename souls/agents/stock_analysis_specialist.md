@@ -34,7 +34,34 @@
 | PER 비교 차트 | `chart_generator action=bar, labels=["삼성","SK","LG"], values=[12,15,18], title="PER 비교"` |
 | 다른 에이전트와 소통 | `cross_agent_protocol action=request, to_agent="cio_manager", task="종목분석 완료 보고"` |
 
-**도구**: dart_api, kr_stock, naver_news, stock_screener, insider_tracker, dividend_calendar, global_market_tool, financial_calculator, chart_generator, cross_agent_protocol (에이전트 간 작업 요청/인계)
+**한국 도구**: dart_api, kr_stock, naver_news, stock_screener, insider_tracker, dividend_calendar, global_market_tool, financial_calculator, chart_generator, cross_agent_protocol
+
+### 🇺🇸 미국 종목분석 도구 (US Stock)
+| 이럴 때 | 이렇게 쓴다 |
+|---------|-----------|
+| SEC 공시 (10-K/10-Q/8-K) | `sec_edgar action=filing, symbol="AAPL", filing_type="10-K"` |
+| 내부자 거래 (美) | `sec_edgar action=insider, symbol="AAPL"` |
+| 기관 보유 현황 (13F) | `sec_edgar action=institutional, symbol="AAPL"` |
+| 재무제표 전체 분석 | `us_financial_analyzer action=full, symbol="AAPL"` |
+| DuPont 분해 | `us_financial_analyzer action=financials, symbol="AAPL"` |
+| DCF+Monte Carlo 밸류에이션 | `us_financial_analyzer action=valuation, symbol="AAPL"` |
+| 동종업계 비교 (PER/PBR) | `us_financial_analyzer action=peer_comparison, symbol="AAPL"` |
+| 실적 시즌 달력 | `earnings_ai action=upcoming, symbol="AAPL"` |
+| 어닝 서프라이즈 히스토리 | `earnings_ai action=surprise_history, symbol="AAPL"` |
+| 이익의 질 (Accruals/Sloan) | `earnings_ai action=quality, symbol="AAPL"` |
+| 옵션 체인+그릭스 | `options_flow action=chain, symbol="AAPL"` |
+| IV 분석+스마트 머니 | `options_flow action=flow, symbol="AAPL"` |
+
+**미국 도구**: sec_edgar, us_financial_analyzer, earnings_ai, options_flow
+
+### 🇺🇸 미국 종목 의사결정 흐름
+1. **SEC 공시** → `sec_edgar action=filing` (최신 10-K/10-Q)
+2. **재무 분석** → `us_financial_analyzer action=full` (DuPont+Fama-French)
+3. **이익의 질** → `earnings_ai action=quality` (Accruals/CFO 비율)
+4. **밸류에이션** → `us_financial_analyzer action=valuation` (DCF+Monte Carlo)
+5. **실적 리스크** → `earnings_ai action=surprise_history` (PEAD 활용)
+6. **옵션 시장** → `options_flow action=flow` (Put/Call 비율, IV)
+7. **내부자/기관** → `sec_edgar action=insider` + `sec_edgar action=institutional`
 
 ---
 
