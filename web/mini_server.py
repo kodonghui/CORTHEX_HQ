@@ -3303,14 +3303,49 @@ async def _shadow_trading_alert():
             await asyncio.sleep(3600)
 
 
+# ── 실시간 환율 갱신 ──
+_FX_UPDATE_INTERVAL = 3600  # 1시간마다 갱신
+_last_fx_update: float = 0
+
+async def _update_fx_rate():
+    """yfinance로 USD/KRW 실시간 환율을 가져와 DB에 저장합니다."""
+    global _last_fx_update
+    try:
+        import yfinance as yf
+        ticker = yf.Ticker("USDKRW=X")
+        hist = ticker.history(period="1d")
+        if not hist.empty:
+            rate = round(float(hist.iloc[-1]["Close"]), 2)
+            if 1000 < rate < 2000:  # 비정상 값 필터
+                old_rate = load_setting("fx_rate_usd_krw", 1450)
+                save_setting("fx_rate_usd_krw", rate)
+                _last_fx_update = time.time()
+                if abs(rate - old_rate) >= 1:
+                    _log(f"[FX] 환율 갱신: ${1} = ₩{rate:,.2f} (이전: ₩{old_rate:,.2f})")
+                    save_activity_log("system", f"💱 환율 갱신: ₩{rate:,.2f}/$ (이전 ₩{old_rate:,.2f})", "info")
+                return rate
+    except ImportError:
+        _log("[FX] yfinance 미설치 — 환율 갱신 불가")
+    except Exception as e:
+        _log(f"[FX] 환율 갱신 실패: {e}")
+    return None
+
+
 async def _cron_loop():
     """1분마다 예약된 작업을 확인하고 실행합니다."""
     logger = logging.getLogger("corthex.cron")
     logger.info("크론 실행 엔진 시작")
 
+    # 서버 시작 시 환율 즉시 갱신
+    await _update_fx_rate()
+
     while True:
         try:
             await asyncio.sleep(60)  # 1분마다 체크
+
+            # 환율 주기적 갱신 (1시간마다)
+            if time.time() - _last_fx_update > _FX_UPDATE_INTERVAL:
+                asyncio.create_task(_update_fx_rate())
             schedules = _load_data("schedules", [])
             now = datetime.now(KST)
 
@@ -6134,6 +6169,30 @@ async def debug_auto_trading_pipeline():
             ])
         ),
     }
+
+
+@app.get("/api/debug/fx-rate")
+async def debug_fx_rate():
+    """환율 상태 디버그 — 현재 환율, 마지막 갱신 시간, 수동 갱신."""
+    current_rate = load_setting("fx_rate_usd_krw", 1450)
+    last_update = _last_fx_update
+    since_update = time.time() - last_update if last_update > 0 else -1
+    return {
+        "current_rate": current_rate,
+        "last_updated": datetime.fromtimestamp(last_update, tz=KST).isoformat() if last_update > 0 else "갱신 안됨 (기본값 사용 중)",
+        "seconds_since_update": round(since_update) if since_update >= 0 else None,
+        "next_update_in": max(0, round(_FX_UPDATE_INTERVAL - since_update)) if since_update >= 0 else "미정",
+        "source": "yfinance (USDKRW=X)",
+    }
+
+
+@app.post("/api/debug/fx-rate/refresh")
+async def refresh_fx_rate():
+    """환율 즉시 갱신."""
+    new_rate = await _update_fx_rate()
+    if new_rate:
+        return {"success": True, "rate": new_rate}
+    return {"success": False, "rate": load_setting("fx_rate_usd_krw", 1450), "message": "갱신 실패 — 기존 값 유지"}
 
 
 @app.get("/api/trading/mock/balance")
