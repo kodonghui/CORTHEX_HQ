@@ -4410,11 +4410,12 @@ async def generate_trading_signals():
 - **리스크관리**: 포지션 크기 적정성, 손절가, 전체 포트폴리오 리스크
 
 ## 최종 산출물 (반드시 아래 형식 그대로 — 예시처럼 정확히)
-[시그널] 삼성전자 (005930) | 매수 | 신뢰도 72% | 반도체 수요 회복 + RSI 과매도 구간
-[시그널] 카카오 (035720) | 매도 | 신뢰도 61% | PER 과대평가, 금리 민감 섹터 약세
-[시그널] LG에너지솔루션 (373220) | 관망 | 신뢰도 45% | 혼조세, 방향성 불명확
+[시그널] 삼성전자 (005930) | 매수 | 신뢰도 72% | 목표가 85000 | 반도체 수요 회복 + RSI 과매도 구간
+[시그널] 카카오 (035720) | 매도 | 신뢰도 61% | 목표가 42000 | PER 과대평가, 금리 민감 섹터 약세
+[시그널] LG에너지솔루션 (373220) | 관망 | 신뢰도 45% | 목표가 0 | 혼조세, 방향성 불명확
 
-※ 주의: 신뢰도는 반드시 0~100 사이 숫자 + % 기호. 각 종목마다 독립적으로 계산할 것."""
+※ 주의: 신뢰도는 반드시 0~100 사이 숫자 + % 기호. 각 종목마다 독립적으로 계산할 것.
+※ 목표가: 매수 종목은 목표 매도가, 매도 종목은 목표 재진입가, 관망은 0. 반드시 숫자만 (쉼표 없이)."""
 
     if not is_ai_ready():
         # AI 미연결 시 더미 시그널
@@ -4447,9 +4448,9 @@ async def generate_trading_signals():
         f"활성 전략: {strats_info or '기본 전략'}\n\n"
         f"각 종목에 대해 현재 시장 환경, 섹터 동향, 밸류에이션 관점에서 독립적으로 판단하고 "
         f"매수/매도/관망 의견을 제시하세요. 최종 산출물은 반드시 아래 형식으로:\n"
-        f"[시그널] 삼성전자 (005930) | 매수 | 신뢰도 72% | 반도체 수요 회복 신호\n"
-        f"[시그널] 카카오 (035720) | 관망 | 신뢰도 48% | 방향성 불명확\n"
-        f"※ 신뢰도는 종목별로 독립적으로 0~100 숫자 + % 기호로 표기"
+        f"[시그널] 삼성전자 (005930) | 매수 | 신뢰도 72% | 목표가 85000 | 반도체 수요 회복 신호\n"
+        f"[시그널] 카카오 (035720) | 관망 | 신뢰도 48% | 목표가 0 | 방향성 불명확\n"
+        f"※ 신뢰도는 종목별로 독립적으로 0~100 숫자 + % 기호로 표기. 목표가는 숫자만."
     )
     cio_soul = _load_agent_prompt("cio_manager")
     cio_solo_model = select_model(cio_solo_prompt, override=_get_model_override("cio_manager"))
@@ -4525,7 +4526,18 @@ async def generate_trading_signals():
     except Exception:
         pass  # 기밀문서 저장 실패해도 시그널 API는 정상 반환
 
-    # 매매 결정 일지 저장 (parsed_signals 기반)
+    # 매매 결정 일지 저장
+    _save_decisions(parsed_signals)
+
+    return {"success": True, "signal": new_signal, "parsed_signals": parsed_signals}
+
+
+def _save_decisions(parsed_signals: list) -> None:
+    """시그널을 매매 결정 일지(trading_decisions)에 저장합니다.
+
+    P2-1 수정: 수동 분석(run_trading_now), 자동봇(_trading_bot_loop),
+    스케줄 분석(generate_trading_signals) 모두에서 호출.
+    """
     try:
         decisions = load_setting("trading_decisions", [])
         for sig in parsed_signals:
@@ -4547,9 +4559,22 @@ async def generate_trading_signals():
             decisions = decisions[-50:]
         save_setting("trading_decisions", decisions)
     except Exception:
-        pass  # 결정 일지 저장 실패해도 정상 반환
+        pass
 
-    return {"success": True, "signal": new_signal, "parsed_signals": parsed_signals}
+
+def _cio_confidence_weight(confidence: float) -> float:
+    """CIO 신뢰도 기반 포트폴리오 비중 산출 (Kelly Criterion 단순화).
+
+    CEO 승인 B안: CIO가 비중(%) 결정 → 시스템이 잔고×비중으로 주수 계산.
+    75%+ → 20%, 65%+ → 15%, 55%+ → 10%, 기타 → 5%
+    """
+    if confidence >= 75:
+        return 0.20
+    elif confidence >= 65:
+        return 0.15
+    elif confidence >= 55:
+        return 0.10
+    return 0.05
 
 
 def _parse_cio_signals(content: str, watchlist: list) -> list:
@@ -4559,15 +4584,18 @@ def _parse_cio_signals(content: str, watchlist: list) -> list:
     seen_tickers = set()
 
     # [시그널] 패턴 — CIO가 실제로 쓰는 형식에 맞춤
-    # 예: [시그널] 삼성전자 (005930) | 매수(분할) | 신뢰도 68% |
-    # 예: [시그널] 한화솔루션 (009830) | 매도(비중 축소) | 신뢰도 64% |
-    # 예: [시그널] 한화시스템 (272210) | 관망/부분익절 | 신뢰도 52% |
-    # 예: [시그널] 두산에너빌리티 (034020) | 조건부 매수 | 신뢰도 58% |
-    # [^\|]*? 로 "조건부", "적극", "분할" 등 매수/매도/관망 앞 수식어 허용
-    pattern = r'\[시그널\]\s*(.+?)\s*[\(（]([A-Za-z0-9]+)[\)）]\s*\|\s*[^\|]*?(매수|매도|관망|buy|sell|hold)\b[^\|]*\|\s*(?:신뢰도[:\s]*)?\s*(\d+)\s*%?\s*\|?\s*(.*)'
+    # 예: [시그널] 삼성전자 (005930) | 매수 | 신뢰도 72% | 목표가 85000 | 이유
+    # 예: [시그널] 카카오 (035720) | 매도(비중 축소) | 신뢰도 64% | 이유 (목표가 없을 수도)
+    # 목표가 필드는 선택적 (기존 시그널 호환)
+    pattern = r'\[시그널\]\s*(.+?)\s*[\(（]([A-Za-z0-9]+)[\)）]\s*\|\s*[^\|]*?(매수|매도|관망|buy|sell|hold)\b[^\|]*\|\s*(?:신뢰도[:\s]*)?\s*(\d+)\s*%?\s*\|\s*(?:목표가\s*(\d+)\s*\|\s*)?(.*)'
     matches = re.findall(pattern, content, re.IGNORECASE)
 
-    for name, ticker, action, confidence, reason in matches:
+    # 기존 형식 (목표가 없는 것) 호환용 폴백
+    if not matches:
+        pattern_legacy = r'\[시그널\]\s*(.+?)\s*[\(（]([A-Za-z0-9]+)[\)）]\s*\|\s*[^\|]*?(매수|매도|관망|buy|sell|hold)\b[^\|]*\|\s*(?:신뢰도[:\s]*)?\s*(\d+)\s*%?\s*\|?\s*()(.*)'
+        matches = re.findall(pattern_legacy, content, re.IGNORECASE)
+
+    for name, ticker, action, confidence, target_price_str, reason in matches:
         ticker = ticker.strip()
         if ticker in seen_tickers:
             continue  # 같은 종목 중복 시그널 방지 (요약 섹션 중복)
@@ -4592,6 +4620,7 @@ def _parse_cio_signals(content: str, watchlist: list) -> list:
             "market": market,
             "action": action_map.get(action.lower(), "hold"),
             "confidence": int(confidence),
+            "target_price": int(target_price_str) if target_price_str and target_price_str.isdigit() else 0,
             "reason": reason_text or "CIO 종합 분석 참조",
         })
 
@@ -4781,13 +4810,34 @@ async def run_trading_now():
         signals = signals[:200]
     _save_data("trading_signals", signals)
 
+    # 매매 결정 일지 저장 (P2-1: 수동 분석에서도 decisions 저장)
+    _save_decisions(parsed_signals)
+
     # 자동 주문 실행 (auto_execute=True 일 때만)
     min_confidence = settings.get("min_confidence", 65)
-    order_size = settings.get("order_size", 1_000_000)
+    order_size = settings.get("order_size", 0)  # 0 = CIO 비중 자율, >0 = 고정 금액
     orders_triggered = 0
     if settings.get("auto_execute", False):
         paper_mode = settings.get("paper_trading", True)
         use_kis = _KIS_AVAILABLE and not paper_mode and _kis_configured()
+
+        # CIO 비중 기반 매수(B안): order_size=0이면 잔고×비중으로 자동 산출
+        account_balance = 0
+        if order_size == 0:
+            try:
+                if use_kis:
+                    _bal = await kis_client.get_balance()
+                    account_balance = _bal.get("cash", 0) if _bal.get("success") else 0
+                else:
+                    _port = _load_data("trading_portfolio", _default_portfolio())
+                    account_balance = _port.get("cash", 0)
+            except Exception:
+                pass
+            if account_balance <= 0:
+                account_balance = 1_000_000
+                save_activity_log("cio_manager", "CIO 비중 모드: 잔고 조회 실패, 기본 100만원 사용", "warning")
+            save_activity_log("cio_manager",
+                f"CIO 비중 모드: 계좌잔고 {account_balance:,.0f}원 기준 자동 주수 산출", "info")
 
         for sig in parsed_signals:
             if sig["action"] not in ("buy", "sell"):
@@ -4820,7 +4870,8 @@ async def run_trading_now():
                         _fx = load_setting("fx_rate_usd_krw", 1450)
                     except Exception:
                         pass
-                    qty = max(1, int(order_size / (price * _fx)))
+                    _order_amt = order_size if order_size > 0 else int(account_balance * _cio_confidence_weight(effective_conf))
+                    qty = max(1, int(_order_amt / (price * _fx)))
                 else:
                     if _KIS_AVAILABLE and _kis_configured():
                         price = await _kis_price(ticker)
@@ -4829,7 +4880,8 @@ async def run_trading_now():
                         price = target_w.get("target_price", 0) if target_w else 0
                     if price <= 0:
                         price = 50000
-                    qty = max(1, int(order_size / price))
+                    _order_amt = order_size if order_size > 0 else int(account_balance * _cio_confidence_weight(effective_conf))
+                    qty = max(1, int(_order_amt / price))
 
                 if use_kis:
                     mode_str = "실거래" if not KIS_IS_MOCK else "모의투자(KIS)"
@@ -5097,14 +5149,33 @@ async def _trading_bot_loop():
                 signals = signals[:200]
             _save_data("trading_signals", signals)
 
+            # 매매 결정 일지 저장 (P2-1: 자동봇에서도 decisions 저장)
+            _save_decisions(parsed_signals)
+
             # 자동 주문 실행 (auto_execute=True + 신뢰도 충족 시)
             auto_execute = settings.get("auto_execute", False)
             min_confidence = settings.get("min_confidence", 70)
-            order_size = settings.get("order_size", 1_000_000)
+            order_size = settings.get("order_size", 0)  # 0 = CIO 비중 자율
 
             if auto_execute:
                 paper_mode = settings.get("paper_trading", True)
                 use_kis = _KIS_AVAILABLE and not paper_mode and _kis_configured()
+
+                # CIO 비중 기반 매수(B안): order_size=0이면 잔고×비중으로 자동 산출
+                account_balance = 0
+                if order_size == 0:
+                    try:
+                        if use_kis:
+                            _bal = await kis_client.get_balance()
+                            account_balance = _bal.get("cash", 0) if _bal.get("success") else 0
+                        else:
+                            _port = _load_data("trading_portfolio", _default_portfolio())
+                            account_balance = _port.get("cash", 0)
+                    except Exception:
+                        pass
+                    if account_balance <= 0:
+                        account_balance = 1_000_000
+                        save_activity_log("cio_manager", "CIO 비중 모드: 잔고 조회 실패, 기본 100만원 사용", "warning")
 
                 for sig in parsed_signals:
                     if sig["action"] not in ("buy", "sell"):
@@ -5139,7 +5210,8 @@ async def _trading_bot_loop():
                                 _fx = load_setting("fx_rate_usd_krw", 1450)
                             except Exception:
                                 pass
-                            qty = max(1, int(order_size / (price * _fx)))
+                            _order_amt = order_size if order_size > 0 else int(account_balance * _cio_confidence_weight(effective_conf))
+                            qty = max(1, int(_order_amt / (price * _fx)))
                         else:
                             # ── 한국주식 현재가 조회 ──
                             if _KIS_AVAILABLE and _kis_configured():
@@ -5149,7 +5221,8 @@ async def _trading_bot_loop():
                                 price = target_w.get("target_price", 0) if target_w else 0
                             if price <= 0:
                                 price = 50000  # 가격 미설정 시 기본값
-                            qty = max(1, int(order_size / price))
+                            _order_amt = order_size if order_size > 0 else int(account_balance * _cio_confidence_weight(effective_conf))
+                            qty = max(1, int(_order_amt / price))
 
                         if use_kis:
                             mode_str = "실거래" if not KIS_IS_MOCK else "모의투자(KIS)"
@@ -8084,12 +8157,15 @@ async def _delegate_to_specialists(manager_id: str, text: str) -> list[dict]:
                     message=content_preview,
                     log_type="report",
                 )
+                _tools = r.get("tools_used", []) if isinstance(r, dict) else []
+                _tools_unique = list(dict.fromkeys(_tools))[:5]  # 중복 제거, 최대 5개
                 _log_data = {
                     "id": row_id,
                     "sender": spec_name,
                     "receiver": mgr_name,
                     "message": content_preview,
                     "log_type": "report",
+                    "tools_used": _tools_unique,
                     "created_at": _time.time(),
                 }
                 for _c in connected_clients[:]:
@@ -8101,6 +8177,7 @@ async def _delegate_to_specialists(manager_id: str, text: str) -> list[dict]:
                 await _broadcast_comms({
                     "id": f"dl_{row_id}", "sender": spec_name, "receiver": mgr_name,
                     "message": content_preview, "log_type": "report",
+                    "tools_used": _tools_unique,
                     "source": "delegation", "created_at": datetime.now(KST).isoformat(),
                 })
             except Exception:

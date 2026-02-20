@@ -4025,116 +4025,194 @@
               fmtDual(krw, usd) { return this.fmtKRW(krw) + ' / ' + this.fmtUSD(usd); }
             }" x-init="loadMissionData(); fetch('/api/delegation-log?division=cio&limit=20').then(r=>r.ok?r.json():[]).then(d=>{$root.trading.cioLogs=Array.isArray(d)?d:[];}).catch(()=>{})">
 
-              <!-- KPI 카드 4개 -->
+              <!-- KPI 카드 4개 (C안: 확대 버전) -->
               <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mt-3 mb-4">
                 <!-- 총자산 -->
-                <div class="glass border border-hq-accent/20 rounded-xl p-4 relative overflow-hidden">
+                <div class="glass border border-hq-accent/20 rounded-xl p-5 relative overflow-hidden">
                   <div class="absolute top-0 right-0 w-16 h-16 bg-hq-accent/5 rounded-bl-full"></div>
-                  <div class="text-[10px] text-hq-muted mb-1">총자산 (한국+미국)</div>
-                  <div class="text-lg font-bold font-mono text-hq-accent" x-text="fmtKRW(grandTotal())"></div>
-                  <div class="text-[10px] text-hq-muted/70 font-mono mt-0.5" x-text="usTotal() > 0 ? fmtUSD(usTotal()) + ' 포함' : '한국장만'"></div>
+                  <div class="text-xs text-hq-muted mb-1">총자산 (한국+미국)</div>
+                  <div class="text-xl lg:text-2xl font-bold font-mono text-hq-accent" x-text="fmtKRW(grandTotal())"></div>
+                  <div class="text-xs text-hq-muted/70 font-mono mt-1" x-text="usTotal() > 0 ? fmtUSD(usTotal()) + ' 포함' : '한국장만'"></div>
                 </div>
                 <!-- 오늘 손익 -->
-                <div class="glass border border-hq-border rounded-xl p-4 relative overflow-hidden">
-                  <div class="text-[10px] text-hq-muted mb-1">오늘 손익</div>
-                  <div class="text-lg font-bold font-mono"
+                <div class="glass border border-hq-border rounded-xl p-5 relative overflow-hidden">
+                  <div class="text-xs text-hq-muted mb-1">오늘 손익</div>
+                  <div class="text-xl lg:text-2xl font-bold font-mono"
                        :class="((trading.summary.today||{}).pnl||0) >= 0 ? 'text-hq-green' : 'text-hq-red'"
                        x-text="(((trading.summary.today||{}).pnl||0) >= 0 ? '+' : '') + fmtKRW((trading.summary.today||{}).pnl||0)"></div>
-                  <div class="text-[10px] text-hq-muted/70 mt-0.5" x-text="'거래 ' + ((trading.summary.today||{}).trades||0) + '건'"></div>
+                  <div class="text-xs text-hq-muted/70 mt-1" x-text="'거래 ' + ((trading.summary.today||{}).trades||0) + '건'"></div>
                 </div>
                 <!-- 수익률 -->
-                <div class="glass border border-hq-border rounded-xl p-4 relative overflow-hidden">
-                  <div class="text-[10px] text-hq-muted mb-1">누적 수익률</div>
-                  <div class="text-lg font-bold font-mono"
+                <div class="glass border border-hq-border rounded-xl p-5 relative overflow-hidden">
+                  <div class="text-xs text-hq-muted mb-1">누적 수익률</div>
+                  <div class="text-xl lg:text-2xl font-bold font-mono"
                        :class="((trading.summary.portfolio||{}).total_return||0) >= 0 ? 'text-hq-green' : 'text-hq-red'"
                        x-text="(((trading.summary.portfolio||{}).total_return||0) >= 0 ? '+' : '') + ((trading.summary.portfolio||{}).total_return||0).toFixed(2) + '%'"></div>
-                  <div class="text-[10px] text-hq-muted/70 mt-0.5" x-text="(trading.summary.portfolio||{}).win_rate ? '승률 ' + ((trading.summary.portfolio||{}).win_rate||0).toFixed(0) + '%' : ''"></div>
+                  <div class="text-xs text-hq-muted/70 mt-1" x-text="(trading.summary.portfolio||{}).win_rate ? '승률 ' + ((trading.summary.portfolio||{}).win_rate||0).toFixed(0) + '%' : ''"></div>
                 </div>
                 <!-- 환율 -->
-                <div class="glass border border-hq-border rounded-xl p-4 relative overflow-hidden">
-                  <div class="text-[10px] text-hq-muted mb-1">USD/KRW 환율</div>
-                  <div class="text-lg font-bold font-mono text-hq-cyan" x-text="'₩' + fxRate.toLocaleString()"></div>
-                  <div class="text-[10px] text-hq-muted/70 mt-0.5">기준환율</div>
+                <div class="glass border border-hq-border rounded-xl p-5 relative overflow-hidden">
+                  <div class="text-xs text-hq-muted mb-1">USD/KRW 환율</div>
+                  <div class="text-xl lg:text-2xl font-bold font-mono text-hq-cyan" x-text="'₩' + fxRate.toLocaleString()"></div>
+                  <div class="text-xs text-hq-muted/70 mt-1">기준환율</div>
                 </div>
               </div>
 
-              <!-- 한국장 / 미국장 2열 카드 -->
+              <!-- ═══ C안: 2행 2열 (실거래/모의 × 한국/미국) ═══ -->
+              <!-- Row 1: 실거래 -->
+              <div class="mb-2 mt-1 flex items-center gap-2">
+                <div class="w-2 h-2 rounded-full bg-hq-green"></div>
+                <span class="text-sm font-bold text-hq-green">실거래</span>
+              </div>
               <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
-
-                <!-- 한국장 카드 -->
-                <div class="glass border border-l-4 border-hq-green/20 border-l-hq-green rounded-xl p-4">
-                  <div class="flex items-center justify-between mb-3">
+                <!-- 실거래 한국장 -->
+                <div class="glass border border-l-4 border-hq-green/20 border-l-hq-green rounded-xl p-5 lg:p-6">
+                  <div class="flex items-center justify-between mb-4">
                     <div class="flex items-center gap-2">
-                      <span class="text-sm">🇰🇷</span>
-                      <span class="text-sm font-bold text-hq-green">한국장</span>
+                      <span class="text-base">🇰🇷</span>
+                      <span class="text-base font-bold text-hq-green">한국장</span>
                     </div>
-                    <div class="flex items-center gap-2">
-                      <span class="text-[10px] px-2 py-0.5 rounded-full border"
-                            :class="(trading.summary.settings||{}).kis_connected ? 'border-hq-green/30 bg-hq-green/10 text-hq-green' : 'border-hq-muted/30 text-hq-muted'"
-                            x-text="(trading.summary.settings||{}).kis_connected ? 'KIS 연결' : 'KIS 미연결'"></span>
-                    </div>
+                    <span class="text-xs px-2 py-0.5 rounded-full border"
+                          :class="(trading.summary.settings||{}).kis_connected ? 'border-hq-green/30 bg-hq-green/10 text-hq-green' : 'border-hq-muted/30 text-hq-muted'"
+                          x-text="(trading.summary.settings||{}).kis_connected ? 'KIS 연결' : 'KIS 미연결'"></span>
                   </div>
-                  <div class="text-xl font-bold font-mono text-hq-text" x-text="fmtKRW(krTotal())"></div>
-                  <div class="flex items-center gap-4 mt-2 text-[10px] text-hq-muted">
-                    <span x-text="'현금 ' + fmtKRW((trading.summary.kis_balance||{}).cash || (mockBal||{}).cash || 0)"></span>
-                    <span x-text="'보유 ' + (((trading.summary.kis_balance||{}).holdings||[]).length || ((mockBal||{}).holdings||[]).length || 0) + '종목'"></span>
+                  <div class="text-3xl lg:text-4xl font-bold font-mono text-hq-text mb-2"
+                       x-text="fmtKRW((trading.summary.kis_balance||{}).total_eval || (trading.summary.kis_balance||{}).cash || 0)"></div>
+                  <div class="flex items-center gap-4 mt-2 text-sm text-hq-muted">
+                    <span x-text="'현금 ' + fmtKRW((trading.summary.kis_balance||{}).cash || 0)"></span>
+                    <span x-text="'보유 ' + ((trading.summary.kis_balance||{}).holdings||[]).length + '종목'"></span>
                   </div>
-                  <!-- 한국장 보유종목 미니 리스트 -->
-                  <div class="mt-3 space-y-1.5">
-                    <template x-for="h in ((trading.summary.kis_balance||{}).holdings || (mockBal||{}).holdings || []).slice(0,4)" :key="h.ticker">
-                      <div class="flex items-center justify-between bg-hq-surface/50 rounded-lg px-2.5 py-1.5">
-                        <div class="text-[11px] font-semibold text-hq-text truncate max-w-[120px]" x-text="h.name"></div>
-                        <div class="flex items-center gap-2">
-                          <span class="text-[10px] font-mono text-hq-text" x-text="fmtKRW(h.current_price)"></span>
-                          <span class="text-[10px] font-mono" :class="(h.eval_profit||0)>=0?'text-hq-green':'text-hq-red'"
+                  <div class="mt-4 space-y-2">
+                    <template x-for="h in ((trading.summary.kis_balance||{}).holdings||[]).slice(0,5)" :key="h.ticker">
+                      <div class="flex items-center justify-between bg-hq-surface/50 rounded-lg px-3 py-2 cursor-pointer hover:bg-hq-accent/10 transition"
+                           @click="openStockChart && openStockChart(h.ticker, h.name, 'KR')">
+                        <div class="text-sm font-semibold text-hq-text truncate max-w-[140px]" x-text="h.name"></div>
+                        <div class="flex items-center gap-3">
+                          <span class="text-sm font-mono text-hq-text" x-text="fmtKRW(h.current_price)"></span>
+                          <span class="text-sm font-mono" :class="(h.eval_profit||0)>=0?'text-hq-green':'text-hq-red'"
                                 x-text="((h.eval_profit||0)>=0?'+':'') + fmtKRW(h.eval_profit||0)"></span>
                         </div>
                       </div>
                     </template>
-                    <template x-if="((trading.summary.kis_balance||{}).holdings || (mockBal||{}).holdings || []).length === 0">
-                      <div class="text-[10px] text-hq-muted/50 text-center py-2">보유종목 없음</div>
+                    <template x-if="((trading.summary.kis_balance||{}).holdings||[]).length === 0">
+                      <div class="text-sm text-hq-muted/50 text-center py-4">실거래 보유종목 없음</div>
                     </template>
                   </div>
                 </div>
-
-                <!-- 미국장 카드 -->
-                <div class="glass border border-l-4 border-hq-cyan/20 border-l-hq-cyan rounded-xl p-4">
-                  <div class="flex items-center justify-between mb-3">
+                <!-- 실거래 미국장 -->
+                <div class="glass border border-l-4 border-hq-cyan/20 border-l-hq-cyan rounded-xl p-5 lg:p-6">
+                  <div class="flex items-center justify-between mb-4">
                     <div class="flex items-center gap-2">
-                      <span class="text-sm">🇺🇸</span>
-                      <span class="text-sm font-bold text-hq-cyan">미국장</span>
+                      <span class="text-base">🇺🇸</span>
+                      <span class="text-base font-bold text-hq-cyan">미국장</span>
                     </div>
-                    <div class="flex items-center gap-2">
-                      <span class="text-[10px] px-2 py-0.5 rounded-full border"
-                            :class="(usBal&&usBal.success)||(usMockBal&&usMockBal.success) ? 'border-hq-cyan/30 bg-hq-cyan/10 text-hq-cyan' : 'border-hq-muted/30 text-hq-muted'"
-                            x-text="(usBal&&usBal.success) ? 'KIS 연결' : (usMockBal&&usMockBal.success) ? '모의투자' : '미연결'"></span>
-                    </div>
+                    <span class="text-xs px-2 py-0.5 rounded-full border"
+                          :class="(usBal&&usBal.success) ? 'border-hq-cyan/30 bg-hq-cyan/10 text-hq-cyan' : 'border-hq-muted/30 text-hq-muted'"
+                          x-text="(usBal&&usBal.success) ? 'KIS 연결' : '미연결'"></span>
                   </div>
-                  <div class="flex items-baseline gap-2">
-                    <span class="text-xl font-bold font-mono text-hq-text" x-text="fmtUSD(usTotal())"></span>
-                    <span class="text-xs font-mono text-hq-muted" x-text="usTotal() > 0 ? '≈ ' + fmtKRW(usTotal() * fxRate) : ''"></span>
+                  <div class="flex items-baseline gap-3">
+                    <span class="text-3xl lg:text-4xl font-bold font-mono text-hq-text" x-text="fmtUSD(usTotal())"></span>
+                    <span class="text-sm font-mono text-hq-muted" x-text="usTotal() > 0 ? '≈ ' + fmtKRW(usTotal() * fxRate) : ''"></span>
                   </div>
-                  <div class="flex items-center gap-4 mt-2 text-[10px] text-hq-muted">
-                    <span x-text="'현금 ' + fmtUSD((usBal||{}).cash_usd || (usMockBal||{}).cash_usd || 0)"></span>
-                    <span x-text="'보유 ' + (((usBal||{}).holdings||[]).length || ((usMockBal||{}).holdings||[]).length || 0) + '종목'"></span>
+                  <div class="flex items-center gap-4 mt-2 text-sm text-hq-muted">
+                    <span x-text="'현금 ' + fmtUSD((usBal||{}).cash_usd || 0)"></span>
+                    <span x-text="'보유 ' + ((usBal||{}).holdings||[]).length + '종목'"></span>
                   </div>
-                  <!-- 미국장 보유종목 미니 리스트 -->
-                  <div class="mt-3 space-y-1.5">
-                    <template x-for="h in ((usBal||{}).holdings || (usMockBal||{}).holdings || []).slice(0,4)" :key="h.symbol">
-                      <div class="flex items-center justify-between bg-hq-surface/50 rounded-lg px-2.5 py-1.5">
-                        <div class="flex items-center gap-1.5">
-                          <span class="text-[11px] font-semibold text-hq-text" x-text="h.symbol"></span>
-                          <span class="text-[9px] text-hq-muted truncate max-w-[80px]" x-text="h.name"></span>
-                        </div>
+                  <div class="mt-4 space-y-2">
+                    <template x-for="h in ((usBal||{}).holdings||[]).slice(0,5)" :key="h.symbol">
+                      <div class="flex items-center justify-between bg-hq-surface/50 rounded-lg px-3 py-2 cursor-pointer hover:bg-hq-accent/10 transition"
+                           @click="openStockChart && openStockChart(h.symbol, h.name, 'US')">
                         <div class="flex items-center gap-2">
-                          <span class="text-[10px] font-mono text-hq-text" x-text="fmtUSD(h.current_price)"></span>
-                          <span class="text-[10px] font-mono" :class="(h.eval_profit||0)>=0?'text-hq-green':'text-hq-red'"
+                          <span class="text-sm font-semibold text-hq-text" x-text="h.symbol"></span>
+                          <span class="text-xs text-hq-muted truncate max-w-[100px]" x-text="h.name"></span>
+                        </div>
+                        <div class="flex items-center gap-3">
+                          <span class="text-sm font-mono text-hq-text" x-text="fmtUSD(h.current_price)"></span>
+                          <span class="text-sm font-mono" :class="(h.eval_profit||0)>=0?'text-hq-green':'text-hq-red'"
                                 x-text="((h.eval_profit||0)>=0?'+':'') + fmtUSD(h.eval_profit||0)"></span>
                         </div>
                       </div>
                     </template>
-                    <template x-if="((usBal||{}).holdings || (usMockBal||{}).holdings || []).length === 0">
-                      <div class="text-[10px] text-hq-muted/50 text-center py-2">보유종목 없음</div>
+                    <template x-if="((usBal||{}).holdings||[]).length === 0">
+                      <div class="text-sm text-hq-muted/50 text-center py-4">실거래 보유종목 없음</div>
+                    </template>
+                  </div>
+                </div>
+              </div>
+              <!-- Row 2: 모의투자 -->
+              <div class="mb-2 flex items-center gap-2">
+                <div class="w-2 h-2 rounded-full bg-hq-purple"></div>
+                <span class="text-sm font-bold text-hq-purple">모의투자</span>
+              </div>
+              <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+                <!-- 모의투자 한국장 -->
+                <div class="glass border border-l-4 border-hq-purple/20 border-l-hq-purple rounded-xl p-5 lg:p-6">
+                  <div class="flex items-center justify-between mb-4">
+                    <div class="flex items-center gap-2">
+                      <span class="text-base">🇰🇷</span>
+                      <span class="text-base font-bold text-hq-purple">한국장</span>
+                    </div>
+                    <span class="text-xs px-2 py-0.5 rounded-full border border-hq-purple/30 bg-hq-purple/10 text-hq-purple">모의</span>
+                  </div>
+                  <div class="text-3xl lg:text-4xl font-bold font-mono text-hq-text mb-2"
+                       x-text="fmtKRW((mockBal||{}).total_eval || (mockBal||{}).cash || 0)"></div>
+                  <div class="flex items-center gap-4 mt-2 text-sm text-hq-muted">
+                    <span x-text="'현금 ' + fmtKRW((mockBal||{}).cash || 0)"></span>
+                    <span x-text="'보유 ' + ((mockBal||{}).holdings||[]).length + '종목'"></span>
+                  </div>
+                  <div class="mt-4 space-y-2">
+                    <template x-for="h in ((mockBal||{}).holdings||[]).slice(0,5)" :key="h.ticker">
+                      <div class="flex items-center justify-between bg-hq-surface/50 rounded-lg px-3 py-2 cursor-pointer hover:bg-hq-accent/10 transition"
+                           @click="openStockChart && openStockChart(h.ticker, h.name, 'KR')">
+                        <div class="text-sm font-semibold text-hq-text truncate max-w-[140px]" x-text="h.name"></div>
+                        <div class="flex items-center gap-3">
+                          <span class="text-sm font-mono text-hq-text" x-text="fmtKRW(h.current_price)"></span>
+                          <span class="text-sm font-mono" :class="(h.eval_profit||0)>=0?'text-hq-green':'text-hq-red'"
+                                x-text="((h.eval_profit||0)>=0?'+':'') + fmtKRW(h.eval_profit||0)"></span>
+                        </div>
+                      </div>
+                    </template>
+                    <template x-if="((mockBal||{}).holdings||[]).length === 0">
+                      <div class="text-sm text-hq-muted/50 text-center py-4">모의 보유종목 없음</div>
+                    </template>
+                  </div>
+                </div>
+                <!-- 모의투자 미국장 -->
+                <div class="glass border border-l-4 border-hq-purple/20 border-l-hq-purple rounded-xl p-5 lg:p-6">
+                  <div class="flex items-center justify-between mb-4">
+                    <div class="flex items-center gap-2">
+                      <span class="text-base">🇺🇸</span>
+                      <span class="text-base font-bold text-hq-purple">미국장</span>
+                    </div>
+                    <span class="text-xs px-2 py-0.5 rounded-full border border-hq-purple/30 bg-hq-purple/10 text-hq-purple">모의</span>
+                  </div>
+                  <div class="flex items-baseline gap-3">
+                    <span class="text-3xl lg:text-4xl font-bold font-mono text-hq-text"
+                          x-text="fmtUSD((usMockBal||{}).total_eval_usd || (usMockBal||{}).cash_usd || 0)"></span>
+                    <span class="text-sm font-mono text-hq-muted"
+                          x-text="(usMockBal||{}).cash_usd ? '≈ ' + fmtKRW(((usMockBal||{}).total_eval_usd || (usMockBal||{}).cash_usd || 0) * fxRate) : ''"></span>
+                  </div>
+                  <div class="flex items-center gap-4 mt-2 text-sm text-hq-muted">
+                    <span x-text="'현금 ' + fmtUSD((usMockBal||{}).cash_usd || 0)"></span>
+                    <span x-text="'보유 ' + ((usMockBal||{}).holdings||[]).length + '종목'"></span>
+                  </div>
+                  <div class="mt-4 space-y-2">
+                    <template x-for="h in ((usMockBal||{}).holdings||[]).slice(0,5)" :key="h.symbol">
+                      <div class="flex items-center justify-between bg-hq-surface/50 rounded-lg px-3 py-2 cursor-pointer hover:bg-hq-accent/10 transition"
+                           @click="openStockChart && openStockChart(h.symbol, h.name, 'US')">
+                        <div class="flex items-center gap-2">
+                          <span class="text-sm font-semibold text-hq-text" x-text="h.symbol"></span>
+                          <span class="text-xs text-hq-muted truncate max-w-[100px]" x-text="h.name"></span>
+                        </div>
+                        <div class="flex items-center gap-3">
+                          <span class="text-sm font-mono text-hq-text" x-text="fmtUSD(h.current_price)"></span>
+                          <span class="text-sm font-mono" :class="(h.eval_profit||0)>=0?'text-hq-green':'text-hq-red'"
+                                x-text="((h.eval_profit||0)>=0?'+':'') + fmtUSD(h.eval_profit||0)"></span>
+                        </div>
+                      </div>
+                    </template>
+                    <template x-if="((usMockBal||{}).holdings||[]).length === 0">
+                      <div class="text-sm text-hq-muted/50 text-center py-4">모의 보유종목 없음</div>
                     </template>
                   </div>
                 </div>
@@ -4199,6 +4277,9 @@
                         <span class="text-[9px] text-hq-muted/60 shrink-0"
                               x-text="(getAgentName(log.receiver)||log.receiver).replace('투자분석처장','CIO').replace(' Specialist','')"></span>
                         <span class="text-[8px] text-hq-muted/40 flex-1 line-clamp-1" x-text="stripMarkdown(log.message)"></span>
+                        <template x-if="log.tools_used && log.tools_used.length > 0">
+                          <span class="text-[8px] text-hq-accent/60 shrink-0 ml-1" x-text="'[' + log.tools_used.length + ' tools]'"></span>
+                        </template>
                       </div>
                     </template>
                   </div>
@@ -4760,23 +4841,34 @@
                }"
                x-init="load()">
 
-            <!-- 정확도 요약 카드 -->
-            <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+            <!-- 성과 요약 카드 (1행: 총예측/검증/전체 승률 / 2행: 최근20/매수/매도 승률) -->
+            <div class="grid grid-cols-3 gap-3 mb-4">
               <div class="glass border border-hq-border rounded-xl p-4 text-center">
                 <p class="text-[10px] text-hq-muted mb-1">전체 예측</p>
-                <p class="text-2xl font-bold text-hq-text" x-text="perfData ? (perfData.total_predictions || 0) : '-'"></p>
+                <p class="text-2xl font-bold text-hq-text" x-text="perfData ? (perfData.total || 0) : '-'"></p>
+              </div>
+              <div class="glass border border-hq-border rounded-xl p-4 text-center">
+                <p class="text-[10px] text-hq-muted mb-1">검증 완료</p>
+                <p class="text-2xl font-bold text-hq-text" x-text="perfData ? (perfData.verified || 0) : '-'"></p>
               </div>
               <div class="glass border border-hq-green/30 rounded-xl p-4 text-center">
-                <p class="text-[10px] text-hq-muted mb-1">3일 정확도</p>
-                <p class="text-2xl font-bold text-hq-green" x-text="perfData ? ((perfData.accuracy_3d || 0).toFixed(1) + '%') : '-'"></p>
+                <p class="text-[10px] text-hq-muted mb-1">전체 승률</p>
+                <p class="text-2xl font-bold text-hq-green" x-text="perfData && perfData.overall_accuracy !== null ? perfData.overall_accuracy + '%' : '-'"></p>
               </div>
+            </div>
+            <div class="grid grid-cols-3 gap-3 mb-6">
               <div class="glass border border-hq-cyan/30 rounded-xl p-4 text-center">
-                <p class="text-[10px] text-hq-muted mb-1">7일 정확도</p>
-                <p class="text-2xl font-bold text-hq-cyan" x-text="perfData ? ((perfData.accuracy_7d || 0).toFixed(1) + '%') : '-'"></p>
+                <p class="text-[10px] text-hq-muted mb-1">최근 20건</p>
+                <p class="text-2xl font-bold text-hq-cyan" x-text="perfData && perfData.recent_20_accuracy !== null ? perfData.recent_20_accuracy + '%' : '-'"></p>
+                <p class="text-[9px] text-hq-muted mt-0.5" x-text="perfData ? (perfData.recent_correct || 0) + '/' + (perfData.recent_total || 0) : ''"></p>
               </div>
-              <div class="glass border border-hq-yellow/30 rounded-xl p-4 text-center">
-                <p class="text-[10px] text-hq-muted mb-1">검증 대기</p>
-                <p class="text-2xl font-bold text-hq-yellow" x-text="perfData ? (perfData.pending_count || 0) : '-'"></p>
+              <div class="glass border border-hq-red/30 rounded-xl p-4 text-center">
+                <p class="text-[10px] text-hq-muted mb-1">매수 승률</p>
+                <p class="text-2xl font-bold text-hq-red" x-text="perfData && perfData.buy_accuracy !== null ? perfData.buy_accuracy + '%' : '-'"></p>
+              </div>
+              <div class="glass border border-blue-500/30 rounded-xl p-4 text-center">
+                <p class="text-[10px] text-hq-muted mb-1">매도 승률</p>
+                <p class="text-2xl font-bold text-blue-400" x-text="perfData && perfData.sell_accuracy !== null ? perfData.sell_accuracy + '%' : '-'"></p>
               </div>
             </div>
 
@@ -5173,79 +5265,100 @@
     </div>
   </div>
 
-  <!-- ═══ Trading Chart Modal (종목 차트) ═══ -->
+  <!-- ═══ Trading Chart Slide Panel (종목 차트 C안) ═══ -->
   <div x-show="trading.showChartModal" x-transition.opacity
-       class="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
-       @click.self="trading.showChartModal = false" style="display: none;">
-    <div class="bg-hq-panel border border-hq-border rounded-2xl w-full max-w-[600px] mx-4 p-6" @click.stop>
-      <div class="flex items-center justify-between mb-4">
-        <div>
-          <h2 class="text-lg font-bold text-hq-text" x-text="trading.chartName + ' (' + trading.chartTicker + ')'"></h2>
-          <p class="text-[10px] text-hq-muted mt-0.5">최근 30일 일별 종가 차트</p>
+       class="fixed inset-0 z-50 bg-black/40" @click="trading.showChartModal = false" style="display: none;"></div>
+  <div x-show="trading.showChartModal"
+       x-transition:enter="transition ease-out duration-300" x-transition:enter-start="translate-x-full" x-transition:enter-end="translate-x-0"
+       x-transition:leave="transition ease-in duration-200" x-transition:leave-start="translate-x-0" x-transition:leave-end="translate-x-full"
+       class="fixed top-0 right-0 z-50 h-full w-full max-w-[420px] bg-hq-panel border-l border-hq-border shadow-2xl overflow-y-auto" style="display: none;">
+    <!-- 헤더 -->
+    <div class="sticky top-0 bg-hq-panel/95 backdrop-blur-sm border-b border-hq-border z-10 px-5 py-4">
+      <div class="flex items-center justify-between">
+        <div class="min-w-0">
+          <h2 class="text-base font-bold text-hq-text truncate" x-text="trading.chartName"></h2>
+          <p class="text-xs text-hq-muted font-mono mt-0.5" x-text="trading.chartTicker + ' · ' + (trading.chartMarket || 'KR')"></p>
         </div>
-        <button @click="trading.showChartModal = false" class="text-hq-muted hover:text-hq-text text-xl">&times;</button>
+        <button @click="trading.showChartModal = false" class="ml-3 flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-lg bg-hq-surface hover:bg-hq-border/50 text-hq-muted hover:text-hq-text transition">&times;</button>
       </div>
-      <!-- 차트 영역 -->
-      <div class="relative">
-        <div x-show="trading.chartLoading" class="flex items-center justify-center py-20">
-          <span class="text-hq-muted text-xs">📊 차트 데이터 불러오는 중...</span>
-        </div>
-        <div x-show="!trading.chartLoading && trading.chartData.length === 0" class="text-center py-20 text-hq-muted/70 text-xs">
-          차트 데이터가 없습니다
-        </div>
-        <div x-show="!trading.chartLoading && trading.chartData.length > 0">
-          <!-- SVG 선 그래프 -->
-          <div class="bg-hq-bg rounded-xl p-4 border border-hq-border/50">
-            <svg viewBox="0 0 560 200" class="w-full" style="height: 200px;">
-              <!-- 배경 가로선 (격자) -->
-              <line x1="40" y1="10" x2="550" y2="10" stroke="rgb(var(--hq-border))" stroke-width="0.5" opacity="0.3"/>
-              <line x1="40" y1="60" x2="550" y2="60" stroke="rgb(var(--hq-border))" stroke-width="0.5" opacity="0.3"/>
-              <line x1="40" y1="110" x2="550" y2="110" stroke="rgb(var(--hq-border))" stroke-width="0.5" opacity="0.3"/>
-              <line x1="40" y1="160" x2="550" y2="160" stroke="rgb(var(--hq-border))" stroke-width="0.5" opacity="0.3"/>
-              <!-- 그래프 영역 (그라데이션) -->
-              <defs>
-                <linearGradient id="chartGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stop-color="rgb(var(--hq-cyan))" stop-opacity="0.3"/>
-                  <stop offset="100%" stop-color="rgb(var(--hq-cyan))" stop-opacity="0.02"/>
-                </linearGradient>
-              </defs>
-              <!-- 영역 (면) -->
-              <polygon :points="getChartAreaPoints()" fill="url(#chartGrad)"/>
-              <!-- 선 -->
-              <polyline :points="getChartLinePoints()" fill="none" stroke="rgb(var(--hq-cyan))" stroke-width="2" stroke-linejoin="round"/>
-              <!-- Y축 라벨 -->
-              <text x="36" y="14" fill="rgb(var(--hq-muted))" font-size="8" text-anchor="end" x-text="getChartYLabel(1)"></text>
-              <text x="36" y="64" fill="rgb(var(--hq-muted))" font-size="8" text-anchor="end" x-text="getChartYLabel(0.67)"></text>
-              <text x="36" y="114" fill="rgb(var(--hq-muted))" font-size="8" text-anchor="end" x-text="getChartYLabel(0.33)"></text>
-              <text x="36" y="164" fill="rgb(var(--hq-muted))" font-size="8" text-anchor="end" x-text="getChartYLabel(0)"></text>
-            </svg>
-            <!-- X축 날짜 라벨 -->
-            <div class="flex justify-between px-10 text-[8px] text-hq-muted -mt-1">
-              <span x-text="trading.chartData.length > 0 ? trading.chartData[0].date : ''"></span>
-              <span x-text="trading.chartData.length > 10 ? trading.chartData[Math.floor(trading.chartData.length/2)].date : ''"></span>
-              <span x-text="trading.chartData.length > 0 ? trading.chartData[trading.chartData.length-1].date : ''"></span>
-            </div>
-          </div>
-          <!-- 가격 요약 -->
-          <div class="grid grid-cols-4 gap-2 mt-3">
-            <div class="bg-hq-surface rounded-lg p-2 text-center">
-              <div class="text-[9px] text-hq-muted">시작가</div>
-              <div class="text-xs font-bold text-hq-text" x-text="trading.chartData.length > 0 ? trading.chartData[0].close.toLocaleString() : '-'"></div>
-            </div>
-            <div class="bg-hq-surface rounded-lg p-2 text-center">
-              <div class="text-[9px] text-hq-muted">최고가</div>
-              <div class="text-xs font-bold text-hq-red" x-text="trading.chartData.length > 0 ? Math.max(...trading.chartData.map(d=>d.close)).toLocaleString() : '-'"></div>
-            </div>
-            <div class="bg-hq-surface rounded-lg p-2 text-center">
-              <div class="text-[9px] text-hq-muted">최저가</div>
-              <div class="text-xs font-bold text-blue-400" x-text="trading.chartData.length > 0 ? Math.min(...trading.chartData.map(d=>d.close)).toLocaleString() : '-'"></div>
-            </div>
-            <div class="bg-hq-surface rounded-lg p-2 text-center">
-              <div class="text-[9px] text-hq-muted">현재가</div>
-              <div class="text-xs font-bold text-hq-cyan" x-text="trading.chartData.length > 0 ? trading.chartData[trading.chartData.length-1].close.toLocaleString() : '-'"></div>
-            </div>
+      <!-- 현재가 요약 -->
+      <div x-show="!trading.chartLoading && trading.chartData.length > 0" class="mt-3 flex items-end gap-3">
+        <span class="text-2xl font-bold text-hq-text font-mono" x-text="trading.chartData.length > 0 ? trading.chartData[trading.chartData.length-1].close.toLocaleString() : '-'"></span>
+        <span class="text-sm font-bold mb-0.5"
+              :class="trading.chartData.length >= 2 && trading.chartData[trading.chartData.length-1].close >= trading.chartData[trading.chartData.length-2].close ? 'text-hq-red' : 'text-blue-400'"
+              x-text="(() => { if(trading.chartData.length < 2) return ''; const cur = trading.chartData[trading.chartData.length-1].close; const prev = trading.chartData[trading.chartData.length-2].close; const pct = ((cur - prev) / prev * 100).toFixed(2); return (pct >= 0 ? '+' : '') + pct + '%'; })()"></span>
+      </div>
+    </div>
+
+    <!-- 차트 본문 -->
+    <div class="px-5 py-4 space-y-4">
+      <div x-show="trading.chartLoading" class="flex items-center justify-center py-16">
+        <span class="text-hq-muted text-xs animate-pulse">차트 데이터 불러오는 중...</span>
+      </div>
+      <div x-show="!trading.chartLoading && trading.chartData.length === 0" class="text-center py-16 text-hq-muted/70 text-xs">
+        차트 데이터가 없습니다
+      </div>
+      <div x-show="!trading.chartLoading && trading.chartData.length > 0">
+        <!-- SVG 선 그래프 -->
+        <div class="bg-hq-bg rounded-xl p-3 border border-hq-border/50">
+          <svg viewBox="0 0 560 200" class="w-full" style="height: 180px;">
+            <line x1="40" y1="10" x2="550" y2="10" stroke="rgb(var(--hq-border))" stroke-width="0.5" opacity="0.3"/>
+            <line x1="40" y1="60" x2="550" y2="60" stroke="rgb(var(--hq-border))" stroke-width="0.5" opacity="0.3"/>
+            <line x1="40" y1="110" x2="550" y2="110" stroke="rgb(var(--hq-border))" stroke-width="0.5" opacity="0.3"/>
+            <line x1="40" y1="160" x2="550" y2="160" stroke="rgb(var(--hq-border))" stroke-width="0.5" opacity="0.3"/>
+            <defs>
+              <linearGradient id="chartGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="rgb(var(--hq-cyan))" stop-opacity="0.3"/>
+                <stop offset="100%" stop-color="rgb(var(--hq-cyan))" stop-opacity="0.02"/>
+              </linearGradient>
+            </defs>
+            <polygon :points="getChartAreaPoints()" fill="url(#chartGrad)"/>
+            <polyline :points="getChartLinePoints()" fill="none" stroke="rgb(var(--hq-cyan))" stroke-width="2" stroke-linejoin="round"/>
+            <text x="36" y="14" fill="rgb(var(--hq-muted))" font-size="8" text-anchor="end" x-text="getChartYLabel(1)"></text>
+            <text x="36" y="64" fill="rgb(var(--hq-muted))" font-size="8" text-anchor="end" x-text="getChartYLabel(0.67)"></text>
+            <text x="36" y="114" fill="rgb(var(--hq-muted))" font-size="8" text-anchor="end" x-text="getChartYLabel(0.33)"></text>
+            <text x="36" y="164" fill="rgb(var(--hq-muted))" font-size="8" text-anchor="end" x-text="getChartYLabel(0)"></text>
+          </svg>
+          <div class="flex justify-between px-10 text-[8px] text-hq-muted -mt-1">
+            <span x-text="trading.chartData.length > 0 ? trading.chartData[0].date : ''"></span>
+            <span x-text="trading.chartData.length > 10 ? trading.chartData[Math.floor(trading.chartData.length/2)].date : ''"></span>
+            <span x-text="trading.chartData.length > 0 ? trading.chartData[trading.chartData.length-1].date : ''"></span>
           </div>
         </div>
+        <!-- 가격 요약 -->
+        <div class="grid grid-cols-4 gap-2 mt-3">
+          <div class="bg-hq-surface rounded-lg p-2.5 text-center">
+            <div class="text-[9px] text-hq-muted">시작가</div>
+            <div class="text-xs font-bold text-hq-text font-mono" x-text="trading.chartData.length > 0 ? trading.chartData[0].close.toLocaleString() : '-'"></div>
+          </div>
+          <div class="bg-hq-surface rounded-lg p-2.5 text-center">
+            <div class="text-[9px] text-hq-muted">최고가</div>
+            <div class="text-xs font-bold text-hq-red font-mono" x-text="trading.chartData.length > 0 ? Math.max(...trading.chartData.map(d=>d.close)).toLocaleString() : '-'"></div>
+          </div>
+          <div class="bg-hq-surface rounded-lg p-2.5 text-center">
+            <div class="text-[9px] text-hq-muted">최저가</div>
+            <div class="text-xs font-bold text-blue-400 font-mono" x-text="trading.chartData.length > 0 ? Math.min(...trading.chartData.map(d=>d.close)).toLocaleString() : '-'"></div>
+          </div>
+          <div class="bg-hq-surface rounded-lg p-2.5 text-center">
+            <div class="text-[9px] text-hq-muted">현재가</div>
+            <div class="text-xs font-bold text-hq-cyan font-mono" x-text="trading.chartData.length > 0 ? trading.chartData[trading.chartData.length-1].close.toLocaleString() : '-'"></div>
+          </div>
+        </div>
+        <!-- CIO 최근 시그널 (있으면 표시) -->
+        <template x-if="trading.signals && trading.signals.filter(s => s.ticker === trading.chartTicker).length > 0">
+          <div class="mt-4 bg-hq-surface rounded-xl p-3 border border-hq-border/50">
+            <div class="text-[10px] text-hq-muted font-bold mb-2">CIO 최근 시그널</div>
+            <template x-for="sig in trading.signals.filter(s => s.ticker === trading.chartTicker).slice(0,2)" :key="sig.ticker + sig.action">
+              <div class="flex items-center gap-2 mb-1.5 last:mb-0">
+                <span class="text-[10px] px-1.5 py-0.5 rounded font-bold"
+                      :class="sig.action === 'buy' ? 'bg-hq-red/20 text-hq-red' : sig.action === 'sell' ? 'bg-blue-500/20 text-blue-400' : 'bg-hq-surface text-hq-muted'"
+                      x-text="sig.action === 'buy' ? '매수' : sig.action === 'sell' ? '매도' : '관망'"></span>
+                <span class="text-[10px] text-hq-muted" x-text="'신뢰도 ' + (sig.confidence || 0) + '%'"></span>
+                <span class="text-[10px] text-hq-text truncate flex-1" x-text="sig.reason || ''"></span>
+              </div>
+            </template>
+          </div>
+        </template>
       </div>
     </div>
   </div>
@@ -7908,12 +8021,14 @@
           if (tabId === 'sns') this.loadSNS();
           if (tabId === 'trading') {
             this.loadTradingSummary();
+            this._connectCioSSE();
             clearInterval(this.trading.refreshInterval);
             this.trading.refreshInterval = setInterval(() => {
               if (this.activeTab === 'trading') this.loadTradingSummary(true);
             }, 30000);
           } else {
             clearInterval(this.trading.refreshInterval);
+            this._disconnectCioSSE();
           }
           if (tabId === 'command') {
             this.$nextTick(() => { this.scrollToBottom(); });
@@ -9248,16 +9363,21 @@
           finally { this.trading.watchPricesLoading = false; }
         },
 
-        // 종목 차트 열기
+        // 종목 차트 열기 (관심종목용)
         async openWatchlistChart(w) {
-          this.trading.chartTicker = w.ticker;
-          this.trading.chartName = w.name;
-          this.trading.chartMarket = w.market || 'KR';
+          this.openStockChart(w.ticker, w.name, w.market || 'KR');
+        },
+
+        // 종목 차트 열기 (대시보드/포트폴리오 범용)
+        async openStockChart(ticker, name, market) {
+          this.trading.chartTicker = ticker;
+          this.trading.chartName = name || ticker;
+          this.trading.chartMarket = market || 'KR';
           this.trading.chartData = [];
           this.trading.chartLoading = true;
           this.trading.showChartModal = true;
           try {
-            const res = await fetch(`/api/trading/watchlist/chart/${w.ticker}?market=${w.market||'KR'}&days=30`).then(r => r.ok ? r.json() : {chart:[]});
+            const res = await fetch(`/api/trading/watchlist/chart/${ticker}?market=${market||'KR'}&days=30`).then(r => r.ok ? r.json() : {chart:[]});
             this.trading.chartData = res.chart || [];
           } catch(e) { console.error('Chart load error:', e); }
           finally { this.trading.chartLoading = false; }
@@ -9366,7 +9486,7 @@
             this.trading.cioLogs = Array.isArray(logs) ? logs : [];
             await this.loadTradingSummary();
           } catch { this.showToast('즉시 분석 실패', 'error'); }
-          finally { this.trading.runningNow = false; this._disconnectCioSSE(); }
+          finally { this.trading.runningNow = false; }
         },
 
         async toggleTradingBot() {

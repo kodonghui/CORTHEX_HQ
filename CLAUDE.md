@@ -1,70 +1,50 @@
 # CORTHEX HQ - Claude 작업 규칙
 
-## ⚡ 최우선 규칙 (어느 컴퓨터에서든 반드시 적용)
-
-**세션 시작 시 — 반드시 이 순서로 (장치 전환 여부 무관, 항상)**
+## ⚡ 세션 시작 (매 세션 반드시)
 1. `git fetch origin && git status` 실행
-   - 미커밋 파일 있으면 → **작업 중지**. CEO에게 "미커밋 작업이 있습니다. 커밋할까요?" 물어볼 것
-   - 깨끗하면(nothing to commit) → `git checkout main && git pull origin main` 즉시 실행
-2. 이유: CEO는 항상 작업을 main에 머지한 후 장치를 이동함 → 새 세션 = 항상 최신 main에서 시작
-3. CORTHEX 요청이 오면 질문 전에 먼저 코드 탐색: `docs/project-status.md` → `docs/updates/` 최근 파일 → 관련 코드 Read
-
-**소통 규칙 (예외 없이)**
-- CEO는 비개발자 → 전문 용어 쓸 때 괄호 안에 쉬운 설명 필수. 존댓말 사용
-- 추상적 말 금지: "최적화했습니다"(X) → "로딩 3초→1초로 줄었습니다"(O)
-- 뻔한 질문 금지: "커밋할까요?" "배포할까요?" → 바로 실행
-- **"논의" 키워드 시 코딩 금지**: CEO가 "논의", "이야기", "아이디어" 등을 먼저 언급하면 → 코드 작성 없이 구체적이고 이해하기 쉬운 아이디어/옵션 + 추천을 제시할 것. 논의 후 CEO가 결정하면 그때 실행
-- 소신 발언 필수: A보다 B가 낫다면 먼저 말하고 CEO가 최종 결정
-- "로컬에서 확인" 금지 → 항상 서버(`http://corthex-hq.com`)에서 확인
-- 작업 완료 = 커밋 + 푸시 + 배포 + 서버 확인 + CEO에게 빌드번호 체크리스트 보고까지
-
-**Git 규칙**
-- 매 작업마다 `origin/main` 기준 새 브랜치: `git checkout -b claude/작업명 origin/main`
-- 마지막 커밋에 `[완료]` 포함해야 자동 머지 작동
-
-**파일 수정 안전 규칙**
-- `web/templates/index.html`은 **Write 도구로 전체 덮어쓰기 절대 금지** → 반드시 Edit 도구로 부분 수정만 할 것 (전체 덮어쓰면 수천 줄 유실 위험)
-
-**외부 API 코딩 시 최신정보 확인 의무 (중요!)**
-- KIS(한국투자증권), Google, OpenAI, Anthropic 등 **외부 API를 사용하는 코드를 작성/수정할 때는 반드시 WebSearch로 최신 공식 문서를 먼저 확인**할 것
-- 기억에만 의존해서 TR_ID, 엔드포인트, 파라미터명 등을 쓰면 안 됨 — 공식 문서/GitHub 샘플에서 확인 후 코딩
-- **KIS OpenAPI 공식 참고처**: [KIS Developers 포털](https://apiportal.koreainvestment.com), [공식 GitHub](https://github.com/koreainvestment/open-trading-api)
-- 과거 사고: TR_ID를 일본용(TTTS0308U)으로 잘못 써서 미국주식 주문이 안 된 사건 (2026-02-20)
-
----
+   - 미커밋 있으면 → **작업 중지**, CEO에게 "미커밋 있습니다. 커밋할까요?" 물어볼 것
+   - 깨끗하면 → `git checkout main && git pull origin main` 즉시 실행
+2. 새 브랜치에서 작업: `git checkout -b claude/작업명 origin/main` (main 직접 작업 금지)
+3. CORTHEX 요청 시 먼저 코드 탐색: `docs/project-status.md` → `docs/updates/` 최근 파일 → 관련 코드 Read
 
 ## 프로젝트 정보
 - 저장소: https://github.com/kodonghui/CORTHEX_HQ
 - 소유자: kodonghui (비개발자 CEO)
-- 언어: 한국어로 소통
+- 언어: 한국어 소통 | 도메인: `corthex-hq.com`
 
-## ⚡ 장치 전환 시 필수 — 세션 시작 즉시 실행
+## 소통 규칙 (예외 없이)
+- CEO는 비개발자 → 전문 용어에 괄호 설명 필수. 존댓말 사용
+- **구체적으로**: "최적화했습니다"(X) → "로딩 3초→1초로 줄었습니다"(O)
+- **구조적으로**: 장문 시 제목/번호/표/구분선 사용. 글 덩어리 금지
+- **한국어로**: 도구 권한 요청도 한국어. "grep in?"(X) → "이 폴더에서 검색할까요?"(O)
+- **뻔한 질문 금지**: "커밋할까요?" "배포할까요?" → 바로 실행
+- **"논의" 키워드 → 코딩 금지**: 아이디어/옵션 + 추천 제시. CEO 결정 후 실행
+- **소신 발언 필수**: B가 더 나으면 먼저 말할 것. CEO가 최종 결정권자
+- **"로컬에서 확인" 금지** → 항상 `http://corthex-hq.com`에서 확인
+- 작업 완료 = 커밋 + 푸시 + 배포 + 서버 확인 + CEO에게 빌드번호 체크리스트 보고
 
-**다른 기기에서 이 세션을 열었다면, 제일 먼저 아래를 실행할 것. 어떤 작업도 이 전에 하지 말 것.**
+## Git 규칙
+- 매 작업마다 `origin/main` 기준 새 브랜치: `claude/작업명`
+- 마지막 커밋에 `[완료]` 포함 → 자동 머지 트리거
+- 작업 중간에도 수시로 커밋 + 푸시 (중간 저장)
+- 기존 브랜치에 무관한 작업 추가 금지
 
-```bash
-git fetch origin && git status
-```
-- git status에 미커밋 파일이 있으면 → 작업 중지. CEO에게 "미커밋 작업이 있습니다. 먼저 커밋하시겠습니까?" 물어볼 것
-- git status가 깨끗하면(nothing to commit) → 아래 계속 실행:
+## 파일 수정 안전 규칙
+- `web/templates/index.html`은 **Write 전체 덮어쓰기 절대 금지** → Edit 부분 수정만
 
-```bash
-git checkout main && git pull origin main
-```
-- 완료 후 반드시 새 브랜치에서 작업 시작: `git checkout -b claude/[작업명]`
-- main 브랜치에서 직접 작업 절대 금지
+## 외부 API 코딩 시
+- KIS, OpenAI, Google 등 외부 API 코드 → **반드시 WebSearch로 최신 공식 문서 먼저 확인**
+- 기억에 의존해서 TR_ID, 엔드포인트, 파라미터명 쓰면 안 됨
+- KIS 참고: [KIS Developers](https://apiportal.koreainvestment.com), [공식 GitHub](https://github.com/koreainvestment/open-trading-api)
 
-이 규칙의 이유: CEO는 항상 작업을 main에 머지한 후 기기를 이동함. 따라서 새 세션 = 항상 최신 main에서 시작해야 함. 이걸 안 하면 Claude가 구버전 맥락으로 응답하게 됨 (실제 사례: 빌드 #224 기준으로 응답했으나 실제는 #238이었던 사건).
+## GitHub Secrets (2026-02-18 전체 등록 완료 — 다시 물어보지 말 것!)
+모든 API 키가 등록됨. CEO에게 "API 키 알려주세요" 절대 금지. deploy.yml이 서버 `/home/ubuntu/corthex.env`에 자동 반영.
 
-## ⚠️ GitHub Secrets 현황 (2026-02-18 전체 등록 완료 — 다시 물어보지 말 것!)
-**모든 API 키가 GitHub Secrets에 등록되어 있음. CEO에게 "API 키 알려주세요" 절대 금지.**
-배포 시 deploy.yml이 자동으로 서버 `/home/ubuntu/corthex.env`에 반영함.
-
-| 분류 | 등록된 Secret 이름 |
-|------|-------------------|
-| AI API | `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GOOGLE_API_KEY`, `GOOGLE_GEMINI_API_KEY` |
+| 분류 | Secret 이름 |
+|------|------------|
+| AI | `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GOOGLE_API_KEY`, `GOOGLE_GEMINI_API_KEY` |
 | 노션 | `NOTION_API_KEY`, `NOTION_DEFAULT_DB_ID` |
-| GitHub | `REPO_ACCESS_TOKEN` (GITHUB_TOKEN은 예약어라 REPO_ACCESS_TOKEN 사용) |
+| GitHub | `REPO_ACCESS_TOKEN` |
 | 텔레그램 | `TELEGRAM_ENABLED`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CEO_CHAT_ID` |
 | 공공/리서치 | `DART_API_KEY`, `ECOS_API_KEY`, `KIPRIS_API_KEY`, `LAW_API_KEY`, `SERPAPI_KEY` |
 | 이메일 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS` |
@@ -74,539 +54,86 @@ git checkout main && git pull origin main
 | 네이버 | `NAVER_CLIENT_ID`, `NAVER_CLIENT_SECRET`, `NAVER_ID`, `NAVER_PW`, `NAVER_BLOG_ID`, `NAVER_REDIRECT_URI` |
 | 다음 | `DAUM_CAFE_ID`, `DAUM_CAFE_BOARD_ID`, `DAUM_ID`, `DAUM_PW` |
 | 서버 | `SERVER_IP_ARM`, `SERVER_SSH_KEY_ARM` (건드리지 말 것) |
-| 한국투자증권(KIS) | `KOREA_INVEST_APP_KEY`, `KOREA_INVEST_APP_SECRET`, `KOREA_INVEST_ACCOUNT`, `KOREA_INVEST_IS_MOCK` |
+| KIS | `KOREA_INVEST_APP_KEY`, `KOREA_INVEST_APP_SECRET`, `KOREA_INVEST_ACCOUNT`, `KOREA_INVEST_IS_MOCK` |
 | 기타 | `SNS_BROWSER_HEADLESS` |
 
-**API 키 값이 필요하면** → `gh secret list --repo kodonghui/CORTHEX_HQ`로 목록만 확인 가능 (값은 GitHub에서 보안상 숨김)
-**키 재등록 방법** → `.venv/Scripts/python set_secrets.py` (set_secrets.py는 실행 후 자동 삭제됨)
-
-## 소통 규칙 (최우선 규칙 — 반드시 지킬 것)
-- CEO는 비개발자다. 모든 대화에서 아래 규칙을 예외 없이 지킬 것
-- **구체적으로**: 추상적인 말 금지. "최적화했습니다" (X) → "페이지 로딩 속도를 3초에서 1초로 줄였습니다" (O)
-- **자세하게**: 생략하지 말 것. 뭘 했는지, 왜 했는지, 결과가 어떤지 다 말할 것
-- **이해하기 쉽게**: 초등학생도 알아들을 수 있는 수준으로 말할 것. 전문 용어를 쓸 때는 반드시 괄호 안에 쉬운 설명을 붙일 것 (예: "커밋(저장)", "브랜치(작업 공간)")
-- **구조적으로**: 장문일 때는 반드시 제목, 번호 매기기, 표, 구분선 등을 써서 정리할 것. 글 덩어리로 주지 말 것
-- **한국어로**: 모든 대화, 질문, 도구 사용 권한 요청 메시지는 **한국어**로 할 것. "grep in?"(X) → "이 폴더에서 검색하시겠습니까?"(O)
-- 무엇을 왜 하는지 먼저 설명하고, 그다음 실행할 것
-- 작업 결과를 보고할 때는 "뭘 했는지 → 왜 했는지 → 현재 상태 → 다음에 할 일" 순서로 정리할 것
-- 존댓말로 할것
-- **뻔한 질문 금지**: 당연히 해야 하는 것을 CEO에게 물어보지 말 것. "커밋할까요?", "배포할까요?", "푸시할까요?" 같은 질문은 하지 말고 바로 실행할 것. CEO의 시간을 아낄 것
-- **"논의" 키워드 시 코딩 금지 (중요!)**: CEO가 "논의하자", "이야기 해보자", "아이디어 줘" 등을 먼저 언급하면 → 코드 작성 없이, 구체적이고 이해하기 쉽게 아이디어/옵션 + 추천을 제시할 것. 논의 후 CEO가 "해줘"라고 결정하면 그때 실행. 논의 요청을 실행 요청으로 혼동하지 말 것
-- **소신 있게 의견 제시 (예스맨 금지)**: CEO가 "A 해줘"라고 해도, B가 더 낫다고 판단하면 반드시 먼저 말할 것
-  - 형식: "A 대신 B를 추천합니다. 이유: [구체적 이유]. A로 진행하시겠습니까?" → CEO가 결정
-  - 단순 실행자가 아니라 **기술 파트너**로 행동할 것. "시키는 대로만" 하는 것은 CEO에게 도움이 안 됨
-  - 예: CEO가 "패턴 번호로 정리해줘" → "번호보다 카테고리 분류가 더 낫습니다. 이유: 나중에 패턴 추가 시 번호 안 바뀜. 카테고리로 할까요?" 이렇게 말할 것
-  - 단, CEO가 최종 결정권자. 내 의견 말한 후 CEO가 원래 방식 고집하면 그대로 따를 것
-- **중복/불필요한 것은 내 판단으로 정리**: CEO가 모든 세부사항을 결정할 필요 없음. 명백히 중복인 내용, 더 나은 구조 등은 내가 판단해서 정리하고 "이렇게 정리했습니다" 보고만 할 것
-- **"로컬에서 확인" 금지**: 이 프로젝트는 Oracle Cloud 서버에 배포되어 있음. 접속 주소: `http://corthex-hq.com` (도메인, 권장) 또는 IP 직접 접속 (GitHub Secrets `SERVER_IP_ARM` 참조). "로컬에서 확인해보세요" 같은 말은 절대 하지 말 것. 확인은 항상 서버에서. 작업 완료 = 커밋 + 푸시 + 배포 + 서버에서 확인까지 끝낸 것
-
-## 세션 시작 규칙 (장치 전환 감지)
-- 사용자가 "내 노트북", "회사 노트북", "집 컴퓨터", "새 컴퓨터", "다른 컴퓨터" 등 장치/환경 전환을 언급하면, **작업 시작 전 반드시 아래 순서로 로컬을 최신 main과 동기화할 것**:
-  1. `git fetch origin` — 원격 최신 정보 가져오기
-  2. `git checkout main && git pull origin main` — 로컬 main을 최신으로 업데이트
-  3. 그 다음 새 브랜치 만들어서 작업 시작 (`git checkout -b claude/작업명 origin/main`)
-- 동기화 없이 바로 작업 시작하면 충돌(conflict)이 날 수 있으므로 반드시 먼저 할 것
-
-## Git 작업 규칙
-- 깃허브의 Claude.md를 매번 반드시 참고할것
-- 작업 중간에도 수시로 커밋 + 푸시할 것 (중간 저장)
-- 작업이 완전히 끝났을 때, 마지막 커밋 메시지에 반드시 [완료] 를 포함할 것
-  - 예: "feat: 로그인 기능 추가 [완료]"
-  - [완료]가 있어야 자동 머지가 작동함. 없으면 PR만 만들고 머지는 안 함
-- 브랜치명은 반드시 claude/ 로 시작할 것 (자동 머지 트리거 조건)
-- **매 작업(세션) 시작 시 반드시 새 브랜치를 만들 것.** 기존 브랜치에 무관한 작업을 추가하지 말 것
-  - 브랜치 이름은 작업 내용이 담기도록 (예: claude/soul-upgrade-cio, claude/fix-login-bug)
-  - 새 브랜치는 항상 최신 main(origin/main)에서 만들 것: `git checkout -b claude/작업명 origin/main`
-- 브랜치 작업 후 main에 합치는 것까지 완료해야 "작업 끝"으로 간주
+키 재등록: `.venv/Scripts/python set_secrets.py` (실행 후 자동 삭제)
 
 ## UI/UX 규칙
-- **언어**: 모든 UI 텍스트는 **한국어**로 작성
-- **시간대**: `Asia/Seoul` (KST, UTC+9) 기준
-- **프레임워크**: Tailwind CSS + Alpine.js (CDN)
-- **디자인 시스템**: `hq-*` 커스텀 컬러 토큰 사용
-- **폰트 (반드시 지킬 것)**: **Pretendard** 단일 폰트로 통일
-  - body 기본폰트: `'Pretendard Variable', 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif`
-  - 포인트 명조 (제목/워크플로우 이름 등): `.font-title { font-family: 'Noto Serif KR', ... }` — 이 클래스만 허용
-  - `font-mono` 사용 허용 범위: **숫자/코드/종목코드/시간값 입력창에만** 허용. 한국어 텍스트에 `font-mono` 쓰면 안 됨
-  - CDN: `https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css`
-  - ❌ 금지: 새 Google 폰트 추가, `font-sans` 커스텀 오버라이드, 이름 없는 system-ui 단독 사용
+- 언어: 한국어 | 시간대: `Asia/Seoul` (KST)
+- 프레임워크: Tailwind CSS + Alpine.js (CDN)
+- 디자인: `hq-*` 커스텀 컬러 토큰
+- **폰트**: Pretendard 단일 통일. `font-mono`는 숫자/코드/종목코드에만. Noto Serif KR는 `.font-title`만
+- ❌ 새 Google 폰트 추가, `font-sans` 오버라이드 금지
 
-## 하드코딩 금지 규칙 (매우 중요!)
-- **모델명, 에이전트 목록, 도구 목록 등을 코드에 직접 쓰지 말 것!**
-  - ❌ 나쁜 예: `mini_server.py`에 `model_name: "claude-haiku-4-5-20251001"` 직접 입력
-  - ✅ 좋은 예: `config/agents.yaml`에서 읽어서 사용
-- **모델명 정의는 딱 2곳만**:
-  - `config/agents.yaml` — 에이전트별 모델
-  - `config/models.yaml` — 사용 가능한 모델 목록 + 가격
-- **mini_server.py, ai_handler.py, index.html에 모델명 문자열을 직접 쓰면 안 됨**
-  - 설정 파일(yaml)에서 읽거나, 파일 상단에 상수로 한 번만 정의하고 참조할 것
-  - 예: `DEFAULT_MODEL = _load_config("models")["default"]` 이런 식으로
-- **새 모델 추가/변경 시 체크리스트** (이전 사고에서 배운 교훈):
-  1. `config/agents.yaml` 수정
-  2. `config/models.yaml` 수정
-  3. `python config/yaml2json.py` 실행 (JSON 재생성)
-  4. `mini_server.py`의 AGENTS 리스트가 yaml과 동기화되는지 확인
-  5. `mini_server.py`의 `get_available_models()` 함수 확인
-  6. `mini_server.py`의 `_TG_MODELS` (텔레그램 모델 목록) 확인
-  7. `ai_handler.py`의 `_PRICING` 가격표 확인
-  8. `ai_handler.py`의 기본값/폴백 모델 확인
-  9. `index.html`의 모델 표시명 매핑 확인
-  10. `index.html`의 추론 레벨 매핑 확인
-- **과거 사고**: 2026-02-18에 agents.yaml만 바꾸고 나머지 9곳을 안 바꿔서 Sonnet 4.6이 어디에도 반영 안 된 사건 발생. 4개 파일 60+곳이 구버전으로 남아있었음
+## 하드코딩 금지 (매우 중요!)
+- 모델명 정의는 딱 2곳: `config/agents.yaml` + `config/models.yaml`
+- mini_server.py, ai_handler.py, index.html에 모델명 문자열 직접 쓰면 안 됨
+- **새 모델 추가/변경 시 10곳 체크리스트**:
+  1. `config/agents.yaml` 2. `config/models.yaml` 3. `yaml2json.py` 실행
+  4. mini_server.py AGENTS 리스트 5. `get_available_models()` 6. `_TG_MODELS`
+  7. ai_handler.py `_PRICING` 8. 기본값/폴백 모델 9. index.html 모델 표시명 10. 추론 레벨 매핑
 
-## 실제 존재하는 모델명 (정확한 목록 — 이걸 기준으로 쓸 것!)
-- **절대 규칙**: 아래 목록에 없는 모델명을 코드에 쓰면 API 오류 발생. "있을 것 같은" 모델명 절대 지어내지 말 것!
-- **과거 사고**: QA-1 에이전트가 존재하지 않는 `claude-haiku-4-6`을 만들어내서 10곳에 심은 사건 발생 (2026-02-18)
+## 실제 존재하는 모델명 (이 목록이 절대 기준!)
+"있을 것 같은" 모델명 지어내기 금지. 아래 목록에 없으면 API 오류 발생.
 
-| 모델 ID (코드에 쓰는 정확한 문자열) | 표시명 | 용도 |
-|---|---|---|
+| 모델 ID | 표시명 | 용도 |
+|---------|--------|------|
 | `claude-sonnet-4-6` | Claude Sonnet 4.6 | 기본 (대부분 에이전트) |
 | `claude-opus-4-6` | Claude Opus 4.6 | 최고급 (CLO, CSO) |
 | `claude-haiku-4-5-20251001` | Claude Haiku 4.5 | 경량 Anthropic |
-| `gpt-5.2-pro` | GPT-5.2 Pro | CIO (투자분석처장) |
+| `gpt-5.2-pro` | GPT-5.2 Pro | CIO |
 | `gpt-5.2` | GPT-5.2 | 투자 분석가들 |
 | `gpt-5` | GPT-5 | 일반 OpenAI |
 | `gpt-5-mini` | GPT-5 Mini | 경량 OpenAI |
-| `gemini-3-pro-preview` | Gemini 3.0 Pro | CMO, 콘텐츠, 설문 |
+| `gemini-3-pro-preview` | Gemini 3.0 Pro | CMO, 콘텐츠 |
 | `gemini-2.5-pro` | Gemini 2.5 Pro | Gemini 고급 |
 | `gemini-2.5-flash` | Gemini 2.5 Flash | 경량 Gemini |
 
-- ⚠️ **Haiku 4.6은 존재하지 않는다** — 절대 `claude-haiku-4-6`이라고 쓰지 말 것
-- ⚠️ **GPT-4o는 구버전** — 절대 `gpt-4o`, `gpt-4o-mini`, `gpt-4.1`, `gpt-4.1-mini`라고 쓰지 말 것
-
-## 전수검사 프로토콜 (반드시 따를 것!)
-
-### 전수검사란?
-- **전수검사 ≠ grep 키워드 검색** — 키워드 검색만 하고 "이상 없음" 선언하면 안 됨
-- **전수검사 = 파일을 Read 도구로 처음부터 끝까지 청크(조각)로 나눠서 전부 읽고, 각 함수/로직을 직접 이해하며 검토**
-- grep은 "어디 있는지 찾기"용. 실제 검사는 반드시 Read로 읽어야 함
-
-### 전수검사 단계별 프로토콜
-
-**1단계: 파일 전체 읽기 (건너뛰기 금지)**
-- 파일을 Read 도구로 처음부터 끝까지 여러 번 나눠서 전부 읽을 것
-- 마지막 줄까지 다 읽었는지 확인. 중간에 멈추면 안 됨
-
-**2단계: 함수별 입출력 검증**
-- 각 API 함수가 받는 입력 형식이 실제 SDK 규격과 맞는지 확인
-  - 예: OpenAI 파일 업로드는 `("파일명.jsonl", bytes)` 튜플이어야 함 — `bytes`만 쓰면 오류
-  - 예: Anthropic 배치 결과는 `async for result in client.messages.batches.results(...)` — `await` 두 번 쓰면 오류
-- 함수 호출 결과를 사용하는 곳까지 추적 (호출만 보지 말고 결과 처리까지 봐야 함)
-
-**3단계: 모델명 검증 (위 "실제 존재하는 모델명" 목록과 대조)**
-- 코드에서 발견한 모델명을 위 목록과 하나씩 대조할 것
-- 목록에 없는 모델명 발견 시 → **절대 임의로 "최신버전"으로 업그레이드하지 말 것**
-  - 틀린 예: `claude-haiku-4-5-20251001`을 보고 "haiku 4.6이 더 최신이겠지"라고 바꾸는 것
-  - 올바른 행동: 위 목록에 `claude-haiku-4-5-20251001`이 있으면 그게 올바른 것임
-
-**4단계: 중복/누락 확인**
-- 같은 API 엔드포인트가 두 번 정의됐는지 확인 (FastAPI는 두 번째 것을 무시함)
-- 함수가 return 없이 끝나는 곳 없는지 확인
-- async 함수에서 await 빠진 곳, await 두 번 쓴 곳 확인
-
-**5단계: 수정 전 반드시 확인**
-- 수정하기 전에 해당 코드가 다른 곳에서 어떻게 호출되는지 추적
-- 수정 후 grep으로 구버전 문자열이 0건인지 반드시 검증
-
-### 팀 에이전트 전수검사 규칙
-- **파일 담당 분리**: 같은 파일을 두 에이전트가 동시에 수정하면 충돌 — 파일마다 담당자 1명만
-- **모델명 정보 소스**: 반드시 이 CLAUDE.md의 "실제 존재하는 모델명" 표를 먼저 읽고 작업 시작
-- **추측 금지**: 모델명, API 파라미터 형식 등을 "아마 이럴 것 같다"고 추측해서 쓰면 안 됨
-  - 모르면 CLAUDE.md를 먼저 읽거나 팀장에게 물어볼 것
-- **수정 완료 선언 조건**: grep으로 구버전/잘못된 값이 0건임을 확인한 후에만 "완료" 보고
-
-### 전수검사 팀 편성 — Claude의 판단 기준 (경험 기반)
-
-#### 1단계: 작업 범위 파악 (팀 편성 전 반드시 실행)
-
-팀 구성 전, 나(팀장)가 먼저 아래를 파악한다:
-```
-1. 수정 대상 파일 목록 → Glob + Grep으로 빠르게 확인
-2. 각 파일 줄 수 → 줄 수에 따라 서브에이전트 수 결정
-3. 도메인(기능 영역) 수 → 영역마다 전담 배정
-```
-
-#### 2단계: 팀 편성 기준 (팀 뽑기 전에 계산할 것)
-
-| 파일 크기 / 작업 규모 | 서브에이전트 | 팀원 상한 |
-|-------------------|------------|---------|
-| ~500줄 / 단일 버그 | 2명 | 2명 + QA |
-| ~3000줄 / 기능 점검 | 3명 | 3~5명 + QA |
-| ~5000줄 / 전체 검사 | 4명 | 최대 9명 + QA |
-| 5000줄+ | 4명 고정 | 9명 초과 금지 (N^1.724 오버헤드 43배) |
-
-#### 4단계: CORTHEX HQ 전체 전수검사 기준 팀 편성표
-
-파일별 담당 1명 고정 (같은 파일 두 명 → 충돌). 이게 제일 중요한 규칙.
-
-| 팀원 | 담당 파일 (이 파일만 수정) | 서브에이전트 수 | 핵심 검사 항목 |
-|------|--------------------------|--------------|--------------|
-| **FE** | `web/templates/index.html` (8000줄) | **5명** | 하드코딩 배열, SNS 연결 상태, 배치 탭, 작전현황, 사령관실, 다크모드 opacity |
-| **BE** | `web/mini_server.py` (7000줄) | **5명** | API 중복 정의, 에이전트 목록, 배치 엔드포인트, async/await |
-| **AI** | `web/ai_handler.py` + `src/llm/` (~3000줄) | **4명** | 배치 SDK 형식(OpenAI 튜플, Anthropic async for), 모델명, _PRICING |
-| **TG** | `src/telegram/` (~1000줄) | **3명** | 명령어 처리, 배치 연동, /result /cancel /models 구현 여부 |
-| **AGENT** | `src/core/` (~2000줄) | **3명** | soul DB 저장 여부, quality_gate, 도구 루프 최대 5회 |
-| **TOOL** | `src/tools/` (파일 수십 개) | **4명** (도구 그룹별 분담) | 도구 스키마 일치, Instagram API, Selenium 설정 |
-| **SNS** | `src/integrations/` (~1500줄) | **3명** | SNS 발행 로직, 환경변수 체크, Tistory 처리 |
-| **CONFIG** | `config/` (yaml 파일들) | **2명** | 모델명 목록, yaml2json.py 변환 목록 완전성 |
-| **DEVOPS** | `.github/workflows/` (~300줄) | **2명** | git fetch+reset 사용 여부, 환경변수 전달, Selenium 설치 |
-| **QA** | 전체 (읽기만, 수정 없음) | **3명** | 금지 모델명 grep 0건 확인, 하드코딩 잔재, 결과 검증 |
-
-→ 총: 팀장 1 + 팀원 10 + 서브에이전트 34 = **45개 에이전트**
-
-#### 5단계: 팀원 역할 분리 — 팀장 vs 팀원
-
-**팀장(나)이 하는 일:**
-- 팀 편성 + spawn (한 번에 전원 동시 run_in_background=true)
-- CLAUDE.md 업데이트 (팀원들이 작업하는 동안 병행)
-- 팀원 보고 수신 + 충돌 조정
-- 최종 커밋/푸시/배포
-
-**팀원이 하는 일:**
-1. 서브에이전트 먼저 spawn (담당 파일 구간 나눠서 병렬 읽기)
-2. 서브에이전트 결과 받으면 → 내가 직접 수정 실행
-3. 수정 후 grep으로 구버전 0건 확인
-4. SendMessage로 팀장에게 보고 (발견 버그 목록 + 수정 내용)
-
-**팀원 spawn 시 프롬프트에 반드시 포함 (구체적으로 지시할 것 — 러프하게 쓰면 팀원이 엉뚱한 짓 함):**
-
-**팀원 spawn 프롬프트 필수 포함 항목:**
-- [ ] **절대경로** + **"이 파일만 수정"** 강조
-- [ ] **수정 위치** (함수명/줄번호) + **건드리면 안 되는 것** (`division`, `model`, `tools` 등)
-- [ ] **수정 이유** 한 줄 + **완료 확인 방법** (grep 0건 또는 yaml2json 실행)
-- [ ] **서브에이전트 구간 분담** (예: 1~2000줄 / 2001~4000줄 / 4001~끝)
-- [ ] **허용/금지 모델명 목록** (이 CLAUDE.md "실제 존재하는 모델명" 표 복사)
-
-### 전수검사에서 쌓인 교훈들
-
-| 카테고리 | 교훈 |
-|---------|------|
-| 배포/서버 | `git pull` 금지 → `git fetch + git reset --hard` 사용 |
-| 배포/서버 | Actions 로그 전체 확인 (중간 에러 있어도 최종 "success" 가능) |
-| 배포/서버 | 새 .yaml 추가 시 yaml2json.py 변환 목록에도 반드시 추가 (세트) |
-| FastAPI | 엔드포인트 중복 정의 → FastAPI는 두 번째 무시. 추가 전 grep 확인 |
-| FastAPI | 서버 응답 구조와 프론트엔드 접근 코드 반드시 동시에 확인 |
-| 배치 | OpenAI 파일 업로드: `file=("batch.jsonl", bytes)` 튜플 형식 |
-| 배치 | Anthropic batch results: `async for`로만 순회 (`await` 두 번 금지) |
-| 하드코딩 | 배열을 여러 파일에 하드코딩 → yaml 단일 소스에서 동적으로 읽을 것 |
-| 모델명 | "있을 것 같은" 모델명 지어내기 금지 → 이 파일 "실제 존재하는 모델명" 표가 절대 기준 |
-| 팀 작업 | 같은 파일 두 팀원 수정 금지 (나중 수정이 먼저 수정을 덮어씀) |
-| 팀 작업 | 컴팩트 시 팀원 전원 사라짐 → 컴팩트 전 반드시 미커밋 파일 커밋 |
-| 팀 작업 | 3~5줄 수정에 팀 투입 금지 (팀 오버헤드 > 실작업) |
-| 팀 작업 | auto-merge 후 deploy.yml 트리거 확인 필수 (`gh run list --workflow=deploy.yml --limit=1`) |
-| 팀 작업 | 팀원 작업 중 팀장 침묵 금지 → CEO에게 "작업 중, 다른 이슈 말씀해주세요" 즉시 말할 것 |
-| 데이터 | `data/*.json` 저장 금지 (배포 시 날아감) → `save_setting(key, value)` 사용 |
-| CSS | `opacity` 애니메이션 콘텐츠 요소에 직접 → `::before` 가상 요소로 분리
-
-### 전수검사 시작 전 체크리스트 (팀장 실행)
-
-**팀 spawn 전 반드시 확인**
-1. `docs/project-status.md` 읽기 — 현재 상태 파악
-2. `docs/updates/` 최근 2~3개 파일 읽기 — 이전 작업 맥락
-3. 각 팀원에게 **파일 담당 명확히 배정** — 같은 파일 두 명 배정 금지
-4. 팀원 spawn 프롬프트에 반드시 포함:
-   - 담당 파일 명시
-   - 서브에이전트 3명 활용 방법
-   - 허용/금지 모델명 목록
-   - 작업 완료 후 SendMessage 보고 지시
-
-### 전수검사 완료 후 체크리스트 (팀장 실행)
-
-**모든 팀원 보고 받은 후**
-1. QA 팀원의 금지 모델명 0건 확인 결과 확인
-2. 각 팀원이 수정한 내용 취합
-3. CLAUDE.md 업데이트 (이번에 발견한 새 패턴 추가)
-4. `config/yaml2json.py` 실행 (JSON 재생성)
-5. 커밋 + 푸시 + 배포 ([완료] 태그 포함)
-6. `docs/updates/YYYY-MM-DD_작업요약.md` 작성
-7. `docs/project-status.md` 갱신
-8. CEO에게 빌드 번호 확인 체크리스트 표 제공
-
----
-
-## 컴팩트(세션 압축) 대비 가이드라인
-
-### 컴팩트란?
-대화 길이가 컨텍스트 창(약 200K 토큰)에 가까워지면 Claude가 이전 대화를 요약·압축함.
-**압축 시 모든 백그라운드 팀원(Task tool로 spawn한 에이전트)이 사라짐.**
-
-### 컴팩트 발생 원인
-1. 대용량 파일을 많이 읽었을 때 (7000줄짜리 mini_server.py 여러 번 읽기)
-2. 팀원들이 대량의 텍스트를 결과로 반환했을 때
-3. 대화가 길게 이어졌을 때
-
-### 컴팩트 대비 전략
-
-- **커밋 타이밍**: 시간 아닌 이벤트 기준 — 팀원 3명+ 완료 / 파일 3개+ 수정 / CEO가 화제 전환 / "컴팩트" 언급 → 즉시 커밋
-- **팀원 결과물**: 채팅으로 길게 보고 금지 → 파일(`docs/updates/`)에 저장 후 한 줄 요약만 보고 (팀원 사라져도 파일은 남음)
-- **세션 분할**: 세션당 1~2개 영역만. 다음 세션에서 `docs/project-status.md` + `docs/updates/` 읽으면 맥락 복구 가능
-- **팀원 수 ≤ 9명** 유지
-
-### 컴팩트 후 복구 절차
-1. `docs/project-status.md` + `docs/updates/` 최신 파일 2~3개 읽기
-2. `git status` 확인 → 미커밋 있으면 바로 커밋
-3. 팀원 결과 파일 (`docs/updates/*.yaml`, `audit_*_results.md`) 확인 후 이어서 진행
-
----
-
-## 데이터 저장 규칙 (SQLite DB)
-- **웹에서 사용자가 저장/수정/삭제하는 모든 데이터는 반드시 SQLite DB(`settings` 테이블)에 저장할 것**
-  - 프리셋, 예약, 워크플로우, 메모리, 피드백, 예산, 에이전트 설정, 품질 검수 기준, 에이전트 소울 등 전부 포함
-  - JSON 파일(`data/*.json`)에 저장하면 안 됨 — 배포(`git reset --hard`) 시 날아감
-- **저장 방법**: `db.py`의 `save_setting(key, value)` / `load_setting(key, default)` 사용
-  - `value`는 자동으로 JSON 직렬화됨 (dict, list, str 등 아무거나 가능)
-  - 예: `save_setting("presets", [{"name": "기본", ...}])` → DB에 영구 저장
-- **기존 JSON 데이터 자동 마이그레이션**: `_load_data(name)`은 DB를 먼저 확인하고, 없으면 JSON 파일에서 읽어서 DB로 자동 이전함
-- **DB 위치**: 서버에서는 `/home/ubuntu/corthex.db` (git 저장소 밖) → 배포해도 데이터 안 날아감
-- **config 설정 저장**: `_save_config_file(name, data)` → `config_{name}` 키로 DB에 저장
-
-## 업데이트 기록 규칙
-- 세션 끝날 때마다 `docs/updates/YYYY-MM-DD_작업요약.md` 생성 (노션 복붙 가능한 마크다운)
-- **필수 포함**: 작업 제목 / 날짜 / 버전 / 브랜치 / 변경 사항 요약 (수정 파일 + 쉬운 설명) / 현재 상태 / 다음 할 일
-- **CLAUDE.md 수정 시에도** `docs/updates/`에 변경 내용 기록할 것 (어떤 규칙을 왜 추가/수정/삭제했는지)
-- **버그 발견 시** `docs/bug-reports.md`에 적극적으로 기록할 것 (원인, 수정 방법, 재발 방지 포함)
-- 전문 용어는 반드시 괄호 안에 쉬운 설명 붙일 것. CEO가 바로 이해할 수 있는 수준으로
-
-## 버전 번호 규칙
-- **형식**: `X.YY.ZZZ` (예: `0.01.001`, `0.02.015`, `1.00.000`)
-- **각 자리의 의미**:
-  - `X` (메이저): 프로젝트의 큰 단계. 0 = 개발 중, 1 = 정식 출시
-  - `YY` (마이너): 주요 기능 추가 시 올림 (예: 새 탭 추가, 새 시스템 구현)
-  - `ZZZ` (패치): 버그 수정, 소소한 개선, 설정 변경 등 작은 변경 시 올림
-- **현재 버전**: `3.01.000` (전수검사 + 모델 전면 개편 — ARM 24GB 서버, 154개 도구, 배치 체인)
-- **버전 올리는 규칙**:
-  - 새 탭, 새 시스템, 새 부서 추가 등 **큰 변경** → 마이너(YY) 올리고 패치(ZZZ) 000으로 리셋
-  - 버그 수정, UI 개선, 설정 변경 등 **작은 변경** → 패치(ZZZ)만 올림
-  - 정식 출시 시 → 메이저(X) 1로 올림
-- **작업 파일에 기록**: 모든 `docs/updates/` 파일 상단에 버전 번호 포함
-- **project-status.md에도 현재 버전 기록**: "마지막 업데이트" 섹션에 포함
-
-## 빌드 번호 규칙 (배포 확인용)
-- **목적**: 배포가 완료됐는지 확인하기 위해 빌드 번호 시스템 사용
-- **빌드 번호란?**: GitHub Actions의 `deploy.yml` 워크플로우 실행 횟수 (예: 빌드 #38)
-- **빌드 번호 소스는 오직 하나**: `deploy.yml`의 `${{ github.run_number }}`
-  - `mini_server.py`는 빌드 번호를 자체 생성하지 않음 (로컬에서는 "dev"로 표시)
-  - Git 커밋 개수(`git rev-list --count HEAD`)는 빌드 번호와 **무관함** (절대 사용하지 말 것)
-- **빌드 번호는 사전에 알 수 없음**: 배포가 실행되어야 번호가 매겨짐
-- **작업 완료 시 반드시 할 것**:
-  1. `gh run list --workflow=deploy.yml --limit=1` 명령으로 최신 배포의 빌드 번호를 확인
-  2. CEO에게 아래 형식으로 **확인 체크리스트 표**를 만들어 줄 것:
-     - 이번 세션에서 뭘 바꿨는지, 웹 화면 어디서 확인할 수 있는지 한눈에 정리
-     - CEO가 대화 위로 스크롤해서 찾아볼 필요 없게, 마지막에 모든 확인 사항을 모아서 보여줄 것
-  3. `docs/project-status.md`를 최신 상태로 갱신
-  4. 배포 완료 후 웹 화면 좌측 상단에서 빌드 번호 확인 가능 (http://corthex-hq.com)
-- **빌드 번호 확인**: 웹 좌측 상단 "빌드 #XX" / `http://corthex-hq.com/deploy-status.json` / GitHub Actions 로그
-- **CEO 보고 형식**: "이번 세션에서 뭘 바꿨는지 → 어디서 확인하는지" 표로 정리 (확인할 곳, 이전, 이후 3열)
-- **보고 시 "빌드#N" 사용 (PR#N 아님!)**:
-  - CEO에게 배포/머지 완료 보고할 때 반드시 **"빌드#N"** 형식으로 쓸 것
-  - CEO가 실제로 확인하는 건 GitHub Actions 빌드 번호(빌드#N)이지, PR 번호가 아님
-  - PR#과 빌드#은 번호가 다름 — 혼동하면 CEO가 확인할 수 없음
-  - 예: "빌드#287 배포 완료" (O) / "PR#45 머지 완료" (X)
-
-
-## 서버 배포 규칙 (Oracle Cloud — ARM 24GB 서버)
-- **서버 스펙**: ARM Ampere A1, 4코어 24GB RAM (Oracle Cloud 춘천 리전, 무료 Always Free)
-- **서버 접속 정보**:
-  - IP: GitHub Secrets `SERVER_IP_ARM`에 등록
-  - SSH 키: GitHub Secrets `SERVER_SSH_KEY_ARM`에 등록
-  - 사용자: `ubuntu`
-- **도메인**: `corthex-hq.com` (2026-02-18 구매, Cloudflare 등록 — DNS: corthex-hq.com → 158.179.165.97)
-- **HTTPS**: Let's Encrypt(무료 인증서) 설정됨 — deploy.yml에서 certbot 자동 설치. `http://` 접속 시 `https://`로 자동 리다이렉트. 최초 배포 1회에만 인증서 발급하고, 이후 배포마다 만료 전 자동 갱신. CERTBOT_EMAIL Secret 없어도 동작(--register-unsafely-without-email 폴백)
-- **이전 서버 (폐기됨)**: `168.107.28.100` (1GB 마이크로 — 더 이상 사용 안 함)
-- **자동 배포 흐름** (전체 과정):
-  1. claude/ 브랜치에 [완료] 커밋 push
-  2. `auto-merge-claude.yml`이 PR 생성 + main에 자동 머지
-  3. 머지 성공 후 → `deploy.yml`을 **직접 실행(trigger)**시킴
-  4. 새 서버에 SSH 접속 → `git fetch + git reset --hard` → 파일 복사 → 서버 재시작
-  - **중요**: GitHub 보안 정책상, 워크플로우가 만든 push는 다른 워크플로우를 자동 실행시키지 않음. 그래서 auto-merge에서 `gh workflow run deploy.yml`로 직접 실행시키는 구조
-  - **중요**: 서버에서 `git pull`을 쓰면 안 됨! 반드시 `git fetch + git reset --hard` 사용
-- **워크플로우 파일**:
-  - `.github/workflows/auto-merge-claude.yml` — 자동 머지 + 배포 트리거
-  - `.github/workflows/deploy.yml` — 실제 서버 배포 (SSH로 접속해서 파일 복사)
-- **수동 배포**: GitHub → Actions 탭 → "Deploy to Oracle Cloud Server" → "Run workflow" 버튼 클릭
-- **주의사항**:
-  - 서버 파일을 직접 수정하지 말 것 (GitHub에서 코드 수정 → 자동 배포가 정상 흐름)
-  - 배포 실패 시 GitHub Actions 로그를 먼저 확인할 것
-  - ARM 아키텍처(aarch64) — 대부분의 Python 패키지 호환됨
-- **서버 디렉토리 구조**:
-  - `/home/ubuntu/CORTHEX_HQ/` — git 저장소 (전체 코드)
-  - `/home/ubuntu/CORTHEX_HQ/web/` — 백엔드 서버 (mini_server.py 실행됨)
-  - `/home/ubuntu/CORTHEX_HQ/src/` — 도구 모듈, 에이전트 모듈 (100개+ 도구)
-  - `/home/ubuntu/CORTHEX_HQ/config/` — 설정 파일 (agents.yaml, tools.yaml 등)
-  - `/home/ubuntu/corthex.db` — SQLite DB (git 저장소 밖 → 배포해도 데이터 안 날아감)
-  - `/home/ubuntu/corthex.env` — API 키 등 환경변수 (배포 시 자동 업데이트)
-  - `/var/www/html/` — nginx가 서빙하는 정적 파일 (index.html)
-- **서버 설정 파일 규칙 (중요!)**:
-  - 배포 시 `config/yaml2json.py`가 YAML → JSON 자동 변환
-  - **config/agents.yaml 또는 config/tools.yaml을 수정하면 자동 배포 후 JSON이 재생성됨** (별도 작업 불필요)
-  - `deploy.yml` 안에 Python 코드를 직접 넣으면 YAML 들여쓰기 문제가 생김 → **반드시 별도 .py 파일로 분리**할 것
-
-## 배포 트러블슈팅 (문제 해결 가이드)
-
-### 배포 안 되는 흔한 원인들
-
-| 증상 | 원인 | 해결 |
-|------|------|------|
-| 배포 성공인데 화면이 안 바뀜 | **브라우저 캐시** — 브라우저가 옛날 파일을 기억 | `Ctrl+Shift+R` (강력 새로고침) 또는 주소 뒤에 `?v=2` 붙이기 |
-| 배포 성공인데 화면이 안 바뀜 (2) | **nginx 캐시** — 서버가 브라우저에 캐시 허용 | deploy.yml이 자동으로 nginx에 `no-cache` 헤더 설정 (2026-02-15 추가) |
-| 배포 성공인데 화면이 안 바뀜 (3) | **서버 git pull 실패** — 이전 배포가 서버 파일을 수정해서 git pull이 충돌 에러를 냄 | `git pull` 대신 `git fetch + git reset --hard` 사용 (deploy.yml에 이미 반영됨). **Actions 로그에서 "error: Your local changes would be overwritten" 메시지가 있으면 이 문제** |
-| GitHub Actions "success"인데 서버 접속 안됨 | **서버 다운** 또는 **방화벽 차단** | Oracle Cloud 콘솔에서 인스턴스 상태 확인 → Security List에서 포트 80 열려있는지 확인 |
-| `pip 설치 실패` 경고 | PyYAML 패키지 설치 실패 | 무시 가능 (yaml 없이도 서버 동작함) |
-| 빌드 번호가 `BUILD_NUMBER_PLACEHOLDER`로 표시 | HTML을 로컬에서 직접 열었음 (서버 아님) | 반드시 `http://corthex-hq.com`으로 접속해야 함. 로컬 파일을 브라우저로 열면 빌드 번호가 주입 안됨 |
-| `https://` 접속 안 됨 (자물쇠 없음) | certbot 아직 실행 안 됨 | 배포 한 번 더 실행하면 자동 발급됨. 또는 GitHub → Actions → "Deploy to Oracle Cloud Server" → Run workflow. `CERTBOT_EMAIL` Secret 추가하면 더 좋음 |
-
-### 배포 확인하는 3가지 방법
-1. **웹 화면**: `http://corthex-hq.com` 접속 → 좌측 상단 "빌드 #XX" 확인
-2. **배포 상태 JSON**: `http://corthex-hq.com/deploy-status.json` 직접 접속 → 빌드 번호와 시간 확인
-3. **GitHub Actions**: https://github.com/kodonghui/CORTHEX_HQ/actions → "Deploy to Oracle Cloud Server" 워크플로우 확인
-
-### 배포 흐름 상세 (디버깅용)
-```
-[코드 수정] → [git push] → [auto-merge.yml] → [PR 생성 + main 머지]
-    → [deploy.yml 직접 실행] → [서버 SSH 접속]
-    → [git fetch + git reset --hard] (⚠️ git pull 아님!)
-    → [sed로 빌드번호 주입] → [/var/www/html/index.html 복사]
-    → [corthex 서비스 재시작] → [deploy-status.json 생성]
-```
-
-### nginx 캐시 방지 (2026-02-15 추가)
-- deploy.yml이 첫 배포 시 nginx 설정에 `Cache-Control: no-cache` 헤더를 자동 추가
-- 이후 배포부터는 브라우저가 항상 최신 파일을 받아감
-- 수동으로 확인: `curl -I http://corthex-hq.com` → `Cache-Control: no-cache` 헤더 있으면 정상
-
-## 과거 사고 기록 (같은 실수 반복 금지!)
-
-- **사고 1 (배포, 2026-02-15)**: `git pull` 충돌로 코드 안 바뀌는데 "배포 성공" 표시됨 → `git fetch + git reset --hard`로 해결. Actions 로그 전체 반드시 확인할 것
-- **사고 2 (다크모드, 2026-02-15)**: `.bg-grid`에 `opacity` 애니메이션 직접 걸어서 글자/카드 전부 안 보임 → `::before` 가상 요소로 분리. `opacity` 애니메이션은 콘텐츠 있는 요소에 직접 걸면 안 됨
-- **사고 3 (부서 목록 빈 화면, 2026-02-15)**: `yaml2json.py` 변환 목록에 새 yaml 파일 추가 안 해서 빈 데이터 반환됨 → 새 yaml 추가 시 반드시 yaml2json.py 변환 목록에도 추가
-- **사고 4 (서브에이전트 브랜치 전환, 2026-02-19)**: 서브에이전트가 `git checkout`으로 브랜치를 바꿔서 팀장의 index.html 수정사항 6개 전부 유실됨 → 서브에이전트는 git 명령어 절대 금지. 모든 git 작업은 팀장만 수행
-- **사고 5 (KIS 토큰 만료, 2026-02-20)**: `KOREA_INVEST_IS_MOCK`을 true→false로 변경 후, DB에 캐시된 모의투자 토큰이 실거래 서버에서 "만료된 token" 에러 → `get_balance()`에 토큰 만료 자동 재발급 로직 추가. **IS_MOCK 변경 시 반드시 토큰 캐시 무효화 필요**
-
-## 디버그 URL 규칙 (중요!)
-- **버그 발생 시 → 그때그때 디버그 엔드포인트를 만들어서 CEO에게 URL 제공**. CEO가 브라우저로 열면 JSON 응답 → 원인 즉시 파악
-- 특정 영역에 국한하지 말 것. KIS, AI 호출, 에이전트, 시그널, DB 등 **어디든 문제가 생기면 `/api/debug/xxx` 엔드포인트를 즉석에서 만들어서 CEO에게 적극적으로 제공**
-- **보안**: 계좌번호 마스킹, API 키 노출 금지
-
-## AI 도구 자동호출 규칙 (Function Calling)
-- **ai_handler.py**의 `ask_ai()`가 `tools` + `tool_executor` 파라미터를 받아서 3개 프로바이더 모두 도구 자동호출 지원
-- **도구 스키마**: `config/tools.yaml` (또는 `tools.json`)에서 `_load_tool_schemas()`로 로드
-- **에이전트별 도구 제한**: `config/agents.yaml`의 `allowed_tools` 필드로 에이전트마다 사용 가능한 도구를 제한
-  - CIO(투자분석): 투자 관련 도구만, CTO(기술개발): 기술 도구만
-- **프로바이더별 차이**:
-  - Anthropic: `tools` 파라미터 → `tool_use` 블록 처리
-  - OpenAI: `tools` 파라미터 (function 포맷) → `tool_calls` 응답 처리
-  - Google Gemini: `FunctionDeclaration` → `function_call` 파트 처리 (google-genai SDK 사용)
-- **도구 실행**: `mini_server.py`의 `_call_agent()`에서 ToolPool을 통해 도구 실행
-- **최대 루프**: 도구 호출 루프는 최대 5회 반복 (무한 루프 방지)
-
-## 팀 에이전트 규칙 (Agent Teams)
-
-### 기본 원칙
-- **평소에는 팀 없이 일반 세션으로 작업** — 작은 작업에 팀은 낭비
-- CEO가 **"팀으로 해줘"**, **"기본팀으로 해결해줘"** 라고 하면 아래 기본팀을 구성해서 작업
-- CEO가 인원수를 직접 지정하면 그대로 따를 것 (예: "FE 2명, BE 1명으로 해줘")
-
-### 팀 인원 원칙
-- **인원 제한 없음** — 작업 규모에 따라 필요한 만큼 투입. 100명도 가능
-- CEO가 인원수를 지정하면 그대로 따를 것
-- 기본 가이드 (어디까지나 참고용, 제한 아님):
-
-| 상황 | 참고 구성 |
-|------|---------|
-| 큰 기능 추가 (새 탭, 새 시스템) | FE + BE + QA (3명) |
-| 이슈 5개 이상 한꺼번에 | 이슈 수에 맞게 자유롭게 구성 |
-| 전체 코드 전수검사 | 파일/영역별로 분리해서 최대한 많이 투입 |
-
-### 팀을 쓰지 않아도 되는 상황
-- 버그 1~3개 수정
-- 한 파일만 수정하는 작업
-- 간단한 UI 수정
-
-> **⚠️ CEO가 "팀으로 해줘"라고 해도 소신 발언 필수**
-> 수정이 **3~5줄 이하 + 파일 2개 이하**이면 팀 오버헤드(오버헤드 N^1.724)가 실제 작업보다 크다.
-> 이럴 땐 반드시 먼저 말할 것: "이번 건 3줄 수정이라 직접 하는 게 더 빠릅니다. 팀 없이 진행할까요?"
-> CEO가 그래도 팀으로 하겠다면 따를 것 (최종 결정권은 CEO).
-
-### 기본팀 (3명) — "팀으로 해줘" 하면 이 구성
-| 팀원 | 코드명 | 담당 파일 | 역할 |
-|------|--------|----------|------|
-| 팀원1 | **FE** | index.html, CSS, Alpine.js | 화면, 디자인, 다크/밝은 모드, 레이아웃 |
-| 팀원2 | **BE** | mini_server.py, db.py, src/tools/, config/*.yaml | API, DB, 도구, 서버 로직 |
-| 팀원3 | **QA** | 전체 | 수정 결과 검증, 다크모드 체크, 파일 충돌 확인 |
-
-### 확장 역할 (필요할 때만 추가)
-| 코드명 | 담당 | 언제 추가? |
-|--------|------|-----------|
-| **TOOL** | src/tools/ 도구 개발, tools.yaml 스키마 | 새 도구 만들 때 |
-| **DEVOPS** | deploy.yml, nginx, 서버 설정 | 배포/인프라 문제일 때 |
-| **PLAN** | 구조 설계, 작업 순서 결정 | 큰 기능 기획할 때 |
-
-### 서브에이전트 활용 규칙 (필수!)
-- **모든 팀원은 서브에이전트(Task 도구)를 적극 활용할 것**
-- 코드 탐색, 파일 검색, 구조 분석 같은 조사 작업은 서브에이전트에게 시킬 것
-- 팀원 본인은 서브에이전트가 가져온 결과를 바탕으로 **판단 + 수정에 집중**
-- 서브에이전트를 2개 이상 병렬로 돌려서 조사 시간을 단축할 것
-- 예시:
-  - FE 팀원 → 서브에이전트1: "다크모드 관련 CSS 찾아와" + 서브에이전트2: "Alpine.js 바인딩 목록 정리해와" → 결과 받고 수정
-  - BE 팀원 → 서브에이전트1: "API 엔드포인트 목록 분석해와" + 서브에이전트2: "DB 스키마 확인해와" → 결과 받고 수정
-
-### 서브에이전트 Git 금지 규칙 (매우 중요!)
-- **서브에이전트(Task 도구로 생성된 에이전트)는 git 명령어를 절대 실행하지 말 것**
-  - ❌ 금지: `git checkout`, `git branch`, `git commit`, `git push`, `git stash`, `git merge` 등 모든 git 명령
-  - ✅ 허용: 파일 읽기(Read/Grep/Glob), 파일 수정(Edit/Write), Bash(git 제외 명령)
-- **모든 git 작업은 팀장(메인 에이전트)만 수행**
-  - 브랜치 생성/전환, 커밋, 푸시 = 팀장 전용
-  - 서브에이전트는 파일 생성/수정만 하고 결과 보고
-- **이유**: 서브에이전트가 `git checkout`을 실행하면 작업 디렉토리 전체가 바뀌어서 다른 에이전트의 수정사항이 모두 날아감 (2026-02-19 실제 사고: 서브에이전트가 브랜치를 바꿔서 index.html 변경사항 6개 전부 유실)
-- **팀원 spawn 프롬프트에 반드시 포함**: "git 명령어 사용 금지. 파일 생성/수정만 할 것. 모든 git 작업은 팀장이 처리함"
-
-### 팀 작업 효율 규칙
-- **같은 파일을 두 팀원이 동시에 수정하지 말 것** — 충돌남. 팀장이 파일별로 담당을 명확히 배정할 것
-- 팀원은 자기 담당 파일만 수정. 다른 팀원 담당 파일을 건드려야 하면 팀장에게 먼저 알릴 것
-- 불필요한 탐색 금지 — 서브에이전트로 빠르게 조사하고, 바로 수정에 들어갈 것
-- 작업 끝나면 팀장에게 즉시 보고. 놀고 있지 말고 다음 이슈 받을 것
-
----
-
-### 팀장 직접 처리 vs 에이전트 위임 판단 기준
-
-#### 핵심 원칙
-**맥락(context)이 필요한 작업은 팀장이 직접, 맥락이 없어도 되는 명확한 구현은 에이전트에게 위임.**
-
-| 작업 유형 | 처리 방식 | 이유 |
-|---------|---------|------|
-| Soul 작성 | **팀장 직접** | 29명 연계성, 전체 방법론 일관성, 도메인별 논문 조사 필요 |
-| 아키텍처/설계 결정 | **팀장 직접** | 시스템 전체 그림, 기존 코드 맥락 필요 |
-| CLAUDE.md 갱신 | **팀장 직접** | 전체 규칙 일관성, 세션 누적 교훈 반영 필요 |
-| 프로젝트 현황 파악 | **팀장 직접** | 다수 파일 종합 판단 필요 |
-| UI 패널/컴포넌트 추가 | **에이전트 위임** | 스펙(줄번호, API, 출력형태)만 명확하면 맥락 불필요 |
-| 단순 버그 수정 | **에이전트 위임** | 해당 파일 + 재현 조건만 알면 됨 |
-| 파일 일부 리팩토링 | **에이전트 위임** | 변경 범위가 명확하면 맥락 불필요 |
-| YAML/JSON 수정 | **에이전트 위임** | 스키마만 알면 됨 |
-
-#### 에이전트 위임 스펙 작성 필수 항목
-팀원에게 위임할 때 프롬프트에 반드시 포함:
-1. **파일 경로 + 수정 위치 (줄번호)**: "index.html 2050줄 근처에 추가"
-2. **API 스펙**: "GET /api/delegation-log → [{id, sender, receiver, message, log_type, created_at}]"
-3. **출력 형태**: "Alpine.js x-show로 토글, z-20 absolute 패널"
-4. **담당 파일 한정**: "이 파일만 수정. 다른 파일 건드리지 말 것"
-5. **완료 조건**: "기능이 동작하면 완료. SendMessage로 보고"
-
----
-
-### 팀장 운용 체크포인트
-
-**spawn 직후**: 파일 담당 중복 없는지 확인 → CEO에게 "팀원 작업 중, 다른 이슈 말씀해주세요" 즉시 말할 것
-**보고 수신 즉시**: 처리 + 다른 팀원 영향 있으면 SendMessage
-**중간 커밋 트리거**: 팀원 1명 완료 / 파일 3개+ 수정 / 치명적 버그 수정 → 즉시 커밋 (중간 커밋에 [완료] 태그 금지)
-
-**팀 해산 체크리스트 (전부 통과 후 최종 커밋)**
-- [ ] 모든 팀원 SendMessage 완료 보고 수신
-- [ ] QA 금지 모델명 grep 0건 확인
-- [ ] docs/project-status.md 갱신 + CLAUDE.md 교훈 추가
-- [ ] [완료] 태그 커밋 + 푸시
-- [ ] `gh run list --workflow=deploy.yml --limit=1` 으로 deploy.yml 트리거 확인 (없으면 `gh workflow run deploy.yml --ref main`)
-- [ ] 빌드 번호 확인 후 CEO에게 체크리스트 보고
+- ⚠️ `claude-haiku-4-6` 존재하지 않음 | ⚠️ `gpt-4o`, `gpt-4o-mini`, `gpt-4.1` 구버전 금지
+
+## 데이터 저장 (SQLite DB)
+- 모든 웹 데이터는 SQLite DB(`settings` 테이블)에 저장. JSON 파일(`data/*.json`) 저장 금지 (배포 시 날아감)
+- `save_setting(key, value)` / `load_setting(key, default)` 사용
+- DB 위치: `/home/ubuntu/corthex.db` (git 밖 → 배포해도 안 날아감)
+
+## 서버 배포 (Oracle Cloud ARM 24GB)
+- **스펙**: ARM Ampere A1, 4코어 24GB RAM (Oracle Cloud 춘천, Always Free)
+- **접속**: `SERVER_IP_ARM` + `SERVER_SSH_KEY_ARM` (GitHub Secrets)
+- **도메인**: `corthex-hq.com` (Cloudflare) | HTTPS: Let's Encrypt 자동
+- **자동 배포 흐름**: claude/ 브랜치 [완료] push → auto-merge → deploy.yml 직접 실행 → 서버 SSH → git fetch + reset --hard → 재시작
+- **중요**: 서버에서 `git pull` 금지! 반드시 `git fetch + git reset --hard`
+- **수동 배포**: GitHub → Actions → "Deploy to Oracle Cloud Server" → Run workflow
+- **서버 구조**: `/home/ubuntu/CORTHEX_HQ/` (코드) | `/home/ubuntu/corthex.db` (DB) | `/home/ubuntu/corthex.env` (환경변수) | `/var/www/html/` (nginx 정적파일)
+- **배포 문제 시** → `docs/deploy-guide.md` 참조
+
+## 빌드 번호
+- 소스: `deploy.yml`의 `${{ github.run_number }}`만. 커밋 개수와 무관
+- 작업 완료 시: `gh run list --workflow=deploy.yml --limit=1`로 확인 → CEO에게 체크리스트 표 제공
+- CEO 보고 시 **"빌드#N"** 사용 (PR#N 아님!)
+
+## 버전 번호
+- 형식: `X.YY.ZZZ` | 현재: `3.01.000`
+- 큰 변경 → YY 올림 + ZZZ 리셋 | 작은 변경 → ZZZ만 올림
+
+## 디버그 URL
+- 버그 시 `/api/debug/xxx` 엔드포인트 즉석 생성 → CEO에게 URL 제공
+- 보안: 계좌번호 마스킹, API 키 노출 금지
+
+## AI 도구 자동호출 (Function Calling)
+- `ai_handler.py`의 `ask_ai()`가 3개 프로바이더 도구 자동호출 지원
+- 도구 스키마: `config/tools.yaml` | 에이전트별 제한: `config/agents.yaml`의 `allowed_tools`
+- 도구 호출 루프 최대 5회 (무한 루프 방지)
+
+## 업데이트 기록
+- 세션 끝날 때마다 `docs/updates/YYYY-MM-DD_작업요약.md` 생성
+- 필수: 작업 제목 / 날짜 / 버전 / 브랜치 / 변경 요약 / 현재 상태 / 다음 할 일
+- `docs/project-status.md` 갱신 필수
+
+## 팀 에이전트 (기본 규칙만 — 상세는 `docs/team-rules.md`)
+- 평소 팀 없이 작업. CEO가 "팀으로 해줘" 하면 기본팀(FE+BE+QA) 구성
+- 같은 파일 두 팀원 동시 수정 금지 | 서브에이전트 git 명령어 금지
+- 전수검사 시 → `docs/inspection-protocol.md` 참조
 
 ## 환경 설정
-- gh CLI가 없으면 세션 시작 시 설치: `(type gh > /dev/null 2>&1) || (curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null && sudo apt update && sudo apt install gh -y)`
+- gh CLI 없으면 세션 시작 시 설치

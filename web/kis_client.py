@@ -432,34 +432,39 @@ async def _force_renew_token() -> None:
 
 
 async def start_daily_token_renewal() -> None:
-    """매일 KST 오전 7시에 KIS 토큰을 자동 갱신하는 백그라운드 태스크.
-    mini_server.py의 startup 이벤트에서 asyncio.create_task()로 실행할 것.
+    """KIS 토큰 선제 갱신 스케줄러 (B안: 4시간마다 체크, 만료 임박 시 갱신).
+
+    CEO 승인 B안: 20시간째에 1번 갱신 → 카톡 하루 1~2회.
+    동작: 4시간마다 토큰 잔여시간 확인 → 4시간 미만이면 선제 갱신.
+    KIS 토큰 유효기간 24시간 → 실제 갱신은 약 20시간 후 = 하루 1~2회.
     """
     if not is_configured():
         logger.info("[KIS] API 미설정 — 토큰 자동 갱신 스케줄러 비활성화")
         return
 
-    logger.info("[KIS] 토큰 자동 갱신 스케줄러 시작 (매일 KST %02d:%02d)", _RENEWAL_HOUR_KST, _RENEWAL_MINUTE_KST)
+    _CHECK_INTERVAL = 4 * 3600   # 4시간마다 체크
+    _RENEW_THRESHOLD = 4 * 3600  # 만료 4시간 전에 갱신
+
+    logger.info("[KIS] 토큰 선제 갱신 스케줄러 시작 (4시간마다 체크, 만료 4시간 전 갱신)")
 
     while True:
-        now_kst = datetime.now(_KST)
-        # 오늘 오전 7시 (KST)
-        today_renewal = now_kst.replace(
-            hour=_RENEWAL_HOUR_KST, minute=_RENEWAL_MINUTE_KST, second=0, microsecond=0
-        )
-        # 이미 지났으면 내일 오전 7시
-        if now_kst >= today_renewal:
-            today_renewal += timedelta(days=1)
+        await asyncio.sleep(_CHECK_INTERVAL)
 
-        wait_seconds = (today_renewal - now_kst).total_seconds()
-        logger.info(
-            "[KIS] 다음 토큰 자동 갱신: %s (%.0f분 후)",
-            today_renewal.strftime("%m-%d %H:%M KST"),
-            wait_seconds / 60,
-        )
-
-        await asyncio.sleep(wait_seconds)
-        await _force_renew_token()
+        try:
+            # 토큰 잔여시간 확인
+            if _token_cache["expires"]:
+                remaining = (_token_cache["expires"] - datetime.now()).total_seconds()
+                if remaining < _RENEW_THRESHOLD:
+                    logger.info("[KIS] 토큰 만료 임박 (%.0f분 남음) — 선제 갱신", remaining / 60)
+                    await _force_renew_token()
+                else:
+                    logger.debug("[KIS] 토큰 %.1f시간 남음 — 갱신 불필요", remaining / 3600)
+            else:
+                # 토큰 없음 → 발급 시도
+                logger.info("[KIS] 캐시된 토큰 없음 — 신규 발급 시도")
+                await _force_renew_token()
+        except Exception as e:
+            logger.error("[KIS] 토큰 갱신 체크 오류: %s", e)
 
 
 # ──────────────────────────────────────────────────────────
