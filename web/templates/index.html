@@ -4294,8 +4294,8 @@
                 <div class="flex items-center gap-3">
                   <span class="text-[10px] text-hq-muted">실거래 vs 모의투자</span>
                   <span class="text-[10px] px-2 py-0.5 rounded-full"
-                        :class="(mockBal&&mockBal.available) ? 'bg-hq-purple/10 text-hq-purple border border-hq-purple/20' : 'bg-hq-surface text-hq-muted/50'"
-                        x-text="(mockBal&&mockBal.available) ? '모의: ' + fmtKRW(mockBal.total_eval||0) : '모의 미연결'"></span>
+                        :class="(mockBal&&mockBal.available) ? ((mockBal.mode||'').includes('Paper') ? 'bg-hq-surface text-hq-muted/70 border border-hq-border' : 'bg-hq-purple/10 text-hq-purple border border-hq-purple/20') : 'bg-hq-surface text-hq-muted/50'"
+                        x-text="(mockBal&&mockBal.available) ? ((mockBal.mode||'').includes('Paper') ? '가상: ' + fmtKRW(mockBal.total_eval||0) : '모의: ' + fmtKRW(mockBal.total_eval||0)) : '모의 미연결'"></span>
                 </div>
                 <span class="text-[10px] text-hq-muted/50"
                       x-text="(mockBal&&mockBal.available) ? '비교 → 실/모의 탭' : '양쪽 연결 시 비교 가능'"></span>
@@ -4725,9 +4725,9 @@
 
                   <div x-show="w.notes" class="text-[10px] text-hq-muted/80 truncate mb-1" x-text="w.notes"></div>
                   <div class="flex gap-2 mt-2">
-                    <button @click="trading.orderForm = {action:'buy', ticker:w.ticker, name:w.name, qty:0, price:(trading.watchPrices[w.ticker]||{}).current_price||0}; trading.showOrderModal = true;"
+                    <button @click="trading.orderForm = {action:'buy', ticker:w.ticker, name:w.name, qty:0, price:(trading.watchPrices[w.ticker]||{}).current_price||0, market:w.market||'KR'}; trading.showOrderModal = true;"
                             class="flex-1 bg-hq-green/10 text-hq-green hover:bg-hq-green/20 rounded-lg py-1 text-[10px] font-bold transition">매수</button>
-                    <button @click="trading.orderForm = {action:'sell', ticker:w.ticker, name:w.name, qty:0, price:(trading.watchPrices[w.ticker]||{}).current_price||0}; trading.showOrderModal = true;"
+                    <button @click="trading.orderForm = {action:'sell', ticker:w.ticker, name:w.name, qty:0, price:(trading.watchPrices[w.ticker]||{}).current_price||0, market:w.market||'KR'}; trading.showOrderModal = true;"
                             class="flex-1 bg-hq-red/10 text-hq-red hover:bg-hq-red/20 rounded-lg py-1 text-[10px] font-bold transition">매도</button>
                   </div>
                 </div>
@@ -5119,20 +5119,34 @@
     <div class="bg-hq-panel border border-hq-border rounded-2xl w-full max-w-[420px] mx-4 p-6" @click.stop>
       <div class="flex items-center justify-between mb-5">
         <h2 class="text-lg font-bold text-hq-text">주문 실행</h2>
-        <button @click="trading.showOrderModal = false" class="text-hq-muted hover:text-hq-text text-xl">&times;</button>
+        <div class="flex items-center gap-2">
+          <span class="text-[10px] px-2 py-0.5 rounded-full font-bold"
+                :class="(trading.summary.settings||{}).paper_trading !== false ? 'bg-hq-accent/20 text-hq-accent' : 'bg-hq-red/20 text-hq-red'"
+                x-text="(trading.summary.settings||{}).paper_trading !== false ? '가상 모드' : '실거래 모드'"></span>
+          <button @click="trading.showOrderModal = false" class="text-hq-muted hover:text-hq-text text-xl">&times;</button>
+        </div>
+      </div>
+      <!-- 실거래 경고 -->
+      <div x-show="(trading.summary.settings||{}).paper_trading === false" class="bg-hq-red/10 border border-hq-red/30 rounded-lg p-2.5 mb-3 text-xs text-hq-red">
+        실거래 모드 — 실제 증권 계좌에서 주문이 실행됩니다
       </div>
       <div class="space-y-3">
         <div class="flex gap-2">
           <button @click="trading.orderForm.action = 'buy'" :class="trading.orderForm.action === 'buy' ? 'bg-hq-green text-white' : 'bg-hq-surface text-hq-muted'" class="flex-1 py-2 rounded-lg text-sm font-bold transition">매수</button>
           <button @click="trading.orderForm.action = 'sell'" :class="trading.orderForm.action === 'sell' ? 'bg-hq-red text-white' : 'bg-hq-surface text-hq-muted'" class="flex-1 py-2 rounded-lg text-sm font-bold transition">매도</button>
         </div>
+        <!-- 시장 선택 -->
+        <div class="flex gap-2">
+          <button @click="trading.orderForm.market = 'KR'" :class="(trading.orderForm.market||'KR') === 'KR' ? 'bg-hq-accent/20 text-hq-accent border-hq-accent/40' : 'bg-hq-surface text-hq-muted border-hq-border'" class="flex-1 py-1.5 rounded-lg text-xs font-bold border transition">한국</button>
+          <button @click="trading.orderForm.market = 'US'" :class="trading.orderForm.market === 'US' ? 'bg-hq-accent/20 text-hq-accent border-hq-accent/40' : 'bg-hq-surface text-hq-muted border-hq-border'" class="flex-1 py-1.5 rounded-lg text-xs font-bold border transition">미국</button>
+        </div>
         <div>
           <label class="text-[10px] text-hq-muted block mb-1">종목코드</label>
-          <input x-model="trading.orderForm.ticker" placeholder="예: 005930" class="w-full bg-hq-bg border border-hq-border rounded-lg px-3 py-2 text-sm text-hq-text font-mono">
+          <input x-model="trading.orderForm.ticker" :placeholder="(trading.orderForm.market||'KR')==='KR' ? '예: 005930' : '예: AAPL'" class="w-full bg-hq-bg border border-hq-border rounded-lg px-3 py-2 text-sm text-hq-text font-mono">
         </div>
         <div>
           <label class="text-[10px] text-hq-muted block mb-1">종목명</label>
-          <input x-model="trading.orderForm.name" placeholder="예: 삼성전자" class="w-full bg-hq-bg border border-hq-border rounded-lg px-3 py-2 text-sm text-hq-text">
+          <input x-model="trading.orderForm.name" :placeholder="(trading.orderForm.market||'KR')==='KR' ? '예: 삼성전자' : '예: Apple'" class="w-full bg-hq-bg border border-hq-border rounded-lg px-3 py-2 text-sm text-hq-text">
         </div>
         <div class="grid grid-cols-2 gap-3">
           <div>
@@ -5140,14 +5154,14 @@
             <input type="number" x-model.number="trading.orderForm.qty" class="w-full bg-hq-bg border border-hq-border rounded-lg px-3 py-2 text-sm text-hq-text text-right">
           </div>
           <div>
-            <label class="text-[10px] text-hq-muted block mb-1">가격 (원)</label>
+            <label class="text-[10px] text-hq-muted block mb-1" x-text="(trading.orderForm.market||'KR')==='KR' ? '가격 (원)' : '가격 ($)'">가격 (원)</label>
             <input type="number" x-model.number="trading.orderForm.price" class="w-full bg-hq-bg border border-hq-border rounded-lg px-3 py-2 text-sm text-hq-text text-right">
           </div>
         </div>
         <div class="bg-hq-surface rounded-lg p-3 text-xs">
           <div class="flex justify-between text-hq-muted">
             <span>주문 총액</span>
-            <span class="font-bold text-hq-text" x-text="((trading.orderForm.qty || 0) * (trading.orderForm.price || 0)).toLocaleString() + '원'"></span>
+            <span class="font-bold text-hq-text" x-text="((trading.orderForm.qty || 0) * (trading.orderForm.price || 0)).toLocaleString() + ((trading.orderForm.market||'KR')==='KR' ? '원' : '$')"></span>
           </div>
         </div>
         <button @click="tradingOrder()" class="w-full py-2.5 rounded-lg text-sm font-bold transition"
@@ -6724,7 +6738,7 @@
           cioLogs: [],
           showCioLogs: true,
           // 주문 폼
-          orderForm: { action: 'buy', ticker: '', name: '', qty: 0, price: 0 },
+          orderForm: { action: 'buy', ticker: '', name: '', qty: 0, price: 0, market: 'KR' },
           // 전략 추가 폼
           strategyForm: { name: '', type: 'rsi', indicator: 'RSI', buy_condition: 'RSI < 30', sell_condition: 'RSI > 70', target_tickers: '', stop_loss_pct: -5, take_profit_pct: 10, order_size: 1000000 },
           showStrategyModal: false,
@@ -9285,16 +9299,19 @@
         async tradingOrder() {
           const f = this.trading.orderForm;
           if (!f.ticker || !f.qty || !f.price) { this.showToast('종목코드, 수량, 가격을 입력하세요', 'error'); return; }
+          const isReal = (this.trading.summary.settings||{}).paper_trading === false;
+          const ko = f.action === 'buy' ? '매수' : '매도';
+          if (isReal && !confirm(`[실거래] ${f.name||f.ticker} ${f.qty}주 ${ko} — 실제 증권 계좌에서 실행됩니다. 계속하시겠습니까?`)) return;
           try {
             const res = await fetch('/api/trading/order', {
               method: 'POST', headers: {'Content-Type':'application/json'},
-              body: JSON.stringify({action: f.action, ticker: f.ticker, name: f.name || f.ticker, qty: parseInt(f.qty), price: parseInt(f.price)}),
+              body: JSON.stringify({action: f.action, ticker: f.ticker, name: f.name || f.ticker, qty: parseInt(f.qty), price: parseInt(f.price), market: f.market || 'KR'}),
             }).then(r => r.json());
             if (res.success) {
-              const ko = f.action === 'buy' ? '매수' : '매도';
-              this.showToast(`${ko} 완료: ${f.name || f.ticker} ${f.qty}주`, 'success');
+              const modeTag = res.mode ? ` [${res.mode}]` : '';
+              this.showToast(`${ko} 완료${modeTag}: ${f.name || f.ticker} ${f.qty}주`, 'success');
               this.trading.showOrderModal = false;
-              this.trading.orderForm = {action:'buy', ticker:'', name:'', qty:0, price:0};
+              this.trading.orderForm = {action:'buy', ticker:'', name:'', qty:0, price:0, market:'KR'};
               await this.loadTradingSummary();
             } else { this.showToast(res.error || '주문 실패', 'error'); }
           } catch { this.showToast('주문 실행 오류', 'error'); }
