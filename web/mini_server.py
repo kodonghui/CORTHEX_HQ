@@ -4556,21 +4556,41 @@ def _parse_cio_signals(content: str, watchlist: list) -> list:
     """CIO 분석 결과에서 종목별 매수/매도/관망 시그널을 추출합니다."""
     import re
     parsed = []
+    seen_tickers = set()
 
-    # [시그널] 패턴 매칭 (신뢰도 앞에 "신뢰도:" 텍스트 있어도 처리)
-    pattern = r'\[시그널\]\s*(.+?)\s*[\(（](.+?)[\)）]\s*\|\s*(매수|매도|관망|buy|sell|hold)\s*\|\s*(?:신뢰도[:\s]*)?\s*(\d+)\s*%?\s*\|\s*(.+)'
+    # [시그널] 패턴 — CIO가 실제로 쓰는 형식에 맞춤
+    # 예: [시그널] 삼성전자 (005930) | 매수(분할) | 신뢰도 68% |
+    # 예: [시그널] 한화솔루션 (009830) | 매도(비중 축소) | 신뢰도 64% |
+    # 예: [시그널] 한화시스템 (272210) | 관망/부분익절 | 신뢰도 52% |
+    pattern = r'\[시그널\]\s*(.+?)\s*[\(（]([A-Za-z0-9]+)[\)）]\s*\|\s*(매수|매도|관망|buy|sell|hold)\b[^\|]*\|\s*(?:신뢰도[:\s]*)?\s*(\d+)\s*%?\s*\|?\s*(.*)'
     matches = re.findall(pattern, content, re.IGNORECASE)
 
     for name, ticker, action, confidence, reason in matches:
+        ticker = ticker.strip()
+        if ticker in seen_tickers:
+            continue  # 같은 종목 중복 시그널 방지 (요약 섹션 중복)
+        seen_tickers.add(ticker)
         action_map = {"매수": "buy", "매도": "sell", "관망": "hold", "buy": "buy", "sell": "sell", "hold": "hold"}
         market = "US" if any(c.isalpha() and c.isupper() for c in ticker) and not ticker.isdigit() else "KR"
+        # 이유가 빈 줄이면 시그널 다음 줄에서 추출
+        reason_text = reason.strip()
+        if not reason_text:
+            sig_pos = content.find(f"[시그널] {name.strip()}")
+            if sig_pos >= 0:
+                after = content[sig_pos:sig_pos + 500]
+                lines = after.split("\n")
+                for line in lines[1:4]:  # 다음 1~3줄에서 이유 찾기
+                    line = line.strip()
+                    if line and not line.startswith("[시그널]") and not line.startswith("━"):
+                        reason_text = line
+                        break
         parsed.append({
-            "ticker": ticker.strip(),
+            "ticker": ticker,
             "name": name.strip(),
             "market": market,
             "action": action_map.get(action.lower(), "hold"),
             "confidence": int(confidence),
-            "reason": reason.strip(),
+            "reason": reason_text or "CIO 종합 분석 참조",
         })
 
     # [시그널] 패턴이 없으면 관심종목 기반으로 키워드 파싱 (종목별 개별 컨텍스트 기준)
@@ -4761,18 +4781,145 @@ async def run_trading_now():
 
     # 자동 주문 실행 (auto_execute=True 일 때만)
     min_confidence = settings.get("min_confidence", 65)
+    order_size = settings.get("order_size", 1_000_000)
     orders_triggered = 0
     if settings.get("auto_execute", False):
+        paper_mode = settings.get("paper_trading", True)
+        use_kis = _KIS_AVAILABLE and not paper_mode and _kis_configured()
+
         for sig in parsed_signals:
             if sig["action"] not in ("buy", "sell"):
                 continue
             effective_conf = sig.get("confidence", 0) * calibration_factor
             if effective_conf < min_confidence:
+                save_activity_log("cio_manager",
+                    f"[수동] {sig.get('name', sig['ticker'])} 신뢰도 부족 ({effective_conf:.0f}% < {min_confidence}%) — 건너뜀",
+                    "info")
                 continue
-            orders_triggered += 1
-            save_activity_log("cio_manager",
-                f"[수동] {sig['action']} 시그널: {sig.get('name', sig['ticker'])} 유효신뢰도 {effective_conf:.0f}%",
-                "info")
+
+            ticker = sig["ticker"]
+            sig_market = sig.get("market", market)
+            is_us = sig_market.upper() in ("US", "USA", "OVERSEAS") or (ticker.isalpha() and len(ticker) <= 5)
+
+            try:
+                # 현재가 조회
+                if is_us:
+                    if _KIS_AVAILABLE and _kis_configured():
+                        us_price_data = await _kis_us_price(ticker)
+                        price = us_price_data.get("price", 0) if us_price_data.get("success") else 0
+                    else:
+                        target_w = next((w for w in market_watchlist if w.get("ticker", "").upper() == ticker.upper()), None)
+                        price = float(target_w.get("target_price", 0)) if target_w else 0
+                    if price <= 0:
+                        save_activity_log("cio_manager", f"[수동/US] {ticker} 현재가 조회 실패 — 건너뜀", "warning")
+                        continue
+                    _fx = 1450
+                    try:
+                        _fx = load_setting("fx_rate_usd_krw", 1450)
+                    except Exception:
+                        pass
+                    qty = max(1, int(order_size / (price * _fx)))
+                else:
+                    if _KIS_AVAILABLE and _kis_configured():
+                        price = await _kis_price(ticker)
+                    else:
+                        target_w = next((w for w in market_watchlist if w["ticker"] == ticker), None)
+                        price = target_w.get("target_price", 0) if target_w else 0
+                    if price <= 0:
+                        price = 50000
+                    qty = max(1, int(order_size / price))
+
+                if use_kis:
+                    mode_str = "실거래" if not KIS_IS_MOCK else "모의투자(KIS)"
+                    action_kr = "매수" if sig["action"] == "buy" else "매도"
+                    if is_us:
+                        order_result = await _kis_us_order(ticker, sig["action"], qty, price=price)
+                    else:
+                        order_result = await _kis_order(ticker, sig["action"], qty, price=0)
+                    if order_result["success"]:
+                        orders_triggered += 1
+                        save_activity_log("cio_manager",
+                            f"[수동/{mode_str}] {action_kr}: {sig.get('name', ticker)} {qty}주 (신뢰도 {effective_conf:.0f}%)",
+                            "info")
+                        history = _load_data("trading_history", [])
+                        history.insert(0, {
+                            "id": f"manual_{datetime.now(KST).strftime('%Y%m%d%H%M%S')}_{ticker}",
+                            "date": datetime.now(KST).isoformat(),
+                            "ticker": ticker, "name": sig.get("name", ticker),
+                            "action": sig["action"], "qty": qty, "price": price,
+                            "total": qty * price, "pnl": 0,
+                            "strategy": f"CIO 수동분석 ({mode_str}, 신뢰도 {sig['confidence']}%)",
+                            "status": "executed", "market": "US" if is_us else "KR",
+                            "order_no": order_result.get("order_no", ""),
+                        })
+                        _save_data("trading_history", history)
+                    else:
+                        save_activity_log("cio_manager",
+                            f"[수동/{mode_str}] 주문 실패: {sig.get('name', ticker)} — {order_result['message']}", "warning")
+                else:
+                    # 가상 포트폴리오 (paper trading)
+                    portfolio = _load_data("trading_portfolio", _default_portfolio())
+                    if sig["action"] == "buy" and portfolio["cash"] >= price * qty:
+                        holding = next((h for h in portfolio["holdings"] if h["ticker"] == ticker), None)
+                        total_amount = qty * price
+                        if holding:
+                            old_total = holding["avg_price"] * holding["qty"]
+                            holding["qty"] += qty
+                            holding["avg_price"] = int((old_total + total_amount) / holding["qty"])
+                            holding["current_price"] = price
+                        else:
+                            portfolio["holdings"].append({
+                                "ticker": ticker, "name": sig.get("name", ticker),
+                                "qty": qty, "avg_price": price, "current_price": price,
+                                "market": sig.get("market", market),
+                            })
+                        portfolio["cash"] -= total_amount
+                        portfolio["updated_at"] = datetime.now(KST).isoformat()
+                        _save_data("trading_portfolio", portfolio)
+                        orders_triggered += 1
+                        history = _load_data("trading_history", [])
+                        history.insert(0, {
+                            "id": f"manual_{datetime.now(KST).strftime('%Y%m%d%H%M%S')}_{ticker}",
+                            "date": datetime.now(KST).isoformat(),
+                            "ticker": ticker, "name": sig.get("name", ticker),
+                            "action": "buy", "qty": qty, "price": price,
+                            "total": total_amount, "pnl": 0,
+                            "strategy": f"CIO 수동분석 (가상, 신뢰도 {sig['confidence']}%)",
+                            "status": "executed", "market": sig.get("market", market),
+                        })
+                        _save_data("trading_history", history)
+                        save_activity_log("cio_manager",
+                            f"[수동/가상] 매수: {sig.get('name', ticker)} {qty}주 x {price:,.0f}원 (신뢰도 {effective_conf:.0f}%)", "info")
+                    elif sig["action"] == "sell":
+                        holding = next((h for h in portfolio["holdings"] if h["ticker"] == ticker), None)
+                        if holding and holding["qty"] > 0:
+                            sell_qty = min(qty, holding["qty"])
+                            total_amount = sell_qty * price
+                            pnl = (price - holding["avg_price"]) * sell_qty
+                            holding["qty"] -= sell_qty
+                            if holding["qty"] == 0:
+                                portfolio["holdings"] = [h for h in portfolio["holdings"] if h["ticker"] != ticker]
+                            portfolio["cash"] += total_amount
+                            portfolio["updated_at"] = datetime.now(KST).isoformat()
+                            _save_data("trading_portfolio", portfolio)
+                            orders_triggered += 1
+                            history = _load_data("trading_history", [])
+                            history.insert(0, {
+                                "id": f"manual_{datetime.now(KST).strftime('%Y%m%d%H%M%S')}_{ticker}",
+                                "date": datetime.now(KST).isoformat(),
+                                "ticker": ticker, "name": sig.get("name", ticker),
+                                "action": "sell", "qty": sell_qty, "price": price,
+                                "total": total_amount, "pnl": pnl,
+                                "strategy": f"CIO 수동분석 (가상, 신뢰도 {sig['confidence']}%)",
+                                "status": "executed", "market": sig.get("market", market),
+                            })
+                            _save_data("trading_history", history)
+                            pnl_str = f"{'+'if pnl>=0 else ''}{pnl:,.0f}원"
+                            save_activity_log("cio_manager",
+                                f"[수동/가상] 매도: {sig.get('name', ticker)} {sell_qty}주 x {price:,.0f}원 (손익 {pnl_str})", "info")
+            except Exception as order_err:
+                logger.error("[수동 분석] 자동주문 오류 (%s): %s", ticker, order_err)
+                save_activity_log("cio_manager", f"[수동] 주문 오류: {ticker} — {order_err}", "warning")
 
     save_activity_log("cio_manager",
         f"✅ 수동 분석 완료: {len(parsed_signals)}개 시그널 (주문 {orders_triggered}건, 비용 ${cost:.4f})", "info")
@@ -7804,7 +7951,7 @@ async def _delegate_to_specialists(manager_id: str, text: str) -> list[dict]:
     if not specialists:
         return []
 
-    # 위임 로그 자동 기록 + WebSocket broadcast
+    # 위임 로그 자동 기록 + WebSocket + SSE broadcast
     try:
         from db import save_delegation_log
         import time as _time
@@ -7830,6 +7977,12 @@ async def _delegate_to_specialists(manager_id: str, text: str) -> list[dict]:
                     await _c.send_json({"event": "delegation_log_update", "data": _log_data})
                 except Exception:
                     pass
+            # SSE broadcast (내부통신 실시간 스트림)
+            await _broadcast_comms({
+                "id": f"dl_{row_id}", "sender": mgr_name, "receiver": spec_name,
+                "message": text[:300], "log_type": "delegation",
+                "source": "delegation", "created_at": datetime.now(KST).isoformat(),
+            })
     except Exception:
         pass
 
@@ -7842,7 +7995,7 @@ async def _delegate_to_specialists(manager_id: str, text: str) -> list[dict]:
         if isinstance(r, Exception):
             processed.append({"agent_id": spec_id, "name": _SPECIALIST_NAMES.get(spec_id, spec_id), "error": str(r)[:100], "cost_usd": 0})
         else:
-            # 전문가 결과 보고 로그 자동 기록 + WebSocket broadcast
+            # 전문가 결과 보고 로그 자동 기록 + WebSocket + SSE broadcast
             try:
                 from db import save_delegation_log
                 import time as _time
@@ -7868,6 +8021,12 @@ async def _delegate_to_specialists(manager_id: str, text: str) -> list[dict]:
                         await _c.send_json({"event": "delegation_log_update", "data": _log_data})
                     except Exception:
                         pass
+                # SSE broadcast (내부통신 실시간 스트림)
+                await _broadcast_comms({
+                    "id": f"dl_{row_id}", "sender": spec_name, "receiver": mgr_name,
+                    "message": content_preview, "log_type": "report",
+                    "source": "delegation", "created_at": datetime.now(KST).isoformat(),
+                })
             except Exception:
                 pass
             processed.append(r)
