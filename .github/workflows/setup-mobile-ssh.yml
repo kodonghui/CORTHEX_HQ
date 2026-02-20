@@ -23,6 +23,13 @@ jobs:
             echo "📱 모바일 SSH 셋업 시작"
             echo "========================================="
 
+            # 0단계: SSH 포트(22) 방화벽 열기
+            echo "🔓 SSH 포트 방화벽 열기..."
+            sudo iptables -I INPUT -p tcp --dport 22 -j ACCEPT
+            sudo mkdir -p /etc/iptables
+            sudo sh -c 'iptables-save > /etc/iptables/rules.v4'
+            echo "✅ SSH 포트 22 방화벽 열림"
+
             # 1단계: tmux 설치 (세션 유지 도구)
             echo "📦 tmux 설치 중..."
             sudo apt-get update -y -qq
