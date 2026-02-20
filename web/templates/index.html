@@ -4110,7 +4110,11 @@
               },
               krTotal() {
                 const kis = (trading.summary.kis_balance||{});
-                if (kis.success) return kis.total_eval || kis.cash || 0;
+                if (kis.success) {
+                  // 한국 보유종목+현금만 (total_eval은 해외자산 원화환산 포함 → usTotal과 이중 계산됨)
+                  const hEval = (kis.holdings||[]).reduce((s,h) => s + (h.qty||0)*(h.current_price||0), 0);
+                  return (kis.cash || 0) + hEval;
+                }
                 if (this.mockBal && this.mockBal.available) return this.mockBal.total_eval || this.mockBal.cash || 0;
                 return 0;
               },
@@ -4177,7 +4181,7 @@
                           x-text="(trading.summary.settings||{}).kis_connected ? 'KIS 연결' : 'KIS 미연결'"></span>
                   </div>
                   <div class="text-xl lg:text-2xl font-bold font-mono text-hq-text"
-                       x-text="fmtKRW((trading.summary.kis_balance||{}).total_eval || (trading.summary.kis_balance||{}).cash || 0)"></div>
+                       x-text="fmtKRW(((trading.summary.kis_balance||{}).cash || 0) + ((trading.summary.kis_balance||{}).holdings||[]).reduce((s,h) => s + (h.qty||0)*(h.current_price||0), 0))"></div>
                   <div class="flex items-center gap-3 mt-1 text-xs text-hq-muted">
                     <span x-text="'현금 ' + fmtKRW((trading.summary.kis_balance||{}).cash || 0)"></span>
                     <span x-text="'보유 ' + ((trading.summary.kis_balance||{}).holdings||[]).length + '종목'"></span>
