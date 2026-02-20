@@ -4305,9 +4305,10 @@ async def get_watchlist_chart(ticker: str, market: str = "KR", days: int = 30):
 
 @app.post("/api/trading/order")
 async def execute_trading_order(request: Request):
-    """모의 주문 실행 (매수/매도).
+    """CEO 수동 주문 실행 (매수/매도).
 
-    실제 키움증권 API 연결 전까지는 포트폴리오 데이터만 업데이트합니다.
+    paper_trading=True → 가상 포트폴리오만 업데이트
+    paper_trading=False → KIS API로 실제 주문
     """
     body = await request.json()
     action = body.get("action", "")  # "buy" or "sell"
@@ -4315,56 +4316,78 @@ async def execute_trading_order(request: Request):
     name = body.get("name", ticker)
     qty = int(body.get("qty", 0))
     price = int(body.get("price", 0))
+    market = body.get("market", "KR").upper()
 
     if not all([action in ("buy", "sell"), ticker, qty > 0, price > 0]):
         return {"success": False, "error": "매수/매도, 종목코드, 수량, 가격 필수"}
 
-    portfolio = _load_data("trading_portfolio", _default_portfolio())
+    settings = _load_data("trading_settings", _default_trading_settings())
+    paper_mode = settings.get("paper_trading", True)
+    use_kis = _KIS_AVAILABLE and not paper_mode and _kis_configured()
+
+    order_no = ""
+    mode = "가상" if not use_kis else "실거래"
+
+    # ── KIS 실주문 ──
+    if use_kis:
+        try:
+            if market == "US":
+                order_result = await _kis_us_order(ticker, action, qty, price=price)
+            else:
+                order_result = await _kis_order(ticker, action, qty, price=price)
+
+            if not order_result.get("success"):
+                msg = order_result.get("message", "알 수 없는 오류")
+                return {"success": False, "error": f"KIS 주문 실패: {msg}"}
+
+            order_no = order_result.get("order_no", "")
+            mode = order_result.get("mode", "실거래")
+        except Exception as e:
+            return {"success": False, "error": f"KIS 주문 오류: {e}"}
+
+    # ── 가상 포트폴리오 업데이트 (paper_trading일 때만) ──
+    pnl = 0
+    if not use_kis:
+        portfolio = _load_data("trading_portfolio", _default_portfolio())
+        total_amount = qty * price
+
+        if action == "buy":
+            if portfolio["cash"] < total_amount:
+                return {"success": False, "error": f"현금 부족: 필요 {total_amount:,.0f}원, 보유 {portfolio['cash']:,.0f}원"}
+
+            holding = next((h for h in portfolio["holdings"] if h["ticker"] == ticker), None)
+            if holding:
+                old_total = holding["avg_price"] * holding["qty"]
+                new_total = old_total + total_amount
+                holding["qty"] += qty
+                holding["avg_price"] = int(new_total / holding["qty"])
+                holding["current_price"] = price
+            else:
+                portfolio["holdings"].append({
+                    "ticker": ticker, "name": name,
+                    "qty": qty, "avg_price": price, "current_price": price,
+                })
+            portfolio["cash"] -= total_amount
+
+        elif action == "sell":
+            holding = next((h for h in portfolio["holdings"] if h["ticker"] == ticker), None)
+            if not holding:
+                return {"success": False, "error": f"{name} 보유하지 않음"}
+            if holding["qty"] < qty:
+                return {"success": False, "error": f"보유 수량 부족: 보유 {holding['qty']}주, 매도 {qty}주"}
+            pnl = (price - holding["avg_price"]) * qty
+            holding["qty"] -= qty
+            holding["current_price"] = price
+            if holding["qty"] == 0:
+                portfolio["holdings"] = [h for h in portfolio["holdings"] if h["ticker"] != ticker]
+            portfolio["cash"] += total_amount
+
+        portfolio["updated_at"] = datetime.now(KST).isoformat()
+        _save_data("trading_portfolio", portfolio)
+
     total_amount = qty * price
 
-    if action == "buy":
-        if portfolio["cash"] < total_amount:
-            return {"success": False, "error": f"현금 부족: 필요 {total_amount:,.0f}원, 보유 {portfolio['cash']:,.0f}원"}
-
-        # 기존 보유 종목 확인 (평단 계산)
-        holding = next((h for h in portfolio["holdings"] if h["ticker"] == ticker), None)
-        if holding:
-            old_total = holding["avg_price"] * holding["qty"]
-            new_total = old_total + total_amount
-            holding["qty"] += qty
-            holding["avg_price"] = int(new_total / holding["qty"])
-            holding["current_price"] = price
-        else:
-            portfolio["holdings"].append({
-                "ticker": ticker,
-                "name": name,
-                "qty": qty,
-                "avg_price": price,
-                "current_price": price,
-            })
-
-        portfolio["cash"] -= total_amount
-
-    elif action == "sell":
-        holding = next((h for h in portfolio["holdings"] if h["ticker"] == ticker), None)
-        if not holding:
-            return {"success": False, "error": f"{name} 보유하지 않음"}
-        if holding["qty"] < qty:
-            return {"success": False, "error": f"보유 수량 부족: 보유 {holding['qty']}주, 매도 {qty}주"}
-
-        pnl = (price - holding["avg_price"]) * qty
-        holding["qty"] -= qty
-        holding["current_price"] = price
-
-        if holding["qty"] == 0:
-            portfolio["holdings"] = [h for h in portfolio["holdings"] if h["ticker"] != ticker]
-
-        portfolio["cash"] += total_amount
-
-    portfolio["updated_at"] = datetime.now(KST).isoformat()
-    _save_data("trading_portfolio", portfolio)
-
-    # 거래 내역 저장
+    # ── 거래 내역 저장 ──
     history = _load_data("trading_history", [])
     trade = {
         "id": f"trade_{datetime.now(KST).strftime('%Y%m%d%H%M%S')}_{len(history)}",
@@ -4377,7 +4400,10 @@ async def execute_trading_order(request: Request):
         "total": total_amount,
         "pnl": pnl if action == "sell" else 0,
         "strategy": body.get("strategy", "manual"),
-        "status": "executed",
+        "status": "executed" if use_kis else "paper",
+        "order_no": order_no,
+        "market": market,
+        "mode": mode,
     }
     history.insert(0, trade)
     if len(history) > 500:
@@ -4386,11 +4412,13 @@ async def execute_trading_order(request: Request):
 
     action_ko = "매수" if action == "buy" else "매도"
     pnl_str = f" (손익: {pnl:+,.0f}원)" if action == "sell" else ""
+    mode_tag = f" [{mode}]" if use_kis else " [가상]"
+    order_tag = f" 주문#{order_no}" if order_no else ""
     save_activity_log("system",
-        f"{'📈' if action == 'buy' else '📉'} {action_ko}: {name} {qty}주 × {price:,.0f}원 = {total_amount:,.0f}원{pnl_str}",
+        f"{'📈' if action == 'buy' else '📉'} CEO {action_ko}{mode_tag}: {name} {qty}주 × {price:,.0f}원 = {total_amount:,.0f}원{pnl_str}{order_tag}",
         "info")
 
-    return {"success": True, "trade": trade, "portfolio": portfolio}
+    return {"success": True, "trade": trade, "mode": mode, "order_no": order_no}
 
 
 @app.get("/api/trading/history")
