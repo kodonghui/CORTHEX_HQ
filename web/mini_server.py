@@ -173,7 +173,10 @@ app = FastAPI(title="CORTHEX HQ")
 # 정적 파일, 헬스체크 등 노이즈를 제외한 모든 API 요청을 activity_log에 기록
 _LOG_SKIP_PREFIXES = ("/static", "/favicon", "/deploy-status", "/ws", "/api/comms")
 _LOG_SKIP_EXACT = {"/", "/api/health", "/api/agents/status", "/api/dashboard/stats",
-                   "/api/activity-logs", "/api/batch/chain/status"}
+                   "/api/activity-logs", "/api/batch/chain/status",
+                   "/api/budget", "/api/trading/summary", "/api/trading/history",
+                   "/api/trading/strategies", "/api/trading/signals",
+                   "/api/trading/watchlist/prices"}
 _LOG_DESCRIPTION: dict[str, str] = {
     # 채팅/AI
     "POST /api/chat": "💬 채팅 메시지 전송",

@@ -265,11 +265,18 @@ class CrossAgentProtocolTool(BaseTool):
                 "- priority: 우선순위 (긴급/높음/보통/낮음)"
             )
 
+        # 에이전트 ID 검증 + 자동 매핑 (AI가 가짜 이름 보내는 문제 방지)
+        # SSE broadcast 전에 해석해야 교신로그에 올바른 이름 표시됨
+        resolved_id = _resolve_agent_id(to_agent)
+        if resolved_id != to_agent:
+            logger.info("cross_agent_protocol: AI가 보낸 '%s' → 실제 ID '%s'로 변환", to_agent, resolved_id)
+
         msg = {
             "id": str(uuid.uuid4())[:8],
             "type": "request",
             "from": from_agent,
-            "to": to_agent,
+            "to": resolved_id,
+            "original_to": to_agent if resolved_id != to_agent else "",
             "task": task,
             "context": context,
             "priority": priority,
@@ -278,17 +285,10 @@ class CrossAgentProtocolTool(BaseTool):
             "created_at": datetime.now().isoformat(),
             "updated_at": "",
         }
+        to_agent = resolved_id
 
         self._save_msg(msg)
         logger.info("에이전트 간 요청: %s → %s (ID: %s)", from_agent, to_agent, msg["id"])
-
-        # 에이전트 ID 검증 + 자동 매핑 (AI가 가짜 이름 보내는 문제 방지)
-        resolved_id = _resolve_agent_id(to_agent)
-        if resolved_id != to_agent:
-            logger.info("cross_agent_protocol: AI가 보낸 '%s' → 실제 ID '%s'로 변환", to_agent, resolved_id)
-            msg["to"] = resolved_id  # DB 기록도 실제 ID로
-            msg["original_to"] = to_agent  # 원본 보존
-            to_agent = resolved_id
 
         # 실시간 에이전트 호출 (콜백이 등록된 경우)
         if _call_agent_callback is not None:
@@ -371,6 +371,12 @@ class CrossAgentProtocolTool(BaseTool):
                 "- current_result: 현재까지의 작업 결과\n"
                 "- next_task: 다음에 해야 할 작업"
             )
+
+        # AI가 보낸 에이전트 ID를 실제 ID로 변환
+        resolved_id = _resolve_agent_id(to_agent)
+        if resolved_id != to_agent:
+            logger.info("handoff ID 매핑: '%s' → '%s'", to_agent, resolved_id)
+            to_agent = resolved_id
 
         msg = {
             "id": str(uuid.uuid4())[:8],
