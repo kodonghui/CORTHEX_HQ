@@ -9541,29 +9541,47 @@
           this.trading.runningNow = true;
           this.trading.cioLogs = [];
           this._connectCioSSE();
-          this.showToast('CIO + 전문가 4명 즉시 분석 중... (5~10분)', 'info');
+          this.showToast('CIO + 전문가 4명 즉시 분석 + 매매결정 중... (5~10분)', 'info');
           try {
-            const res = await fetch('/api/trading/bot/run-now', {method:'POST'}).then(r => r.json());
-            const sigs = res.signals || [];
-            const buy = sigs.filter(s => s.action === 'buy').length;
-            const sell = sigs.filter(s => s.action === 'sell').length;
-            const orders = res.orders_triggered || 0;
-            const cal = res.calibration;
-            if (cal) this.trading.calibration = cal;
-            let msg = `분석 완료! 매수 ${buy} · 매도 ${sell}`;
-            if (orders > 0) msg += ` · 주문 ${orders}건 실행`;
-            this.showToast(msg + ' → 시그널탭 확인', orders > 0 ? 'success' : 'info');
-            // 시그널탭으로 이동 + 데이터 갱신
+            const ctrl = new AbortController();
+            const timer = setTimeout(() => ctrl.abort(), 600000);
+            const resp = await fetch('/api/trading/bot/run-now', {method:'POST', signal: ctrl.signal});
+            clearTimeout(timer);
+            const res = await resp.json();
+            if (!res.success && res.message) {
+              this.showToast(res.message, 'error');
+            } else {
+              const sigs = res.signals || [];
+              const buy = sigs.filter(s => s.action === 'buy').length;
+              const sell = sigs.filter(s => s.action === 'sell').length;
+              const orders = res.orders_triggered || 0;
+              const cal = res.calibration;
+              if (cal) this.trading.calibration = cal;
+              let msg = `분석 완료! 매수 ${buy} · 매도 ${sell}`;
+              if (orders > 0) msg += ` · 주문 ${orders}건 실행됨!`;
+              else msg += ' · 매매 조건 미충족 (신뢰도 부족 또는 관망)';
+              this.showToast(msg + ' → 시그널탭 확인', orders > 0 ? 'success' : 'info');
+            }
             this.trading.tab = 'signals';
-            const [dec, logs] = await Promise.all([
-              fetch('/api/trading/decisions').then(r=>r.ok?r.json():{decisions:[]}).catch(()=>({decisions:[]})),
-              fetch('/api/delegation-log?division=cio&limit=30').then(r=>r.ok?r.json():[]).catch(()=>[]),
-            ]);
-            this.trading.decisions = dec.decisions || [];
-            this.trading.cioLogs = Array.isArray(logs) ? logs : [];
-            await this.loadTradingSummary();
-          } catch { this.showToast('즉시 분석 실패', 'error'); }
-          finally { this.trading.runningNow = false; }
+          } catch (err) {
+            const isTimeout = err.name === 'AbortError';
+            this.showToast(
+              isTimeout ? '응답 대기 초과 — 서버에서 분석 진행 중. 잠시 후 새로고침하세요'
+                        : `분석 오류: ${err.message || '서버 연결 실패'}`,
+              'error'
+            );
+          } finally {
+            try {
+              const [dec, logs] = await Promise.all([
+                fetch('/api/trading/decisions').then(r=>r.ok?r.json():{decisions:[]}).catch(()=>({decisions:[]})),
+                fetch('/api/delegation-log?division=cio&limit=30').then(r=>r.ok?r.json():[]).catch(()=>[]),
+              ]);
+              this.trading.decisions = dec.decisions || [];
+              this.trading.cioLogs = Array.isArray(logs) ? logs : [];
+              await this.loadTradingSummary();
+            } catch {}
+            this.trading.runningNow = false;
+          }
         },
 
         async toggleTradingBot() {
