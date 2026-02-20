@@ -12,7 +12,33 @@ from src.tools.base import BaseTool
 
 logger = logging.getLogger("corthex.tools.decision_tracker")
 
-DECISIONS_FILE = os.path.join(os.getcwd(), "data", "decisions.json")
+_DB_KEY = "decisions"
+
+
+def _db_load_setting(key: str, default=None):
+    """DB에서 설정 로드 (db.py 의존성 지연 임포트)."""
+    try:
+        import sys, os as _os
+        web_dir = _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "..", "..", "web")
+        if web_dir not in sys.path:
+            sys.path.insert(0, web_dir)
+        from db import load_setting
+        return load_setting(key, default)
+    except Exception:
+        return default
+
+
+def _db_save_setting(key: str, value):
+    """DB에 설정 저장 (db.py 의존성 지연 임포트)."""
+    try:
+        import sys, os as _os
+        web_dir = _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "..", "..", "web")
+        if web_dir not in sys.path:
+            sys.path.insert(0, web_dir)
+        from db import save_setting
+        save_setting(key, value)
+    except Exception as e:
+        logger.error("decisions DB 저장 실패: %s", e)
 
 
 class DecisionTrackerTool(BaseTool):
@@ -40,18 +66,10 @@ class DecisionTrackerTool(BaseTool):
             )
 
     def _load(self) -> list[dict]:
-        if not os.path.isfile(DECISIONS_FILE):
-            return []
-        try:
-            with open(DECISIONS_FILE, "r", encoding="utf-8") as f:
-                return json.load(f)
-        except Exception:
-            return []
+        return _db_load_setting(_DB_KEY, [])
 
     def _save(self, decisions: list[dict]) -> None:
-        os.makedirs(os.path.dirname(DECISIONS_FILE), exist_ok=True)
-        with open(DECISIONS_FILE, "w", encoding="utf-8") as f:
-            json.dump(decisions, f, ensure_ascii=False, indent=2)
+        _db_save_setting(_DB_KEY, decisions)
 
     async def _record(self, kwargs: dict) -> str:
         """새 의사결정 기록."""

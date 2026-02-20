@@ -422,7 +422,6 @@ async def deploy_status():
 
 # 모델별 기본 추론 레벨 자동 매핑 (최신 2026년 기준)
 MODEL_REASONING_MAP: dict[str, str] = {
-    "claude-haiku-4-5":        "low",
     "claude-haiku-4-5-20251001": "low",
     "claude-sonnet-4-6":       "medium",
     "claude-opus-4-6":         "high",
@@ -438,7 +437,6 @@ MODEL_REASONING_MAP: dict[str, str] = {
 
 # 모델별 최대 출력 토큰 한도 (공식 API 기준, 2026년 2월)
 MODEL_MAX_TOKENS_MAP: dict[str, int] = {
-    "claude-haiku-4-5":          64000,
     "claude-haiku-4-5-20251001": 64000,
     "claude-sonnet-4-6":         64000,
     "claude-opus-4-6":           64000,
@@ -456,8 +454,8 @@ MODEL_MAX_TOKENS_MAP: dict[str, int] = {
 # ── 에이전트 목록 ──
 AGENTS = [
     {"agent_id": "chief_of_staff", "name_ko": "비서실장", "role": "manager", "division": "secretary", "status": "idle", "model_name": "claude-sonnet-4-6"},
-    {"agent_id": "report_specialist", "name_ko": "기록 보좌관", "role": "specialist", "division": "secretary", "status": "idle", "model_name": "claude-haiku-4-5"},
-    {"agent_id": "schedule_specialist", "name_ko": "일정 보좌관", "role": "specialist", "division": "secretary", "status": "idle", "model_name": "claude-haiku-4-5"},
+    {"agent_id": "report_specialist", "name_ko": "기록 보좌관", "role": "specialist", "division": "secretary", "status": "idle", "model_name": "claude-haiku-4-5-20251001"},
+    {"agent_id": "schedule_specialist", "name_ko": "일정 보좌관", "role": "specialist", "division": "secretary", "status": "idle", "model_name": "claude-haiku-4-5-20251001"},
     {"agent_id": "relay_specialist", "name_ko": "소통 보좌관", "role": "specialist", "division": "secretary", "status": "idle", "model_name": "claude-sonnet-4-6"},
     {"agent_id": "cto_manager", "name_ko": "기술개발처장 (CTO)", "role": "manager", "division": "leet_master.tech", "status": "idle", "model_name": "claude-opus-4-6"},
     {"agent_id": "frontend_specialist", "name_ko": "프론트엔드 Specialist", "role": "specialist", "division": "leet_master.tech", "status": "idle", "model_name": "claude-sonnet-4-6"},
@@ -483,7 +481,7 @@ AGENTS = [
     {"agent_id": "cpo_manager", "name_ko": "출판·기록처장 (CPO)", "role": "manager", "division": "publishing", "status": "idle", "model_name": "claude-sonnet-4-6"},
     {"agent_id": "chronicle_specialist", "name_ko": "회사연대기 Specialist", "role": "specialist", "division": "publishing", "status": "idle", "model_name": "claude-sonnet-4-6"},
     {"agent_id": "editor_specialist", "name_ko": "콘텐츠편집 Specialist", "role": "specialist", "division": "publishing", "status": "idle", "model_name": "claude-sonnet-4-6"},
-    {"agent_id": "archive_specialist", "name_ko": "아카이브 Specialist", "role": "specialist", "division": "publishing", "status": "idle", "model_name": "claude-haiku-4-5"},
+    {"agent_id": "archive_specialist", "name_ko": "아카이브 Specialist", "role": "specialist", "division": "publishing", "status": "idle", "model_name": "claude-haiku-4-5-20251001"},
 ]
 
 # ── WebSocket 관리 ──
