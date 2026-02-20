@@ -10,7 +10,7 @@ logger = logging.getLogger("corthex.llm.gemini")
 
 # Cost per 1M tokens (input / output)
 _PRICING: dict[str, dict[str, float]] = {
-    "gemini-3-pro-preview": {"input": 2.50, "output": 15.00},
+    "gemini-3.1-pro-preview": {"input": 2.00, "output": 12.00},
     "gemini-2.5-pro": {"input": 1.25, "output": 10.00},
     "gemini-2.5-flash": {"input": 0.15, "output": 0.60},
     "gemini-2.0-flash": {"input": 0.10, "output": 0.40},

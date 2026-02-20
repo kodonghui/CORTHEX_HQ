@@ -66,11 +66,11 @@ providers:
   google:
     api_key_env: "GOOGLE_API_KEY"
     models:
-      # ── Gemini 3.0 시리즈 (최신) ──
+      # ── Gemini 3.1 시리즈 (최신) ──
       # thinking_level 파라미터 사용 (low, high만 지원)
-      - name: "gemini-3-pro-preview"
-        cost_per_1m_input: 2.50
-        cost_per_1m_output: 15.00
+      - name: "gemini-3.1-pro-preview"
+        cost_per_1m_input: 2.00
+        cost_per_1m_output: 12.00
         # max_tokens 제거 — 응답 잘림 방지
         tier: "executive"
         reasoning_levels: ["low", "high"]

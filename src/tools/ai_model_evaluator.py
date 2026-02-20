@@ -52,7 +52,7 @@ _MODEL_FAMILIES: dict[str, dict] = {
     },
     "Gemini": {
         "provider": "Google DeepMind",
-        "models": ["Gemini 3.0 Pro", "Gemini 2.5 Pro", "Gemini 2.5 Flash"],
+        "models": ["Gemini 3.1 Pro", "Gemini 2.5 Pro", "Gemini 2.5 Flash"],
         "strengths": ["네이티브 멀티모달", "긴 컨텍스트(1M+)", "Google 생태계 통합"],
         "weaknesses": ["API 안정성 변동", "프롬프트 호환성 차이", "엔터프라이즈 지원 미성숙"],
     },
@@ -143,7 +143,7 @@ _DEPLOYMENT_STRATEGIES: dict[str, dict] = {
 
 _COST_TIERS: dict[str, dict] = {
     "premium":     {"name_ko": "프리미엄",   "input_per_1m": 15.0,  "output_per_1m": 75.0,  "models": ["Claude Opus 4.6", "GPT-5.2 Pro"]},
-    "standard":    {"name_ko": "스탠다드",   "input_per_1m": 3.0,   "output_per_1m": 15.0,  "models": ["Claude Sonnet 4.6", "GPT-5.2", "GPT-5", "Gemini 3.0 Pro"]},
+    "standard":    {"name_ko": "스탠다드",   "input_per_1m": 3.0,   "output_per_1m": 15.0,  "models": ["Claude Sonnet 4.6", "GPT-5.2", "GPT-5", "Gemini 3.1 Pro"]},
     "economy":     {"name_ko": "이코노미",   "input_per_1m": 0.25,  "output_per_1m": 1.25,  "models": ["Claude Haiku 4.5", "GPT-5 Mini", "Gemini 2.5 Flash"]},
     "self_hosted": {"name_ko": "자체 호스팅", "input_per_1m": 0.0,   "output_per_1m": 0.0,   "models": ["Llama 3.1 405B", "Mixtral 8x22B", "Qwen-2.5 72B"]},
 }
