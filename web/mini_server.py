@@ -9360,17 +9360,14 @@ def _load_chief_prompt() -> None:
 
 
 def _get_model_override(agent_id: str) -> str | None:
-    """모델 모드에 따라 에이전트의 모델을 결정합니다.
+    """에이전트에 지정된 모델을 반환합니다.
 
-    - 자동 모드: None 반환 → select_model()이 질문 내용에 따라 자동 선택
-    - 수동 모드: 해당 에이전트에 개별 지정된 모델을 반환
-      (에이전트 상세에서 CEO가 직접 설정한 모델)
-    - 글로벌 오버라이드: 텔레그램/웹에서 설정한 전체 모델 변경도 반영
+    - 에이전트에 model_name이 지정되어 있으면 → 항상 그 모델 반환
+      (agents.yaml / AGENTS 리스트 / CEO 직접 설정)
+    - 글로벌 오버라이드가 있으면 → 그 모델 반환
+    - 어느 것도 없으면 → None (select_model이 자동 선택)
     """
-    mode = load_setting("model_mode") or "auto"
-    if mode != "manual":
-        return None
-    # 수동 모드 → 에이전트별 개별 지정 모델 우선
+    # 1. 에이전트별 개별 지정 모델 (가장 우선)
     detail = _AGENTS_DETAIL.get(agent_id, {})
     agent_model = detail.get("model_name")
     if agent_model:
@@ -9379,7 +9376,7 @@ def _get_model_override(agent_id: str) -> str | None:
     for a in AGENTS:
         if a["agent_id"] == agent_id and a.get("model_name"):
             return a["model_name"]
-    # 글로벌 오버라이드 (텔레그램 /models 또는 웹 대시보드에서 설정한 전체 모델)
+    # 2. 글로벌 오버라이드 (텔레그램 /models 또는 웹 대시보드에서 설정한 전체 모델)
     global_override = load_setting("model_override")
     if global_override:
         return global_override

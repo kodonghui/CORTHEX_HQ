@@ -6719,6 +6719,7 @@
           tab: 'dashboard',
           loading: false,
           refreshInterval: null,
+          priceRefreshInterval: null,
           lastRefresh: '',
           summary: { portfolio: {}, strategies: {}, watchlist_count: 0, today: {}, signals_count: 0, bot_active: false, settings: {} },
           portfolio: { cash: 0, initial_cash: 50000000, holdings: [] },
@@ -8097,11 +8098,19 @@
             this.loadTradingSummary();
             this._connectCioSSE();
             clearInterval(this.trading.refreshInterval);
+            clearInterval(this.trading.priceRefreshInterval);
             this.trading.refreshInterval = setInterval(() => {
               if (this.activeTab === 'trading') this.loadTradingSummary(true);
             }, 30000);
+            // 관심종목 시세 1분마다 자동 새로고침
+            this.trading.priceRefreshInterval = setInterval(() => {
+              if (this.activeTab === 'trading' && this.trading.watchlist.length > 0) {
+                this.loadWatchlistPrices();
+              }
+            }, 60000);
           } else {
             clearInterval(this.trading.refreshInterval);
+            clearInterval(this.trading.priceRefreshInterval);
             this._disconnectCioSSE();
           }
           if (tabId === 'command') {
@@ -9536,11 +9545,28 @@
           if (this._cioSSE) { this._cioSSE.close(); this._cioSSE = null; }
         },
 
+        _cioPollingInterval: null,
+        _startCioPolling() {
+          if (this._cioPollingInterval) return;
+          this._cioPollingInterval = setInterval(async () => {
+            try {
+              const logs = await fetch('/api/delegation-log?division=cio&limit=30').then(r=>r.ok?r.json():[]).catch(()=>[]);
+              if (Array.isArray(logs) && logs.length > this.trading.cioLogs.length) {
+                this.trading.cioLogs = logs;
+              }
+            } catch {}
+          }, 3000);
+        },
+        _stopCioPolling() {
+          if (this._cioPollingInterval) { clearInterval(this._cioPollingInterval); this._cioPollingInterval = null; }
+        },
+
         async runTradingNow() {
           if (this.trading.runningNow) return;
           this.trading.runningNow = true;
           this.trading.cioLogs = [];
           this._connectCioSSE();
+          this._startCioPolling();
           this.showToast('CIO + 전문가 4명 즉시 분석 + 매매결정 중... (5~10분)', 'info');
           try {
             const ctrl = new AbortController();
@@ -9580,6 +9606,7 @@
               this.trading.cioLogs = Array.isArray(logs) ? logs : [];
               await this.loadTradingSummary();
             } catch {}
+            this._stopCioPolling();
             this.trading.runningNow = false;
           }
         },
