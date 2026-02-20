@@ -4968,8 +4968,27 @@ async def run_trading_now():
     """지금 즉시 CIO 분석 + 매매 판단 실행 (장 시간 무관, 수동 트리거).
 
     봇 ON/OFF 상태와 무관하게 즉시 1회 분석을 실행합니다.
-    자동 주문 실행 여부는 auto_execute 설정을 그대로 따릅니다.
+    수동 실행이므로 auto_execute 설정 무관하게 항상 매매까지 진행합니다.
     """
+    try:
+        return await _run_trading_now_inner()
+    except Exception as e:
+        logger.error("[수동 분석] 전체 오류: %s", e, exc_info=True)
+        # 에러가 나도 이미 저장된 시그널/결정이 있으면 partial 결과 반환
+        signals = _load_data("trading_signals", [])
+        latest = signals[0] if signals else {}
+        return {
+            "success": False,
+            "message": f"분석 중 오류: {str(e)[:200]}",
+            "signals": latest.get("parsed_signals", []),
+            "signals_count": len(latest.get("parsed_signals", [])),
+            "orders_triggered": 0,
+            "error": str(e)[:200],
+        }
+
+
+async def _run_trading_now_inner():
+    """run_trading_now의 실제 로직 (에러 핸들링은 호출자가 담당)."""
     settings = _load_data("trading_settings", _default_trading_settings())
     watchlist = _load_data("trading_watchlist", [])
 
@@ -5804,6 +5823,43 @@ async def debug_cio_signals():
         "saved_decisions_count": len(decisions),
         "latest_decisions": decisions[-3:] if decisions else [],
         "watchlist": load_setting("watchlist") or [],
+    }
+
+
+@app.get("/api/debug/trading-execution")
+async def debug_trading_execution():
+    """매매 실행 디버그 — auto_execute, 설정, 최근 시그널, 주문 상태 확인."""
+    settings = _load_data("trading_settings", _default_trading_settings())
+    signals = _load_data("trading_signals", [])
+    history = _load_data("trading_history", [])
+    latest_signal = signals[0] if signals else {}
+    recent_history = history[:5]
+
+    return {
+        "settings": {
+            "auto_execute": settings.get("auto_execute", False),
+            "paper_trading": settings.get("paper_trading", True),
+            "min_confidence": settings.get("min_confidence", 65),
+            "order_size": settings.get("order_size", 0),
+        },
+        "kis_status": {
+            "available": _KIS_AVAILABLE,
+            "configured": _kis_configured() if _KIS_AVAILABLE else False,
+            "is_mock": KIS_IS_MOCK,
+        },
+        "latest_signal": {
+            "id": latest_signal.get("id", ""),
+            "date": latest_signal.get("date", ""),
+            "parsed_count": len(latest_signal.get("parsed_signals", [])),
+            "parsed_signals": latest_signal.get("parsed_signals", []),
+            "manual_run": latest_signal.get("manual_run", False),
+        },
+        "recent_orders": [{
+            "id": h.get("id"), "date": h.get("date"),
+            "ticker": h.get("ticker"), "action": h.get("action"),
+            "qty": h.get("qty"), "status": h.get("status"),
+        } for h in recent_history],
+        "note": "수동 즉시 실행은 auto_execute 무관하게 항상 매매 진행 (2026-02-21 수정)",
     }
 
 
