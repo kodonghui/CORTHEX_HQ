@@ -363,6 +363,8 @@ git checkout main && git pull origin main
 ## 업데이트 기록 규칙
 - 세션 끝날 때마다 `docs/updates/YYYY-MM-DD_작업요약.md` 생성 (노션 복붙 가능한 마크다운)
 - **필수 포함**: 작업 제목 / 날짜 / 버전 / 브랜치 / 변경 사항 요약 (수정 파일 + 쉬운 설명) / 현재 상태 / 다음 할 일
+- **CLAUDE.md 수정 시에도** `docs/updates/`에 변경 내용 기록할 것 (어떤 규칙을 왜 추가/수정/삭제했는지)
+- **버그 발견 시** `docs/bug-reports.md`에 적극적으로 기록할 것 (원인, 수정 방법, 재발 방지 포함)
 - 전문 용어는 반드시 괄호 안에 쉬운 설명 붙일 것. CEO가 바로 이해할 수 있는 수준으로
 
 ## 버전 번호 규칙
@@ -480,17 +482,10 @@ git checkout main && git pull origin main
 - **사고 4 (서브에이전트 브랜치 전환, 2026-02-19)**: 서브에이전트가 `git checkout`으로 브랜치를 바꿔서 팀장의 index.html 수정사항 6개 전부 유실됨 → 서브에이전트는 git 명령어 절대 금지. 모든 git 작업은 팀장만 수행
 - **사고 5 (KIS 토큰 만료, 2026-02-20)**: `KOREA_INVEST_IS_MOCK`을 true→false로 변경 후, DB에 캐시된 모의투자 토큰이 실거래 서버에서 "만료된 token" 에러 → `get_balance()`에 토큰 만료 자동 재발급 로직 추가. **IS_MOCK 변경 시 반드시 토큰 캐시 무효화 필요**
 
-## 원격 디버그 URL 패턴 (중요!)
-- **API 문제 발생 시, CEO에게 디버그 URL을 제공하고 응답을 받아서 원인 파악** — 서버 SSH 없이도 진단 가능
-- CEO가 브라우저에서 URL을 열면 JSON 응답이 나옴 → 그걸 복사해서 보내주면 원인 즉시 파악
-- **기존 디버그 엔드포인트 목록**:
-  - `https://corthex-hq.com/api/trading/kis/debug` — KIS 한국장 잔고 API 원본 응답 (rt_cd, msg1 등)
-  - `https://corthex-hq.com/api/trading/kis/debug-us` — KIS 미국장 잔고 API 원본 응답
-  - `https://corthex-hq.com/api/trading/kis/status` — KIS 연결 상태 (모드, 계좌번호 마스킹)
-  - `https://corthex-hq.com/deploy-status.json` — 배포 상태 (빌드 번호, 시간)
-- **새 디버그 엔드포인트 추가 시**: `mini_server.py`에 `/api/trading/kis/debug-*` 패턴으로 추가
-- **보안**: 계좌번호는 마스킹(`****9763`), API 키는 노출하지 않을 것
-- **이 방식을 쓰는 이유**: Oracle Cloud 서버에 SSH 접속 불가할 때도 CEO가 브라우저 하나로 진단 가능
+## 디버그 URL 규칙 (중요!)
+- **버그 발생 시 → 그때그때 디버그 엔드포인트를 만들어서 CEO에게 URL 제공**. CEO가 브라우저로 열면 JSON 응답 → 원인 즉시 파악
+- 특정 영역에 국한하지 말 것. KIS, AI 호출, 에이전트, 시그널, DB 등 **어디든 문제가 생기면 `/api/debug/xxx` 엔드포인트를 즉석에서 만들어서 CEO에게 적극적으로 제공**
+- **보안**: 계좌번호 마스킹, API 키 노출 금지
 
 ## AI 도구 자동호출 규칙 (Function Calling)
 - **ai_handler.py**의 `ask_ai()`가 `tools` + `tool_executor` 파라미터를 받아서 3개 프로바이더 모두 도구 자동호출 지원
