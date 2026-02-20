@@ -845,6 +845,8 @@ async def ask_ai(
             provider_tools = tools
         elif provider == "openai":
             # OpenAI function calling 포맷으로 변환
+            # GPT-5.2는 strict 모드가 기본 → required에 모든 properties 필요
+            # 우리 도구는 optional 파라미터가 많으므로 strict: False로 비활성화
             provider_tools = []
             for t in tools:
                 provider_tools.append({
@@ -852,6 +854,7 @@ async def ask_ai(
                     "function": {
                         "name": t["name"],
                         "description": t.get("description", ""),
+                        "strict": False,
                         "parameters": t.get("input_schema", {"type": "object", "properties": {}}),
                     },
                 })
