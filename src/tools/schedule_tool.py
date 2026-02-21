@@ -1,7 +1,9 @@
 """스케줄(크론) 관리 도구 — 예약 작업 생성·수정·삭제·조회.
 
-텔레그램에서 "뉴스브리핑 평일 아침 8시반으로 바꿔" 같은 자연어를
+텔레그램에서 "뉴스브리핑 멈춰", "뉴스브리핑 8시반으로 바꿔" 같은 자연어를
 일정보좌관 AI가 파싱하여 이 도구를 호출합니다.
+
+이름으로 찾기: schedule_id 대신 name으로 예약을 찾을 수 있습니다.
 """
 from __future__ import annotations
 
@@ -37,6 +39,34 @@ def _save_schedules(schedules: list[dict]):
     save_setting("schedules", schedules)
 
 
+def _find_schedule(schedules: list[dict], schedule_id: str = "", name: str = "") -> dict | None:
+    """ID 또는 이름으로 예약을 찾습니다. 이름은 부분 매칭 지원."""
+    # 1순위: 정확한 ID 매칭
+    if schedule_id:
+        for s in schedules:
+            if s.get("id") == schedule_id:
+                return s
+
+    # 2순위: 이름 매칭 (부분 매칭 — "뉴스" → "뉴스 브리핑" 찾기)
+    if name:
+        name_lower = name.lower().strip()
+        # 정확 매칭 먼저
+        for s in schedules:
+            if s.get("name", "").lower().strip() == name_lower:
+                return s
+        # 부분 매칭
+        for s in schedules:
+            s_name = s.get("name", "").lower()
+            if name_lower in s_name or s_name in name_lower:
+                return s
+        # command에서도 찾기
+        for s in schedules:
+            if name_lower in s.get("command", "").lower():
+                return s
+
+    return None
+
+
 class ScheduleTool(BaseTool):
     """크론 예약 관리 — 생성·수정·삭제·조회·토글."""
 
@@ -69,7 +99,7 @@ class ScheduleTool(BaseTool):
             cron = s.get("cron", s.get("cron_preset", ""))
             last = s.get("last_run", "없음")
             lines.append(
-                f"{status} [{s.get('id', '?')}] {s.get('name', '이름없음')}\n"
+                f"{status} {s.get('name', '이름없음')}\n"
                 f"   크론: {cron} | 명령: {s.get('command', '')[:50]}\n"
                 f"   마지막 실행: {last}"
             )
@@ -112,62 +142,53 @@ class ScheduleTool(BaseTool):
 
         return (
             f"✅ 예약 생성 완료\n"
-            f"ID: {schedule_id}\n"
             f"이름: {name}\n"
             f"크론: {cron}\n"
             f"명령: {command}"
         )
 
     def _update(self, params: dict) -> str:
-        schedule_id = params.get("schedule_id", "")
-        if not schedule_id:
-            return "❌ schedule_id는 필수입니다. list로 ID를 확인하세요."
-
         schedules = _load_schedules()
-        for s in schedules:
-            if s.get("id") == schedule_id:
-                if "name" in params and params["name"]:
-                    s["name"] = params["name"]
-                if "command" in params and params["command"]:
-                    s["command"] = params["command"]
-                if "cron" in params and params["cron"]:
-                    s["cron"] = params["cron"]
-                    s["cron_preset"] = ""  # 크론 직접 지정 시 프리셋 제거
-                if "description" in params:
-                    s["description"] = params["description"]
-                _save_schedules(schedules)
-                return (
-                    f"✅ 예약 수정 완료\n"
-                    f"ID: {schedule_id}\n"
-                    f"이름: {s.get('name')}\n"
-                    f"크론: {s.get('cron')}\n"
-                    f"명령: {s.get('command', '')[:50]}"
-                )
-        return f"❌ ID '{schedule_id}'를 찾을 수 없습니다."
+        s = _find_schedule(schedules, params.get("schedule_id", ""), params.get("name", ""))
+        if not s:
+            return f"❌ 예약을 찾을 수 없습니다. (검색: {params.get('name', params.get('schedule_id', '?'))})"
+
+        if "command" in params and params["command"]:
+            s["command"] = params["command"]
+        if "cron" in params and params["cron"]:
+            s["cron"] = params["cron"]
+            s["cron_preset"] = ""
+        if "description" in params:
+            s["description"] = params["description"]
+        # name 변경은 별도로 new_name 파라미터로
+        if "new_name" in params and params["new_name"]:
+            s["name"] = params["new_name"]
+        _save_schedules(schedules)
+        return (
+            f"✅ 예약 수정 완료\n"
+            f"이름: {s.get('name')}\n"
+            f"크론: {s.get('cron')}\n"
+            f"명령: {s.get('command', '')[:50]}"
+        )
 
     def _delete(self, params: dict) -> str:
-        schedule_id = params.get("schedule_id", "")
-        if not schedule_id:
-            return "❌ schedule_id는 필수입니다."
-
         schedules = _load_schedules()
-        before = len(schedules)
-        schedules = [s for s in schedules if s.get("id") != schedule_id]
-        if len(schedules) == before:
-            return f"❌ ID '{schedule_id}'를 찾을 수 없습니다."
+        s = _find_schedule(schedules, params.get("schedule_id", ""), params.get("name", ""))
+        if not s:
+            return f"❌ 예약을 찾을 수 없습니다. (검색: {params.get('name', params.get('schedule_id', '?'))})"
+
+        del_name = s.get("name", "?")
+        schedules = [x for x in schedules if x.get("id") != s.get("id")]
         _save_schedules(schedules)
-        return f"✅ 예약 '{schedule_id}' 삭제 완료"
+        return f"✅ '{del_name}' 예약 삭제 완료"
 
     def _toggle(self, params: dict) -> str:
-        schedule_id = params.get("schedule_id", "")
-        if not schedule_id:
-            return "❌ schedule_id는 필수입니다."
-
         schedules = _load_schedules()
-        for s in schedules:
-            if s.get("id") == schedule_id:
-                s["enabled"] = not s.get("enabled", True)
-                _save_schedules(schedules)
-                state = "활성화 ✅" if s["enabled"] else "비활성화 ⏸"
-                return f"예약 '{s.get('name')}' → {state}"
-        return f"❌ ID '{schedule_id}'를 찾을 수 없습니다."
+        s = _find_schedule(schedules, params.get("schedule_id", ""), params.get("name", ""))
+        if not s:
+            return f"❌ 예약을 찾을 수 없습니다. (검색: {params.get('name', params.get('schedule_id', '?'))})"
+
+        s["enabled"] = not s.get("enabled", True)
+        _save_schedules(schedules)
+        state = "활성화 ✅" if s["enabled"] else "비활성화 ⏸"
+        return f"'{s.get('name')}' → {state}"

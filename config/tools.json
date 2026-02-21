@@ -3126,7 +3126,7 @@
       "tool_id": "schedule_tool",
       "name": "Schedule Manager",
       "name_ko": "예약 관리",
-      "description": "크론 예약 관리 — 예약 생성·수정·삭제·조회·토글. 텔레그램에서 자연어로 스케줄 변경 가능",
+      "description": "크론 예약 관리 — 예약 생성·수정·삭제·조회·토글. 이름으로 검색 가능 (ID 불필요)",
       "parameters": {
         "type": "object",
         "properties": {
@@ -3143,7 +3143,7 @@
           },
           "name": {
             "type": "string",
-            "description": "예약 이름 (create/update 시)"
+            "description": "예약 이름. create 시 필수. update/delete/toggle 시 이 이름으로 예약을 찾습니다 (부분 매칭 지원, 예: \"뉴스\" → \"뉴스 브리핑\" 매칭)"
           },
           "command": {
             "type": "string",
@@ -3155,7 +3155,7 @@
           },
           "schedule_id": {
             "type": "string",
-            "description": "수정/삭제/토글할 예약 ID (update/delete/toggle 시 필수)"
+            "description": "예약 ID (선택 — name으로도 찾을 수 있으므로 보통 불필요)"
           },
           "description": {
             "type": "string",
