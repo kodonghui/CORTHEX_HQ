@@ -3097,27 +3097,6 @@ async def get_batch_chains():
 
 _cron_task = None  # 크론 루프 태스크
 
-_NEWS_BRIEFING_ID = "news_briefing_daily"
-
-
-def _ensure_news_briefing_schedule():
-    """뉴스 브리핑 크론이 없으면 자동 등록합니다 (크론기지에서 관리 가능)."""
-    schedules = _load_data("schedules", [])
-    for s in schedules:
-        if s.get("id") == _NEWS_BRIEFING_ID:
-            return  # 이미 등록됨
-    schedules.append({
-        "id": _NEWS_BRIEFING_ID,
-        "name": "뉴스 브리핑 (예비창업자패키지 + 모두의 창업)",
-        "command": "__NEWS_BRIEFING__",
-        "cron": "0 9 * * *",
-        "cron_preset": "daily_9am",
-        "description": "매일 09:00 SerpAPI로 '예비창업자패키지', '모두의 창업' 뉴스 검색 → AI 요약 → 텔레그램 발송",
-        "enabled": True,
-        "created_at": datetime.now(KST).isoformat(),
-    })
-    _save_data("schedules", schedules)
-    _log("[CRON] 뉴스 브리핑 스케줄 자동 등록 ✅ (매일 09:00)")
 
 
 def _parse_cron_preset(preset: str) -> dict:
@@ -3557,115 +3536,29 @@ async def _cron_loop():
 
 
 async def _run_scheduled_command(command: str, schedule_name: str):
-    """예약된 명령을 실행합니다."""
+    """예약된 명령을 실행하고, 결과를 텔레그램 CEO에게 발송합니다."""
     try:
-        # 특수 명령: 뉴스 브리핑
-        if command.startswith("__NEWS_BRIEFING__"):
-            await _news_briefing_cron()
-            save_activity_log("system", f"✅ 예약 완료: {schedule_name}", "info")
-            return
-
         task = create_task(command, source="cron")
         result = await _process_ai_command(command, task["task_id"])
         save_activity_log("system", f"✅ 예약 완료: {schedule_name}", "info")
+
+        # 크론 결과를 텔레그램 CEO에게 발송
+        content = result.get("content", "")
+        if content and _telegram_app:
+            ceo_id = os.getenv("TELEGRAM_CEO_CHAT_ID", "")
+            if ceo_id:
+                try:
+                    who = result.get("handled_by", "시스템")
+                    msg = f"⏰ [{schedule_name}]\n\n{content}"
+                    if len(msg) > 3900:
+                        msg = msg[:3900] + "\n\n... (전체는 웹에서 확인)"
+                    await _telegram_app.bot.send_message(chat_id=int(ceo_id), text=msg)
+                except Exception as tg_err:
+                    logger.warning("크론 결과 텔레그램 발송 실패: %s", tg_err)
     except Exception as e:
         save_activity_log("system", f"❌ 예약 실패: {schedule_name} — {str(e)[:100]}", "error")
 
 
-async def _news_briefing_cron():
-    """매일 09:00 뉴스 브리핑 — SerpAPI 검색 → AI 요약 → 텔레그램 발송."""
-    logger = logging.getLogger("corthex.cron.news")
-    keywords = ["예비창업자패키지", "모두의 창업"]
-    api_key = os.getenv("SERPAPI_KEY", "")
-
-    if not api_key:
-        logger.error("SERPAPI_KEY 미설정 — 뉴스 브리핑 건너뜀")
-        return
-
-    try:
-        import httpx as _hx
-    except ImportError:
-        logger.error("httpx 미설치 — 뉴스 브리핑 건너뜀")
-        return
-
-    all_news: list[dict] = []
-    for kw in keywords:
-        try:
-            params = {
-                "engine": "google", "q": kw, "tbm": "nws",
-                "num": 5, "hl": "ko", "gl": "kr", "api_key": api_key,
-            }
-            async with _hx.AsyncClient(timeout=30) as client:
-                resp = await client.get("https://serpapi.com/search.json", params=params)
-                resp.raise_for_status()
-                data = resp.json()
-            for n in data.get("news_results", []):
-                all_news.append({
-                    "keyword": kw,
-                    "title": n.get("title", ""),
-                    "link": n.get("link", ""),
-                    "source": n.get("source", ""),
-                    "date": n.get("date", ""),
-                    "snippet": n.get("snippet", ""),
-                })
-        except Exception as e:
-            logger.error("뉴스 검색 실패 [%s]: %s", kw, e)
-
-    # 뉴스가 없을 때
-    if not all_news:
-        msg = "📰 오늘의 뉴스 브리핑\n\n'예비창업자패키지', '모두의 창업' 관련 새 뉴스가 없습니다."
-        await _send_news_to_telegram(msg)
-        return
-
-    # 뉴스 텍스트 구성
-    raw_lines: list[str] = []
-    for n in all_news:
-        raw_lines.append(f"[{n['keyword']}] {n['title']}")
-        raw_lines.append(f"  출처: {n['source']} | {n['date']}")
-        raw_lines.append(f"  {n['link']}")
-        raw_lines.append(f"  {n['snippet']}\n")
-    raw_text = "\n".join(raw_lines)
-
-    # AI 요약
-    summary = raw_text  # AI 실패 시 원문 그대로
-    try:
-        ai_result = await ask_ai(
-            user_message=(
-                f"아래 뉴스 검색 결과를 CEO 브리핑용으로 요약해주세요.\n"
-                f"- 각 뉴스의 핵심 내용 1~2줄 요약\n"
-                f"- URL은 반드시 포함\n"
-                f"- 키워드별로 묶어서 정리\n"
-                f"- 새로운 내용이 없으면 '특이사항 없음' 표시\n\n"
-                f"{raw_text}"
-            ),
-            system_prompt="당신은 CEO를 위한 뉴스 브리핑 전문가입니다. 간결하고 명확하게 한국어로 요약하세요.",
-            model="claude-haiku-4-5-20251001",
-        )
-        if ai_result and not ai_result.get("error"):
-            summary = ai_result.get("content", raw_text)
-    except Exception as e:
-        logger.warning("AI 요약 실패, 원문 전달: %s", e)
-
-    today = datetime.now(KST).strftime("%Y-%m-%d")
-    msg = f"📰 뉴스 브리핑 ({today})\n\n{summary}"
-    await _send_news_to_telegram(msg)
-    logger.info("뉴스 브리핑 발송 완료: %d건", len(all_news))
-
-
-async def _send_news_to_telegram(text: str):
-    """뉴스 브리핑을 텔레그램 CEO에게 전송합니다."""
-    if not _telegram_app:
-        _log("[NEWS] 텔레그램 미설정 — 뉴스 브리핑 미발송")
-        return
-    ceo_id = os.getenv("TELEGRAM_CEO_CHAT_ID", "")
-    if not ceo_id:
-        return
-    try:
-        if len(text) > 3900:
-            text = text[:3900] + "\n\n... (전체는 웹에서 확인)"
-        await _telegram_app.bot.send_message(chat_id=int(ceo_id), text=text)
-    except Exception as e:
-        _log(f"[NEWS] 텔레그램 발송 실패: {e}")
 
 
 @app.get("/api/replay/{correlation_id}")
@@ -3873,15 +3766,6 @@ async def google_calendar_status():
 
 # ── 예약 (스케줄) 관리 ──
 
-
-@app.post("/api/debug/news-briefing-test")
-async def debug_news_briefing_test():
-    """뉴스 브리핑을 수동으로 테스트합니다 (텔레그램 발송 포함)."""
-    try:
-        await _news_briefing_cron()
-        return {"success": True, "message": "뉴스 브리핑 테스트 발송 완료"}
-    except Exception as e:
-        return {"success": False, "error": str(e)}
 
 
 @app.get("/api/schedules")
@@ -11052,9 +10936,6 @@ async def on_startup():
     global _cron_task
     _cron_task = asyncio.create_task(_cron_loop())
     _log("[CRON] 크론 실행 엔진 시작 ✅")
-    # 뉴스 브리핑 크론 자동 등록 (없을 때만)
-    _ensure_news_briefing_schedule()
-    _log("[CRON] 뉴스 브리핑 스케줄 확인 ✅")
     # 도구 실행 엔진 초기화 (비동기 아닌 동기 — 첫 요청 시 lazy 로드도 지원)
     _init_tool_pool()
     # cross_agent_protocol 실시간 콜백 등록

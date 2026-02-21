@@ -124,6 +124,7 @@ agents:
   - naver_news
   - web_search
   - real_web_search
+  - schedule_tool
   - cross_agent_protocol
 - agent_id: schedule_specialist
   name: Strategy Specialist
