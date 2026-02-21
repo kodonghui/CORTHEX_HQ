@@ -8594,11 +8594,13 @@ async def _start_telegram_bot() -> None:
             if text.startswith("@"):
                 parts = text.split(None, 1)
                 if len(parts) >= 2:
-                    mention = parts[0][1:].lower()
+                    mention = parts[0][1:]
+                    mention_lower = mention.lower()
                     for a in AGENTS:
                         aid = a.get("agent_id", "").lower()
                         aname = a.get("name_ko", "")
-                        if aid == mention or aid.startswith(mention) or mention in aname:
+                        tcode = a.get("telegram_code", "").lstrip("@")
+                        if aid == mention_lower or aid.startswith(mention_lower) or mention_lower in aname.lower() or mention == tcode:
                             tg_target_agent_id = a["agent_id"]
                             text = parts[1]
                             break
