@@ -442,6 +442,7 @@ async def _call_anthropic(
     tools: list | None = None,
     tool_executor: callable | None = None,
     reasoning_effort: str = "",
+    conversation_history: list | None = None,
 ) -> dict:
     """Anthropic (Claude) API 호출.
 
@@ -449,7 +450,10 @@ async def _call_anthropic(
     tool_executor는 async 함수로, (tool_name, tool_input) -> result를 반환해야 합니다.
     reasoning_effort가 주어지면 extended thinking을 활성화합니다.
     """
-    messages = [{"role": "user", "content": user_message}]
+    messages = []
+    if conversation_history:
+        messages.extend(conversation_history)
+    messages.append({"role": "user", "content": user_message})
     kwargs = {"model": model, "max_tokens": 16384, "messages": messages}
     if system_prompt:
         kwargs["system"] = system_prompt
@@ -552,6 +556,7 @@ async def _call_google(
     tools: list | None = None,
     tool_executor: callable | None = None,
     reasoning_effort: str = "",
+    conversation_history: list | None = None,
 ) -> dict:
     """Google Gemini API 호출 (google-genai SDK 사용).
 
@@ -594,7 +599,17 @@ async def _call_google(
         response = _google_client.models.generate_content(**call_kwargs)
         return response
 
-    resp = await asyncio.to_thread(_sync_call, user_message, config.copy(), gemini_tools)
+    # 대화 기록이 있으면 contents를 리스트로 구성
+    if conversation_history:
+        contents = []
+        for msg in conversation_history:
+            role = "model" if msg["role"] == "assistant" else "user"
+            contents.append({"role": role, "parts": [{"text": msg["content"]}]})
+        contents.append({"role": "user", "parts": [{"text": user_message}]})
+    else:
+        contents = user_message
+
+    resp = await asyncio.to_thread(_sync_call, contents, config.copy(), gemini_tools)
 
     usage = getattr(resp, "usage_metadata", None)
     total_input_tokens += getattr(usage, "prompt_token_count", 0) if usage else 0
@@ -681,6 +696,7 @@ async def _call_openai(
     tools: list | None = None,
     tool_executor: callable | None = None,
     reasoning_effort: str = "",
+    conversation_history: list | None = None,
 ) -> dict:
     """OpenAI (GPT) API 호출.
 
@@ -691,6 +707,8 @@ async def _call_openai(
     messages = []
     if system_prompt:
         messages.append({"role": "system", "content": system_prompt})
+    if conversation_history:
+        messages.extend(conversation_history)
     messages.append({"role": "user", "content": user_message})
 
     # reasoning 지원 모델 판별 (OPENAI_REASONING_MODELS: temperature 파라미터 미지원)
@@ -815,6 +833,7 @@ async def ask_ai(
     tools: list | None = None,
     tool_executor: callable | None = None,
     reasoning_effort: str = "",
+    conversation_history: list | None = None,
 ) -> dict:
     """AI에게 질문합니다 (프로바이더 자동 판별).
 
@@ -832,6 +851,9 @@ async def ask_ai(
         reasoning_effort: 추론 강도 ("low" | "medium" | "high" | "xhigh").
             Claude는 extended thinking을 활성화하고, OpenAI reasoning 모델은 reasoning_effort를 전달합니다.
             빈 문자열("")이면 일반 모드로 동작합니다.
+        conversation_history: 이전 대화 기록 리스트 (선택).
+            [{"role": "user", "content": "..."}, {"role": "assistant", "content": "..."}, ...]
+            제공하면 현재 메시지 앞에 삽입하여 대화 맥락을 유지합니다.
 
     반환: {"content", "model", "input_tokens", "output_tokens", "cost_usd", "time_seconds"}
     AI 불가 시: {"error": "사유"}
@@ -909,18 +931,21 @@ async def ask_ai(
                 user_message, system_prompt, model,
                 tools=provider_tools, tool_executor=tool_executor,
                 reasoning_effort=reasoning_effort,
+                conversation_history=conversation_history,
             )
         elif provider == "google":
             result = await _call_google(
                 user_message, system_prompt, model,
                 tools=provider_tools, tool_executor=tool_executor,
                 reasoning_effort=reasoning_effort,
+                conversation_history=conversation_history,
             )
         elif provider == "openai":
             result = await _call_openai(
                 user_message, system_prompt, model,
                 tools=provider_tools, tool_executor=tool_executor,
                 reasoning_effort=reasoning_effort,
+                conversation_history=conversation_history,
             )
         else:
             return {"error": f"알 수 없는 프로바이더: {provider}"}
