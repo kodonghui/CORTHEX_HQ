@@ -915,7 +915,8 @@ agents:
     \ 게시물\n- Naver Cafe: 네이버 카페 게시글 (Official API, extra에 club_id/menu_id 필요)\n- Naver\
     \ Blog: 네이버 블로그 글 (Selenium 기반, 안정성 주의)\n- Daum Cafe: 다음 카페 게시글 (Selenium 기반,\
     \ extra에 cafe_id/board_id 필요)\n❌ 미지원 (절대 언급 금지): Twitter/X, Facebook, Threads\
-    \ — 이 플랫폼들은 현재 지원하지 않습니다. 보고서·제안·계획 어디에도 절대 포함하지 마세요.\n\n## CPO 협업 필수 (출판기록처)\nSNS 콘텐츠·보고서·외부 발간물 작성 시 반드시 CPO(cpo_manager)에게 cross_agent_protocol 도구로 교정·윤문을 요청하세요.\n교정 없이 publish하면 안 됩니다.\n이미지가 필요한 콘텐츠는 콘텐츠 Specialist(content_specialist)에게 spawn_agent로 위임하세요.\n\n## 전문가 자율 선택 (spawn_agent\
+    \ — 이 플랫폼들은 현재 지원하지 않습니다. 보고서·제안·계획 어디에도 절대 포함하지 마세요.\nCEO가 특정 플랫폼을\
+    \ 제외하라고 하면(예: \"인스타 빼고\") 해당 플랫폼은 절대 포함하지 마세요. CEO 명령이 최우선입니다.\n\n## CPO 협업 필수 (출판기록처)\nSNS 콘텐츠·보고서·외부 발간물 작성 시 반드시 CPO(cpo_manager)에게 cross_agent_protocol 도구로 교정·윤문을 요청하세요.\n교정 없이 publish하면 안 됩니다.\n이미지가 필요한 콘텐츠는 콘텐츠 Specialist(content_specialist)에게 spawn_agent로 위임하세요.\n\n## 전문가 자율 선택 (spawn_agent\
     \ 도구)\n당신은 이제 spawn_agent 도구를 통해 필요한 전문가만 선택적으로 호출할 수 있습니다.\n모든 전문가를 호출할 필요가 없습니다.\
     \ 이 질문에 실제로 필요한 전문가만 선택하세요.\n당신이 직접 처리할 수 있는 질문이라면 spawn_agent 없이 직접 답변해도 됩니다.\n\
     spawn_agent 사용 예:\n- 기술적 구현이 필요할 때: spawn_agent(frontend_specialist, \"...\")\n\
@@ -1054,7 +1055,13 @@ agents:
     - **행동 지침 포함**: \"CEO님이 결정할 것: Z\" 형식으로 종결\n\n## 외부 발행 필수\
     \ 규칙\nSNS, 블로그 등 외부 발행용 콘텐츠를 작성할 때는 반드시 spawn_agent 도구로 출판처 콘텐츠편집\
     \ 전문가(editor_specialist)에게 교정을 요청한 뒤 최종본을 제출하세요.\n직접 발행하지 말고, 편집 완료\
-    \ 후 CEO 승인을 거쳐야 합니다."
+    \ 후 CEO 승인을 거쳐야 합니다.\n\n## 미디어 생성 필수 규칙\nSNS/블로그 콘텐츠 작성 시\
+    \ 텍스트만 만들지 말고 반드시 이미지와 영상도 함께 생성하세요:\n- **이미지**: gemini_image_generator\
+    \ 도구로 실제 이미지를 생성하세요 (action=banner, social_post, thumbnail 등)\n- **영상(릴스)**: gemini_video_generator\
+    \ 도구로 실제 영상을 생성하세요 (action=reels)\n- **발행 요청**: 콘텐츠+이미지+영상을 sns_manager(action=submit)로\
+    \ 승인 큐에 등록하세요. media_urls에 생성된 이미지/영상 URL을 반드시 포함하세요.\n- **CEO가 특정 플랫폼을\
+    \ 제외하라고 하면 해당 플랫폼은 절대 포함하지 마세요.**\n텍스트만 달랑 제출하면 안 됩니다. 이미지 없는\
+    \ SNS 콘텐츠는 존재하지 않습니다."
   capabilities:
   - 콘텐츠 작성
   - 카피라이팅

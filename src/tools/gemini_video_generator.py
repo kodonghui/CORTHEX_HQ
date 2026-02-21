@@ -113,18 +113,25 @@ class GeminiVideoGeneratorTool(BaseTool):
                 ),
             )
 
-            # 폴링: 완료 대기 (최대 5분)
-            max_polls = 30
-            for _ in range(max_polls):
+            # 폴링: 완료 대기 (최대 10분 — Veo 3.1은 생성에 시간 소요)
+            max_polls = 60
+            for poll_i in range(max_polls):
                 if operation.done:
                     break
                 await asyncio.sleep(10)
                 operation = await asyncio.to_thread(
                     client.operations.get, operation
                 )
+                if poll_i % 6 == 5:
+                    logger.info("영상 생성 폴링 %d/%d (진행중...)", poll_i + 1, max_polls)
 
             if not operation.done:
-                return "영상 생성 시간 초과 (5분). 나중에 다시 시도해주세요."
+                return (
+                    "## 영상 생성 진행 중 (10분 초과)\n\n"
+                    "Veo 3.1 영상 생성이 아직 완료되지 않았습니다.\n"
+                    "Google 서버에서 계속 처리 중이며, 완료되면 output/videos/에 저장됩니다.\n"
+                    "잠시 후 다시 확인해주세요."
+                )
 
             # 영상 저장
             out_dir = self._ensure_output_dir()
