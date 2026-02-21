@@ -4481,7 +4481,7 @@
                         <span class="text-[10px] text-hq-muted/40" x-text="log.log_type === 'delegation' ? '→' : '←'"></span>
                         <span class="text-[10px] text-hq-muted/60 shrink-0"
                               x-text="(getAgentName(log.receiver)||log.receiver).replace('투자분석처장','CIO').replace(' Specialist','')"></span>
-                        <span class="text-[9px] text-hq-muted/40 flex-1 line-clamp-1" x-text="stripMarkdown(log.message)"></span>
+                        <span class="text-[9px] text-hq-muted/40 flex-1 line-clamp-1" x-text="stripMarkdownPreview(log.message)"></span>
                         <template x-if="log.tools_used && log.tools_used.length > 0">
                           <span class="text-[9px] text-hq-accent/60 shrink-0 ml-1" x-text="'[' + log.tools_used.length + ' tools]'"></span>
                         </template>
@@ -7165,7 +7165,7 @@
           try { this.recentCommands = JSON.parse(localStorage.getItem('corthex-recent-cmds') || '[]'); } catch(e) { this.recentCommands = []; }
           // Input hint — 순환 제거, 고정 텍스트 사용 (#18)
           // 배치 타이머 — 1초마다 경과 시간 업데이트
-          setInterval(() => {
+          this._batchTimer = setInterval(() => {
             if (this.batchProgress.active && this.batchProgress.startedAt) {
               const sec = Math.floor((Date.now() - this.batchProgress.startedAt) / 1000);
               const m = String(Math.floor(sec / 60)).padStart(2, '0');
@@ -7175,7 +7175,7 @@
           }, 1000);
           this.startElapsedTimer();
           // 예산 주기적 동기화 (30초마다) — 백그라운드 AI 호출 비용도 반영
-          setInterval(async () => {
+          this._budgetTimer = setInterval(async () => {
             try {
               const r = await fetch('/api/budget');
               if (r.ok) { const d = await r.json(); if (d.today_cost !== undefined) this.totalCost = d.today_cost; }
@@ -7187,6 +7187,9 @@
             try { if (this._commsSSE) this._commsSSE.close(); } catch(e) {}
             try { if (this._cioSSE) this._cioSSE.close(); } catch(e) {}
             try { if (this.trading?.refreshInterval) clearInterval(this.trading.refreshInterval); } catch(e) {}
+            try { if (this._batchTimer) clearInterval(this._batchTimer); } catch(e) {}
+            try { if (this._budgetTimer) clearInterval(this._budgetTimer); } catch(e) {}
+            try { if (this._elapsedTimer) clearInterval(this._elapsedTimer); } catch(e) {}
           });
         },
 
@@ -7566,7 +7569,7 @@
         },
 
         startElapsedTimer() {
-          setInterval(() => {
+          this._elapsedTimer = setInterval(() => {
             const updated = { ...this.activeAgents };
             let changed = false;
             Object.keys(updated).forEach(id => {
@@ -8379,6 +8382,11 @@
 
         switchTab(tabId) {
           this.activeTab = tabId;
+          // 대시보드 뷰 타이머 정리 (다른 탭으로 이동 시)
+          if (tabId !== 'command' && this.dashboardRefreshTimer) {
+            clearInterval(this.dashboardRefreshTimer);
+            this.dashboardRefreshTimer = null;
+          }
           if (tabId === 'home' && !this.dashboard.loaded) this.loadDashboard();
           if (tabId === 'performance' && !this.performance.loaded) this.loadPerformance();
           if (tabId === 'history') this.loadTaskHistory();
@@ -10441,8 +10449,8 @@
           if (id.includes('chief') || id.includes('비서') || id.includes('relay') || id.includes('소통') || id.includes('report_spec') || id.includes('기록') || id.includes('schedule') || id.includes('일정')) return '#f59e0b';
           return '#6b7280';
         },
-        // 내부통신 — 마크다운 제거 (## 헤더, **볼드**, `코드` 등)
-        stripMarkdown(text) {
+        // 내부통신 — 마크다운 제거 + 150자 미리보기
+        stripMarkdownPreview(text) {
           if (!text) return '';
           return text.replace(/^#+\s*/gm, '').replace(/\*\*([^*]+)\*\*/g, '$1').replace(/\*([^*]+)\*/g, '$1').replace(/`([^`]+)`/g, '$1').replace(/\[([^\]]+)\]\([^)]+\)/g, '$1').replace(/\n+/g, ' ').trim().slice(0, 150);
         },
