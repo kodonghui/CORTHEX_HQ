@@ -139,7 +139,7 @@ except ImportError:
 _tool_pool = None  # None=미초기화, False=실패, ToolPool인스턴스=성공
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Body, Request
-from fastapi.responses import HTMLResponse, FileResponse, JSONResponse
+from fastapi.responses import HTMLResponse, FileResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from typing import Optional
@@ -661,6 +661,16 @@ async def websocket_endpoint(ws: WebSocket):
                                             })
                                     except Exception:
                                         pass
+                                # 토론 결과도 텔레그램 CEO 전달
+                                if "error" not in debate_result:
+                                    await _forward_web_response_to_telegram(
+                                        text,
+                                        {
+                                            "content": debate_result.get("content", ""),
+                                            "handled_by": debate_result.get("handled_by", "임원 토론"),
+                                            "cost": debate_result.get("total_cost_usd", debate_result.get("cost_usd", 0)),
+                                        },
+                                    )
                             except Exception as e:
                                 _log(f"[DEBATE] 백그라운드 토론 오류: {e}")
 
@@ -725,6 +735,10 @@ async def websocket_endpoint(ws: WebSocket):
                                     await _c.send_json({"event": "result", "data": _result_data})
                                 except Exception:
                                     pass
+                            # 텔레그램 CEO 자동 전송 — 웹 채팅 응답을 텔레그램으로도 전달
+                            await _forward_web_response_to_telegram(
+                                cmd_text, _result_data
+                            )
                     else:
                         update_task(task["task_id"], status="completed",
                                     result_summary="AI 미연결 — 접수만 완료",
@@ -2539,6 +2553,36 @@ async def _send_batch_result_to_telegram(content: str, cost: float):
         _log(f"[TG] 배치 결과 전송 실패: {e}")
 
 
+async def _forward_web_response_to_telegram(
+    user_command: str, result_data: dict
+) -> None:
+    """웹 채팅 에이전트 응답을 텔레그램 CEO에게 자동 전달합니다."""
+    if not _telegram_app:
+        return
+    ceo_id = os.getenv("TELEGRAM_CEO_CHAT_ID", "")
+    if not ceo_id:
+        return
+    content = result_data.get("content", "")
+    if not content:
+        return
+    handled_by = result_data.get("handled_by", "")
+    cost = result_data.get("cost", 0)
+    try:
+        # 텔레그램 메시지 길이 제한 (4096자)
+        cmd_preview = user_command[:60] + ("..." if len(user_command) > 60 else "")
+        header = f"💬 [{handled_by}] 웹 응답\n📝 \"{cmd_preview}\"\n─────\n"
+        footer = f"\n─────\n💰 ${cost:.4f}" if cost else ""
+        max_content = 4096 - len(header) - len(footer) - 50
+        if len(content) > max_content:
+            content = content[:max_content] + "\n\n... (전체는 웹에서 확인)"
+        msg = f"{header}{content}{footer}"
+        await _telegram_app.bot.send_message(
+            chat_id=int(ceo_id), text=msg,
+        )
+    except Exception as e:
+        _log(f"[TG] 웹 응답 전송 실패: {e}")
+
+
 async def _synthesis_realtime_fallback(chain: dict):
     """종합 배치 실패 시 실시간 ask_ai()로 종합보고서를 대신 생성합니다."""
     text = chain["text"]
@@ -3560,6 +3604,90 @@ async def get_replay_latest():
     if corr_id:
         return await get_replay(corr_id)
     return {"steps": []}
+
+
+# ── Google Calendar OAuth ──
+
+_GCAL_SCOPES = ["https://www.googleapis.com/auth/calendar"]
+
+
+@app.get("/api/google-calendar/setup")
+async def google_calendar_setup(request: Request):
+    """CEO가 이 링크를 한 번 클릭하면 Google 로그인 화면으로 이동합니다."""
+    client_id = os.getenv("GOOGLE_CLIENT_ID", "")
+    redirect_uri = os.getenv("GOOGLE_CALENDAR_REDIRECT_URI", "")
+    if not client_id or not redirect_uri:
+        return {"error": "GOOGLE_CLIENT_ID 또는 GOOGLE_CALENDAR_REDIRECT_URI가 설정되지 않았습니다."}
+
+    from urllib.parse import urlencode
+    params = urlencode({
+        "client_id": client_id,
+        "redirect_uri": redirect_uri,
+        "response_type": "code",
+        "scope": " ".join(_GCAL_SCOPES),
+        "access_type": "offline",
+        "prompt": "consent",
+    })
+    auth_url = f"https://accounts.google.com/o/oauth2/v2/auth?{params}"
+    return RedirectResponse(url=auth_url)
+
+
+@app.get("/api/google-calendar/callback")
+async def google_calendar_callback(request: Request, code: str = ""):
+    """Google이 인증 코드를 보내면 토큰으로 교환하여 DB에 저장합니다."""
+    if not code:
+        return HTMLResponse("<h2>인증 코드가 없습니다. 다시 시도해주세요.</h2>")
+
+    client_id = os.getenv("GOOGLE_CLIENT_ID", "")
+    client_secret = os.getenv("GOOGLE_CLIENT_SECRET", "")
+    redirect_uri = os.getenv("GOOGLE_CALENDAR_REDIRECT_URI", "")
+
+    if not client_id or not client_secret:
+        return HTMLResponse("<h2>GOOGLE_CLIENT_ID/SECRET이 설정되지 않았습니다.</h2>")
+
+    try:
+        import httpx as _httpx
+        async with _httpx.AsyncClient(timeout=15) as client:
+            resp = await client.post(
+                "https://oauth2.googleapis.com/token",
+                data={
+                    "code": code,
+                    "client_id": client_id,
+                    "client_secret": client_secret,
+                    "redirect_uri": redirect_uri,
+                    "grant_type": "authorization_code",
+                },
+            )
+            if resp.status_code != 200:
+                return HTMLResponse(f"<h2>토큰 교환 실패: {resp.text}</h2>")
+            token_data = resp.json()
+    except Exception as e:
+        return HTMLResponse(f"<h2>토큰 교환 오류: {e}</h2>")
+
+    # DB에 저장
+    creds_info = {
+        "client_id": client_id,
+        "client_secret": client_secret,
+        "refresh_token": token_data.get("refresh_token", ""),
+        "token": token_data.get("access_token", ""),
+        "token_uri": "https://oauth2.googleapis.com/token",
+        "scopes": _GCAL_SCOPES,
+    }
+    save_setting("google_calendar_credentials", creds_info)
+    _log("[GCAL] Google Calendar OAuth 토큰 저장 완료")
+    return HTMLResponse(
+        "<h2>✅ Google Calendar 연동 완료!</h2>"
+        "<p>이제 캘린더 도구가 정상 작동합니다. 이 창을 닫으셔도 됩니다.</p>"
+    )
+
+
+@app.get("/api/google-calendar/status")
+async def google_calendar_status():
+    """Google Calendar 연동 상태를 확인합니다."""
+    creds = load_setting("google_calendar_credentials")
+    if creds and creds.get("refresh_token"):
+        return {"connected": True, "message": "Google Calendar 연동됨"}
+    return {"connected": False, "message": "연동 필요 — /api/google-calendar/setup 방문"}
 
 
 # ── 예약 (스케줄) 관리 ──

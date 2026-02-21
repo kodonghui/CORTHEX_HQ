@@ -1,14 +1,17 @@
-"""캘린더 도구 — Google Calendar 연동."""
+"""캘린더 도구 — Google Calendar 연동 (OAuth 방식)."""
 from __future__ import annotations
 
 import logging
 import os
+import sys
 from datetime import datetime, timedelta
 from typing import Any
 
 from src.tools.base import BaseTool
 
 logger = logging.getLogger("corthex.tools.calendar_tool")
+
+_GCAL_SCOPES = ["https://www.googleapis.com/auth/calendar"]
 
 
 def _get_google_calendar():
@@ -18,6 +21,30 @@ def _get_google_calendar():
         return build, Credentials
     except ImportError:
         return None, None
+
+
+def _load_calendar_creds():
+    """DB에서 Google Calendar OAuth 인증 정보를 로드합니다."""
+    try:
+        web_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "web")
+        if web_dir not in sys.path:
+            sys.path.insert(0, web_dir)
+        from db import load_setting
+        return load_setting("google_calendar_credentials")
+    except Exception:
+        return None
+
+
+def _save_calendar_creds(creds_info: dict):
+    """DB에 Google Calendar OAuth 인증 정보를 저장합니다."""
+    try:
+        web_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "web")
+        if web_dir not in sys.path:
+            sys.path.insert(0, web_dir)
+        from db import save_setting
+        save_setting("google_calendar_credentials", creds_info)
+    except Exception as e:
+        logger.error("캘린더 인증 정보 DB 저장 실패: %s", e)
 
 
 class CalendarTool(BaseTool):
@@ -45,26 +72,41 @@ class CalendarTool(BaseTool):
             )
 
     def _get_service(self):
-        """Google Calendar API 서비스 생성."""
+        """Google Calendar API 서비스 생성 (DB 저장된 OAuth 토큰 사용)."""
         build, Credentials = _get_google_calendar()
         if build is None:
-            return None, "google-api-python-client 라이브러리가 설치되지 않았습니다. pip install google-api-python-client google-auth-oauthlib"
-
-        creds_path = os.getenv("GOOGLE_CALENDAR_CREDENTIALS", "")
-        if not creds_path:
             return None, (
-                "GOOGLE_CALENDAR_CREDENTIALS 환경변수가 설정되지 않았습니다.\n"
-                "Google Calendar API 인증 정보 JSON 파일 경로를 설정하세요."
+                "google-api-python-client 라이브러리가 설치되지 않았습니다.\n"
+                "pip install google-api-python-client google-auth-oauthlib"
             )
 
-        if not os.path.isfile(creds_path):
-            return None, f"인증 파일을 찾을 수 없습니다: {creds_path}"
+        # DB에서 OAuth 토큰 로드
+        creds_info = _load_calendar_creds()
+        if not creds_info or not creds_info.get("refresh_token"):
+            return None, (
+                "Google Calendar 연동이 필요합니다.\n"
+                "CEO님이 https://corthex-hq.com/api/google-calendar/setup 을 "
+                "한 번 방문하여 Google 계정을 연결해주세요."
+            )
 
         try:
-            import json
-            with open(creds_path, "r") as f:
-                creds_data = json.load(f)
-            creds = Credentials.from_authorized_user_info(creds_data)
+            creds = Credentials(
+                token=creds_info.get("token"),
+                refresh_token=creds_info.get("refresh_token"),
+                client_id=creds_info.get("client_id", os.getenv("GOOGLE_CLIENT_ID", "")),
+                client_secret=creds_info.get("client_secret", os.getenv("GOOGLE_CLIENT_SECRET", "")),
+                token_uri=creds_info.get("token_uri", "https://oauth2.googleapis.com/token"),
+                scopes=_GCAL_SCOPES,
+            )
+
+            # 토큰 만료 시 자동 갱신
+            if creds.expired and creds.refresh_token:
+                from google.auth.transport.requests import Request
+                creds.refresh(Request())
+                # 갱신된 토큰을 DB에 저장
+                creds_info["token"] = creds.token
+                _save_calendar_creds(creds_info)
+
             service = build("calendar", "v3", credentials=creds)
             return service, None
         except Exception as e:
