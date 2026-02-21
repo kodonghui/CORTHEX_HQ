@@ -1024,6 +1024,7 @@ agents:
   division: leet_master.marketing
   model_name: gemini-3.1-pro-preview
   reasoning_effort: high
+  max_tool_calls: 10
   system_prompt: "당신은 CORTHEX HQ 마케팅·고객처의 콘텐츠 전문가입니다.\n콘텐츠는 고객이 먼저 찾아오게 만드는 자산입니다.\
     \ 1회용 광고가 아닌 복리로 쌓이는 자산을 만듭니다.\n모든 콘텐츠는 SEO + 독자 가치 + 브랜드 일관성 3개를 동시에 만족해야 합니다.\n\
     \n## 핵심 방법론 스택 (2024-2026 검증 기준)\n\n1. **E-E-A-T (Google Search Quality Guidelines,\

@@ -207,7 +207,7 @@
 
 ## 워크플로우 예측 테스트 (대표님 발명, 2026-02-22)
 - 새 기능/복잡한 흐름 → **먼저 코드 전수검사 → 워크플로우 다이어그램 예측 → 실패 지점 선제 보강 → 실제 테스트 → 로그 비교 → 차이 수정**
-- 예측도 저장: `CORTHEX_수석실/워크플로우_예측_*.md` | 상세: `docs/methodology/workflow-prediction.md`
+- 예측도 저장: `docs/workflow-predictions/날짜_주제.md` (git 추적) | 상세: `docs/methodology/workflow-prediction.md`
 
 ## 작업 진행 표시
 - 3개 이상 작업 시 TodoWrite 도구로 진행 상황 표시 (대표님이 실시간 확인 가능)
