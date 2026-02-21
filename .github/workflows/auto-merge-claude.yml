@@ -77,8 +77,10 @@ jobs:
             exit 1
           fi
 
-          # 5단계: 배포는 deploy.yml의 on:push 트리거에 맡김
-          # ⚠️ 이전에 gh workflow run deploy.yml을 여기서도 실행해서 2~3중 배포 발생!
-          # gh pr merge로 main에 머지되면 deploy.yml의 on:push가 자동 발동하므로
-          # 여기서 추가로 실행할 필요 없음
-          echo "✅ 머지 완료 — deploy.yml이 push 이벤트로 자동 배포됩니다"
+          # 5단계: 서버 배포 워크플로우 실행
+          # ⚠️ GitHub 보안: GITHUB_TOKEN으로 만든 push는 다른 워크플로우를 트리거하지 않음
+          # 따라서 gh workflow run으로 직접 실행해야 함
+          # deploy.yml에 concurrency group이 있어서 동시 실행 방지됨
+          echo "🚀 서버 배포 워크플로우 실행 중..."
+          gh workflow run deploy.yml --ref main 2>&1 || echo "⚠️ 배포 워크플로우 실행 실패 (수동 실행 필요)"
+          echo "✅ 배포 트리거 완료!"
