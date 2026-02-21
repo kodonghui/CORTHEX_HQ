@@ -105,7 +105,7 @@ class ToolPool:
             "funnel_analyzer": "src.tools.funnel_analyzer.FunnelAnalyzerTool",
             "ab_test_engine": "src.tools.ab_test_engine.AbTestEngineTool",
             "customer_ltv_model": "src.tools.customer_ltv_model.CustomerLtvModelTool",
-            "rfm_segmentation": "src.tools.rfm_segmentation.RfmSegmentationTool",
+            "rfm_segmentation": "src.tools.customer_cohort_analyzer.CustomerCohortAnalyzer",
             "content_quality_scorer": "src.tools.content_quality_scorer.ContentQualityScorerTool",
             "pricing_sensitivity": "src.tools.pricing_sensitivity.PricingSensitivityTool",
             "churn_risk_scorer": "src.tools.churn_risk_scorer.ChurnRiskScorerTool",

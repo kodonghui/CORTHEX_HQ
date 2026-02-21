@@ -222,8 +222,8 @@ class NdaAnalyzerTool(BaseTool):
     version = "1.0.0"
 
     # ── action 라우터 ──────────────────────
-    async def run(self, args: dict[str, Any]) -> dict[str, Any]:
-        action = (args.get("action") or "analyze").strip().lower()
+    async def execute(self, **kwargs) -> dict[str, Any]:
+        action = (kwargs.get("action") or "analyze").strip().lower()
         dispatch = {
             "analyze": self._analyze,
             "compare": self._compare,
@@ -236,7 +236,7 @@ class NdaAnalyzerTool(BaseTool):
                 "error": f"지원하지 않는 action: {action}",
                 "available": list(dispatch.keys()),
             }
-        return await handler(args)
+        return await handler(kwargs)
 
     # ── analyze: NDA 조항별 리스크 분석 ──────
     async def _analyze(self, args: dict[str, Any]) -> dict[str, Any]:

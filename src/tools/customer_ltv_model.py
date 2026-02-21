@@ -208,6 +208,7 @@ class CustomerLtvModelTool(BaseTool):
 
         # LLM 인사이트 합성
         llm_summary = await self._llm_call(
+            "당신은 고객 생애가치(CLV) 전문 분석가입니다.",
             f"고객 CLV 예측 결과를 분석해주세요:\n{result}\n\n"
             "이 고객의 가치와 관리 전략을 구체적으로 제안해주세요."
         )
@@ -314,6 +315,7 @@ class CustomerLtvModelTool(BaseTool):
         }
 
         llm_summary = await self._llm_call(
+            "당신은 고객 생애가치(CLV) 전문 분석가입니다.",
             f"고객 CLV 세그먼트 분석 결과입니다:\n{result}\n\n"
             "각 세그먼트별 구체적인 마케팅/관리 전략을 제안해주세요."
         )
@@ -385,6 +387,7 @@ class CustomerLtvModelTool(BaseTool):
         }
 
         llm_summary = await self._llm_call(
+            "당신은 고객 생애가치(CLV) 전문 분석가입니다.",
             f"코호트별 CLV 비교 결과입니다:\n{result}\n\n"
             "코호트 간 차이의 원인과 개선 방향을 분석해주세요."
         )
@@ -468,6 +471,7 @@ class CustomerLtvModelTool(BaseTool):
         }
 
         llm_summary = await self._llm_call(
+            "당신은 고객 생애가치(CLV) 전문 분석가입니다.",
             f"유닛 이코노믹스 분석 결과입니다:\n{result}\n\n"
             "현재 사업의 수익 구조를 평가하고 개선 우선순위를 제안해주세요."
         )
@@ -561,6 +565,7 @@ class CustomerLtvModelTool(BaseTool):
         }
 
         llm_summary = await self._llm_call(
+            "당신은 고객 생애가치(CLV) 전문 분석가입니다.",
             f"할인 CLV 분석 결과입니다:\n{result}\n\n"
             "민감도 분석 결과를 포함해 CLV 극대화 전략을 제안해주세요."
         )
@@ -588,6 +593,7 @@ class CustomerLtvModelTool(BaseTool):
         }
 
         llm_summary = await self._llm_call(
+            "당신은 고객 생애가치(CLV) 전문 분석가입니다.",
             f"CLV 종합 분석 결과입니다:\n\n"
             f"개별 예측 CLV: {prediction['predictions']['predicted_clv']:,}원\n"
             f"LTV:CAC 비율: {unit_econ['unit_economics']['ltv_cac_ratio']}\n"
