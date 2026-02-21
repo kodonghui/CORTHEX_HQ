@@ -424,7 +424,16 @@ jobs:
               sudo journalctl -u corthex --no-pager -n 20 --no-hostname
               echo ""
               echo "📋 텔레그램 봇 진단:"
-              curl -s http://localhost:8000/api/telegram-status 2>/dev/null || echo "⚠️ 진단 API 호출 실패"
+              TG_STATUS=$(curl -s http://localhost:8000/api/telegram-status 2>/dev/null || echo "API_FAIL")
+              echo "$TG_STATUS"
+              # 봇 시작 실패 시 한 번 더 재시작 시도
+              if echo "$TG_STATUS" | grep -q '"tg_started": false\|"tg_started":false\|API_FAIL'; then
+                echo "⚠️ 텔레그램 봇 미시작 — 서버 재시작 재시도..."
+                sleep 3
+                sudo systemctl restart corthex
+                sleep 8
+                curl -s http://localhost:8000/api/telegram-status 2>/dev/null || echo "⚠️ 재시도 후에도 진단 실패"
+              fi
               echo ""
             else
               echo "❌ 서버 시작 실패"
