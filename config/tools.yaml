@@ -1,27 +1,5 @@
 tools:
-- tool_id: web_search
-  name: Web Search
-  name_ko: 웹검색
-  description: 실시간 웹 검색 및 정보 수집
-  parameters:
-    type: object
-    properties:
-      action:
-        type: string
-        enum:
-        - search
-        - news
-        - image
-        description: search=일반 웹검색, news=뉴스 검색, image=이미지 검색
-      query:
-        type: string
-        description: 검색 키워드
-      count:
-        type: integer
-        description: 검색 결과 수 (기본값 10)
-    required:
-    - action
-    - query
+# 삭제됨: web_search (가짜 — LLM 지식만 사용. real_web_search가 진짜 구글 검색)
 
 - tool_id: daum_cafe
   name: Daum Cafe Search
@@ -997,28 +975,7 @@ tools:
         description: 분석 연수 (기본 5년)
     required:
     - action
-- tool_id: macro_regime
-  name: Macro Regime
-  name_ko: 매크로 레짐 분석
-  description: 메릴린치 투자시계 기반 거시경제 국면 분류 — 회복/확장/과열/침체 4분면 + 금리/선행지표 분석 + 국면별 전략
-
-  parameters:
-    type: object
-    properties:
-      action:
-        type: string
-        enum:
-        - full
-        - regime
-        - rates
-        - leading
-        - strategy
-        description: full=전체분석, regime=현재국면, rates=금리분석, leading=선행지표, strategy=국면별전략
-      country:
-        type: string
-        description: '분석 대상 국가 (기본: 한국)'
-    required:
-    - action
+# 삭제됨: macro_regime (외부 데이터 없이 LLM만 사용)
 # ─── CMO 마케팅·고객처 교수급 도구 ───
 - tool_id: funnel_analyzer
   name: Funnel Analyzer
