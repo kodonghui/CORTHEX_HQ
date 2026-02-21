@@ -189,6 +189,7 @@ CREATE TABLE IF NOT EXISTS delegation_log (
     message     TEXT NOT NULL,
     task_id     TEXT,
     log_type    TEXT DEFAULT 'delegation',
+    tools_used  TEXT DEFAULT '',
     created_at  DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -245,6 +246,12 @@ def init_db() -> None:
                 conn.commit()
             except sqlite3.OperationalError:
                 pass  # 이미 존재하면 무시
+        # delegation_log 테이블에 tools_used 컬럼 추가 (P2-3: 도구 사용 표시)
+        try:
+            conn.execute("ALTER TABLE delegation_log ADD COLUMN tools_used TEXT DEFAULT ''")
+            conn.commit()
+        except sqlite3.OperationalError:
+            pass  # 이미 존재하면 무시
         print(f"[DB] 초기화 완료: {DB_PATH}")
     except Exception as e:
         print(f"[DB] 초기화 실패: {e}")
@@ -1019,14 +1026,15 @@ def get_agent_performance() -> list[dict]:
 
 def save_delegation_log(sender: str, receiver: str, message: str,
                         task_id: str = None,
-                        log_type: str = "delegation") -> int:
+                        log_type: str = "delegation",
+                        tools_used: str = "") -> int:
     """에이전트 간 위임/협업 로그를 저장합니다. 반환: row id."""
     conn = get_connection()
     try:
         cur = conn.execute(
-            "INSERT INTO delegation_log (sender, receiver, message, task_id, log_type) "
-            "VALUES (?, ?, ?, ?, ?)",
-            (sender, receiver, message, task_id, log_type),
+            "INSERT INTO delegation_log (sender, receiver, message, task_id, log_type, tools_used) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            (sender, receiver, message, task_id, log_type, tools_used),
         )
         conn.commit()
         return cur.lastrowid
@@ -1046,7 +1054,7 @@ def list_delegation_logs(agent: str = None, limit: int = 100) -> list:
     try:
         if agent:
             rows = conn.execute(
-                "SELECT id, sender, receiver, message, task_id, log_type, created_at "
+                "SELECT id, sender, receiver, message, task_id, log_type, tools_used, created_at "
                 "FROM delegation_log "
                 "WHERE sender = ? OR receiver = ? "
                 "ORDER BY created_at DESC LIMIT ?",
@@ -1054,7 +1062,7 @@ def list_delegation_logs(agent: str = None, limit: int = 100) -> list:
             ).fetchall()
         else:
             rows = conn.execute(
-                "SELECT id, sender, receiver, message, task_id, log_type, created_at "
+                "SELECT id, sender, receiver, message, task_id, log_type, tools_used, created_at "
                 "FROM delegation_log "
                 "ORDER BY created_at DESC LIMIT ?",
                 (limit,),
