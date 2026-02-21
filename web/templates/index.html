@@ -1515,10 +1515,6 @@
                   class="px-3 py-1.5 text-[11px] font-semibold rounded-lg bg-hq-yellow/10 text-hq-yellow border border-hq-yellow/20 hover:bg-hq-yellow/20 transition">
                   💰 예산 현황
                 </button>
-                <button @click="runContentPipeline('market_weekly')"
-                  class="px-3 py-1.5 text-[11px] font-semibold rounded-lg bg-hq-orange/10 text-hq-orange border border-hq-orange/20 hover:bg-hq-orange/20 transition">
-                  📰 주간 리포트
-                </button>
               </div>
               <div x-show="quickActionTab==='system'" class="flex flex-wrap gap-2">
                 <button @click="activeTab='command'; $nextTick(() => { inputText='/도구점검'; })"
@@ -1634,102 +1630,7 @@
             </div>
           </div>
 
-          <!-- ═══ 콘텐츠 파이프라인 패널 ═══ -->
-          <div class="glass border border-hq-border rounded-xl p-5 hover-glow mb-8" x-data="{ pipelineData: { runs: [], pending_review: [], topics: {} }, pipelineLoading: false }"
-               x-init="fetch('/api/content-pipeline').then(r=>r.json()).then(d=>{ pipelineData=d; })">
-            <div class="flex items-center justify-between mb-4">
-              <div class="flex items-center gap-3">
-                <div class="w-9 h-9 rounded-lg bg-hq-orange/15 flex items-center justify-center">
-                  <svg class="w-4.5 h-4.5 text-hq-orange" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z"/></svg>
-                </div>
-                <div>
-                  <div class="text-sm font-bold text-hq-text">콘텐츠 파이프라인</div>
-                  <div class="text-[10px] text-hq-muted uppercase tracking-wider">자동 콘텐츠 생성 → 승인 → 발행</div>
-                </div>
-              </div>
-              <div class="flex items-center gap-2">
-                <span x-show="pipelineData.pending_review?.length > 0"
-                  class="px-2 py-0.5 text-[10px] font-bold rounded-full bg-hq-yellow/20 text-hq-yellow animate-pulse"
-                  x-text="pipelineData.pending_review.length + '개 승인 대기'"></span>
-                <div class="relative" x-data="{ showMenu: false }">
-                  <button @click="showMenu = !showMenu"
-                    class="px-3 py-1.5 text-[11px] font-semibold rounded-lg bg-hq-orange/10 text-hq-orange border border-hq-orange/20 hover:bg-hq-orange/20 transition">
-                    + 새 콘텐츠
-                  </button>
-                  <div x-show="showMenu" @click.away="showMenu=false" x-cloak
-                    class="absolute right-0 top-full mt-1 w-56 glass border border-hq-border rounded-xl shadow-xl z-50 overflow-hidden">
-                    <button @click="runContentPipeline('market_weekly'); showMenu=false"
-                      class="w-full px-4 py-2.5 text-left text-[12px] text-hq-text hover:bg-hq-accent/10 transition border-b border-hq-border/30">
-                      <div class="font-semibold">📊 주간 시장 리포트</div>
-                      <div class="text-[10px] text-hq-muted mt-0.5">CIO 분석 → 블로그 + 뉴스레터</div>
-                    </button>
-                    <button @click="runContentPipeline('ai_insight'); showMenu=false"
-                      class="w-full px-4 py-2.5 text-left text-[12px] text-hq-text hover:bg-hq-accent/10 transition border-b border-hq-border/30">
-                      <div class="font-semibold">🤖 AI 인사이트</div>
-                      <div class="text-[10px] text-hq-muted mt-0.5">AI 트렌드 → 블로그 + 인스타 + 뉴스레터</div>
-                    </button>
-                    <button @click="runContentPipeline('company_log'); showMenu=false"
-                      class="w-full px-4 py-2.5 text-left text-[12px] text-hq-text hover:bg-hq-accent/10 transition">
-                      <div class="font-semibold">📝 빌딩 로그</div>
-                      <div class="text-[10px] text-hq-muted mt-0.5">CORTHEX 성장 기록 → 블로그 + 뉴스레터</div>
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <!-- 승인 대기 콘텐츠 -->
-            <template x-if="pipelineData.pending_review?.length > 0">
-              <div class="space-y-3 mb-4">
-                <template x-for="run in pipelineData.pending_review" :key="run.run_id">
-                  <div class="border border-hq-yellow/30 rounded-lg p-3 bg-hq-yellow/5">
-                    <div class="flex items-center justify-between mb-2">
-                      <div class="flex items-center gap-2">
-                        <span class="w-2 h-2 rounded-full bg-hq-yellow animate-pulse"></span>
-                        <span class="text-[12px] font-semibold text-hq-text" x-text="run.topic_name"></span>
-                      </div>
-                      <span class="text-[10px] text-hq-muted" x-text="new Date(run.created_at).toLocaleString('ko-KR', {month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'})"></span>
-                    </div>
-                    <!-- 콘텐츠 미리보기 -->
-                    <div class="text-[11px] text-hq-muted bg-hq-surface rounded p-2 mb-2 max-h-24 overflow-y-auto whitespace-pre-wrap"
-                      x-text="(run.results?.final_content || run.results?.edit?.content || run.results?.write?.content || '').substring(0, 500) + '...'"></div>
-                    <div class="flex items-center gap-2">
-                      <button @click="approvePipelineContent(run.run_id)"
-                        class="px-3 py-1 text-[11px] font-semibold rounded-lg bg-hq-green/15 text-hq-green border border-hq-green/30 hover:bg-hq-green/25 transition">
-                        ✅ 승인 (발행)
-                      </button>
-                      <button @click="rejectPipelineContent(run.run_id)"
-                        class="px-3 py-1 text-[11px] font-semibold rounded-lg bg-hq-red/15 text-hq-red border border-hq-red/30 hover:bg-hq-red/25 transition">
-                        ❌ 거절
-                      </button>
-                      <span class="text-[10px] text-hq-muted ml-auto" x-text="'$' + (run.cost_usd || 0).toFixed(4)"></span>
-                    </div>
-                  </div>
-                </template>
-              </div>
-            </template>
-
-            <!-- 최근 파이프라인 실행 내역 -->
-            <div class="space-y-1.5">
-              <template x-for="run in (pipelineData.runs || []).slice(0, 5)" :key="run.run_id">
-                <div class="flex items-center gap-3 text-[11px] py-1.5 border-b border-hq-border/20 last:border-0">
-                  <span class="w-2 h-2 rounded-full shrink-0"
-                    :class="{
-                      'bg-hq-green': run.status === 'completed',
-                      'bg-hq-yellow animate-pulse': run.status === 'running' || run.status === 'waiting_approval',
-                      'bg-hq-red': run.status === 'failed' || run.status === 'rejected',
-                      'bg-hq-cyan animate-pulse': run.status === 'publishing',
-                    }"></span>
-                  <span class="font-semibold text-hq-text truncate" x-text="run.topic_name"></span>
-                  <span class="text-hq-muted shrink-0" x-text="run.step ? (({'analyze':'분석중','write':'작성중','edit':'편집중','review':'승인대기','approved':'승인됨','publishing':'발행중','published':'발행완료','rejected':'거절됨'})[run.step] || run.step) : ''"></span>
-                  <span class="text-hq-muted ml-auto shrink-0" x-text="run.created_at ? new Date(run.created_at).toLocaleDateString('ko-KR', {month:'short', day:'numeric'}) : ''"></span>
-                </div>
-              </template>
-              <div x-show="!pipelineData.runs?.length" class="text-center text-[11px] text-hq-muted/60 py-4">
-                아직 파이프라인 실행 이력이 없습니다. '새 콘텐츠' 버튼으로 시작하세요.
-              </div>
-            </div>
-          </div>
+          <!-- 콘텐츠 파이프라인 — 제거됨 (2026-02-21, CEO 지시) -->
 
           <!-- Feedback + Budget Row -->
           <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-8">
@@ -7205,60 +7106,7 @@
           }
         },
 
-        // ── 콘텐츠 파이프라인 ──
-        async runContentPipeline(topicId) {
-          try {
-            const res = await fetch('/api/content-pipeline/run', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ topic: topicId }),
-            }).then(r => r.json());
-            if (res.success) {
-              this.showToast(`파이프라인 시작: ${res.message}`, 'success');
-            } else {
-              this.showToast(res.error || '파이프라인 시작 실패', 'error');
-            }
-          } catch (e) {
-            this.showToast('파이프라인 요청 실패: ' + e.message, 'error');
-          }
-        },
-        async approvePipelineContent(runId) {
-          try {
-            const res = await fetch(`/api/content-pipeline/${runId}/approve`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({}),
-            }).then(r => r.json());
-            if (res.success) {
-              this.showToast('승인 완료! 발행을 시작합니다.', 'success');
-              // 패널 새로고침
-              setTimeout(() => location.reload(), 1500);
-            } else {
-              this.showToast(res.error || '승인 실패', 'error');
-            }
-          } catch (e) {
-            this.showToast('승인 요청 실패: ' + e.message, 'error');
-          }
-        },
-        async rejectPipelineContent(runId) {
-          const reason = prompt('거절 사유를 입력하세요:');
-          if (reason === null) return;
-          try {
-            const res = await fetch(`/api/content-pipeline/${runId}/reject`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ reason }),
-            }).then(r => r.json());
-            if (res.success) {
-              this.showToast('거절 처리되었습니다.', 'info');
-              setTimeout(() => location.reload(), 1500);
-            } else {
-              this.showToast(res.error || '거절 실패', 'error');
-            }
-          } catch (e) {
-            this.showToast('거절 요청 실패: ' + e.message, 'error');
-          }
-        },
+        // 콘텐츠 파이프라인 — 제거됨 (2026-02-21)
 
         // ── Toast/Notification ──
         showToast(message, type = 'info') {
@@ -8812,11 +8660,26 @@
 
         // ── Schedules ──
 
+        _cronToKorean(cron) {
+          if (!cron || cron.trim().split(' ').length !== 5) return '';
+          const [min, hour, dom, mon, dow] = cron.trim().split(' ');
+          const h = hour === '*' ? '' : hour.padStart(2,'0');
+          const m = min === '*' ? '00' : min.padStart(2,'0');
+          const time = h ? `${h}:${m}` : '';
+          const dowMap = {'1':'월','2':'화','3':'수','4':'목','5':'금','6':'토','0':'일'};
+          if (dow === '1-5' && dom === '*' && mon === '*') return `평일 ${time}`;
+          if (dow === '0-6' || (dow === '*' && dom === '*' && mon === '*')) return `매일 ${time}`;
+          if (dow.includes(',')) { const days = dow.split(',').map(d => dowMap[d] || d).join('·'); return `${days} ${time}`; }
+          if (dowMap[dow]) return `매주 ${dowMap[dow]}요일 ${time}`;
+          if (dom !== '*' && mon === '*') return `매월 ${dom}일 ${time}`;
+          return `${time} (${cron})`;
+        },
+
         async loadSchedules() {
           try {
             const data = await fetch('/api/schedules').then(r => r.json());
             this.schedules.items = (Array.isArray(data) ? data : data.schedules || []).map(s => ({
-              ...s, id: s.id || s.schedule_id, cron_label: s.cron_preset || s.cron || '',
+              ...s, id: s.id || s.schedule_id, cron_label: this._cronToKorean(s.cron) || s.cron_preset || s.cron || '',
             }));
           } catch (e) { this.schedules.items = []; }
         },
