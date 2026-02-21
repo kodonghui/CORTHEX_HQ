@@ -5888,18 +5888,24 @@ def _us_market_hours_kst() -> tuple[str, str]:
 
 def _is_market_open(settings: dict) -> tuple[bool, str]:
     """한국/미국 장 시간인지 확인합니다. (둘 중 하나라도 열려있으면 True)
-    미국 장 시간은 서머타임(DST) 자동 반영."""
+    주말(토/일)에는 무조건 False. 미국 장 시간은 서머타임(DST) 자동 반영."""
     now = datetime.now(KST)
+
+    # 주말 체크 (월=0 ~ 금=4 평일, 토=5 일=6 주말)
+    if now.weekday() >= 5:
+        return False, ""
+
     now_min = now.hour * 60 + now.minute
 
-    # 한국 장 (09:00 ~ 15:20 KST)
+    # 한국 장 (09:00 ~ 15:20 KST, 평일만)
     kr = settings.get("trading_hours_kr", settings.get("trading_hours", {}))
     kr_start = sum(int(x) * m for x, m in zip(kr.get("start", "09:00").split(":"), [60, 1]))
     kr_end = sum(int(x) * m for x, m in zip(kr.get("end", "15:20").split(":"), [60, 1]))
     if kr_start <= now_min < kr_end:
         return True, "KR"
 
-    # 미국 장 (서머타임 자동 반영)
+    # 미국 장 (서머타임 자동 반영, 평일만)
+    # 금요일 밤~토요일 새벽은 미국장 오픈이지만, 토요일 새벽(weekday=5)은 위에서 이미 차단됨
     us_default_start, us_default_end = _us_market_hours_kst()
     us = settings.get("trading_hours_us", {})
     us_start = sum(int(x) * m for x, m in zip(us.get("start", us_default_start).split(":"), [60, 1]))
@@ -5920,21 +5926,27 @@ def _next_trading_run_time():
     """다음 실행 시각 계산 (09:10 KST 한국장 / 23:40 또는 22:40 KST 미국장).
 
     미국장 시간은 서머타임(DST) 자동 반영.
-    오늘 두 시각 중 아직 지나지 않은 가장 빠른 시각을 반환.
-    두 시각 모두 지났으면 내일 09:10을 반환.
+    주말(토/일)은 건너뛰고 다음 평일(월요일)로 이동.
     """
     now = datetime.now(KST)
-    today = now.date()
     us_h, us_m = _us_analysis_time_kst()
-    run_times = [
-        datetime(today.year, today.month, today.day, 9, 10, tzinfo=KST),
-        datetime(today.year, today.month, today.day, us_h, us_m, tzinfo=KST),
-    ]
-    for t in run_times:
-        if t > now:
-            return t
-    # 오늘 두 시각 모두 지났으면 내일 09:10
-    tomorrow = today + timedelta(days=1)
+
+    # 오늘부터 최대 7일 탐색 (주말 건너뛰기)
+    for offset in range(7):
+        day = now.date() + timedelta(days=offset)
+        # 주말 건너뛰기 (토=5, 일=6)
+        if day.weekday() >= 5:
+            continue
+        run_times = [
+            datetime(day.year, day.month, day.day, 9, 10, tzinfo=KST),
+            datetime(day.year, day.month, day.day, us_h, us_m, tzinfo=KST),
+        ]
+        for t in run_times:
+            if t > now:
+                return t
+
+    # 폴백 (도달하면 안 되지만 안전장치)
+    tomorrow = now.date() + timedelta(days=1)
     return datetime(tomorrow.year, tomorrow.month, tomorrow.day, 9, 10, tzinfo=KST)
 
 
