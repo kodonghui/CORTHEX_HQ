@@ -2817,6 +2817,269 @@
           "topic"
         ]
       }
+    },
+    {
+      "tool_id": "sec_edgar",
+      "name": "SEC EDGAR Filings",
+      "name_ko": "SEC 공시 조회",
+      "description": "SEC EDGAR 공시 조회 — 10-K/10-Q, 내부자 거래, 기관투자자 보유 분석 (Lakonishok & Lee 2001)",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "filings",
+              "insider",
+              "institutional",
+              "search"
+            ],
+            "description": "filings=공시목록, insider=내부자거래, institutional=기관보유, search=기업검색"
+          },
+          "symbol": {
+            "type": "string",
+            "description": "미국주식 티커 (예: AAPL, TSLA)"
+          },
+          "filing_type": {
+            "type": "string",
+            "description": "공시 유형 (10-K, 10-Q, 8-K, DEF 14A 등)"
+          }
+        }
+      }
+    },
+    {
+      "tool_id": "us_financial_analyzer",
+      "name": "US Financial Deep Analyzer",
+      "name_ko": "미국기업 재무심층분석",
+      "description": "DCF(Monte Carlo 10000회)+DuPont 3요소+Graham 안전마진+PEG — Damodaran 방법론",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "dcf",
+              "dupont",
+              "valuation",
+              "full"
+            ],
+            "description": "dcf=DCF분석, dupont=DuPont분해, valuation=멀티플밸류에이션, full=전체"
+          },
+          "symbol": {
+            "type": "string",
+            "description": "미국주식 티커 (예: AAPL)"
+          },
+          "growth_rate": {
+            "type": "number",
+            "description": "FCF 성장률 추정 (예: 0.08 = 8%)"
+          }
+        }
+      }
+    },
+    {
+      "tool_id": "us_technical_analyzer",
+      "name": "US Technical Analysis Pro",
+      "name_ko": "미국주식 기술적분석 전문",
+      "description": "멀티타임프레임+일목균형표+피보나치+5지표 컨센서스 — Dow/Elliott/Wilder 이론 기반",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "multi_timeframe",
+              "ichimoku",
+              "fibonacci",
+              "consensus",
+              "full"
+            ],
+            "description": "multi_timeframe=다중시간, ichimoku=일목, fibonacci=피보나치, consensus=종합, full=전체"
+          },
+          "symbol": {
+            "type": "string",
+            "description": "미국주식 티커 (예: NVDA)"
+          }
+        }
+      }
+    },
+    {
+      "tool_id": "options_flow",
+      "name": "Options Flow Analyzer",
+      "name_ko": "옵션 흐름 분석",
+      "description": "Put/Call Ratio, Max Pain, 이상거래 감지 — Easley et al(1998) 정보거래 이론",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "overview",
+              "unusual",
+              "max_pain",
+              "full"
+            ],
+            "description": "overview=옵션개요, unusual=이상거래, max_pain=MaxPain, full=전체"
+          },
+          "symbol": {
+            "type": "string",
+            "description": "미국주식 티커 (예: AAPL)"
+          }
+        }
+      }
+    },
+    {
+      "tool_id": "macro_fed_tracker",
+      "name": "Fed/Macro Tracker",
+      "name_ko": "Fed/매크로 지표 추적",
+      "description": "Taylor Rule, 수익률곡선, VIX온도계, 국채수익률 — Fed 정책 분석 + 경기침체 예측",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "overview",
+              "taylor_rule",
+              "yield_curve",
+              "full"
+            ],
+            "description": "overview=매크로대시보드, taylor_rule=이론금리, yield_curve=수익률곡선, full=전체"
+          },
+          "cpi": {
+            "type": "number",
+            "description": "현재 CPI (기본값 3.0)"
+          },
+          "gdp_gap": {
+            "type": "number",
+            "description": "GDP 갭 (기본값 1.0)"
+          }
+        }
+      }
+    },
+    {
+      "tool_id": "sector_rotation",
+      "name": "Sector Rotation Analyzer",
+      "name_ko": "섹터 로테이션 분석",
+      "description": "Fidelity 경기사이클 맵, 섹터RS순위, ETF자금흐름 — Levy(1967)+Faber(2007)",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "map",
+              "relative_strength",
+              "flow",
+              "full"
+            ],
+            "description": "map=경기사이클맵, relative_strength=상대강도순위, flow=ETF자금흐름, full=전체"
+          },
+          "period": {
+            "type": "string",
+            "description": "RS 기간 (1mo, 3mo, 6mo, 1y). 기본값: 3mo"
+          }
+        }
+      }
+    },
+    {
+      "tool_id": "earnings_ai",
+      "name": "AI Earnings Predictor",
+      "name_ko": "AI 실적 예측",
+      "description": "어닝서프라이즈 히스토리, PEAD드리프트, 이익의 질 — Ball&Brown(1968)+Sloan(1996)",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "upcoming",
+              "surprise_history",
+              "quality",
+              "full"
+            ],
+            "description": "upcoming=실적임박분석, surprise_history=서프라이즈패턴, quality=이익의질, full=전체"
+          },
+          "symbol": {
+            "type": "string",
+            "description": "미국주식 티커 (예: TSLA)"
+          }
+        }
+      }
+    },
+    {
+      "tool_id": "sentiment_nlp",
+      "name": "Market Sentiment NLP",
+      "name_ko": "시장 감성 분석",
+      "description": "Fear&Greed지수, 공매도분석, 뉴스감성 — Baker&Wurgler(2006)+Tetlock(2007)",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "fear_greed",
+              "short_interest",
+              "social",
+              "full"
+            ],
+            "description": "fear_greed=공포탐욕, short_interest=공매도, social=뉴스감성, full=전체"
+          },
+          "symbol": {
+            "type": "string",
+            "description": "미국주식 티커 (공매도/뉴스용, 예: GME)"
+          }
+        }
+      }
+    },
+    {
+      "tool_id": "portfolio_optimizer_v2",
+      "name": "Portfolio Optimizer Pro",
+      "name_ko": "글로벌 포트폴리오 최적화",
+      "description": "Markowitz MVO+Risk Parity+Kelly Criterion — 10000 Monte Carlo + 효율적프론티어",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "optimize",
+              "kelly",
+              "efficient_frontier",
+              "full"
+            ],
+            "description": "optimize=포트최적화, kelly=Kelly비중, efficient_frontier=효율적프론티어, full=전체"
+          },
+          "symbols": {
+            "type": "string",
+            "description": "종목리스트 (공백/콤마 구분, 예: AAPL MSFT GOOGL AMZN)"
+          }
+        }
+      }
+    },
+    {
+      "tool_id": "correlation_analyzer",
+      "name": "Correlation & Crisis Detector",
+      "name_ko": "상관관계 + 위기 감지",
+      "description": "동적상관관계, Tail Dependence, VIX Term Structure — Engle DCC(2002)+위기감지",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "correlation",
+              "crisis_detection",
+              "tail_risk",
+              "full"
+            ],
+            "description": "correlation=상관행렬, crisis_detection=위기감지, tail_risk=꼬리위험, full=전체"
+          },
+          "symbols": {
+            "type": "string",
+            "description": "자산리스트 (공백/콤마 구분). 미입력 시 10개 글로벌 자산 기본 세트"
+          }
+        }
+      }
     }
   ]
 }
