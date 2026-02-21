@@ -9292,6 +9292,23 @@ _AGENT_NAMES: dict[str, str] = {
 
 # ── 노션 API 연동 (에이전트 산출물 자동 저장) ──
 
+
+def _extract_notion_title(content: str, fallback: str = "보고서") -> str:
+    """AI 응답 본문에서 깔끔한 제목을 추출합니다."""
+    if not content:
+        return fallback
+    for line in content.split("\n"):
+        line = line.strip()
+        if not line:
+            continue
+        line = line.lstrip("#").strip()
+        line = line.replace("**", "").replace("*", "")
+        if len(line) < 3 or line.startswith("---") or line.startswith("```"):
+            continue
+        return line[:100]
+    return fallback
+
+
 _NOTION_API_KEY = os.getenv("NOTION_API_KEY", "")
 # 비서실 DB (CEO 명령 관리)
 _NOTION_DB_SECRETARY = os.getenv("NOTION_DB_SECRETARY", "30a56b49-78dc-8153-bac1-dee5d04d6a74")
@@ -9362,6 +9379,9 @@ async def _save_to_notion(agent_id: str, title: str, content: str,
     # 날짜 속성 — 산출물 DB: "Date"(영어), 비서실 DB: "날짜"(한국어)
     date_prop = "날짜" if db_target == "secretary" else "Date"
     properties[date_prop] = {"date": {"start": now_str}}
+    # 내용 속성 — 에이전트 산출물 DB에만 존재 (rich_text, 최대 2000자)
+    if db_target != "secretary" and content:
+        properties["내용"] = {"rich_text": [{"text": {"content": content[:2000]}}]}
 
     # 본문 → 노션 블록 (최대 2000자, 노션 블록 크기 제한)
     children = []
@@ -9706,7 +9726,7 @@ async def _call_agent(agent_id: str, text: str) -> dict:
         # 노션에 저장 (비동기, 실패해도 무시)
         asyncio.create_task(_save_to_notion(
             agent_id=agent_id,
-            title=f"[{agent_name}] {text[:50]}",
+            title=_extract_notion_title(content, f"[{agent_name}] 보고서"),
             content=content,
             db_target="secretary" if _AGENT_DIVISION.get(agent_id) == "secretary" else "output",
         ))
@@ -9909,7 +9929,7 @@ async def _manager_with_delegation(manager_id: str, text: str) -> dict:
     if synth_content and len(synth_content) > 20:
         asyncio.create_task(_save_to_notion(
             agent_id=manager_id,
-            title=f"[{mgr_name}] 종합보고: {text[:40]}",
+            title=_extract_notion_title(synth_content, f"[{mgr_name}] 종합보고"),
             content=synth_content,
             report_type="종합보고서",
             db_target="secretary" if _AGENT_DIVISION.get(manager_id) == "secretary" else "output",
