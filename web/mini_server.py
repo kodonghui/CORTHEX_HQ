@@ -8287,7 +8287,8 @@ async def _start_telegram_bot() -> None:
                 lines.append(f"\n*{label}* ({len(agents_list)}명)")
                 for a in agents_list:
                     icon = "👔" if a["role"] == "manager" else "👤"
-                    lines.append(f"  {icon} {a['name_ko']}")
+                    display = a.get("telegram_code", a["name_ko"])
+                    lines.append(f"  {icon} {display}")
             lines.append(f"\n총 {len(AGENTS)}명")
             await update.message.reply_text("\n".join(lines), parse_mode="Markdown")
 
