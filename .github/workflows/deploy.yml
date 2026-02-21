@@ -11,6 +11,11 @@ on:
 # 수동으로도 실행 가능 (GitHub에서 버튼 클릭)
   workflow_dispatch:
 
+# 동시 배포 방지 — 같은 그룹은 순차 실행 (중복 배포/노션 로그 방지)
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
 jobs:
   deploy:
     runs-on: ubuntu-latest

@@ -8982,8 +8982,8 @@ async def _save_to_notion(agent_id: str, title: str, content: str,
     # 날짜 속성 — 산출물 DB: "Date"(영어), 비서실 DB: "날짜"(한국어)
     date_prop = "날짜" if db_target == "secretary" else "Date"
     properties[date_prop] = {"date": {"start": now_str}}
-    # 내용 속성 — 에이전트 산출물 DB에만 존재 (rich_text, 최대 2000자)
-    if db_target != "secretary" and content:
+    # 내용 속성 — 양쪽 DB 모두 존재 (rich_text, 최대 2000자)
+    if content:
         properties["내용"] = {"rich_text": [{"text": {"content": content[:2000]}}]}
 
     # 태그 자동 생성 — 부서(division) + 역할(role) 기반 (multi_select)
