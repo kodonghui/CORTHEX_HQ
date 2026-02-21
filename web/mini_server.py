@@ -782,6 +782,21 @@ async def get_agents():
     return result
 
 
+@app.get("/api/agents/recommended-models")
+async def get_recommended_models():
+    """AGENTS 상수에 하드코딩된 권장 모델 목록 반환."""
+    return {
+        agent["agent_id"]: {
+            "model_name": agent["model_name"],
+            "reasoning_effort": _AGENTS_DETAIL.get(agent["agent_id"], {}).get(
+                "reasoning_effort",
+                MODEL_REASONING_MAP.get(agent["model_name"], "medium"),
+            ),
+        }
+        for agent in AGENTS
+    }
+
+
 @app.get("/api/agents/{agent_id}")
 async def get_agent(agent_id: str):
     for a in AGENTS:
@@ -818,7 +833,7 @@ async def get_agent(agent_id: str):
                 "temperature": detail.get("temperature", 0.3),
                 "reasoning_effort": reasoning_effort,  # DB 오버라이드 우선
             }
-    return {"error": "not found"}
+    return JSONResponse({"error": "not found", "agent_id": agent_id}, status_code=404)
 
 
 @app.get("/api/tools")
@@ -7506,19 +7521,7 @@ async def save_agent_defaults():
     return {"success": True, "saved_count": len(overrides)}
 
 
-@app.get("/api/agents/recommended-models")
-async def get_recommended_models():
-    """AGENTS 상수에 하드코딩된 권장 모델 목록 반환."""
-    return {
-        agent["agent_id"]: {
-            "model_name": agent["model_name"],
-            "reasoning_effort": _AGENTS_DETAIL.get(agent["agent_id"], {}).get(
-                "reasoning_effort",
-                MODEL_REASONING_MAP.get(agent["model_name"], "medium"),
-            ),
-        }
-        for agent in AGENTS
-    }
+# NOTE: recommended-models는 /api/agents/{agent_id} 앞에 정의됨 (785행 위)
 
 
 @app.post("/api/agents/apply-recommended")
@@ -8865,15 +8868,13 @@ async def _start_telegram_bot() -> None:
         )
 
         # 봇 명령어 메뉴 설정
+        # NOTE: Telegram BotCommand는 라틴 소문자+숫자+밑줄만 허용 (한국어 불가)
+        # 한국어 명령(/토론, /심층토론, /전체, /순차)은 CommandHandler로만 동작
         await _telegram_app.bot.set_my_commands([
             BotCommand("start", "봇 시작"),
-            BotCommand("help", "사용법"),
+            BotCommand("help", "사용법 (한국어 명령 포함)"),
             BotCommand("agents", "에이전트 목록"),
             BotCommand("health", "서버 상태"),
-            BotCommand("토론", "임원 토론 (2라운드)"),
-            BotCommand("심층토론", "심층 임원 토론 (3라운드)"),
-            BotCommand("전체", "29명 전체 에이전트 동시 지시"),
-            BotCommand("순차", "에이전트 릴레이 순차 작업"),
             BotCommand("rt", "실시간 모드"),
             BotCommand("batch", "배치 모드"),
             BotCommand("models", "전원 모델 변경"),
