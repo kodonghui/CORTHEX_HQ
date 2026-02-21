@@ -4922,6 +4922,122 @@
           }
         }
       }
+    },
+    {
+      "tool_id": "dc_lawschool_crawler",
+      "name": "DC Lawschool Gallery Crawler",
+      "name_ko": "DC 법전원갤 크롤러",
+      "description": "DCinside 법전원갤에서 게시글 수집 + 인기글/검색/트렌드 분석 (LEET/로스쿨 시장조사)",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "hot",
+              "search",
+              "trend",
+              "read"
+            ],
+            "description": "hot=인기글 수집, search=키워드 검색, trend=트렌드 분석, read=게시글 읽기"
+          },
+          "query": {
+            "type": "string",
+            "description": "검색 키워드 (search 액션용)"
+          },
+          "count": {
+            "type": "integer",
+            "description": "수집 게시글 수 (기본값 30)"
+          },
+          "pages": {
+            "type": "integer",
+            "description": "크롤링 페이지 수 (기본값 3)"
+          },
+          "post_no": {
+            "type": "string",
+            "description": "읽을 게시글 번호 (read 액션용)"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      }
+    },
+    {
+      "tool_id": "orbi_crawler",
+      "name": "Orbi LEET Crawler",
+      "name_ko": "오르비 LEET 크롤러",
+      "description": "오르비(orbi.kr)에서 LEET/로스쿨 관련 게시글 검색 + 트렌드 분석",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "search",
+              "hot",
+              "trend",
+              "read"
+            ],
+            "description": "search=키워드 검색, hot=인기글, trend=트렌드 분석, read=글 읽기"
+          },
+          "query": {
+            "type": "string",
+            "description": "검색 키워드 (기본값 LEET)"
+          },
+          "count": {
+            "type": "integer",
+            "description": "수집 게시글 수 (기본값 20)"
+          },
+          "post_id": {
+            "type": "string",
+            "description": "읽을 게시글 ID (read 액션용)"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      }
+    },
+    {
+      "tool_id": "lawschool_community",
+      "name": "Lawschool Community Aggregator",
+      "name_ko": "법전원 커뮤니티 통합",
+      "description": "DC 법전원갤 + 오르비 + 서로연(다음카페) 통합 검색/트렌드 분석 — LEET/로스쿨 시장조사",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "search",
+              "trend",
+              "hot",
+              "compare"
+            ],
+            "description": "search=통합 검색, trend=트렌드 분석, hot=인기글, compare=커뮤니티 비교"
+          },
+          "query": {
+            "type": "string",
+            "description": "검색 키워드"
+          },
+          "source": {
+            "type": "string",
+            "description": "dc,orbi,seolyeon 중 선택 (기본값: all)"
+          },
+          "topic": {
+            "type": "string",
+            "description": "분석 주제 (trend/compare 액션용)"
+          },
+          "count": {
+            "type": "integer",
+            "description": "수집 게시글 수 (기본값 20)"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      }
     }
   ]
 }
