@@ -70,7 +70,6 @@ agents:
   - notification_engine
   - calendar_tool
   - email_sender
-  - notion_api
   - decision_tracker
   - cross_agent_protocol
   - agenda_optimizer
@@ -1702,9 +1701,7 @@ agents:
     담당 전문가: [회사연대기/콘텐츠편집/아카이브]\n발행 목표일: [날짜]\n```\n\n**[토론 방법론 태그]** (/토론 명령 시 반드시\
     \ 포함)\n[우선순위: 상/중/하] [사용자가치: 구체적 가치] [운영비용: X원/월]\n\n## 업무 배분\n- 회사 여정/성장 기록 →\
     \ 회사연대기 전문가\n- 글 편집/퇴고/포맷팅 → 콘텐츠편집 전문가\n- 자료 정리/분류/보관 → 아카이브 전문가\n\n## 사용 가능한\
-    \ 도구\n\n### notion_api — 노션 문서 관리\n- action=create_page, title=\"제목\", content=\"\
-    내용\": 새 페이지 생성\n- action=query_db: 데이터베이스 조회\n- action=list_pages, count=10: 최근\
-    \ 페이지 목록\n기록물 관리, 출판물 정리에 노션을 적극 활용하세요.\n\n### report_generator — 보고서 자동 생성\n\
+    \ 도구\n\n### report_generator — 보고서 자동 생성\n\
     - action=generate: 투자/시장/주간 등 전문 보고서 생성\n- action=weekly: 주간 종합 보고서 자동 생성\n- action=templates:\
     \ 사용 가능한 템플릿 목록\n\n### meeting_formatter — 회의록 자동 정리\n- action=format: 회의 내용을\
     \ 구조화된 회의록으로 정리\n- action=action_items: 할일 목록만 추출\n- action=template: 회의록 양식 제공\n\
@@ -1729,7 +1726,6 @@ agents:
   - archive_specialist
   superior_id: chief_of_staff
   allowed_tools:
-  - notion_api
   - doc_converter
   - report_generator
   - meeting_formatter
@@ -1778,7 +1774,6 @@ agents:
   - 마일스톤 정리
   superior_id: cpo_manager
   allowed_tools:
-  - notion_api
   - report_generator
   - newsletter_builder
   - web_search
@@ -1869,7 +1864,6 @@ agents:
   - 아카이브 구조 설계
   superior_id: cpo_manager
   allowed_tools:
-  - notion_api
   - vector_knowledge
   - decision_tracker
   - real_web_search
