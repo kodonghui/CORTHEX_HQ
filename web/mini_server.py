@@ -10589,6 +10589,34 @@ async def _process_ai_command(text: str, task_id: str, target_agent_id: str | No
         target_id = target_agent_id
         routing = {"agent_id": target_id, "method": "ceo_direct", "cost_usd": 0}
         routing_cost = 0
+
+        # 처장이든 전문가든 — 비서실장 위임 없이 직접 호출
+        is_specialist = target_id in _SPECIALIST_NAMES
+        if is_specialist or target_id not in _AGENT_NAMES:
+            # 전문가이거나 처장도 아닌 에이전트 → 바로 _call_agent()
+            direct_result = await _call_agent(target_id, text)
+            direct_name = _SPECIALIST_NAMES.get(target_id, _AGENT_NAMES.get(target_id, target_id))
+            if "error" in direct_result:
+                update_task(task_id, status="failed",
+                            result_summary=f"오류: {direct_result['error'][:100]}",
+                            success=0, agent_id=target_id)
+                direct_result["handled_by"] = direct_name
+                return direct_result
+            total_cost = routing_cost + direct_result.get("cost_usd", 0)
+            update_task(task_id, status="completed",
+                        result_summary=direct_result.get("content", "")[:500],
+                        result_data=direct_result.get("content", ""),
+                        success=1, cost_usd=total_cost,
+                        tokens_used=direct_result.get("input_tokens", 0) + direct_result.get("output_tokens", 0),
+                        time_seconds=direct_result.get("time_seconds", 0),
+                        agent_id=target_id)
+            direct_result["handled_by"] = direct_name
+            direct_result["delegation"] = ""
+            direct_result["agent_id"] = target_id
+            direct_result["routing_method"] = "ceo_direct"
+            direct_result["total_cost_usd"] = total_cost
+            return direct_result
+        # 처장이면 아래 기존 위임 로직으로 진행
     else:
         # 라우팅 — 적합한 에이전트 결정
         routing = await _route_task(text)
