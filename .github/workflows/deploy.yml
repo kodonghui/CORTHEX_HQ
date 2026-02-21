@@ -35,6 +35,7 @@ jobs:
           KIPRIS_KEY: ${{ secrets.KIPRIS_API_KEY }}
           LAW_KEY: ${{ secrets.LAW_API_KEY }}
           SERPAPI_KEY_VAR: ${{ secrets.SERPAPI_KEY }}
+          SERPER_API_KEY_VAR: ${{ secrets.SERPER_API_KEY }}
           SMTP_HOST_VAR: ${{ secrets.SMTP_HOST }}
           SMTP_PORT_VAR: ${{ secrets.SMTP_PORT }}
           SMTP_USER_VAR: ${{ secrets.SMTP_USER }}
@@ -311,6 +312,11 @@ jobs:
               sed -i '/^SERPAPI_KEY/d' "$ENV_FILE"
               echo "SERPAPI_KEY=${SERPAPI_KEY_VAR}" >> "$ENV_FILE"
               echo "✅ SerpAPI (웹 검색) 키 설정 완료"
+            fi
+            if [ -n "${SERPER_API_KEY_VAR}" ]; then
+              sed -i '/^SERPER_API_KEY/d' "$ENV_FILE"
+              echo "SERPER_API_KEY=${SERPER_API_KEY_VAR}" >> "$ENV_FILE"
+              echo "✅ Serper.dev (웹 검색, 월 2500회 무료) 키 설정 완료"
             fi
             if [ -n "${SMTP_HOST_VAR}" ]; then
               sed -i '/^SMTP_HOST/d; /^SMTP_PORT/d; /^SMTP_USER/d; /^SMTP_PASS/d' "$ENV_FILE"
