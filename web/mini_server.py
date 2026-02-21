@@ -9296,10 +9296,33 @@ async def _call_agent(agent_id: str, text: str) -> dict:
 
             tool_executor_fn = _tool_executor
 
+    # ── 최근 대화 기록 로드 (대화 맥락 유지) ──
+    conv_history = None
+    try:
+        recent = load_conversation_messages(limit=100)
+        # 최근 10개 메시지만 AI에 전달 (토큰 절약)
+        tail = recent[-10:] if len(recent) > 10 else recent
+        if tail:
+            conv_history = []
+            for m in tail:
+                if m["type"] == "user" and m.get("text"):
+                    conv_history.append({"role": "user", "content": m["text"][:500]})
+                elif m["type"] == "result" and m.get("content"):
+                    conv_history.append({"role": "assistant", "content": m["content"][:500]})
+            # 현재 메시지와 동일한 마지막 user 메시지는 제거 (중복 방지)
+            if conv_history and conv_history[-1].get("role") == "user" and conv_history[-1].get("content", "").strip() == text[:500].strip():
+                conv_history.pop()
+            # 빈 히스토리면 None
+            if not conv_history:
+                conv_history = None
+    except Exception as e:
+        logger.debug("대화 기록 로드 실패 (무시): %s", e)
+
     await _broadcast_status(agent_id, "working", 0.3, "AI 응답 생성 중...")
     result = await ask_ai(text, system_prompt=soul, model=model,
                           tools=tool_schemas, tool_executor=tool_executor_fn,
-                          reasoning_effort=_get_agent_reasoning_effort(agent_id))
+                          reasoning_effort=_get_agent_reasoning_effort(agent_id),
+                          conversation_history=conv_history)
     await _broadcast_status(agent_id, "working", 0.7, "응답 처리 중...")
 
     # agent_calls 테이블에 AI 호출 기록 저장
@@ -10560,10 +10583,17 @@ async def _process_ai_command(text: str, task_id: str, target_agent_id: str | No
     if _is_broadcast_command(text):
         return await _broadcast_to_managers(text, task_id, target_agent_id=target_agent_id)
 
-    # 3) 라우팅 — 적합한 에이전트 결정
-    routing = await _route_task(text)
-    target_id = routing["agent_id"]
-    routing_cost = routing.get("cost_usd", 0)
+    # 3) CEO가 @에이전트로 직접 지정한 경우 → 자동 라우팅 건너뜀
+    if target_agent_id:
+        logger.info("CEO 직접 지정: → %s", target_agent_id)
+        target_id = target_agent_id
+        routing = {"agent_id": target_id, "method": "ceo_direct", "cost_usd": 0}
+        routing_cost = 0
+    else:
+        # 라우팅 — 적합한 에이전트 결정
+        routing = await _route_task(text)
+        target_id = routing["agent_id"]
+        routing_cost = routing.get("cost_usd", 0)
 
     # 4) 비서실장 직접 처리 (일반 질문, 인사 등)
     if target_id == "chief_of_staff":
@@ -10571,7 +10601,26 @@ async def _process_ai_command(text: str, task_id: str, target_agent_id: str | No
         soul = _chief_prompt if _chief_prompt else _load_agent_prompt("chief_of_staff")
         override = _get_model_override("chief_of_staff")
         model = select_model(text, override=override)
-        result = await ask_ai(text, system_prompt=soul, model=model)
+        # 대화 맥락 로드
+        _chief_history = None
+        try:
+            _recent = load_conversation_messages(limit=100)
+            _tail = _recent[-10:] if len(_recent) > 10 else _recent
+            if _tail:
+                _chief_history = []
+                for _m in _tail:
+                    if _m["type"] == "user" and _m.get("text"):
+                        _chief_history.append({"role": "user", "content": _m["text"][:500]})
+                    elif _m["type"] == "result" and _m.get("content"):
+                        _chief_history.append({"role": "assistant", "content": _m["content"][:500]})
+                if _chief_history and _chief_history[-1].get("role") == "user" and _chief_history[-1].get("content", "").strip() == text[:500].strip():
+                    _chief_history.pop()
+                if not _chief_history:
+                    _chief_history = None
+        except Exception:
+            pass
+        result = await ask_ai(text, system_prompt=soul, model=model,
+                              conversation_history=_chief_history)
 
         await _broadcast_status("chief_of_staff", "done", 1.0, "완료")
 
