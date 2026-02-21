@@ -12,11 +12,15 @@
 ---
 
 ## ⚡ 세션 시작 (매 세션 반드시)
-1. `git fetch origin && git status` 실행
+1. **worktree 확인**: `git worktree list` 실행
+   - 다른 세션이 같은 폴더를 쓰면 브랜치가 꼬임 → **반드시 자기 worktree에서만 작업**
+   - 현재 worktree가 없거나 다른 세션과 겹치면 → `git worktree add "../CORTHEX_세션N" main`으로 전용 폴더 생성
+   - 세션1: `CORTHEX_HQ/CORTHEX_HQ/` | 세션2: `CORTHEX_HQ/CORTHEX_세션2/`
+2. `git fetch origin && git status` 실행
    - 미커밋 있으면 → **작업 중지**, 대표님에게 "미커밋 있습니다. 커밋할까요?" 물어볼 것
    - 깨끗하면 → `git checkout main && git pull origin main` 즉시 실행
-2. 새 브랜치에서 작업: `git checkout -b claude/작업명 origin/main` (main 직접 작업 금지)
-3. CORTHEX 요청 시 먼저 코드 탐색: `docs/project-status.md` → `docs/updates/` 최근 파일 → 관련 코드 Read
+3. 새 브랜치에서 작업: `git checkout -b claude/작업명 origin/main` (main 직접 작업 금지)
+4. CORTHEX 요청 시 먼저 코드 탐색: `docs/project-status.md` → `docs/updates/` 최근 파일 → 관련 코드 Read
 
 ## 프로젝트 정보
 - 저장소: https://github.com/kodonghui/CORTHEX_HQ
