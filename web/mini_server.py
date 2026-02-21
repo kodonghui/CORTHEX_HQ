@@ -8980,12 +8980,18 @@ _AGENT_NAMES: dict[str, str] = {
 
 
 _TITLE_SKIP_WORDS = {"죄송", "오류", "에러", "실패", "sorry", "error", "안녕하세요", "네,", "네!"}
+# CEO 명령문 패턴: 제목에서 걸러야 할 문장 끝 패턴
+_TITLE_CMD_ENDINGS = ("해줘", "해주세요", "해봐", "하세요", "할까요", "알려줘", "알려주세요",
+                      "보고해", "분석해", "조사해", "만들어줘", "작성해", "정리해")
 
-def _extract_notion_title(content: str, fallback: str = "보고서") -> str:
+def _extract_notion_title(content: str, fallback: str = "보고서",
+                          user_query: str = "") -> str:
     """AI 응답 본문에서 깔끔한 제목을 추출합니다.
-    금지어(사과/에러 문구)로 시작하는 줄은 건너뜁니다."""
+    금지어(사과/에러 문구), CEO 명령문 패턴, user_query 반복 줄은 건너뜁니다."""
     if not content:
         return fallback
+    # user_query 유사도 체크용 (앞 20자 정규화)
+    q_norm = user_query.strip().replace("**", "").replace("*", "")[:20] if user_query else ""
     for line in content.split("\n"):
         line = line.strip()
         if not line:
@@ -8997,6 +9003,12 @@ def _extract_notion_title(content: str, fallback: str = "보고서") -> str:
         # 금지어 필터: "죄송합니다", "오류입니다" 등 제목으로 부적절한 문구
         low = line[:10].lower()
         if any(low.startswith(w) for w in _TITLE_SKIP_WORDS):
+            continue
+        # CEO 명령문 패턴 필터: "~해줘", "~분석해" 등 명령형 문장 건너뛰기
+        if any(line.rstrip(".,!? ").endswith(e) for e in _TITLE_CMD_ENDINGS):
+            continue
+        # user_query 반복 필터: CEO 명령을 그대로 반복하는 줄 건너뛰기
+        if q_norm and len(q_norm) > 5 and line[:20].startswith(q_norm[:15]):
             continue
         return line[:100]
     return fallback
@@ -9464,7 +9476,7 @@ async def _call_agent(agent_id: str, text: str) -> dict:
         # 노션에 저장 (비동기, 실패해도 무시)
         asyncio.create_task(_save_to_notion(
             agent_id=agent_id,
-            title=_extract_notion_title(content, f"[{agent_name}] 보고서"),
+            title=_extract_notion_title(content, f"[{agent_name}] 보고서", user_query=text),
             content=content,
             db_target="secretary" if _AGENT_DIVISION.get(agent_id) == "secretary" else "output",
         ))
@@ -9665,11 +9677,24 @@ async def _manager_with_delegation(manager_id: str, text: str) -> dict:
     specialists_used = len([r for r in spec_results if "error" not in r])
     synth_content = synthesis.get("content", "")
 
+    # 전문가 개별 산출물도 노션에 저장 (spawn된 전문가 결과 전부 기록)
+    for r in spec_results:
+        if "error" not in r and r.get("content") and len(r["content"]) > 20:
+            _sid = r.get("agent_id", "unknown")
+            _sname = r.get("name", _sid)
+            asyncio.create_task(_save_to_notion(
+                agent_id=_sid,
+                title=_extract_notion_title(r["content"], f"[{_sname}] 분석보고", user_query=text),
+                content=r["content"],
+                report_type="전문가보고서",
+                db_target="output",
+            ))
+
     # 종합 보고서 저장 (노션 + 아카이브 DB)
     if synth_content and len(synth_content) > 20:
         asyncio.create_task(_save_to_notion(
             agent_id=manager_id,
-            title=_extract_notion_title(synth_content, f"[{mgr_name}] 종합보고"),
+            title=_extract_notion_title(synth_content, f"[{mgr_name}] 종합보고", user_query=text),
             content=synth_content,
             report_type="종합보고서",
             db_target="secretary" if _AGENT_DIVISION.get(manager_id) == "secretary" else "output",
