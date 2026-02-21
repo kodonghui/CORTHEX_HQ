@@ -500,14 +500,17 @@ def _build_agents_from_yaml() -> list[dict]:
             return list(_AGENTS_FALLBACK)
         result = []
         for aid, detail in agents_detail.items():
-            result.append({
+            entry = {
                 "agent_id": aid,
                 "name_ko": detail.get("name_ko", aid),
                 "role": detail.get("role", "specialist"),
                 "division": detail.get("division", ""),
                 "status": "idle",
                 "model_name": detail.get("model_name", "claude-sonnet-4-6"),
-            })
+            }
+            if detail.get("telegram_code"):
+                entry["telegram_code"] = detail["telegram_code"]
+            result.append(entry)
         _log(f"[AGENTS] agents.yaml에서 {len(result)}명 로드 완료")
         return result
     except Exception as e:
@@ -2538,6 +2541,8 @@ async def _send_batch_result_to_telegram(content: str, cost: float):
     if not ceo_id:
         return
     try:
+        # 텔레그램 코드명 변환
+        content = _tg_convert_names(content)
         # 텔레그램 메시지 길이 제한 (4096자)
         if len(content) > 3800:
             content = content[:3800] + "\n\n... (전체 결과는 웹에서 확인)"
@@ -2562,11 +2567,13 @@ async def _forward_web_response_to_telegram(
     if not content:
         return
     handled_by = result_data.get("handled_by", "")
+    # 텔레그램 코드명 변환
+    tg_who = _tg_convert_names(handled_by) if handled_by else ""
     cost = result_data.get("cost", 0)
     try:
         # 텔레그램 메시지 길이 제한 (4096자)
         cmd_preview = user_command[:60] + ("..." if len(user_command) > 60 else "")
-        header = f"💬 [{handled_by}] 웹 응답\n📝 \"{cmd_preview}\"\n─────\n"
+        header = f"💬 [{tg_who}] 웹 응답\n📝 \"{cmd_preview}\"\n─────\n"
         footer = f"\n─────\n💰 ${cost:.4f}" if cost else ""
         max_content = 4096 - len(header) - len(footer) - 50
         if len(content) > max_content:
@@ -9162,6 +9169,29 @@ for _a in AGENTS:
     if _a["role"] == "specialist":
         _SPECIALIST_NAMES[_a["agent_id"]] = _a["name_ko"]
 
+# 텔레그램 직원코드 매핑 (agents.yaml의 telegram_code 필드에서 자동 구축)
+_TELEGRAM_CODES: dict[str, str] = {}
+for _a in AGENTS:
+    if _a.get("telegram_code"):
+        _TELEGRAM_CODES[_a["agent_id"]] = _a["telegram_code"]
+
+
+def _tg_code(agent_id: str) -> str:
+    """agent_id → 텔레그램 코드명 (없으면 name_ko 폴백)."""
+    return _TELEGRAM_CODES.get(
+        agent_id,
+        _AGENT_NAMES.get(agent_id, _SPECIALIST_NAMES.get(agent_id, agent_id))
+    )
+
+
+def _tg_convert_names(text: str) -> str:
+    """텍스트 내 에이전트 이름을 텔레그램 코드명으로 변환합니다."""
+    for aid, code in _TELEGRAM_CODES.items():
+        name = _AGENT_NAMES.get(aid, _SPECIALIST_NAMES.get(aid, ""))
+        if name and name in text:
+            text = text.replace(name, code)
+    return text
+
 
 def _is_broadcast_command(text: str) -> bool:
     """브로드캐스트 명령인지 확인합니다."""
@@ -10909,7 +10939,7 @@ async def get_tools_health():
 
     # 도구 → 필요한 서비스 매핑 (도구 이름에 키워드 포함 여부로 추정)
     _TOOL_SERVICE_HINTS = {
-        "notion": "notion", "web_search": "serpapi", "real_web_search": "serpapi",
+        "notion": "notion", "real_web_search": "serpapi",
         "news": "newsapi", "stock": "alpha_vantage", "market": "alpha_vantage",
         "telegram": "telegram",
     }
