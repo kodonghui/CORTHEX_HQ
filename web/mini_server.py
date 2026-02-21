@@ -460,7 +460,7 @@ MODEL_MAX_TOKENS_MAP: dict[str, int] = {
 _AGENTS_FALLBACK = [
     {"agent_id": "chief_of_staff", "name_ko": "비서실장", "role": "manager", "division": "secretary", "status": "idle", "model_name": "claude-sonnet-4-6"},
     {"agent_id": "report_specialist", "name_ko": "정보 보좌관", "role": "specialist", "division": "secretary", "status": "idle", "model_name": "gemini-3.1-pro-preview"},
-    {"agent_id": "schedule_specialist", "name_ko": "일정 보좌관", "role": "specialist", "division": "secretary", "status": "idle", "model_name": "gemini-3.1-pro-preview"},
+    {"agent_id": "schedule_specialist", "name_ko": "일정 보좌관", "role": "specialist", "division": "secretary", "status": "idle", "model_name": "gemini-2.5-flash"},
     {"agent_id": "relay_specialist", "name_ko": "검수 보좌관", "role": "specialist", "division": "secretary", "status": "idle", "model_name": "claude-sonnet-4-6"},
     {"agent_id": "cto_manager", "name_ko": "기술개발처장 (CTO)", "role": "manager", "division": "leet_master.tech", "status": "idle", "model_name": "gemini-2.5-flash"},
     {"agent_id": "frontend_specialist", "name_ko": "프론트엔드 Specialist", "role": "specialist", "division": "leet_master.tech", "status": "idle", "model_name": "gemini-2.5-flash"},

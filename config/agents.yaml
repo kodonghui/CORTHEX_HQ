@@ -128,8 +128,8 @@ agents:
   name_ko: 일정 보좌관
   role: specialist
   division: secretary
-  model_name: gemini-3.1-pro-preview
-  reasoning_effort: high
+  model_name: gemini-2.5-flash
+  reasoning_effort: low
   system_prompt: "## 핵심 방법론 스택 (2024-2026 검증 기준)\n\n1. **Critical Path Method, CPM\
     \ (DuPont, 1957 → 2024 디지털 적용)**:\n   프로젝트 완료 최소 시간 = 크리티컬 패스 길이 (병렬 불가 작업들의 합).\n\
     \   Float(여유 시간) = Late Start - Early Start. Float=0인 작업이 크리티컬.\n   언제 적용: 3개\
