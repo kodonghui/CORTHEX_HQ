@@ -141,6 +141,7 @@ class PricingSensitivityTool(BaseTool):
         }
 
         llm_summary = await self._llm_call(
+            "당신은 가격 전략 전문 분석가입니다.",
             f"Van Westendorp PSM 분석 결과입니다:\n{result}\n\n"
             "최적 가격 전략과 포지셔닝을 구체적으로 제안해주세요."
         )
@@ -211,6 +212,7 @@ class PricingSensitivityTool(BaseTool):
         }
 
         llm_summary = await self._llm_call(
+            "당신은 가격 전략 전문 분석가입니다.",
             f"Gabor-Granger 가격 수용도 분석 결과입니다:\n{result}\n\n"
             "가격 설정과 수요 예측에 대한 전략을 제안해주세요."
         )
@@ -320,6 +322,7 @@ class PricingSensitivityTool(BaseTool):
         }
 
         llm_summary = await self._llm_call(
+            "당신은 가격 전략 전문 분석가입니다.",
             f"가격 탄력성 분석 결과입니다:\n{result}\n\n"
             "탄력성 기반 가격 전략을 구체적으로 제안해주세요."
         )
@@ -399,6 +402,7 @@ class PricingSensitivityTool(BaseTool):
         }
 
         llm_summary = await self._llm_call(
+            "당신은 가격 전략 전문 분석가입니다.",
             f"수익 최적화 분석 결과입니다:\n{result}\n\n"
             "최적 가격 전략과 리스크를 분석해주세요."
         )
@@ -502,6 +506,7 @@ class PricingSensitivityTool(BaseTool):
         }
 
         llm_summary = await self._llm_call(
+            "당신은 가격 전략 전문 분석가입니다.",
             f"가격 티어 설계 결과입니다 (제품: {product_name}):\n{result}\n\n"
             "각 티어의 적정성을 평가하고 개선 제안을 해주세요."
         )
@@ -528,6 +533,7 @@ class PricingSensitivityTool(BaseTool):
         }
 
         llm_summary = await self._llm_call(
+            "당신은 가격 전략 전문 분석가입니다.",
             f"가격 민감도 종합 분석입니다:\n\n"
             f"PSM 최적 가격: {psm['key_prices']['OPP_optimal_price']:,}원\n"
             f"Gabor-Granger 최적: {gabor['optimal_price']:,}원\n"

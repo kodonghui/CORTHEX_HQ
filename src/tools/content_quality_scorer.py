@@ -141,6 +141,7 @@ class ContentQualityScorerTool(BaseTool):
         }
 
         llm_summary = await self._llm_call(
+            "당신은 콘텐츠 품질 분석 전문가입니다.",
             f"콘텐츠 품질 채점 결과입니다:\n{result}\n\n"
             f"제목: {title}\n본문 앞부분: {content[:300]}...\n\n"
             "점수를 높이기 위한 구체적인 개선안 3가지를 제안해주세요."
@@ -169,6 +170,7 @@ class ContentQualityScorerTool(BaseTool):
         }
 
         llm_summary = await self._llm_call(
+            "당신은 콘텐츠 품질 분석 전문가입니다.",
             f"가독성 분석 결과입니다:\n{result}\n\n"
             f"본문 앞부분: {content[:500]}...\n\n"
             "가독성을 높이기 위한 구체적인 문장 수정 제안을 해주세요."
@@ -198,6 +200,7 @@ class ContentQualityScorerTool(BaseTool):
         }
 
         llm_summary = await self._llm_call(
+            "당신은 콘텐츠 품질 분석 전문가입니다.",
             f"SEO 분석 결과입니다:\n{result}\n\n"
             f"제목: {title}\n키워드: {keyword}\n\n"
             "SEO 점수를 높이기 위한 구체적 액션을 제안해주세요."
@@ -257,6 +260,7 @@ class ContentQualityScorerTool(BaseTool):
         }
 
         llm_summary = await self._llm_call(
+            "당신은 콘텐츠 품질 분석 전문가입니다.",
             f"E-E-A-T 분석 결과입니다:\n{result}\n\n"
             f"본문 앞부분: {content[:500]}...\n\n"
             "각 E-E-A-T 축별 개선 방법을 구체적으로 제안해주세요."
@@ -285,6 +289,7 @@ class ContentQualityScorerTool(BaseTool):
         }
 
         llm_summary = await self._llm_call(
+            "당신은 콘텐츠 품질 분석 전문가입니다.",
             f"설득력 분석 결과입니다:\n{result}\n\n"
             f"본문 앞부분: {content[:500]}...\n\n"
             "설득력을 높이기 위해 추가할 수 있는 요소를 구체적으로 제안해주세요."
@@ -314,6 +319,7 @@ class ContentQualityScorerTool(BaseTool):
         }
 
         llm_summary = await self._llm_call(
+            "당신은 콘텐츠 품질 분석 전문가입니다.",
             f"콘텐츠 품질 종합 분석입니다:\n\n"
             f"총점: {score_result.get('total_score', 0)}/100\n"
             f"등급: {score_result.get('grade', 'N/A')}\n\n"

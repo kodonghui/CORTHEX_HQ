@@ -169,6 +169,7 @@ class ChurnRiskScorerTool(BaseTool):
         }
 
         llm_summary = await self._llm_call(
+            "당신은 고객 이탈 방지 전문 분석가입니다.",
             f"고객 이탈 위험 분석 결과입니다:\n{result}\n\n"
             "이 고객의 이탈을 방지하기 위한 구체적 액션 플랜을 제안해주세요."
         )
@@ -220,6 +221,7 @@ class ChurnRiskScorerTool(BaseTool):
         }
 
         llm_summary = await self._llm_call(
+            "당신은 고객 이탈 방지 전문 분석가입니다.",
             f"일괄 이탈 위험 평가 결과입니다:\n{result}\n\n"
             "전체 고객 기반의 이탈 리스크를 분석하고 우선순위별 대응 방안을 제안해주세요."
         )
@@ -313,6 +315,7 @@ class ChurnRiskScorerTool(BaseTool):
         }
 
         llm_summary = await self._llm_call(
+            "당신은 고객 이탈 방지 전문 분석가입니다.",
             f"생존 곡선 분석 결과입니다:\n{result}\n\n"
             "생존 곡선 패턴과 이탈률 감소 전략을 제안해주세요."
         )
@@ -367,6 +370,7 @@ class ChurnRiskScorerTool(BaseTool):
         }
 
         llm_summary = await self._llm_call(
+            "당신은 고객 이탈 방지 전문 분석가입니다.",
             f"이탈 요인 분석 결과입니다:\n{result}\n\n"
             "각 요인별 구체적인 개선 방법을 제안해주세요."
         )
@@ -431,6 +435,7 @@ class ChurnRiskScorerTool(BaseTool):
         }
 
         llm_summary = await self._llm_call(
+            "당신은 고객 이탈 방지 전문 분석가입니다.",
             f"이탈 방지 전략입니다 (예산 {budget:,}원):\n{result}\n\n"
             "예산 효율성을 평가하고 실행 로드맵을 제안해주세요."
         )
@@ -457,6 +462,7 @@ class ChurnRiskScorerTool(BaseTool):
         }
 
         llm_summary = await self._llm_call(
+            "당신은 고객 이탈 방지 전문 분석가입니다.",
             f"이탈 위험 종합 분석입니다:\n\n"
             f"평균 이탈 점수: {batch['avg_churn_score']}\n"
             f"중간 생존 기간: {survival['median_survival_months']}개월\n"
