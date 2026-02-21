@@ -3950,29 +3950,47 @@
               </template>
             </div>
             <div class="space-y-2">
-              <template x-for="item in (Array.isArray(sns.queue) ? sns.queue : sns.queue?.pending_requests || []).filter(q => sns.queueFilter === 'all' || q.status === sns.queueFilter)" :key="item.id || item.request_id">
+              <template x-for="item in sns.queue.filter(q => sns.queueFilter === 'all' || q.status === sns.queueFilter)" :key="item.request_id">
                 <div class="glass border border-hq-border rounded-xl p-4">
                   <div class="flex items-center justify-between mb-2">
                     <div class="flex items-center gap-2">
                       <span class="text-xs font-bold text-hq-text capitalize" x-text="item.platform || '-'"></span>
                       <span class="status-badge text-[9px]"
                         :class="item.status === 'pending' ? 'bg-hq-yellow/10 text-hq-yellow' : item.status === 'approved' ? 'bg-hq-green/10 text-hq-green' : item.status === 'published' ? 'bg-hq-cyan/10 text-hq-cyan' : 'bg-hq-red/10 text-hq-red'"
-                        x-text="item.status === 'pending' ? '대기' : item.status === 'approved' ? '승인' : item.status === 'published' ? '발행' : '거절'"></span>
+                        x-text="item.status === 'pending' ? '대기' : item.status === 'approved' ? '승인됨' : item.status === 'published' ? '발행완료' : item.status === 'failed' ? '실패' : '거절'"></span>
+                      <span class="text-[9px] text-hq-muted" x-text="item.requested_by ? '요청: ' + item.requested_by : ''"></span>
                     </div>
+                    <!-- 대기 → 승인/거절 버튼 -->
                     <div class="flex items-center gap-2" x-show="item.status === 'pending'">
-                      <button @click="approveSNS(item.id || item.request_id)" class="bg-hq-green/20 text-hq-green rounded-lg px-3 py-1 text-xs hover:bg-hq-green/30">승인</button>
-                      <button @click="sns.rejectingId = item.id || item.request_id" class="bg-hq-red/20 text-hq-red rounded-lg px-3 py-1 text-xs hover:bg-hq-red/30">거절</button>
+                      <button @click="approveSNS(item.request_id)" class="bg-hq-green/20 text-hq-green rounded-lg px-3 py-1 text-xs hover:bg-hq-green/30">승인</button>
+                      <button @click="sns.rejectingId = item.request_id" class="bg-hq-red/20 text-hq-red rounded-lg px-3 py-1 text-xs hover:bg-hq-red/30">거절</button>
+                    </div>
+                    <!-- 승인됨 → 발행 버튼 -->
+                    <div class="flex items-center gap-2" x-show="item.status === 'approved'">
+                      <button @click="publishSNS(item.request_id)" class="bg-hq-accent/20 text-hq-accent rounded-lg px-3 py-1 text-xs hover:bg-hq-accent/30 font-bold">🚀 발행</button>
+                    </div>
+                    <!-- 발행완료 → 링크 -->
+                    <div x-show="item.status === 'published' && item.result?.post_url">
+                      <a :href="item.result.post_url" target="_blank" class="text-hq-cyan text-xs hover:underline">🔗 보기</a>
                     </div>
                   </div>
-                  <div class="text-xs text-hq-muted" x-text="item.caption || item.title || item.content || '-'"></div>
-                  <!-- Reject form -->
-                  <div x-show="sns.rejectingId === (item.id || item.request_id)" class="mt-2 flex gap-2">
-                    <input x-model="sns.rejectReason" placeholder="거절 사유" class="flex-1 bg-hq-bg border border-hq-border rounded-lg px-2 py-1 text-xs text-hq-text">
-                    <button @click="rejectSNS(item.id || item.request_id)" class="bg-hq-red text-white rounded-lg px-3 py-1 text-xs">확인</button>
+                  <div class="text-sm font-semibold text-hq-text mb-1" x-text="item.content?.title || '-'"></div>
+                  <div class="text-xs text-hq-muted line-clamp-3" x-text="item.content?.body?.substring(0, 200) || '-'"></div>
+                  <div class="flex gap-1 mt-1 flex-wrap" x-show="item.content?.tags?.length > 0">
+                    <template x-for="tag in (item.content?.tags || [])" :key="tag">
+                      <span class="text-[9px] bg-hq-accent/10 text-hq-accent px-1.5 py-0.5 rounded" x-text="'#' + tag"></span>
+                    </template>
                   </div>
+                  <!-- Reject form -->
+                  <div x-show="sns.rejectingId === item.request_id" class="mt-2 flex gap-2">
+                    <input x-model="sns.rejectReason" placeholder="거절 사유" class="flex-1 bg-hq-bg border border-hq-border rounded-lg px-2 py-1 text-xs text-hq-text">
+                    <button @click="rejectSNS(item.request_id)" class="bg-hq-red text-white rounded-lg px-3 py-1 text-xs">확인</button>
+                  </div>
+                  <!-- 발행 결과 -->
+                  <div x-show="item.result?.message" class="mt-2 text-[10px] text-hq-muted bg-hq-bg rounded px-2 py-1" x-text="item.result?.message"></div>
                 </div>
               </template>
-              <template x-if="(Array.isArray(sns.queue) ? sns.queue : sns.queue?.pending_requests || []).length === 0">
+              <template x-if="sns.queue.filter(q => sns.queueFilter === 'all' || q.status === sns.queueFilter).length === 0">
                 <div class="text-center text-hq-muted/80 py-8">대기열이 비어있습니다</div>
               </template>
             </div>
@@ -9380,7 +9398,10 @@
           this.sns.loading = true;
           try {
             const res = await fetch('/api/sns/queue');
-            if (res.ok) this.sns.queue = await res.json();
+            if (res.ok) {
+              const data = await res.json();
+              this.sns.queue = data.items || [];
+            }
           } catch { /* 무시 */ }
           finally { this.sns.loading = false; }
         },
@@ -9389,10 +9410,10 @@
           try {
             const res = await fetch(`/api/sns/approve/${id}`, { method: 'POST' });
             const data = await res.json();
-            if (!data.error) {
+            if (data.success) {
               this.showToast('승인되었습니다.', 'success');
               this.loadSNSQueue();
-            } else { this.showToast(data.error, 'error'); }
+            } else { this.showToast(data.error || '승인 실패', 'error'); }
           } catch { this.showToast('승인에 실패했습니다.', 'error'); }
         },
 
@@ -9403,13 +9424,25 @@
               body: JSON.stringify({ reason: this.sns.rejectReason }),
             });
             const data = await res.json();
-            if (!data.error) {
+            if (data.success) {
               this.showToast('거절되었습니다.', 'success');
               this.sns.rejectingId = null;
               this.sns.rejectReason = '';
               this.loadSNSQueue();
-            } else { this.showToast(data.error, 'error'); }
+            } else { this.showToast(data.error || '거절 실패', 'error'); }
           } catch { this.showToast('거절에 실패했습니다.', 'error'); }
+        },
+
+        async publishSNS(id) {
+          try {
+            this.showToast('발행 중...', 'info');
+            const res = await fetch(`/api/sns/publish/${id}`, { method: 'POST' });
+            const data = await res.json();
+            if (data.success) {
+              this.showToast(`발행 완료! ${data.result?.post_url || ''}`, 'success');
+              this.loadSNSQueue();
+            } else { this.showToast(data.error || '발행 실패', 'error'); }
+          } catch { this.showToast('발행에 실패했습니다.', 'error'); }
         },
 
         async loadSNSEvents() {
@@ -9418,7 +9451,7 @@
             const res = await fetch('/api/sns/events?limit=50');
             if (res.ok) {
               const data = await res.json();
-              this.sns.events = data.events || [];
+              this.sns.events = data.items || [];
             }
           } catch { /* 무시 */ }
           finally { this.sns.loading = false; }
