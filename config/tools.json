@@ -71,31 +71,48 @@
       "tool_id": "sns_manager",
       "name": "SNS Manager",
       "name_ko": "SNS 매니저",
-      "description": "Tistory/YouTube/Instagram/LinkedIn/네이버카페/네이버블로그/다음카페 통합 퍼블리싱 (CEO 승인 큐 포함)",
+      "description": "6개 플랫폼(Tistory/YouTube/Instagram/네이버블로그/네이버카페/다음카페) 통합 퍼블리싱. CEO 승인 큐 포함",
       "parameters": {
         "type": "object",
         "properties": {
           "action": {
             "type": "string",
             "enum": [
+              "submit",
+              "approve",
+              "reject",
               "publish",
-              "schedule",
               "queue",
               "status"
             ],
-            "description": "publish=즉시 퍼블리싱, schedule=예약 발행, queue=승인 큐 등록, status=발행 현황 조회"
+            "description": "submit=발행 요청(큐 등록), approve=CEO 승인, reject=CEO 거절, publish=실제 발행(CMO만), queue=큐 조회, status=연결 상태"
           },
           "platform": {
             "type": "string",
-            "description": "발행 플랫폼 (tistory, youtube, instagram, linkedin, naver_cafe, naver_blog, daum_cafe, all)"
-          },
-          "content": {
-            "type": "string",
-            "description": "발행할 콘텐츠 내용"
+            "description": "발행 플랫폼 (tistory, youtube, instagram, naver_blog, naver_cafe, daum_cafe)"
           },
           "title": {
             "type": "string",
-            "description": "제목"
+            "description": "콘텐츠 제목"
+          },
+          "body": {
+            "type": "string",
+            "description": "콘텐츠 본문"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "태그 목록"
+          },
+          "request_id": {
+            "type": "string",
+            "description": "approve/reject/publish 시 필요한 요청 ID"
+          },
+          "reason": {
+            "type": "string",
+            "description": "reject 시 거절 사유"
           }
         },
         "required": [

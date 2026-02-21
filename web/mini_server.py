@@ -7140,28 +7140,118 @@ async def post_youtube_video(request: Request):
 
 
 @app.get("/api/sns/queue")
-async def get_sns_queue():
-    """SNS 게시 대기열."""
-    return _load_data("sns_queue", [])
+async def get_sns_queue(status: str = ""):
+    """SNS 게시 대기열 — SQLite DB에서 직접 로드 (SNSManager와 동일 소스)."""
+    queue = load_setting("sns_publish_queue", []) or []
+    if status:
+        queue = [q for q in queue if q.get("status") == status]
+    return {"items": queue, "total": len(queue)}
 
 
 @app.post("/api/sns/approve/{item_id}")
 async def approve_sns(item_id: str):
-    return {"success": False, "error": "SNS API가 아직 연동되지 않았습니다."}
+    """CEO가 SNS 발행 요청을 승인."""
+    import time as _time
+    queue = load_setting("sns_publish_queue", []) or []
+    for item in queue:
+        if item.get("request_id") == item_id:
+            if item.get("status") != "pending":
+                return {"success": False, "error": f"이미 처리됨: {item.get('status')}"}
+            item["status"] = "approved"
+            item["approved_at"] = _time.time()
+            save_setting("sns_publish_queue", queue)
+            return {"success": True, "status": "approved", "request_id": item_id}
+    return {"success": False, "error": f"요청 ID를 찾을 수 없음: {item_id}"}
 
 
 @app.post("/api/sns/reject/{item_id}")
-async def reject_sns(item_id: str):
-    queue = _load_data("sns_queue", [])
-    queue = [q for q in queue if q.get("id") != item_id]
-    _save_data("sns_queue", queue)
-    return {"success": True}
+async def reject_sns(item_id: str, request: Request):
+    """CEO가 SNS 발행 요청을 거절."""
+    body = {}
+    try:
+        body = await request.json()
+    except Exception:
+        pass
+    reason = body.get("reason", "")
+    queue = load_setting("sns_publish_queue", []) or []
+    for item in queue:
+        if item.get("request_id") == item_id:
+            item["status"] = "rejected"
+            item["result"] = {"reason": reason}
+            save_setting("sns_publish_queue", queue)
+            return {"success": True, "status": "rejected", "request_id": item_id}
+    return {"success": False, "error": f"요청 ID를 찾을 수 없음: {item_id}"}
+
+
+@app.post("/api/sns/publish/{item_id}")
+async def publish_sns(item_id: str):
+    """승인된 SNS 요청을 실제 발행 (서버에서 SNSManager 경유)."""
+    queue = load_setting("sns_publish_queue", []) or []
+    target = None
+    for item in queue:
+        if item.get("request_id") == item_id:
+            target = item
+            break
+    if not target:
+        return {"success": False, "error": f"요청 ID를 찾을 수 없음: {item_id}"}
+    if target.get("status") != "approved":
+        return {"success": False, "error": f"승인되지 않은 요청: {target.get('status')}"}
+    # SNSManager를 통한 실제 발행
+    try:
+        from src.tools.sns.sns_manager import SNSManager, _db_load
+        # SNSManager에서 큐를 다시 로드해서 publish 실행
+        # (SNSManager는 싱글톤이 아니므로, DB에서 직접 상태 변경)
+        from src.tools.sns.base_publisher import PostContent
+        from src.tools.sns.oauth_manager import OAuthManager
+        oauth = OAuthManager()
+        platform = target.get("platform", "")
+        content_data = target.get("content", {})
+        publisher = None
+        if platform == "tistory":
+            from src.tools.sns.tistory_publisher import TistoryPublisher
+            publisher = TistoryPublisher(oauth)
+        elif platform == "youtube":
+            from src.tools.sns.youtube_publisher import YouTubePublisher
+            publisher = YouTubePublisher(oauth)
+        elif platform == "instagram":
+            from src.tools.sns.instagram_publisher import InstagramPublisher
+            publisher = InstagramPublisher(oauth)
+        elif platform == "naver_blog":
+            from src.tools.sns.naver_blog_publisher import NaverBlogPublisher
+            publisher = NaverBlogPublisher(oauth)
+        elif platform == "naver_cafe":
+            from src.tools.sns.naver_cafe_publisher import NaverCafePublisher
+            publisher = NaverCafePublisher(oauth)
+        elif platform == "daum_cafe":
+            from src.tools.sns.daum_cafe_publisher import DaumCafePublisher
+            publisher = DaumCafePublisher(oauth)
+        if not publisher:
+            return {"success": False, "error": f"퍼블리셔 없음: {platform}"}
+        content = PostContent(**content_data)
+        result = await publisher.publish(content)
+        import time as _time
+        target["status"] = "published" if result.success else "failed"
+        target["published_at"] = _time.time()
+        target["result"] = {
+            "success": result.success,
+            "post_id": result.post_id,
+            "post_url": result.post_url,
+            "message": result.message,
+        }
+        save_setting("sns_publish_queue", queue)
+        return {"success": result.success, "status": target["status"], "result": target["result"]}
+    except Exception as e:
+        logger.error("[SNS] 발행 실패: %s", e, exc_info=True)
+        return {"success": False, "error": str(e)}
 
 
 @app.get("/api/sns/events")
 async def get_sns_events(limit: int = 50):
-    """SNS 이벤트 로그."""
-    return _load_data("sns_events", [])[:limit]
+    """SNS 이벤트 로그 — 발행 완료/실패된 항목."""
+    queue = load_setting("sns_publish_queue", []) or []
+    events = [q for q in queue if q.get("status") in ("published", "failed", "rejected")]
+    events.sort(key=lambda x: x.get("published_at") or x.get("created_at", 0), reverse=True)
+    return {"items": events[:limit], "total": len(events)}
 
 
 # ── 인증 (Phase 3: 비밀번호 로그인) ──
