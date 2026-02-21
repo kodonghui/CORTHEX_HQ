@@ -3197,37 +3197,80 @@ tools:
         description: "시장/경쟁 맥락"
     required: [action]
 
-# ─── CMO Gemini 이미지 생성 (8유형 통합) ───
+# ─── 나노바나나 Pro 이미지 생성 (gemini-3-pro-image-preview) ───
 
 - tool_id: gemini_image_generator
-  name: Gemini Image Generator
-  name_ko: Gemini 이미지 생성 도구
+  name: Nano Banana Pro Image Generator
+  name_ko: 나노바나나 Pro 이미지 생성
   description: >
-    Gemini AI 기반 마케팅 이미지 생성 — 8가지 유형 통합.
+    나노바나나 Pro(gemini-3-pro-image-preview)로 실제 마케팅 이미지 직접 생성.
     배너, 카드뉴스, 인포그래픽, 썸네일, 로고, 광고, 소셜포스트, 제품목업.
+    교수급 디자인 지식(플랫폼 사양, 스타일 가이드, 색상 심리학)이 프롬프트에 자동 반영됩니다.
   parameters:
     type: object
     properties:
       action:
         type: string
-        enum: [banner, card_news, infographic, thumbnail, logo, ad_creative, social_post, product_mockup, full]
-        description: "banner=배너, card_news=카드뉴스, infographic=인포그래픽, thumbnail=썸네일, logo=로고, ad_creative=광고, social_post=소셜포스트, product_mockup=제품목업, full=종합세트"
+        enum: [generate, banner, card_news, infographic, thumbnail, logo, ad_creative, social_post, product_mockup, full]
+        description: "generate=프롬프트직접, banner=배너, card_news=카드뉴스, infographic=인포그래픽, thumbnail=썸네일, logo=로고, ad_creative=광고, social_post=소셜포스트, product_mockup=제품목업, full=종합세트"
+      prompt:
+        type: string
+        description: "이미지 생성 프롬프트 (action=generate일 때 필수)"
       topic:
         type: string
         description: "주제/제품명"
       style:
         type: string
         description: "스타일 (minimal, corporate, playful, luxury, tech)"
+      platform:
+        type: string
+        description: "대상 플랫폼 (instagram, youtube, facebook, naver_blog, twitter, linkedin, kakao)"
+      aspect_ratio:
+        type: string
+        description: "비율 (1:1, 16:9, 9:16, 4:3, 3:4)"
       text_overlay:
         type: string
         description: "이미지 위 텍스트"
-      size:
-        type: string
-        description: "크기 (1024x1024, 1920x1080, 1080x1080 등)"
       context:
         type: string
         description: "추가 맥락/요구사항"
-    required: [action, topic]
+    required: [action]
+
+# ─── Veo 3.1 영상 생성 (veo-3.1-generate-preview) ───
+
+- tool_id: gemini_video_generator
+  name: Veo 3.1 Video Generator
+  name_ko: Veo 3.1 영상 생성
+  description: >
+    Veo 3.1(veo-3.1-generate-preview)로 실제 마케팅 영상 직접 생성.
+    릴스/쇼츠, 광고 영상 등 SNS 콘텐츠용 짧은 영상을 생성합니다.
+    8초까지, 1080p/4K, 음성 자동 생성 지원.
+  parameters:
+    type: object
+    properties:
+      action:
+        type: string
+        enum: [generate, reels, ad]
+        description: "generate=프롬프트직접, reels=릴스/쇼츠(9:16), ad=광고(16:9)"
+      prompt:
+        type: string
+        description: "영상 생성 프롬프트"
+      topic:
+        type: string
+        description: "주제"
+      resolution:
+        type: string
+        description: "해상도 (720p, 1080p, 4k)"
+      duration:
+        type: string
+        description: "길이 (4, 6, 8초)"
+      aspect_ratio:
+        type: string
+        description: "비율 (16:9, 9:16)"
+      negative_prompt:
+        type: string
+        description: "제외할 요소"
+    required: [action]
 
 # ─── CIO 미국 주식 전문 도구 10종 ───
 

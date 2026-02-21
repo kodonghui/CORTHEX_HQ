@@ -1063,7 +1063,8 @@ agents:
   allowed_tools:
   - email_optimizer
   - report_generator
-  - image_generator
+  - gemini_image_generator
+  - gemini_video_generator
   - sns_manager
   - naver_news
   - cross_agent_protocol

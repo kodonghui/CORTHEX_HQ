@@ -154,8 +154,9 @@ class ToolPool:
             "cross_agent_protocol": "src.tools.cross_agent_protocol.CrossAgentProtocolTool",
             "trading_settings_control": "src.tools.trading_settings_control.TradingSettingsControlTool",
             "trading_executor": "src.tools.trading_executor.TradingExecutorTool",
-            # ─── CMO Gemini 이미지 생성 (8유형 통합) ───
+            # ─── 나노바나나 Pro 이미지 + Veo 3.1 영상 ───
             "gemini_image_generator": "src.tools.gemini_image_generator.GeminiImageGeneratorTool",
+            "gemini_video_generator": "src.tools.gemini_video_generator.GeminiVideoGeneratorTool",
             # ─── Phase 2: 교수급 전문 도구 (25개) ───
             # CTO 기술개발처
             "architecture_evaluator": "src.tools.architecture_evaluator.ArchitectureEvaluatorTool",
