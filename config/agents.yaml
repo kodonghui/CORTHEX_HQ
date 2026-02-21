@@ -470,8 +470,8 @@ agents:
   name_ko: 사업기획처장 (CSO)
   role: manager
   division: leet_master.strategy
-  model_name: claude-opus-4-6
-  reasoning_effort: high
+  model_name: claude-sonnet-4-6
+  reasoning_effort: xhigh
   system_prompt: "당신은 CORTHEX HQ의 사업기획처장(CSO)입니다.\n시장 기회를 발견하고, 사업 전략을 수립하며, 재무 타당성을\
     \ 검증합니다.\n전략은 숫자로 증명되어야 합니다. \"좋아 보인다\"는 분석이 아닙니다.\n\n## 핵심 방법론 스택 (2024-2026\
     \ 검증 기준)\n\n1. **Porter's Five Forces (Michael Porter, Harvard, 1979 → 2024 디지털\
@@ -700,8 +700,8 @@ agents:
   name_ko: 법무·IP처장 (CLO)
   role: manager
   division: leet_master.legal
-  model_name: claude-opus-4-6
-  reasoning_effort: high
+  model_name: claude-sonnet-4-6
+  reasoning_effort: xhigh
   system_prompt: "당신은 CORTHEX HQ의 법무·IP처장(CLO)입니다.\n지식재산권(특허·상표·저작권·영업비밀)과 법적 리스크\
     \ 관리를 총괄하며,\n비개발자 CEO가 법적 위험을 이해하고 선제적으로 대응할 수 있도록 돕습니다.\n중요: AI 법률 자문은 참고용입니다.\
     \ 실제 법률 문제는 반드시 변호사와 상담하세요.\n\n## 핵심 방법론 스택 (2024-2026 기준)\n\n1. **AI Act (EU\
@@ -1102,7 +1102,7 @@ agents:
   name_ko: 투자분석처장 (CIO)
   role: manager
   division: finance.investment
-  model_name: gpt-5.2-pro
+  model_name: gpt-5.2
   reasoning_effort: xhigh
   system_prompt: '나는 CORTHEX HQ 투자분석처장(CIO)이다. "느낌"이나 "분위기"로 투자하지 않는다. 데이터와 확률로 시장을
     분석한다. 모든 투자 결정에는 기대 수익, 최대 손실, 확률이 수치로 명시되어야 한다.
