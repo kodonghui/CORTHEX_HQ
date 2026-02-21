@@ -4587,53 +4587,6 @@
       }
     },
     {
-      "tool_id": "gemini_video_generator",
-      "name": "Veo 3.1 Video Generator",
-      "name_ko": "Veo 3.1 영상 생성",
-      "description": "Veo 3.1(veo-3.1-generate-preview)로 실제 마케팅 영상 직접 생성. 릴스/쇼츠, 광고 영상 등 SNS 콘텐츠용 짧은 영상을 생성합니다. 8초까지, 1080p/4K, 음성 자동 생성 지원.\n",
-      "parameters": {
-        "type": "object",
-        "properties": {
-          "action": {
-            "type": "string",
-            "enum": [
-              "generate",
-              "reels",
-              "ad"
-            ],
-            "description": "generate=프롬프트직접, reels=릴스/쇼츠(9:16), ad=광고(16:9)"
-          },
-          "prompt": {
-            "type": "string",
-            "description": "영상 생성 프롬프트"
-          },
-          "topic": {
-            "type": "string",
-            "description": "주제"
-          },
-          "resolution": {
-            "type": "string",
-            "description": "해상도 (720p, 1080p, 4k)"
-          },
-          "duration": {
-            "type": "string",
-            "description": "길이 (4, 6, 8초)"
-          },
-          "aspect_ratio": {
-            "type": "string",
-            "description": "비율 (16:9, 9:16)"
-          },
-          "negative_prompt": {
-            "type": "string",
-            "description": "제외할 요소"
-          }
-        },
-        "required": [
-          "action"
-        ]
-      }
-    },
-    {
       "tool_id": "sec_edgar",
       "name": "SEC EDGAR Filings",
       "name_ko": "SEC 공시 조회",
