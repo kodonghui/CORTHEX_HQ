@@ -5089,7 +5089,7 @@ async def generate_trading_signals():
     # CIO + 4명 전문가에게 위임 (실제 도구 사용 + 병렬 분석)
     save_activity_log("cio_manager", f"📊 자동매매 시그널 생성 — {len(watchlist)}개 종목 분석 시작", "info")
 
-    # 1단계: CIO 독자 분석 (전문가 보고서 참고 없이 독립적 판단)
+    # 1단계: CIO 독자 분석 + 전문가 4명 병렬 실행 (P2-4: 병렬화)
     cio_solo_prompt = (
         f"CEO 투자 성향: {_profile_label}. 관심종목 독자 분석을 작성하세요:\n{tickers_info or '없음'}\n\n"
         f"활성 전략: {strats_info or '기본 전략'}\n\n"
@@ -5101,37 +5101,69 @@ async def generate_trading_signals():
     )
     cio_soul = _load_agent_prompt("cio_manager")
     cio_solo_model = select_model(cio_solo_prompt, override=_get_model_override("cio_manager"))
-    save_activity_log("cio_manager", "📊 CIO 독자 분석 시작 (전문가 위임 전 독립 판단)", "info")
-    # CIO 독자 분석 → 교신 로그에도 기록 (위임 전 독립 판단)
+    save_activity_log("cio_manager", "📊 CIO 독자 분석 + 전문가 위임 병렬 시작", "info")
+    # CIO 독자 분석 시작 교신 로그
     try:
         from db import save_delegation_log as _sdl
-        _sdl(sender="투자분석처장 (CIO)", receiver="CIO 독자 분석", message="전문가 위임 전 독립 판단 시작", log_type="delegation")
-    except Exception:
-        pass
-    cio_solo_result = await ask_ai(cio_solo_prompt, system_prompt=cio_soul, model=cio_solo_model)
-    cio_solo_content = cio_solo_result.get("content", "") if isinstance(cio_solo_result, dict) else ""
-    cio_solo_cost = cio_solo_result.get("cost_usd", 0) if isinstance(cio_solo_result, dict) else 0
-    # CIO 독자 분석 결과 → 교신 로그에 기록
-    try:
-        _solo_preview = cio_solo_content[:300] if cio_solo_content else "분석 결과 없음"
-        _sdl(sender="CIO 독자 분석", receiver="투자분석처장 (CIO)", message=_solo_preview, log_type="report")
-        await _broadcast_comms({"id": f"cio_solo_{datetime.now(KST).strftime('%H%M%S')}", "sender": "CIO 독자 분석", "receiver": "투자분석처장 (CIO)", "message": _solo_preview, "log_type": "report", "source": "delegation", "created_at": datetime.now(KST).isoformat()})
+        _sdl(sender="투자분석처장 (CIO)", receiver="CIO 독자 분석", message="전문가 위임과 병렬로 독립 판단 시작", log_type="delegation")
     except Exception:
         pass
 
-    # 2단계: 전문가 4명 병렬 분석 + CIO 종합 (기존 흐름)
-    # 최종 종합 프롬프트에 CIO 독자 분석을 포함시켜 위임
-    prompt_with_solo = (
-        f"{prompt}\n\n"
+    # CIO 독자 분석과 전문가 위임을 동시에 실행 (asyncio.gather)
+    async def _cio_solo_analysis():
+        result = await ask_ai(cio_solo_prompt, system_prompt=cio_soul, model=cio_solo_model)
+        content = result.get("content", "") if isinstance(result, dict) else ""
+        cost = result.get("cost_usd", 0) if isinstance(result, dict) else 0
+        # 교신 로그 기록
+        try:
+            preview = content[:300] if content else "분석 결과 없음"
+            _sdl(sender="CIO 독자 분석", receiver="투자분석처장 (CIO)", message=preview, log_type="report")
+            await _broadcast_comms({"id": f"cio_solo_{datetime.now(KST).strftime('%H%M%S')}", "sender": "CIO 독자 분석", "receiver": "투자분석처장 (CIO)", "message": preview, "log_type": "report", "source": "delegation", "created_at": datetime.now(KST).isoformat()})
+        except Exception:
+            pass
+        return {"content": content, "cost_usd": cost}
+
+    # 병렬 실행: CIO 독자 분석 + 전문가 위임
+    await _broadcast_status("cio_manager", "working", 0.1, "CIO 독자 분석 + 전문가 4명 병렬 진행 중...")
+    cio_solo_task = _cio_solo_analysis()
+    spec_task = _delegate_to_specialists("cio_manager", prompt)
+    cio_solo_result, spec_results = await asyncio.gather(cio_solo_task, spec_task)
+
+    cio_solo_content = cio_solo_result.get("content", "")
+    cio_solo_cost = cio_solo_result.get("cost_usd", 0)
+
+    # 2단계: CIO가 독자 분석 + 전문가 결과를 종합
+    spec_parts = []
+    spec_cost = 0.0
+    for r in (spec_results or []):
+        name = r.get("name", r.get("agent_id", "?"))
+        if "error" in r:
+            spec_parts.append(f"[{name}] 오류: {r['error'][:80]}")
+        else:
+            spec_parts.append(f"[{name}]\n{r.get('content', '응답 없음')}")
+            spec_cost += r.get("cost_usd", 0)
+
+    mgr_name = _AGENT_NAMES.get("cio_manager", "CIO")
+    synthesis_prompt = (
+        f"당신은 {mgr_name}입니다. 아래 두 가지 분석을 종합하여 최종 시그널을 결정하세요.\n\n"
+        f"## CEO 원본 명령\n{prompt}\n\n"
         f"## CIO 독자 사전 분석 (전문가 보고서 참고 전 작성한 독립 판단)\n"
         f"{cio_solo_content[:1000] if cio_solo_content else '분석 없음'}\n\n"
+        f"## 전문가 분석 결과\n" + "\n\n".join(spec_parts) + "\n\n"
         f"위 독자 분석과 전문가 보고서를 모두 반영하여 최종 시그널을 결정하세요."
     )
-    cio_result = await _manager_with_delegation("cio_manager", prompt_with_solo)
+    override = _get_model_override("cio_manager")
+    synth_model = select_model(synthesis_prompt, override=override)
+    await _broadcast_status("cio_manager", "working", 0.7, "독자 분석 + 전문가 결과 종합 중...")
+    synthesis = await ask_ai(synthesis_prompt, system_prompt=cio_soul, model=synth_model)
+    await _broadcast_status("cio_manager", "done", 1.0, "보고 완료")
 
-    content = cio_result.get("content", "")
-    cost = cio_result.get("cost_usd", 0) + cio_solo_cost
-    specialists_used = cio_result.get("specialists_used", 0)
+    specialists_used = len([r for r in (spec_results or []) if "error" not in r])
+    if "error" in synthesis:
+        content = f"**{mgr_name} 전문가 분석 결과**\n\n" + "\n\n---\n\n".join(spec_parts)
+    else:
+        content = synthesis.get("content", "")
+    cost = spec_cost + cio_solo_cost + synthesis.get("cost_usd", 0)
 
     # CIO 분석 결과에서 시그널 파싱
     parsed_signals = _parse_cio_signals(content, watchlist)
@@ -7802,7 +7834,7 @@ async def get_comms_messages(limit: int = 100, msg_type: str = ""):
         # 1) delegation_log
         try:
             rows = conn.execute(
-                "SELECT id, sender, receiver, message, log_type, created_at "
+                "SELECT id, sender, receiver, message, log_type, tools_used, created_at "
                 "FROM delegation_log ORDER BY created_at DESC LIMIT ?",
                 (limit,),
             ).fetchall()
@@ -7810,12 +7842,15 @@ async def get_comms_messages(limit: int = 100, msg_type: str = ""):
                 lt = r["log_type"] or "delegation"
                 if msg_type and lt != msg_type:
                     continue
+                _tu = r["tools_used"] or ""
+                _tools_list = [t.strip() for t in _tu.split(",") if t.strip()] if _tu else []
                 messages.append({
                     "id": f"dl_{r['id']}",
                     "sender": r["sender"],
                     "receiver": r["receiver"],
                     "message": r["message"],
                     "log_type": lt,
+                    "tools_used": _tools_list,
                     "source": "delegation",
                     "created_at": r["created_at"],
                 })
@@ -9530,14 +9565,16 @@ async def _delegate_to_specialists(manager_id: str, text: str) -> list[dict]:
                 spec_name = _SPECIALIST_NAMES.get(spec_id, spec_id)
                 mgr_name = _AGENT_NAMES.get(manager_id, manager_id)
                 content_preview = r.get("content", "")[:300] if isinstance(r, dict) else str(r)[:300]
+                _tools = r.get("tools_used", []) if isinstance(r, dict) else []
+                _tools_unique = list(dict.fromkeys(_tools))[:5]  # 중복 제거, 최대 5개
+                _tools_str = ",".join(_tools_unique) if _tools_unique else ""
                 row_id = save_delegation_log(
                     sender=spec_name,
                     receiver=mgr_name,
                     message=content_preview,
                     log_type="report",
+                    tools_used=_tools_str,
                 )
-                _tools = r.get("tools_used", []) if isinstance(r, dict) else []
-                _tools_unique = list(dict.fromkeys(_tools))[:5]  # 중복 제거, 최대 5개
                 _log_data = {
                     "id": row_id,
                     "sender": spec_name,

@@ -3559,6 +3559,13 @@
                 <!-- 메시지 본문 -->
                 <div class="px-4 pb-2.5 pt-1">
                   <p class="text-xs text-hq-text/80 leading-relaxed line-clamp-3" x-text="log.message"></p>
+                  <template x-if="log.tools_used && log.tools_used.length > 0">
+                    <div class="flex flex-wrap gap-1 mt-1.5">
+                      <template x-for="tool in log.tools_used" :key="tool">
+                        <span class="text-[9px] px-1.5 py-0.5 rounded bg-hq-accent/10 text-hq-accent/80 font-mono" x-text="tool"></span>
+                      </template>
+                    </div>
+                  </template>
                 </div>
               </div>
             </template>
@@ -4369,7 +4376,7 @@
                               x-text="(getAgentName(log.receiver)||log.receiver).replace('투자분석처장','CIO').replace(' Specialist','')"></span>
                         <span class="text-[9px] text-hq-muted/40 flex-1 line-clamp-1" x-text="stripMarkdownPreview(log.message)"></span>
                         <template x-if="log.tools_used && log.tools_used.length > 0">
-                          <span class="text-[9px] text-hq-accent/60 shrink-0 ml-1" x-text="'[' + log.tools_used.length + ' tools]'"></span>
+                          <span class="text-[9px] text-hq-accent/60 shrink-0 ml-1" x-text="'🔧' + log.tools_used.join(', ')"></span>
                         </template>
                       </div>
                     </template>
