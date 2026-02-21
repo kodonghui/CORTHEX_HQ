@@ -3132,17 +3132,71 @@ def _parse_cron_preset(preset: str) -> dict:
     return presets.get(preset, {"interval_seconds": 3600})
 
 
+def _match_cron_field(field: str, value: int, max_val: int) -> bool:
+    """크론 필드 하나를 매칭합니다. (예: "1-5" → 월~금, "*/10" → 0,10,20,30,40,50)"""
+    if field == "*":
+        return True
+    for part in field.split(","):
+        part = part.strip()
+        if "/" in part:
+            base, step = part.split("/", 1)
+            step = int(step)
+            if base == "*":
+                if value % step == 0:
+                    return True
+            else:
+                start = int(base)
+                if value >= start and (value - start) % step == 0:
+                    return True
+        elif "-" in part:
+            lo, hi = part.split("-", 1)
+            if int(lo) <= value <= int(hi):
+                return True
+        else:
+            if int(part) == value:
+                return True
+    return False
+
+
+def _match_cron_expr(cron: str, now: datetime) -> bool:
+    """5필드 크론 표현식과 현재 시간을 매칭합니다.
+    형식: 분 시 일 월 요일 (0=일, 1=월 ... 6=토 / 또는 0=월 ... 6=일 리눅스 표준)
+    여기서는 리눅스 표준: 0=일, 1=월, ..., 6=토
+    """
+    fields = cron.strip().split()
+    if len(fields) != 5:
+        return False
+    minute, hour, dom, month, dow = fields
+    # Python weekday(): 0=월 → 크론 변환: (python_weekday + 1) % 7 → 0=일
+    cron_dow = (now.weekday() + 1) % 7
+    return (
+        _match_cron_field(minute, now.minute, 59)
+        and _match_cron_field(hour, now.hour, 23)
+        and _match_cron_field(dom, now.day, 31)
+        and _match_cron_field(month, now.month, 12)
+        and _match_cron_field(dow, cron_dow, 6)
+    )
+
+
 def _should_run_schedule(schedule: dict, now: datetime) -> bool:
     """현재 시간에 이 예약을 실행해야 하는지 확인합니다."""
     if not schedule.get("enabled", False):
         return False
 
-    preset = schedule.get("cron_preset", "")
-    cron_config = _parse_cron_preset(preset)
-
     # 마지막 실행 시간 확인
     last_run = schedule.get("last_run_ts", 0)
     elapsed = now.timestamp() - last_run
+
+    # 1순위: 실제 크론 표현식이 있으면 그걸로 판단
+    cron_expr = schedule.get("cron", "")
+    if cron_expr and cron_expr.strip().count(" ") >= 3:
+        if _match_cron_expr(cron_expr, now):
+            return elapsed >= 55  # 중복 실행 방지
+        return False
+
+    # 2순위: 프리셋 기반 (하위호환)
+    preset = schedule.get("cron_preset", "")
+    cron_config = _parse_cron_preset(preset)
 
     if "interval_seconds" in cron_config:
         return elapsed >= cron_config["interval_seconds"]
@@ -9130,23 +9184,6 @@ async def _start_telegram_bot() -> None:
             MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message)
         )
 
-        # 봇 명령어 메뉴 설정
-        # NOTE: Telegram BotCommand는 라틴 소문자+숫자+밑줄만 허용 (한국어 불가)
-        # 한국어 명령(/토론, /심층토론, /전체, /순차)은 CommandHandler로만 동작
-        await _telegram_app.bot.set_my_commands([
-            BotCommand("start", "봇 시작"),
-            BotCommand("help", "사용법 (한국어 명령 포함)"),
-            BotCommand("agents", "에이전트 목록"),
-            BotCommand("health", "서버 상태"),
-            BotCommand("rt", "실시간 모드"),
-            BotCommand("batch", "배치 모드"),
-            BotCommand("models", "전원 모델 변경"),
-            BotCommand("status", "배치 진행 상태"),
-            BotCommand("budget", "오늘 비용 / 한도 변경"),
-            BotCommand("pause", "AI 처리 중단"),
-            BotCommand("resume", "AI 처리 재개"),
-        ])
-
         _log("[TG] 핸들러 등록 완료, initialize()...")
         await _telegram_app.initialize()
 
@@ -9156,6 +9193,26 @@ async def _start_telegram_bot() -> None:
             _log("[TG] webhook 삭제 완료 (polling 충돌 방지)")
         except Exception as we:
             _log(f"[TG] webhook 삭제 건너뜀: {we}")
+
+        # 봇 명령어 메뉴 설정 (initialize 이후에 API 호출 가능)
+        # NOTE: Telegram BotCommand는 라틴 소문자+숫자+밑줄만 허용 (한국어 불가)
+        # 한국어 명령(/토론, /심층토론, /전체, /순차)은 CommandHandler로만 동작
+        try:
+            await _telegram_app.bot.set_my_commands([
+                BotCommand("start", "봇 시작"),
+                BotCommand("help", "사용법 (한국어 명령 포함)"),
+                BotCommand("agents", "에이전트 목록"),
+                BotCommand("health", "서버 상태"),
+                BotCommand("rt", "실시간 모드"),
+                BotCommand("batch", "배치 모드"),
+                BotCommand("models", "전원 모델 변경"),
+                BotCommand("status", "배치 진행 상태"),
+                BotCommand("budget", "오늘 비용 / 한도 변경"),
+                BotCommand("pause", "AI 처리 중단"),
+                BotCommand("resume", "AI 처리 재개"),
+            ])
+        except Exception as cmd_err:
+            _log(f"[TG] 명령어 메뉴 설정 건너뜀 (봇은 정상 동작): {cmd_err}")
 
         _log("[TG] start()...")
         await _telegram_app.start()

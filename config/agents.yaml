@@ -69,6 +69,7 @@ agents:
   - naver_news
   - notification_engine
   - calendar_tool
+  - schedule_tool
   - email_sender
   - decision_tracker
   - cross_agent_protocol
@@ -157,6 +158,7 @@ agents:
   superior_id: chief_of_staff
   allowed_tools:
   - calendar_tool
+  - schedule_tool
   - notification_engine
   - cross_agent_protocol
 - agent_id: relay_specialist

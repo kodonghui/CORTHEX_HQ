@@ -2249,6 +2249,41 @@ tools:
         description: 템플릿 이름 (template 사용 시 필수)
     required:
     - action
+
+- tool_id: schedule_tool
+  name: Schedule Manager
+  name_ko: 예약 관리
+  description: 크론 예약 관리 — 예약 생성·수정·삭제·조회·토글. 텔레그램에서 자연어로 스케줄 변경 가능
+  parameters:
+    type: object
+    properties:
+      action:
+        type: string
+        enum:
+        - list
+        - create
+        - update
+        - delete
+        - toggle
+        description: list=조회, create=생성, update=수정, delete=삭제, toggle=활성화/비활성화
+      name:
+        type: string
+        description: 예약 이름 (create/update 시)
+      command:
+        type: string
+        description: 실행할 명령 텍스트 (create/update 시). AI가 이 텍스트를 받아 실행합니다
+      cron:
+        type: string
+        description: '크론 표현식 (분 시 일 월 요일). 예: "30 8 * * 1-5"=평일 08:30, "0 9 * * *"=매일 09:00'
+      schedule_id:
+        type: string
+        description: 수정/삭제/토글할 예약 ID (update/delete/toggle 시 필수)
+      description:
+        type: string
+        description: 예약 설명 (선택)
+    required:
+    - action
+
 - tool_id: us_stock
   name: US Stock Tool
   name_ko: 미국주식 도구

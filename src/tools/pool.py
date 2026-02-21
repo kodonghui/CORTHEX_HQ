@@ -147,6 +147,7 @@ class ToolPool:
             "global_market_tool": "src.tools.global_market_tool.GlobalMarketTool",
             "financial_calculator": "src.tools.financial_calculator.FinancialCalculatorTool",
             "calendar_tool": "src.tools.calendar_tool.CalendarTool",
+            "schedule_tool": "src.tools.schedule_tool.ScheduleTool",
             "email_sender": "src.tools.email_sender.EmailSenderTool",
             # ─── Phase 3: 미래 투자 신규 도구 ───
             "vector_knowledge": "src.tools.vector_knowledge.VectorKnowledgeTool",
