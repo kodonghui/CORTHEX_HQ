@@ -3535,6 +3535,42 @@ async def _cron_loop():
             logger.error("크론 루프 에러: %s", e)
 
 
+def _register_default_schedules():
+    """서버 시작 시 기본 스케줄이 없으면 자동 등록합니다."""
+    schedules = _load_data("schedules", [])
+    existing_ids = {s.get("id") for s in schedules}
+
+    defaults = [
+        {
+            "id": "default_cso_morning",
+            "name": "전략실 일일 시장 분석",
+            "command": "@전략실장 오늘 한국 주식시장 주요 동향과 섹터별 분석을 보고해주세요. 주요 이슈와 투자 관점 포함.",
+            "cron": "30 8 * * 1-5",  # 평일 08:30
+            "enabled": True,
+        },
+        {
+            "id": "default_cso_weekly",
+            "name": "전략실 주간 시장 리뷰",
+            "command": "@전략실장 이번 주 시장 총평과 다음 주 전망을 종합 보고서로 작성해주세요.",
+            "cron": "0 18 * * 5",  # 금요일 18:00
+            "enabled": True,
+        },
+    ]
+
+    added = 0
+    for d in defaults:
+        if d["id"] not in existing_ids:
+            d["last_run"] = ""
+            d["last_run_ts"] = 0
+            d["created_at"] = datetime.now(KST).strftime("%Y-%m-%d %H:%M")
+            schedules.append(d)
+            added += 1
+
+    if added:
+        _save_data("schedules", schedules)
+        _log(f"[CRON] 기본 스케줄 {added}개 자동 등록 ✅")
+
+
 async def _run_scheduled_command(command: str, schedule_name: str):
     """예약된 명령을 실행하고, 결과를 텔레그램 CEO에게 발송합니다."""
     try:
@@ -5468,10 +5504,17 @@ async def toggle_trading_bot():
 @app.get("/api/trading/bot/status")
 async def get_trading_bot_status():
     """자동매매 봇 상태."""
+    us_h, us_m = _us_analysis_time_kst()
+    dst_label = "EDT(서머타임)" if _is_us_dst() else "EST(겨울)"
     return {
         "active": _trading_bot_active,
         "task_running": _trading_bot_task is not None and not _trading_bot_task.done() if _trading_bot_task else False,
         "settings": _load_data("trading_settings", _default_trading_settings()),
+        "schedule": {
+            "kr_time": "09:10",
+            "us_time": f"{us_h:02d}:{us_m:02d}",
+            "us_tz": dst_label,
+        },
     }
 
 
@@ -5785,8 +5828,33 @@ async def _run_trading_now_inner():
     }
 
 
+def _is_us_dst() -> bool:
+    """미국 서머타임(EDT) 여부 판정 — 3월 둘째 일요일 02:00 ~ 11월 첫째 일요일 02:00 (ET).
+    한국은 서머타임이 없으므로 날짜 기준 근사 판정."""
+    now = datetime.now(KST)
+    y = now.year
+    # 3월 둘째 일요일 (weekday: 0=Mon, 6=Sun)
+    mar1_wd = datetime(y, 3, 1).weekday()
+    second_sun_mar = 1 + (6 - mar1_wd) % 7 + 7
+    # 11월 첫째 일요일
+    nov1_wd = datetime(y, 11, 1).weekday()
+    first_sun_nov = 1 + (6 - nov1_wd) % 7
+    mar_date = datetime(y, 3, second_sun_mar, tzinfo=KST)
+    nov_date = datetime(y, 11, first_sun_nov, tzinfo=KST)
+    return mar_date <= now < nov_date
+
+
+def _us_market_hours_kst() -> tuple[str, str]:
+    """미국 정규장 KST 시작/종료 시각 (서머타임 자동 반영).
+    EST(겨울): 23:30~06:00 KST | EDT(여름): 22:30~05:00 KST"""
+    if _is_us_dst():
+        return "22:30", "05:00"
+    return "23:30", "06:00"
+
+
 def _is_market_open(settings: dict) -> tuple[bool, str]:
-    """한국/미국 장 시간인지 확인합니다. (둘 중 하나라도 열려있으면 True)"""
+    """한국/미국 장 시간인지 확인합니다. (둘 중 하나라도 열려있으면 True)
+    미국 장 시간은 서머타임(DST) 자동 반영."""
     now = datetime.now(KST)
     now_min = now.hour * 60 + now.minute
 
@@ -5797,27 +5865,36 @@ def _is_market_open(settings: dict) -> tuple[bool, str]:
     if kr_start <= now_min < kr_end:
         return True, "KR"
 
-    # 미국 장 (22:30 ~ 05:00 KST, 다음날로 넘어감)
+    # 미국 장 (서머타임 자동 반영)
+    us_default_start, us_default_end = _us_market_hours_kst()
     us = settings.get("trading_hours_us", {})
-    us_start = sum(int(x) * m for x, m in zip(us.get("start", "22:30").split(":"), [60, 1]))
-    us_end = sum(int(x) * m for x, m in zip(us.get("end", "05:00").split(":"), [60, 1]))
+    us_start = sum(int(x) * m for x, m in zip(us.get("start", us_default_start).split(":"), [60, 1]))
+    us_end = sum(int(x) * m for x, m in zip(us.get("end", us_default_end).split(":"), [60, 1]))
     if us_start <= now_min or now_min < us_end:  # 자정 넘김 처리
         return True, "US"
 
     return False, ""
 
 
-def _next_trading_run_time():
-    """다음 실행 시각 계산 (09:10 또는 14:50 KST).
+def _us_analysis_time_kst() -> tuple[int, int]:
+    """미국장 분석 실행 시각 (KST, 장 오픈 10분 후).
+    EST(겨울): 23:40 KST | EDT(여름): 22:40 KST"""
+    return (22, 40) if _is_us_dst() else (23, 40)
 
-    오늘 두 시각(09:10, 14:50) 중 아직 지나지 않은 가장 빠른 시각을 반환.
+
+def _next_trading_run_time():
+    """다음 실행 시각 계산 (09:10 KST 한국장 / 23:40 또는 22:40 KST 미국장).
+
+    미국장 시간은 서머타임(DST) 자동 반영.
+    오늘 두 시각 중 아직 지나지 않은 가장 빠른 시각을 반환.
     두 시각 모두 지났으면 내일 09:10을 반환.
     """
     now = datetime.now(KST)
     today = now.date()
+    us_h, us_m = _us_analysis_time_kst()
     run_times = [
         datetime(today.year, today.month, today.day, 9, 10, tzinfo=KST),
-        datetime(today.year, today.month, today.day, 14, 50, tzinfo=KST),
+        datetime(today.year, today.month, today.day, us_h, us_m, tzinfo=KST),
     ]
     for t in run_times:
         if t > now:
@@ -5838,7 +5915,8 @@ async def _trading_bot_loop():
     5. 모의투자 모드(paper_trading=True)에서는 가상 포트폴리오만 업데이트
     """
     logger = logging.getLogger("corthex.trading")
-    logger.info("자동매매 봇 루프 시작 (CIO 연동 — 하루 2회: 09:10 + 14:50 KST)")
+    us_h, us_m = _us_analysis_time_kst()
+    logger.info("자동매매 봇 루프 시작 (CIO 연동 — 하루 2회: 09:10 한국장 + %02d:%02d 미국장 KST)", us_h, us_m)
 
     while _trading_bot_active:
         try:
@@ -11070,6 +11148,8 @@ async def on_startup():
     global _cron_task
     _cron_task = asyncio.create_task(_cron_loop())
     _log("[CRON] 크론 실행 엔진 시작 ✅")
+    # 기본 스케줄 자동 등록 (없으면 생성)
+    _register_default_schedules()
     # 도구 실행 엔진 초기화 (비동기 아닌 동기 — 첫 요청 시 lazy 로드도 지원)
     _init_tool_pool()
     # cross_agent_protocol 실시간 콜백 등록

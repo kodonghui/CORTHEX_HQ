@@ -4075,7 +4075,7 @@
                   <span class="text-sm font-bold" :class="trading.botActive ? 'text-hq-green' : 'text-hq-muted'"
                         x-text="trading.botActive ? 'CIO 자동매매 : 가동 중' : 'CIO 자동매매 : 대기'"></span>
                   <p class="text-[10px] text-hq-muted"
-                     x-text="trading.botActive ? 'CIO + 전문가 4명이 하루 2회 관심종목 분석 중 (09:10 한국장 · 14:50 미국장)' : 'CIO 자동매매가 꺼져 있습니다. 설정에서 켜세요.'"></p>
+                     x-text="trading.botActive ? `CIO + 전문가 4명이 하루 2회 관심종목 분석 중 (09:10 한국장 · ${trading.schedule?.us_time || '23:40'} 미국장 ${trading.schedule?.us_tz || ''})` : 'CIO 자동매매가 꺼져 있습니다. 설정에서 켜세요.'"></p>
                 </div>
               </div>
               <div class="flex items-center gap-3">
@@ -9499,6 +9499,7 @@
             this.trading.signals = Array.isArray(signals) ? signals : [];
             this.trading.botActive = summary.bot_active || false;
             this.trading.settings = summary.settings || {};
+            this.trading.schedule = summary.schedule || {};
             this.trading.lastRefresh = new Date().toLocaleTimeString('ko-KR', {hour:'2-digit',minute:'2-digit',second:'2-digit'});
             // 관심종목이 있으면 시세도 자동 조회 (캐시가 비어있을 때만)
             if (this.trading.watchlist.length > 0 && Object.keys(this.trading.watchPrices).length === 0) {
