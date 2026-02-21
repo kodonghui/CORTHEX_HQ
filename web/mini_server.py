@@ -8570,6 +8570,36 @@ async def _start_telegram_bot() -> None:
                 )
                 return
 
+            # 한국어 AI 명령어 (/토론, /심층토론, /전체, /순차)
+            if text.startswith("/토론 ") or text == "/토론":
+                topic = text[len("/토론"):].strip()
+                if not topic:
+                    await update.message.reply_text(
+                        "사용법: /토론 [주제]\n예: /토론 AI가 인간의 일자리를 대체할까?")
+                    return
+                await _tg_long_command(update, f"/토론 {topic}")
+                return
+            if text.startswith("/심층토론 ") or text == "/심층토론":
+                topic = text[len("/심층토론"):].strip()
+                if not topic:
+                    await update.message.reply_text(
+                        "사용법: /심층토론 [주제]\n예: /심층토론 CORTHEX 2026 전략 방향")
+                    return
+                await _tg_long_command(update, f"/심층토론 {topic}")
+                return
+            if text.startswith("/전체 ") or text == "/전체":
+                message_text = text[len("/전체"):].strip() or "전체 출석 보고"
+                await _tg_long_command(update, f"/전체 {message_text}")
+                return
+            if text.startswith("/순차 ") or text == "/순차":
+                message_text = text[len("/순차"):].strip()
+                if not message_text:
+                    await update.message.reply_text(
+                        "사용법: /순차 [작업]\n예: /순차 CORTHEX 웹사이트 기술→보안→사업성 분석")
+                    return
+                await _tg_long_command(update, f"/순차 {message_text}")
+                return
+
             chat_id = str(update.effective_chat.id)
             # DB에 메시지 + 작업 저장
             task = create_task(text, source="telegram")
@@ -8727,13 +8757,10 @@ async def _start_telegram_bot() -> None:
         _telegram_app.add_handler(CommandHandler("resume", cmd_resume))
         _telegram_app.add_handler(CommandHandler("models", cmd_models))
         _telegram_app.add_handler(CallbackQueryHandler(models_callback, pattern=r"^mdl_"))
-        # 신규: 주요 AI 명령 핸들러
-        _telegram_app.add_handler(CommandHandler("토론", cmd_debate))
-        _telegram_app.add_handler(CommandHandler("심층토론", cmd_deep_debate))
-        _telegram_app.add_handler(CommandHandler("전체", cmd_broadcast_all))
-        _telegram_app.add_handler(CommandHandler("순차", cmd_sequential))
+        # 한국어 명령(/토론, /심층토론, /전체, /순차)은 handle_message에서 텍스트로 처리
+        # (Telegram CommandHandler는 라틴 소문자+숫자+밑줄만 허용)
         _telegram_app.add_handler(
-            MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message)
+            MessageHandler(filters.TEXT, handle_message)
         )
 
         _log("[TG] 핸들러 등록 완료, initialize()...")
