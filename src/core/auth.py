@@ -3,6 +3,9 @@
 
 부트스트랩 모드: 사용자가 0명이면 인증 없이 모든 기능 사용 가능 (기존과 동일).
 사용자가 1명 이상 등록되면 인증 활성화.
+
+데이터는 SQLite DB (save_setting/load_setting)에 저장.
+기존 JSON 파일(data/users.json)이 있으면 자동 마이그레이션.
 """
 from __future__ import annotations
 
@@ -115,31 +118,52 @@ def _verify_token(token: str) -> Optional[dict]:
 
 
 class AuthManager:
-    """사용자 인증 관리자."""
+    """사용자 인증 관리자.
+
+    SQLite DB (save_setting/load_setting)에 저장.
+    기존 JSON 파일(data/users.json)이 있으면 최초 1회 자동 마이그레이션.
+    """
+
+    _SETTING_KEY = "auth_users"
 
     def __init__(self, data_path: Path) -> None:
-        self._data_path = data_path
+        # data_path는 기존 JSON 마이그레이션용으로 보존 (호출부 호환)
+        self._legacy_path = data_path
         self._users: list[User] = []
         self._load()
 
     def _load(self) -> None:
-        if not self._data_path.exists():
-            self._users = []
-            return
+        """DB에서 사용자 로드. 없으면 JSON 파일에서 마이그레이션."""
         try:
-            raw = json.loads(self._data_path.read_text(encoding="utf-8"))
-            self._users = [User.from_dict(u) for u in raw]
+            from web.db import load_setting
+            raw = load_setting(self._SETTING_KEY, None)
+            if raw is not None:
+                self._users = [User.from_dict(u) for u in raw]
+                logger.info("사용자 %d명 로드 (DB)", len(self._users))
+                return
         except Exception as e:
-            logger.warning("사용자 데이터 로드 실패: %s", e)
+            logger.warning("사용자 DB 로드 실패: %s", e)
+
+        # DB에 없으면 기존 JSON 파일에서 마이그레이션
+        if self._legacy_path and self._legacy_path.exists():
+            try:
+                raw_json = json.loads(self._legacy_path.read_text(encoding="utf-8"))
+                self._users = [User.from_dict(u) for u in raw_json]
+                logger.info("사용자 JSON→DB 마이그레이션: %d명", len(self._users))
+                self._save()  # DB에 저장
+            except Exception as e:
+                logger.warning("사용자 JSON 마이그레이션 실패: %s", e)
+                self._users = []
+        else:
             self._users = []
 
     def _save(self) -> None:
-        self._data_path.parent.mkdir(parents=True, exist_ok=True)
-        self._data_path.write_text(
-            json.dumps([u.to_dict(include_hash=True) for u in self._users],
-                       ensure_ascii=False, indent=2),
-            encoding="utf-8",
-        )
+        """사용자 목록을 DB에 저장."""
+        try:
+            from web.db import save_setting
+            save_setting(self._SETTING_KEY, [u.to_dict(include_hash=True) for u in self._users])
+        except Exception as e:
+            logger.warning("사용자 DB 저장 실패: %s", e)
 
     @property
     def bootstrap_mode(self) -> bool:

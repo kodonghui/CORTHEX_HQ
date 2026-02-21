@@ -32,7 +32,8 @@ from src.tools.base import BaseTool
 logger = logging.getLogger("corthex.tools.law_change_monitor")
 
 LAW_API_BASE = "https://www.law.go.kr/DRF/lawSearch.do"
-WATCHLIST_PATH = Path("data/law_watchlist.json")
+WATCHLIST_PATH = Path("data/law_watchlist.json")  # 레거시 — 마이그레이션용
+_WATCHLIST_KEY = "law_watchlist"
 
 _DISCLAIMER = (
     "\n\n---\n**면책 안내**: 이 분석은 참고용이며, "
@@ -384,19 +385,29 @@ class LawChangeMonitorTool(BaseTool):
 
     @staticmethod
     def _load_watchlist() -> list[dict]:
-        """감시 목록 JSON 파일 로드."""
-        if not WATCHLIST_PATH.exists():
-            return []
+        """감시 목록을 DB에서 로드합니다. DB에 없으면 레거시 JSON 마이그레이션."""
         try:
-            return json.loads(WATCHLIST_PATH.read_text(encoding="utf-8"))
-        except (json.JSONDecodeError, OSError):
-            return []
+            from web.db import load_setting
+            result = load_setting(_WATCHLIST_KEY, None)
+            if result is not None:
+                return result
+        except Exception:
+            pass
+        # 레거시 JSON 마이그레이션
+        if WATCHLIST_PATH.exists():
+            try:
+                data = json.loads(WATCHLIST_PATH.read_text(encoding="utf-8"))
+                LawChangeMonitorTool._save_watchlist(data)
+                return data
+            except (json.JSONDecodeError, OSError):
+                pass
+        return []
 
     @staticmethod
     def _save_watchlist(watchlist: list[dict]) -> None:
-        """감시 목록 JSON 파일 저장."""
-        WATCHLIST_PATH.parent.mkdir(parents=True, exist_ok=True)
-        WATCHLIST_PATH.write_text(
-            json.dumps(watchlist, ensure_ascii=False, indent=2),
-            encoding="utf-8",
-        )
+        """감시 목록을 DB에 저장합니다."""
+        try:
+            from web.db import save_setting
+            save_setting(_WATCHLIST_KEY, watchlist)
+        except Exception:
+            pass

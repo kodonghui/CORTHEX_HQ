@@ -14,6 +14,7 @@ providers:
         # max_tokens 제거 — 응답 잘림 방지
         tier: "worker"
         reasoning_levels: ["low", "medium", "high"]
+        status: "available"  # 등록됨, 현재 에이전트 미할당
 
       - name: "gpt-5"
         cost_per_1m_input: 1.25
@@ -21,6 +22,7 @@ providers:
         # max_tokens 제거 — 응답 잘림 방지
         tier: "manager"
         reasoning_levels: ["none", "low", "medium", "high"]
+        status: "available"  # 등록됨, 현재 에이전트 미할당
 
       # ── GPT-5.2 시리즈 (최신) ──
       - name: "gpt-5.2"
@@ -84,6 +86,7 @@ providers:
         # max_tokens 제거 — 응답 잘림 방지
         tier: "manager"
         reasoning_levels: ["low", "medium", "high"]
+        status: "available"  # 등록됨, 현재 에이전트 미할당
 
       # 2.5 Flash: 0~24576 토큰, 끌 수 있음 (budget=0)
       - name: "gemini-2.5-flash"
@@ -92,3 +95,4 @@ providers:
         # max_tokens 제거 — 응답 잘림 방지
         tier: "specialist"
         reasoning_levels: ["none", "low", "medium", "high"]
+        status: "available"  # 등록됨, 현재 에이전트 미할당

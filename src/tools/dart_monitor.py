@@ -29,9 +29,11 @@ from src.tools.base import BaseTool
 logger = logging.getLogger("corthex.tools.dart_monitor")
 
 DART_BASE = "https://opendart.fss.or.kr/api"
-WATCHLIST_PATH = Path("data/dart_watchlist.json")
-LAST_CHECK_PATH = Path("data/dart_last_check.json")
-CORP_CODE_CACHE = Path("data/dart_corp_codes.json")
+WATCHLIST_PATH = Path("data/dart_watchlist.json")  # 레거시 — 마이그레이션용
+LAST_CHECK_PATH = Path("data/dart_last_check.json")  # 레거시
+CORP_CODE_CACHE = Path("data/dart_corp_codes.json")  # 기업코드 캐시 (대량 데이터, JSON 유지)
+_WATCHLIST_KEY = "dart_watchlist"
+_LAST_CHECK_KEY = "dart_last_check"
 
 
 class DartMonitorTool(BaseTool):
@@ -297,39 +299,67 @@ class DartMonitorTool(BaseTool):
             logger.error("[DartMonitor] 기업코드 파싱 실패: %s", e)
             return {}
 
-    # ── 파일 I/O 유틸 ──
+    # ── 파일 I/O 유틸 (SQLite DB) ──
 
     @staticmethod
     def _load_watchlist() -> dict[str, Any]:
+        """감시 목록을 DB에서 로드합니다. DB에 없으면 레거시 JSON 마이그레이션."""
+        try:
+            from web.db import load_setting
+            result = load_setting(_WATCHLIST_KEY, None)
+            if result is not None:
+                return result
+        except Exception:
+            pass
+        # 레거시 JSON 마이그레이션
         if WATCHLIST_PATH.exists():
             try:
                 with open(WATCHLIST_PATH) as f:
-                    return json.load(f)
+                    data = json.load(f)
+                DartMonitorTool._save_watchlist(data)
+                return data
             except Exception:
                 pass
         return {}
 
     @staticmethod
     def _save_watchlist(watchlist: dict[str, Any]) -> None:
-        WATCHLIST_PATH.parent.mkdir(parents=True, exist_ok=True)
-        with open(WATCHLIST_PATH, "w") as f:
-            json.dump(watchlist, f, ensure_ascii=False, indent=2)
+        """감시 목록을 DB에 저장합니다."""
+        try:
+            from web.db import save_setting
+            save_setting(_WATCHLIST_KEY, watchlist)
+        except Exception:
+            pass
 
     @staticmethod
     def _load_last_check() -> dict[str, str]:
+        """마지막 확인 시각을 DB에서 로드합니다."""
+        try:
+            from web.db import load_setting
+            result = load_setting(_LAST_CHECK_KEY, None)
+            if result is not None:
+                return result
+        except Exception:
+            pass
+        # 레거시 JSON 마이그레이션
         if LAST_CHECK_PATH.exists():
             try:
                 with open(LAST_CHECK_PATH) as f:
-                    return json.load(f)
+                    data = json.load(f)
+                DartMonitorTool._save_last_check(data)
+                return data
             except Exception:
                 pass
         return {}
 
     @staticmethod
     def _save_last_check(last_check: dict[str, str]) -> None:
-        LAST_CHECK_PATH.parent.mkdir(parents=True, exist_ok=True)
-        with open(LAST_CHECK_PATH, "w") as f:
-            json.dump(last_check, f, ensure_ascii=False, indent=2)
+        """마지막 확인 시각을 DB에 저장합니다."""
+        try:
+            from web.db import save_setting
+            save_setting(_LAST_CHECK_KEY, last_check)
+        except Exception:
+            pass
 
     @staticmethod
     def _check_api_key() -> str:

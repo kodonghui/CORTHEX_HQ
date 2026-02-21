@@ -32,9 +32,9 @@ logger = logging.getLogger("corthex.tools.uptime_monitor")
 
 KST = timezone(timedelta(hours=9))
 
-DATA_DIR = Path("data")
-WATCHLIST_FILE = DATA_DIR / "uptime_watchlist.json"
-HISTORY_FILE = DATA_DIR / "uptime_history.json"
+DATA_DIR = Path("data")  # 레거시 — 하위 호환용으로 보존
+_WATCHLIST_KEY = "uptime_watchlist"
+_HISTORY_KEY = "uptime_history"
 
 # 응답 느림 경고 기준 (초)
 SLOW_THRESHOLD = 2.0
@@ -64,34 +64,45 @@ class UptimeMonitorTool(BaseTool):
                 "add, remove, check, list, history 중 하나를 사용하세요."
             )
 
-    # ── 데이터 로드/저장 헬퍼 ──
-
-    def _ensure_data_dir(self) -> None:
-        DATA_DIR.mkdir(parents=True, exist_ok=True)
+    # ── 데이터 로드/저장 헬퍼 (SQLite DB) ──
 
     def _load_watchlist(self) -> list[dict]:
-        if not WATCHLIST_FILE.exists():
-            return []
-        return json.loads(WATCHLIST_FILE.read_text(encoding="utf-8"))
+        """감시 목록을 DB에서 로드합니다."""
+        try:
+            from web.db import load_setting
+            result = load_setting(_WATCHLIST_KEY, None)
+            if result is not None:
+                return result
+        except Exception:
+            pass
+        return []
 
     def _save_watchlist(self, watchlist: list[dict]) -> None:
-        self._ensure_data_dir()
-        WATCHLIST_FILE.write_text(
-            json.dumps(watchlist, ensure_ascii=False, indent=2),
-            encoding="utf-8",
-        )
+        """감시 목록을 DB에 저장합니다."""
+        try:
+            from web.db import save_setting
+            save_setting(_WATCHLIST_KEY, watchlist)
+        except Exception as e:
+            logger.warning("감시 목록 DB 저장 실패: %s", e)
 
     def _load_history(self) -> dict[str, list[dict]]:
-        if not HISTORY_FILE.exists():
-            return {}
-        return json.loads(HISTORY_FILE.read_text(encoding="utf-8"))
+        """응답 이력을 DB에서 로드합니다."""
+        try:
+            from web.db import load_setting
+            result = load_setting(_HISTORY_KEY, None)
+            if result is not None:
+                return result
+        except Exception:
+            pass
+        return {}
 
     def _save_history(self, history: dict[str, list[dict]]) -> None:
-        self._ensure_data_dir()
-        HISTORY_FILE.write_text(
-            json.dumps(history, ensure_ascii=False, indent=2),
-            encoding="utf-8",
-        )
+        """응답 이력을 DB에 저장합니다."""
+        try:
+            from web.db import save_setting
+            save_setting(_HISTORY_KEY, history)
+        except Exception as e:
+            logger.warning("응답 이력 DB 저장 실패: %s", e)
 
     # ── action 구현 ──
 

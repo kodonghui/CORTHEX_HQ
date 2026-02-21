@@ -1337,9 +1337,9 @@ async def sns_status() -> dict:
     return _sns.get_status()
 
 
-@app.get("/api/sns/oauth/status")
-async def sns_oauth_status() -> dict:
-    """SNS 플랫폼별 OAuth 연결 상태 확인."""
+@app.get("/api/sns/publish/status")
+async def sns_publish_status() -> dict:
+    """SNS 플랫폼별 발행 연결 상태 확인 (SNSPublisher 기반)."""
     platforms = {}
     for p in ["instagram", "youtube", "linkedin", "tistory",
               "naver_blog", "naver_cafe", "daum_cafe"]:

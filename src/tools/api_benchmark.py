@@ -31,8 +31,8 @@ logger = logging.getLogger("corthex.tools.api_benchmark")
 
 KST = timezone(timedelta(hours=9))
 
-DATA_DIR = Path("data")
-RESULTS_FILE = DATA_DIR / "benchmark_results.json"
+DATA_DIR = Path("data")  # 레거시 — 하위 호환용으로 보존
+_SETTING_KEY = "benchmark_results"
 
 # 각 도구별 가벼운 테스트 케이스
 BENCHMARK_CASES: dict[str, dict[str, Any]] = {
@@ -66,27 +66,31 @@ class ApiBenchmarkTool(BaseTool):
                 "benchmark, single, report 중 하나를 사용하세요."
             )
 
-    # ── 데이터 저장/로드 ──
-
-    def _ensure_data_dir(self) -> None:
-        DATA_DIR.mkdir(parents=True, exist_ok=True)
+    # ── 데이터 저장/로드 (SQLite DB) ──
 
     def _load_results(self) -> list[dict]:
-        if not RESULTS_FILE.exists():
-            return []
-        return json.loads(RESULTS_FILE.read_text(encoding="utf-8"))
+        """벤치마크 결과를 DB에서 로드합니다."""
+        try:
+            from web.db import load_setting
+            results = load_setting(_SETTING_KEY, None)
+            if results is not None:
+                return results
+        except Exception:
+            pass
+        return []
 
     def _save_result(self, result: dict) -> None:
-        self._ensure_data_dir()
-        results = self._load_results()
-        results.append(result)
-        # 최근 100개 결과만 보관
-        if len(results) > 100:
-            results = results[-100:]
-        RESULTS_FILE.write_text(
-            json.dumps(results, ensure_ascii=False, indent=2),
-            encoding="utf-8",
-        )
+        """벤치마크 결과를 DB에 저장합니다."""
+        try:
+            from web.db import save_setting
+            results = self._load_results()
+            results.append(result)
+            # 최근 100개 결과만 보관
+            if len(results) > 100:
+                results = results[-100:]
+            save_setting(_SETTING_KEY, results)
+        except Exception as e:
+            logger.warning("벤치마크 결과 DB 저장 실패: %s", e)
 
     # ── 성능 지표 계산 ──
 
