@@ -762,6 +762,40 @@ async def websocket_endpoint(ws: WebSocket):
             connected_clients.remove(ws)
 
 
+# ── 미디어 서빙 (이미지/영상 파일) ──
+
+_MEDIA_BASE = os.path.join(os.getcwd(), "output")
+
+@app.get("/api/media/images/{filename}")
+async def serve_image(filename: str):
+    """생성된 이미지 파일 서빙."""
+    safe_name = os.path.basename(filename)
+    filepath = os.path.join(_MEDIA_BASE, "images", safe_name)
+    if not os.path.isfile(filepath):
+        return JSONResponse({"error": "파일을 찾을 수 없습니다"}, status_code=404)
+    return FileResponse(filepath, media_type="image/png")
+
+@app.get("/api/media/videos/{filename}")
+async def serve_video(filename: str):
+    """생성된 영상 파일 서빙."""
+    safe_name = os.path.basename(filename)
+    filepath = os.path.join(_MEDIA_BASE, "videos", safe_name)
+    if not os.path.isfile(filepath):
+        return JSONResponse({"error": "파일을 찾을 수 없습니다"}, status_code=404)
+    return FileResponse(filepath, media_type="video/mp4")
+
+@app.get("/api/media/list")
+async def list_media():
+    """생성된 미디어 파일 목록."""
+    images_dir = os.path.join(_MEDIA_BASE, "images")
+    videos_dir = os.path.join(_MEDIA_BASE, "videos")
+    images = sorted(os.listdir(images_dir), reverse=True) if os.path.isdir(images_dir) else []
+    videos = sorted(os.listdir(videos_dir), reverse=True) if os.path.isdir(videos_dir) else []
+    return {
+        "images": [{"filename": f, "url": f"/api/media/images/{f}"} for f in images if f.endswith(".png")],
+        "videos": [{"filename": f, "url": f"/api/media/videos/{f}"} for f in videos if f.endswith(".mp4")],
+    }
+
 # ── API 엔드포인트 ──
 
 @app.get("/api/auth/status")
