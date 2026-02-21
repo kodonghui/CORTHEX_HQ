@@ -8096,13 +8096,36 @@ async def export_archive_zip(division: str = None, tier: str = None, limit: int 
 @app.get("/api/telegram-status")
 async def telegram_status():
     """텔레그램 봇 진단 정보 반환."""
+    polling_running = False
+    if _telegram_app and hasattr(_telegram_app, "updater") and _telegram_app.updater:
+        polling_running = _telegram_app.updater.running
     return {
         **_diag,
         "tg_app_exists": _telegram_app is not None,
         "tg_available": _telegram_available,
+        "tg_polling_running": polling_running,
         "env_token_set": bool(os.getenv("TELEGRAM_BOT_TOKEN", "")),
         "env_ceo_id": os.getenv("TELEGRAM_CEO_CHAT_ID", ""),
     }
+
+
+@app.post("/api/debug/telegram-test")
+async def telegram_test():
+    """텔레그램 봇 테스트 — CEO에게 테스트 메시지 전송."""
+    if not _telegram_app:
+        return {"ok": False, "error": "봇 미시작 (tg_app=None)", "diag": _diag}
+    ceo_id = os.getenv("TELEGRAM_CEO_CHAT_ID", "")
+    if not ceo_id:
+        return {"ok": False, "error": "TELEGRAM_CEO_CHAT_ID 미설정"}
+    try:
+        now = datetime.now(KST).strftime("%Y-%m-%d %H:%M:%S")
+        msg = await _telegram_app.bot.send_message(
+            chat_id=int(ceo_id),
+            text=f"CORTHEX HQ 텔레그램 봇 테스트\n시간: {now} KST\n상태: 정상",
+        )
+        return {"ok": True, "message_id": msg.message_id, "chat_id": ceo_id}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
 
 
 # ── 텔레그램 봇 ──
@@ -8682,6 +8705,15 @@ async def _start_telegram_bot() -> None:
                 return False
             return True
 
+        # ── 글로벌 에러 핸들러 (핸들러 예외 로깅) ──
+        async def _tg_error_handler(update, context):
+            _log(f"[TG] ❌ 핸들러 오류: {context.error}")
+            import traceback
+            _diag["tg_last_error"] = str(context.error)
+            _diag["tg_error_time"] = datetime.now(KST).isoformat()
+            traceback.print_exc()
+        _telegram_app.add_error_handler(_tg_error_handler)
+
         # 핸들러 등록
         _telegram_app.add_handler(CommandHandler("start", cmd_start))
         _telegram_app.add_handler(CommandHandler("help", cmd_help))
@@ -8707,12 +8739,28 @@ async def _start_telegram_bot() -> None:
         _log("[TG] 핸들러 등록 완료, initialize()...")
         await _telegram_app.initialize()
 
-        # webhook 충돌 방지: polling 시작 전 webhook 삭제
+        # 토큰 유효성 사전 확인 (getMe)
         try:
-            await _telegram_app.bot.delete_webhook(drop_pending_updates=False)
-            _log("[TG] webhook 삭제 완료 (polling 충돌 방지)")
-        except Exception as we:
-            _log(f"[TG] webhook 삭제 건너뜀: {we}")
+            me = await _telegram_app.bot.get_me()
+            _diag["tg_bot_username"] = me.username
+            _diag["tg_bot_id"] = me.id
+            _log(f"[TG] ✅ 봇 인증 성공: @{me.username} (ID: {me.id})")
+        except Exception as me_err:
+            _log(f"[TG] ❌ 봇 토큰 무효 또는 네트워크 오류: {me_err}")
+            _diag["tg_error"] = f"getMe 실패: {me_err}"
+            _telegram_app = None
+            return
+
+        # webhook 충돌 방지: polling 시작 전 webhook 강제 삭제
+        for attempt in range(3):
+            try:
+                await _telegram_app.bot.delete_webhook(drop_pending_updates=False)
+                _log("[TG] webhook 삭제 완료 (polling 충돌 방지)")
+                break
+            except Exception as we:
+                _log(f"[TG] webhook 삭제 시도 {attempt+1}/3 실패: {we}")
+                if attempt < 2:
+                    await asyncio.sleep(1)
 
         # 봇 명령어 메뉴 설정 (initialize 이후에 API 호출 가능)
         # NOTE: Telegram BotCommand는 라틴 소문자+숫자+밑줄만 허용 (한국어 불가)
@@ -8737,8 +8785,11 @@ async def _start_telegram_bot() -> None:
         _log("[TG] start()...")
         await _telegram_app.start()
         _log("[TG] polling 시작...")
-        # drop_pending_updates=False: 이전에 보낸 /start 메시지도 처리
-        await _telegram_app.updater.start_polling(drop_pending_updates=False)
+        # drop_pending_updates=True: 이전 쌓인 메시지 무시하고 새 메시지만 처리
+        await _telegram_app.updater.start_polling(
+            drop_pending_updates=True,
+            allowed_updates=Update.ALL_TYPES,
+        )
 
         ceo_id = os.getenv("TELEGRAM_CEO_CHAT_ID", "")
         _diag["tg_started"] = True
@@ -10816,7 +10867,11 @@ async def on_startup():
     _load_chief_prompt()
     ai_ok = init_ai_client()
     _log(f"[AI] 클라이언트 초기화: {'성공 ✅' if ai_ok else '실패 ❌ (ANTHROPIC_API_KEY 미설정?)'}")
-    await _start_telegram_bot()
+    try:
+        await _start_telegram_bot()
+    except Exception as tg_err:
+        _log(f"[TG] ❌ 봇 시작 중 미처리 예외: {tg_err}")
+        _diag["tg_error"] = f"startup 예외: {tg_err}"
     # 크론 실행 엔진 시작
     global _cron_task
     _cron_task = asyncio.create_task(_cron_loop())
