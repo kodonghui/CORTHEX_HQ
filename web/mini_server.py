@@ -7134,6 +7134,64 @@ async def post_instagram_reel(request: Request):
     return {"success": False, "error": "인스타그램 API가 아직 연동되지 않았습니다."}
 
 
+@app.get("/api/debug/instagram-token")
+async def debug_instagram_token():
+    """인스타그램 토큰 상태 디버깅 — 토큰 유효성 + 계정 정보 확인."""
+    import httpx as _httpx
+
+    result = {
+        "env_token_exists": bool(os.getenv("INSTAGRAM_ACCESS_TOKEN", "")),
+        "env_user_id_exists": bool(os.getenv("INSTAGRAM_USER_ID", "")),
+        "env_app_id_exists": bool(os.getenv("INSTAGRAM_APP_ID", "")),
+        "env_app_secret_exists": bool(os.getenv("INSTAGRAM_APP_SECRET", "")),
+        "token_prefix": (os.getenv("INSTAGRAM_ACCESS_TOKEN", "")[:20] + "...") if os.getenv("INSTAGRAM_ACCESS_TOKEN") else None,
+        "user_id": os.getenv("INSTAGRAM_USER_ID", ""),
+    }
+
+    # DB에 저장된 OAuth 토큰 확인
+    try:
+        from src.tools.sns.oauth_manager import OAuthManager
+        oauth = OAuthManager()
+        db_token = oauth.get_token("instagram")
+        if db_token:
+            result["db_token_exists"] = True
+            result["db_token_expired"] = db_token.is_expired
+            result["db_token_expires_at"] = db_token.expires_at
+            result["db_has_refresh"] = bool(db_token.refresh_token)
+        else:
+            result["db_token_exists"] = False
+    except Exception as e:
+        result["db_error"] = str(e)
+
+    # 실제 Graph API 호출로 토큰 유효성 검증
+    access_token = os.getenv("INSTAGRAM_ACCESS_TOKEN", "")
+    if access_token:
+        try:
+            async with _httpx.AsyncClient(timeout=10) as client:
+                resp = await client.get(
+                    "https://graph.instagram.com/me",
+                    params={"fields": "id,username,account_type,media_count", "access_token": access_token},
+                )
+                data = resp.json()
+                if "error" in data:
+                    result["api_valid"] = False
+                    result["api_error"] = data["error"].get("message", str(data["error"]))
+                    result["api_error_code"] = data["error"].get("code")
+                    result["api_error_type"] = data["error"].get("type")
+                else:
+                    result["api_valid"] = True
+                    result["api_username"] = data.get("username", "")
+                    result["api_account_type"] = data.get("account_type", "")
+                    result["api_media_count"] = data.get("media_count", 0)
+        except Exception as e:
+            result["api_error"] = f"요청 실패: {str(e)}"
+    else:
+        result["api_valid"] = False
+        result["api_error"] = "INSTAGRAM_ACCESS_TOKEN 환경변수 없음"
+
+    return result
+
+
 @app.post("/api/sns/youtube/upload")
 async def post_youtube_video(request: Request):
     return {"success": False, "error": "유튜브 API가 아직 연동되지 않았습니다."}

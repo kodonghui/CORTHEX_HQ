@@ -49,10 +49,23 @@
 - 기억에 의존해서 TR_ID, 엔드포인트, 파라미터명 쓰면 안 됨
 - KIS 참고: [KIS Developers](https://apiportal.koreainvestment.com), [공식 GitHub](https://github.com/koreainvestment/open-trading-api)
 
-## GitHub Secrets (전체 등록 완료 — 다시 물어보지 말 것!)
-- 50+ 시크릿 등록됨. 대표님에게 "API 키 알려주세요" 절대 금지
+## 🔴🔴🔴 GitHub Secrets — 대표님이 이미 전부 등록함! 절대 다시 물어보지 말 것! 🔴🔴🔴
+- **50+ 시크릿 전부 등록 완료**. "API 키 알려주세요" 금지. "키가 없어요" 금지.
 - deploy.yml이 서버 `/home/ubuntu/corthex.env`에 자동 반영
-- 키 재등록: `.venv/Scripts/python set_secrets.py`
+- **등록된 API 키 목록** (전부 있음. "미설정"이라 판단하지 말 것):
+  - AI: `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GOOGLE_API_KEY`
+  - 텔레그램: `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CEO_CHAT_ID`
+  - 노션: `NOTION_API_KEY`, `NOTION_DB_SECRETARY`, `NOTION_DB_OUTPUT`, `NOTION_DEFAULT_DB_ID`
+  - 주식: `KOREA_INVEST_APP_KEY/SECRET/ACCOUNT` (실전+모의 둘 다)
+  - 공공: `DART_API_KEY`, `ECOS_API_KEY`, `KIPRIS_API_KEY`, `LAW_API_KEY`, `SERPAPI_KEY`
+  - 인스타: `INSTAGRAM_APP_ID/APP_SECRET/ACCESS_TOKEN/USER_ID`
+  - 유튜브: `YOUTUBE_CLIENT_ID/CLIENT_SECRET/REFRESH_TOKEN`
+  - 카카오: `KAKAO_REST_API_KEY/ID/PW`
+  - 네이버: `NAVER_CLIENT_ID/CLIENT_SECRET/ID/PW/BLOG_ID`
+  - 다음: `DAUM_ID/PW/CAFE_ID/CAFE_BOARD_ID`
+  - 이메일: `SMTP_HOST/PORT/USER/PASS`
+  - 구글 OAuth: `GOOGLE_CLIENT_ID/CLIENT_SECRET/REDIRECT_URI/CALENDAR_REDIRECT_URI`
+  - 기타: `REPO_ACCESS_TOKEN`, `SERVER_IP_ARM`, `SERVER_SSH_KEY_ARM`
 
 ## UI/UX 규칙
 - 언어: 한국어 | 시간대: `Asia/Seoul` (KST)
@@ -171,6 +184,11 @@
 - **웹에서 soul 수정 불가** — API 엔드포인트 비활성화, UI 읽기 전용
 - soul 변경은 반드시 `config/agents.yaml`의 system_prompt를 직접 수정
 - souls/*.md 파일은 yaml에 프롬프트가 없을 때만 폴백으로 사용
+
+## 🔴 CORTHEX 비전 + 리트마스터 (반드시 참조!)
+- **비전 상세**: `docs/corthex-vision.md` ← 반드시 읽을 것 (대표님이 왜 CORTHEX를 만들었는지)
+- **리트마스터 GitHub**: https://github.com/kodonghui/leet-master
+- 핵심: AI 해설 + 피드백 시스템 / 수험생 수요 분석 / 통계+크롤링+SNS 자동화
 
 ## 대표님 문서 (논의/기록용)
 - `docs/ceo-ideas.md` — 대표님 아이디어 & 기여 로그. **아이디어/버그 발견 시 자동 업데이트 필수**
