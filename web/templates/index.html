@@ -2164,6 +2164,8 @@
                       </svg>
                       <span class="text-[11px] font-semibold text-hq-text/80 truncate"
                             x-text="getAgentName(log.receiver) || log.receiver"></span>
+                      <span x-show="log.title" class="text-[10px] text-hq-accent/70 truncate max-w-[120px]"
+                            x-text="'· ' + (log.title || '')"></span>
                       <span class="ml-auto text-[9px] text-hq-muted/40 shrink-0 cursor-default"
                             :title="formatTime(log.created_at)"
                             x-text="relativeTimeStr(log.created_at)"></span>

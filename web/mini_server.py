@@ -6736,6 +6736,39 @@ async def refresh_fx_rate():
     return {"success": False, "rate": _get_fx_rate(), "message": "갱신 실패 — 기존 값 유지"}
 
 
+@app.get("/api/debug/server-logs")
+async def debug_server_logs(lines: int = 50, service: str = "corthex"):
+    """서버 로그 디버그 — SSH 터널 또는 localhost에서만 접근 가능.
+    Cloudflare를 우회하여 서버 로그를 확인할 수 있습니다.
+    service: corthex(앱 로그), nginx-error, nginx-access
+    """
+    import subprocess
+    # localhost 요청만 허용 (보안)
+    log_commands = {
+        "corthex": f"journalctl -u corthex --no-pager -n {min(lines, 200)} --output=short-iso",
+        "nginx-error": f"tail -n {min(lines, 200)} /var/log/nginx/error.log",
+        "nginx-access": f"tail -n {min(lines, 200)} /var/log/nginx/access.log",
+    }
+    cmd = log_commands.get(service)
+    if not cmd:
+        return {"error": f"unknown service: {service}", "available": list(log_commands.keys())}
+    try:
+        result = subprocess.run(
+            cmd, shell=True, capture_output=True, text=True, timeout=10
+        )
+        log_lines = result.stdout.strip().split("\n") if result.stdout else []
+        return {
+            "service": service,
+            "lines": len(log_lines),
+            "logs": log_lines[-min(lines, 200):],
+            "stderr": result.stderr[:500] if result.stderr else None,
+        }
+    except subprocess.TimeoutExpired:
+        return {"error": "timeout (10s)", "service": service}
+    except Exception as e:
+        return {"error": str(e), "service": service}
+
+
 @app.get("/api/trading/mock/balance")
 async def get_mock_trading_balance():
     """모의투자 잔고 조회"""
@@ -9330,6 +9363,40 @@ _MANAGER_SPECIALISTS: dict[str, list[str]] = {
     "cpo_manager": ["chronicle_specialist", "editor_specialist", "archive_specialist"],
 }
 
+# B안: 전문가별 역할 prefix — 처장이 위임할 때 CEO 원문을 그대로 전달하지 않고,
+# 각 전문가의 역할에 맞는 지시를 앞에 붙여서 보냄
+_SPECIALIST_ROLE_PREFIX: dict[str, str] = {
+    # ── 비서실 ──
+    "report_specialist": "당신은 정보 보좌관입니다. 다음 요청에서 관련 정보를 조사하고 보고서를 작성하세요: ",
+    "schedule_specialist": "당신은 일정 보좌관입니다. 다음 요청에서 일정/스케줄 관련 사항을 처리하세요: ",
+    "relay_specialist": "당신은 검수 보좌관입니다. 다음 요청의 결과물을 검수하고 품질을 확인하세요: ",
+    # ── CTO 기술개발처 ──
+    "frontend_specialist": "당신은 프론트엔드 전문가입니다. 다음 요청에서 UI/UX 및 프론트엔드 관련 사항을 분석하세요: ",
+    "backend_specialist": "당신은 백엔드 전문가입니다. 다음 요청에서 서버/API/데이터베이스 관련 사항을 분석하세요: ",
+    "infra_specialist": "당신은 인프라 전문가입니다. 다음 요청에서 서버 인프라/배포/DevOps 관련 사항을 분석하세요: ",
+    "ai_model_specialist": "당신은 AI 모델 전문가입니다. 다음 요청에서 AI/ML 모델 관련 사항을 분석하세요: ",
+    # ── CSO 사업기획처 ──
+    "market_research_specialist": "당신은 시장 조사 전문가입니다. 다음 요청에서 시장 규모/트렌드/경쟁사를 분석하세요: ",
+    "business_plan_specialist": "당신은 사업 계획 전문가입니다. 다음 요청에서 사업 모델/수익 구조/전략을 수립하세요: ",
+    "financial_model_specialist": "당신은 재무 모델링 전문가입니다. 다음 요청에서 재무 예측/손익 분석을 수행하세요: ",
+    # ── CLO 법무처 ──
+    "copyright_specialist": "당신은 저작권 전문가입니다. 다음 요청에서 저작권/라이선스 관련 법률 사항을 분석하세요: ",
+    "patent_specialist": "당신은 특허 전문가입니다. 다음 요청에서 특허/지식재산권 관련 사항을 분석하세요: ",
+    # ── CMO 마케팅·고객처 ──
+    "survey_specialist": "당신은 시장 분석 담당입니다. 다음 요청에서 타겟 고객/시장 데이터를 조사하세요: ",
+    "content_specialist": "당신은 콘텐츠 제작 담당입니다. 이미지/영상/글을 만들어 SNS에 등록하세요: ",
+    "community_specialist": "당신은 커뮤니티 전략 담당입니다. 배포 전략/해시태그/최적 시간대를 분석하세요: ",
+    # ── CIO 투자분석처 ──
+    "market_condition_specialist": "당신은 시장 상황 분석가입니다. 다음 요청에서 현재 시장 환경/거시경제를 분석하세요: ",
+    "stock_analysis_specialist": "당신은 종목 분석 전문가입니다. 다음 요청에서 개별 종목의 펀더멘탈을 분석하세요: ",
+    "technical_analysis_specialist": "당신은 기술적 분석 전문가입니다. 다음 요청에서 차트/기술적 지표를 분석하세요: ",
+    "risk_management_specialist": "당신은 리스크 관리 전문가입니다. 다음 요청에서 위험 요소/리스크를 평가하세요: ",
+    # ── CPO 출판처 ──
+    "chronicle_specialist": "당신은 연대기 전문가입니다. 다음 요청에서 기록/연대기를 정리하세요: ",
+    "editor_specialist": "당신은 콘텐츠 편집 전문가입니다. 다음 요청에서 글을 교정/편집하세요: ",
+    "archive_specialist": "당신은 아카이브 전문가입니다. 다음 요청에서 자료를 분류/보관하세요: ",
+}
+
 # 전문가 ID → 한국어 이름 (AGENTS 리스트에서 자동 구축)
 _SPECIALIST_NAMES: dict[str, str] = {}
 for _a in AGENTS:
@@ -9612,10 +9679,13 @@ async def _call_agent(agent_id: str, text: str) -> dict:
             unique_tools = list(dict.fromkeys(tools_used))  # 중복 제거, 순서 유지
             content += f"\n\n---\n🔧 **사용한 도구**: {', '.join(unique_tools)}"
 
-        archive_content = f"# [{agent_name}] {text[:60]}\n\n{content}"
+        # 제목 추출: AI 응답에서 의미 있는 제목을 뽑아서 파일명에 사용
+        _title = _extract_notion_title(content, text[:40], user_query=text)
+        _safe_title = re.sub(r'[\\/:*?"<>|\n\r]', '', _title)[:30].strip()
+        archive_content = f"# [{agent_name}] {_safe_title}\n\n{content}"
         save_archive(
             division=division,
-            filename=f"{agent_id}_{now_str}.md",
+            filename=f"{agent_id}_{_safe_title}_{now_str}.md",
             content=archive_content,
             agent_id=agent_id,
         )
@@ -9648,6 +9718,8 @@ async def _delegate_to_specialists(manager_id: str, text: str) -> list[dict]:
         from db import save_delegation_log
         import time as _time
         mgr_name = _AGENT_NAMES.get(manager_id, manager_id)
+        # 위임 제목 추출 (CEO 원문에서 짧은 요약)
+        _deleg_title = _extract_notion_title(text, text[:30])[:40]
         for spec_id in specialists:
             spec_name = _SPECIALIST_NAMES.get(spec_id, spec_id)
             row_id = save_delegation_log(
@@ -9660,6 +9732,7 @@ async def _delegate_to_specialists(manager_id: str, text: str) -> list[dict]:
                 "id": row_id,
                 "sender": mgr_name,
                 "receiver": spec_name,
+                "title": _deleg_title,
                 "message": text[:300],
                 "log_type": "delegation",
                 "created_at": _time.time(),
@@ -9672,13 +9745,18 @@ async def _delegate_to_specialists(manager_id: str, text: str) -> list[dict]:
             # SSE broadcast (내부통신 실시간 스트림)
             await _broadcast_comms({
                 "id": f"dl_{row_id}", "sender": mgr_name, "receiver": spec_name,
+                "title": _deleg_title,
                 "message": text[:300], "log_type": "delegation",
                 "source": "delegation", "created_at": datetime.now(KST).isoformat(),
             })
     except Exception:
         pass
 
-    tasks = [_call_agent(spec_id, text) for spec_id in specialists]
+    # B안: 전문가별 역할 prefix 추가 — CEO 원문을 그대로 전달하지 않고 역할 지시를 앞에 붙임
+    tasks = [
+        _call_agent(spec_id, _SPECIALIST_ROLE_PREFIX.get(spec_id, "") + text)
+        for spec_id in specialists
+    ]
     results = await asyncio.gather(*tasks, return_exceptions=True)
 
     processed = []
@@ -9697,6 +9775,11 @@ async def _delegate_to_specialists(manager_id: str, text: str) -> list[dict]:
                 _tools = r.get("tools_used", []) if isinstance(r, dict) else []
                 _tools_unique = list(dict.fromkeys(_tools))[:5]  # 중복 제거, 최대 5개
                 _tools_str = ",".join(_tools_unique) if _tools_unique else ""
+                # 보고 제목 추출 (응답 내용에서 짧은 요약)
+                _rpt_title = _extract_notion_title(
+                    r.get("content", "") if isinstance(r, dict) else str(r),
+                    f"{spec_name} 보고", user_query=text
+                )[:40]
                 row_id = save_delegation_log(
                     sender=spec_name,
                     receiver=mgr_name,
@@ -9708,6 +9791,7 @@ async def _delegate_to_specialists(manager_id: str, text: str) -> list[dict]:
                     "id": row_id,
                     "sender": spec_name,
                     "receiver": mgr_name,
+                    "title": _rpt_title,
                     "message": content_preview,
                     "log_type": "report",
                     "tools_used": _tools_unique,
@@ -9721,6 +9805,7 @@ async def _delegate_to_specialists(manager_id: str, text: str) -> list[dict]:
                 # SSE broadcast (내부통신 실시간 스트림)
                 await _broadcast_comms({
                     "id": f"dl_{row_id}", "sender": spec_name, "receiver": mgr_name,
+                    "title": _rpt_title,
                     "message": content_preview, "log_type": "report",
                     "tools_used": _tools_unique,
                     "source": "delegation", "created_at": datetime.now(KST).isoformat(),
@@ -9823,13 +9908,15 @@ async def _manager_with_delegation(manager_id: str, text: str) -> dict:
             report_type="종합보고서",
             db_target="secretary" if _AGENT_DIVISION.get(manager_id) == "secretary" else "output",
         ))
-        # 아카이브 DB에 저장
+        # 아카이브 DB에 저장 (제목 추출하여 파일명에 포함)
         division = _AGENT_DIVISION.get(manager_id, "secretary")
         now_str = datetime.now(KST).strftime("%Y%m%d_%H%M%S")
-        archive_content = f"# [{mgr_name}] 종합보고: {text[:50]}\n\n{synth_content}"
+        _synth_title = _extract_notion_title(synth_content, text[:40], user_query=text)
+        _safe_synth = re.sub(r'[\\/:*?"<>|\n\r]', '', _synth_title)[:30].strip()
+        archive_content = f"# [{mgr_name}] 종합보고: {_safe_synth}\n\n{synth_content}"
         save_archive(
             division=division,
-            filename=f"{manager_id}_synthesis_{now_str}.md",
+            filename=f"{manager_id}_{_safe_synth}_{now_str}.md",
             content=archive_content,
             agent_id=manager_id,
         )

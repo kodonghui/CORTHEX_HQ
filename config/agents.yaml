@@ -1057,12 +1057,14 @@ agents:
     \ 규칙\nSNS, 블로그 등 외부 발행용 콘텐츠를 작성할 때는 반드시 spawn_agent 도구로 출판처 콘텐츠편집\
     \ 전문가(editor_specialist)에게 교정을 요청한 뒤 최종본을 제출하세요.\n직접 발행하지 말고, 편집 완료\
     \ 후 CEO 승인을 거쳐야 합니다.\n\n## 미디어 생성 필수 규칙\nSNS/블로그 콘텐츠 작성 시\
-    \ 텍스트만 만들지 말고 반드시 이미지와 영상도 함께 생성하세요:\n- **이미지**: gemini_image_generator\
-    \ 도구로 실제 이미지를 생성하세요 (action=banner, social_post, thumbnail 등)\n- **영상(릴스)**: gemini_video_generator\
-    \ 도구로 실제 영상을 생성하세요 (action=reels)\n- **발행 요청**: 콘텐츠+이미지+영상을 sns_manager(action=submit)로\
-    \ 승인 큐에 등록하세요. media_urls에 생성된 이미지/영상 URL을 반드시 포함하세요.\n- **CEO가 특정 플랫폼을\
+    \ 텍스트만 만들지 말고 반드시 이미지도 함께 생성하세요:\n- **이미지**: gemini_image_generator\
+    \ 도구로 실제 이미지를 생성하세요 (action=banner, social_post, thumbnail 등)\n- **발행 요청**: 콘텐츠+이미지를 sns_manager(action=submit)로\
+    \ 승인 큐에 등록하세요. media_urls에 생성된 이미지 URL을 반드시 포함하세요.\n- **CEO가 특정 플랫폼을\
     \ 제외하라고 하면 해당 플랫폼은 절대 포함하지 마세요.**\n텍스트만 달랑 제출하면 안 됩니다. 이미지 없는\
-    \ SNS 콘텐츠는 존재하지 않습니다."
+    \ SNS 콘텐츠는 존재하지 않습니다.\n\n## 플랫폼 발행 규칙 (반드시 준수)\n- **플랫폼당 1개만 등록**: 같은 플랫폼에\
+    \ 중복 등록 금지\n- **우선순위**: 네이버 블로그 + 티스토리 우선 발행. 이 두 곳에 먼저 올리세요.\n- **유튜브**:\
+    \ 채널이 있을 때만 등록. 채널이 없으면 유튜브는 건너뛰세요.\n- **연동 안 된 플랫폼에 올리지 마세요**:\
+    \ 네이버 카페(CLUB_ID 미설정), 인스타그램(비즈니스 계정 전환 필요) 등 현재 연동이 안 된 플랫폼은 제외하세요."
   capabilities:
   - 콘텐츠 작성
   - 카피라이팅
@@ -1072,7 +1074,6 @@ agents:
   - email_optimizer
   - report_generator
   - gemini_image_generator
-  - gemini_video_generator
   - sns_manager
   - naver_news
   - cross_agent_protocol
@@ -1117,7 +1118,6 @@ agents:
   - platform_market_scraper
   - naver_place_scraper
   - sentiment_analyzer
-  - sns_manager
   - leet_survey
   - cross_agent_protocol
   - spawn_agent
