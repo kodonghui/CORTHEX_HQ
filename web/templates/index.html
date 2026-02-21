@@ -5043,12 +5043,12 @@
                   <tbody>
                     <template x-for="pred in predictions" :key="pred.id">
                       <tr class="border-b border-hq-border/30 hover:bg-hq-surface/50">
-                        <td class="px-4 py-2 text-hq-muted font-mono" x-text="pred.created_at ? pred.created_at.slice(0,10) : '-'"></td>
-                        <td class="px-4 py-2 font-bold text-hq-text" x-text="pred.ticker || '-'"></td>
+                        <td class="px-4 py-2 text-hq-muted font-mono" x-text="pred.analyzed_at ? pred.analyzed_at.slice(0,10) : '-'"></td>
+                        <td class="px-4 py-2 font-bold text-hq-text" x-text="(pred.ticker_name || pred.ticker || '-')"></td>
                         <td class="px-4 py-2">
                           <span class="px-2 py-0.5 rounded font-bold"
-                                :class="pred.direction === 'UP' ? 'bg-hq-green/20 text-hq-green' : 'bg-hq-red/20 text-hq-red'"
-                                x-text="pred.direction === 'UP' ? '상승' : '하락'"></span>
+                                :class="['BUY','UP'].includes(pred.direction) ? 'bg-hq-green/20 text-hq-green' : 'bg-hq-red/20 text-hq-red'"
+                                x-text="['BUY','UP'].includes(pred.direction) ? '매수' : '매도'"></span>
                         </td>
                         <td class="px-4 py-2 text-right font-mono text-hq-text" x-text="pred.predicted_price ? pred.predicted_price.toLocaleString() + '원' : '-'"></td>
                         <td class="px-4 py-2 text-center">
@@ -9935,6 +9935,10 @@
         async applyRecommendedModels() {
           try {
             const res = await fetch('/api/agents/apply-recommended', { method: 'POST' }).then(r => r.json());
+            if (res.error) {
+              this.showToast(res.error, 'error');
+              return;
+            }
             if (res.success) {
               this.modelMode = 'recommended';
               await fetch('/api/model-mode', {
@@ -9942,12 +9946,13 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ mode: 'recommended' }),
               }).catch(() => {});
+              // 에이전트 목록 새로고침 → 카드 모델 표시 갱신
+              await this.loadAgentsAndTools();
               this.showToast(`권장 모델 적용 완료 (${res.applied_count}명)`, 'success');
-              try { await this.loadAgentsAndTools(); } catch {}
             } else {
-              this.showToast('적용 실패', 'error');
+              this.showToast('적용 실패: 서버 응답 오류', 'error');
             }
-          } catch { this.showToast('적용 실패', 'error'); }
+          } catch(e) { this.showToast('적용 실패: ' + (e.message || '네트워크 오류'), 'error'); }
         },
 
         async saveAgentDefaults() {

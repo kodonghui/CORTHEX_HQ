@@ -5104,6 +5104,25 @@ async def generate_trading_signals():
     except Exception as e:
         logger.warning("[CIO성과] 예측 저장 실패: %s", e)
 
+    # P2-7: CIO 목표가 → 관심종목 자동 반영
+    try:
+        _wl = _load_data("trading_watchlist", [])
+        _updated = 0
+        for sig in parsed_signals:
+            tp = sig.get("target_price", 0)
+            if not tp or tp <= 0:
+                continue
+            for w in _wl:
+                if w.get("ticker") == sig.get("ticker"):
+                    w["target_price"] = tp
+                    _updated += 1
+                    break
+        if _updated > 0:
+            _save_data("trading_watchlist", _wl)
+            logger.info("[P2-7] 관심종목 목표가 %d건 자동 갱신", _updated)
+    except Exception as e:
+        logger.warning("[P2-7] 관심종목 목표가 반영 실패: %s", e)
+
     # 기밀문서 자동 저장 (CIO 독자분석 + 전체 분석 포함)
     try:
         now_str = datetime.now(KST).strftime("%Y-%m-%d %H:%M")
