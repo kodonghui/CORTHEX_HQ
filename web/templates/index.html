@@ -7955,12 +7955,11 @@
           return map[modelName] || [];
         },
 
-        // 에이전트 카드 라벨 업데이트: "Claude Sonnet 4.6 (medium)" 형식
+        // 에이전트 카드 라벨 업데이트
         _updateAgentCardLabel(agentId) {
           const modelName = this.agentConfigData?.model_name || this.agentModelRaw[agentId] || '';
           const reasoning = this.agentConfigData?.reasoning_effort || this.agentReasonings[agentId] || '';
-          const displayName = this.getModelDisplayName(modelName);
-          this.agentModels[agentId] = reasoning ? `${displayName} (${reasoning})` : displayName;
+          this.agentModels[agentId] = modelName;
           this.agentModelRaw[agentId] = modelName;
           this.agentReasonings[agentId] = reasoning;
         },
@@ -8954,10 +8953,8 @@
                 // 모델 원본 이름과 추론 레벨 저장 (내부 데이터용)
                 this.agentModelRaw[a.agent_id] = a.model_name || '';
                 this.agentReasonings[a.agent_id] = a.reasoning_effort || '';
-                // 에이전트 카드에 "표시명 (추론레벨)" 형식으로 표시
-                const displayName = this.getModelDisplayName(a.model_name || '');
-                const re = a.reasoning_effort || '';
-                this.agentModels[a.agent_id] = re ? `${displayName} (${re})` : displayName;
+                // 에이전트 카드에 표시명 저장 (추론레벨은 템플릿에서 별도 표시)
+                this.agentModels[a.agent_id] = a.model_name || '';
                 if (a.division) {
                   const divMap = { '비서실': 'secretary', '기술개발처': 'tech', '사업기획처': 'strategy',
                                    '법무처': 'legal', '마케팅처': 'marketing', '투자분석처': 'finance',
