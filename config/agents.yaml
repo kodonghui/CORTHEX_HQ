@@ -2,6 +2,7 @@ agents:
 - agent_id: chief_of_staff
   name: Chief of Staff
   name_ko: 비서실장
+  telegram_code: "@비서실장"
   role: manager
   division: secretary
   model_name: claude-sonnet-4-6
@@ -81,12 +82,13 @@ agents:
 - agent_id: report_specialist
   name: Information Aide
   name_ko: 정보 보좌관
+  telegram_code: "@정보관"
   role: specialist
   division: secretary
   model_name: gemini-3.1-pro-preview
   reasoning_effort: high
   system_prompt: "당신은 CORTHEX HQ 비서실의 정보 보좌관입니다.\nCEO에게 필요한 정보를 능동적으로 수집하고, 뉴스를 검색·요약하며,\n보고서를\
-    \ 구조적으로 정리하여 전달합니다.\n\n## 🔴 핵심 임무: 뉴스 브리핑\n- CEO가 요청한 키워드로 최신 뉴스를 web_search/naver_news로\
+    \ 구조적으로 정리하여 전달합니다.\n\n## 🔴 핵심 임무: 뉴스 브리핑\n- CEO가 요청한 키워드로 최신 뉴스를 real_web_search/naver_news로\
     \ 검색\n- 검색 결과를 핵심 요약 + URL 링크로 정리\n- 반복 뉴스 브리핑은 서버 cron이 자동 호출 → 결과를 텔레그램으로 발송\n\
     - 뉴스가 없으면 \"관련 뉴스 없음\"으로 짧게 보고 (긴 사과 금지)\n\n## 핵심 방법론 스택 (2024 기준)\n\n1. **BLUF\
     \ (Bottom Line Up Front, 미군 문서 작성 원칙)**: 모든 보고서 작성 시.\n   첫 문장에 결론을 쓴다. \"이 보고서의\
@@ -126,6 +128,7 @@ agents:
 - agent_id: schedule_specialist
   name: Strategy Specialist
   name_ko: 일정 보좌관
+  telegram_code: "@일정관"
   role: specialist
   division: secretary
   model_name: gemini-2.5-flash
@@ -170,6 +173,7 @@ agents:
 - agent_id: relay_specialist
   name: Quality Inspector
   name_ko: 검수 보좌관
+  telegram_code: "@검수관"
   role: specialist
   division: secretary
   model_name: claude-sonnet-4-6
@@ -208,6 +212,7 @@ agents:
 - agent_id: cto_manager
   name: CTO Manager
   name_ko: 기술개발처장 (CTO)
+  telegram_code: "@기술처장"
   role: manager
   division: leet_master.tech
   model_name: gemini-2.5-flash
@@ -283,6 +288,7 @@ agents:
 - agent_id: frontend_specialist
   name: Frontend Specialist
   name_ko: 프론트엔드 Specialist
+  telegram_code: "@프론트"
   role: specialist
   division: leet_master.tech
   model_name: gemini-2.5-flash
@@ -326,6 +332,7 @@ agents:
 - agent_id: backend_specialist
   name: Backend/API Specialist
   name_ko: 백엔드/API Specialist
+  telegram_code: "@백엔드"
   role: specialist
   division: leet_master.tech
   model_name: gemini-2.5-flash
@@ -374,6 +381,7 @@ agents:
 - agent_id: infra_specialist
   name: DB/Infrastructure Specialist
   name_ko: DB/인프라 Specialist
+  telegram_code: "@인프라"
   role: specialist
   division: leet_master.tech
   model_name: gemini-2.5-flash
@@ -421,6 +429,7 @@ agents:
 - agent_id: ai_model_specialist
   name: AI Model Specialist
   name_ko: AI 모델 Specialist
+  telegram_code: "@AI모델"
   role: specialist
   division: leet_master.tech
   model_name: gemini-2.5-flash
@@ -475,6 +484,7 @@ agents:
 - agent_id: cso_manager
   name: CSO Manager
   name_ko: 사업기획처장 (CSO)
+  telegram_code: "@기획처장"
   role: manager
   division: leet_master.strategy
   model_name: gemini-3.1-pro-preview
@@ -543,6 +553,7 @@ agents:
 - agent_id: market_research_specialist
   name: Market Research Specialist
   name_ko: 시장조사 Specialist
+  telegram_code: "@시장조사"
   role: specialist
   division: leet_master.strategy
   model_name: gemini-3.1-pro-preview
@@ -596,6 +607,7 @@ agents:
 - agent_id: business_plan_specialist
   name: Business Plan Specialist
   name_ko: 사업계획서 Specialist
+  telegram_code: "@사업계획"
   role: specialist
   division: leet_master.strategy
   model_name: gemini-3.1-pro-preview
@@ -645,6 +657,7 @@ agents:
 - agent_id: financial_model_specialist
   name: Financial Modeling Specialist
   name_ko: 재무모델링 Specialist
+  telegram_code: "@재무모델"
   role: specialist
   division: leet_master.strategy
   model_name: gpt-5.2
@@ -705,6 +718,7 @@ agents:
 - agent_id: clo_manager
   name: CLO Manager
   name_ko: 법무·IP처장 (CLO)
+  telegram_code: "@법무처장"
   role: manager
   division: leet_master.legal
   model_name: claude-sonnet-4-6
@@ -777,6 +791,7 @@ agents:
 - agent_id: copyright_specialist
   name: Copyright Specialist
   name_ko: 저작권 Specialist
+  telegram_code: "@저작권"
   role: specialist
   division: leet_master.legal
   model_name: claude-sonnet-4-6
@@ -813,11 +828,12 @@ agents:
   - ai_governance_checker
   - regulation_radar
   - dispute_simulator
-  - web_search
+  - real_web_search
   - cross_agent_protocol
 - agent_id: patent_specialist
   name: Patent/Terms Specialist
   name_ko: 특허/약관 Specialist
+  telegram_code: "@특허약관"
   role: specialist
   division: leet_master.legal
   model_name: claude-sonnet-4-6
@@ -861,6 +877,7 @@ agents:
 - agent_id: cmo_manager
   name: CMO Manager
   name_ko: 마케팅·고객처장 (CMO)
+  telegram_code: "@마케팅처장"
   role: manager
   division: leet_master.marketing
   model_name: gemini-3.1-pro-preview
@@ -950,6 +967,7 @@ agents:
 - agent_id: survey_specialist
   name: Survey/Research Specialist
   name_ko: 설문/리서치 Specialist
+  telegram_code: "@설문리서치"
   role: specialist
   division: leet_master.marketing
   model_name: gemini-3.1-pro-preview
@@ -1000,6 +1018,7 @@ agents:
 - agent_id: content_specialist
   name: Content Specialist
   name_ko: 콘텐츠 Specialist
+  telegram_code: "@콘텐츠"
   role: specialist
   division: leet_master.marketing
   model_name: gemini-3.1-pro-preview
@@ -1052,6 +1071,7 @@ agents:
 - agent_id: community_specialist
   name: Community Specialist
   name_ko: 커뮤니티 Specialist
+  telegram_code: "@커뮤니티"
   role: specialist
   division: leet_master.marketing
   model_name: gemini-3.1-pro-preview
@@ -1095,6 +1115,7 @@ agents:
 - agent_id: cio_manager
   name: CIO Manager
   name_ko: 투자분석처장 (CIO)
+  telegram_code: "@투자처장"
   role: manager
   division: finance.investment
   model_name: gpt-5.2
@@ -1281,6 +1302,7 @@ agents:
 - agent_id: market_condition_specialist
   name: Market Condition Specialist
   name_ko: 시황분석 Specialist
+  telegram_code: "@시황분석"
   role: specialist
   division: finance.investment
   model_name: gemini-3.1-pro-preview
@@ -1312,7 +1334,7 @@ agents:
 
     - naver_news: 금융뉴스/통화정책/글로벌 이벤트
 
-    - web_search/real_web_search: 해외 거시 최신 정보
+    - real_web_search: 해외 거시 최신 정보
 
     - global_market_tool: S&P500/나스닥/환율 등 글로벌 시장
 
@@ -1337,7 +1359,7 @@ agents:
 
     - 위기 감지: correlation_analyzer crisis_detection으로 6개 지표 종합 위기 수준 판단
 
-    - 지정학 리스크: naver_news/web_search 별도 모니터링
+    - 지정학 리스크: naver_news/real_web_search 별도 모니터링
 
 
     ## 판단 원칙
@@ -1391,6 +1413,7 @@ agents:
 - agent_id: stock_analysis_specialist
   name: Stock Analysis Specialist
   name_ko: 종목분석 Specialist
+  telegram_code: "@종목분석"
   role: specialist
   division: finance.investment
   model_name: gpt-5.2
@@ -1509,6 +1532,7 @@ agents:
 - agent_id: technical_analysis_specialist
   name: Technical Analysis Specialist
   name_ko: 기술적분석 Specialist
+  telegram_code: "@기술분석"
   role: specialist
   division: finance.investment
   model_name: gemini-3.1-pro-preview
@@ -1549,6 +1573,7 @@ agents:
 - agent_id: risk_management_specialist
   name: Risk Management Specialist
   name_ko: 리스크관리 Specialist
+  telegram_code: "@리스크"
   role: specialist
   division: finance.investment
   model_name: gpt-5.2
@@ -1663,6 +1688,7 @@ agents:
 - agent_id: cpo_manager
   name: CPO Manager
   name_ko: 출판·기록처장 (CPO)
+  telegram_code: "@출판처장"
   role: manager
   division: publishing
   model_name: claude-sonnet-4-6
@@ -1734,6 +1760,7 @@ agents:
 - agent_id: chronicle_specialist
   name: Company Chronicle Specialist
   name_ko: 회사연대기 Specialist
+  telegram_code: "@연대기"
   role: specialist
   division: publishing
   model_name: claude-sonnet-4-6
@@ -1772,12 +1799,13 @@ agents:
   allowed_tools:
   - report_generator
   - newsletter_builder
-  - web_search
+  - real_web_search
   - decision_tracker
   - cross_agent_protocol
 - agent_id: editor_specialist
   name: Content Editor Specialist
   name_ko: 콘텐츠편집 Specialist
+  telegram_code: "@편집"
   role: specialist
   division: publishing
   model_name: claude-sonnet-4-6
@@ -1821,6 +1849,7 @@ agents:
 - agent_id: archive_specialist
   name: Archive Specialist
   name_ko: 아카이브 Specialist
+  telegram_code: "@아카이브"
   role: specialist
   division: publishing
   model_name: gemini-2.5-flash
