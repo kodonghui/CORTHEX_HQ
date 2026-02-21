@@ -7038,10 +7038,8 @@
           this.requestNotificationPermission();
           // Auth
           this.checkAuth();
-          // Dynamic agent/tool loading
+          // Dynamic agent/tool loading (tools도 여기서 함께 로드)
           this.loadAgentsAndTools();
-          // Load tools list (#5)
-          this.loadToolsList();
           // Load feedback stats (#7)
           this.loadFeedbackStats();
           // Restore activity logs from localStorage (#13)
@@ -7587,7 +7585,7 @@
           this.showSlashDropdown = false;
           this.$nextTick(() => {
             const el = this.$refs.inputArea;
-            if (el) { el.focus(); el.selectionStart = el.selectionEnd = this.inputText.length; }
+            if (el) { el.focus(); el.selectionStart = el.selectionEnd = this.inputText.length; el.style.height = 'auto'; el.style.height = Math.min(el.scrollHeight, 200) + 'px'; }
           });
         },
 
@@ -7601,7 +7599,7 @@
           this.showMentionDropdown = false;
           // @멘션 선택 시 수신자 드롭다운도 해당 에이전트로 자동 세팅
           this.targetAgentId = agent.id;
-          this.$nextTick(() => { el.focus(); el.selectionStart = el.selectionEnd = replaced.length; });
+          this.$nextTick(() => { el.focus(); el.selectionStart = el.selectionEnd = replaced.length; el.style.height = 'auto'; el.style.height = Math.min(el.scrollHeight, 200) + 'px'; });
         },
 
         // 수신자 드롭다운용 부서별 에이전트 그룹 (mentionGroups와 동기화)
@@ -9865,13 +9863,7 @@
           return val.toLocaleString();
         },
 
-        // ── #5: Dynamic Tools Loading ──
-        async loadToolsList() {
-          try {
-            const data = await fetch('/api/tools').then(r => r.ok ? r.json() : []);
-            this.toolsList = Array.isArray(data) ? data : [];
-          } catch { this.toolsList = []; }
-        },
+        // #5: loadToolsList 삭제 — loadAgentsAndTools()에서 tools도 함께 로드
 
         // ── #7: Feedback Stats ──
         async loadFeedbackStats() {
