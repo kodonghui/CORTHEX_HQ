@@ -462,18 +462,18 @@ AGENTS = [
     {"agent_id": "backend_specialist", "name_ko": "백엔드/API Specialist", "role": "specialist", "division": "leet_master.tech", "status": "idle", "model_name": "claude-sonnet-4-6"},
     {"agent_id": "infra_specialist", "name_ko": "DB/인프라 Specialist", "role": "specialist", "division": "leet_master.tech", "status": "idle", "model_name": "claude-sonnet-4-6"},
     {"agent_id": "ai_model_specialist", "name_ko": "AI 모델 Specialist", "role": "specialist", "division": "leet_master.tech", "status": "idle", "model_name": "gemini-3.1-pro-preview"},
-    {"agent_id": "cso_manager", "name_ko": "사업기획처장 (CSO)", "role": "manager", "division": "leet_master.strategy", "status": "idle", "model_name": "claude-opus-4-6"},
+    {"agent_id": "cso_manager", "name_ko": "사업기획처장 (CSO)", "role": "manager", "division": "leet_master.strategy", "status": "idle", "model_name": "claude-sonnet-4-6"},
     {"agent_id": "market_research_specialist", "name_ko": "시장조사 Specialist", "role": "specialist", "division": "leet_master.strategy", "status": "idle", "model_name": "gemini-3.1-pro-preview"},
     {"agent_id": "business_plan_specialist", "name_ko": "사업계획서 Specialist", "role": "specialist", "division": "leet_master.strategy", "status": "idle", "model_name": "claude-opus-4-6"},
     {"agent_id": "financial_model_specialist", "name_ko": "재무모델링 Specialist", "role": "specialist", "division": "leet_master.strategy", "status": "idle", "model_name": "gpt-5.2"},
-    {"agent_id": "clo_manager", "name_ko": "법무·IP처장 (CLO)", "role": "manager", "division": "leet_master.legal", "status": "idle", "model_name": "claude-opus-4-6"},
+    {"agent_id": "clo_manager", "name_ko": "법무·IP처장 (CLO)", "role": "manager", "division": "leet_master.legal", "status": "idle", "model_name": "claude-sonnet-4-6"},
     {"agent_id": "copyright_specialist", "name_ko": "저작권 Specialist", "role": "specialist", "division": "leet_master.legal", "status": "idle", "model_name": "claude-opus-4-6"},
     {"agent_id": "patent_specialist", "name_ko": "특허/약관 Specialist", "role": "specialist", "division": "leet_master.legal", "status": "idle", "model_name": "claude-opus-4-6"},
     {"agent_id": "cmo_manager", "name_ko": "마케팅·고객처장 (CMO)", "role": "manager", "division": "leet_master.marketing", "status": "idle", "model_name": "gemini-3.1-pro-preview"},
     {"agent_id": "survey_specialist", "name_ko": "설문/리서치 Specialist", "role": "specialist", "division": "leet_master.marketing", "status": "idle", "model_name": "claude-sonnet-4-6"},
     {"agent_id": "content_specialist", "name_ko": "콘텐츠 Specialist", "role": "specialist", "division": "leet_master.marketing", "status": "idle", "model_name": "gemini-3.1-pro-preview"},
     {"agent_id": "community_specialist", "name_ko": "커뮤니티 Specialist", "role": "specialist", "division": "leet_master.marketing", "status": "idle", "model_name": "claude-sonnet-4-6"},
-    {"agent_id": "cio_manager", "name_ko": "투자분석처장 (CIO)", "role": "manager", "division": "finance.investment", "status": "idle", "model_name": "gpt-5.2-pro"},
+    {"agent_id": "cio_manager", "name_ko": "투자분석처장 (CIO)", "role": "manager", "division": "finance.investment", "status": "idle", "model_name": "gpt-5.2"},
     {"agent_id": "market_condition_specialist", "name_ko": "시황분석 Specialist", "role": "specialist", "division": "finance.investment", "status": "idle", "model_name": "gpt-5.2"},
     {"agent_id": "stock_analysis_specialist", "name_ko": "종목분석 Specialist", "role": "specialist", "division": "finance.investment", "status": "idle", "model_name": "gpt-5.2"},
     {"agent_id": "technical_analysis_specialist", "name_ko": "기술적분석 Specialist", "role": "specialist", "division": "finance.investment", "status": "idle", "model_name": "gpt-5.2"},
@@ -6948,7 +6948,10 @@ async def get_recommended_models():
     return {
         agent["agent_id"]: {
             "model_name": agent["model_name"],
-            "reasoning_effort": MODEL_REASONING_MAP.get(agent["model_name"], "medium"),
+            "reasoning_effort": _AGENTS_DETAIL.get(agent["agent_id"], {}).get(
+                "reasoning_effort",
+                MODEL_REASONING_MAP.get(agent["model_name"], "medium"),
+            ),
         }
         for agent in AGENTS
     }
@@ -6963,7 +6966,10 @@ async def apply_recommended_models():
         model = agent["model_name"]
         overrides[aid] = {
             "model_name": model,
-            "reasoning_effort": MODEL_REASONING_MAP.get(model, "medium"),
+            "reasoning_effort": _AGENTS_DETAIL.get(aid, {}).get(
+                "reasoning_effort",
+                MODEL_REASONING_MAP.get(model, "medium"),
+            ),
         }
     _save_data("agent_overrides", overrides)
     for a in AGENTS:
