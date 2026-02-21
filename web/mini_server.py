@@ -9296,16 +9296,15 @@ async def _save_to_notion(agent_id: str, title: str, content: str,
         properties[prop_name] = {"select": {"name": agent_name}}
     if division and db_target != "secretary":
         properties["부서"] = {"select": {"name": division}}
-    # 보고유형은 산출물 DB에만 (비서실 DB에는 이 컬럼 없음)
-    if report_type and db_target != "secretary":
-        properties["보고유형"] = {"select": {"name": report_type}}
+    # 카테고리: 양쪽 DB 모두 존재. 산출물=report_type, 비서실="보고서"
+    if db_target == "secretary":
+        properties["카테고리"] = {"select": {"name": "보고서"}}
+    elif report_type:
+        properties["카테고리"] = {"select": {"name": report_type}}
     properties["상태"] = {"select": {"name": "완료"}}
     # 날짜 속성 — 산출물 DB: "Date"(영어), 비서실 DB: "날짜"(한국어)
     date_prop = "날짜" if db_target == "secretary" else "Date"
     properties[date_prop] = {"date": {"start": now_str}}
-    # 비서실 DB에만 카테고리 추가
-    if db_target == "secretary":
-        properties["카테고리"] = {"select": {"name": "보고서"}}
 
     # 본문 → 노션 블록 (최대 2000자, 노션 블록 크기 제한)
     children = []
