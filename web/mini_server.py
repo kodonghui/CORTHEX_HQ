@@ -9102,9 +9102,9 @@ _AGENT_NAMES: dict[str, str] = {
 
 _NOTION_API_KEY = os.getenv("NOTION_API_KEY", "")
 # 비서실 DB (CEO 명령 관리)
-_NOTION_DB_SECRETARY = os.getenv("NOTION_DB_SECRETARY", "36880ed0-a7e9-4eb8-8bd3-0f206c2e95d6")
+_NOTION_DB_SECRETARY = os.getenv("NOTION_DB_SECRETARY", "30a56b49-78dc-8153-bac1-dee5d04d6a74")
 # 에이전트 산출물 DB (보고서 아카이브)
-_NOTION_DB_OUTPUT = os.getenv("NOTION_DB_OUTPUT", "4c20dd05-b740-461c-9189-f1e74362b365")
+_NOTION_DB_OUTPUT = os.getenv("NOTION_DB_OUTPUT", "30a56b49-78dc-81ce-aaca-ef3fc90a6fba")
 # 하위 호환: 기존 환경변수도 지원
 _NOTION_DB_ID = os.getenv("NOTION_DEFAULT_DB_ID", _NOTION_DB_OUTPUT)
 
@@ -9151,19 +9151,23 @@ async def _save_to_notion(agent_id: str, title: str, content: str,
     agent_name = _AGENT_NAMES.get(agent_id, _SPECIALIST_NAMES.get(agent_id, agent_id))
     now_str = datetime.now(KST).strftime("%Y-%m-%d")
 
-    # 노션 페이지 프로퍼티 구성
+    # 노션 페이지 프로퍼티 구성 (select 타입 — 노션 DB 헤더와 일치)
     properties: dict = {
         "Name": {"title": [{"text": {"content": title[:100]}}]},
     }
-    # 선택 속성들 (DB에 해당 컬럼이 없으면 노션이 무시함 — 유연한 구조)
+    # 산출물 DB: "에이전트" select, 비서실 DB: "담당자" select
     if agent_name:
-        properties["작성자"] = {"rich_text": [{"text": {"content": agent_name}}]}
-    if division:
-        properties["부서"] = {"rich_text": [{"text": {"content": division}}]}
+        prop_name = "담당자" if db_target == "secretary" else "에이전트"
+        properties[prop_name] = {"select": {"name": agent_name}}
+    if division and db_target != "secretary":
+        properties["부서"] = {"select": {"name": division}}
     if report_type:
-        properties["보고 유형"] = {"rich_text": [{"text": {"content": report_type}}]}
-    properties["상태"] = {"rich_text": [{"text": {"content": "완료"}}]}
+        properties["보고유형"] = {"select": {"name": report_type}}
+    properties["상태"] = {"select": {"name": "완료"}}
     properties["날짜"] = {"date": {"start": now_str}}
+    # 비서실 DB에만 카테고리 추가
+    if db_target == "secretary":
+        properties["카테고리"] = {"select": {"name": "보고서"}}
 
     # 본문 → 노션 블록 (최대 2000자, 노션 블록 크기 제한)
     children = []
