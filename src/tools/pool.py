@@ -188,6 +188,10 @@ class ToolPool:
             "pricing_optimizer": "src.tools.pricing_optimizer.PricingOptimizer",
             "customer_cohort_analyzer": "src.tools.customer_cohort_analyzer.CustomerCohortAnalyzer",
             "swot_quantifier": "src.tools.swot_quantifier.SwotQuantifier",
+            # ─── 법전원/LEET 커뮤니티 크롤러 ───
+            "dc_lawschool_crawler": "src.tools.dc_lawschool_crawler.DcLawschoolCrawlerTool",
+            "orbi_crawler": "src.tools.orbi_crawler.OrbiCrawlerTool",
+            "lawschool_community": "src.tools.lawschool_community.LawschoolCommunityTool",
             # ─── Skill 도구 89개 삭제됨 ───
             # 전부 SkillTool 단일 클래스로 LLM 호출만 하는 프롬프트 래퍼였음
             # 에이전트가 직접 할 수 있는 것을 "도구"로 포장한 것이므로 제거

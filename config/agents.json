@@ -299,7 +299,10 @@
         "scenario_simulator",
         "pricing_optimizer",
         "customer_cohort_analyzer",
-        "swot_quantifier"
+        "swot_quantifier",
+        "lawschool_community",
+        "dc_lawschool_crawler",
+        "orbi_crawler"
       ]
     },
     {
@@ -332,7 +335,10 @@
         "scholar_scraper",
         "sentiment_analyzer",
         "naver_news",
-        "cross_agent_protocol"
+        "cross_agent_protocol",
+        "lawschool_community",
+        "dc_lawschool_crawler",
+        "orbi_crawler"
       ]
     },
     {
@@ -617,7 +623,10 @@
         "sns_manager",
         "leet_survey",
         "cross_agent_protocol",
-        "spawn_agent"
+        "spawn_agent",
+        "lawschool_community",
+        "dc_lawschool_crawler",
+        "orbi_crawler"
       ]
     },
     {
