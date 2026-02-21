@@ -186,5 +186,12 @@
 - 3개 이상 작업 시 TodoWrite 도구로 진행 상황 표시 (대표님이 실시간 확인 가능)
 - 작업 시작 = in_progress, 완료 = completed로 즉시 갱신. 한 번에 in_progress 1개만
 
+## 노션 연동
+- API 버전: `2022-06-28` (2025 버전 사용 금지 — DB ID가 달라짐)
+- 비서실 DB: `30a56b49-78dc-8153-bac1-dee5d04d6a74`
+- 에이전트 산출물 DB: `30a56b49-78dc-81ce-aaca-ef3fc90a6fba`
+- 배포 로그 DB: `30e56b49-78dc-819d-b666-e50aec6a04aa`
+- Integration: CORTHEX_HQ (corthex.hq 워크스페이스)
+
 ## 환경 설정
 - gh CLI 없으면 세션 시작 시 설치
