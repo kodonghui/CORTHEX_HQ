@@ -31,8 +31,9 @@ from src.tools.base import BaseTool
 
 logger = logging.getLogger("corthex.tools.competitor_monitor")
 
-WATCHLIST_PATH = Path("data/competitor_watchlist.json")
+WATCHLIST_PATH = Path("data/competitor_watchlist.json")  # 레거시 — 마이그레이션용
 SNAPSHOT_DIR = Path("data/competitor_snapshots")
+_WATCHLIST_KEY = "competitor_watchlist"
 
 USER_AGENT = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -63,22 +64,34 @@ class CompetitorMonitorTool(BaseTool):
                 "add, remove, check, list, diff 중 하나를 사용하세요."
             )
 
-    # ── 내부: 감시 목록 관리 ──
+    # ── 내부: 감시 목록 관리 (SQLite DB) ──
 
     def _load_watchlist(self) -> list[dict]:
-        if not WATCHLIST_PATH.exists():
-            return []
+        """감시 목록을 DB에서 로드합니다. DB에 없으면 레거시 JSON 마이그레이션."""
         try:
-            return json.loads(WATCHLIST_PATH.read_text(encoding="utf-8"))
-        except (json.JSONDecodeError, OSError):
-            return []
+            from web.db import load_setting
+            result = load_setting(_WATCHLIST_KEY, None)
+            if result is not None:
+                return result
+        except Exception:
+            pass
+        # 레거시 JSON 마이그레이션
+        if WATCHLIST_PATH.exists():
+            try:
+                data = json.loads(WATCHLIST_PATH.read_text(encoding="utf-8"))
+                self._save_watchlist(data)  # DB로 이전
+                return data
+            except (json.JSONDecodeError, OSError):
+                pass
+        return []
 
     def _save_watchlist(self, watchlist: list[dict]) -> None:
-        WATCHLIST_PATH.parent.mkdir(parents=True, exist_ok=True)
-        WATCHLIST_PATH.write_text(
-            json.dumps(watchlist, ensure_ascii=False, indent=2),
-            encoding="utf-8",
-        )
+        """감시 목록을 DB에 저장합니다."""
+        try:
+            from web.db import save_setting
+            save_setting(_WATCHLIST_KEY, watchlist)
+        except Exception as e:
+            logger.warning("경쟁사 감시 목록 DB 저장 실패: %s", e)
 
     @staticmethod
     def _url_hash(url: str) -> str:

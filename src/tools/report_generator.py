@@ -28,8 +28,8 @@ logger = logging.getLogger("corthex.tools.report_generator")
 
 KST = timezone(timedelta(hours=9))
 
-DATA_DIR = Path("data")
-REPORTS_DIR = DATA_DIR / "reports"
+DATA_DIR = Path("data")  # 레거시 — 주간 보고서 수집용 (읽기 전용)
+REPORTS_DIR = DATA_DIR / "reports"  # 레거시 — DB 아카이브로 대체
 
 # ── 보고서 템플릿 ──
 
@@ -132,10 +132,19 @@ class ReportGeneratorTool(BaseTool):
                 "generate, weekly, templates 중 하나를 사용하세요."
             )
 
-    # ── 디렉토리 관리 ──
+    # ── 보고서 저장 (SQLite DB 아카이브) ──
 
-    def _ensure_reports_dir(self) -> None:
-        REPORTS_DIR.mkdir(parents=True, exist_ok=True)
+    def _save_report_to_db(self, filename: str, content: str) -> None:
+        """보고서를 DB 아카이브에 저장합니다."""
+        try:
+            from web.db import save_archive
+            save_archive(
+                division="reports",
+                filename=filename,
+                content=content,
+            )
+        except Exception as e:
+            logger.warning("보고서 DB 저장 실패: %s", e)
 
     # ── 마크다운 → HTML 변환 ──
 
@@ -227,21 +236,17 @@ class ReportGeneratorTool(BaseTool):
             user_prompt=report_md,
         )
 
-        # 파일 저장
-        self._ensure_reports_dir()
+        # DB 아카이브에 저장
         filename = f"report_{date_str}_{template_name}"
-
-        md_path = REPORTS_DIR / f"{filename}.md"
-        md_path.write_text(enhanced, encoding="utf-8")
-        logger.info("보고서 생성: %s", md_path)
+        self._save_report_to_db(f"{filename}.md", enhanced)
+        logger.info("보고서 생성 (DB 저장): %s", filename)
 
         if fmt == "html":
             html_content = self._md_to_html(enhanced)
-            html_path = REPORTS_DIR / f"{filename}.html"
-            html_path.write_text(html_content, encoding="utf-8")
-            return f"보고서 생성 완료 (HTML):\n- 마크다운: {md_path}\n- HTML: {html_path}\n\n{enhanced}"
+            self._save_report_to_db(f"{filename}.html", html_content)
+            return f"보고서 생성 완료 (HTML+마크다운, DB 저장): {filename}\n\n{enhanced}"
 
-        return f"보고서 생성 완료: {md_path}\n\n{enhanced}"
+        return f"보고서 생성 완료 (DB 저장): {filename}\n\n{enhanced}"
 
     async def _weekly(self, kwargs: dict[str, Any]) -> str:
         """주간 종합 보고서 자동 생성."""

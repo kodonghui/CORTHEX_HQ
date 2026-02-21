@@ -85,8 +85,11 @@ _EXCHANGE_CODES_PRICE = {
 # 토큰 캐시 (메모리)
 _token_cache: dict = {"token": None, "expires": None}
 _token_lock = asyncio.Lock()
-# 토큰 발급 쿨다운 (EGW00133: 1분당 1회 제한)
+# 토큰 발급 쿨다운 — 국내/해외 분리 (EGW00133: 1분당 1회 제한)
+# _last_token_request: 하위 호환용 (디버그 참조). 실제 쿨다운은 domestic/overseas로 분리.
 _last_token_request: Optional[datetime] = None
+_last_token_request_domestic: Optional[datetime] = None
+_last_token_request_overseas: Optional[datetime] = None
 _TOKEN_COOLDOWN_SEC = 65  # 1분 5초 여유
 
 # 잔고 캐시 — 토큰 만료 등으로 조회 실패 시 마지막 성공 결과 반환 (₩0 방지)
@@ -137,10 +140,13 @@ def is_configured() -> bool:
     return bool(KIS_APP_KEY and KIS_APP_SECRET and KIS_ACCOUNT_NO)
 
 
-async def _get_token() -> str:
+async def _get_token(market: str = "domestic") -> str:
     """OAuth2 액세스 토큰 발급.
     우선순위: 메모리 캐시 → DB 캐시 → KIS API 신규 발급
     (서버 재시작 후에도 24시간 내 토큰 재사용, 분당 1회 제한 회피)
+
+    Args:
+        market: "domestic" (국내) 또는 "overseas" (해외). 쿨다운 타이머 분리용.
     """
     async with _token_lock:
         now = datetime.now()
@@ -157,13 +163,16 @@ async def _get_token() -> str:
             logger.info("[KIS] DB에서 토큰 복원 (만료까지 %s분)", int((db_expires - now).total_seconds() // 60))
             return db_token
 
-        # 3순위: KIS API 신규 발급 (쿨다운 체크 — 1분당 1회 제한)
-        global _last_token_request
-        if _last_token_request is not None:
-            elapsed = (datetime.now() - _last_token_request).total_seconds()
+        # 3순위: KIS API 신규 발급 (쿨다운 체크 — 국내/해외 분리)
+        global _last_token_request, _last_token_request_domestic, _last_token_request_overseas
+        # 해당 마켓의 쿨다운 타이머 확인
+        _cooldown_ref = _last_token_request_overseas if market == "overseas" else _last_token_request_domestic
+        if _cooldown_ref is not None:
+            elapsed = (datetime.now() - _cooldown_ref).total_seconds()
             if elapsed < _TOKEN_COOLDOWN_SEC:
                 wait = int(_TOKEN_COOLDOWN_SEC - elapsed)
-                raise Exception(f"KIS 토큰 발급 대기 중 ({wait}초 후 재시도 가능, 1분당 1회 제한)")
+                market_label = "해외" if market == "overseas" else "국내"
+                raise Exception(f"KIS {market_label} 토큰 발급 대기 중 ({wait}초 후 재시도 가능, 1분당 1회 제한)")
         async with httpx.AsyncClient(timeout=10) as client:
             resp = await client.post(
                 f"{KIS_BASE}/oauth2/tokenP",
@@ -177,8 +186,13 @@ async def _get_token() -> str:
             if not resp.is_success:
                 body = resp.text
                 logger.error("[KIS] 토큰 발급 실패 %s: %s", resp.status_code, body)
-                # 실패 시에도 쿨다운 시작 (EGW00133 rate limit 방지)
-                _last_token_request = datetime.now()
+                # 실패 시에도 해당 마켓 쿨다운만 시작 (EGW00133 rate limit 방지)
+                _now = datetime.now()
+                _last_token_request = _now
+                if market == "overseas":
+                    _last_token_request_overseas = _now
+                else:
+                    _last_token_request_domestic = _now
                 raise Exception(f"KIS 토큰 발급 실패 ({resp.status_code}): {body}")
             resp.raise_for_status()
             data = resp.json()
@@ -188,10 +202,15 @@ async def _get_token() -> str:
             _token_cache["token"] = token
             _token_cache["expires"] = expires
             _save_token_to_db(token, expires)
-            # 성공 시에만 쿨다운 시작 (다음 발급까지 65초 대기)
-            _last_token_request = datetime.now()
+            # 성공 시 해당 마켓 쿨다운만 시작 (다른 마켓은 영향 없음)
+            _now = datetime.now()
+            _last_token_request = _now
+            if market == "overseas":
+                _last_token_request_overseas = _now
+            else:
+                _last_token_request_domestic = _now
             mode = "모의투자" if KIS_IS_MOCK else "실거래"
-            logger.info("[KIS] 액세스 토큰 신규 발급 (%s, 만료: %s분 후)", mode, expires_in // 60)
+            logger.info("[KIS] 액세스 토큰 신규 발급 (%s/%s, 만료: %s분 후)", mode, market, expires_in // 60)
             return token
 
 
@@ -785,7 +804,7 @@ async def get_overseas_price(symbol: str, exchange: str = "") -> dict:
     price_excd = _exchange_for_price(order_excd)
 
     try:
-        token = await _get_token()
+        token = await _get_token(market="overseas")
         async with httpx.AsyncClient(timeout=15) as client:
             resp = await client.get(
                 f"{KIS_BASE}/uapi/overseas-price/v1/quotations/price",
@@ -867,7 +886,7 @@ async def place_overseas_order(
     mode = "모의투자" if KIS_IS_MOCK else "실거래"
 
     try:
-        token = await _get_token()
+        token = await _get_token(market="overseas")
         async with httpx.AsyncClient(timeout=15) as client:
             resp = await client.post(
                 f"{KIS_BASE}/uapi/overseas-stock/v1/trading/order",
@@ -1026,7 +1045,7 @@ async def get_overseas_balance() -> dict:
         return res[:-1], c_usd
 
     try:
-        token = await _get_token()
+        token = await _get_token(market="overseas")
         exchange_results, cash_usd = await _fetch_all(token)
 
         # 토큰 만료 감지 → 캐시 삭제 + 재발급 + 1회 재시도
@@ -1045,7 +1064,7 @@ async def get_overseas_balance() -> dict:
             _token_cache["token"] = None
             _token_cache["expires"] = None
             _save_token_to_db("", datetime.now())
-            token = await _get_token()
+            token = await _get_token(market="overseas")
             exchange_results, cash_usd = await _fetch_all(token)
 
         all_holdings = []

@@ -456,12 +456,12 @@ MODEL_MAX_TOKENS_MAP: dict[str, int] = {
 }
 
 
-# ── 에이전트 목록 ──
-AGENTS = [
+# ── 에이전트 목록 (agents.yaml에서 동적 로드) ──
+_AGENTS_FALLBACK = [
     {"agent_id": "chief_of_staff", "name_ko": "비서실장", "role": "manager", "division": "secretary", "status": "idle", "model_name": "claude-sonnet-4-6"},
-    {"agent_id": "report_specialist", "name_ko": "기록 보좌관", "role": "specialist", "division": "secretary", "status": "idle", "model_name": "claude-haiku-4-5-20251001"},
+    {"agent_id": "report_specialist", "name_ko": "정보 보좌관", "role": "specialist", "division": "secretary", "status": "idle", "model_name": "claude-haiku-4-5-20251001"},
     {"agent_id": "schedule_specialist", "name_ko": "일정 보좌관", "role": "specialist", "division": "secretary", "status": "idle", "model_name": "claude-haiku-4-5-20251001"},
-    {"agent_id": "relay_specialist", "name_ko": "소통 보좌관", "role": "specialist", "division": "secretary", "status": "idle", "model_name": "claude-sonnet-4-6"},
+    {"agent_id": "relay_specialist", "name_ko": "검수 보좌관", "role": "specialist", "division": "secretary", "status": "idle", "model_name": "claude-sonnet-4-6"},
     {"agent_id": "cto_manager", "name_ko": "기술개발처장 (CTO)", "role": "manager", "division": "leet_master.tech", "status": "idle", "model_name": "claude-opus-4-6"},
     {"agent_id": "frontend_specialist", "name_ko": "프론트엔드 Specialist", "role": "specialist", "division": "leet_master.tech", "status": "idle", "model_name": "claude-sonnet-4-6"},
     {"agent_id": "backend_specialist", "name_ko": "백엔드/API Specialist", "role": "specialist", "division": "leet_master.tech", "status": "idle", "model_name": "claude-sonnet-4-6"},
@@ -488,6 +488,34 @@ AGENTS = [
     {"agent_id": "editor_specialist", "name_ko": "콘텐츠편집 Specialist", "role": "specialist", "division": "publishing", "status": "idle", "model_name": "claude-sonnet-4-6"},
     {"agent_id": "archive_specialist", "name_ko": "아카이브 Specialist", "role": "specialist", "division": "publishing", "status": "idle", "model_name": "claude-haiku-4-5-20251001"},
 ]
+
+
+def _build_agents_from_yaml() -> list[dict]:
+    """agents.yaml(또는 agents.json)에서 AGENTS 리스트를 동적 생성.
+    로드 실패 시 _AGENTS_FALLBACK 사용."""
+    try:
+        agents_detail = _load_agents()  # _AGENTS_DETAIL과 동일 소스
+        if not agents_detail:
+            _log("[AGENTS] agents.yaml 로드 결과 비어있음 — 폴백 사용")
+            return list(_AGENTS_FALLBACK)
+        result = []
+        for aid, detail in agents_detail.items():
+            result.append({
+                "agent_id": aid,
+                "name_ko": detail.get("name_ko", aid),
+                "role": detail.get("role", "specialist"),
+                "division": detail.get("division", ""),
+                "status": "idle",
+                "model_name": detail.get("model_name", "claude-sonnet-4-6"),
+            })
+        _log(f"[AGENTS] agents.yaml에서 {len(result)}명 로드 완료")
+        return result
+    except Exception as e:
+        _log(f"[AGENTS] agents.yaml 로드 실패 ({e}) — 폴백 사용")
+        return list(_AGENTS_FALLBACK)
+
+
+AGENTS = _build_agents_from_yaml()
 
 # ── WebSocket 관리 ──
 connected_clients: list[WebSocket] = []
@@ -3323,7 +3351,7 @@ async def _update_fx_rate():
         if not hist.empty:
             rate = round(float(hist.iloc[-1]["Close"]), 2)
             if 1000 < rate < 2000:  # 비정상 값 필터
-                old_rate = load_setting("fx_rate_usd_krw", 1450)
+                old_rate = _get_fx_rate()
                 save_setting("fx_rate_usd_krw", rate)
                 _last_fx_update = time.time()
                 if abs(rate - old_rate) >= 1:
@@ -3335,6 +3363,20 @@ async def _update_fx_rate():
     except Exception as e:
         _log(f"[FX] 환율 갱신 실패: {e}")
     return None
+
+
+def _get_fx_rate() -> float:
+    """USD/KRW 환율 반환. DB 설정값 우선, 없으면 1450 폴백.
+
+    모든 환율 참조에서 이 함수를 사용합니다 (하드코딩 방지).
+    """
+    try:
+        rate = load_setting("fx_rate_usd_krw", 1450)
+        if isinstance(rate, (int, float)) and 1000 < rate < 2000:
+            return float(rate)
+    except Exception:
+        pass
+    return 1450.0
 
 
 async def _cron_loop():
@@ -4526,8 +4568,8 @@ async def get_trading_portfolio():
         if not kr_ok and not us_ok:
             return {"available": False, "reason": "한국장/미국장 모두 조회 실패"}
 
-        # 환율 (DB에 저장된 값 사용, 없으면 1450 기본값)
-        fx_rate = load_setting("fx_rate_usd_krw", 1450)
+        # 환율 (DB → 폴백 1450)
+        fx_rate = _get_fx_rate()
 
         # ── 한국장 ──
         kr_cash = kr_bal.get("cash", 0) if kr_ok else 0
@@ -4548,6 +4590,11 @@ async def get_trading_portfolio():
         us_cash_usd = us_bal.get("cash_usd", 0) if us_ok else 0
         us_holdings = us_bal.get("holdings", []) if us_ok else []
         us_total_usd = us_bal.get("total_eval_usd", us_cash_usd) if us_ok else 0
+        # 해외 보유종목 개별 KRW 환산 추가
+        for h in us_holdings:
+            eval_usd = h.get("eval_amt", h.get("qty", 0) * h.get("current_price", 0))
+            h["eval_amt_krw"] = round(eval_usd * fx_rate)
+            h["eval_profit_krw"] = round(h.get("eval_profit", 0) * fx_rate)
         # 미국장 PnL = 보유종목 평가손익 합산 (환전은 손익이 아님!)
         us_holdings_pnl = sum(h.get("eval_profit", 0) for h in us_holdings)
         us_purchase_total = sum(h.get("qty", 0) * h.get("avg_price", 0) for h in us_holdings)
@@ -5825,11 +5872,7 @@ async def _run_trading_now_inner():
                     if price <= 0:
                         save_activity_log("cio_manager", f"[수동/US] {ticker} 현재가 조회 실패 (price={price}) — 건너뜀", "warning")
                         continue
-                    _fx = 1450
-                    try:
-                        _fx = load_setting("fx_rate_usd_krw", 1450)
-                    except Exception:
-                        pass
+                    _fx = _get_fx_rate()
                     _sig_weight = _get_signal_weight(sig, effective_conf)
                     _order_amt = order_size if order_size > 0 else int(account_balance * _sig_weight)
                     qty = max(1, int(_order_amt / (price * _fx)))
@@ -6174,12 +6217,7 @@ async def _trading_bot_loop():
                                 save_activity_log("cio_manager", f"[US] {ticker} 현재가 조회 실패 — 주문 건너뜀", "warning")
                                 continue
                             # 미국주식: order_size(원) ÷ (가격×환율) = 주수
-                            _fx = 1450  # 기본 환율
-                            try:
-                                from db import load_setting
-                                _fx = load_setting("fx_rate_usd_krw", 1450)
-                            except Exception:
-                                pass
+                            _fx = _get_fx_rate()
                             _order_amt = order_size if order_size > 0 else int(account_balance * _get_signal_weight(sig, effective_conf))
                             qty = max(1, int(_order_amt / (price * _fx)))
                         else:
@@ -6393,6 +6431,7 @@ async def kis_debug_us():
             get_overseas_balance, KIS_IS_MOCK as _mock, KIS_BASE,
         )
         result = await get_overseas_balance()
+        result = _enrich_overseas_balance_with_krw(result)
         return {
             "mode": "모의투자" if _mock else "실거래",
             "base_url": KIS_BASE,
@@ -6624,6 +6663,7 @@ async def debug_kis_token():
         from kis_client import (
             is_configured, KIS_IS_MOCK, KIS_BASE,
             _token_cache, _last_token_request, _TOKEN_COOLDOWN_SEC,
+            _last_token_request_domestic, _last_token_request_overseas,
             _last_balance_cache, _last_mock_balance_cache,
             KIS_ACCOUNT_NO, KIS_ACCOUNT_CODE,
         )
@@ -6648,18 +6688,25 @@ async def debug_kis_token():
         else:
             info["token"] = {"status": "토큰 없음 (아직 발급되지 않았거나 서버 재시작됨)"}
 
-        # 쿨다운 상태
-        if _last_token_request:
-            elapsed = (now - _last_token_request).total_seconds()
-            cooldown_remaining = max(0, _TOKEN_COOLDOWN_SEC - elapsed)
-            info["cooldown"] = {
-                "last_request": _last_token_request.isoformat(),
-                "elapsed_seconds": int(elapsed),
-                "remaining_seconds": int(cooldown_remaining),
-                "can_request": cooldown_remaining <= 0,
-            }
-        else:
-            info["cooldown"] = {"last_request": None, "can_request": True}
+        # 쿨다운 상태 — 국내/해외 분리
+        def _cooldown_info(last_req, label):
+            if last_req:
+                elapsed = (now - last_req).total_seconds()
+                cooldown_remaining = max(0, _TOKEN_COOLDOWN_SEC - elapsed)
+                return {
+                    "market": label,
+                    "last_request": last_req.isoformat(),
+                    "elapsed_seconds": int(elapsed),
+                    "remaining_seconds": int(cooldown_remaining),
+                    "can_request": cooldown_remaining <= 0,
+                }
+            return {"market": label, "last_request": None, "can_request": True}
+
+        info["cooldown"] = {
+            "domestic": _cooldown_info(_last_token_request_domestic, "국내"),
+            "overseas": _cooldown_info(_last_token_request_overseas, "해외"),
+            "last_any": _last_token_request.isoformat() if _last_token_request else None,
+        }
 
         # 잔고 캐시 상태
         info["balance_cache"] = {
@@ -6761,7 +6808,7 @@ async def debug_auto_trading_pipeline():
 @app.get("/api/debug/fx-rate")
 async def debug_fx_rate():
     """환율 상태 디버그 — 현재 환율, 마지막 갱신 시간, 수동 갱신."""
-    current_rate = load_setting("fx_rate_usd_krw", 1450)
+    current_rate = _get_fx_rate()
     last_update = _last_fx_update
     since_update = time.time() - last_update if last_update > 0 else -1
     return {
@@ -6779,7 +6826,7 @@ async def refresh_fx_rate():
     new_rate = await _update_fx_rate()
     if new_rate:
         return {"success": True, "rate": new_rate}
-    return {"success": False, "rate": load_setting("fx_rate_usd_krw", 1450), "message": "갱신 실패 — 기존 값 유지"}
+    return {"success": False, "rate": _get_fx_rate(), "message": "갱신 실패 — 기존 값 유지"}
 
 
 @app.get("/api/trading/mock/balance")
@@ -6793,24 +6840,47 @@ async def get_mock_trading_balance():
         return {"available": False, "error": str(e)}
 
 
+def _enrich_overseas_balance_with_krw(result: dict) -> dict:
+    """해외 잔고 결과에 KRW 환산 필드를 추가합니다.
+
+    - holdings 각 항목: eval_amt_krw, eval_profit_krw 추가
+    - 전체: total_eval_krw, cash_krw 추가
+    """
+    if not result.get("success"):
+        return result
+    fx = _get_fx_rate()
+    result["fx_rate"] = fx
+    # 보유종목 개별 KRW 환산
+    for h in result.get("holdings", []):
+        eval_usd = h.get("eval_amt", h.get("qty", 0) * h.get("current_price", 0))
+        h["eval_amt_krw"] = round(eval_usd * fx)
+        h["eval_profit_krw"] = round(h.get("eval_profit", 0) * fx)
+    # 총합 KRW 환산
+    total_usd = result.get("total_eval_usd", 0)
+    result["total_eval_krw"] = round(total_usd * fx)
+    cash_usd = result.get("cash_usd", 0)
+    result["cash_krw"] = round(cash_usd * fx)
+    return result
+
+
 @app.get("/api/trading/overseas/balance")
 async def get_overseas_trading_balance():
-    """해외주식 잔고 조회 (실거래)"""
+    """해외주식 잔고 조회 (실거래) — KRW 환산 포함"""
     try:
         from kis_client import get_overseas_balance
         result = await get_overseas_balance()
-        return result
+        return _enrich_overseas_balance_with_krw(result)
     except Exception as e:
         return {"available": False, "error": str(e)}
 
 
 @app.get("/api/trading/overseas/mock-balance")
 async def get_overseas_mock_balance():
-    """해외주식 모의투자 잔고 조회"""
+    """해외주식 모의투자 잔고 조회 — KRW 환산 포함"""
     try:
         from kis_client import get_mock_overseas_balance
         result = await get_mock_overseas_balance()
-        return result
+        return _enrich_overseas_balance_with_krw(result)
     except Exception as e:
         return {"available": False, "error": str(e), "is_mock": True}
 

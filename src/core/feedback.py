@@ -2,16 +2,17 @@
 CEO Feedback System for CORTHEX HQ.
 
 CEO can rate task results (good/bad) with optional comments.
-Feedback is persisted to a JSON file and provides per-agent statistics.
+Feedback is persisted to SQLite DB (settings 테이블) and provides per-agent statistics.
+기존 JSON 파일(data/feedback.json)이 있으면 자동 마이그레이션.
 """
 from __future__ import annotations
 
 import json
 import logging
-from dataclasses import dataclass, field, asdict
+from dataclasses import dataclass, asdict
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional
+from typing import Any
 
 logger = logging.getLogger("corthex.feedback")
 
@@ -30,30 +31,51 @@ class FeedbackEntry:
 
 
 class FeedbackManager:
-    """Manages CEO feedback on task results."""
+    """Manages CEO feedback on task results.
+
+    SQLite DB (save_setting/load_setting)에 저장.
+    기존 JSON 파일이 있으면 최초 1회 자동 마이그레이션.
+    """
+
+    _SETTING_KEY = "feedback_entries"
 
     def __init__(self, data_path: Path) -> None:
-        self._path = data_path
+        # data_path는 기존 JSON 마이그레이션용으로 보존 (호출부 호환)
+        self._legacy_path = data_path
         self._entries: list[FeedbackEntry] = []
         self._load()
 
     def _load(self) -> None:
-        if self._path.exists():
-            try:
-                raw = json.loads(self._path.read_text(encoding="utf-8"))
-                for item in raw.get("feedback", []):
+        """DB에서 피드백 로드. 없으면 JSON 파일에서 마이그레이션."""
+        try:
+            from web.db import load_setting
+            raw = load_setting(self._SETTING_KEY, None)
+            if raw is not None:
+                for item in raw:
                     self._entries.append(FeedbackEntry(**item))
-                logger.info("피드백 %d건 로드", len(self._entries))
+                logger.info("피드백 %d건 로드 (DB)", len(self._entries))
+                return
+        except Exception as e:
+            logger.warning("피드백 DB 로드 실패: %s", e)
+
+        # DB에 없으면 기존 JSON 파일에서 마이그레이션
+        if self._legacy_path and self._legacy_path.exists():
+            try:
+                raw_json = json.loads(self._legacy_path.read_text(encoding="utf-8"))
+                for item in raw_json.get("feedback", []):
+                    self._entries.append(FeedbackEntry(**item))
+                logger.info("피드백 JSON→DB 마이그레이션: %d건", len(self._entries))
+                self._save()  # DB에 저장
             except Exception as e:
-                logger.warning("피드백 로드 실패: %s", e)
+                logger.warning("피드백 JSON 마이그레이션 실패: %s", e)
 
     def _save(self) -> None:
-        self._path.parent.mkdir(parents=True, exist_ok=True)
-        data = {"feedback": [asdict(e) for e in self._entries]}
-        self._path.write_text(
-            json.dumps(data, ensure_ascii=False, indent=2),
-            encoding="utf-8",
-        )
+        """피드백을 DB에 저장."""
+        try:
+            from web.db import save_setting
+            save_setting(self._SETTING_KEY, [asdict(e) for e in self._entries])
+        except Exception as e:
+            logger.warning("피드백 DB 저장 실패: %s", e)
 
     def add(
         self,

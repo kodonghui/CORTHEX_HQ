@@ -32,26 +32,39 @@ _HEADERS = {
     "Accept-Language": "ko-KR,ko;q=0.9,en;q=0.8",
 }
 
-# 감시 목록 파일 경로
+# 감시 목록 파일 경로 (레거시 — 마이그레이션용)
 WATCHLIST_PATH = Path("data/competitor_sns_watchlist.json")
+_WATCHLIST_KEY = "competitor_sns_watchlist"
 
 
 def _load_watchlist() -> list[dict[str, Any]]:
-    """감시 목록을 JSON 파일에서 로드합니다."""
-    if not WATCHLIST_PATH.exists():
-        return []
+    """감시 목록을 DB에서 로드합니다. DB에 없으면 레거시 JSON 마이그레이션."""
     try:
-        with open(WATCHLIST_PATH, "r", encoding="utf-8") as f:
-            return json.load(f)
-    except (json.JSONDecodeError, OSError):
-        return []
+        from web.db import load_setting
+        result = load_setting(_WATCHLIST_KEY, None)
+        if result is not None:
+            return result
+    except Exception:
+        pass
+    # 레거시 JSON 마이그레이션
+    if WATCHLIST_PATH.exists():
+        try:
+            with open(WATCHLIST_PATH, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            _save_watchlist(data)  # DB로 이전
+            return data
+        except (json.JSONDecodeError, OSError):
+            pass
+    return []
 
 
 def _save_watchlist(watchlist: list[dict[str, Any]]) -> None:
-    """감시 목록을 JSON 파일에 저장합니다."""
-    WATCHLIST_PATH.parent.mkdir(parents=True, exist_ok=True)
-    with open(WATCHLIST_PATH, "w", encoding="utf-8") as f:
-        json.dump(watchlist, f, ensure_ascii=False, indent=2)
+    """감시 목록을 DB에 저장합니다."""
+    try:
+        from web.db import save_setting
+        save_setting(_WATCHLIST_KEY, watchlist)
+    except Exception:
+        pass
 
 
 class CompetitorSnsMonitorTool(BaseTool):
