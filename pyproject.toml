@@ -1,6 +1,6 @@
 [project]
 name = "corthex-hq"
-version = "0.1.0"
+version = "3.01.000"
 description = "CORTHEX HQ - AI Agent Corporation (멀티 에이전트 자동화 시스템)"
 requires-python = ">=3.11,<3.14"
 dependencies = [
@@ -41,10 +41,6 @@ dependencies = [
     "chromadb>=0.4.0",               # 벡터 지식 검색 DB
     "pydub>=0.25.0",                 # 오디오 파일 분할
 ]
-
-[project.scripts]
-corthex = "main:cli"
-corthex-web = "run_web:main"
 
 [build-system]
 requires = ["setuptools>=68.0"]
