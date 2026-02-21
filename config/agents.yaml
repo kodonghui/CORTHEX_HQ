@@ -5,7 +5,7 @@ agents:
   role: manager
   division: secretary
   model_name: claude-sonnet-4-6
-  reasoning_effort: high
+  reasoning_effort: medium
   system_prompt: "당신은 CORTHEX HQ의 비서실장이자 총괄 오케스트레이터입니다.\nCEO의 명령을 접수하여 분석·분류·배분하고,\
     \ 전 부서의 보고를 취합하여 CEO에게 최종 보고합니다.\n단순 전달자가 아니라 판단을 내리는 총괄 조율자로서 행동하세요.\n\n## 핵심\
     \ 방법론 스택 (2024-2026 기준)\n\n1. **멀티에이전트 오케스트레이션 최적화 (Google Research + MIT, arXiv:2512.08296,\
@@ -83,7 +83,7 @@ agents:
   name_ko: 정보 보좌관
   role: specialist
   division: secretary
-  model_name: claude-haiku-4-5-20251001
+  model_name: gemini-2.5-flash
   reasoning_effort: low
   system_prompt: "당신은 CORTHEX HQ 비서실의 기록 보좌관입니다.\nCEO와 경영진이 필요한 문서를 즉시 찾고, 보고서를 구조적으로\
     \ 정리하며,\n정보가 올바른 사람에게 올바른 형식으로 전달되도록 관리합니다.\n\n## 핵심 방법론 스택 (2024 기준)\n\n1. **BLUF\
@@ -126,7 +126,7 @@ agents:
   name_ko: 일정 보좌관
   role: specialist
   division: secretary
-  model_name: claude-haiku-4-5-20251001
+  model_name: gemini-2.5-flash
   reasoning_effort: low
   system_prompt: "## 핵심 방법론 스택 (2024-2026 검증 기준)\n\n1. **Critical Path Method, CPM\
     \ (DuPont, 1957 → 2024 디지털 적용)**:\n   프로젝트 완료 최소 시간 = 크리티컬 패스 길이 (병렬 불가 작업들의 합).\n\
@@ -283,8 +283,8 @@ agents:
   name_ko: 프론트엔드 Specialist
   role: specialist
   division: leet_master.tech
-  model_name: claude-sonnet-4-6
-  reasoning_effort: medium
+  model_name: gemini-3.1-pro-preview
+  reasoning_effort: low
   system_prompt: "## 핵심 방법론 스택 (2024-2026 검증 기준)\n\n1. **Core Web Vitals — Google\
     \ (2021 도입 → 2024 업데이트)**:\n   LCP (Largest Contentful Paint) ≤ 2.5초 (Good), 2.5-4.0초\
     \ (Needs Improvement), >4.0초 (Poor).\n   INP (Interaction to Next Paint, 2024\
@@ -326,8 +326,8 @@ agents:
   name_ko: 백엔드/API Specialist
   role: specialist
   division: leet_master.tech
-  model_name: claude-sonnet-4-6
-  reasoning_effort: medium
+  model_name: gemini-3.1-pro-preview
+  reasoning_effort: low
   system_prompt: "## 핵심 방법론 스택 (2024-2026 검증 기준)\n\n1. **12-Factor App (Heroku, 2011\
     \ → 2024 컨테이너/AI 서비스 표준)**:\n   Factor 3: Config는 환경변수로 (코드에 비밀키 하드코딩 금지).\n \
     \  Factor 6: Processes는 무상태(Stateless) — 재시작해도 동일 동작.\n   Factor 11: Logs는 stdout으로\
@@ -374,8 +374,8 @@ agents:
   name_ko: DB/인프라 Specialist
   role: specialist
   division: leet_master.tech
-  model_name: claude-sonnet-4-6
-  reasoning_effort: medium
+  model_name: gemini-3.1-pro-preview
+  reasoning_effort: low
   system_prompt: "## 핵심 방법론 스택 (2024-2026 검증 기준)\n\n1. **SRE Error Budget (Google\
     \ SRE Book, 2016 → 2024 표준)**:\n   Error Budget = 1 - SLO. SLO 99.9% → Error Budget\
     \ = 0.1% = 월 43.8분.\n   Error Budget 소진 시: 새 기능 배포 중단, 안정화에 집중.\n   현재 서버 목표:\
@@ -422,7 +422,7 @@ agents:
   role: specialist
   division: leet_master.tech
   model_name: gemini-3.1-pro-preview
-  reasoning_effort: high
+  reasoning_effort: low
   system_prompt: "당신은 CORTHEX HQ 기술개발처의 AI 모델 전문가입니다.\nLLM(대형 언어 모델)·RAG·벡터DB·프롬프트\
     \ 엔지니어링을 통해\nAI 기능의 품질과 비용 효율을 동시에 최적화합니다.\n\n## 핵심 방법론 스택 (2024-2026 기준)\n\n\
     1. **Advanced RAG → Modular RAG (Gao et al., arXiv:2312.10997, 2024)**: LLM 지식\
@@ -475,8 +475,8 @@ agents:
   name_ko: 사업기획처장 (CSO)
   role: manager
   division: leet_master.strategy
-  model_name: claude-sonnet-4-6
-  reasoning_effort: xhigh
+  model_name: gemini-3.1-pro-preview
+  reasoning_effort: high
   system_prompt: "당신은 CORTHEX HQ의 사업기획처장(CSO)입니다.\n시장 기회를 발견하고, 사업 전략을 수립하며, 재무 타당성을\
     \ 검증합니다.\n전략은 숫자로 증명되어야 합니다. \"좋아 보인다\"는 분석이 아닙니다.\n\n## 핵심 방법론 스택 (2024-2026\
     \ 검증 기준)\n\n1. **Porter's Five Forces (Michael Porter, Harvard, 1979 → 2024 디지털\
@@ -544,7 +544,7 @@ agents:
   role: specialist
   division: leet_master.strategy
   model_name: gemini-3.1-pro-preview
-  reasoning_effort: high
+  reasoning_effort: low
   system_prompt: "당신은 CORTHEX HQ 사업기획처의 시장조사 전문가입니다.\n데이터 없는 의견은 의견이 아닙니다. 모든 주장은\
     \ 수치로 뒷받침합니다.\n조사 결과는 CEO가 즉시 의사결정에 쓸 수 있는 형태로 제공합니다.\n\n## 핵심 방법론 스택 (2024-2026\
     \ 검증 기준)\n\n1. **Kano Model (Noriaki Kano, 1984 → 2024 제품-시장 적합성 표준)**:\n   Must-be(기본\
@@ -596,7 +596,7 @@ agents:
   name_ko: 사업계획서 Specialist
   role: specialist
   division: leet_master.strategy
-  model_name: claude-opus-4-6
+  model_name: gemini-3.1-pro-preview
   reasoning_effort: high
   system_prompt: "당신은 CORTHEX HQ 사업기획처의 사업계획 전문가입니다.\n사업계획서는 투자자/파트너를 설득하는 도구입니다.\
     \ 아름다운 문서가 아니라 실행 가능한 계획서를 만듭니다.\n모든 수치에 출처가 있어야 합니다.\n\n## 핵심 방법론 스택 (2024-2026\
@@ -706,7 +706,7 @@ agents:
   role: manager
   division: leet_master.legal
   model_name: claude-sonnet-4-6
-  reasoning_effort: xhigh
+  reasoning_effort: medium
   system_prompt: "당신은 CORTHEX HQ의 법무·IP처장(CLO)입니다.\n지식재산권(특허·상표·저작권·영업비밀)과 법적 리스크\
     \ 관리를 총괄하며,\n비개발자 CEO가 법적 위험을 이해하고 선제적으로 대응할 수 있도록 돕습니다.\n중요: AI 법률 자문은 참고용입니다.\
     \ 실제 법률 문제는 반드시 변호사와 상담하세요.\n\n## 핵심 방법론 스택 (2024-2026 기준)\n\n1. **AI Act (EU\
@@ -778,8 +778,8 @@ agents:
   name_ko: 저작권 Specialist
   role: specialist
   division: leet_master.legal
-  model_name: claude-opus-4-6
-  reasoning_effort: high
+  model_name: claude-sonnet-4-6
+  reasoning_effort: medium
   system_prompt: "당신은 CORTHEX HQ 법무·IP처의 저작권 전문가입니다.\n저작권법은 창작자를 보호하고 지식의 유통을 균형 있게\
     \ 관리합니다.\n법적 리스크를 수치화하여 CEO가 비용-편익을 판단할 수 있게 분석합니다.\n\n## 핵심 방법론 스택 (2024-2026\
     \ 검증 기준)\n\n1. **저작권법 공정이용 4요소 테스트 (미국 17 U.S.C. § 107 + 한국 저작권법 제35조의5)**:\n\
@@ -828,8 +828,8 @@ agents:
   name_ko: 특허/약관 Specialist
   role: specialist
   division: leet_master.legal
-  model_name: claude-opus-4-6
-  reasoning_effort: high
+  model_name: claude-sonnet-4-6
+  reasoning_effort: medium
   system_prompt: "당신은 CORTHEX HQ 법무·IP처의 특허 및 약관 전문가입니다.\n기술 혁신을 보호하고, 서비스 약관이 사용자와\
     \ 회사 모두를 공정하게 보호합니다.\n한국 법령 완전 준수 + 사용자가 실제로 읽고 이해할 수 있는 약관을 만듭니다.\n\n## 핵심 방법론\
     \ 스택 (2024-2026 검증 기준)\n\n1. **IPR Landscaping (지식재산권 지형 분석) 3단계**:\n   ① Patent\
@@ -881,7 +881,7 @@ agents:
   role: manager
   division: leet_master.marketing
   model_name: gemini-3.1-pro-preview
-  reasoning_effort: high
+  reasoning_effort: low
   system_prompt: "당신은 CORTHEX HQ의 마케팅·고객처장(CMO)입니다.\n고객 획득부터 충성 고객 전도사화까지, 성장 엔진 전체를\
     \ 설계하고 운영합니다.\n마케팅은 비용이 아니라 투자입니다. 모든 활동의 ROI를 수치로 증명하세요.\n\n## 핵심 방법론 스택\n\n\
     1. **Pirate Metrics AARRR (Dave McClure, 2007)**: 성장 퍼널 진단 및 병목 파악 시 적용\n   —\
@@ -969,8 +969,8 @@ agents:
   name_ko: 설문/리서치 Specialist
   role: specialist
   division: leet_master.marketing
-  model_name: claude-sonnet-4-6
-  reasoning_effort: high
+  model_name: gemini-3.1-pro-preview
+  reasoning_effort: low
   system_prompt: "당신은 CORTHEX HQ 마케팅·고객처의 설문/리서치 전문가입니다.\n고객의 진짜 생각을 데이터로 뽑아냅니다. 설문\
     \ 설계가 잘못되면 아무리 많은 응답도 쓸모없습니다.\n편향 없는 조사 설계와 통계적으로 유의미한 결론 도출이 핵심입니다.\n\n## 핵심\
     \ 방법론 스택 (2024-2026 검증 기준)\n\n1. **Likert Scale + 통계 검증 (Rensis Likert, 1932 →\
@@ -1020,7 +1020,7 @@ agents:
   role: specialist
   division: leet_master.marketing
   model_name: gemini-3.1-pro-preview
-  reasoning_effort: high
+  reasoning_effort: low
   system_prompt: "당신은 CORTHEX HQ 마케팅·고객처의 콘텐츠 전문가입니다.\n콘텐츠는 고객이 먼저 찾아오게 만드는 자산입니다.\
     \ 1회용 광고가 아닌 복리로 쌓이는 자산을 만듭니다.\n모든 콘텐츠는 SEO + 독자 가치 + 브랜드 일관성 3개를 동시에 만족해야 합니다.\n\
     \n## 핵심 방법론 스택 (2024-2026 검증 기준)\n\n1. **E-E-A-T (Google Search Quality Guidelines,\
@@ -1067,8 +1067,8 @@ agents:
   name_ko: 커뮤니티 Specialist
   role: specialist
   division: leet_master.marketing
-  model_name: claude-sonnet-4-6
-  reasoning_effort: high
+  model_name: gemini-3.1-pro-preview
+  reasoning_effort: low
   system_prompt: "당신은 CORTHEX HQ의 커뮤니티 관리 전문가입니다.\nDiscord, Slack, SNS 커뮤니티의 운영·성장·유지를\
     \ 담당하며,\n팬/고객 커뮤니티를 비즈니스 자산으로 전환하는 전략을 실행합니다.\n\n## 핵심 방법론 스택\n\n1. Orbit Model\
     \ (Josh Dzielak & Patrick Woods, 2020): 커뮤니티 멤버 분류 시 —\n   Ambassador(열성 지지자)\
@@ -1108,7 +1108,7 @@ agents:
   role: manager
   division: finance.investment
   model_name: gpt-5.2
-  reasoning_effort: xhigh
+  reasoning_effort: high
   system_prompt: '나는 CORTHEX HQ 투자분석처장(CIO)이다. "느낌"이나 "분위기"로 투자하지 않는다. 데이터와 확률로 시장을
     분석한다. 모든 투자 결정에는 기대 수익, 최대 손실, 확률이 수치로 명시되어야 한다.
 
@@ -1293,8 +1293,8 @@ agents:
   name_ko: 시황분석 Specialist
   role: specialist
   division: finance.investment
-  model_name: gpt-5.2
-  reasoning_effort: xhigh
+  model_name: gemini-3.1-pro-preview
+  reasoning_effort: low
   system_prompt: '나는 CORTHEX HQ 투자분석처의 시황분석 전문가다. 거시경제 흐름이 모든 자산 가격의 배경이다. 시황 없이는
     개별 종목 분석은 모래 위의 집이다.
 
@@ -1404,7 +1404,7 @@ agents:
   role: specialist
   division: finance.investment
   model_name: gpt-5.2
-  reasoning_effort: xhigh
+  reasoning_effort: high
   system_prompt: '나는 CORTHEX HQ 투자분석처의 종목분석 전문가다. "좋은 회사"가 아니라 "적정 가격 대비 싼 회사"를 찾는다.
     기본적 분석으로 내재가치를 계산한다.
 
@@ -1521,8 +1521,8 @@ agents:
   name_ko: 기술적분석 Specialist
   role: specialist
   division: finance.investment
-  model_name: gpt-5.2
-  reasoning_effort: xhigh
+  model_name: gemini-3.1-pro-preview
+  reasoning_effort: low
   system_prompt: "나는 CORTHEX HQ 투자분석처의 기술적분석 전문가다. 가격과 거래량이 모든 정보를 담는다. 차트는 군중 심리의\
     \ 결정체다. 기술적 분석은 확률 게임이다. \"반드시 오른다\"는 없고 \"X% 확률로 Y까지 간다\"가 있다.\n\n## 핵심 이론\n\
     1. 다우 이론(Dow Theory): 주추세/중기추세/단기변동 3단계. \"추세는 명확한 반전 신호까지 지속\". 다중 시간프레임(일봉+주봉+월봉)\
@@ -1562,7 +1562,7 @@ agents:
   role: specialist
   division: finance.investment
   model_name: gpt-5.2
-  reasoning_effort: xhigh
+  reasoning_effort: high
   system_prompt: '나는 CORTHEX HQ 투자분석처의 리스크관리 전문가다. 마지막 관문이다. 다른 3명이 "매수"라고 해도 나는 "잠깐,
     리스크부터 보자"고 말한다. 극단적 시나리오를 생존하는 포트폴리오만이 장기 수익을 낼 수 있다.
 
@@ -1833,7 +1833,7 @@ agents:
   name_ko: 아카이브 Specialist
   role: specialist
   division: publishing
-  model_name: claude-haiku-4-5-20251001
+  model_name: gemini-2.5-flash
   reasoning_effort: low
   system_prompt: "당신은 CORTHEX HQ 출판·기록처의 아카이브 전문가입니다.\n정보는 찾을 수 있어야 의미가 있습니다. 완벽한\
     \ 보관보다 완벽한 검색이 더 중요합니다.\nCORTHEX의 모든 지식을 체계적으로 분류하고, 필요할 때 즉시 꺼낼 수 있게 관리합니다.\n\
