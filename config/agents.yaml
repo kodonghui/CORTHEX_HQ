@@ -65,7 +65,6 @@ agents:
   - cio_manager
   - cpo_manager
   allowed_tools:
-  - web_search
   - real_web_search
   - naver_news
   - notification_engine
@@ -122,7 +121,6 @@ agents:
   superior_id: chief_of_staff
   allowed_tools:
   - naver_news
-  - web_search
   - real_web_search
   - schedule_tool
   - cross_agent_protocol
@@ -206,7 +204,6 @@ agents:
   - 출력물 포맷 정리
   superior_id: chief_of_staff
   allowed_tools:
-  - web_search
   - real_web_search
   - naver_news
   - cross_agent_protocol
@@ -596,7 +593,6 @@ agents:
   - LEET 해설 서베이
   superior_id: cso_manager
   allowed_tools:
-  - web_search
   - real_web_search
   - naver_datalab
   - public_data
@@ -788,7 +784,6 @@ agents:
   - law_change_monitor
   - regulation_radar
   - dispute_simulator
-  - web_search
   - real_web_search
   - cross_agent_protocol
   - compliance_checker
@@ -1012,7 +1007,6 @@ agents:
   - 커뮤니티 여론 조사
   superior_id: cmo_manager
   allowed_tools:
-  - web_search
   - real_web_search
   - naver_datalab
   - public_data
