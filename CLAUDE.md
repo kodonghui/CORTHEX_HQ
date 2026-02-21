@@ -167,9 +167,10 @@
 - **상태 표기**: ⬜ 대기 / 🔄 진행중 / ✅ 완료 / 🔴 블로킹
 
 ## 에이전트 소울 관리
-- 소울 로드 우선순위: ①DB 오버라이드 → ②`souls/agents/*.md` → ③`agents.yaml`
-- 대표님은 웹에서 soul 수정 안 함 → `souls/agents/*.md` 파일이 실제 기준
-- 웹 UI의 소울은 보여주기용 (읽기 전용 취급)
+- 소울 로드 우선순위: ①`config/agents.yaml` → ②`souls/agents/*.md` (DB 오버라이드 제거됨)
+- **웹에서 soul 수정 불가** — API 엔드포인트 비활성화, UI 읽기 전용
+- soul 변경은 반드시 `config/agents.yaml`의 system_prompt를 직접 수정
+- souls/*.md 파일은 yaml에 프롬프트가 없을 때만 폴백으로 사용
 
 ## 대표님 문서 (논의/기록용)
 - `docs/ceo-ideas.md` — 대표님 아이디어 & 기여 로그. **아이디어/버그 발견 시 자동 업데이트 필수**

@@ -822,20 +822,16 @@ async def get_agent(agent_id: str):
             override = overrides.get(agent_id, {})
             model_name = override.get("model_name") or detail.get("model_name") or a.get("model_name", "")
             reasoning_effort = override.get("reasoning_effort") or detail.get("reasoning_effort", "")
-            # 소울 로드 우선순위: 1) DB 오버라이드 → 2) souls/*.md 파일 → 3) agents.yaml
-            soul_override = load_setting(f"soul_{agent_id}")
-            if soul_override is not None:
-                system_prompt = soul_override
-            else:
-                # souls/agents/{agent_id}.md 파일에서 소울 로드
+            # 소울 로드 우선순위: 1) agents.yaml → 2) souls/*.md 파일 (DB 오버라이드 제거)
+            system_prompt = detail.get("system_prompt", "")
+            if not system_prompt:
+                # yaml에 프롬프트 없으면 souls/*.md 폴백
                 soul_md = Path(BASE_DIR).parent / "souls" / "agents" / f"{agent_id}.md"
                 if soul_md.exists():
                     try:
                         system_prompt = soul_md.read_text(encoding="utf-8")
                     except Exception:
-                        system_prompt = detail.get("system_prompt", "")
-                else:
-                    system_prompt = detail.get("system_prompt", "")
+                        system_prompt = ""
             return {
                 **a,
                 "model_name": model_name,           # DB 오버라이드 우선 (YAML 하드코딩 덮어쓰기)
@@ -7464,12 +7460,8 @@ async def bulk_change_model(request: Request):
 
 @app.put("/api/agents/{agent_id}/soul")
 async def save_agent_soul(agent_id: str, request: Request):
-    """에이전트 소울(성격) 저장. DB에 영구 저장됨."""
-    body = await request.json()
-    soul_text = body.get("soul") or body.get("system_prompt", "")
-    # DB에 저장 (재배포해도 유지)
-    save_setting(f"soul_{agent_id}", soul_text)
-    return {"success": True, "agent_id": agent_id}
+    """에이전트 소울은 코드(agents.yaml)에서만 수정 가능. 웹 수정 차단."""
+    return {"success": False, "error": "소울은 설정 파일(agents.yaml)에서만 수정 가능합니다. 웹 수정이 비활성화되었습니다."}
 
 
 @app.put("/api/agents/{agent_id}/model")
