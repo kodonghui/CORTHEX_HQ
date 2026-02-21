@@ -9474,7 +9474,7 @@ async def _call_agent(agent_id: str, text: str) -> dict:
         if schemas.get("anthropic"):
             tool_schemas = schemas["anthropic"]  # ask_ai 내부에서 프로바이더별 변환
 
-            _MAX_TOOL_CALLS = 5  # 무한 루프 방지 최대 도구 호출 횟수
+            _MAX_TOOL_CALLS = int(detail.get("max_tool_calls", 5))  # agents.yaml에서 에이전트별 설정, 기본값 5
 
             async def _tool_executor(tool_name: str, tool_input: dict):
                 """ToolPool을 통해 도구를 실행합니다."""
