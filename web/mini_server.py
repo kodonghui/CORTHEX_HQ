@@ -8813,8 +8813,11 @@ _AGENT_NAMES: dict[str, str] = {
 # ── 노션 API 연동 (에이전트 산출물 자동 저장) ──
 
 
+_TITLE_SKIP_WORDS = {"죄송", "오류", "에러", "실패", "sorry", "error", "안녕하세요", "네,", "네!"}
+
 def _extract_notion_title(content: str, fallback: str = "보고서") -> str:
-    """AI 응답 본문에서 깔끔한 제목을 추출합니다."""
+    """AI 응답 본문에서 깔끔한 제목을 추출합니다.
+    금지어(사과/에러 문구)로 시작하는 줄은 건너뜁니다."""
     if not content:
         return fallback
     for line in content.split("\n"):
@@ -8824,6 +8827,10 @@ def _extract_notion_title(content: str, fallback: str = "보고서") -> str:
         line = line.lstrip("#").strip()
         line = line.replace("**", "").replace("*", "")
         if len(line) < 3 or line.startswith("---") or line.startswith("```"):
+            continue
+        # 금지어 필터: "죄송합니다", "오류입니다" 등 제목으로 부적절한 문구
+        low = line[:10].lower()
+        if any(low.startswith(w) for w in _TITLE_SKIP_WORDS):
             continue
         return line[:100]
     return fallback
@@ -8902,6 +8909,28 @@ async def _save_to_notion(agent_id: str, title: str, content: str,
     # 내용 속성 — 에이전트 산출물 DB에만 존재 (rich_text, 최대 2000자)
     if db_target != "secretary" and content:
         properties["내용"] = {"rich_text": [{"text": {"content": content[:2000]}}]}
+
+    # 태그 자동 생성 — 부서(division) + 역할(role) 기반 (multi_select)
+    _DIV_TAG = {
+        "finance.investment": "투자처", "leet_master.strategy": "전략실",
+        "leet_master.tech": "기술처", "leet_master.legal": "법무처",
+        "leet_master.marketing": "마케팅처", "publishing": "출판처",
+        "secretary": "비서실",
+    }
+    auto_tags = []
+    if division:
+        tag = _DIV_TAG.get(division)
+        if tag:
+            auto_tags.append({"name": tag})
+    # 역할 태그: manager → 임원급, specialist → 전문가급
+    agent_detail = _AGENTS_DETAIL.get(agent_id, {})
+    role = agent_detail.get("role", "")
+    if role == "manager":
+        auto_tags.append({"name": "임원급"})
+    elif role == "specialist":
+        auto_tags.append({"name": "전문가급"})
+    if auto_tags and db_target != "secretary":
+        properties["태그"] = {"multi_select": auto_tags}
 
     # 본문 → 노션 블록 (최대 2000자, 노션 블록 크기 제한)
     children = []

@@ -868,10 +868,15 @@ async def ask_ai(
     _date_prefix = (
         f"[현재 한국 날짜/시간] {_now_kst.strftime('%Y년 %m월 %d일 %H:%M')} (KST)\n\n"
     )
+    _title_rule = (
+        "[보고서 작성 규칙] 보고서 첫 줄은 반드시 주제를 요약하는 제목으로 시작하세요. "
+        "예: 'NVDA 기술적 분석 — 단기 상승 전환 신호'. "
+        "나쁜 예: '죄송합니다', '안녕하세요', 에이전트 이름만.\n\n"
+    )
     if system_prompt:
-        system_prompt = _date_prefix + system_prompt
+        system_prompt = _date_prefix + _title_rule + system_prompt
     else:
-        system_prompt = _date_prefix
+        system_prompt = _date_prefix + _title_rule
 
     if model is None:
         model = select_model(user_message)

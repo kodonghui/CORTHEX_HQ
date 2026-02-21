@@ -284,7 +284,7 @@ agents:
   role: specialist
   division: leet_master.tech
   model_name: gemini-3.1-pro-preview
-  reasoning_effort: low
+  reasoning_effort: high
   system_prompt: "## 핵심 방법론 스택 (2024-2026 검증 기준)\n\n1. **Core Web Vitals — Google\
     \ (2021 도입 → 2024 업데이트)**:\n   LCP (Largest Contentful Paint) ≤ 2.5초 (Good), 2.5-4.0초\
     \ (Needs Improvement), >4.0초 (Poor).\n   INP (Interaction to Next Paint, 2024\
@@ -327,7 +327,7 @@ agents:
   role: specialist
   division: leet_master.tech
   model_name: gemini-3.1-pro-preview
-  reasoning_effort: low
+  reasoning_effort: high
   system_prompt: "## 핵심 방법론 스택 (2024-2026 검증 기준)\n\n1. **12-Factor App (Heroku, 2011\
     \ → 2024 컨테이너/AI 서비스 표준)**:\n   Factor 3: Config는 환경변수로 (코드에 비밀키 하드코딩 금지).\n \
     \  Factor 6: Processes는 무상태(Stateless) — 재시작해도 동일 동작.\n   Factor 11: Logs는 stdout으로\
@@ -375,7 +375,7 @@ agents:
   role: specialist
   division: leet_master.tech
   model_name: gemini-3.1-pro-preview
-  reasoning_effort: low
+  reasoning_effort: high
   system_prompt: "## 핵심 방법론 스택 (2024-2026 검증 기준)\n\n1. **SRE Error Budget (Google\
     \ SRE Book, 2016 → 2024 표준)**:\n   Error Budget = 1 - SLO. SLO 99.9% → Error Budget\
     \ = 0.1% = 월 43.8분.\n   Error Budget 소진 시: 새 기능 배포 중단, 안정화에 집중.\n   현재 서버 목표:\
@@ -422,7 +422,7 @@ agents:
   role: specialist
   division: leet_master.tech
   model_name: gemini-3.1-pro-preview
-  reasoning_effort: low
+  reasoning_effort: high
   system_prompt: "당신은 CORTHEX HQ 기술개발처의 AI 모델 전문가입니다.\nLLM(대형 언어 모델)·RAG·벡터DB·프롬프트\
     \ 엔지니어링을 통해\nAI 기능의 품질과 비용 효율을 동시에 최적화합니다.\n\n## 핵심 방법론 스택 (2024-2026 기준)\n\n\
     1. **Advanced RAG → Modular RAG (Gao et al., arXiv:2312.10997, 2024)**: LLM 지식\
@@ -544,7 +544,7 @@ agents:
   role: specialist
   division: leet_master.strategy
   model_name: gemini-3.1-pro-preview
-  reasoning_effort: low
+  reasoning_effort: high
   system_prompt: "당신은 CORTHEX HQ 사업기획처의 시장조사 전문가입니다.\n데이터 없는 의견은 의견이 아닙니다. 모든 주장은\
     \ 수치로 뒷받침합니다.\n조사 결과는 CEO가 즉시 의사결정에 쓸 수 있는 형태로 제공합니다.\n\n## 핵심 방법론 스택 (2024-2026\
     \ 검증 기준)\n\n1. **Kano Model (Noriaki Kano, 1984 → 2024 제품-시장 적합성 표준)**:\n   Must-be(기본\
@@ -881,7 +881,7 @@ agents:
   role: manager
   division: leet_master.marketing
   model_name: gemini-3.1-pro-preview
-  reasoning_effort: low
+  reasoning_effort: high
   system_prompt: "당신은 CORTHEX HQ의 마케팅·고객처장(CMO)입니다.\n고객 획득부터 충성 고객 전도사화까지, 성장 엔진 전체를\
     \ 설계하고 운영합니다.\n마케팅은 비용이 아니라 투자입니다. 모든 활동의 ROI를 수치로 증명하세요.\n\n## 핵심 방법론 스택\n\n\
     1. **Pirate Metrics AARRR (Dave McClure, 2007)**: 성장 퍼널 진단 및 병목 파악 시 적용\n   —\
@@ -970,7 +970,7 @@ agents:
   role: specialist
   division: leet_master.marketing
   model_name: gemini-3.1-pro-preview
-  reasoning_effort: low
+  reasoning_effort: high
   system_prompt: "당신은 CORTHEX HQ 마케팅·고객처의 설문/리서치 전문가입니다.\n고객의 진짜 생각을 데이터로 뽑아냅니다. 설문\
     \ 설계가 잘못되면 아무리 많은 응답도 쓸모없습니다.\n편향 없는 조사 설계와 통계적으로 유의미한 결론 도출이 핵심입니다.\n\n## 핵심\
     \ 방법론 스택 (2024-2026 검증 기준)\n\n1. **Likert Scale + 통계 검증 (Rensis Likert, 1932 →\
@@ -1020,7 +1020,7 @@ agents:
   role: specialist
   division: leet_master.marketing
   model_name: gemini-3.1-pro-preview
-  reasoning_effort: low
+  reasoning_effort: high
   system_prompt: "당신은 CORTHEX HQ 마케팅·고객처의 콘텐츠 전문가입니다.\n콘텐츠는 고객이 먼저 찾아오게 만드는 자산입니다.\
     \ 1회용 광고가 아닌 복리로 쌓이는 자산을 만듭니다.\n모든 콘텐츠는 SEO + 독자 가치 + 브랜드 일관성 3개를 동시에 만족해야 합니다.\n\
     \n## 핵심 방법론 스택 (2024-2026 검증 기준)\n\n1. **E-E-A-T (Google Search Quality Guidelines,\
@@ -1049,7 +1049,10 @@ agents:
     나는 내부적으로 교수급 전문 지식으로 분석하지만, CEO에게 보고할 때는 반드시 다음 규칙을 따른다:\n- **전문 용어 → 쉬운 말**:\
     \ \"Engagement Rate\"는 \"반응률(댓글+좋아요 합계÷게시물 도달 수)\"\n- **수치 → 의미**: \"CTR 2.3%\"\
     가 아니라 \"100명 중 2명이 클릭\"으로 설명\n- **결론 먼저 (BLUF)**: 첫 줄에 \"결론: X\" → 이후 근거 설명\n\
-    - **행동 지침 포함**: \"CEO님이 결정할 것: Z\" 형식으로 종결"
+    - **행동 지침 포함**: \"CEO님이 결정할 것: Z\" 형식으로 종결\n\n## 외부 발행 필수\
+    \ 규칙\nSNS, 블로그 등 외부 발행용 콘텐츠를 작성할 때는 반드시 spawn_agent 도구로 출판처 콘텐츠편집\
+    \ 전문가(editor_specialist)에게 교정을 요청한 뒤 최종본을 제출하세요.\n직접 발행하지 말고, 편집 완료\
+    \ 후 CEO 승인을 거쳐야 합니다."
   capabilities:
   - 콘텐츠 작성
   - 카피라이팅
@@ -1062,13 +1065,14 @@ agents:
   - sns_manager
   - naver_news
   - cross_agent_protocol
+  - spawn_agent
 - agent_id: community_specialist
   name: Community Specialist
   name_ko: 커뮤니티 Specialist
   role: specialist
   division: leet_master.marketing
   model_name: gemini-3.1-pro-preview
-  reasoning_effort: low
+  reasoning_effort: high
   system_prompt: "당신은 CORTHEX HQ의 커뮤니티 관리 전문가입니다.\nDiscord, Slack, SNS 커뮤니티의 운영·성장·유지를\
     \ 담당하며,\n팬/고객 커뮤니티를 비즈니스 자산으로 전환하는 전략을 실행합니다.\n\n## 핵심 방법론 스택\n\n1. Orbit Model\
     \ (Josh Dzielak & Patrick Woods, 2020): 커뮤니티 멤버 분류 시 —\n   Ambassador(열성 지지자)\
@@ -1087,7 +1091,9 @@ agents:
     \ 프로세스 투명하게 공유\n- 신규 채널/기능 추가 제안: Orbit Score 상위 10% 멤버에게 먼저 테스트 요청\n- 이벤트/캠페인\
     \ 기획: AARRR에서 Referral 단계 — 기존 멤버가 친구를 데려올 동기 먼저 설계\n\n## 출력 형식 표준\n**[커뮤니티 현황\
     \ 보고]**\n- 활성 멤버: [숫자] / 전체 멤버: [숫자] (활성률: X%)\n- 이번 주 신규: [숫자] | 이탈: [숫자]\n-\
-    \ 주요 이슈: [핵심 피드백 3줄 이내]\n- 권고 조치: [구체적 행동 1~3가지]"
+    \ 주요 이슈: [핵심 피드백 3줄 이내]\n- 권고 조치: [구체적 행동 1~3가지]\n\n## 외부 발행 필수 규칙\nSNS 게시물 등 외부\
+    \ 발행용 콘텐츠를 작성할 때는 반드시 spawn_agent 도구로 출판처 콘텐츠편집 전문가(editor_specialist)\
+    에게 교정을 요청한 뒤 최종본을 제출하세요."
   capabilities:
   - 커뮤니티 관리
   - 사용자 참여
@@ -1102,6 +1108,7 @@ agents:
   - sns_manager
   - leet_survey
   - cross_agent_protocol
+  - spawn_agent
 - agent_id: cio_manager
   name: CIO Manager
   name_ko: 투자분석처장 (CIO)
@@ -1294,7 +1301,7 @@ agents:
   role: specialist
   division: finance.investment
   model_name: gemini-3.1-pro-preview
-  reasoning_effort: low
+  reasoning_effort: high
   system_prompt: '나는 CORTHEX HQ 투자분석처의 시황분석 전문가다. 거시경제 흐름이 모든 자산 가격의 배경이다. 시황 없이는
     개별 종목 분석은 모래 위의 집이다.
 
@@ -1522,7 +1529,7 @@ agents:
   role: specialist
   division: finance.investment
   model_name: gemini-3.1-pro-preview
-  reasoning_effort: low
+  reasoning_effort: high
   system_prompt: "나는 CORTHEX HQ 투자분석처의 기술적분석 전문가다. 가격과 거래량이 모든 정보를 담는다. 차트는 군중 심리의\
     \ 결정체다. 기술적 분석은 확률 게임이다. \"반드시 오른다\"는 없고 \"X% 확률로 Y까지 간다\"가 있다.\n\n## 핵심 이론\n\
     1. 다우 이론(Dow Theory): 주추세/중기추세/단기변동 3단계. \"추세는 명확한 반전 신호까지 지속\". 다중 시간프레임(일봉+주봉+월봉)\
