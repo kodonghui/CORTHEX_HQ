@@ -50,6 +50,15 @@ except ImportError:
     async def batch_retrieve(*a, **kw): return {"error": "ai_handler 미설치"}
     async def batch_submit_grouped(*a, **kw): return [{"error": "ai_handler 미설치"}]
 
+# 품질검수 엔진
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+try:
+    from src.core.quality_gate import QualityGate, HybridReviewResult
+    from src.llm.base import LLMResponse
+    _QUALITY_GATE_AVAILABLE = True
+except ImportError:
+    _QUALITY_GATE_AVAILABLE = False
+
 try:
     from kis_client import (
         get_current_price as _kis_price,
@@ -1064,7 +1073,20 @@ async def set_model_mode(request: Request):
 
 @app.get("/api/quality")
 async def get_quality():
-    return {"average_score": 0, "total_evaluated": 0, "rules": []}
+    """품질검수 통계 반환."""
+    if not _quality_gate:
+        return {"average_score": 0, "total_reviews": 0, "passed": 0, "failed": 0, "pass_rate": 100.0}
+    stats = _quality_gate.stats
+    return {
+        "total_reviews": stats.total_reviewed,
+        "passed": stats.total_passed,
+        "failed": stats.total_rejected,
+        "pass_rate": stats.pass_rate,
+        "retry_success_rate": stats.retry_success_rate,
+        "total_retried": stats.total_retried,
+        "rejections_by_agent": stats.rejections_by_agent,
+        "recent_rejections": stats.recent_rejections[-10:],
+    }
 
 
 # ── 프리셋 관리 ──
@@ -3071,6 +3093,19 @@ async def _advance_batch_chain(chain_id: str):
                 else:
                     await _broadcast_chain_status(chain, "⚠️ 전문가 배치 결과 없음 — 처장 직접 처리로 전환")
 
+            # ── 품질검수 HOOK: 전문가 결과 검수 ──
+            if spec_count > 0 and _quality_gate:
+                target_id_qa = chain.get("target_id", "chief_of_staff")
+                if target_id_qa not in _DORMANT_MANAGERS:
+                    await _broadcast_chain_status(chain, "🔍 전문가 보고서 품질검수 시작...")
+                    failed_specs = await _quality_review_specialists(chain)
+                    if failed_specs:
+                        _save_chain(chain)
+                        await _handle_specialist_rework(chain, failed_specs)
+                        _save_chain(chain)
+                    qa_msg = f"✅ 품질검수 완료 (합격 {spec_count - len(failed_specs)}/{spec_count}명)"
+                    await _broadcast_chain_status(chain, qa_msg)
+
             # 종합 단계로 진행 — 처장 초록불 켜기
             target_id = chain.get("target_id", "chief_of_staff")
             target_name = _AGENT_NAMES.get(target_id, target_id)
@@ -3155,6 +3190,38 @@ async def _advance_batch_chain(chain_id: str):
                 # 실시간 폴백: ask_ai()로 직접 종합보고서 생성
                 await _synthesis_realtime_fallback(chain)
                 return
+
+            # ── 품질검수 HOOK #2: 종합보고서 검수 (경고 뱃지만, 재작업 없음) ──
+            if _quality_gate and synth_count > 0:
+                target_id_qa2 = chain.get("target_id", "chief_of_staff")
+                if target_id_qa2 not in _DORMANT_MANAGERS:
+                    division = _MANAGER_DIVISION.get(target_id_qa2, "default")
+                    reviewer_model = _get_model_override(target_id_qa2) or "claude-sonnet-4-6"
+                    task_desc = chain.get("original_command", "")[:500]
+                    for agent_id, synth_data in chain["results"]["synthesis"].items():
+                        try:
+                            review = await _quality_gate.hybrid_review(
+                                result_data=synth_data.get("content", ""),
+                                task_description=task_desc,
+                                model_router=_qa_router,
+                                reviewer_id=target_id_qa2,
+                                reviewer_model=reviewer_model,
+                                division=division,
+                                target_agent_id=agent_id,
+                            )
+                            _quality_gate.record_review(review, target_id_qa2, agent_id, task_desc)
+                            if not review.passed:
+                                synth_data["quality_warning"] = (
+                                    " / ".join(review.rejection_reasons)[:200]
+                                    if review.rejection_reasons else "품질 기준 미달"
+                                )
+                                _log(f"[QA] ⚠️ 종합보고서 불합격: {agent_id} (점수={review.weighted_average:.1f})")
+                            else:
+                                synth_data["quality_score"] = round(review.weighted_average, 1)
+                                _log(f"[QA] ✅ 종합보고서 합격: {agent_id} (점수={review.weighted_average:.1f})")
+                        except Exception as e:
+                            _log(f"[QA] 종합보고서 검수 오류 ({agent_id}): {e}")
+                    _save_chain(chain)
 
             # 처장 초록불 끄기
             target_id = chain.get("target_id", "chief_of_staff")
@@ -7651,9 +7718,13 @@ _KNOWN_DIVISIONS: list[str] = [
 async def get_quality_rules():
     rules = _QUALITY_RULES.get("rules", {})
     rubrics = _QUALITY_RULES.get("rubrics", {})
+    common_checklist = _QUALITY_RULES.get("common_checklist", {"required": [], "optional": []})
+    pass_criteria = _QUALITY_RULES.get("pass_criteria", {"all_required_pass": True, "min_average_score": 3.0})
     return {
         "rules": rules,
         "rubrics": rubrics,
+        "common_checklist": common_checklist,
+        "pass_criteria": pass_criteria,
         "known_divisions": _KNOWN_DIVISIONS,
         "division_labels": _DIVISION_LABELS,
     }
@@ -7663,18 +7734,23 @@ async def get_quality_rules():
 
 @app.put("/api/quality-rules/rubric/{division}")
 async def save_rubric(division: str, request: Request):
-    """부서별 루브릭(검수 기준) 저장."""
+    """부서별 루브릭(검수 기준) 저장 — 하이브리드 구조 지원."""
     body = await request.json()
     rubric = {
         "name": body.get("name", ""),
-        "prompt": body.get("prompt", ""),
-        "model": body.get("model", ""),
-        "reasoning_effort": body.get("reasoning_effort", ""),
+        "department_checklist": body.get("department_checklist", {"required": [], "optional": []}),
+        "scoring": body.get("scoring", []),
     }
+    # 레거시 호환: prompt 필드가 있으면 유지
+    if body.get("prompt"):
+        rubric["prompt"] = body["prompt"]
     if "rubrics" not in _QUALITY_RULES:
         _QUALITY_RULES["rubrics"] = {}
     _QUALITY_RULES["rubrics"][division] = rubric
     _save_config_file("quality_rules", _QUALITY_RULES)
+    # 품질검수 게이트에 변경 반영
+    if _quality_gate:
+        _quality_gate.reload_config()
     return {"success": True, "division": division}
 
 
@@ -7692,13 +7768,11 @@ async def delete_rubric(division: str):
 
 @app.put("/api/quality-rules/model")
 async def save_review_model(request: Request):
-    """품질검수에 사용할 AI 모델 변경."""
-    body = await request.json()
-    if "rules" not in _QUALITY_RULES:
-        _QUALITY_RULES["rules"] = {}
-    _QUALITY_RULES["rules"]["review_model"] = body.get("model", "claude-sonnet-4-6")
-    _save_config_file("quality_rules", _QUALITY_RULES)
-    return {"success": True}
+    """검수 모델 설정 (비활성화 — 각 매니저가 자기 모델 사용)."""
+    return {
+        "success": True,
+        "info": "각 매니저가 자기 모델로 검수합니다. 별도 검수 모델 설정 불필요.",
+    }
 
 
 @app.put("/api/quality-rules/rules")
@@ -7707,10 +7781,12 @@ async def save_quality_rules(request: Request):
     body = await request.json()
     if "rules" not in _QUALITY_RULES:
         _QUALITY_RULES["rules"] = {}
-    for key in ("min_length", "max_retry", "check_hallucination", "check_relevance", "review_model"):
+    for key in ("min_length", "max_retry", "check_hallucination", "check_relevance"):
         if key in body:
             _QUALITY_RULES["rules"][key] = body[key]
     _save_config_file("quality_rules", _QUALITY_RULES)
+    if _quality_gate:
+        _quality_gate.reload_config()
     return {"success": True}
 
 
@@ -9509,6 +9585,216 @@ _MANAGER_SPECIALISTS: dict[str, list[str]] = {
     "cio_manager": ["market_condition_specialist", "stock_analysis_specialist", "technical_analysis_specialist", "risk_management_specialist"],
     "cpo_manager": ["chronicle_specialist", "editor_specialist", "archive_specialist"],
 }
+
+# 매니저 → 부서 매핑 (품질검수 루브릭 조회용)
+_MANAGER_DIVISION: dict[str, str] = {
+    "chief_of_staff": "secretary",
+    "cso_manager": "leet_master.strategy",
+    "clo_manager": "leet_master.legal",
+    "cmo_manager": "leet_master.marketing",
+    "cio_manager": "finance.investment",
+    "cpo_manager": "publishing",
+    "cto_manager": "leet_master.tech",
+}
+# 동면 부서 (품질검수 제외)
+_DORMANT_MANAGERS: set[str] = {"cto_manager"}
+
+# 품질검수 게이트 인스턴스 (서버 시작 시 초기화)
+_quality_gate: QualityGate | None = None
+
+def _init_quality_gate():
+    """품질검수 게이트 초기화."""
+    global _quality_gate
+    if not _QUALITY_GATE_AVAILABLE:
+        _log("[QA] QualityGate 모듈 미설치 — 품질검수 비활성")
+        return
+    config_path = Path(__file__).parent.parent / "config" / "quality_rules.yaml"
+    _quality_gate = QualityGate(config_path)
+    _log("[QA] 품질검수 게이트 초기화 완료")
+
+
+class _QAModelRouter:
+    """ask_ai()를 ModelRouter.complete() 인터페이스로 감싸는 어댑터 (품질검수용)."""
+
+    async def complete(self, model_name="", messages=None,
+                       temperature=0.0, max_tokens=4096,
+                       agent_id="", **kwargs):
+        from src.llm.base import LLMResponse
+        messages = messages or []
+        system_prompt = ""
+        user_message = ""
+        for msg in messages:
+            if msg.get("role") == "system":
+                system_prompt = msg["content"]
+            elif msg.get("role") == "user":
+                user_message = msg["content"]
+        result = await ask_ai(user_message, system_prompt, model_name)
+        if "error" in result:
+            return LLMResponse(
+                content=f"[QA 오류] {result['error']}",
+                model=model_name,
+                input_tokens=0, output_tokens=0,
+                cost_usd=0.0, provider="unknown",
+            )
+        return LLMResponse(
+            content=result["content"],
+            model=result.get("model", model_name),
+            input_tokens=result.get("input_tokens", 0),
+            output_tokens=result.get("output_tokens", 0),
+            cost_usd=result.get("cost_usd", 0.0),
+            provider=result.get("provider", "unknown"),
+        )
+
+_qa_router = _QAModelRouter()
+
+
+async def _quality_review_specialists(chain: dict) -> list[dict]:
+    """전문가 결과를 매니저 모델로 개별 검수. 불합격 목록 반환.
+
+    Returns: [{"agent_id": ..., "review": HybridReviewResult, "content": ...}, ...]
+    """
+    if not _quality_gate or not _QUALITY_GATE_AVAILABLE:
+        return []
+
+    target_id = chain.get("target_id", "chief_of_staff")
+    if target_id in _DORMANT_MANAGERS:
+        return []
+
+    division = _MANAGER_DIVISION.get(target_id, "default")
+    reviewer_model = _get_model_override(target_id) or "claude-sonnet-4-6"
+    task_desc = chain.get("original_command", "")[:500]
+    failed = []
+
+    for agent_id, result_data in chain.get("results", {}).get("specialists", {}).items():
+        content = result_data.get("content", "")
+        if result_data.get("error"):
+            # 에러 결과는 자동 불합격 처리
+            failed.append({
+                "agent_id": agent_id,
+                "review": None,
+                "content": content,
+                "reason": f"에러 응답: {result_data.get('error', '')[:100]}",
+            })
+            continue
+
+        try:
+            review = await _quality_gate.hybrid_review(
+                result_data=content,
+                task_description=task_desc,
+                model_router=_qa_router,
+                reviewer_id=target_id,
+                reviewer_model=reviewer_model,
+                division=division,
+                target_agent_id=agent_id,
+            )
+            # 통계 기록
+            _quality_gate.record_review(review, target_id, agent_id, task_desc)
+            chain["total_cost_usd"] += getattr(review, "_cost", 0)
+
+            if not review.passed:
+                failed.append({
+                    "agent_id": agent_id,
+                    "review": review,
+                    "content": content,
+                    "reason": " / ".join(review.rejection_reasons) if review.rejection_reasons else "품질 기준 미달",
+                })
+                _log(f"[QA] ❌ 불합격: {agent_id} (점수={review.weighted_average:.1f}, 사유={failed[-1]['reason'][:80]})")
+            else:
+                _log(f"[QA] ✅ 합격: {agent_id} (점수={review.weighted_average:.1f})")
+
+        except Exception as e:
+            _log(f"[QA] 검수 오류 ({agent_id}): {e}")
+            # 검수 실패 시 통과 처리 (업무 차단 방지)
+
+    return failed
+
+
+async def _handle_specialist_rework(chain: dict, failed_specs: list[dict], attempt: int = 1):
+    """불합격 전문가에게 재작업 지시 → 재검수.
+
+    attempt: 현재 재시도 횟수 (1 또는 2)
+    max_retry: quality_rules.yaml에서 설정 (기본 2)
+    """
+    max_retry = _quality_gate.max_retry if _quality_gate else 2
+    if attempt > max_retry:
+        # 재시도 초과 → 경고 뱃지 부착 후 종합 단계로 진행
+        for spec in failed_specs:
+            agent_id = spec["agent_id"]
+            _log(f"[QA] ⚠️ 재작업 {max_retry}회 초과 — {agent_id} 결과를 경고 포함 채 종합 진행")
+            existing = chain["results"]["specialists"].get(agent_id, {})
+            existing["quality_warning"] = spec.get("reason", "품질 기준 미달")[:200]
+            chain["results"]["specialists"][agent_id] = existing
+        return
+
+    target_id = chain.get("target_id", "chief_of_staff")
+    target_name = _AGENT_NAMES.get(target_id, target_id)
+    task_desc = chain.get("original_command", "")[:500]
+
+    await _broadcast_chain_status(
+        chain,
+        f"🔄 품질검수 불합격 {len(failed_specs)}건 → 재작업 지시 (시도 {attempt}/{max_retry})"
+    )
+
+    for spec in failed_specs:
+        agent_id = spec["agent_id"]
+        reason = spec.get("reason", "품질 기준 미달")
+        original_content = spec.get("content", "")[:1000]
+
+        # 전문가 초록불 다시 켜기
+        agent_name = _AGENT_NAMES.get(agent_id, agent_id)
+        await _broadcast_status(agent_id, "working", 0.5, f"{agent_name} 재작업 중...")
+
+        rework_prompt = (
+            f"[재작업 요청 #{attempt}] 당신의 보고서가 품질검수에서 불합격되었습니다.\n\n"
+            f"## 원래 업무 지시\n{task_desc}\n\n"
+            f"## 불합격 사유\n{reason}\n\n"
+            f"## 당신의 원본 보고서 (앞부분)\n{original_content}...\n\n"
+            f"## 지시사항\n"
+            f"위 불합격 사유를 반영하여 보고서를 전면 수정하세요. "
+            f"특히 지적된 문제점을 확실히 보완하고, "
+            f"구체적인 근거와 데이터를 추가하세요."
+        )
+
+        try:
+            # 전문가 모델로 재작업 실행
+            spec_model = _get_model_override(agent_id) or "claude-sonnet-4-6"
+            spec_soul = _load_agent_prompt(agent_id)
+
+            result = await ask_ai(
+                user_message=rework_prompt,
+                system_prompt=spec_soul,
+                model=spec_model,
+            )
+
+            if "error" not in result:
+                # 재작업 결과로 교체
+                chain["results"]["specialists"][agent_id] = {
+                    "content": result["content"],
+                    "model": result.get("model", spec_model),
+                    "cost_usd": result.get("cost_usd", 0),
+                    "rework_attempt": attempt,
+                }
+                chain["total_cost_usd"] += result.get("cost_usd", 0)
+                _log(f"[QA] 재작업 완료: {agent_id} (시도 {attempt})")
+            else:
+                _log(f"[QA] 재작업 실패: {agent_id} — {result.get('error', '')[:100]}")
+
+        except Exception as e:
+            _log(f"[QA] 재작업 오류 ({agent_id}): {e}")
+
+        # 전문가 초록불 끄기
+        await _broadcast_status(agent_id, "done", 1.0, "재작업 완료")
+
+    # 재작업 결과 재검수
+    _save_chain(chain)
+    still_failed = await _quality_review_specialists(chain)
+
+    if still_failed:
+        # 아직 불합격인 건 → 다시 재작업 (attempt+1)
+        await _handle_specialist_rework(chain, still_failed, attempt + 1)
+    else:
+        _log(f"[QA] 재작업 후 전원 합격 (시도 {attempt})")
+
 
 # B안: 전문가별 역할 prefix — 처장이 위임할 때 CEO 원문을 그대로 전달하지 않고,
 # 각 전문가의 역할에 맞는 지시를 앞에 붙여서 보냄
@@ -11430,6 +11716,8 @@ async def on_startup():
     _log("[CRON] 크론 실행 엔진 시작 ✅")
     # 기본 스케줄 자동 등록 (없으면 생성)
     _register_default_schedules()
+    # 품질검수 게이트 초기화
+    _init_quality_gate()
     # 도구 실행 엔진 초기화 (비동기 아닌 동기 — 첫 요청 시 lazy 로드도 지원)
     _init_tool_pool()
     # cross_agent_protocol 실시간 콜백 등록
