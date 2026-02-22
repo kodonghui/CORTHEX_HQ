@@ -93,6 +93,7 @@ yt-dlp>=2023.10.0  # src/tools/youtube_analyzer.py (유튜브 다운로드)
 # ───────────────────────────────────────────────────────────────
 pydub>=0.25.0  # src/tools/audio_transcriber.py (오디오 포맷 변환)
 ffmpeg-python>=0.2.0  # 오디오/비디오 인코딩 (pydub 의존성)
+replicate>=1.0.0  # src/tools/lipsync_video_generator.py (립싱크 영상 생성)
 
 # ───────────────────────────────────────────────────────────────
 # CLI & User Interface (커맨드라인 인터페이스)
