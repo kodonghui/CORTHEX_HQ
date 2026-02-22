@@ -533,6 +533,11 @@ AGENTS = _build_agents_from_yaml()
 # ── WebSocket 관리 ──
 connected_clients: list[WebSocket] = []
 
+# ── 백그라운드 에이전트 태스크 (새로고침해도 안 끊김) ──
+_bg_tasks: dict[str, asyncio.Task] = {}       # task_id → asyncio.Task
+_bg_results: dict[str, dict] = {}             # task_id → 완료된 결과 캐시
+_bg_current_task_id: str | None = None        # 현재 실행 중인 task_id
+
 
 @app.websocket("/ws")
 async def websocket_endpoint(ws: WebSocket):
@@ -557,6 +562,21 @@ async def websocket_endpoint(ws: WebSocket):
             })
         except Exception:
             pass
+        # 새로고침 복구: 진행 중인 백그라운드 태스크가 있으면 상태 전송
+        if _bg_current_task_id and _bg_current_task_id in _bg_tasks:
+            try:
+                await ws.send_json({
+                    "event": "agent_status",
+                    "data": {
+                        "agent_id": "chief_of_staff",
+                        "status": "working",
+                        "progress": 0.5,
+                        "detail": "에이전트 작업 진행중 (새로고침 복구)",
+                        "task_id": _bg_current_task_id,
+                    },
+                })
+            except Exception:
+                pass
         while True:
             data = await ws.receive_text()
             msg = json.loads(data)
@@ -715,77 +735,13 @@ async def websocket_endpoint(ws: WebSocket):
                         asyncio.create_task(_run_debate_bg(cmd_text, task["task_id"]))
                         continue
 
-                    # 실시간 모드: AI 즉시 처리
+                    # 실시간 모드: 백그라운드 태스크로 실행 (새로고침해도 안 끊김)
                     if is_ai_ready():
                         update_task(task["task_id"], status="running")
-                        result = await _process_ai_command(cmd_text, task["task_id"], target_agent_id=ws_target_agent_id)
-                        if "error" in result:
-                            update_task(task["task_id"], status="failed",
-                                        result_summary=result.get("error", "")[:200],
-                                        success=0, time_seconds=0)
-                            _result_payload = {"content": f"❌ {result['error']}", "sender_id": result.get("agent_id", "chief_of_staff"), "handled_by": result.get("handled_by", "비서실장"), "time_seconds": 0, "cost": 0}
-                            # 서버 측 DB 저장 — WebSocket 손실 시에도 새로고침 후 복원 가능
-                            try:
-                                save_conversation_message(
-                                    "result",
-                                    content=_result_payload["content"],
-                                    sender_id=_result_payload["sender_id"],
-                                    handled_by=_result_payload["handled_by"],
-                                    time_seconds=0,
-                                    cost=0,
-                                    task_id=task["task_id"],
-                                    source="web",
-                                )
-                            except Exception:
-                                pass
-                            for _c in connected_clients[:]:
-                                try:
-                                    await _c.send_json({"event": "result", "data": _result_payload})
-                                except Exception:
-                                    pass
-                        else:
-                            _result_data = {
-                                "content": result.get("content", ""),
-                                "sender_id": result.get("agent_id", "chief_of_staff"),
-                                "handled_by": result.get("handled_by", "비서실장"),
-                                "delegation": result.get("delegation", ""),
-                                "time_seconds": result.get("time_seconds", 0),
-                                "cost": result.get("total_cost_usd", result.get("cost_usd", 0)),
-                                "model": result.get("model", ""),
-                                "routing_method": result.get("routing_method", ""),
-                                "task_id": task["task_id"],
-                            }
-                            # 서버 측 DB 저장 — WebSocket 손실 시에도 새로고침 후 복원 가능
-                            try:
-                                save_conversation_message(
-                                    "result",
-                                    content=_result_data["content"],
-                                    sender_id=_result_data["sender_id"],
-                                    handled_by=_result_data["handled_by"],
-                                    delegation=_result_data.get("delegation", ""),
-                                    model=_result_data.get("model", ""),
-                                    time_seconds=_result_data.get("time_seconds", 0),
-                                    cost=_result_data.get("cost", 0),
-                                    task_id=task["task_id"],
-                                    source="web",
-                                )
-                            except Exception:
-                                pass
-                            for _c in connected_clients[:]:
-                                try:
-                                    await _c.send_json({"event": "result", "data": _result_data})
-                                except Exception:
-                                    pass
-                            # 작업 완료 처리
-                            update_task(task["task_id"], status="completed",
-                                        result_summary=(result.get("content", "") or "")[:200],
-                                        success=1,
-                                        time_seconds=result.get("time_seconds", 0),
-                                        cost_usd=result.get("total_cost_usd", result.get("cost_usd", 0)))
-                            # 텔레그램 CEO 자동 전송 — 웹 채팅 응답을 텔레그램으로도 전달
-                            await _forward_web_response_to_telegram(
-                                cmd_text, _result_data
-                            )
+                        _bg_current_task_id = task["task_id"]
+                        asyncio.create_task(
+                            _run_agent_bg(cmd_text, task["task_id"], ws_target_agent_id)
+                        )
                     else:
                         update_task(task["task_id"], status="completed",
                                     result_summary="AI 미연결 — 접수만 완료",
@@ -804,6 +760,90 @@ async def websocket_endpoint(ws: WebSocket):
     except Exception:
         if ws in connected_clients:
             connected_clients.remove(ws)
+
+
+# ── 백그라운드 에이전트 실행 (새로고침해도 안 끊김) ──
+
+async def _run_agent_bg(cmd_text: str, task_id: str, target_agent_id: str | None = None):
+    """에이전트 작업을 백그라운드에서 실행. WebSocket 연결과 무관하게 동작."""
+    global _bg_current_task_id
+    _bg_tasks[task_id] = asyncio.current_task()
+    try:
+        result = await _process_ai_command(cmd_text, task_id, target_agent_id=target_agent_id)
+        if "error" in result:
+            update_task(task_id, status="failed",
+                        result_summary=result.get("error", "")[:200],
+                        success=0, time_seconds=0)
+            _result_payload = {
+                "content": f"❌ {result['error']}",
+                "sender_id": result.get("agent_id", "chief_of_staff"),
+                "handled_by": result.get("handled_by", "비서실장"),
+                "time_seconds": 0, "cost": 0, "task_id": task_id,
+            }
+            try:
+                save_conversation_message(
+                    "result", content=_result_payload["content"],
+                    sender_id=_result_payload["sender_id"],
+                    handled_by=_result_payload["handled_by"],
+                    time_seconds=0, cost=0, task_id=task_id, source="web",
+                )
+            except Exception:
+                pass
+            _bg_results[task_id] = _result_payload
+            for _c in connected_clients[:]:
+                try:
+                    await _c.send_json({"event": "result", "data": _result_payload})
+                except Exception:
+                    pass
+        else:
+            _result_data = {
+                "content": result.get("content", ""),
+                "sender_id": result.get("agent_id", "chief_of_staff"),
+                "handled_by": result.get("handled_by", "비서실장"),
+                "delegation": result.get("delegation", ""),
+                "time_seconds": result.get("time_seconds", 0),
+                "cost": result.get("total_cost_usd", result.get("cost_usd", 0)),
+                "model": result.get("model", ""),
+                "routing_method": result.get("routing_method", ""),
+                "task_id": task_id,
+            }
+            try:
+                save_conversation_message(
+                    "result", content=_result_data["content"],
+                    sender_id=_result_data["sender_id"],
+                    handled_by=_result_data["handled_by"],
+                    delegation=_result_data.get("delegation", ""),
+                    model=_result_data.get("model", ""),
+                    time_seconds=_result_data.get("time_seconds", 0),
+                    cost=_result_data.get("cost", 0),
+                    task_id=task_id, source="web",
+                )
+            except Exception:
+                pass
+            _bg_results[task_id] = _result_data
+            for _c in connected_clients[:]:
+                try:
+                    await _c.send_json({"event": "result", "data": _result_data})
+                except Exception:
+                    pass
+            update_task(task_id, status="completed",
+                        result_summary=(result.get("content", "") or "")[:200],
+                        success=1,
+                        time_seconds=result.get("time_seconds", 0),
+                        cost_usd=result.get("total_cost_usd", result.get("cost_usd", 0)))
+            await _forward_web_response_to_telegram(cmd_text, _result_data)
+    except Exception as e:
+        _log(f"[BG-AGENT] 백그라운드 에이전트 오류: {e}")
+        update_task(task_id, status="failed", result_summary=str(e)[:200], success=0)
+        _bg_results[task_id] = {"content": f"❌ 에이전트 오류: {e}", "sender_id": "chief_of_staff", "task_id": task_id}
+        for _c in connected_clients[:]:
+            try:
+                await _c.send_json({"event": "result", "data": _bg_results[task_id]})
+            except Exception:
+                pass
+    finally:
+        _bg_tasks.pop(task_id, None)
+        _bg_current_task_id = None
 
 
 # ── 미디어 서빙 (이미지/영상 파일) ──
