@@ -161,7 +161,7 @@ GET https://corthex-hq.com/api/debug/server-logs?lines=50&service=nginx-access �
 - 대표님 보고 시 **"빌드#N"** 사용 (PR#N 아님!)
 
 ## 버전 번호
-- 형식: `X.YY.ZZZ` | 현재: `3.02.020`
+- 형식: `X.YY.ZZZ` | 현재: `3.02.021`
 - 큰 변경 → YY 올림 + ZZZ 리셋 | 작은 변경 → ZZZ만 올림
 
 ## 디버그 URL
@@ -175,13 +175,14 @@ GET https://corthex-hq.com/api/debug/server-logs?lines=50&service=nginx-access �
 
 ## ⚠️ 업데이트 기록 + 버그리포트 (절대 빠뜨리지 말 것!)
 
-### 작업 완료 4단계 (전부 안 하면 미완성)
+### 작업 완료 5단계 (전부 안 하면 미완성)
 | 순서 | 해야 할 일 | 파일 |
 |------|----------|------|
 | ① | 업데이트 기록 작성 | `docs/updates/YYYY-MM-DD_작업요약.md` |
 | ② | 프로젝트 현황 갱신 | `docs/project-status.md` |
-| ③ | 커밋 + 푸시 + 배포 | `[완료]` 태그 포함 |
-| ④ | 대표님에게 보고 | 아래 보고 형식 사용 |
+| ③ | **TODO 갱신** | `docs/todo/YYYY-MM-DD.md` |
+| ④ | 커밋 + 푸시 + 배포 | `[완료]` 태그 포함 |
+| ⑤ | 대표님에게 보고 | 아래 보고 형식 사용 |
 
 - **업데이트 기록 템플릿**: `docs/templates/update-template.md` 참조
 - **버그 발견 시**: 수정 여부 무관하게 전부 기록. ✅/🔴 표시. 심각하면 🚨 즉시 보고
@@ -213,7 +214,8 @@ GET https://corthex-hq.com/api/debug/server-logs?lines=50&service=nginx-access �
 - 팀장이 최종 기록 책임. 팀원은 SendMessage로 보고 필수
 - 전수검사 시 → `docs/inspection-protocol.md` 참조
 
-## TODO 관리
+## 🔴🔴🔴 TODO 관리 — 배포할 때마다 반드시 업데이트! 🔴🔴🔴
+- **⚠️ 배포 완료 시 `docs/todo/YYYY-MM-DD.md` 반드시 갱신** (완료 항목 ✅ 체크, 새 항목 추가)
 - **일일 TODO**: `docs/todo/YYYY-MM-DD.md` (매일 작업 시작 시 생성/갱신)
 - **대형 프로젝트**: `docs/todo/YYYY-MM-DD_프로젝트명.TODO.md` (대문자 TODO)
 - **날짜 변경 시**: 미완료 항목을 새 날짜 파일로 이관, 이전 파일에 이관 메모
