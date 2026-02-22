@@ -20,6 +20,7 @@ from pathlib import Path
 # DB + WS 모듈을 같은 폴더에서 임포트
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from ws_manager import wm  # WebSocket/SSE 브로드캐스트 매니저
+from state import app_state  # 전역 상태 관리 (관리사무소)
 from db import (
     init_db, save_message, create_task, get_task as db_get_task,
     update_task, list_tasks, toggle_bookmark as db_toggle_bookmark,
@@ -86,10 +87,11 @@ except ImportError:
 # Python 출력 버퍼링 비활성화 (systemd에서 로그가 바로 보이도록)
 os.environ["PYTHONUNBUFFERED"] = "1"
 
-# 진단 정보 수집용
-_diag: dict = {"env_loaded": False, "env_file": "", "env_count": 0,
-               "tg_import": False, "tg_import_error": "",
-               "tg_token_found": False, "tg_started": False, "tg_error": ""}
+# 진단 정보 수집용 → app_state.diag 사용
+_diag = app_state.diag
+_diag.update({"env_file": "", "env_count": 0,
+              "tg_import": False, "tg_import_error": "",
+              "tg_token_found": False, "tg_started": False, "tg_error": ""})
 
 
 def _log(msg: str) -> None:
@@ -146,8 +148,7 @@ try:
 except ImportError:
     yaml = None  # PyYAML 미설치 시 graceful fallback
 
-# ── ToolPool 지연 로딩 ──
-_tool_pool = None  # None=미초기화, False=실패, ToolPool인스턴스=성공
+# ── ToolPool → app_state.tool_pool 직접 사용 ──
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Body, Request
 from fastapi.responses import HTMLResponse, FileResponse, JSONResponse, RedirectResponse
@@ -530,9 +531,10 @@ AGENTS = _build_agents_from_yaml()
 connected_clients = wm._connections
 
 # ── 백그라운드 에이전트 태스크 (새로고침해도 안 끊김) ──
-_bg_tasks: dict[str, asyncio.Task] = {}       # task_id → asyncio.Task
-_bg_results: dict[str, dict] = {}             # task_id → 완료된 결과 캐시
-_bg_current_task_id: str | None = None        # 현재 실행 중인 task_id
+# → app_state로 이동. 하위 호환 alias (dict/list는 공유 참조로 동작)
+_bg_tasks = app_state.bg_tasks
+_bg_results = app_state.bg_results
+# app_state.bg_current_task_id는 primitive(재할당)이므로 app_state.bg_current_task_id 직접 사용
 
 
 @app.websocket("/ws")
@@ -559,7 +561,7 @@ async def websocket_endpoint(ws: WebSocket):
         except Exception:
             pass
         # 새로고침 복구: 진행 중인 백그라운드 태스크가 있으면 상태 전송
-        if _bg_current_task_id and _bg_current_task_id in _bg_tasks:
+        if app_state.bg_current_task_id and app_state.bg_current_task_id in _bg_tasks:
             try:
                 await ws.send_json({
                     "event": "agent_status",
@@ -568,7 +570,7 @@ async def websocket_endpoint(ws: WebSocket):
                         "status": "working",
                         "progress": 0.5,
                         "detail": "에이전트 작업 진행중 (새로고침 복구)",
-                        "task_id": _bg_current_task_id,
+                        "task_id": app_state.bg_current_task_id,
                     },
                 })
             except Exception:
@@ -715,7 +717,7 @@ async def websocket_endpoint(ws: WebSocket):
                     # 실시간 모드: 백그라운드 태스크로 실행 (새로고침해도 안 끊김)
                     if is_ai_ready():
                         update_task(task["task_id"], status="running")
-                        _bg_current_task_id = task["task_id"]
+                        app_state.bg_current_task_id = task["task_id"]
                         asyncio.create_task(
                             _run_agent_bg(cmd_text, task["task_id"], ws_target_agent_id)
                         )
@@ -742,7 +744,7 @@ async def websocket_endpoint(ws: WebSocket):
 
 async def _run_agent_bg(cmd_text: str, task_id: str, target_agent_id: str | None = None):
     """에이전트 작업을 백그라운드에서 실행. WebSocket 연결과 무관하게 동작."""
-    global _bg_current_task_id
+
     _bg_tasks[task_id] = asyncio.current_task()
     try:
         result = await _process_ai_command(cmd_text, task_id, target_agent_id=target_agent_id)
@@ -807,7 +809,7 @@ async def _run_agent_bg(cmd_text: str, task_id: str, target_agent_id: str | None
         await wm.broadcast("result", _bg_results[task_id])
     finally:
         _bg_tasks.pop(task_id, None)
-        _bg_current_task_id = None
+        app_state.bg_current_task_id = None
 
 
 # ── 미디어 서빙 (이미지/영상 파일) ──
@@ -1132,8 +1134,8 @@ async def set_model_mode(request: Request):
 async def get_quality():
     """품질검수 통계 반환 (DB 영구 통계 + 메모리 세션 통계 병합)."""
     db_stats = get_quality_stats()
-    if _quality_gate:
-        mem = _quality_gate.stats
+    if app_state.quality_gate:
+        mem = app_state.quality_gate.stats
         db_stats["session_retried"] = mem.total_retried
         db_stats["session_retry_success_rate"] = mem.retry_success_rate
         db_stats["rejections_by_agent"] = mem.rejections_by_agent
@@ -1415,15 +1417,16 @@ async def bulk_task_action(request: Request):
 
 # ── 배치 명령 (여러 명령 한번에 실행) ──
 
-_batch_queue: list[dict] = []  # 배치 대기열 (로컬 순차/병렬 실행용)
-_batch_running = False
-_batch_api_queue: list[dict] = []  # Batch API 대기열 (프로바이더 배치 제출용)
+# → app_state로 이동. alias (list는 공유 참조)
+_batch_queue = app_state.batch_queue
+_batch_api_queue = app_state.batch_api_queue
+# app_state.batch_running은 primitive → app_state.batch_running 직접 사용
 
 
 @app.get("/api/batch/queue")
 async def get_batch_queue():
     """배치 대기열 조회."""
-    return {"queue": _batch_queue, "running": _batch_running}
+    return {"queue": _batch_queue, "running": app_state.batch_running}
 
 
 @app.post("/api/batch")
@@ -1458,8 +1461,8 @@ async def submit_batch(request: Request):
 
 async def _run_batch(batch_id: str, items: list, mode: str):
     """배치 명령을 실행합니다."""
-    global _batch_running
-    _batch_running = True
+
+    app_state.batch_running = True
 
     try:
         if mode == "parallel":
@@ -1473,7 +1476,7 @@ async def _run_batch(batch_id: str, items: list, mode: str):
             for item in items:
                 await _run_batch_item(item)
     finally:
-        _batch_running = False
+        app_state.batch_running = False
         # 완료된 배치 항목은 10분 후 정리
         await asyncio.sleep(600)
         for item in items:
@@ -1501,8 +1504,7 @@ async def _run_batch_item(item: dict):
 @app.delete("/api/batch/queue")
 async def clear_batch_queue():
     """배치 대기열을 비웁니다."""
-    global _batch_queue
-    _batch_queue = [item for item in _batch_queue if item.get("status") == "running"]
+    _batch_queue[:] = [item for item in _batch_queue if item.get("status") == "running"]
     return {"success": True}
 
 
@@ -1517,7 +1519,7 @@ async def clear_batch_queue():
 #   4) 완료되면 자동으로 결과를 수집하고, 에이전트에게 위임하여 보고서 작성
 #   5) WebSocket으로 CEO에게 실시간 알림
 
-_batch_poller_task = None  # 배치 폴러 루프 태스크
+# app_state.batch_poller_task → app_state.batch_poller_task 직접 사용
 
 
 @app.post("/api/batch/ai")
@@ -1760,12 +1762,11 @@ async def _collect_batch_results(batch_info: dict, all_batches: list):
 
 async def _flush_batch_api_queue():
     """배치 대기열에 쌓인 요청을 Batch API에 제출합니다."""
-    global _batch_api_queue
     if not _batch_api_queue:
         return {"message": "대기열이 비어있습니다"}
 
     queue_copy = list(_batch_api_queue)
-    _batch_api_queue = []
+    _batch_api_queue.clear()
 
     _log(f"[BATCH] 대기열 {len(queue_copy)}건 → Batch API 제출 중...")
 
@@ -1854,9 +1855,9 @@ async def flush_batch_queue():
 
 def _ensure_batch_poller():
     """배치 폴러가 돌고 있는지 확인하고, 안 돌면 시작합니다."""
-    global _batch_poller_task
-    if _batch_poller_task is None or _batch_poller_task.done():
-        _batch_poller_task = asyncio.create_task(_batch_poller_loop())
+
+    if app_state.batch_poller_task is None or app_state.batch_poller_task.done():
+        app_state.batch_poller_task = asyncio.create_task(_batch_poller_loop())
         _log("[BATCH] 배치 폴러 시작됨 (60초 간격)")
 
 
@@ -2001,11 +2002,11 @@ async def _broadcast_chain_status(chain: dict, message: str):
     })
 
     # 텔레그램으로도 진행 상태 전달
-    if _telegram_app:
+    if app_state.telegram_app:
         ceo_id = os.getenv("TELEGRAM_CEO_CHAT_ID", "")
         if ceo_id:
             try:
-                await _telegram_app.bot.send_message(
+                await app_state.telegram_app.bot.send_message(
                     chat_id=int(ceo_id),
                     text=f"📦 {message}",
                 )
@@ -2656,7 +2657,7 @@ async def _chain_submit_synthesis(chain: dict):
 
 async def _send_batch_result_to_telegram(content: str, cost: float):
     """배치 체인 결과를 텔레그램 CEO에게 전달합니다."""
-    if not _telegram_app:
+    if not app_state.telegram_app:
         return
     ceo_id = os.getenv("TELEGRAM_CEO_CHAT_ID", "")
     if not ceo_id:
@@ -2667,7 +2668,7 @@ async def _send_batch_result_to_telegram(content: str, cost: float):
         # 텔레그램 메시지 길이 제한 (4096자)
         if len(content) > 3800:
             content = content[:3800] + "\n\n... (전체 결과는 웹에서 확인)"
-        await _telegram_app.bot.send_message(
+        await app_state.telegram_app.bot.send_message(
             chat_id=int(ceo_id),
             text=f"📦 배치 체인 완료\n\n{content}\n\n─────\n💰 ${cost:.4f}",
         )
@@ -2679,7 +2680,7 @@ async def _forward_web_response_to_telegram(
     user_command: str, result_data: dict
 ) -> None:
     """웹 채팅 에이전트 응답을 텔레그램 CEO에게 자동 전달합니다."""
-    if not _telegram_app:
+    if not app_state.telegram_app:
         return
     ceo_id = os.getenv("TELEGRAM_CEO_CHAT_ID", "")
     if not ceo_id:
@@ -2700,7 +2701,7 @@ async def _forward_web_response_to_telegram(
         if len(content) > max_content:
             content = content[:max_content] + "\n\n... (전체는 웹에서 확인)"
         msg = f"{header}{content}{footer}"
-        await _telegram_app.bot.send_message(
+        await app_state.telegram_app.bot.send_message(
             chat_id=int(ceo_id), text=msg,
         )
     except Exception as e:
@@ -3099,7 +3100,7 @@ async def _advance_batch_chain(chain_id: str):
                     await _broadcast_chain_status(chain, "⚠️ 전문가 배치 결과 없음 — 처장 직접 처리로 전환")
 
             # ── 품질검수 HOOK: 전문가 결과 검수 ──
-            if spec_count > 0 and _quality_gate:
+            if spec_count > 0 and app_state.quality_gate:
                 target_id_qa = chain.get("target_id", "chief_of_staff")
                 if target_id_qa not in _DORMANT_MANAGERS:
                     await _broadcast_chain_status(chain, "🔍 전문가 보고서 품질검수 시작...")
@@ -3197,7 +3198,7 @@ async def _advance_batch_chain(chain_id: str):
                 return
 
             # ── 품질검수 HOOK #2: 종합보고서 검수 (경고 뱃지만, 재작업 없음) ──
-            if _quality_gate and synth_count > 0:
+            if app_state.quality_gate and synth_count > 0:
                 target_id_qa2 = chain.get("target_id", "chief_of_staff")
                 if target_id_qa2 not in _DORMANT_MANAGERS:
                     division = _MANAGER_DIVISION.get(target_id_qa2, "default")
@@ -3205,7 +3206,7 @@ async def _advance_batch_chain(chain_id: str):
                     task_desc = chain.get("original_command", "")[:500]
                     for agent_id, synth_data in chain["results"]["synthesis"].items():
                         try:
-                            review = await _quality_gate.hybrid_review(
+                            review = await app_state.quality_gate.hybrid_review(
                                 result_data=synth_data.get("content", ""),
                                 task_description=task_desc,
                                 model_router=_qa_router,
@@ -3214,7 +3215,7 @@ async def _advance_batch_chain(chain_id: str):
                                 division=division,
                                 target_agent_id=agent_id,
                             )
-                            _quality_gate.record_review(review, target_id_qa2, agent_id, task_desc)
+                            app_state.quality_gate.record_review(review, target_id_qa2, agent_id, task_desc)
                             if not review.passed:
                                 synth_data["quality_warning"] = (
                                     " / ".join(review.rejection_reasons)[:200]
@@ -3247,7 +3248,7 @@ async def get_batch_chains():
 
 # ── 크론 실행 엔진 (asyncio 기반 스케줄러) ──
 
-_cron_task = None  # 크론 루프 태스크
+# app_state.cron_task → app_state.cron_task 직접 사용
 
 
 
@@ -3401,7 +3402,7 @@ async def _cio_prediction_verifier():
                 if verified_count > 0:
                     try:
                         ceo_id = os.getenv("TELEGRAM_CEO_CHAT_ID", "")
-                        if _telegram_app and ceo_id:
+                        if app_state.telegram_app and ceo_id:
                             correct_count = sum(1 for r in verified_results if r.get("correct_3d"))
                             accuracy = round(correct_count / verified_count * 100) if verified_count > 0 else 0
                             msg = (
@@ -3409,7 +3410,7 @@ async def _cio_prediction_verifier():
                                 f"오늘 검증: {verified_count}건\n"
                                 f"3일 정확도: {accuracy}% ({correct_count}/{verified_count})"
                             )
-                            await _telegram_app.bot.send_message(
+                            await app_state.telegram_app.bot.send_message(
                                 chat_id=int(ceo_id),
                                 text=msg,
                             )
@@ -3582,11 +3583,11 @@ async def _shadow_trading_alert():
                             f"2주 전 평가액: {old_eval:,}원\n\n"
                             f"전략실 -> '실거래/모의 비교' 탭에서 확인하세요."
                         )
-                        if _telegram_app:
+                        if app_state.telegram_app:
                             ceo_id = os.getenv("TELEGRAM_CEO_CHAT_ID", "")
                             if ceo_id:
                                 try:
-                                    await _telegram_app.bot.send_message(
+                                    await app_state.telegram_app.bot.send_message(
                                         chat_id=int(ceo_id),
                                         text=msg,
                                     )
@@ -3608,11 +3609,11 @@ async def _shadow_trading_alert():
 
 # ── 실시간 환율 갱신 ──
 _FX_UPDATE_INTERVAL = 3600  # 1시간마다 갱신
-_last_fx_update: float = 0
+# app_state.last_fx_update → app_state.last_fx_update 직접 사용
 
 async def _update_fx_rate():
     """yfinance로 USD/KRW 실시간 환율을 가져와 DB에 저장합니다."""
-    global _last_fx_update
+
     try:
         import yfinance as yf
         ticker = yf.Ticker("USDKRW=X")
@@ -3622,7 +3623,7 @@ async def _update_fx_rate():
             if 1000 < rate < 2000:  # 비정상 값 필터
                 old_rate = _get_fx_rate()
                 save_setting("fx_rate_usd_krw", rate)
-                _last_fx_update = time.time()
+                app_state.last_fx_update = time.time()
                 if abs(rate - old_rate) >= 1:
                     _log(f"[FX] 환율 갱신: ${1} = ₩{rate:,.2f} (이전: ₩{old_rate:,.2f})")
                     save_activity_log("system", f"💱 환율 갱신: ₩{rate:,.2f}/$ (이전 ₩{old_rate:,.2f})", "info")
@@ -3661,7 +3662,7 @@ async def _cron_loop():
             await asyncio.sleep(60)  # 1분마다 체크
 
             # 환율 주기적 갱신 (1시간마다)
-            if time.time() - _last_fx_update > _FX_UPDATE_INTERVAL:
+            if time.time() - app_state.last_fx_update > _FX_UPDATE_INTERVAL:
                 asyncio.create_task(_update_fx_rate())
             schedules = _load_data("schedules", [])
             now = datetime.now(KST)
@@ -3732,7 +3733,7 @@ async def _run_scheduled_command(command: str, schedule_name: str):
 
         # 크론 결과를 텔레그램 CEO에게 발송
         content = result.get("content", "")
-        if content and _telegram_app:
+        if content and app_state.telegram_app:
             ceo_id = os.getenv("TELEGRAM_CEO_CHAT_ID", "")
             if ceo_id:
                 try:
@@ -3740,7 +3741,7 @@ async def _run_scheduled_command(command: str, schedule_name: str):
                     msg = f"⏰ [{schedule_name}]\n\n{content}"
                     if len(msg) > 3900:
                         msg = msg[:3900] + "\n\n... (전체는 웹에서 확인)"
-                    await _telegram_app.bot.send_message(chat_id=int(ceo_id), text=msg)
+                    await app_state.telegram_app.bot.send_message(chat_id=int(ceo_id), text=msg)
                 except Exception as tg_err:
                     logger.warning("크론 결과 텔레그램 발송 실패: %s", tg_err)
     except Exception as e:
@@ -4141,12 +4142,11 @@ async def _broadcast_workflow_progress(step_index: int, total_steps: int, status
 
 # ── 자동매매 시스템 (KIS 한국투자증권 프레임워크) ──
 
-_trading_bot_active = False  # 자동매매 봇 ON/OFF (startup 이벤트에서 DB 복원)
-_trading_bot_task = None     # 자동매매 봇 asyncio Task
+# app_state.trading_bot_active, app_state.trading_bot_task → app_state 직접 사용
 
-# ── 시세 캐시 (1분 자동 갱신) ──
-_price_cache: dict = {}  # {ticker: {"price": float, "change_pct": float, "updated_at": str}}
-_price_cache_lock = asyncio.Lock()
+# ── 시세 캐시 → app_state 사용 ──
+_price_cache = app_state.price_cache
+_price_cache_lock = app_state.price_cache_lock
 
 
 async def _auto_refresh_prices():
@@ -4451,7 +4451,7 @@ async def get_trading_summary():
         },
         "signals_count": len(signals),
         "settings": settings,
-        "bot_active": _trading_bot_active,
+        "bot_active": app_state.trading_bot_active,
         "kis_balance": kis_balance,
     }
 
@@ -5631,22 +5631,22 @@ async def cio_update_trading_settings(request: Request):
 @app.post("/api/trading/bot/toggle")
 async def toggle_trading_bot():
     """자동매매 봇 ON/OFF 토글."""
-    global _trading_bot_active, _trading_bot_task
 
-    _trading_bot_active = not _trading_bot_active
+
+    app_state.trading_bot_active = not app_state.trading_bot_active
     # DB에 상태 저장 → 배포/재시작 후에도 유지
-    save_setting("trading_bot_active", _trading_bot_active)
+    save_setting("trading_bot_active", app_state.trading_bot_active)
 
-    if _trading_bot_active:
-        if _trading_bot_task is None or _trading_bot_task.done():
-            _trading_bot_task = asyncio.create_task(_trading_bot_loop())
+    if app_state.trading_bot_active:
+        if app_state.trading_bot_task is None or app_state.trading_bot_task.done():
+            app_state.trading_bot_task = asyncio.create_task(_trading_bot_loop())
         save_activity_log("system", "🤖 자동매매 봇 가동 시작!", "info")
         _log("[TRADING] 자동매매 봇 시작 ✅")
     else:
         save_activity_log("system", "⏹️ 자동매매 봇 중지", "info")
         _log("[TRADING] 자동매매 봇 중지")
 
-    return {"success": True, "bot_active": _trading_bot_active}
+    return {"success": True, "bot_active": app_state.trading_bot_active}
 
 
 @app.get("/api/trading/bot/status")
@@ -5655,8 +5655,8 @@ async def get_trading_bot_status():
     us_h, us_m = _us_analysis_time_kst()
     dst_label = "EDT(서머타임)" if _is_us_dst() else "EST(겨울)"
     return {
-        "active": _trading_bot_active,
-        "task_running": _trading_bot_task is not None and not _trading_bot_task.done() if _trading_bot_task else False,
+        "active": app_state.trading_bot_active,
+        "task_running": app_state.trading_bot_task is not None and not app_state.trading_bot_task.done() if app_state.trading_bot_task else False,
         "settings": _load_data("trading_settings", _default_trading_settings()),
         "schedule": {
             "kr_time": "09:10",
@@ -6078,7 +6078,7 @@ async def _trading_bot_loop():
     us_h, us_m = _us_analysis_time_kst()
     logger.info("자동매매 봇 루프 시작 (CIO 연동 — 하루 2회: 09:10 한국장 + %02d:%02d 미국장 KST)", us_h, us_m)
 
-    while _trading_bot_active:
+    while app_state.trading_bot_active:
         try:
             next_run = _next_trading_run_time()
             now = datetime.now(KST)
@@ -6087,7 +6087,7 @@ async def _trading_bot_loop():
                         next_run.strftime("%Y-%m-%d %H:%M KST"), sleep_seconds)
             if sleep_seconds > 0:
                 await asyncio.sleep(sleep_seconds)
-            if not _trading_bot_active:
+            if not app_state.trading_bot_active:
                 break
 
             settings = _load_data("trading_settings", _default_trading_settings())
@@ -6830,7 +6830,7 @@ async def debug_auto_trading_pipeline():
 async def debug_fx_rate():
     """환율 상태 디버그 — 현재 환율, 마지막 갱신 시간, 수동 갱신."""
     current_rate = _get_fx_rate()
-    last_update = _last_fx_update
+    last_update = app_state.last_fx_update
     since_update = time.time() - last_update if last_update > 0 else -1
     return {
         "current_rate": current_rate,
@@ -7636,7 +7636,7 @@ async def get_sns_events(limit: int = 50):
 
 # ── 인증 (Phase 3: 비밀번호 로그인) ──
 
-_sessions: dict[str, float] = {}  # token → 만료 시간
+_sessions = app_state.sessions  # token → 만료 시간 (alias)
 _SESSION_TTL = 86400 * 7  # 7일
 
 
@@ -7708,7 +7708,7 @@ async def health_check():
         "status": "ok",
         "mode": "ARM 서버",
         "agents": len(AGENTS),
-        "telegram": _telegram_available and _telegram_app is not None,
+        "telegram": _telegram_available and app_state.telegram_app is not None,
         "timestamp": datetime.now(KST).isoformat(),
     }
 
@@ -7775,8 +7775,8 @@ async def save_rubric(division: str, request: Request):
     _QUALITY_RULES["rubrics"][division] = rubric
     _save_config_file("quality_rules", _QUALITY_RULES)
     # 품질검수 게이트에 변경 반영
-    if _quality_gate:
-        _quality_gate.reload_config()
+    if app_state.quality_gate:
+        app_state.quality_gate.reload_config()
     return {"success": True, "division": division}
 
 
@@ -7811,8 +7811,8 @@ async def save_quality_rules(request: Request):
         if key in body:
             _QUALITY_RULES["rules"][key] = body[key]
     _save_config_file("quality_rules", _QUALITY_RULES)
-    if _quality_gate:
-        _quality_gate.reload_config()
+    if app_state.quality_gate:
+        app_state.quality_gate.reload_config()
     return {"success": True}
 
 
@@ -8545,11 +8545,11 @@ async def export_archive_zip(division: str = None, tier: str = None, limit: int 
 async def telegram_status():
     """텔레그램 봇 진단 정보 반환."""
     polling_running = False
-    if _telegram_app and hasattr(_telegram_app, "updater") and _telegram_app.updater:
-        polling_running = _telegram_app.updater.running
+    if app_state.telegram_app and hasattr(app_state.telegram_app, "updater") and app_state.telegram_app.updater:
+        polling_running = app_state.telegram_app.updater.running
     return {
         **_diag,
-        "tg_app_exists": _telegram_app is not None,
+        "tg_app_exists": app_state.telegram_app is not None,
         "tg_available": _telegram_available,
         "tg_polling_running": polling_running,
         "env_token_set": bool(os.getenv("TELEGRAM_BOT_TOKEN", "")),
@@ -8560,14 +8560,14 @@ async def telegram_status():
 @app.post("/api/debug/telegram-test")
 async def telegram_test():
     """텔레그램 봇 테스트 — CEO에게 테스트 메시지 전송."""
-    if not _telegram_app:
+    if not app_state.telegram_app:
         return {"ok": False, "error": "봇 미시작 (tg_app=None)", "diag": _diag}
     ceo_id = os.getenv("TELEGRAM_CEO_CHAT_ID", "")
     if not ceo_id:
         return {"ok": False, "error": "TELEGRAM_CEO_CHAT_ID 미설정"}
     try:
         now = datetime.now(KST).strftime("%Y-%m-%d %H:%M:%S")
-        msg = await _telegram_app.bot.send_message(
+        msg = await app_state.telegram_app.bot.send_message(
             chat_id=int(ceo_id),
             text=f"CORTHEX HQ 텔레그램 봇 테스트\n시간: {now} KST\n상태: 정상",
         )
@@ -8580,12 +8580,12 @@ async def telegram_test():
 # 주의: python-telegram-bot 미설치 시에도 서버가 정상 작동해야 함
 # 모든 텔레그램 관련 코드는 _telegram_available 체크 후에만 실행
 
-_telegram_app = None  # telegram.ext.Application 인스턴스
+# app_state.telegram_app → app_state.telegram_app 직접 사용
 
 
 async def _start_telegram_bot() -> None:
     """텔레그램 봇을 시작합니다 (FastAPI 이벤트 루프 안에서 실행)."""
-    global _telegram_app
+
 
     _log(f"[TG] 봇 시작 시도 (_telegram_available={_telegram_available})")
 
@@ -8602,7 +8602,7 @@ async def _start_telegram_bot() -> None:
 
     try:
         _log("[TG] Application 빌드 중...")
-        _telegram_app = Application.builder().token(token).build()
+        app_state.telegram_app = Application.builder().token(token).build()
 
         # ── 핸들러 함수들 (라이브러리 설치된 경우에만 정의) ──
 
@@ -8923,7 +8923,7 @@ async def _start_telegram_bot() -> None:
                                     success=1, cost_usd=cost)
                     if len(content) > 3900:
                         content = content[:3900] + "\n\n... (결과가 잘렸습니다. 웹에서 전체 확인)"
-                    await _telegram_app.bot.send_message(
+                    await app_state.telegram_app.bot.send_message(
                         chat_id=int(cid),
                         text=f"{content}\n\n─────\n💰 ${cost:.4f}",
                     )
@@ -8931,7 +8931,7 @@ async def _start_telegram_bot() -> None:
                     update_task(tid, status="failed",
                                 result_summary=str(e)[:200], success=0)
                     try:
-                        await _telegram_app.bot.send_message(chat_id=int(cid), text=f"❌ 오류: {e}")
+                        await app_state.telegram_app.bot.send_message(chat_id=int(cid), text=f"❌ 오류: {e}")
                     except Exception:
                         pass
 
@@ -9125,9 +9125,9 @@ async def _start_telegram_bot() -> None:
                 async def _tg_run_batch(text_arg, task_id_arg, chat_id_arg):
                     try:
                         chain_result = await _start_batch_chain(text_arg, task_id_arg)
-                        if "error" in chain_result and _telegram_app:
+                        if "error" in chain_result and app_state.telegram_app:
                             try:
-                                await _telegram_app.bot.send_message(
+                                await app_state.telegram_app.bot.send_message(
                                     chat_id=int(chat_id_arg),
                                     text=f"❌ 배치 시작 실패: {chain_result['error']}",
                                 )
@@ -9198,46 +9198,46 @@ async def _start_telegram_bot() -> None:
             _diag["tg_last_error"] = str(context.error)
             _diag["tg_error_time"] = datetime.now(KST).isoformat()
             traceback.print_exc()
-        _telegram_app.add_error_handler(_tg_error_handler)
+        app_state.telegram_app.add_error_handler(_tg_error_handler)
 
         # 핸들러 등록
-        _telegram_app.add_handler(CommandHandler("start", cmd_start))
-        _telegram_app.add_handler(CommandHandler("help", cmd_help))
-        _telegram_app.add_handler(CommandHandler("agents", cmd_agents))
-        _telegram_app.add_handler(CommandHandler("health", cmd_health))
-        _telegram_app.add_handler(CommandHandler("rt", cmd_rt))
-        _telegram_app.add_handler(CommandHandler("batch", cmd_batch))
-        _telegram_app.add_handler(CommandHandler("status", cmd_status))
-        _telegram_app.add_handler(CommandHandler("budget", cmd_budget))
-        _telegram_app.add_handler(CommandHandler("pause", cmd_pause))
-        _telegram_app.add_handler(CommandHandler("resume", cmd_resume))
-        _telegram_app.add_handler(CommandHandler("models", cmd_models))
-        _telegram_app.add_handler(CallbackQueryHandler(models_callback, pattern=r"^mdl_"))
+        app_state.telegram_app.add_handler(CommandHandler("start", cmd_start))
+        app_state.telegram_app.add_handler(CommandHandler("help", cmd_help))
+        app_state.telegram_app.add_handler(CommandHandler("agents", cmd_agents))
+        app_state.telegram_app.add_handler(CommandHandler("health", cmd_health))
+        app_state.telegram_app.add_handler(CommandHandler("rt", cmd_rt))
+        app_state.telegram_app.add_handler(CommandHandler("batch", cmd_batch))
+        app_state.telegram_app.add_handler(CommandHandler("status", cmd_status))
+        app_state.telegram_app.add_handler(CommandHandler("budget", cmd_budget))
+        app_state.telegram_app.add_handler(CommandHandler("pause", cmd_pause))
+        app_state.telegram_app.add_handler(CommandHandler("resume", cmd_resume))
+        app_state.telegram_app.add_handler(CommandHandler("models", cmd_models))
+        app_state.telegram_app.add_handler(CallbackQueryHandler(models_callback, pattern=r"^mdl_"))
         # 한국어 명령(/토론, /심층토론, /전체, /순차)은 handle_message에서 텍스트로 처리
         # (Telegram CommandHandler는 라틴 소문자+숫자+밑줄만 허용)
-        _telegram_app.add_handler(
+        app_state.telegram_app.add_handler(
             MessageHandler(filters.TEXT, handle_message)
         )
 
         _log("[TG] 핸들러 등록 완료, initialize()...")
-        await _telegram_app.initialize()
+        await app_state.telegram_app.initialize()
 
         # 토큰 유효성 사전 확인 (getMe)
         try:
-            me = await _telegram_app.bot.get_me()
+            me = await app_state.telegram_app.bot.get_me()
             _diag["tg_bot_username"] = me.username
             _diag["tg_bot_id"] = me.id
             _log(f"[TG] ✅ 봇 인증 성공: @{me.username} (ID: {me.id})")
         except Exception as me_err:
             _log(f"[TG] ❌ 봇 토큰 무효 또는 네트워크 오류: {me_err}")
             _diag["tg_error"] = f"getMe 실패: {me_err}"
-            _telegram_app = None
+            app_state.telegram_app = None
             return
 
         # webhook 충돌 방지: polling 시작 전 webhook 강제 삭제
         for attempt in range(3):
             try:
-                await _telegram_app.bot.delete_webhook(drop_pending_updates=False)
+                await app_state.telegram_app.bot.delete_webhook(drop_pending_updates=False)
                 _log("[TG] webhook 삭제 완료 (polling 충돌 방지)")
                 break
             except Exception as we:
@@ -9249,7 +9249,7 @@ async def _start_telegram_bot() -> None:
         # NOTE: Telegram BotCommand는 라틴 소문자+숫자+밑줄만 허용 (한국어 불가)
         # 한국어 명령(/토론, /심층토론, /전체, /순차)은 CommandHandler로만 동작
         try:
-            await _telegram_app.bot.set_my_commands([
+            await app_state.telegram_app.bot.set_my_commands([
                 BotCommand("start", "봇 시작"),
                 BotCommand("help", "사용법 (한국어 명령 포함)"),
                 BotCommand("agents", "에이전트 목록"),
@@ -9266,10 +9266,10 @@ async def _start_telegram_bot() -> None:
             _log(f"[TG] 명령어 메뉴 설정 건너뜀 (봇은 정상 동작): {cmd_err}")
 
         _log("[TG] start()...")
-        await _telegram_app.start()
+        await app_state.telegram_app.start()
         _log("[TG] polling 시작...")
         # drop_pending_updates=True: 이전 쌓인 메시지 무시하고 새 메시지만 처리
-        await _telegram_app.updater.start_polling(
+        await app_state.telegram_app.updater.start_polling(
             drop_pending_updates=True,
             allowed_updates=Update.ALL_TYPES,
         )
@@ -9282,21 +9282,21 @@ async def _start_telegram_bot() -> None:
         _log(f"[TG] ❌ 봇 시작 실패: {e}")
         import traceback
         traceback.print_exc()
-        _telegram_app = None
+        app_state.telegram_app = None
 
 
 async def _stop_telegram_bot() -> None:
     """텔레그램 봇을 종료합니다."""
-    global _telegram_app
-    if _telegram_app:
+
+    if app_state.telegram_app:
         try:
-            await _telegram_app.updater.stop()
-            await _telegram_app.stop()
-            await _telegram_app.shutdown()
+            await app_state.telegram_app.updater.stop()
+            await app_state.telegram_app.stop()
+            await app_state.telegram_app.shutdown()
             logger.info("텔레그램 봇 종료 완료")
         except Exception as e:
             logger.warning("텔레그램 봇 종료 중 오류: %s", e)
-        _telegram_app = None
+        app_state.telegram_app = None
 
 
 # ── AI 에이전트 위임 시스템 (Phase 5) ──
@@ -9390,12 +9390,11 @@ _NOTION_DB_OUTPUT = os.getenv("NOTION_DB_OUTPUT", "30a56b49-78dc-81ce-aaca-ef3fc
 # 하위 호환: 기존 환경변수도 지원
 _NOTION_DB_ID = os.getenv("NOTION_DEFAULT_DB_ID", _NOTION_DB_OUTPUT)
 
-# 노션 로그 (최근 20개, /api/notion-log에서 조회 가능)
-_notion_log: list[dict] = []
+# 노션 로그 → app_state 사용 (alias)
+_notion_log = app_state.notion_log
 
 def _add_notion_log(status: str, title: str, db: str = "", url: str = "", error: str = ""):
     """노션 작업 로그를 저장합니다 (최근 20개)."""
-    global _notion_log
     _notion_log.append({
         "time": datetime.now(KST).strftime("%Y-%m-%d %H:%M:%S"),
         "status": status,
@@ -9587,17 +9586,16 @@ _MANAGER_DIVISION: dict[str, str] = {
 # 동면 부서 (품질검수 제외)
 _DORMANT_MANAGERS: set[str] = {"cto_manager"}
 
-# 품질검수 게이트 인스턴스 (서버 시작 시 초기화)
-_quality_gate: QualityGate | None = None
+# app_state.quality_gate → app_state.quality_gate 직접 사용
 
 def _init_quality_gate():
     """품질검수 게이트 초기화."""
-    global _quality_gate
+
     if not _QUALITY_GATE_AVAILABLE:
         _log("[QA] QualityGate 모듈 미설치 — 품질검수 비활성")
         return
     config_path = Path(__file__).parent.parent / "config" / "quality_rules.yaml"
-    _quality_gate = QualityGate(config_path)
+    app_state.quality_gate = QualityGate(config_path)
     _log("[QA] 품질검수 게이트 초기화 완료")
 
 
@@ -9641,7 +9639,7 @@ async def _quality_review_specialists(chain: dict) -> list[dict]:
 
     Returns: [{"agent_id": ..., "review": HybridReviewResult, "content": ...}, ...]
     """
-    if not _quality_gate or not _QUALITY_GATE_AVAILABLE:
+    if not app_state.quality_gate or not _QUALITY_GATE_AVAILABLE:
         return []
 
     target_id = chain.get("target_id", "chief_of_staff")
@@ -9666,7 +9664,7 @@ async def _quality_review_specialists(chain: dict) -> list[dict]:
             continue
 
         try:
-            review = await _quality_gate.hybrid_review(
+            review = await app_state.quality_gate.hybrid_review(
                 result_data=content,
                 task_description=task_desc,
                 model_router=_qa_router,
@@ -9676,7 +9674,7 @@ async def _quality_review_specialists(chain: dict) -> list[dict]:
                 target_agent_id=agent_id,
             )
             # 통계 기록 (메모리)
-            _quality_gate.record_review(review, target_id, agent_id, task_desc)
+            app_state.quality_gate.record_review(review, target_id, agent_id, task_desc)
             chain["total_cost_usd"] += getattr(review, "_cost", 0)
 
             # DB에 검수 결과 저장
@@ -9728,7 +9726,7 @@ async def _handle_specialist_rework(chain: dict, failed_specs: list[dict], attem
     attempt: 현재 재시도 횟수 (1 또는 2)
     max_retry: quality_rules.yaml에서 설정 (기본 2)
     """
-    max_retry = _quality_gate.max_retry if _quality_gate else 2
+    max_retry = app_state.quality_gate.max_retry if app_state.quality_gate else 2
     if attempt > max_retry:
         # 재시도 초과 → 경고 뱃지 부착 후 종합 단계로 진행
         for spec in failed_specs:
@@ -11096,13 +11094,13 @@ _BATCH_MODE_SUFFIX = (
 )
 
 
-_chief_prompt: str = ""
+# app_state.chief_prompt → app_state.chief_prompt 직접 사용
 
 
 def _load_chief_prompt() -> None:
     """비서실장 시스템 프롬프트를 로드합니다 (서버 시작 시 캐시)."""
-    global _chief_prompt
-    _chief_prompt = _load_agent_prompt("chief_of_staff")
+
+    app_state.chief_prompt = _load_agent_prompt("chief_of_staff")
     _log("[AI] 비서실장 프롬프트 로드 완료")
 
 
@@ -11325,7 +11323,7 @@ async def _process_ai_command(text: str, task_id: str, target_agent_id: str | No
     # 4) 비서실장 직접 처리 (일반 질문, 인사 등)
     if target_id == "chief_of_staff":
         await _broadcast_status("chief_of_staff", "working", 0.2, "직접 처리 중...")
-        soul = _chief_prompt if _chief_prompt else _load_agent_prompt("chief_of_staff")
+        soul = app_state.chief_prompt if app_state.chief_prompt else _load_agent_prompt("chief_of_staff")
         override = _get_model_override("chief_of_staff")
         model = select_model(text, override=override)
         # 대화 맥락 로드
@@ -11428,9 +11426,9 @@ def _init_tool_pool():
     ask_ai()를 ModelRouter 인터페이스로 감싸는 어댑터를 만들어,
     기존 도구 코드를 수정 없이 사용할 수 있게 합니다.
     """
-    global _tool_pool
-    if _tool_pool is not None:
-        return _tool_pool if _tool_pool else None
+
+    if app_state.tool_pool is not None:
+        return app_state.tool_pool if app_state.tool_pool else None
 
     try:
         from src.tools.pool import ToolPool
@@ -11486,7 +11484,7 @@ def _init_tool_pool():
         pool.build_from_config(tools_config)
 
         loaded = len(pool._tools)
-        _tool_pool = pool
+        app_state.tool_pool = pool
         # AGENTS 초기 모델을 풀에 등록 (Skill 도구가 caller 에이전트 모델을 따라가도록)
         for a in AGENTS:
             _temp = _AGENTS_DETAIL.get(a["agent_id"], {}).get("temperature", 0.7)
@@ -11505,7 +11503,7 @@ def _init_tool_pool():
 
     except Exception as e:
         _log(f"[TOOLS] ToolPool 초기화 실패 (도구 목록만 표시): {e}")
-        _tool_pool = False
+        app_state.tool_pool = False
         return None
 
 
@@ -11655,8 +11653,8 @@ async def on_startup():
         _log(f"[TG] ❌ 봇 시작 중 미처리 예외: {tg_err}")
         _diag["tg_error"] = f"startup 예외: {tg_err}"
     # 크론 실행 엔진 시작
-    global _cron_task
-    _cron_task = asyncio.create_task(_cron_loop())
+
+    app_state.cron_task = asyncio.create_task(_cron_loop())
     _log("[CRON] 크론 실행 엔진 시작 ✅")
     # 기본 스케줄 자동 등록 (없으면 생성)
     _register_default_schedules()
@@ -11682,10 +11680,10 @@ async def on_startup():
         _ensure_batch_poller()
         _log(f"[BATCH] 미완료 배치 {len(active_batches)}개 + 체인 {len(active_chains)}개 감지 — 폴러 자동 시작")
     # 자동매매 봇 상태 DB에서 복원 (배포/재시작 후에도 유지)
-    global _trading_bot_active, _trading_bot_task
-    _trading_bot_active = bool(load_setting("trading_bot_active", False))
-    if _trading_bot_active:
-        _trading_bot_task = asyncio.create_task(_trading_bot_loop())
+
+    app_state.trading_bot_active = bool(load_setting("trading_bot_active", False))
+    if app_state.trading_bot_active:
+        app_state.trading_bot_task = asyncio.create_task(_trading_bot_loop())
         _log("[TRADING] 자동매매 봇 DB 상태 복원 → 자동 재시작 ✅")
     # 관심종목 시세 1분 자동 갱신 태스크 시작
     asyncio.create_task(_auto_refresh_prices())
