@@ -16,4 +16,5 @@
   - activity_handler:     /api/activity-logs, /api/delegation-log, /api/comms/* (활동·내부통신)
   - quality_handler:      /api/quality, /api/quality-rules/* (품질검수)
   - sns_handler:          /api/sns/*, /api/debug/instagram-token (SNS 연동·발행)
+  - trading_handler:      /api/trading/*, /api/cio/* (트레이딩 CRUD·잔고·시그널)
 """
