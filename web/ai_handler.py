@@ -51,22 +51,43 @@ except ImportError:
     logger.warning("openai 패키지 미설치")
 
 
-# ── 모델 가격표 (1M 토큰당 USD) ──
-_PRICING = {
-    # Anthropic (models.yaml 동기화 2026-02-21)
+# ── 도구 결과 최대 길이 (상수) ──
+TOOL_RESULT_MAX_CHARS = 4000
+
+# ── 모델 가격표 (models.yaml에서 자동 로드, 폴백: 하드코딩) ──
+def _load_pricing_from_yaml() -> dict:
+    """config/models.yaml에서 가격 정보를 로드합니다."""
+    pricing = {}
+    try:
+        import yaml
+        yaml_path = Path(__file__).parent.parent / "config" / "models.yaml"
+        if yaml_path.exists():
+            with open(yaml_path, encoding="utf-8") as f:
+                data = yaml.safe_load(f) or {}
+            for provider_data in (data.get("providers") or {}).values():
+                for m in provider_data.get("models", []):
+                    name = m.get("name", "")
+                    inp = m.get("cost_per_1m_input", 0)
+                    out = m.get("cost_per_1m_output", 0)
+                    if name and (inp or out):
+                        pricing[name] = {"input": inp, "output": out}
+    except Exception as e:
+        logger.warning("models.yaml 가격 로드 실패, 기본값 사용: %s", e)
+    return pricing
+
+_PRICING_FALLBACK = {
     "claude-opus-4-6": {"input": 5.00, "output": 25.00},
     "claude-sonnet-4-6": {"input": 3.00, "output": 15.00},
     "claude-haiku-4-5-20251001": {"input": 0.80, "output": 4.00},
-    # Google Gemini
     "gemini-3.1-pro-preview": {"input": 2.00, "output": 12.00},
     "gemini-2.5-pro": {"input": 1.25, "output": 10.00},
     "gemini-2.5-flash": {"input": 0.15, "output": 0.60},
-    # OpenAI
     "gpt-5.2-pro": {"input": 21.00, "output": 168.00},
     "gpt-5.2": {"input": 1.75, "output": 14.00},
     "gpt-5": {"input": 1.25, "output": 10.00},
     "gpt-5-mini": {"input": 0.25, "output": 2.00},
 }
+_PRICING = _load_pricing_from_yaml() or _PRICING_FALLBACK
 
 # ── reasoning_effort 관련 상수 ──
 
@@ -504,7 +525,7 @@ async def _call_anthropic(
                     tool_results.append({
                         "type": "tool_result",
                         "tool_use_id": tc.id,
-                        "content": str(result)[:4000],
+                        "content": str(result)[:TOOL_RESULT_MAX_CHARS],
                     })
                 except Exception as e:
                     logger.warning("도구 실행 실패 (%s): %s", tc.name, e)
@@ -639,7 +660,7 @@ async def _call_google(
                     func_responses.append(
                         types.FunctionResponse(
                             name=fc.name,
-                            response={"result": str(result)[:4000]},
+                            response={"result": str(result)[:TOOL_RESULT_MAX_CHARS]},
                         )
                     )
                 except Exception as e:
@@ -779,7 +800,7 @@ async def _call_openai(
                     messages.append({
                         "role": "tool",
                         "tool_call_id": tc.id,
-                        "content": str(result)[:4000],
+                        "content": str(result)[:TOOL_RESULT_MAX_CHARS],
                     })
                 except Exception as e:
                     logger.warning("도구 실행 실패 (%s): %s", tc.function.name, e)

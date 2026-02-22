@@ -577,6 +577,10 @@ async def websocket_endpoint(ws: WebSocket):
                 logger.debug("WS 상태 전송 실패: %s", e)
         while True:
             data = await ws.receive_text()
+            # 메시지 크기 제한 (64KB) — 비정상적으로 큰 페이로드 차단
+            if len(data) > 65536:
+                await ws.send_json({"event": "error", "data": {"message": "메시지 크기 초과 (64KB 제한)"}})
+                continue
             msg = json.loads(data)
             # 메시지를 받으면 DB에 저장 + 응답
             if msg.get("type") == "cancel":

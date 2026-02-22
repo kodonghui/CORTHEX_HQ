@@ -8,10 +8,10 @@
 
 ## 마지막 업데이트
 
-- **날짜**: 2026-02-23 (리팩토링 Step 1 + 노션 corthex.hq 전환 + CLAUDE.md 정비)
-- **버전**: `3.02.018`
+- **날짜**: 2026-02-23 (리팩토링 Step 1~11 전체 완료)
+- **버전**: `3.02.019`
 - **최신 빌드**: 배포 후 갱신
-- **작업 브랜치**: claude/refactor-step1-broadcast
+- **작업 브랜치**: claude/refactor-step8-config
 - **접속 주소**: https://corthex-hq.com
 
 ---
@@ -42,22 +42,29 @@
 
 | 빌드 | 내용 |
 |------|------|
-| 배포 중 | **리팩토링 Step 1: 브로드캐스트 헬퍼 추출** — mini_server.py 30곳 반복 코드 → ws_manager.py 통합 |
-| — | **노션 API 키 corthex.hq로 전환** — elddlwkd 키 제거, GitHub Secrets + .env.local 교체 |
-| — | **corthex.hq 노션 페이지 업데이트** — 아키텍처 + 기술 문서 페이지 갱신 |
-| — | **CLAUDE.md 정비** — 메모리 금지 규칙, 기술 설명 규칙 추가 |
-| — | **비개발자용 리팩토링 가이드 작성** — `docs/refactoring-guide.md` |
-| — | **CEO 아이디어 #005~#006 추가** — 메모리 금지 원칙, 리팩토링 설명 원칙 + 전체 계획 |
+| PR#493 | **Step 1: 브로드캐스트 헬퍼** — 30곳 반복 → ws_manager.py 1곳 통합 |
+| PR#494 | **Step 2: 전역 상태 관리** — 44개 전역변수 → AppState 클래스 1개 |
+| PR#495 | **Step 3+4: 메모리 누수 + 에러 핸들링** — TTL 자동 정리, AI 180초 타임아웃, pass 38곳→로깅 |
+| PR#497 | **Step 5~7: 핸들러 20개 분리** — 144 endpoints, mini_server.py 11,906→8,527줄 |
+| 배포 중 | **Step 8~11: ai_handler 정리 + WS 크기 제한** — 가격 YAML 로드, 도구결과 상수화, 64KB 제한 |
+| — | **노션 API 키 corthex.hq로 전환** — elddlwkd 키 제거 |
+| — | **CLAUDE.md 정비 + 리팩토링 가이드** — 비개발자용 문서 |
 
-## 리팩토링 진행 상황 (14단계 중 Step 1 완료)
+## 리팩토링 진행 상황 (14단계 중 Step 1~11 완료)
 
 | 단계 | 비유 | 실제 작업 | 상태 |
 |------|------|----------|------|
-| **Step 1** | 방송실 만들기 | 30곳 브로드캐스트 코드 → `ws_manager.py` | ✅ 완료 |
-| **Step 2** | 관리사무소 만들기 | 44개 전역변수 → `AppState` | ⬜ 다음 |
-| **Step 3~14** | — | — | ⬜ 예정 |
+| **Step 1** | 방송실 만들기 | 30곳 → ws_manager.py | ✅ PR#493 |
+| **Step 2** | 관리사무소 만들기 | 44개 전역변수 → AppState | ✅ PR#494 |
+| **Step 3** | 메모리 청소 | TTL 자동 정리 + AI 타임아웃 | ✅ PR#495 |
+| **Step 4** | 에러 잡기 | pass 38곳 → 로깅 | ✅ PR#495 |
+| **Step 5~7** | 부서별 분리 | 핸들러 20개, 144 endpoints | ✅ PR#497 |
+| **Step 8** | AI 정리 | models.yaml 가격 로드 | ✅ 배포 중 |
+| **Step 9** | Config 통합 | deploy.yml에 이미 존재 | ✅ 해결됨 |
+| **Step 10~11** | 입력 검증 | WS 64KB 제한, shutdown | ✅ 배포 중 |
+| **Step 12~14** | 장기 과제 | index.html, 멀티턴, 아키텍처맵 | ⬜ 장기 |
 
-상세: `docs/refactoring-guide.md` 참조
+상세: `docs/REFACTORING_PLAN.md` 참조
 
 ---
 
@@ -187,7 +194,7 @@ CORTHEX HQ 프로그램 전체 전수검사:
 
 - **저장소**: https://github.com/kodonghui/CORTHEX_HQ
 - **서버**: Oracle Cloud ARM 24GB (corthex-hq.com)
-- **현재 버전**: 3.02.002
+- **현재 버전**: 3.02.019
 - **에이전트**: 29명 (5개 부서)
 - **도구**: 89개 등록 (tools.yaml 기준)
 - **DB**: SQLite (서버: /home/ubuntu/corthex.db)
