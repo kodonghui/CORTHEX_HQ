@@ -551,6 +551,22 @@ async def websocket_endpoint(ws: WebSocket):
             data = await ws.receive_text()
             msg = json.loads(data)
             # 메시지를 받으면 DB에 저장 + 응답
+            if msg.get("type") == "cancel":
+                # 취소 요청: DB에서 running 태스크를 cancelled로 변경
+                cancel_tid = msg.get("task_id")
+                if cancel_tid:
+                    update_task(cancel_tid, status="failed",
+                                result_summary="CEO 취소", success=0)
+                else:
+                    # task_id 없으면 running 태스크 전부 취소
+                    try:
+                        running = list_tasks(status="running", limit=10)
+                        for rt in running:
+                            update_task(rt["task_id"], status="failed",
+                                        result_summary="CEO 취소", success=0)
+                    except Exception:
+                        pass
+                continue
             if msg.get("type") == "command":
                 cmd_text = (msg.get("content") or msg.get("text", "")).strip()
                 use_batch = msg.get("batch", False)
@@ -639,6 +655,15 @@ async def websocket_endpoint(ws: WebSocket):
                             try:
                                 update_task(task_id, status="running")
                                 debate_result = await _process_ai_command(text, task_id)
+                                if "error" in debate_result:
+                                    update_task(task_id, status="failed",
+                                                result_summary=str(debate_result.get("error", ""))[:200],
+                                                success=0)
+                                else:
+                                    update_task(task_id, status="completed",
+                                                result_summary=(debate_result.get("content", "") or "")[:200],
+                                                success=1,
+                                                cost_usd=debate_result.get("total_cost_usd", debate_result.get("cost_usd", 0)))
                                 for c in connected_clients[:]:
                                     try:
                                         if "error" in debate_result:
@@ -685,6 +710,9 @@ async def websocket_endpoint(ws: WebSocket):
                         update_task(task["task_id"], status="running")
                         result = await _process_ai_command(cmd_text, task["task_id"], target_agent_id=ws_target_agent_id)
                         if "error" in result:
+                            update_task(task["task_id"], status="failed",
+                                        result_summary=result.get("error", "")[:200],
+                                        success=0, time_seconds=0)
                             _result_payload = {"content": f"❌ {result['error']}", "sender_id": result.get("agent_id", "chief_of_staff"), "handled_by": result.get("handled_by", "비서실장"), "time_seconds": 0, "cost": 0}
                             # 서버 측 DB 저장 — WebSocket 손실 시에도 새로고침 후 복원 가능
                             try:
@@ -738,6 +766,12 @@ async def websocket_endpoint(ws: WebSocket):
                                     await _c.send_json({"event": "result", "data": _result_data})
                                 except Exception:
                                     pass
+                            # 작업 완료 처리
+                            update_task(task["task_id"], status="completed",
+                                        result_summary=(result.get("content", "") or "")[:200],
+                                        success=1,
+                                        time_seconds=result.get("time_seconds", 0),
+                                        cost_usd=result.get("total_cost_usd", result.get("cost_usd", 0)))
                             # 텔레그램 CEO 자동 전송 — 웹 채팅 응답을 텔레그램으로도 전달
                             await _forward_web_response_to_telegram(
                                 cmd_text, _result_data
@@ -1223,6 +1257,18 @@ async def get_task(task_id: str):
 async def bookmark_task(task_id: str):
     new_state = db_toggle_bookmark(task_id)
     return {"bookmarked": new_state}
+
+
+@app.post("/api/tasks/{task_id}/cancel")
+async def cancel_task_api(task_id: str):
+    """작업 취소 — running 상태를 failed(CEO 취소)로 변경."""
+    task = db_get_task(task_id)
+    if not task:
+        return {"success": False, "error": "not found"}
+    if task.get("status") == "running":
+        update_task(task_id, status="failed",
+                    result_summary="CEO 취소 (타임아웃)", success=0)
+    return {"success": True}
 
 
 @app.delete("/api/tasks/{task_id}")
@@ -8707,6 +8753,14 @@ async def _start_telegram_bot() -> None:
                     result = await _process_ai_command(t, tid, target_agent_id=target_agent_id)
                     content = result.get("content", result.get("error", "결과 없음"))
                     cost = result.get("cost_usd", result.get("total_cost_usd", 0))
+                    if "error" in result:
+                        update_task(tid, status="failed",
+                                    result_summary=str(result.get("error", ""))[:200],
+                                    success=0)
+                    else:
+                        update_task(tid, status="completed",
+                                    result_summary=(content or "")[:200],
+                                    success=1, cost_usd=cost)
                     if len(content) > 3900:
                         content = content[:3900] + "\n\n... (결과가 잘렸습니다. 웹에서 전체 확인)"
                     await _telegram_app.bot.send_message(
@@ -8714,6 +8768,8 @@ async def _start_telegram_bot() -> None:
                         text=f"{content}\n\n─────\n💰 ${cost:.4f}",
                     )
                 except Exception as e:
+                    update_task(tid, status="failed",
+                                result_summary=str(e)[:200], success=0)
                     try:
                         await _telegram_app.bot.send_message(chat_id=int(cid), text=f"❌ 오류: {e}")
                     except Exception:
@@ -8869,6 +8925,9 @@ async def _start_telegram_bot() -> None:
                 result = await _process_ai_command(text, task["task_id"], target_agent_id=tg_target_agent_id)
 
                 if "error" in result:
+                    update_task(task["task_id"], status="failed",
+                                result_summary=str(result.get("error", ""))[:200],
+                                success=0)
                     await update.message.reply_text(f"❌ {result['error']}")
                 else:
                     content = result.get("content", "")
@@ -8881,6 +8940,10 @@ async def _start_telegram_bot() -> None:
                     model_short = model.split("-")[1] if "-" in model else model
                     # 담당자 표시: 처장 이름 또는 비서실장
                     footer_who = delegation if delegation else "비서실장"
+                    update_task(task["task_id"], status="completed",
+                                result_summary=(content or "")[:200],
+                                success=1, cost_usd=cost,
+                                time_seconds=result.get("time_seconds", 0))
                     await update.message.reply_text(
                         f"{content}\n\n"
                         f"─────\n"
