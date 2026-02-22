@@ -15,4 +15,5 @@
   - notion_handler:       /api/notion-log (노션 로그)
   - activity_handler:     /api/activity-logs, /api/delegation-log, /api/comms/* (활동·내부통신)
   - quality_handler:      /api/quality, /api/quality-rules/* (품질검수)
+  - sns_handler:          /api/sns/*, /api/debug/instagram-token (SNS 연동·발행)
 """
