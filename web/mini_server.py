@@ -820,15 +820,9 @@ app.include_router(media_router)
 
 # ── API 엔드포인트 ──
 
-@app.get("/api/auth/status")
-async def auth_status(request: Request):
-    if _check_auth(request):
-        return {"bootstrap_mode": False, "role": "ceo", "authenticated": True}
-    # 비밀번호가 기본값이고 세션이 없으면 부트스트랩 모드
-    stored_pw = load_setting("admin_password")
-    if (not stored_pw or stored_pw == "corthex2026") and not _sessions:
-        return {"bootstrap_mode": True, "role": "ceo", "authenticated": True}
-    return {"bootstrap_mode": False, "role": "viewer", "authenticated": False}
+# ── 인증(Auth) API → handlers/auth_handler.py로 분리 ──
+from handlers.auth_handler import router as auth_router, check_auth as _check_auth
+app.include_router(auth_router)
 
 
 @app.get("/api/agents")
@@ -1050,45 +1044,9 @@ async def set_model_mode(request: Request):
     return {"success": True, "mode": mode}
 
 
-@app.get("/api/quality")
-async def get_quality():
-    """품질검수 통계 반환 (DB 영구 통계 + 메모리 세션 통계 병합)."""
-    db_stats = get_quality_stats()
-    if app_state.quality_gate:
-        mem = app_state.quality_gate.stats
-        db_stats["session_retried"] = mem.total_retried
-        db_stats["session_retry_success_rate"] = mem.retry_success_rate
-        db_stats["rejections_by_agent"] = mem.rejections_by_agent
-    return db_stats
-
-
-# ── 프리셋 관리 ──
-
-@app.get("/api/presets")
-async def get_presets():
-    return _load_data("presets", [])
-
-
-@app.post("/api/presets")
-async def save_preset(request: Request):
-    """프리셋 저장."""
-    body = await request.json()
-    presets = _load_data("presets", [])
-    name = body.get("name", "")
-    # 같은 이름이 있으면 덮어쓰기
-    presets = [p for p in presets if p.get("name") != name]
-    presets.append(body)
-    _save_data("presets", presets)
-    return {"success": True}
-
-
-@app.delete("/api/presets/{name}")
-async def delete_preset(name: str):
-    """프리셋 삭제."""
-    presets = _load_data("presets", [])
-    presets = [p for p in presets if p.get("name") != name]
-    _save_data("presets", presets)
-    return {"success": True}
+# ── 품질검수 통계 + 프리셋 → handlers/quality_handler.py, handlers/preset_handler.py로 분리 ──
+from handlers.preset_handler import router as preset_router
+app.include_router(preset_router)
 
 
 # ── 성능/작업 (읽기 전용 — 실제 데이터는 풀 서버에서 생성) ──
@@ -3774,105 +3732,12 @@ async def google_calendar_status():
     return {"connected": False, "message": "연동 필요 — /api/google-calendar/setup 방문"}
 
 
-# ── 예약 (스케줄) 관리 ──
+# ── 예약(Schedule) · 워크플로우(Workflow) CRUD → handlers/schedule_handler.py로 분리 ──
+from handlers.schedule_handler import router as schedule_router
+app.include_router(schedule_router)
 
 
-
-@app.get("/api/schedules")
-async def get_schedules():
-    return _load_data("schedules", [])
-
-
-@app.post("/api/schedules")
-async def add_schedule(request: Request):
-    """새 예약 추가."""
-    body = await request.json()
-    schedules = _load_data("schedules", [])
-    schedule_id = f"sch_{datetime.now(KST).strftime('%Y%m%d%H%M%S')}_{len(schedules)}"
-    schedule = {
-        "id": schedule_id,
-        "name": body.get("name", ""),
-        "command": body.get("command", ""),
-        "cron": body.get("cron", ""),
-        "cron_preset": body.get("cron_preset", ""),
-        "description": body.get("description", ""),
-        "enabled": True,
-        "created_at": datetime.now(KST).isoformat(),
-    }
-    schedules.append(schedule)
-    _save_data("schedules", schedules)
-    return {"success": True, "schedule": schedule}
-
-
-@app.post("/api/schedules/{schedule_id}/toggle")
-async def toggle_schedule(schedule_id: str):
-    """예약 활성화/비활성화."""
-    schedules = _load_data("schedules", [])
-    for s in schedules:
-        if s.get("id") == schedule_id:
-            s["enabled"] = not s.get("enabled", True)
-            _save_data("schedules", schedules)
-            return {"success": True, "enabled": s["enabled"]}
-    return {"success": False, "error": "not found"}
-
-
-@app.delete("/api/schedules/{schedule_id}")
-async def delete_schedule(schedule_id: str):
-    """예약 삭제."""
-    schedules = _load_data("schedules", [])
-    schedules = [s for s in schedules if s.get("id") != schedule_id]
-    _save_data("schedules", schedules)
-    return {"success": True}
-
-
-# ── 워크플로우 관리 ──
-
-@app.get("/api/workflows")
-async def get_workflows():
-    return _load_data("workflows", [])
-
-
-@app.post("/api/workflows")
-async def create_workflow(request: Request):
-    """새 워크플로우 생성."""
-    body = await request.json()
-    workflows = _load_data("workflows", [])
-    wf_id = f"wf_{datetime.now(KST).strftime('%Y%m%d%H%M%S')}_{len(workflows)}"
-    workflow = {
-        "id": wf_id,
-        "name": body.get("name", "새 워크플로우"),
-        "description": body.get("description", ""),
-        "steps": body.get("steps", []),
-        "created_at": datetime.now(KST).isoformat(),
-    }
-    workflows.append(workflow)
-    _save_data("workflows", workflows)
-    return {"success": True, "workflow": workflow}
-
-
-@app.put("/api/workflows/{wf_id}")
-async def save_workflow(wf_id: str, request: Request):
-    """워크플로우 수정."""
-    body = await request.json()
-    workflows = _load_data("workflows", [])
-    for wf in workflows:
-        if wf.get("id") == wf_id:
-            wf["name"] = body.get("name", wf.get("name", ""))
-            wf["description"] = body.get("description", wf.get("description", ""))
-            wf["steps"] = body.get("steps", wf.get("steps", []))
-            _save_data("workflows", workflows)
-            return {"success": True, "workflow": wf}
-    return {"success": False, "error": "not found"}
-
-
-@app.delete("/api/workflows/{wf_id}")
-async def delete_workflow(wf_id: str):
-    """워크플로우 삭제."""
-    workflows = _load_data("workflows", [])
-    workflows = [w for w in workflows if w.get("id") != wf_id]
-    _save_data("workflows", workflows)
-    return {"success": True}
-
+# ── 워크플로우 실행 (AI 의존 — mini_server.py에 유지) ──
 
 @app.post("/api/workflows/{wf_id}/run")
 async def run_workflow(wf_id: str):
@@ -7277,186 +7142,16 @@ async def get_sns_events(limit: int = 50):
     return {"items": events[:limit], "total": len(events)}
 
 
-# ── 인증 (Phase 3: 비밀번호 로그인) ──
+# ── 인증 → handlers/auth_handler.py에서 분리됨 (위쪽에서 include_router 완료) ──
 
-_sessions = app_state.sessions  # token → 만료 시간 (alias)
-_SESSION_TTL = 86400 * 7  # 7일
-
-
-def _check_auth(request: Request) -> bool:
-    """요청의 인증 상태를 확인합니다."""
-    token = request.headers.get("Authorization", "").replace("Bearer ", "")
-    if not token:
-        token = request.query_params.get("token", "")
-    if token and token in _sessions:
-        if _sessions[token] > time.time():
-            return True
-        del _sessions[token]
-    return False
+# ── 헬스체크 → handlers/health_handler.py로 분리 ──
+from handlers.health_handler import router as health_router
+app.include_router(health_router)
 
 
-@app.post("/api/auth/login")
-async def login(request: Request):
-    """비밀번호 로그인."""
-    body = await request.json()
-    pw = body.get("password", "")
-    stored_pw = load_setting("admin_password") or "corthex2026"
-    if pw != stored_pw:
-        return JSONResponse({"success": False, "error": "비밀번호가 틀립니다"}, status_code=401)
-    token = str(_uuid.uuid4())
-    _sessions[token] = time.time() + _SESSION_TTL
-    return {"success": True, "token": token, "user": {"role": "ceo", "name": "CEO"}}
-
-
-@app.post("/api/auth/logout")
-async def logout(request: Request):
-    """로그아웃."""
-    token = request.headers.get("Authorization", "").replace("Bearer ", "")
-    if token in _sessions:
-        del _sessions[token]
-    return {"success": True}
-
-
-@app.get("/api/auth/check")
-async def auth_check(request: Request):
-    """토큰 유효성 확인."""
-    if _check_auth(request):
-        return {"authenticated": True, "role": "ceo"}
-    return JSONResponse({"authenticated": False}, status_code=401)
-
-
-@app.post("/api/auth/change-password")
-async def change_password(request: Request):
-    """비밀번호 변경."""
-    if not _check_auth(request):
-        return JSONResponse({"success": False, "error": "인증 필요"}, status_code=401)
-    body = await request.json()
-    current = body.get("current", "")
-    new_pw = body.get("new_password", "")
-    stored_pw = load_setting("admin_password") or "corthex2026"
-    if current != stored_pw:
-        return JSONResponse({"success": False, "error": "현재 비밀번호가 틀립니다"}, status_code=401)
-    if len(new_pw) < 4:
-        return {"success": False, "error": "비밀번호는 4자 이상이어야 합니다"}
-    save_setting("admin_password", new_pw)
-    return {"success": True}
-
-
-# ── 헬스체크 ──
-
-@app.get("/api/health")
-async def health_check():
-    """서버 상태 확인."""
-    return {
-        "status": "ok",
-        "mode": "ARM 서버",
-        "agents": len(AGENTS),
-        "telegram": _telegram_available and app_state.telegram_app is not None,
-        "timestamp": datetime.now(KST).isoformat(),
-    }
-
-
-# 품질검수 규칙: DB 오버라이드 우선, 없으면 파일에서 로드
-_QUALITY_RULES: dict = load_setting("config_quality_rules") or _load_config("quality_rules")
-
-# 부서 ID → 한국어 이름 매핑
-_DIVISION_LABELS: dict[str, str] = {
-    "default": "기본 (전체 공통)",
-    "secretary": "비서실",
-    "leet_master.tech": "기술개발팀 (CTO)",
-    "leet_master.strategy": "전략기획팀 (CSO)",
-    "leet_master.legal": "법무팀 (CLO)",
-    "leet_master.marketing": "마케팅팀 (CMO)",
-    "finance.investment": "금융분석팀 (CIO)",
-    "publishing": "콘텐츠팀 (CPO)",
-}
-
-# 부서 목록 (default 제외)
-_KNOWN_DIVISIONS: list[str] = [
-    "secretary",
-    "leet_master.tech",
-    "leet_master.strategy",
-    "leet_master.legal",
-    "leet_master.marketing",
-    "finance.investment",
-    "publishing",
-]
-
-
-@app.get("/api/quality-rules")
-async def get_quality_rules():
-    rules = _QUALITY_RULES.get("rules", {})
-    rubrics = _QUALITY_RULES.get("rubrics", {})
-    common_checklist = _QUALITY_RULES.get("common_checklist", {"required": [], "optional": []})
-    pass_criteria = _QUALITY_RULES.get("pass_criteria", {"all_required_pass": True, "min_average_score": 3.0})
-    return {
-        "rules": rules,
-        "rubrics": rubrics,
-        "common_checklist": common_checklist,
-        "pass_criteria": pass_criteria,
-        "known_divisions": _KNOWN_DIVISIONS,
-        "division_labels": _DIVISION_LABELS,
-    }
-
-
-# ── 품질검수: 루브릭 저장/삭제 + 규칙 저장 ──
-
-@app.put("/api/quality-rules/rubric/{division}")
-async def save_rubric(division: str, request: Request):
-    """부서별 루브릭(검수 기준) 저장 — 하이브리드 구조 지원."""
-    body = await request.json()
-    rubric = {
-        "name": body.get("name", ""),
-        "department_checklist": body.get("department_checklist", {"required": [], "optional": []}),
-        "scoring": body.get("scoring", []),
-    }
-    # 레거시 호환: prompt 필드가 있으면 유지
-    if body.get("prompt"):
-        rubric["prompt"] = body["prompt"]
-    if "rubrics" not in _QUALITY_RULES:
-        _QUALITY_RULES["rubrics"] = {}
-    _QUALITY_RULES["rubrics"][division] = rubric
-    _save_config_file("quality_rules", _QUALITY_RULES)
-    # 품질검수 게이트에 변경 반영
-    if app_state.quality_gate:
-        app_state.quality_gate.reload_config()
-    return {"success": True, "division": division}
-
-
-@app.delete("/api/quality-rules/rubric/{division}")
-async def delete_rubric(division: str):
-    """부서별 루브릭 삭제 (default는 삭제 불가)."""
-    if division == "default":
-        return {"success": False, "error": "기본 루브릭은 삭제할 수 없습니다"}
-    rubrics = _QUALITY_RULES.get("rubrics", {})
-    if division in rubrics:
-        del rubrics[division]
-        _save_config_file("quality_rules", _QUALITY_RULES)
-    return {"success": True}
-
-
-@app.put("/api/quality-rules/model")
-async def save_review_model(request: Request):
-    """검수 모델 설정 (비활성화 — 각 매니저가 자기 모델 사용)."""
-    return {
-        "success": True,
-        "info": "각 매니저가 자기 모델로 검수합니다. 별도 검수 모델 설정 불필요.",
-    }
-
-
-@app.put("/api/quality-rules/rules")
-async def save_quality_rules(request: Request):
-    """품질검수 규칙 저장 (최소 길이, 재시도 횟수 등)."""
-    body = await request.json()
-    if "rules" not in _QUALITY_RULES:
-        _QUALITY_RULES["rules"] = {}
-    for key in ("min_length", "max_retry", "check_hallucination", "check_relevance"):
-        if key in body:
-            _QUALITY_RULES["rules"][key] = body[key]
-    _save_config_file("quality_rules", _QUALITY_RULES)
-    if app_state.quality_gate:
-        app_state.quality_gate.reload_config()
-    return {"success": True}
+# ── 품질검수(Quality) API → handlers/quality_handler.py로 분리 ──
+from handlers.quality_handler import router as quality_router
+app.include_router(quality_router)
 
 
 # ── 에이전트 설정: 소울/모델/추론 저장 ──
@@ -7741,212 +7436,9 @@ async def get_available_models():
     ]
 
 
-# ── 활동 로그 API ──
-@app.get("/api/activity-logs")
-async def get_activity_logs(limit: int = 50, agent_id: str = None):
-    logs = list_activity_logs(limit=limit, agent_id=agent_id)
-    return logs
-
-
-# ── 협업 로그 API ──
-
-@app.get("/api/delegation-log")
-async def get_delegation_log(agent: str = None, division: str = None, limit: int = 100):
-    """에이전트 간 위임/협업 로그를 조회합니다.
-
-    ?agent=비서실장 — 특정 에이전트 관련 로그만 반환
-    ?division=cio  — 해당 처 팀 전체 관련 로그 반환 (cio/cto/cmo/cso/clo/cpo)
-    """
-    try:
-        import sqlite3
-        from db import list_delegation_logs, get_connection
-
-        if division:
-            # 처별 키워드 매핑 (sender/receiver LIKE 검색)
-            _div_keywords: dict[str, list[str]] = {
-                "cio": ["CIO", "투자분석", "stock_analysis", "market_condition", "technical_analysis", "risk_management"],
-                "cto": ["CTO", "기술개발", "frontend", "backend", "infra", "ai_model"],
-                "cmo": ["CMO", "마케팅", "survey", "content_spec", "community"],
-                "cso": ["CSO", "사업기획", "business_plan", "market_research", "financial_model"],
-                "clo": ["CLO", "법무", "copyright", "patent"],
-                "cpo": ["CPO", "출판", "chronicle", "editor_spec", "archive"],
-            }
-            keywords = _div_keywords.get(division.lower(), [])
-            if not keywords:
-                return []
-            conn = get_connection()
-            try:
-                placeholders = " OR ".join(["sender LIKE ? OR receiver LIKE ?" for _ in keywords])
-                params = []
-                for k in keywords:
-                    params.extend([f"%{k}%", f"%{k}%"])
-                params.append(limit)
-                rows = conn.execute(
-                    f"SELECT id, sender, receiver, message, task_id, log_type, created_at "
-                    f"FROM delegation_log WHERE ({placeholders}) "
-                    f"ORDER BY created_at DESC LIMIT ?",
-                    params,
-                ).fetchall()
-                return [dict(r) for r in rows]
-            except sqlite3.OperationalError:
-                return []
-            finally:
-                conn.close()
-        else:
-            logs = list_delegation_logs(agent=agent, limit=limit)
-            return logs
-    except Exception:
-        return []
-
-
-@app.post("/api/delegation-log")
-async def post_delegation_log(request: Request):
-    """에이전트 간 위임/협업 로그를 저장합니다.
-
-    body: {sender, receiver, message, task_id?, log_type?}
-    """
-    try:
-        from db import save_delegation_log
-        body = await request.json()
-        sender = body.get("sender", "")
-        receiver = body.get("receiver", "")
-        message = body.get("message", "")
-        if not sender or not receiver or not message:
-            return {"success": False, "error": "sender, receiver, message는 필수입니다."}
-        row_id = save_delegation_log(
-            sender=sender,
-            receiver=receiver,
-            message=message,
-            task_id=body.get("task_id"),
-            log_type=body.get("log_type", "delegation"),
-        )
-        # WebSocket 실시간 broadcast — 열려있는 모든 클라이언트에 즉시 전달
-        import time as _time
-        _log_data = {
-            "id": row_id,
-            "sender": sender,
-            "receiver": receiver,
-            "message": message,
-            "log_type": body.get("log_type", "delegation"),
-            "created_at": _time.time(),
-        }
-        await wm.send_delegation_log(_log_data)
-        return {"success": True, "id": row_id}
-    except Exception as e:
-        return {"success": False, "error": str(e)}
-
-
-# ── 내부통신 통합 API (delegation_log + cross_agent_messages 통합) ──
-
-@app.get("/api/comms/messages")
-async def get_comms_messages(limit: int = 100, msg_type: str = ""):
-    """내부통신 통합 메시지 조회 — delegation_log + cross_agent_messages 병합."""
-    try:
-        from db import get_connection
-        conn = get_connection()
-        messages = []
-
-        # 1) delegation_log
-        try:
-            rows = conn.execute(
-                "SELECT id, sender, receiver, message, log_type, tools_used, created_at "
-                "FROM delegation_log ORDER BY created_at DESC LIMIT ?",
-                (limit,),
-            ).fetchall()
-            for r in rows:
-                lt = r["log_type"] or "delegation"
-                if msg_type and lt != msg_type:
-                    continue
-                _tu = r["tools_used"] or ""
-                _tools_list = [t.strip() for t in _tu.split(",") if t.strip()] if _tu else []
-                messages.append({
-                    "id": f"dl_{r['id']}",
-                    "sender": r["sender"],
-                    "receiver": r["receiver"],
-                    "message": r["message"],
-                    "log_type": lt,
-                    "tools_used": _tools_list,
-                    "source": "delegation",
-                    "created_at": r["created_at"],
-                })
-        except Exception as e:
-            logger.debug("위임 로그 조회 실패: %s", e)
-
-        # 2) cross_agent_messages
-        try:
-            rows2 = conn.execute(
-                "SELECT id, msg_type, from_agent, to_agent, data, status, created_at "
-                "FROM cross_agent_messages ORDER BY created_at DESC LIMIT ?",
-                (limit,),
-            ).fetchall()
-            for r in rows2:
-                import json as _j
-                try:
-                    data = _j.loads(r["data"]) if r["data"] else {}
-                except Exception:
-                    data = {}
-                lt = r["msg_type"] or "p2p"
-                if msg_type and lt != msg_type:
-                    continue
-                msg_text = data.get("task", data.get("message", data.get("next_task", "")))
-                messages.append({
-                    "id": f"ca_{r['id']}",
-                    "sender": r["from_agent"],
-                    "receiver": r["to_agent"],
-                    "message": msg_text,
-                    "log_type": lt,
-                    "source": "cross_agent",
-                    "status": r["status"],
-                    "created_at": r["created_at"],
-                })
-        except Exception as e:
-            logger.debug("교차 에이전트 메시지 조회 실패: %s", e)
-
-        conn.close()
-
-        # 시간순 정렬 (최신 먼저)
-        messages.sort(key=lambda x: x.get("created_at", ""), reverse=True)
-        return messages[:limit]
-    except Exception:
-        return []
-
-
-# ── SSE 엔드포인트 (B안: 내부통신 실시간 스트림) ──
-
-
-@app.get("/api/comms/stream")
-async def comms_sse_stream():
-    """SSE(Server-Sent Events) 실시간 내부통신 스트림.
-    프론트엔드에서 EventSource('/api/comms/stream')로 연결.
-    새 delegation_log / cross_agent_messages 발생 시 즉시 push.
-    """
-    from fastapi.responses import StreamingResponse
-    import json as _j
-
-    queue: asyncio.Queue = asyncio.Queue()
-    wm.add_sse_client(queue)
-
-    async def event_generator():
-        try:
-            # 연결 확인 이벤트
-            yield f"event: connected\ndata: {_j.dumps({'status':'ok'})}\n\n"
-            while True:
-                try:
-                    msg = await asyncio.wait_for(queue.get(), timeout=30)
-                    yield f"event: comms\ndata: {_j.dumps(msg, ensure_ascii=False)}\n\n"
-                except asyncio.TimeoutError:
-                    # keepalive — 30초마다 ping
-                    yield f": keepalive\n\n"
-        except asyncio.CancelledError:
-            pass
-        finally:
-            wm.remove_sse_client(queue)
-
-    return StreamingResponse(
-        event_generator(),
-        media_type="text/event-stream",
-        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
-    )
+# ── 활동 로그 · 위임 로그 · 내부통신(Comms) API → handlers/activity_handler.py로 분리 ──
+from handlers.activity_handler import router as activity_router
+app.include_router(activity_router)
 
 
 async def _broadcast_comms(msg_data: dict):
@@ -9012,19 +8504,9 @@ async def _save_to_notion(agent_id: str, title: str, content: str,
     return None
 
 
-@app.get("/api/notion-log")
-async def get_notion_log():
-    """노션 저장 로그 조회 (최근 20건)."""
-    return {
-        "logs": _notion_log,
-        "total": len(_notion_log),
-        "api_key_set": bool(_NOTION_API_KEY),
-        "db_secretary": _NOTION_DB_SECRETARY[:8] + "..." if _NOTION_DB_SECRETARY else "(미설정)",
-        # _NOTION_DB_ID는 NOTION_DEFAULT_DB_ID 환경변수 → 없으면 NOTION_DB_OUTPUT 폴백
-        "db_output_active": _NOTION_DB_ID[:8] + "..." if _NOTION_DB_ID else "(미설정)",
-        "db_output_fallback": _NOTION_DB_OUTPUT[:8] + "..." if _NOTION_DB_OUTPUT else "(미설정)",
-        "db_id_source": "NOTION_DEFAULT_DB_ID" if os.getenv("NOTION_DEFAULT_DB_ID") else "NOTION_DB_OUTPUT(폴백)",
-    }
+# ── 노션(Notion) 로그 API → handlers/notion_handler.py로 분리 ──
+from handlers.notion_handler import router as notion_router
+app.include_router(notion_router)
 
 
 # 브로드캐스트 키워드 (모든 부서에 동시 전달하는 명령)
