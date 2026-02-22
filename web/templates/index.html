@@ -6200,12 +6200,22 @@
           <div x-show="editingRubric === 'default'" x-collapse class="mt-2 p-4 bg-hq-bg rounded-xl border border-hq-accent/30">
             <p class="text-xs text-hq-muted/70 mb-3">하이브리드 루브릭은 config/quality_rules.yaml에서 편집합니다.</p>
             <template x-if="qualityRules.rubrics?.['default']?.scoring">
-              <div class="space-y-2">
+              <div class="space-y-3">
                 <template x-for="s in qualityRules.rubrics['default'].scoring" :key="s.id">
-                  <div class="flex items-center gap-2 text-xs">
-                    <span class="font-mono text-hq-accent w-6" x-text="s.id"></span>
-                    <span class="text-hq-text flex-1" x-text="s.label"></span>
-                    <span class="text-hq-muted" x-text="'가중치 ' + s.weight + '%'"></span>
+                  <div class="bg-hq-surface/30 rounded-lg p-2.5">
+                    <div class="flex items-center gap-2 text-xs mb-1.5">
+                      <span class="font-mono text-hq-accent w-6" x-text="s.id"></span>
+                      <span class="text-hq-text font-medium flex-1" x-text="s.label"></span>
+                      <template x-if="s.critical"><span class="text-[9px] px-1 py-0.5 rounded bg-hq-red/20 text-hq-red">★치명적</span></template>
+                      <span class="text-hq-muted text-[10px]" x-text="s.weight + '%'"></span>
+                    </div>
+                    <template x-if="s.criteria">
+                      <div class="space-y-1 ml-8">
+                        <div class="flex gap-2 text-[10px]"><span class="text-hq-red shrink-0 w-5">1점</span><span class="text-hq-muted/70" x-text="s.criteria[1] || s.criteria['1'] || '-'"></span></div>
+                        <div class="flex gap-2 text-[10px]"><span class="text-hq-yellow shrink-0 w-5">3점</span><span class="text-hq-muted/70" x-text="s.criteria[3] || s.criteria['3'] || '-'"></span></div>
+                        <div class="flex gap-2 text-[10px]"><span class="text-hq-green shrink-0 w-5">5점</span><span class="text-hq-muted/70" x-text="s.criteria[5] || s.criteria['5'] || '-'"></span></div>
+                      </div>
+                    </template>
                   </div>
                 </template>
               </div>
@@ -6274,17 +6284,29 @@
                       </template>
                     </div>
                   </template>
-                  <!-- 점수 항목 -->
+                  <!-- 점수 항목 (1/3/5 상세 기준 포함) -->
                   <template x-if="qualityRules.rubrics?.[div]?.scoring">
                     <div class="mb-3">
-                      <div class="text-[10px] text-hq-muted font-semibold mb-1">점수 항목 (1/3/5)</div>
-                      <template x-for="s in qualityRules.rubrics[div].scoring" :key="s.id">
-                        <div class="flex items-center gap-2 text-xs py-0.5">
-                          <span class="font-mono text-hq-accent w-6" x-text="s.id"></span>
-                          <span class="text-hq-text flex-1" x-text="s.label"></span>
-                          <span class="text-hq-muted" x-text="s.weight + '%'"></span>
-                        </div>
-                      </template>
+                      <div class="text-[10px] text-hq-muted font-semibold mb-2">점수 항목 (1/3/5)</div>
+                      <div class="space-y-2.5">
+                        <template x-for="s in qualityRules.rubrics[div].scoring" :key="s.id">
+                          <div class="bg-hq-surface/30 rounded-lg p-2.5">
+                            <div class="flex items-center gap-2 text-xs mb-1.5">
+                              <span class="font-mono text-hq-accent w-6" x-text="s.id"></span>
+                              <span class="text-hq-text font-medium flex-1" x-text="s.label"></span>
+                              <template x-if="s.critical"><span class="text-[9px] px-1 py-0.5 rounded bg-hq-red/20 text-hq-red">★치명적</span></template>
+                              <span class="text-hq-muted text-[10px]" x-text="s.weight + '%'"></span>
+                            </div>
+                            <template x-if="s.criteria">
+                              <div class="space-y-1 ml-8">
+                                <div class="flex gap-2 text-[10px]"><span class="text-hq-red shrink-0 w-5">1점</span><span class="text-hq-muted/70" x-text="s.criteria[1] || s.criteria['1'] || '-'"></span></div>
+                                <div class="flex gap-2 text-[10px]"><span class="text-hq-yellow shrink-0 w-5">3점</span><span class="text-hq-muted/70" x-text="s.criteria[3] || s.criteria['3'] || '-'"></span></div>
+                                <div class="flex gap-2 text-[10px]"><span class="text-hq-green shrink-0 w-5">5점</span><span class="text-hq-muted/70" x-text="s.criteria[5] || s.criteria['5'] || '-'"></span></div>
+                              </div>
+                            </template>
+                          </div>
+                        </template>
+                      </div>
                     </div>
                   </template>
                   <div class="flex items-center gap-2">
