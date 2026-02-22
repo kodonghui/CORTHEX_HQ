@@ -395,6 +395,9 @@ function corthexApp() {
     // Tab grouping (#12)
     showMoreTabs: false,
 
+    // Mobile responsive (#12-2)
+    mobileMoreOpen: false,
+
     // Task history pagination (#14)
     taskHistoryPage: 1,
     taskHistoryPageSize: 20,
@@ -469,6 +472,13 @@ function corthexApp() {
         try { if (this._batchTimer) clearInterval(this._batchTimer); } catch(e) {}
         try { if (this._budgetTimer) clearInterval(this._budgetTimer); } catch(e) {}
         try { if (this._elapsedTimer) clearInterval(this._elapsedTimer); } catch(e) {}
+      });
+      // Mobile responsive: auto-close sidebar on resize to desktop, auto-open on desktop (#12-2)
+      window.addEventListener('resize', () => {
+        const w = window.innerWidth;
+        if (w > 768 && !this.sidebarOpen) this.sidebarOpen = true;
+        if (w <= 768 && this.sidebarOpen) this.sidebarOpen = false;
+        if (w > 768) this.mobileMoreOpen = false;
       });
     },
 
@@ -1595,6 +1605,8 @@ function corthexApp() {
 
     switchTab(tabId) {
       this.activeTab = tabId;
+      // 모바일에서 탭 전환 시 사이드바 자동 닫힘 (#12-2)
+      if (window.innerWidth <= 768) this.sidebarOpen = false;
       // 대시보드 뷰 타이머 정리 (다른 탭으로 이동 시)
       if (tabId !== 'command' && this.dashboardRefreshTimer) {
         clearInterval(this.dashboardRefreshTimer);

@@ -498,6 +498,195 @@ html:not(.dark) .glow-accent { box-shadow: 0 0 20px rgb(var(--hq-accent) / 0.15)
 }
 
 /* ═══════════════════════════════════════════════════════════════════ */
+/* ═══ Step 12-2: Full Responsive Design (모바일/태블릿 완전 최적화) ═══ */
+/* ═══════════════════════════════════════════════════════════════════ */
+
+/* --- Safe area for notched devices (iPhone X+) --- */
+@supports (padding: env(safe-area-inset-bottom)) {
+  .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
+}
+
+/* --- Bottom Navigation Bar (모바일 하단 네비) --- */
+.mobile-bottom-nav {
+  display: none;
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  z-index: 45;
+  background: rgb(var(--hq-surface) / 0.92);
+  backdrop-filter: blur(20px) saturate(1.4);
+  -webkit-backdrop-filter: blur(20px) saturate(1.4);
+  border-top: 1px solid rgb(var(--hq-border) / 0.5);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+.mobile-bottom-nav-item {
+  flex: 1;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 2px; padding: 8px 0;
+  font-size: 10px; font-weight: 500;
+  color: rgb(var(--hq-muted));
+  transition: color 0.15s;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  position: relative;
+}
+.mobile-bottom-nav-item.active { color: rgb(var(--hq-accent)); }
+.mobile-bottom-nav-item.active::after {
+  content: ''; position: absolute; top: 0;
+  left: 25%; right: 25%; height: 2px;
+  background: rgb(var(--hq-accent));
+  border-radius: 0 0 2px 2px;
+}
+.mobile-bottom-nav-item svg { width: 22px; height: 22px; }
+
+/* --- More Tabs Sheet (더보기 바텀시트) --- */
+.mobile-more-overlay {
+  position: fixed; inset: 0; z-index: 43;
+  background: rgba(0,0,0,0.4);
+  opacity: 0; pointer-events: none;
+  transition: opacity 0.2s;
+}
+.mobile-more-overlay.open { opacity: 1; pointer-events: auto; }
+
+.mobile-more-sheet {
+  position: fixed; bottom: 0; left: 0; right: 0; z-index: 44;
+  background: rgb(var(--hq-surface) / 0.95);
+  backdrop-filter: blur(24px) saturate(1.5);
+  -webkit-backdrop-filter: blur(24px) saturate(1.5);
+  border-top: 1px solid rgb(var(--hq-border) / 0.5);
+  border-radius: 16px 16px 0 0;
+  padding: 12px 16px;
+  padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px));
+  transform: translateY(100%);
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.mobile-more-sheet.open { transform: translateY(0); }
+.mobile-more-sheet-handle {
+  width: 32px; height: 4px; border-radius: 2px;
+  background: rgb(var(--hq-muted) / 0.3);
+  margin: 0 auto 12px;
+}
+.mobile-more-sheet-grid {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px;
+}
+.mobile-more-sheet-item {
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  padding: 12px 4px; border-radius: 12px;
+  font-size: 11px; font-weight: 500;
+  color: rgb(var(--hq-muted));
+  transition: all 0.15s;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.mobile-more-sheet-item:active { background: rgb(var(--hq-accent) / 0.15); }
+.mobile-more-sheet-item.active { color: rgb(var(--hq-accent)); background: rgb(var(--hq-accent) / 0.08); }
+.mobile-more-sheet-item svg { width: 24px; height: 24px; }
+
+/* --- Mobile Bottom Sheet Modal --- */
+.mobile-modal-sheet {
+  position: fixed; bottom: 0; left: 0; right: 0; z-index: 51;
+  max-height: 85vh;
+  background: rgb(var(--hq-surface));
+  border-radius: 16px 16px 0 0;
+  overflow-y: auto;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  transform: translateY(100%);
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.mobile-modal-sheet.open { transform: translateY(0); }
+
+/* ═══ Mobile (<768px) ═══ */
+@media (max-width: 767px) {
+  /* Show bottom nav */
+  .mobile-bottom-nav { display: flex; }
+
+  /* Hide desktop-only elements */
+  .desktop-tab-bar { display: none !important; }
+  .header-metrics { display: none !important; }
+  .header-view-toggle { display: none !important; }
+  .header-build-badge { display: none !important; }
+  .header-conn-text { display: none !important; }
+
+  /* Main content bottom padding for nav bar */
+  main.responsive-main { padding-bottom: 56px; }
+
+  /* Header condensing */
+  header { padding-left: 0.75rem !important; padding-right: 0.75rem !important; }
+  header .logo-text { font-size: 0.8rem !important; }
+
+  /* Sidebar mobile improvements */
+  aside { max-width: 85vw; }
+
+  /* Chat area mobile */
+  #chatArea { padding-left: 0.75rem !important; padding-right: 0.75rem !important; }
+  .chat-input-bar { padding: 0.75rem !important; }
+
+  /* Tab content reduced horizontal padding */
+  .tab-content-padded { padding: 1rem !important; }
+
+  /* Welcome screen */
+  .welcome-title { font-size: 1.25rem !important; }
+
+  /* Cards - stack vertically */
+  .grid.grid-cols-2.lg\:grid-cols-4 { grid-template-columns: repeat(2, 1fr) !important; }
+
+  /* Trading chart container */
+  .trading-chart-container { height: 250px !important; min-height: 200px !important; }
+
+  /* Agent config modal on mobile */
+  .agent-config-modal { width: calc(100% - 1rem) !important; max-height: 85vh !important; overflow-y: auto !important; }
+
+  /* Office floor plan - single column */
+  .office-room { padding: 12px !important; }
+
+  /* Input bar adjustments */
+  .max-w-4xl { max-width: 100% !important; }
+
+  /* Message bubbles */
+  .msg-bubble { max-width: 90% !important; }
+
+  /* Delegation log panel */
+  .delegation-panel { height: auto !important; max-height: 300px !important; }
+}
+
+/* ═══ Small Mobile (<480px) ═══ */
+@media (max-width: 479px) {
+  /* Further reduce padding */
+  header { gap: 0.25rem !important; }
+
+  /* Logo simplify */
+  header .logo-subtitle { display: none !important; }
+
+  /* Summary cards 1 column */
+  .grid.grid-cols-2.lg\:grid-cols-4 { grid-template-columns: 1fr !important; }
+
+  /* More sheet - 3 columns */
+  .mobile-more-sheet-grid { grid-template-columns: repeat(3, 1fr); }
+
+  /* Bottom nav font even smaller */
+  .mobile-bottom-nav-item { font-size: 9px; }
+  .mobile-bottom-nav-item svg { width: 20px; height: 20px; }
+}
+
+/* ═══ Tablet (768-1023px) ═══ */
+@media (min-width: 768px) and (max-width: 1023px) {
+  /* Slightly reduced content padding */
+  .tab-content-padded { padding: 1.25rem !important; }
+
+  /* Trading chart */
+  .trading-chart-container { height: 350px !important; }
+}
+
+/* ═══ Landscape phone ═══ */
+@media (max-width: 767px) and (orientation: landscape) {
+  /* Reduce header height */
+  header { height: 40px !important; }
+  .mobile-bottom-nav-item { padding: 4px 0; }
+  .mobile-bottom-nav-item svg { width: 18px; height: 18px; }
+  .mobile-bottom-nav-item span:last-child { display: none; }
+}
+
+/* ═══════════════════════════════════════════════════════════════════ */
 /* ═══ PURE CSS COLOR SYSTEM v2 (CSS 변수 기반 — 자동 테마 전환) ═══ */
 /* 모든 색상이 CSS 변수를 참조 → 다크/라이트 모드 자동 전환 */
 /* ═══════════════════════════════════════════════════════════════════ */
