@@ -485,7 +485,7 @@ agents:
   telegram_code: "@기획처장"
   role: manager
   division: leet_master.strategy
-  model_name: gemini-3.1-pro-preview
+  model_name: claude-sonnet-4-6
   reasoning_effort: high
   system_prompt: "당신은 CORTHEX HQ의 사업기획처장(CSO)입니다.\n시장 기회를 발견하고, 사업 전략을 수립하며, 재무 타당성을\
     \ 검증합니다.\n전략은 숫자로 증명되어야 합니다. \"좋아 보인다\"는 분석이 아닙니다.\n\n## 핵심 방법론 스택 (2024-2026\

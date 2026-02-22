@@ -1,12 +1,13 @@
 # CORTHEX HQ 품질 게이트 규칙 설정
-# 매니저급 에이전트가 부하 보고서를 검수할 때 적용되는 기준
+# 하이브리드 루브릭: 체크리스트(통과/불통과) + 점수(1/3/5) 병행
+# 검수 모델: 각 매니저가 자기 모델 사용 (별도 review_model 없음)
 
 rules:
   # 최소 응답 길이 (글자 수). 이보다 짧으면 자동 반려
   min_length: 50
 
-  # 반려 시 최대 재시도 횟수 (비용 절약을 위해 1회 권장)
-  max_retry: 1
+  # 반려 시 최대 재시도 횟수
+  max_retry: 2
 
   # LLM 기반 할루시네이션 검사 활성화
   check_hallucination: true
@@ -14,83 +15,305 @@ rules:
   # LLM 기반 관련성 검사 활성화
   check_relevance: true
 
-  # 검수에 사용할 LLM 모델 (웹 UI에서 변경 가능)
-  review_model: "claude-haiku-4-5-20251001"
+# 합격 기준
+pass_criteria:
+  # 필수(required) 체크리스트 항목이 전부 통과해야 합격
+  all_required_pass: true
+  # 점수 항목의 가중 평균이 이 값 이상이어야 합격
+  min_average_score: 3.0
 
-# 부서별 검수 기준 (루브릭)
-# CEO가 웹 UI에서 편집 가능. "default"는 부서별 설정이 없을 때 적용됨.
+# ─────────────────────────────────────────────
+# 공통 체크리스트 (모든 부서에 적용)
+# ─────────────────────────────────────────────
+common_checklist:
+  required:
+    - id: C1
+      label: "업무 지시에 실제로 답하고 있는가?"
+    - id: C2
+      label: "빈 응답/에러가 아닌가?"
+    - id: C3
+      label: "할루시네이션(출처 없는 수치, 허위 사실) 징후가 없는가?"
+  optional:
+    - id: C4
+      label: "비개발자가 이해 가능한 수준인가?"
+    - id: C5
+      label: "결론이 먼저 제시되어 있는가? (BLUF)"
+
+# ─────────────────────────────────────────────
+# 부서별 루브릭 (체크리스트 + 점수)
+# CEO가 웹 UI에서 편집 가능
+# ─────────────────────────────────────────────
 rubrics:
   default:
     name: "기본 검수 기준"
-    prompt: |
-      다음 기준으로 검수하세요:
-      1. 관련성: 업무 지시에 실제로 답하고 있는가? (0-30점)
-      2. 구체성: 막연한 일반론이 아닌 구체적 내용이 있는가? (0-30점)
-      3. 신뢰성: 출처 없는 숫자, 존재하지 않는 사실 등 할루시네이션 징후가 있는가? (0-40점)
-
-  leet_master.tech:
-    name: "기술개발팀 검수 기준"
-    prompt: |
-      다음 기준으로 기술 보고서를 검수하세요:
-      1. 기술적 정확성: 기술 용어와 개념이 정확한가? (0-35점)
-      2. 실현 가능성: 제안된 기술이 실제 구현 가능한가? (0-30점)
-      3. 구체성: 코드 예시, 아키텍처 설계 등 구체적 산출물이 있는가? (0-35점)
-
-  leet_master.strategy:
-    name: "전략기획팀 검수 기준"
-    prompt: |
-      다음 기준으로 사업 보고서를 검수하세요:
-      1. 시장 근거: 수치와 출처가 포함되어 있는가? (0-35점)
-      2. 논리적 일관성: 분석에서 결론까지 논리가 일관되는가? (0-30점)
-      3. 실행 가능성: 구체적 실행 계획이 있는가? (0-35점)
-
-  leet_master.legal:
-    name: "법무팀 검수 기준"
-    prompt: |
-      다음 기준으로 법률 보고서를 검수하세요:
-      1. 법적 정확성: 관련 법률/판례 인용이 정확한가? (0-40점)
-      2. 리스크 식별: 법적 리스크가 빠짐없이 식별되었는가? (0-30점)
-      3. 대응 방안: 각 리스크에 대한 구체적 대응 방안이 있는가? (0-30점)
-
-  leet_master.marketing:
-    name: "마케팅팀 검수 기준"
-    prompt: |
-      다음 기준으로 마케팅 보고서를 검수하세요:
-      1. 타겟 적합성: 타겟 고객에게 적합한 내용인가? (0-30점)
-      2. 창의성: 차별화된 아이디어가 포함되어 있는가? (0-30점)
-      3. 실행 가능성: 구체적 실행 계획과 KPI가 있는가? (0-40점)
-
-  finance.investment:
-    name: "금융분석팀 검수 기준"
-    prompt: |
-      다음 기준으로 투자 분석 보고서를 검수하세요:
-      1. 데이터 근거: 실제 시장 데이터와 수치가 포함되어 있는가? (0-35점)
-      2. 리스크 평가: 투자 리스크가 명확히 식별되었는가? (0-35점)
-      3. 실행 가능성: 구체적 매매 전략(진입/청산 시점)이 있는가? (0-30점)
+    department_checklist:
+      required: []
+      optional: []
+    scoring:
+      - id: S1
+        label: "관련성"
+        weight: 35
+        criteria:
+          1: "업무 지시와 거의 무관한 내용"
+          3: "대체로 관련 있으나 일부 벗어남"
+          5: "업무 지시에 정확히 부합"
+      - id: S2
+        label: "구체성"
+        weight: 35
+        criteria:
+          1: "막연한 일반론만 나열"
+          3: "일부 구체적 내용이 있으나 부족"
+          5: "수치, 사례, 근거 등 구체적 내용 충분"
+      - id: S3
+        label: "신뢰성"
+        weight: 30
+        criteria:
+          1: "출처 없는 숫자, 허위 사실 다수"
+          3: "대체로 신뢰할 만하나 일부 불확실"
+          5: "모든 주장에 근거가 명확"
 
   secretary:
     name: "비서실 검수 기준"
-    prompt: |
-      다음 기준으로 검수하세요:
-      1. 관련성: 업무 지시에 실제로 답하고 있는가? (0-30점)
-      2. 구체성: 막연한 일반론이 아닌 구체적 내용이 있는가? (0-30점)
-      3. 신뢰성: 할루시네이션 징후가 있는가? (0-40점)
+    department_checklist:
+      required:
+        - id: D1
+          label: "CEO 지시사항을 빠짐없이 반영했는가?"
+      optional:
+        - id: D2
+          label: "일정/마감 등 시간 정보가 포함되어 있는가?"
+    scoring:
+      - id: S1
+        label: "관련성"
+        weight: 35
+        criteria:
+          1: "CEO 지시와 거의 무관"
+          3: "대체로 관련 있으나 일부 누락"
+          5: "CEO 지시에 정확히 부합"
+      - id: S2
+        label: "구체성"
+        weight: 35
+        criteria:
+          1: "막연한 일반론"
+          3: "일부 구체적이나 부족"
+          5: "구체적 내용과 액션 아이템 충분"
+      - id: S3
+        label: "신뢰성"
+        weight: 30
+        criteria:
+          1: "할루시네이션 다수"
+          3: "대체로 신뢰 가능하나 일부 불확실"
+          5: "모든 내용이 검증 가능"
+
+  leet_master.strategy:
+    name: "전략기획팀 검수 기준"
+    department_checklist:
+      required:
+        - id: D1
+          label: "시장 데이터/수치가 포함되어 있는가?"
+        - id: D2
+          label: "분석에서 결론까지 논리가 일관되는가?"
+      optional:
+        - id: D3
+          label: "경쟁사 비교 분석이 있는가?"
+    scoring:
+      - id: S1
+        label: "시장 근거"
+        weight: 35
+        criteria:
+          1: "수치 없이 의견만 나열"
+          3: "일부 수치가 있으나 출처 불명확"
+          5: "신뢰할 수 있는 수치와 출처 제시"
+      - id: S2
+        label: "논리적 일관성"
+        weight: 30
+        criteria:
+          1: "분석과 결론이 동떨어짐"
+          3: "대체로 논리적이나 일부 비약"
+          5: "전제→분석→결론이 빈틈없이 연결"
+      - id: S3
+        label: "실행 가능성"
+        weight: 35
+        criteria:
+          1: "실행 계획 없이 방향만 제시"
+          3: "대략적 실행 계획은 있으나 구체성 부족"
+          5: "구체적 일정, 담당, 예산 등 실행 계획 포함"
+
+  leet_master.legal:
+    name: "법무팀 검수 기준"
+    department_checklist:
+      required:
+        - id: D1
+          label: "관련 법률/판례 인용이 있는가?"
+        - id: D2
+          label: "법적 리스크가 식별되어 있는가?"
+      optional:
+        - id: D3
+          label: "각 리스크에 대한 대응 방안이 있는가?"
+    scoring:
+      - id: S1
+        label: "법적 정확성"
+        weight: 40
+        criteria:
+          1: "법률/판례 인용 없거나 잘못됨"
+          3: "인용은 있으나 일부 부정확"
+          5: "관련 법률/판례가 정확하게 인용됨"
+      - id: S2
+        label: "리스크 식별"
+        weight: 30
+        criteria:
+          1: "리스크 언급 없음"
+          3: "주요 리스크만 일부 식별"
+          5: "잠재 리스크까지 빠짐없이 식별"
+      - id: S3
+        label: "대응 방안"
+        weight: 30
+        criteria:
+          1: "대응 방안 없음"
+          3: "일부 리스크에만 대응 방안 제시"
+          5: "각 리스크별 구체적 대응 방안 제시"
+
+  leet_master.marketing:
+    name: "마케팅팀 검수 기준"
+    department_checklist:
+      required:
+        - id: D1
+          label: "타겟 고객이 명확히 정의되어 있는가?"
+      optional:
+        - id: D2
+          label: "KPI/성과 지표가 포함되어 있는가?"
+        - id: D3
+          label: "경쟁 콘텐츠와의 차별점이 있는가?"
+    scoring:
+      - id: S1
+        label: "타겟 적합성"
+        weight: 30
+        criteria:
+          1: "타겟 불명확, 일반적 내용"
+          3: "타겟은 설정했으나 맞춤도 부족"
+          5: "타겟 고객에 정확히 맞춘 내용"
+      - id: S2
+        label: "창의성"
+        weight: 30
+        criteria:
+          1: "기존 내용 반복, 차별점 없음"
+          3: "일부 새로운 아이디어 포함"
+          5: "독창적이고 차별화된 아이디어"
+      - id: S3
+        label: "실행 가능성"
+        weight: 40
+        criteria:
+          1: "실행 계획 없이 아이디어만"
+          3: "대략적 실행 방안은 있음"
+          5: "구체적 실행 계획, KPI, 일정 포함"
+
+  finance.investment:
+    name: "금융분석팀 검수 기준"
+    department_checklist:
+      required:
+        - id: D1
+          label: "실제 시장 데이터가 포함되어 있는가?"
+        - id: D2
+          label: "투자 리스크가 명시되어 있는가?"
+      optional:
+        - id: D3
+          label: "매매 전략(진입/청산 시점)이 있는가?"
+    scoring:
+      - id: S1
+        label: "데이터 근거"
+        weight: 35
+        criteria:
+          1: "수치 없이 의견만 나열"
+          3: "일부 수치가 있으나 핵심 지표 부족"
+          5: "PER/PBR/ROE 등 핵심 재무지표 뒷받침"
+      - id: S2
+        label: "리스크 평가"
+        weight: 35
+        criteria:
+          1: "리스크 언급 없이 낙관론만"
+          3: "리스크 언급은 있으나 수치적 근거 부족"
+          5: "손절 기준, 하방 시나리오 등 구체적 리스크 제시"
+      - id: S3
+        label: "실행 가능성"
+        weight: 30
+        criteria:
+          1: "매매 전략 없이 의견만"
+          3: "대략적 방향은 있으나 구체성 부족"
+          5: "진입가, 목표가, 손절가 등 구체적 전략 제시"
 
   publishing:
     name: "콘텐츠팀 검수 기준"
-    prompt: |
-      다음 기준으로 콘텐츠/기록물을 검수하세요:
-      1. 정확성: 회사 연혁, 날짜, 수치 등 사실관계가 정확한가? (0-35점)
-      2. 가독성: 문장이 읽기 쉽고 구조가 명확한가? (0-30점)
-      3. 완성도: 빠진 내용 없이 요청 범위를 다 다루었는가? (0-35점)
+    department_checklist:
+      required:
+        - id: D1
+          label: "사실관계(날짜, 수치, 이름 등)가 정확한가?"
+      optional:
+        - id: D2
+          label: "시각적 요소(표, 목록 등)가 적절히 사용되었는가?"
+    scoring:
+      - id: S1
+        label: "정확성"
+        weight: 35
+        criteria:
+          1: "사실 오류 다수"
+          3: "대체로 정확하나 일부 미확인"
+          5: "모든 사실관계가 정확"
+      - id: S2
+        label: "가독성"
+        weight: 30
+        criteria:
+          1: "문장 과밀, 구조 불명확"
+          3: "읽히지만 일부 장황/반복"
+          5: "간결하고 구조적, 한 번에 이해 가능"
+      - id: S3
+        label: "완성도"
+        weight: 35
+        criteria:
+          1: "요청 범위의 절반 이하만 다룸"
+          3: "대부분 다루나 일부 피상적"
+          5: "요청 범위를 빠짐없이 충분한 깊이로 다룸"
 
+  leet_master.tech:
+    name: "기술개발팀 검수 기준"
+    department_checklist:
+      required:
+        - id: D1
+          label: "기술 용어와 개념이 정확한가?"
+      optional:
+        - id: D2
+          label: "코드 예시 또는 아키텍처 설계가 포함되어 있는가?"
+    scoring:
+      - id: S1
+        label: "기술적 정확성"
+        weight: 35
+        criteria:
+          1: "기술 용어/개념 오류 다수"
+          3: "대체로 정확하나 일부 부정확"
+          5: "모든 기술 내용이 정확"
+      - id: S2
+        label: "실현 가능성"
+        weight: 30
+        criteria:
+          1: "실현 불가능한 제안"
+          3: "가능하나 제약/비용 고려 부족"
+          5: "현실적 제약을 고려한 실현 가능한 제안"
+      - id: S3
+        label: "구체성"
+        weight: 35
+        criteria:
+          1: "추상적 설명만"
+          3: "일부 구체적이나 세부 부족"
+          5: "코드/설계/스펙 등 구체적 산출물 포함"
+
+# ─────────────────────────────────────────────
 # 투자 분석 전용 검수 규칙 (CIO/투자분석가 보고서에만 적용)
+# 규칙 기반 사전 필터 — LLM 호출 전에 키워드로 빠르게 체크
+# ─────────────────────────────────────────────
 investment_analysis:
   # 매수/매도 균형 체크
   balance_required:
     enabled: true
     description: "매수 근거와 매도/리스크 근거가 모두 있어야 함"
-    min_risk_mentions: 2  # 최소 리스크 언급 횟수
+    min_risk_mentions: 2
     keywords_risk:
       - "하락 리스크"
       - "손절"
@@ -106,7 +329,6 @@ investment_analysis:
       - "호재"
       - "강세"
       - "기회"
-    # 낙관 키워드가 리스크 키워드보다 3배 이상이면 편향 경고
     bias_threshold: 3.0
 
   # 위험 요소 명시 여부
@@ -114,9 +336,9 @@ investment_analysis:
     enabled: true
     description: "투자 리스크를 반드시 수치로 명시해야 함"
     required_fields:
-      - "목표주가 하단"  # 또는 "하락 목표가"
-      - "손절 기준"      # 또는 "stop loss"
-    allow_partial: true   # 하나라도 있으면 통과 (둘 다 없으면 경고)
+      - "목표주가 하단"
+      - "손절 기준"
+    allow_partial: true
 
   # 낙관 편향 감지
   optimism_bias_check:
@@ -132,14 +354,14 @@ investment_analysis:
       - "강력 매수"
       - "폭발적 상승"
       - "대박"
-    max_penalty_count: 0   # penalty_phrases가 하나라도 있으면 리젝
-    max_warning_count: 2   # warning_phrases 3개 이상이면 경고
+    max_penalty_count: 0
+    max_warning_count: 2
 
   # 분석 근거 충실도
   evidence_quality:
     enabled: true
     description: "의견이 아닌 데이터 기반 근거가 있어야 함"
-    min_data_points: 1  # 최소 1개의 숫자/수치 언급 필요
+    min_data_points: 1
     evidence_keywords:
       - "PER"
       - "PBR"
