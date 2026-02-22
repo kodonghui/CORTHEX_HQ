@@ -260,8 +260,8 @@ class ActivityLogMiddleware(BaseHTTPMiddleware):
         try:
             log_entry = save_activity_log("system", action, level)
             await wm.send_activity_log(log_entry)
-        except Exception:
-            pass  # 로깅 실패가 요청을 블로킹하면 안 됨
+        except Exception as e:
+            logger.debug("활동 로그 전송 실패: %s", e)
 
         return response
 
@@ -304,8 +304,8 @@ def _load_config(name: str) -> dict:
                     json.dumps(raw, ensure_ascii=False, indent=2), encoding="utf-8"
                 )
                 logger.info("%s.yaml → %s.json 자동 변환 완료", name, name)
-            except Exception:
-                pass  # JSON 생성 실패해도 무시 (YAML 읽기는 성공했으므로)
+            except Exception as e:
+                logger.debug("YAML→JSON 변환 저장 실패: %s", e)
             return raw
         except Exception as e:
             logger.warning("%s.yaml 로드 실패: %s", name, e)
@@ -352,8 +352,8 @@ def _load_data(name: str, default=None):
             val = json.loads(path.read_text(encoding="utf-8"))
             save_setting(name, val)  # DB로 마이그레이션
             return val
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("JSON→DB 마이그레이션 실패 (%s): %s", name, e)
     return default if default is not None else {}
 
 
@@ -426,8 +426,8 @@ async def deploy_status():
             try:
                 with open(path, "r") as f:
                     return _json.load(f)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("배포 상태 파일 읽기 실패 (%s): %s", path, e)
     return {"build": get_build_number(), "time": datetime.now(KST).isoformat(), "status": "success", "commit": ""}
 
 
@@ -558,8 +558,8 @@ async def websocket_endpoint(ws: WebSocket):
                 "event": "cost_update",
                 "data": {"total_cost": today_cost, "total_tokens": 0},
             })
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("WS 비용 전송 실패: %s", e)
         # 새로고침 복구: 진행 중인 백그라운드 태스크가 있으면 상태 전송
         if app_state.bg_current_task_id and app_state.bg_current_task_id in _bg_tasks:
             try:
@@ -573,8 +573,8 @@ async def websocket_endpoint(ws: WebSocket):
                         "task_id": app_state.bg_current_task_id,
                     },
                 })
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("WS 상태 전송 실패: %s", e)
         while True:
             data = await ws.receive_text()
             msg = json.loads(data)
@@ -592,8 +592,8 @@ async def websocket_endpoint(ws: WebSocket):
                         for rt in running:
                             update_task(rt["task_id"], status="failed",
                                         result_summary="CEO 취소", success=0)
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        logger.debug("태스크 일괄 취소 실패: %s", e)
                 continue
             if msg.get("type") == "command":
                 cmd_text = (msg.get("content") or msg.get("text", "")).strip()
@@ -765,8 +765,8 @@ async def _run_agent_bg(cmd_text: str, task_id: str, target_agent_id: str | None
                     handled_by=_result_payload["handled_by"],
                     time_seconds=0, cost=0, task_id=task_id, source="web",
                 )
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("에러 결과 대화 저장 실패: %s", e)
             _result_payload["_completed_at"] = time.time()
             _bg_results[task_id] = _result_payload
             await wm.broadcast("result", _result_payload)
@@ -793,8 +793,8 @@ async def _run_agent_bg(cmd_text: str, task_id: str, target_agent_id: str | None
                     cost=_result_data.get("cost", 0),
                     task_id=task_id, source="web",
                 )
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("결과 대화 저장 실패: %s", e)
             _result_data["_completed_at"] = time.time()
             _bg_results[task_id] = _result_data
             await wm.broadcast("result", _result_data)
@@ -1015,8 +1015,8 @@ async def get_dashboard():
             if p in provider_calls:
                 provider_calls[p] = row[1]
         conn.close()
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug("프로바이더 호출 통계 조회 실패: %s", e)
     total_ai_calls = sum(provider_calls.values())
 
     # ── 배치 현황 ──
@@ -1030,8 +1030,8 @@ async def get_dashboard():
         pool = _init_tool_pool()
         if pool:
             tool_count = len(pool.registry)
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug("도구 풀 카운트 실패: %s", e)
     if tool_count == 0:
         tool_count = len(_load_tool_schemas().get("anthropic", []))
 
@@ -1056,8 +1056,8 @@ async def get_dashboard():
             (one_hour_ago,),
         ).fetchone()[0]
         _conn_tmp.close()
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug("최근 실패 건수 조회 실패: %s", e)
     if recent_failed >= 3:
         sys_status = "error"
     elif stats["running_count"] > 0:
@@ -2012,8 +2012,8 @@ async def _broadcast_chain_status(chain: dict, message: str):
                     chat_id=int(ceo_id),
                     text=f"📦 {message}",
                 )
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("TG 배치 진행 전송 실패: %s", e)
 
 
 async def _start_batch_chain(text: str, task_id: str) -> dict:
@@ -3646,8 +3646,8 @@ def _get_fx_rate() -> float:
         rate = load_setting("fx_rate_usd_krw", 1450)
         if isinstance(rate, (int, float)) and 1000 < rate < 2000:
             return float(rate)
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug("환율 조회 실패: %s", e)
     return 1450.0
 
 
@@ -4187,10 +4187,10 @@ async def _auto_refresh_prices():
                                     "change_pct": change_pct,
                                     "updated_at": datetime.now(KST).isoformat(),
                                 }
-                        except Exception:
-                            pass
-                except Exception:
-                    pass
+                        except Exception as e:
+                            logger.debug("국내 종목 시세 파싱 실패 (%s): %s", w.get("ticker"), e)
+                except Exception as e:
+                    logger.debug("pykrx 시세 조회 실패: %s", e)
 
             # 미국 주식 (yfinance)
             if us_tickers:
@@ -4214,10 +4214,10 @@ async def _auto_refresh_prices():
                                     "change_pct": change_pct,
                                     "updated_at": datetime.now(KST).isoformat(),
                                 }
-                        except Exception:
-                            pass
-                except Exception:
-                    pass
+                        except Exception as e:
+                            logger.debug("해외 종목 시세 파싱 실패 (%s): %s", w.get("ticker"), e)
+                except Exception as e:
+                    logger.debug("yfinance 시세 조회 실패: %s", e)
 
             if new_cache:
                 async with _price_cache_lock:
@@ -5176,8 +5176,8 @@ async def generate_trading_signals():
     try:
         from db import save_delegation_log as _sdl
         _sdl(sender="투자분석처장 (CIO)", receiver="CIO 독자 분석", message="전문가 위임과 병렬로 독립 판단 시작", log_type="delegation")
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug("CIO 위임 로그 저장 실패: %s", e)
 
     # CIO 독자 분석과 전문가 위임을 동시에 실행 (asyncio.gather)
     async def _cio_solo_analysis():
@@ -5189,8 +5189,8 @@ async def generate_trading_signals():
             preview = content[:300] if content else "분석 결과 없음"
             _sdl(sender="CIO 독자 분석", receiver="투자분석처장 (CIO)", message=preview, log_type="report")
             await _broadcast_comms({"id": f"cio_solo_{datetime.now(KST).strftime('%H%M%S')}", "sender": "CIO 독자 분석", "receiver": "투자분석처장 (CIO)", "message": preview, "log_type": "report", "source": "delegation", "created_at": datetime.now(KST).isoformat()})
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("CIO 독자 분석 교신 로그 실패: %s", e)
         return {"content": content, "cost_usd": cost}
 
     # 병렬 실행: CIO 독자 분석 + 전문가 위임
@@ -5274,8 +5274,8 @@ async def generate_trading_signals():
                     from kis_client import get_overseas_price as _gop
                     _pd = await _gop(sig["ticker"])
                     current_price = int(float(_pd.get("price", 0) or 0))
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug("현재가 조회 실패 (%s): %s", sig.get("ticker"), e)
                 save_cio_prediction(
                     ticker=sig.get("ticker", ""),
                     direction=direction,
@@ -5345,8 +5345,8 @@ async def generate_trading_signals():
             content=archive_content,
             agent_id="cio_manager",
         )
-    except Exception:
-        pass  # 기밀문서 저장 실패해도 시그널 API는 정상 반환
+    except Exception as e:
+        logger.debug("CIO 아카이브 저장 실패: %s", e)
 
     # 매매 결정 일지 저장
     _save_decisions(parsed_signals)
@@ -5380,8 +5380,8 @@ def _save_decisions(parsed_signals: list) -> None:
         if len(decisions) > 50:
             decisions = decisions[-50:]
         save_setting("trading_decisions", decisions)
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug("매매 결정 저장 실패: %s", e)
 
 
 def _cio_confidence_weight(confidence: float) -> float:
@@ -5807,8 +5807,8 @@ async def _run_trading_now_inner():
                 else:
                     _port = _load_data("trading_portfolio", _default_portfolio())
                     account_balance = _port.get("cash", 0)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("잔고 조회 실패: %s", e)
             if account_balance <= 0:
                 account_balance = 1_000_000
                 save_activity_log("cio_manager", "CIO 비중 모드: 잔고 조회 실패, 기본 100만원 사용", "warning")
@@ -6207,8 +6207,8 @@ async def _trading_bot_loop():
                         else:
                             _port = _load_data("trading_portfolio", _default_portfolio())
                             account_balance = _port.get("cash", 0)
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        logger.debug("봇 잔고 조회 실패: %s", e)
                     if account_balance <= 0:
                         account_balance = 1_000_000
                         save_activity_log("cio_manager", "CIO 비중 모드: 잔고 조회 실패, 기본 100만원 사용", "warning")
@@ -7469,8 +7469,8 @@ async def reject_sns(item_id: str, request: Request):
     body = {}
     try:
         body = await request.json()
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug("SNS 거절 요청 바디 파싱 실패: %s", e)
     reason = body.get("reason", "")
     queue = load_setting("sns_publish_queue", []) or []
     for item in queue:
@@ -7547,8 +7547,8 @@ async def resubmit_sns(item_id: str, request: Request):
     body = {}
     try:
         body = await request.json()
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug("SNS 재제출 요청 바디 파싱 실패: %s", e)
     queue = load_setting("sns_publish_queue", []) or []
     for item in queue:
         if item.get("request_id") == item_id:
@@ -8228,8 +8228,8 @@ async def get_comms_messages(limit: int = 100, msg_type: str = ""):
                     "source": "delegation",
                     "created_at": r["created_at"],
                 })
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("위임 로그 조회 실패: %s", e)
 
         # 2) cross_agent_messages
         try:
@@ -8258,8 +8258,8 @@ async def get_comms_messages(limit: int = 100, msg_type: str = ""):
                     "status": r["status"],
                     "created_at": r["created_at"],
                 })
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("교차 에이전트 메시지 조회 실패: %s", e)
 
         conn.close()
 
@@ -8396,8 +8396,8 @@ def _parse_archive_frontmatter(content: str) -> dict:
                         meta["tags"] = []
                 elif raw:
                     meta["tags"] = [t.strip() for t in raw.split(",") if t.strip()]
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug("아카이브 메타데이터 파싱 실패: %s", e)
     return meta
 
 
@@ -8934,8 +8934,8 @@ async def _start_telegram_bot() -> None:
                                 result_summary=str(e)[:200], success=0)
                     try:
                         await app_state.telegram_app.bot.send_message(chat_id=int(cid), text=f"❌ 오류: {e}")
-                    except Exception:
-                        pass
+                    except Exception as e2:
+                        logger.debug("TG 오류 메시지 전송 실패: %s", e2)
 
             asyncio.create_task(_bg(task_text, task["task_id"], chat_id))
 
@@ -9133,8 +9133,8 @@ async def _start_telegram_bot() -> None:
                                     chat_id=int(chat_id_arg),
                                     text=f"❌ 배치 시작 실패: {chain_result['error']}",
                                 )
-                            except Exception:
-                                pass
+                            except Exception as e2:
+                                logger.debug("TG 배치 실패 전송 실패: %s", e2)
                     except Exception as e:
                         _log(f"[TG] 배치 체인 오류: {e}")
 
@@ -9703,8 +9703,8 @@ async def _quality_review_specialists(chain: dict) -> list[dict]:
                     rejection_reasons=" / ".join(review.rejection_reasons)[:500] if review.rejection_reasons else "",
                     review_model=review.review_model,
                 )
-            except Exception:
-                pass  # DB 저장 실패해도 검수 흐름은 계속
+            except Exception as e:
+                logger.debug("검수 결과 DB 저장 실패: %s", e)
 
             if not review.passed:
                 failed.append({
@@ -10148,8 +10148,8 @@ async def _delegate_to_specialists(manager_id: str, text: str) -> list[dict]:
                 "created_at": _time.time(),
             }
             await wm.send_delegation_log(_log_data)
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug("위임 로그 브로드캐스트 실패: %s", e)
 
     # B안: 전문가별 역할 prefix 추가 — CEO 원문을 그대로 전달하지 않고 역할 지시를 앞에 붙임
     tasks = [
@@ -10197,8 +10197,8 @@ async def _delegate_to_specialists(manager_id: str, text: str) -> list[dict]:
                     "created_at": _time.time(),
                 }
                 await wm.send_delegation_log(_log_data)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("보고 로그 브로드캐스트 실패: %s", e)
             processed.append(r)
     return processed
 
@@ -11062,8 +11062,8 @@ def _load_agent_prompt(agent_id: str, *, include_tools: bool = True) -> str:
         if soul_path.exists():
             try:
                 prompt = soul_path.read_text(encoding="utf-8")
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("소울 파일 읽기 실패 (%s): %s", agent_id, e)
 
     if not prompt:
         # 3순위: agents.yaml의 system_prompt
@@ -11346,8 +11346,8 @@ async def _process_ai_command(text: str, task_id: str, target_agent_id: str | No
                     _chief_history.pop()
                 if not _chief_history:
                     _chief_history = None
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("비서실장 대화 이력 로드 실패: %s", e)
         result = await ask_ai(text, system_prompt=soul, model=model,
                               conversation_history=_chief_history)
 
@@ -11500,8 +11500,8 @@ def _init_tool_pool():
                 if "model_name" in vals:
                     _temp = _AGENTS_DETAIL.get(agent_id, {}).get("temperature", 0.7)
                     pool.set_agent_model(agent_id, vals["model_name"], temperature=_temp)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("에이전트 모델 오버라이드 실패: %s", e)
         _log(f"[TOOLS] ToolPool 초기화 완료: {loaded}개 도구 로드 ✅")
         return pool
 
