@@ -1,0 +1,13 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "CORTHEX HQ 서버",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["web/mini_server.py"],
+      "port": 8000,
+      "autoPort": false,
+      "cwd": "${workspaceFolder}"
+    }
+  ]
+}
