@@ -840,6 +840,58 @@ async def list_media():
         "videos": [{"filename": f, "url": f"/api/media/videos/{f}"} for f in videos if f.endswith(".mp4")],
     }
 
+@app.delete("/api/media/{media_type}/{filename}")
+async def delete_media_file(media_type: str, filename: str):
+    """미디어 파일 개별 삭제."""
+    if media_type not in ("images", "videos"):
+        return JSONResponse({"error": "잘못된 미디어 타입"}, status_code=400)
+    safe_name = os.path.basename(filename)
+    filepath = os.path.join(_MEDIA_BASE, media_type, safe_name)
+    if not os.path.isfile(filepath):
+        return JSONResponse({"error": "파일을 찾을 수 없습니다"}, status_code=404)
+    os.remove(filepath)
+    return {"success": True, "deleted": safe_name}
+
+
+@app.delete("/api/media/{media_type}")
+async def delete_all_media(media_type: str):
+    """미디어 파일 전체 삭제 (images 또는 videos)."""
+    if media_type not in ("images", "videos"):
+        return JSONResponse({"error": "잘못된 미디어 타입"}, status_code=400)
+    target_dir = os.path.join(_MEDIA_BASE, media_type)
+    if not os.path.isdir(target_dir):
+        return {"success": True, "deleted": 0}
+    ext = ".png" if media_type == "images" else ".mp4"
+    count = 0
+    for f in os.listdir(target_dir):
+        if f.endswith(ext):
+            os.remove(os.path.join(target_dir, f))
+            count += 1
+    return {"success": True, "deleted": count}
+
+
+@app.post("/api/media/delete-batch")
+async def delete_media_batch(request: Request):
+    """미디어 파일 선택 삭제. body: {"files": [{"type": "images", "filename": "xxx.png"}, ...]}"""
+    body = await request.json()
+    files = body.get("files", [])
+    deleted = 0
+    errors = []
+    for f in files:
+        media_type = f.get("type", "")
+        filename = os.path.basename(f.get("filename", ""))
+        if media_type not in ("images", "videos") or not filename:
+            errors.append(f"잘못된 항목: {f}")
+            continue
+        filepath = os.path.join(_MEDIA_BASE, media_type, filename)
+        if os.path.isfile(filepath):
+            os.remove(filepath)
+            deleted += 1
+        else:
+            errors.append(f"파일 없음: {filename}")
+    return {"success": True, "deleted": deleted, "errors": errors}
+
+
 # ── API 엔드포인트 ──
 
 @app.get("/api/auth/status")
@@ -7411,6 +7463,31 @@ async def get_sns_queue(status: str = ""):
     if status:
         queue = [q for q in queue if q.get("status") == status]
     return {"items": queue, "total": len(queue)}
+
+
+@app.delete("/api/sns/queue")
+async def clear_sns_queue(status: str = ""):
+    """SNS 대기열 초기화. status 파라미터 없으면 전체, 있으면 해당 상태만."""
+    queue = load_setting("sns_publish_queue", []) or []
+    if status:
+        remaining = [q for q in queue if q.get("status") != status]
+        removed = len(queue) - len(remaining)
+        save_setting("sns_publish_queue", remaining)
+        return {"success": True, "removed": removed, "remaining": len(remaining)}
+    else:
+        save_setting("sns_publish_queue", [])
+        return {"success": True, "removed": len(queue), "remaining": 0}
+
+
+@app.delete("/api/sns/queue/{item_id}")
+async def delete_sns_item(item_id: str):
+    """SNS 대기열에서 특정 항목 삭제."""
+    queue = load_setting("sns_publish_queue", []) or []
+    new_queue = [q for q in queue if q.get("request_id") != item_id]
+    if len(new_queue) == len(queue):
+        return {"success": False, "error": f"요청 ID를 찾을 수 없음: {item_id}"}
+    save_setting("sns_publish_queue", new_queue)
+    return {"success": True, "removed": 1, "remaining": len(new_queue)}
 
 
 @app.post("/api/sns/approve/{item_id}")

@@ -3948,13 +3948,17 @@
 
           <!-- SNS Tab 3: Approval Queue -->
           <div x-show="sns.tab === 'queue' && !sns.loading">
-            <div class="flex gap-2 mb-4">
-              <template x-for="f in ['all','pending','rework','approved','published','rejected']" :key="f">
-                <button @click="sns.queueFilter = f"
-                  :class="sns.queueFilter === f ? 'bg-hq-accent/20 text-hq-accent' : 'text-hq-muted'"
-                  class="px-3 py-1 text-xs rounded-lg transition"
-                  x-text="f === 'all' ? '전체' : f === 'pending' ? '대기' : f === 'rework' ? '재작업' : f === 'approved' ? '승인' : f === 'published' ? '발행' : '거절'"></button>
-              </template>
+            <div class="flex items-center justify-between mb-4">
+              <div class="flex gap-2">
+                <template x-for="f in ['all','pending','rework','approved','published','rejected']" :key="f">
+                  <button @click="sns.queueFilter = f"
+                    :class="sns.queueFilter === f ? 'bg-hq-accent/20 text-hq-accent' : 'text-hq-muted'"
+                    class="px-3 py-1 text-xs rounded-lg transition"
+                    x-text="f === 'all' ? '전체' : f === 'pending' ? '대기' : f === 'rework' ? '재작업' : f === 'approved' ? '승인' : f === 'published' ? '발행' : '거절'"></button>
+                </template>
+              </div>
+              <button x-show="sns.queue.length > 0" @click="sns.showClearQueueModal = true"
+                class="text-[10px] text-red-400 hover:text-red-300 px-2 py-1 rounded-lg hover:bg-red-500/10 transition">전체 초기화</button>
             </div>
             <div class="space-y-2">
               <template x-for="item in sns.queue.filter(q => sns.queueFilter === 'all' || q.status === sns.queueFilter)" :key="item.request_id">
@@ -4030,17 +4034,48 @@
 
           <!-- SNS Tab: 미디어 갤러리 (생성된 이미지/영상) -->
           <div x-show="sns.tab === 'media' && !sns.loading">
-            <div class="bg-hq-surface border border-hq-border/50 rounded-lg px-4 py-3 mb-4 text-xs text-hq-muted">
-              나노바나나 Pro(이미지) + Veo 3.1(영상)로 생성된 미디어 파일입니다. 클릭하면 원본 크기로 볼 수 있습니다.
+            <!-- 상단 액션 바 -->
+            <div class="flex items-center justify-between mb-4">
+              <div class="text-xs text-hq-muted">
+                나노바나나 Pro(이미지) + Veo 3.1(영상)로 생성된 미디어 파일입니다.
+              </div>
+              <div class="flex items-center gap-2">
+                <button x-show="(sns.mediaImages || []).length + (sns.mediaVideos || []).length > 0"
+                  @click="sns.mediaSelectMode = !sns.mediaSelectMode; sns.selectedMedia = []"
+                  :class="sns.mediaSelectMode ? 'bg-hq-accent/20 text-hq-accent' : 'text-hq-muted hover:text-hq-text'"
+                  class="text-[10px] px-2 py-1 rounded-lg transition">
+                  <span x-text="sns.mediaSelectMode ? '선택 취소' : '선택'"></span>
+                </button>
+                <button x-show="sns.mediaSelectMode && (sns.selectedMedia || []).length > 0"
+                  @click="deleteSelectedMedia()"
+                  class="text-[10px] px-2 py-1 rounded-lg bg-red-500/20 text-red-400 hover:bg-red-500/30 transition">
+                  <span x-text="sns.selectedMedia.length + '개 삭제'"></span>
+                </button>
+                <button x-show="(sns.mediaImages || []).length + (sns.mediaVideos || []).length > 0"
+                  @click="sns.showDeleteAllMediaModal = true"
+                  class="text-[10px] text-red-400 hover:text-red-300 px-2 py-1 rounded-lg hover:bg-red-500/10 transition">전체 삭제</button>
+              </div>
             </div>
             <!-- 이미지 갤러리 -->
             <template x-if="(sns.mediaImages || []).length > 0">
               <div class="mb-6">
-                <h3 class="text-sm font-bold text-hq-text mb-3">이미지 (<span x-text="sns.mediaImages.length"></span>)</h3>
+                <div class="flex items-center justify-between mb-3">
+                  <h3 class="text-sm font-bold text-hq-text">이미지 (<span x-text="sns.mediaImages.length"></span>)</h3>
+                  <button x-show="sns.mediaSelectMode" @click="toggleSelectAllMedia('images')"
+                    class="text-[10px] text-hq-accent hover:underline">전체 선택</button>
+                </div>
                 <div class="grid grid-cols-3 gap-3">
                   <template x-for="img in sns.mediaImages" :key="img.filename">
-                    <div class="glass border border-hq-border rounded-xl overflow-hidden group cursor-pointer"
-                         @click="window.open(img.url, '_blank')">
+                    <div class="glass border rounded-xl overflow-hidden group cursor-pointer relative"
+                         :class="(sns.selectedMedia || []).find(m => m.filename === img.filename) ? 'border-hq-accent' : 'border-hq-border'"
+                         @click="sns.mediaSelectMode ? toggleMediaItem('images', img) : window.open(img.url, '_blank')">
+                      <!-- 선택 체크박스 -->
+                      <div x-show="sns.mediaSelectMode" class="absolute top-1.5 left-1.5 z-10">
+                        <div class="w-5 h-5 rounded-md border-2 flex items-center justify-center text-xs"
+                          :class="(sns.selectedMedia || []).find(m => m.filename === img.filename) ? 'bg-hq-accent border-hq-accent text-white' : 'border-hq-muted bg-black/40'">
+                          <span x-show="(sns.selectedMedia || []).find(m => m.filename === img.filename)">&#10003;</span>
+                        </div>
+                      </div>
                       <img :src="img.url" class="w-full h-32 object-cover group-hover:scale-105 transition-transform" loading="lazy" />
                       <div class="px-2 py-1.5">
                         <div class="text-[9px] text-hq-muted truncate" x-text="img.filename"></div>
@@ -4053,10 +4088,23 @@
             <!-- 영상 갤러리 -->
             <template x-if="(sns.mediaVideos || []).length > 0">
               <div class="mb-6">
-                <h3 class="text-sm font-bold text-hq-text mb-3">영상 (<span x-text="sns.mediaVideos.length"></span>)</h3>
+                <div class="flex items-center justify-between mb-3">
+                  <h3 class="text-sm font-bold text-hq-text">영상 (<span x-text="sns.mediaVideos.length"></span>)</h3>
+                  <button x-show="sns.mediaSelectMode" @click="toggleSelectAllMedia('videos')"
+                    class="text-[10px] text-hq-accent hover:underline">전체 선택</button>
+                </div>
                 <div class="grid grid-cols-2 gap-3">
                   <template x-for="vid in sns.mediaVideos" :key="vid.filename">
-                    <div class="glass border border-hq-border rounded-xl overflow-hidden">
+                    <div class="glass border rounded-xl overflow-hidden relative"
+                         :class="(sns.selectedMedia || []).find(m => m.filename === vid.filename) ? 'border-hq-accent' : 'border-hq-border'">
+                      <!-- 선택 체크박스 -->
+                      <div x-show="sns.mediaSelectMode" class="absolute top-1.5 left-1.5 z-10 cursor-pointer"
+                           @click.stop="toggleMediaItem('videos', vid)">
+                        <div class="w-5 h-5 rounded-md border-2 flex items-center justify-center text-xs"
+                          :class="(sns.selectedMedia || []).find(m => m.filename === vid.filename) ? 'bg-hq-accent border-hq-accent text-white' : 'border-hq-muted bg-black/40'">
+                          <span x-show="(sns.selectedMedia || []).find(m => m.filename === vid.filename)">&#10003;</span>
+                        </div>
+                      </div>
                       <video :src="vid.url" class="w-full h-40 object-cover" controls preload="metadata"></video>
                       <div class="px-2 py-1.5">
                         <div class="text-[9px] text-hq-muted truncate" x-text="vid.filename"></div>
@@ -6769,6 +6817,46 @@
     </div>
   </div>
 
+  <!-- ═══ 미디어 전체 삭제 확인 모달 ═══ -->
+  <div x-show="sns.showDeleteAllMediaModal" x-transition.opacity
+       class="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
+       @click.self="sns.showDeleteAllMediaModal = false" style="display: none;">
+    <div class="bg-hq-panel border border-red-500/30 rounded-2xl w-full max-w-[380px] mx-4 p-6" @click.stop>
+      <div class="flex items-center gap-3 mb-4">
+        <div class="w-10 h-10 rounded-xl bg-red-500/15 flex items-center justify-center text-red-400 text-lg">⚠️</div>
+        <h2 class="text-base font-bold text-red-400">미디어 전체 삭제</h2>
+      </div>
+      <p class="text-hq-300 text-sm mb-5 leading-relaxed">모든 이미지와 영상을 삭제합니다.<br>이 작업은 되돌릴 수 없습니다.</p>
+      <div class="flex justify-end gap-2">
+        <button @click="sns.showDeleteAllMediaModal = false"
+                class="px-4 py-2 rounded-lg text-sm bg-hq-surface text-hq-muted hover:bg-hq-border transition">취소</button>
+        <button @click="deleteAllMedia('images')"
+                class="px-4 py-2 rounded-lg text-sm bg-orange-600 text-white hover:bg-orange-700 transition">이미지만</button>
+        <button @click="deleteAllMediaBoth()"
+                class="px-4 py-2 rounded-lg text-sm bg-red-600 text-white hover:bg-red-700 transition">전체 삭제</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ SNS 큐 전체 초기화 확인 모달 ═══ -->
+  <div x-show="sns.showClearQueueModal" x-transition.opacity
+       class="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
+       @click.self="sns.showClearQueueModal = false" style="display: none;">
+    <div class="bg-hq-panel border border-red-500/30 rounded-2xl w-full max-w-[380px] mx-4 p-6" @click.stop>
+      <div class="flex items-center gap-3 mb-4">
+        <div class="w-10 h-10 rounded-xl bg-red-500/15 flex items-center justify-center text-red-400 text-lg">⚠️</div>
+        <h2 class="text-base font-bold text-red-400">승인큐 전체 초기화</h2>
+      </div>
+      <p class="text-hq-300 text-sm mb-5 leading-relaxed">모든 SNS 발행 요청을 삭제합니다.<br>대기/승인/거절/발행 모든 항목이 사라집니다.</p>
+      <div class="flex justify-end gap-2">
+        <button @click="sns.showClearQueueModal = false"
+                class="px-4 py-2 rounded-lg text-sm bg-hq-surface text-hq-muted hover:bg-hq-border transition">취소</button>
+        <button @click="clearSNSQueue()"
+                class="px-4 py-2 rounded-lg text-sm bg-red-600 text-white hover:bg-red-700 transition">전체 초기화</button>
+      </div>
+    </div>
+  </div>
+
   <script>
     function corthexApp() {
       return {
@@ -6973,7 +7061,9 @@
                igCaption: '', igImageUrl: '', igVideoUrl: '', igReelCaption: '',
                ytFilePath: '', ytTitle: '', ytDesc: '', ytTags: '', ytPrivacy: 'private',
                rejectReason: '', rejectingId: null, queueFilter: 'all',
-               mediaImages: [], mediaVideos: [] },
+               mediaImages: [], mediaVideos: [],
+               mediaSelectMode: false, selectedMedia: [],
+               showDeleteAllMediaModal: false, showClearQueueModal: false },
 
         // ── Trading (자동매매 시스템) ──
         trading: {
@@ -9541,6 +9631,75 @@
             }
           } catch { /* 무시 */ }
           finally { this.sns.loading = false; }
+        },
+
+        toggleMediaItem(type, item) {
+          const idx = this.sns.selectedMedia.findIndex(m => m.filename === item.filename);
+          if (idx >= 0) { this.sns.selectedMedia.splice(idx, 1); }
+          else { this.sns.selectedMedia.push({ type, filename: item.filename }); }
+        },
+        toggleSelectAllMedia(type) {
+          const items = type === 'images' ? this.sns.mediaImages : this.sns.mediaVideos;
+          const allSelected = items.every(i => this.sns.selectedMedia.find(m => m.filename === i.filename));
+          if (allSelected) {
+            this.sns.selectedMedia = this.sns.selectedMedia.filter(m => m.type !== type);
+          } else {
+            for (const i of items) {
+              if (!this.sns.selectedMedia.find(m => m.filename === i.filename)) {
+                this.sns.selectedMedia.push({ type, filename: i.filename });
+              }
+            }
+          }
+        },
+        async deleteSelectedMedia() {
+          if (!this.sns.selectedMedia.length) return;
+          if (!confirm(`${this.sns.selectedMedia.length}개 파일을 삭제하시겠습니까?`)) return;
+          try {
+            const res = await fetch('/api/media/delete-batch', {
+              method: 'POST', headers: {'Content-Type': 'application/json'},
+              body: JSON.stringify({ files: this.sns.selectedMedia })
+            });
+            const data = await res.json();
+            if (data.success) {
+              this.showToast(`${data.deleted}개 삭제 완료`, 'success');
+              this.sns.selectedMedia = [];
+              this.sns.mediaSelectMode = false;
+              await this.loadMediaGallery();
+            } else { this.showToast('삭제 실패', 'error'); }
+          } catch { this.showToast('삭제 중 오류', 'error'); }
+        },
+        async deleteAllMedia(type) {
+          try {
+            const res = await fetch(`/api/media/${type}`, { method: 'DELETE' });
+            const data = await res.json();
+            if (data.success) {
+              this.showToast(`${data.deleted}개 ${type === 'images' ? '이미지' : '영상'} 삭제`, 'success');
+              this.sns.showDeleteAllMediaModal = false;
+              await this.loadMediaGallery();
+            }
+          } catch { this.showToast('전체 삭제 실패', 'error'); }
+        },
+        async deleteAllMediaBoth() {
+          try {
+            await fetch('/api/media/images', { method: 'DELETE' });
+            await fetch('/api/media/videos', { method: 'DELETE' });
+            this.showToast('모든 미디어 삭제 완료', 'success');
+            this.sns.showDeleteAllMediaModal = false;
+            this.sns.selectedMedia = [];
+            this.sns.mediaSelectMode = false;
+            await this.loadMediaGallery();
+          } catch { this.showToast('전체 삭제 실패', 'error'); }
+        },
+        async clearSNSQueue() {
+          try {
+            const res = await fetch('/api/sns/queue', { method: 'DELETE' });
+            const data = await res.json();
+            if (data.success) {
+              this.showToast(`${data.removed}개 항목 초기화`, 'success');
+              this.sns.showClearQueueModal = false;
+              this.sns.queue = [];
+            }
+          } catch { this.showToast('큐 초기화 실패', 'error'); }
         },
 
         async approveSNS(id) {

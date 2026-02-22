@@ -71,6 +71,17 @@ logger = logging.getLogger("corthex.sns.manager")
 # 퍼블리싱 실행 권한이 있는 역할 (CMO 이상)
 PUBLISH_ROLES = {"cmo_manager", "chief_of_staff"}
 
+# 서버사이드 플랫폼 허용 목록 — 여기 없는 플랫폼은 submit 자체가 차단됨
+ALLOWED_PLATFORMS = {"tistory", "youtube", "naver_blog", "daum_cafe"}
+BLOCKED_PLATFORM_MSG = {
+    "instagram": "비즈니스 계정 전환 전까지 잠금",
+    "naver_cafe": "대표님 사용 안 함 (삭제)",
+    "linkedin": "사용 안 함 (삭제)",
+    "twitter": "사용 안 함",
+    "facebook": "사용 안 함",
+    "threads": "사용 안 함",
+}
+
 # DB 저장 키 (SQLite settings 테이블)
 _DB_KEY = "sns_publish_queue"
 
@@ -219,6 +230,16 @@ class SNSManager(BaseTool):
         self, kwargs: dict[str, Any], caller_id: str,
     ) -> dict[str, Any]:
         platform = kwargs.get("platform", "")
+
+        # 서버사이드 플랫폼 차단 (프롬프트 무시해도 코드가 막음)
+        if platform not in ALLOWED_PLATFORMS:
+            reason = BLOCKED_PLATFORM_MSG.get(platform, "허용되지 않은 플랫폼")
+            logger.warning("[SNS] 차단된 플랫폼 submit 시도: %s (%s)", platform, reason)
+            return {
+                "error": f"차단된 플랫폼: {platform} ({reason}). "
+                         f"허용 플랫폼: {sorted(ALLOWED_PLATFORMS)}",
+            }
+
         if platform not in self._publishers:
             return {"error": f"미지원 플랫폼: {platform}. 지원: {list(self._publishers)}"}
 
