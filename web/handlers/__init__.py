@@ -17,4 +17,10 @@
   - quality_handler:      /api/quality, /api/quality-rules/* (품질검수)
   - sns_handler:          /api/sns/*, /api/debug/instagram-token (SNS 연동·발행)
   - trading_handler:      /api/trading/*, /api/cio/* (트레이딩 CRUD·잔고·시그널)
+  - agent_handler:        /api/agents/*, /api/budget, /api/model-mode, /api/available-models (에이전트·예산·모델)
+  - telegram_handler:     /api/telegram-status, /api/debug/telegram-test (텔레그램 진단)
+  - tools_handler:        /api/tools/*, /api/tools/status, /api/tools/health (도구 실행·상태)
+  - consult_handler:      /api/consult (처장 간 협의)
+  - replay_handler:       /api/replay/* (배치 체인 리플레이)
+  - calendar_handler:     /api/google-calendar/* (Google Calendar OAuth)
 """
