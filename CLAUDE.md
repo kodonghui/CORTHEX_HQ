@@ -104,6 +104,7 @@ GET https://corthex-hq.com/api/debug/server-logs?lines=50&service=nginx-access �
   - 다음: `DAUM_ID/PW/CAFE_ID/CAFE_BOARD_ID`
   - 이메일: `SMTP_HOST/PORT/USER/PASS`
   - 구글 OAuth: `GOOGLE_CLIENT_ID/CLIENT_SECRET/REDIRECT_URI/CALENDAR_REDIRECT_URI`
+  - Replicate: `REPLICATE_API_TOKEN` (영상/이미지 AI — $10 결제 완료, 2026-02-23)
   - 기타: `REPO_ACCESS_TOKEN`, `SERVER_IP_ARM`, `SERVER_SSH_KEY_ARM`
 
 ## UI/UX 규칙
@@ -160,7 +161,7 @@ GET https://corthex-hq.com/api/debug/server-logs?lines=50&service=nginx-access �
 - 대표님 보고 시 **"빌드#N"** 사용 (PR#N 아님!)
 
 ## 버전 번호
-- 형식: `X.YY.ZZZ` | 현재: `3.01.000`
+- 형식: `X.YY.ZZZ` | 현재: `3.02.019`
 - 큰 변경 → YY 올림 + ZZZ 리셋 | 작은 변경 → ZZZ만 올림
 
 ## 디버그 URL
