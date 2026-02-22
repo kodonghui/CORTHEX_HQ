@@ -28,6 +28,7 @@ from db import (
     save_conversation_message, load_conversation_messages, clear_conversation_messages,
     delete_task as db_delete_task, bulk_delete_tasks, bulk_archive_tasks,
     set_task_tags, mark_task_read, bulk_mark_read,
+    save_quality_review, get_quality_stats,
 )
 try:
     from ai_handler import (
@@ -1073,20 +1074,14 @@ async def set_model_mode(request: Request):
 
 @app.get("/api/quality")
 async def get_quality():
-    """품질검수 통계 반환."""
-    if not _quality_gate:
-        return {"average_score": 0, "total_reviews": 0, "passed": 0, "failed": 0, "pass_rate": 100.0}
-    stats = _quality_gate.stats
-    return {
-        "total_reviews": stats.total_reviewed,
-        "passed": stats.total_passed,
-        "failed": stats.total_rejected,
-        "pass_rate": stats.pass_rate,
-        "retry_success_rate": stats.retry_success_rate,
-        "total_retried": stats.total_retried,
-        "rejections_by_agent": stats.rejections_by_agent,
-        "recent_rejections": stats.recent_rejections[-10:],
-    }
+    """품질검수 통계 반환 (DB 영구 통계 + 메모리 세션 통계 병합)."""
+    db_stats = get_quality_stats()
+    if _quality_gate:
+        mem = _quality_gate.stats
+        db_stats["session_retried"] = mem.total_retried
+        db_stats["session_retry_success_rate"] = mem.retry_success_rate
+        db_stats["rejections_by_agent"] = mem.rejections_by_agent
+    return db_stats
 
 
 # ── 프리셋 관리 ──
@@ -9687,9 +9682,34 @@ async def _quality_review_specialists(chain: dict) -> list[dict]:
                 division=division,
                 target_agent_id=agent_id,
             )
-            # 통계 기록
+            # 통계 기록 (메모리)
             _quality_gate.record_review(review, target_id, agent_id, task_desc)
             chain["total_cost_usd"] += getattr(review, "_cost", 0)
+
+            # DB에 검수 결과 저장
+            import json as _json
+            try:
+                save_quality_review(
+                    chain_id=chain.get("chain_id", ""),
+                    reviewer_id=target_id,
+                    target_id=agent_id,
+                    division=division,
+                    passed=review.passed,
+                    weighted_score=review.weighted_average,
+                    checklist_json=_json.dumps(
+                        [{"id": c.id, "passed": c.passed, "required": c.required}
+                         for c in review.checklist_results], ensure_ascii=False
+                    ),
+                    scores_json=_json.dumps(
+                        [{"id": s.id, "score": s.score, "weight": s.weight}
+                         for s in review.score_results], ensure_ascii=False
+                    ),
+                    feedback=review.feedback[:500],
+                    rejection_reasons=" / ".join(review.rejection_reasons)[:500] if review.rejection_reasons else "",
+                    review_model=review.review_model,
+                )
+            except Exception:
+                pass  # DB 저장 실패해도 검수 흐름은 계속
 
             if not review.passed:
                 failed.append({

@@ -225,6 +225,29 @@ CREATE INDEX IF NOT EXISTS idx_cio_predictions_ticker ON cio_predictions(ticker)
 CREATE INDEX IF NOT EXISTS idx_cio_predictions_analyzed_at ON cio_predictions(analyzed_at);
 CREATE INDEX IF NOT EXISTS idx_cio_predictions_direction ON cio_predictions(direction);
 CREATE INDEX IF NOT EXISTS idx_cio_predictions_task_id ON cio_predictions(task_id);
+
+CREATE TABLE IF NOT EXISTS quality_reviews (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    chain_id        TEXT,
+    reviewer_id     TEXT NOT NULL,
+    target_id       TEXT NOT NULL,
+    division        TEXT DEFAULT '',
+    passed          INTEGER NOT NULL DEFAULT 0,
+    weighted_score  REAL DEFAULT 0.0,
+    checklist_json  TEXT DEFAULT '{}',
+    scores_json     TEXT DEFAULT '{}',
+    feedback        TEXT DEFAULT '',
+    rejection_reasons TEXT DEFAULT '',
+    rework_attempt  INTEGER DEFAULT 0,
+    review_model    TEXT DEFAULT '',
+    review_cost_usd REAL DEFAULT 0.0,
+    created_at      DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_quality_reviews_chain ON quality_reviews(chain_id);
+CREATE INDEX IF NOT EXISTS idx_quality_reviews_reviewer ON quality_reviews(reviewer_id);
+CREATE INDEX IF NOT EXISTS idx_quality_reviews_target ON quality_reviews(target_id);
+CREATE INDEX IF NOT EXISTS idx_quality_reviews_created ON quality_reviews(created_at);
 """
 
 
@@ -1314,3 +1337,90 @@ def save_portfolio_snapshot(total_cash: int, total_eval: int, total_pnl: int, pn
 def load_portfolio_snapshots() -> list:
     """포트폴리오 스냅샷 목록 조회 (최근 90일)"""
     return load_setting("portfolio_snapshots", [])
+
+
+# ── 품질검수 기록 ──
+
+def save_quality_review(
+    chain_id: str,
+    reviewer_id: str,
+    target_id: str,
+    division: str,
+    passed: bool,
+    weighted_score: float,
+    checklist_json: str = "{}",
+    scores_json: str = "{}",
+    feedback: str = "",
+    rejection_reasons: str = "",
+    rework_attempt: int = 0,
+    review_model: str = "",
+    review_cost_usd: float = 0.0,
+) -> int:
+    """품질검수 결과를 DB에 저장. 반환: row id."""
+    conn = get_connection()
+    try:
+        cur = conn.execute(
+            """INSERT INTO quality_reviews
+               (chain_id, reviewer_id, target_id, division, passed,
+                weighted_score, checklist_json, scores_json, feedback,
+                rejection_reasons, rework_attempt, review_model, review_cost_usd)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (chain_id, reviewer_id, target_id, division, int(passed),
+             weighted_score, checklist_json, scores_json, feedback,
+             rejection_reasons, rework_attempt, review_model, review_cost_usd),
+        )
+        conn.commit()
+        return cur.lastrowid or 0
+    except Exception as e:
+        print(f"[DB] quality_review 저장 실패: {e}")
+        return 0
+    finally:
+        conn.close()
+
+
+def get_quality_stats() -> dict:
+    """품질검수 전체 통계 반환."""
+    conn = get_connection()
+    try:
+        row = conn.execute(
+            """SELECT
+                 COUNT(*) as total,
+                 SUM(CASE WHEN passed = 1 THEN 1 ELSE 0 END) as passed,
+                 SUM(CASE WHEN passed = 0 THEN 1 ELSE 0 END) as failed,
+                 AVG(weighted_score) as avg_score
+               FROM quality_reviews"""
+        ).fetchone()
+        total = row[0] or 0
+        passed = row[1] or 0
+        failed = row[2] or 0
+        avg_score = round(row[3] or 0, 2)
+        pass_rate = round(passed / total * 100, 1) if total > 0 else 100.0
+
+        # 최근 10건
+        recent = conn.execute(
+            """SELECT reviewer_id, target_id, division, passed,
+                      weighted_score, feedback, rejection_reasons, created_at
+               FROM quality_reviews ORDER BY id DESC LIMIT 10"""
+        ).fetchall()
+        recent_list = [
+            {
+                "reviewer": r[0], "target": r[1], "division": r[2],
+                "passed": bool(r[3]), "score": r[4], "feedback": r[5],
+                "rejection_reasons": r[6], "created_at": r[7],
+            }
+            for r in recent
+        ]
+
+        return {
+            "total_reviews": total,
+            "passed": passed,
+            "failed": failed,
+            "pass_rate": pass_rate,
+            "average_score": avg_score,
+            "recent_reviews": recent_list,
+        }
+    except Exception as e:
+        print(f"[DB] quality stats 조회 실패: {e}")
+        return {"total_reviews": 0, "passed": 0, "failed": 0, "pass_rate": 100.0, "average_score": 0}
+    finally:
+        conn.close()
