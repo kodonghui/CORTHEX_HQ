@@ -3945,11 +3945,11 @@
           <!-- SNS Tab 3: Approval Queue -->
           <div x-show="sns.tab === 'queue' && !sns.loading">
             <div class="flex gap-2 mb-4">
-              <template x-for="f in ['all','pending','approved','published','rejected']" :key="f">
+              <template x-for="f in ['all','pending','rework','approved','published','rejected']" :key="f">
                 <button @click="sns.queueFilter = f"
                   :class="sns.queueFilter === f ? 'bg-hq-accent/20 text-hq-accent' : 'text-hq-muted'"
                   class="px-3 py-1 text-xs rounded-lg transition"
-                  x-text="f === 'all' ? '전체' : f === 'pending' ? '대기' : f === 'approved' ? '승인' : f === 'published' ? '발행' : '거절'"></button>
+                  x-text="f === 'all' ? '전체' : f === 'pending' ? '대기' : f === 'rework' ? '재작업' : f === 'approved' ? '승인' : f === 'published' ? '발행' : '거절'"></button>
               </template>
             </div>
             <div class="space-y-2">
@@ -3959,8 +3959,9 @@
                     <div class="flex items-center gap-2">
                       <span class="text-xs font-bold text-hq-text capitalize" x-text="item.platform || '-'"></span>
                       <span class="status-badge text-[9px]"
-                        :class="item.status === 'pending' ? 'bg-hq-yellow/10 text-hq-yellow' : item.status === 'approved' ? 'bg-hq-green/10 text-hq-green' : item.status === 'published' ? 'bg-hq-cyan/10 text-hq-cyan' : 'bg-hq-red/10 text-hq-red'"
-                        x-text="item.status === 'pending' ? '대기' : item.status === 'approved' ? '승인됨' : item.status === 'published' ? '발행완료' : item.status === 'failed' ? '실패' : '거절'"></span>
+                        :class="item.status === 'pending' ? 'bg-hq-yellow/10 text-hq-yellow' : item.status === 'approved' ? 'bg-hq-green/10 text-hq-green' : item.status === 'published' ? 'bg-hq-cyan/10 text-hq-cyan' : item.status === 'rework' ? 'bg-hq-orange/10 text-orange-400' : 'bg-hq-red/10 text-hq-red'"
+                        x-text="item.status === 'pending' ? '대기' : item.status === 'approved' ? '승인됨' : item.status === 'published' ? '발행완료' : item.status === 'failed' ? '실패' : item.status === 'rework' ? '재작업중' : '거절'"></span>
+                      <span x-show="item.revision > 0" class="text-[9px] text-orange-400" x-text="'v' + (item.revision || 1)"></span>
                       <span class="text-[9px] text-hq-muted" x-text="item.requested_by ? '요청: ' + item.requested_by : ''"></span>
                     </div>
                     <!-- 대기 → 승인/거절 버튼 -->
@@ -4003,6 +4004,15 @@
                   <div x-show="sns.rejectingId === item.request_id" class="mt-2 flex gap-2">
                     <input x-model="sns.rejectReason" placeholder="거절 사유" class="flex-1 bg-hq-bg border border-hq-border rounded-lg px-2 py-1 text-xs text-hq-text">
                     <button @click="rejectSNS(item.request_id)" class="bg-hq-red text-white rounded-lg px-3 py-1 text-xs">확인</button>
+                  </div>
+                  <!-- 재작업 상태 표시 -->
+                  <div x-show="item.status === 'rework'" class="mt-2 bg-orange-500/10 border border-orange-500/20 rounded-lg px-3 py-2">
+                    <div class="text-[10px] text-orange-400 font-bold mb-1">재작업 진행중</div>
+                    <div x-show="item.result?.reason" class="text-[10px] text-hq-muted" x-text="'거절 사유: ' + item.result?.reason"></div>
+                  </div>
+                  <!-- 거절 사유 (rejected 상태) -->
+                  <div x-show="item.status === 'rejected' && item.result?.reason" class="mt-2 bg-hq-red/10 border border-hq-red/20 rounded-lg px-3 py-2">
+                    <div class="text-[10px] text-hq-red" x-text="'거절 사유: ' + item.result?.reason"></div>
                   </div>
                   <!-- 발행 결과 -->
                   <div x-show="item.result?.message" class="mt-2 text-[10px] text-hq-muted bg-hq-bg rounded px-2 py-1" x-text="item.result?.message"></div>
