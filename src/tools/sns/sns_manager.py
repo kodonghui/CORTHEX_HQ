@@ -33,19 +33,21 @@ except ImportError:
     YouTubePublisher = None
     _YOUTUBE_AVAILABLE = False
 
-try:
-    from src.tools.sns.instagram_publisher import InstagramPublisher
-    _INSTAGRAM_AVAILABLE = True
-except ImportError:
-    InstagramPublisher = None
-    _INSTAGRAM_AVAILABLE = False
+# Instagram — 비즈니스 계정 전환 전까지 잠금
+# try:
+#     from src.tools.sns.instagram_publisher import InstagramPublisher
+#     _INSTAGRAM_AVAILABLE = True
+# except ImportError:
+InstagramPublisher = None
+_INSTAGRAM_AVAILABLE = False
 
-try:
-    from src.tools.sns.naver_cafe_publisher import NaverCafePublisher
-    _NAVER_CAFE_AVAILABLE = True
-except ImportError:
-    NaverCafePublisher = None
-    _NAVER_CAFE_AVAILABLE = False
+# 네이버카페 — 대표님 사용 안 함 (삭제)
+# try:
+#     from src.tools.sns.naver_cafe_publisher import NaverCafePublisher
+#     _NAVER_CAFE_AVAILABLE = True
+# except ImportError:
+NaverCafePublisher = None
+_NAVER_CAFE_AVAILABLE = False
 
 try:
     from src.tools.sns.naver_blog_publisher import NaverBlogPublisher

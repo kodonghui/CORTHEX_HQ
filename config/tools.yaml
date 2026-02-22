@@ -54,7 +54,7 @@ tools:
 - tool_id: sns_manager
   name: SNS Manager
   name_ko: SNS 매니저
-  description: 6개 플랫폼(Tistory/YouTube/Instagram/네이버블로그/네이버카페/다음카페) 통합 퍼블리싱. CEO 승인 큐 포함
+  description: 4개 플랫폼(티스토리/유튜브/네이버블로그/다음카페(서로연)) 통합 퍼블리싱. CEO 승인 큐 포함. ❌인스타(잠금)/네이버카페(없음)
   parameters:
     type: object
     properties:
@@ -70,7 +70,7 @@ tools:
         description: submit=발행 요청(큐 등록), approve=CEO 승인, reject=CEO 거절, publish=실제 발행(CMO만), queue=큐 조회, status=연결 상태
       platform:
         type: string
-        description: '발행 플랫폼 (tistory, youtube, instagram, naver_blog, naver_cafe, daum_cafe)'
+        description: '발행 플랫폼 (tistory, youtube, naver_blog, daum_cafe). ❌instagram/naver_cafe 사용 불가'
       title:
         type: string
         description: 콘텐츠 제목
