@@ -161,7 +161,7 @@ GET https://corthex-hq.com/api/debug/server-logs?lines=50&service=nginx-access �
 - 대표님 보고 시 **"빌드#N"** 사용 (PR#N 아님!)
 
 ## 버전 번호
-- 형식: `X.YY.ZZZ` | 현재: `3.02.019`
+- 형식: `X.YY.ZZZ` | 현재: `3.02.020`
 - 큰 변경 → YY 올림 + ZZZ 리셋 | 작은 변경 → ZZZ만 올림
 
 ## 디버그 URL
