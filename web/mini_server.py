@@ -7369,7 +7369,8 @@ async def approve_sns(item_id: str):
 
 @app.post("/api/sns/reject/{item_id}")
 async def reject_sns(item_id: str, request: Request):
-    """CEO가 SNS 발행 요청을 거절."""
+    """CEO가 SNS 발행 요청을 거절 → 자동으로 원본 전문가에게 재작업 위임."""
+    import time as _time
     body = {}
     try:
         body = await request.json()
@@ -7379,10 +7380,93 @@ async def reject_sns(item_id: str, request: Request):
     queue = load_setting("sns_publish_queue", []) or []
     for item in queue:
         if item.get("request_id") == item_id:
-            item["status"] = "rejected"
+            # 상태를 rework로 변경 (rejected가 아닌 재작업 요청)
+            item["status"] = "rework"
             item["result"] = {"reason": reason}
+            item["rework_requested_at"] = _time.time()
+            item.setdefault("revision", 0)
+            item["revision"] += 1
             save_setting("sns_publish_queue", queue)
-            return {"success": True, "status": "rejected", "request_id": item_id}
+
+            # 백그라운드에서 원본 전문가에게 재작업 위임
+            asyncio.create_task(_rework_delegate(item, reason))
+
+            return {"success": True, "status": "rework", "request_id": item_id}
+    return {"success": False, "error": f"요청 ID를 찾을 수 없음: {item_id}"}
+
+
+async def _rework_delegate(item: dict, reason: str):
+    """거절된 콘텐츠를 원본 전문가에게 재작업 위임."""
+    try:
+        requested_by = item.get("requested_by", "content_specialist")
+        platform = item.get("platform", "")
+        content = item.get("content", {})
+        title = content.get("title", "제목 없음")
+        body_text = content.get("body", "")[:500]
+        request_id = item.get("request_id", "")
+        revision = item.get("revision", 1)
+
+        rework_command = (
+            f"[재작업 요청 #{revision}] CEO가 '{platform}' 콘텐츠를 수정 요청했습니다.\n\n"
+            f"## 거절 사유\n{reason}\n\n"
+            f"## 원본 콘텐츠\n- 제목: {title}\n- 본문 (앞부분): {body_text}...\n\n"
+            f"## 지시사항\n"
+            f"위 거절 사유를 반영하여 콘텐츠를 수정한 후, "
+            f"sns_manager 도구(action=submit)로 다시 제출하세요.\n"
+            f"request_id: {request_id}"
+        )
+
+        task = create_task(
+            command=rework_command,
+            agent_id=requested_by,
+            source="rework",
+        )
+        update_task(task["task_id"], status="running")
+
+        result = await _process_ai_command(
+            rework_command,
+            task["task_id"],
+            target_agent_id=requested_by,
+        )
+
+        if "error" in result:
+            update_task(task["task_id"], status="failed",
+                        result_summary=f"재작업 위임 실패: {result.get('error', '')[:200]}",
+                        success=0)
+            logger.error("[REWORK] 재작업 위임 실패: %s", result.get("error"))
+        else:
+            update_task(task["task_id"], status="completed",
+                        result_summary=f"재작업 완료 (revision #{revision})",
+                        success=1,
+                        time_seconds=result.get("time_seconds", 0))
+            logger.info("[REWORK] 재작업 완료: %s → %s", request_id, requested_by)
+
+    except Exception as e:
+        logger.error("[REWORK] 재작업 위임 오류: %s", e, exc_info=True)
+
+
+@app.post("/api/sns/resubmit/{item_id}")
+async def resubmit_sns(item_id: str, request: Request):
+    """재작업 완료 후 콘텐츠 재제출 → 승인큐 재등록."""
+    import time as _time
+    body = {}
+    try:
+        body = await request.json()
+    except Exception:
+        pass
+    queue = load_setting("sns_publish_queue", []) or []
+    for item in queue:
+        if item.get("request_id") == item_id:
+            if item.get("status") not in ("rework", "rejected"):
+                return {"success": False, "error": f"재제출 불가 상태: {item.get('status')}"}
+            # 새 콘텐츠가 있으면 업데이트
+            new_content = body.get("content")
+            if new_content:
+                item["content"] = new_content
+            item["status"] = "pending"
+            item["resubmitted_at"] = _time.time()
+            save_setting("sns_publish_queue", queue)
+            return {"success": True, "status": "pending", "request_id": item_id}
     return {"success": False, "error": f"요청 ID를 찾을 수 없음: {item_id}"}
 
 
@@ -7452,7 +7536,7 @@ async def publish_sns(item_id: str):
 async def get_sns_events(limit: int = 50):
     """SNS 이벤트 로그 — 발행 완료/실패된 항목."""
     queue = load_setting("sns_publish_queue", []) or []
-    events = [q for q in queue if q.get("status") in ("published", "failed", "rejected")]
+    events = [q for q in queue if q.get("status") in ("published", "failed", "rejected", "rework")]
     events.sort(key=lambda x: x.get("published_at") or x.get("created_at", 0), reverse=True)
     return {"items": events[:limit], "total": len(events)}
 
