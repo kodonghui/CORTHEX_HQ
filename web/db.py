@@ -248,6 +248,22 @@ CREATE INDEX IF NOT EXISTS idx_quality_reviews_chain ON quality_reviews(chain_id
 CREATE INDEX IF NOT EXISTS idx_quality_reviews_reviewer ON quality_reviews(reviewer_id);
 CREATE INDEX IF NOT EXISTS idx_quality_reviews_target ON quality_reviews(target_id);
 CREATE INDEX IF NOT EXISTS idx_quality_reviews_created ON quality_reviews(created_at);
+
+-- 대화 세션 메타데이터: 멀티턴 대화 세션 관리
+CREATE TABLE IF NOT EXISTS conversations (
+    conversation_id TEXT PRIMARY KEY,
+    title           TEXT NOT NULL DEFAULT '새 대화',
+    agent_id        TEXT,
+    turn_count      INTEGER NOT NULL DEFAULT 0,
+    summary         TEXT,
+    total_cost      REAL NOT NULL DEFAULT 0.0,
+    is_active       INTEGER NOT NULL DEFAULT 1,
+    created_at      TEXT NOT NULL,
+    updated_at      TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_conversations_active ON conversations(is_active);
+CREATE INDEX IF NOT EXISTS idx_conversations_updated ON conversations(updated_at);
 """
 
 
@@ -275,6 +291,17 @@ def init_db() -> None:
             conn.commit()
         except sqlite3.OperationalError:
             pass  # 이미 존재하면 무시
+        # conversation_messages에 conversation_id 컬럼 추가 (Step 13: 멀티턴 대화)
+        try:
+            conn.execute("ALTER TABLE conversation_messages ADD COLUMN conversation_id TEXT DEFAULT NULL")
+            conn.commit()
+        except sqlite3.OperationalError:
+            pass
+        try:
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_conversation_conv_id ON conversation_messages(conversation_id)")
+            conn.commit()
+        except sqlite3.OperationalError:
+            pass
         print(f"[DB] 초기화 완료: {DB_PATH}")
     except Exception as e:
         print(f"[DB] 초기화 실패: {e}")
@@ -902,7 +929,8 @@ def save_conversation_message(message_type: str, **kwargs) -> int:
         # 허용된 필드만 필터링
         allowed = {
             "text", "content", "sender_id", "handled_by", "delegation",
-            "model", "time_seconds", "cost", "quality_score", "task_id", "source"
+            "model", "time_seconds", "cost", "quality_score", "task_id", "source",
+            "conversation_id",
         }
         filtered = {k: v for k, v in kwargs.items() if k in allowed}
 
@@ -981,6 +1009,133 @@ def clear_conversation_messages() -> None:
     conn = get_connection()
     try:
         conn.execute("DELETE FROM conversation_messages")
+        conn.commit()
+    except sqlite3.OperationalError:
+        pass
+    finally:
+        conn.close()
+
+
+# ── Conversations (멀티턴 대화 세션) CRUD ──
+
+def create_conversation(agent_id: str | None = None, title: str = "새 대화") -> dict:
+    """새 대화 세션을 생성합니다."""
+    conv_id = _gen_task_id()
+    now = _now_iso()
+    conn = get_connection()
+    try:
+        conn.execute(
+            "INSERT INTO conversations (conversation_id, title, agent_id, created_at, updated_at) "
+            "VALUES (?, ?, ?, ?, ?)",
+            (conv_id, title, agent_id, now, now),
+        )
+        conn.commit()
+        return {"conversation_id": conv_id, "title": title, "agent_id": agent_id,
+                "turn_count": 0, "total_cost": 0.0, "is_active": 1,
+                "created_at": now, "updated_at": now}
+    except sqlite3.OperationalError:
+        return {"conversation_id": conv_id, "title": title}
+    finally:
+        conn.close()
+
+
+def list_conversations(limit: int = 50) -> list:
+    """활성 대화 세션 목록을 반환합니다 (최신순)."""
+    conn = get_connection()
+    try:
+        rows = conn.execute(
+            "SELECT * FROM conversations WHERE is_active = 1 ORDER BY updated_at DESC LIMIT ?",
+            (limit,),
+        ).fetchall()
+        return [dict(r) for r in rows]
+    except sqlite3.OperationalError:
+        return []
+    finally:
+        conn.close()
+
+
+def get_conversation(conversation_id: str) -> dict | None:
+    """단일 대화 세션 정보를 반환합니다."""
+    conn = get_connection()
+    try:
+        row = conn.execute(
+            "SELECT * FROM conversations WHERE conversation_id = ?",
+            (conversation_id,),
+        ).fetchone()
+        return dict(row) if row else None
+    except sqlite3.OperationalError:
+        return None
+    finally:
+        conn.close()
+
+
+def update_conversation(conversation_id: str, **kwargs) -> None:
+    """대화 세션 메타데이터를 업데이트합니다."""
+    allowed = {"title", "agent_id", "turn_count", "summary", "total_cost", "is_active"}
+    filtered = {k: v for k, v in kwargs.items() if k in allowed}
+    if not filtered:
+        return
+    filtered["updated_at"] = _now_iso()
+    set_clause = ", ".join(f"{k} = ?" for k in filtered)
+    conn = get_connection()
+    try:
+        conn.execute(
+            f"UPDATE conversations SET {set_clause} WHERE conversation_id = ?",
+            (*filtered.values(), conversation_id),
+        )
+        conn.commit()
+    except sqlite3.OperationalError:
+        pass
+    finally:
+        conn.close()
+
+
+def load_conversation_messages_by_id(conversation_id: str, limit: int = 200) -> list:
+    """특정 대화 세션의 메시지를 조회합니다."""
+    conn = get_connection()
+    try:
+        rows = conn.execute(
+            "SELECT * FROM conversation_messages WHERE conversation_id = ? "
+            "ORDER BY created_at ASC LIMIT ?",
+            (conversation_id, limit),
+        ).fetchall()
+        messages = []
+        for row in rows:
+            msg = {"type": row["type"], "timestamp": row["created_at"]}
+            if row["type"] == "user":
+                msg["text"] = row["text"]
+                if row["source"]:
+                    msg["source"] = row["source"]
+            elif row["type"] == "result":
+                msg.update({
+                    "content": row["content"],
+                    "sender_id": row["sender_id"],
+                    "handled_by": row["handled_by"],
+                    "delegation": row["delegation"] or "",
+                    "model": row["model"] or "",
+                    "time_seconds": row["time_seconds"],
+                    "cost": row["cost"],
+                    "quality_score": row["quality_score"],
+                    "task_id": row["task_id"] or "",
+                    "collapsed": False,
+                    "feedbackSent": False,
+                    "feedbackRating": None,
+                    "source": row["source"] or "web",
+                })
+            messages.append(msg)
+        return messages
+    except sqlite3.OperationalError:
+        return []
+    finally:
+        conn.close()
+
+
+def delete_conversation(conversation_id: str) -> None:
+    """대화 세션과 관련 메시지를 삭제합니다."""
+    conn = get_connection()
+    try:
+        conn.execute("DELETE FROM conversation_messages WHERE conversation_id = ?", (conversation_id,))
+        conn.execute("DELETE FROM conversations WHERE conversation_id = ?", (conversation_id,))
         conn.commit()
     except sqlite3.OperationalError:
         pass
