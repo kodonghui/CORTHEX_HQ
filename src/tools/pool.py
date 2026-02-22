@@ -156,6 +156,11 @@ class ToolPool:
             "trading_executor": "src.tools.trading_executor.TradingExecutorTool",
             # ─── 나노바나나 Pro 이미지 ───
             "gemini_image_generator": "src.tools.gemini_image_generator.GeminiImageGeneratorTool",
+            # ─── AI 인플루언서 영상 파이프라인 ───
+            "gemini_video_generator": "src.tools.gemini_video_generator.GeminiVideoGeneratorTool",
+            "tts_generator": "src.tools.tts_generator.TTSGeneratorTool",
+            "lipsync_video_generator": "src.tools.lipsync_video_generator.LipsyncVideoGeneratorTool",
+            "video_editor": "src.tools.video_editor.VideoEditorTool",
             # ─── Phase 2: 교수급 전문 도구 (25개) ───
             # CTO 기술개발처
             "architecture_evaluator": "src.tools.architecture_evaluator.ArchitectureEvaluatorTool",
