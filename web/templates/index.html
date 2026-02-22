@@ -7472,11 +7472,23 @@
             if (!res.ok) return;
             const tasks = await res.json();
             if (!Array.isArray(tasks) || tasks.length === 0) return;
-            // 가장 최근 running task를 현재 작업으로 복원
-            const task = tasks[0];
+            // 10분 이상 된 running task는 무시 (좀비 태스크 방지)
+            const TEN_MIN = 10 * 60 * 1000;
+            const now = Date.now();
+            const recentTasks = tasks.filter(t => {
+              const created = new Date(t.started_at || t.created_at).getTime();
+              return (now - created) < TEN_MIN;
+            });
+            if (recentTasks.length === 0) {
+              // 오래된 running task는 서버에 취소 요청
+              for (const t of tasks) {
+                try { await fetch(`/api/tasks/${t.task_id}/cancel`, { method: 'POST' }); } catch(e) {}
+              }
+              return;
+            }
+            const task = recentTasks[0];
             this.currentTaskId = task.task_id;
             this.systemStatus = 'working';
-            // 처리중 메시지 버블 추가 (이미 없을 때만)
             if (!this.messages.some(m => m.type === 'processing')) {
               this.messages.push({
                 type: 'processing',
@@ -7486,7 +7498,7 @@
               });
             }
           } catch (e) {
-            // 복원 실패 시 조용히 무시 (기존 동작에 영향 없음)
+            // 복원 실패 시 조용히 무시
           }
         },
 
