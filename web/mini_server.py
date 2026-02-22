@@ -28,6 +28,7 @@ from db import (
     save_archive, list_archives, get_archive as db_get_archive, delete_archive as db_delete_archive,
     save_setting, load_setting, get_today_cost,
     save_conversation_message, load_conversation_messages, clear_conversation_messages,
+    load_conversation_messages_by_id,
     delete_task as db_delete_task, bulk_delete_tasks, bulk_archive_tasks,
     set_task_tags, mark_task_read, bulk_mark_read,
     save_quality_review, get_quality_stats,
@@ -603,6 +604,7 @@ async def websocket_endpoint(ws: WebSocket):
                 cmd_text = (msg.get("content") or msg.get("text", "")).strip()
                 use_batch = msg.get("batch", False)
                 ws_target_agent_id = msg.get("target_agent_id", None)
+                ws_conversation_id = msg.get("conversation_id", None)
                 if cmd_text:
                     # DB에 메시지 + 작업 저장
                     task = create_task(cmd_text, source="websocket_batch" if use_batch else "websocket")
@@ -723,7 +725,7 @@ async def websocket_endpoint(ws: WebSocket):
                         update_task(task["task_id"], status="running")
                         app_state.bg_current_task_id = task["task_id"]
                         asyncio.create_task(
-                            _run_agent_bg(cmd_text, task["task_id"], ws_target_agent_id)
+                            _run_agent_bg(cmd_text, task["task_id"], ws_target_agent_id, ws_conversation_id)
                         )
                     else:
                         update_task(task["task_id"], status="completed",
@@ -746,12 +748,14 @@ async def websocket_endpoint(ws: WebSocket):
 
 # ── 백그라운드 에이전트 실행 (새로고침해도 안 끊김) ──
 
-async def _run_agent_bg(cmd_text: str, task_id: str, target_agent_id: str | None = None):
+async def _run_agent_bg(cmd_text: str, task_id: str, target_agent_id: str | None = None,
+                        conversation_id: str | None = None):
     """에이전트 작업을 백그라운드에서 실행. WebSocket 연결과 무관하게 동작."""
 
     _bg_tasks[task_id] = asyncio.current_task()
     try:
-        result = await _process_ai_command(cmd_text, task_id, target_agent_id=target_agent_id)
+        result = await _process_ai_command(cmd_text, task_id, target_agent_id=target_agent_id,
+                                           conversation_id=conversation_id)
         if "error" in result:
             update_task(task_id, status="failed",
                         result_summary=result.get("error", "")[:200],
@@ -768,6 +772,7 @@ async def _run_agent_bg(cmd_text: str, task_id: str, target_agent_id: str | None
                     sender_id=_result_payload["sender_id"],
                     handled_by=_result_payload["handled_by"],
                     time_seconds=0, cost=0, task_id=task_id, source="web",
+                    conversation_id=conversation_id,
                 )
             except Exception as e:
                 logger.debug("에러 결과 대화 저장 실패: %s", e)
@@ -796,9 +801,20 @@ async def _run_agent_bg(cmd_text: str, task_id: str, target_agent_id: str | None
                     time_seconds=_result_data.get("time_seconds", 0),
                     cost=_result_data.get("cost", 0),
                     task_id=task_id, source="web",
+                    conversation_id=conversation_id,
                 )
             except Exception as e:
                 logger.debug("결과 대화 저장 실패: %s", e)
+            # 대화 세션 비용 누적
+            if conversation_id and _result_data.get("cost"):
+                try:
+                    from db import get_conversation, update_conversation
+                    _conv = get_conversation(conversation_id)
+                    if _conv:
+                        update_conversation(conversation_id,
+                                            total_cost=_conv["total_cost"] + _result_data["cost"])
+                except Exception:
+                    pass
             _result_data["_completed_at"] = time.time()
             _bg_results[task_id] = _result_data
             await wm.broadcast("result", _result_data)
@@ -6944,26 +6960,7 @@ async def _call_agent(agent_id: str, text: str) -> dict:
             tool_executor_fn = _tool_executor
 
     # ── 최근 대화 기록 로드 (대화 맥락 유지) ──
-    conv_history = None
-    try:
-        recent = load_conversation_messages(limit=100)
-        # 최근 10개 메시지만 AI에 전달 (토큰 절약)
-        tail = recent[-10:] if len(recent) > 10 else recent
-        if tail:
-            conv_history = []
-            for m in tail:
-                if m["type"] == "user" and m.get("text"):
-                    conv_history.append({"role": "user", "content": m["text"][:500]})
-                elif m["type"] == "result" and m.get("content"):
-                    conv_history.append({"role": "assistant", "content": m["content"][:500]})
-            # 현재 메시지와 동일한 마지막 user 메시지는 제거 (중복 방지)
-            if conv_history and conv_history[-1].get("role") == "user" and conv_history[-1].get("content", "").strip() == text[:500].strip():
-                conv_history.pop()
-            # 빈 히스토리면 None
-            if not conv_history:
-                conv_history = None
-    except Exception as e:
-        logger.debug("대화 기록 로드 실패 (무시): %s", e)
+    conv_history = _build_conv_history(conversation_id, text)
 
     await _broadcast_status(agent_id, "working", 0.3, "AI 응답 생성 중...")
     result = await ask_ai(text, system_prompt=soul, model=model,
@@ -8082,7 +8079,42 @@ def _get_agent_reasoning_effort(agent_id: str) -> str:
     return ""
 
 
-async def _process_ai_command(text: str, task_id: str, target_agent_id: str | None = None) -> dict:
+def _build_conv_history(conversation_id: str | None, current_text: str) -> list | None:
+    """대화 세션에서 AI conversation_history를 구성합니다.
+
+    conversation_id가 있으면 해당 세션만, 없으면 전체(레거시) 메시지를 사용합니다.
+    """
+    try:
+        if conversation_id:
+            recent = load_conversation_messages_by_id(conversation_id, limit=200)
+        else:
+            recent = load_conversation_messages(limit=100)
+
+        # 최근 20개 메시지 (약 10턴)
+        tail = recent[-20:] if len(recent) > 20 else recent
+        if not tail:
+            return None
+
+        conv_history = []
+        for m in tail:
+            if m["type"] == "user" and m.get("text"):
+                conv_history.append({"role": "user", "content": m["text"][:2000]})
+            elif m["type"] == "result" and m.get("content"):
+                conv_history.append({"role": "assistant", "content": m["content"][:2000]})
+
+        # 현재 메시지와 동일한 마지막 user 메시지는 제거 (중복 방지)
+        if (conv_history and conv_history[-1].get("role") == "user"
+                and conv_history[-1].get("content", "").strip() == current_text[:2000].strip()):
+            conv_history.pop()
+
+        return conv_history if conv_history else None
+    except Exception as e:
+        logger.debug("대화 기록 로드 실패 (무시): %s", e)
+        return None
+
+
+async def _process_ai_command(text: str, task_id: str, target_agent_id: str | None = None,
+                              conversation_id: str | None = None) -> dict:
     """CEO 명령을 적합한 에이전트에게 위임하고 AI 결과를 반환합니다.
 
     흐름:
@@ -8270,23 +8302,7 @@ async def _process_ai_command(text: str, task_id: str, target_agent_id: str | No
         override = _get_model_override("chief_of_staff")
         model = select_model(text, override=override)
         # 대화 맥락 로드
-        _chief_history = None
-        try:
-            _recent = load_conversation_messages(limit=100)
-            _tail = _recent[-10:] if len(_recent) > 10 else _recent
-            if _tail:
-                _chief_history = []
-                for _m in _tail:
-                    if _m["type"] == "user" and _m.get("text"):
-                        _chief_history.append({"role": "user", "content": _m["text"][:500]})
-                    elif _m["type"] == "result" and _m.get("content"):
-                        _chief_history.append({"role": "assistant", "content": _m["content"][:500]})
-                if _chief_history and _chief_history[-1].get("role") == "user" and _chief_history[-1].get("content", "").strip() == text[:500].strip():
-                    _chief_history.pop()
-                if not _chief_history:
-                    _chief_history = None
-        except Exception as e:
-            logger.debug("비서실장 대화 이력 로드 실패: %s", e)
+        _chief_history = _build_conv_history(conversation_id, text)
         result = await ask_ai(text, system_prompt=soul, model=model,
                               conversation_history=_chief_history)
 
