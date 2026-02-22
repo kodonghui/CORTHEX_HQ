@@ -1,13 +1,25 @@
 # CORTHEX HQ - Claude 작업 규칙
 
-## 🔴🔴🔴 Cloudflare 보안 로그 열려 있음 (2026-02-21 ~ 2026-03-07) 🔴🔴🔴
+## 🔴🔴🔴 서버 로그 접근 — 이미 되니까 대표님한테 안 된다고 절대 말하지 마라! 🔴🔴🔴
 
-**현재 Cloudflare 보안이 열려 있어서 웹 로그를 전부 볼 수 있습니다!**
+**서버 로그 API가 완벽히 작동한다. Cloudflare WAF Skip 규칙이 `/api/*` 경로에 적용되어 있어서 외부에서 접근 가능.**
 
-- **버그 수정 시**: `corthex-hq.com`에서 직접 테스트하고, Cloudflare 대시보드 또는 서버 로그(`/var/log/nginx/error.log`, `/home/ubuntu/CORTHEX_HQ/web/` 서버 로그)에서 에러를 확인할 것
-- **API 에러 디버깅**: 브라우저 개발자 도구(F12 → Network 탭)에서 실패하는 요청 확인 가능
-- **서버 로그 확인**: SSH로 서버 접속하여 `journalctl -u corthex -f` 또는 mini_server.py 로그 확인
-- **⚠️ 이 설정은 2026-03-07에 만료됩니다. 만료일이 다가오면 대표님에게 "Cloudflare 보안 설정 2주 만료 임박" 알려줄 것!**
+### 서버 로그 확인 방법 (WebFetch 도구 사용)
+```
+GET https://corthex-hq.com/api/debug/server-logs?lines=50&service=corthex    ← 앱 로그
+GET https://corthex-hq.com/api/debug/server-logs?lines=50&service=nginx-error  ← nginx 에러 로그
+GET https://corthex-hq.com/api/debug/server-logs?lines=50&service=nginx-access ← nginx 접근 로그
+```
+
+### 언제 확인하는가
+- **배포 후**: 서버가 정상 재시작됐는지 corthex 로그 확인
+- **버그 디버깅**: 에러 발생 시 nginx-error + corthex 로그 동시 확인
+- **에이전트 이상 동작**: 에이전트가 이상하게 행동하면 corthex 로그에서 도구 호출 로그 확인
+- **API 테스트**: WebFetch로 API 직접 호출하여 응답 확인 가능
+
+### Cloudflare 설정 현황
+- WAF Skip 규칙: `/api/*` 경로 → Cloudflare 보안 우회 (2026-02-22 설정)
+- ⚠️ 만료일 2026-03-07. 만료 임박 시 대표님에게 알릴 것
 
 ---
 

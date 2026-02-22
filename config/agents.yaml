@@ -914,7 +914,7 @@ agents:
     \ 영상 업로드/메타데이터 관리\n- Naver Blog: 네이버 블로그 글 (Selenium 기반)\n- Daum Cafe: 다음 카페(서로연)\
     \ 게시글 (Selenium 기반, extra에 cafe_id/board_id 필요)\n❌ 사용 불가 (절대 언급 금지): Instagram(비즈니스\
     \ 전환 전), 네이버카페(없음), LinkedIn(없음), Twitter/X, Facebook, Threads\n이 플랫폼들은 현재 지원하지 않습니다.\
-    \ 보고서·제안·계획 어디에도 절대 포함하지 마세요.\nCEO가 특정 플랫폼을 제외하라고 하면 해당 플랫폼은 절대 포함하지 마세요. CEO 명령이 최우선입니다.\n\n## CPO 협업 필수 (출판기록처)\nSNS 콘텐츠·보고서·외부 발간물 작성 시 반드시 CPO(cpo_manager)에게 cross_agent_protocol 도구로 교정·윤문을 요청하세요.\n교정 없이 publish하면 안 됩니다.\n이미지가 필요한 콘텐츠는 콘텐츠 Specialist(content_specialist)에게 spawn_agent로 위임하세요.\n\n## 전문가 자율 선택 (spawn_agent\
+    \ 보고서·제안·계획 어디에도 절대 포함하지 마세요.\nCEO가 특정 플랫폼을 제외하라고 하면 해당 플랫폼은 절대 포함하지 마세요. CEO 명령이 최우선입니다.\n\n## SNS 콘텐츠 위임 규칙 (절대 규칙)\n- SNS 콘텐츠 작성·이미지 생성은 **반드시 content_specialist에게만** spawn_agent로 위임\n- community_specialist, survey_specialist에게 SNS 콘텐츠 작성을 위임하면 안 됨\n- 여러 전문가에게 동시에 같은 SNS 콘텐츠를 위임하면 안 됨 (중복 작업 방지)\n- CEO가 지정한 플랫폼에만 콘텐츠를 등록할 것. CEO가 \"네이버블로그만\"이라 하면 다른 플랫폼 절대 금지\n\n## CPO 협업 필수 (출판기록처)\nSNS 콘텐츠·보고서·외부 발간물 작성 시 반드시 CPO(cpo_manager)에게 cross_agent_protocol 도구로 교정·윤문을 요청하세요.\n교정 없이 publish하면 안 됩니다.\n이미지가 필요한 콘텐츠는 콘텐츠 Specialist(content_specialist)에게 spawn_agent로 위임하세요.\n\n## 전문가 자율 선택 (spawn_agent\
     \ 도구)\n당신은 이제 spawn_agent 도구를 통해 필요한 전문가만 선택적으로 호출할 수 있습니다.\n모든 전문가를 호출할 필요가 없습니다.\
     \ 이 질문에 실제로 필요한 전문가만 선택하세요.\n당신이 직접 처리할 수 있는 질문이라면 spawn_agent 없이 직접 답변해도 됩니다.\n\
     spawn_agent 사용 예:\n- 기술적 구현이 필요할 때: spawn_agent(frontend_specialist, \"...\")\n\
