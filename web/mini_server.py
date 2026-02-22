@@ -17,8 +17,9 @@ import urllib.error
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
-# DB 모듈을 같은 폴더에서 임포트
+# DB + WS 모듈을 같은 폴더에서 임포트
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from ws_manager import wm  # WebSocket/SSE 브로드캐스트 매니저
 from db import (
     init_db, save_message, create_task, get_task as db_get_task,
     update_task, list_tasks, toggle_bookmark as db_toggle_bookmark,
@@ -257,13 +258,7 @@ class ActivityLogMiddleware(BaseHTTPMiddleware):
 
         try:
             log_entry = save_activity_log("system", action, level)
-            # WebSocket broadcast (서버 시작 후에만 동작)
-            clients = globals().get("connected_clients", [])
-            for c in clients[:]:
-                try:
-                    await c.send_json({"event": "activity_log", "data": log_entry})
-                except Exception:
-                    pass
+            await wm.send_activity_log(log_entry)
         except Exception:
             pass  # 로깅 실패가 요청을 블로킹하면 안 됨
 
@@ -530,8 +525,9 @@ def _build_agents_from_yaml() -> list[dict]:
 
 AGENTS = _build_agents_from_yaml()
 
-# ── WebSocket 관리 ──
-connected_clients: list[WebSocket] = []
+# ── WebSocket 관리 (wm 싱글턴 사용) ──
+# 하위 호환: connected_clients는 wm 내부 리스트를 참조
+connected_clients = wm._connections
 
 # ── 백그라운드 에이전트 태스크 (새로고침해도 안 끊김) ──
 _bg_tasks: dict[str, asyncio.Task] = {}       # task_id → asyncio.Task
@@ -542,7 +538,7 @@ _bg_current_task_id: str | None = None        # 현재 실행 중인 task_id
 @app.websocket("/ws")
 async def websocket_endpoint(ws: WebSocket):
     await ws.accept()
-    connected_clients.append(ws)
+    wm._connections.append(ws)
     try:
         # 연결 시 초기 상태 전송 (activity_log가 아닌 system_info 이벤트 사용 — 통신로그에 안 뜨게)
         now = datetime.now(KST).strftime("%H:%M:%S")
@@ -612,12 +608,10 @@ async def websocket_endpoint(ws: WebSocket):
                         "chief_of_staff",
                         f"[웹] {mode_label} 명령 접수: {cmd_text[:50]}{'...' if len(cmd_text) > 50 else ''} (#{task['task_id']})",
                     )
-                    for c in connected_clients[:]:
-                        try:
-                            await c.send_json({"event": "task_accepted", "data": task})
-                            await c.send_json({"event": "activity_log", "data": log_entry})
-                        except Exception:
-                            pass
+                    await wm.broadcast_multi([
+                        ("task_accepted", task),
+                        ("activity_log", log_entry),
+                    ])
 
                     # 배치 모드: 위임 체인 전체를 Batch API로 실행
                     if use_batch and is_ai_ready():
@@ -646,14 +640,7 @@ async def websocket_endpoint(ws: WebSocket):
                             try:
                                 chain_result = await _start_batch_chain(text, task_id)
                                 if "error" in chain_result:
-                                    for c in connected_clients[:]:
-                                        try:
-                                            await c.send_json({
-                                                "event": "batch_chain_progress",
-                                                "data": {"message": f"❌ 배치 시작 실패: {chain_result['error']}"}
-                                            })
-                                        except Exception:
-                                            pass
+                                    await wm.broadcast("batch_chain_progress", {"message": f"❌ 배치 시작 실패: {chain_result['error']}"})
                             except Exception as e:
                                 _log(f"[CHAIN] 백그라운드 배치 체인 오류: {e}")
 
@@ -694,31 +681,21 @@ async def websocket_endpoint(ws: WebSocket):
                                                 result_summary=(debate_result.get("content", "") or "")[:200],
                                                 success=1,
                                                 cost_usd=debate_result.get("total_cost_usd", debate_result.get("cost_usd", 0)))
-                                for c in connected_clients[:]:
-                                    try:
-                                        if "error" in debate_result:
-                                            await c.send_json({
-                                                "event": "result",
-                                                "data": {
-                                                    "content": f"❌ 토론 실패: {debate_result['error']}",
-                                                    "sender_id": "chief_of_staff",
-                                                    "time_seconds": 0,
-                                                    "cost": 0,
-                                                }
-                                            })
-                                        else:
-                                            await c.send_json({
-                                                "event": "result",
-                                                "data": {
-                                                    "content": debate_result.get("content", ""),
-                                                    "sender_id": debate_result.get("agent_id", "chief_of_staff"),
-                                                    "handled_by": debate_result.get("handled_by", "임원 토론"),
-                                                    "time_seconds": debate_result.get("time_seconds", 0),
-                                                    "cost": debate_result.get("total_cost_usd", debate_result.get("cost_usd", 0)),
-                                                }
-                                            })
-                                    except Exception:
-                                        pass
+                                if "error" in debate_result:
+                                    await wm.broadcast("result", {
+                                        "content": f"❌ 토론 실패: {debate_result['error']}",
+                                        "sender_id": "chief_of_staff",
+                                        "time_seconds": 0,
+                                        "cost": 0,
+                                    })
+                                else:
+                                    await wm.broadcast("result", {
+                                        "content": debate_result.get("content", ""),
+                                        "sender_id": debate_result.get("agent_id", "chief_of_staff"),
+                                        "handled_by": debate_result.get("handled_by", "임원 토론"),
+                                        "time_seconds": debate_result.get("time_seconds", 0),
+                                        "cost": debate_result.get("total_cost_usd", debate_result.get("cost_usd", 0)),
+                                    })
                                 # 토론 결과도 텔레그램 CEO 전달
                                 if "error" not in debate_result:
                                     await _forward_web_response_to_telegram(
@@ -756,10 +733,9 @@ async def websocket_endpoint(ws: WebSocket):
                             }
                         })
     except WebSocketDisconnect:
-        connected_clients.remove(ws)
+        wm.disconnect(ws)
     except Exception:
-        if ws in connected_clients:
-            connected_clients.remove(ws)
+        wm.disconnect(ws)
 
 
 # ── 백그라운드 에이전트 실행 (새로고침해도 안 끊김) ──
@@ -790,11 +766,7 @@ async def _run_agent_bg(cmd_text: str, task_id: str, target_agent_id: str | None
             except Exception:
                 pass
             _bg_results[task_id] = _result_payload
-            for _c in connected_clients[:]:
-                try:
-                    await _c.send_json({"event": "result", "data": _result_payload})
-                except Exception:
-                    pass
+            await wm.broadcast("result", _result_payload)
         else:
             _result_data = {
                 "content": result.get("content", ""),
@@ -821,11 +793,7 @@ async def _run_agent_bg(cmd_text: str, task_id: str, target_agent_id: str | None
             except Exception:
                 pass
             _bg_results[task_id] = _result_data
-            for _c in connected_clients[:]:
-                try:
-                    await _c.send_json({"event": "result", "data": _result_data})
-                except Exception:
-                    pass
+            await wm.broadcast("result", _result_data)
             update_task(task_id, status="completed",
                         result_summary=(result.get("content", "") or "")[:200],
                         success=1,
@@ -836,11 +804,7 @@ async def _run_agent_bg(cmd_text: str, task_id: str, target_agent_id: str | None
         _log(f"[BG-AGENT] 백그라운드 에이전트 오류: {e}")
         update_task(task_id, status="failed", result_summary=str(e)[:200], success=0)
         _bg_results[task_id] = {"content": f"❌ 에이전트 오류: {e}", "sender_id": "chief_of_staff", "task_id": task_id}
-        for _c in connected_clients[:]:
-            try:
-                await _c.send_json({"event": "result", "data": _bg_results[task_id]})
-            except Exception:
-                pass
+        await wm.broadcast("result", _bg_results[task_id])
     finally:
         _bg_tasks.pop(task_id, None)
         _bg_current_task_id = None
@@ -1634,18 +1598,11 @@ async def submit_ai_batch(request: Request):
                     result_summary=f"[PENDING] 배치 처리 중 (batch_id: {batch_id[:20]}...)")
 
     # WebSocket 알림
-    for c in connected_clients[:]:
-        try:
-            await c.send_json({
-                "event": "batch_submitted",
-                "data": {
-                    "batch_id": batch_id,
-                    "provider": provider,
-                    "count": len(requests_list),
-                },
-            })
-        except Exception:
-            pass
+    await wm.broadcast("batch_submitted", {
+        "batch_id": batch_id,
+        "provider": provider,
+        "count": len(requests_list),
+    })
 
     _log(f"[BATCH] AI 배치 제출 완료: {batch_id} ({len(requests_list)}개 요청, {provider})")
 
@@ -1775,11 +1732,7 @@ async def _collect_batch_results(batch_info: dict, all_batches: list):
                     agent_id,
                     f"[배치 완료] {agent_name}: {message[:40]}... → {res['content'][:60]}..."
                 )
-                for c in connected_clients[:]:
-                    try:
-                        await c.send_json({"event": "activity_log", "data": log_entry})
-                    except Exception:
-                        pass
+                await wm.send_activity_log(log_entry)
 
                 # 아카이브에 저장
                 division = _AGENT_DIVISION.get(agent_id, "secretary")
@@ -1793,21 +1746,14 @@ async def _collect_batch_results(batch_info: dict, all_batches: list):
                 )
 
     # WebSocket으로 완료 알림
-    for c in connected_clients[:]:
-        try:
-            await c.send_json({
-                "event": "batch_completed",
-                "data": {
-                    "batch_id": batch_id,
-                    "provider": provider,
-                    "count": len(results),
-                    "total_cost_usd": total_cost,
-                    "succeeded": sum(1 for r in results if not r.get("error")),
-                    "failed": sum(1 for r in results if r.get("error")),
-                },
-            })
-        except Exception:
-            pass
+    await wm.broadcast("batch_completed", {
+        "batch_id": batch_id,
+        "provider": provider,
+        "count": len(results),
+        "total_cost_usd": total_cost,
+        "succeeded": sum(1 for r in results if not r.get("error")),
+        "failed": sum(1 for r in results if r.get("error")),
+    })
 
     _log(f"[BATCH] 결과 수집 완료: {batch_id} ({len(results)}개, ${total_cost:.4f})")
 
@@ -1885,14 +1831,7 @@ async def _flush_batch_api_queue():
                             result_summary=f"[PENDING] Batch API 제출됨 ({batch_id[:20]}...)")
 
         # WebSocket 알림
-        for c in connected_clients[:]:
-            try:
-                await c.send_json({
-                    "event": "batch_submitted",
-                    "data": {"batch_id": batch_id, "provider": provider, "count": len(reqs_in_batch)},
-                })
-            except Exception:
-                pass
+        await wm.broadcast("batch_submitted", {"batch_id": batch_id, "provider": provider, "count": len(reqs_in_batch)})
 
         _log(f"[BATCH] Batch API 제출 완료: {batch_id} ({len(reqs_in_batch)}건, {provider})")
 
@@ -2051,22 +1990,15 @@ async def _broadcast_chain_status(chain: dict, message: str):
         "direct": "비서실장 직접 처리",
     }
     step_label = step_labels.get(chain.get("step", ""), chain.get("step", ""))
-    for c in connected_clients[:]:
-        try:
-            await c.send_json({
-                "event": "batch_chain_progress",
-                "data": {
-                    "chain_id": chain["chain_id"],
-                    "step": chain.get("step", ""),
-                    "step_label": step_label,
-                    "status": chain.get("status", ""),
-                    "message": message,
-                    "mode": chain.get("mode", "single"),
-                    "target_id": chain.get("target_id"),
-                },
-            })
-        except Exception:
-            pass
+    await wm.broadcast("batch_chain_progress", {
+        "chain_id": chain["chain_id"],
+        "step": chain.get("step", ""),
+        "step_label": step_label,
+        "status": chain.get("status", ""),
+        "message": message,
+        "mode": chain.get("mode", "single"),
+        "target_id": chain.get("target_id"),
+    })
 
     # 텔레그램으로도 진행 상태 전달
     if _telegram_app:
@@ -2896,23 +2828,16 @@ async def _deliver_chain_result(chain: dict):
                     agent_id="chief_of_staff")
 
         # WebSocket으로 최종 결과 전달
-        for c in connected_clients[:]:
-            try:
-                await c.send_json({
-                    "event": "result",
-                    "data": {
-                        "content": compiled,
-                        "sender_id": "chief_of_staff",
-                        "handled_by": "비서실장 → 6개 처장",
-                        "delegation": "비서실장 → 처장 → 전문가 (배치)",
-                        "time_seconds": 0,
-                        "cost": total_cost,
-                        "model": "multi-agent-batch",
-                        "routing_method": "배치 체인 (브로드캐스트)",
-                    }
-                })
-            except Exception:
-                pass
+        await wm.broadcast("result", {
+            "content": compiled,
+            "sender_id": "chief_of_staff",
+            "handled_by": "비서실장 → 6개 처장",
+            "delegation": "비서실장 → 처장 → 전문가 (배치)",
+            "time_seconds": 0,
+            "cost": total_cost,
+            "model": "multi-agent-batch",
+            "routing_method": "배치 체인 (브로드캐스트)",
+        })
 
     else:
         # 단일 부서 결과
@@ -2948,23 +2873,16 @@ async def _deliver_chain_result(chain: dict):
                     agent_id=target_id)
 
         # WebSocket으로 최종 결과 전달
-        for c in connected_clients[:]:
-            try:
-                await c.send_json({
-                    "event": "result",
-                    "data": {
-                        "content": final_content,
-                        "sender_id": target_id,
-                        "handled_by": handled_by,
-                        "delegation": delegation,
-                        "time_seconds": 0,
-                        "cost": total_cost,
-                        "model": synth.get("model", "batch"),
-                        "routing_method": "배치 체인",
-                    }
-                })
-            except Exception:
-                pass
+        await wm.broadcast("result", {
+            "content": final_content,
+            "sender_id": target_id,
+            "handled_by": handled_by,
+            "delegation": delegation,
+            "time_seconds": 0,
+            "cost": total_cost,
+            "model": synth.get("model", "batch"),
+            "routing_method": "배치 체인",
+        })
 
     # 텔레그램으로도 결과 전달
     tg_content = compiled if chain["mode"] == "broadcast" else final_content
@@ -4216,11 +4134,7 @@ async def _broadcast_workflow_progress(step_index: int, total_steps: int, status
             "final_result": result if workflow_done else "",
         },
     }
-    for ws in list(connected_clients):
-        try:
-            await ws.send_json(msg)
-        except Exception:
-            pass
+    await wm.broadcast(msg["event"], msg["data"])
 
 
 # ── 콘텐츠 파이프라인 — 제거됨 (2026-02-21, CEO 지시) ──
@@ -8273,17 +8187,7 @@ async def post_delegation_log(request: Request):
             "log_type": body.get("log_type", "delegation"),
             "created_at": _time.time(),
         }
-        for _c in connected_clients[:]:
-            try:
-                await _c.send_json({"event": "delegation_log_update", "data": _log_data})
-            except Exception:
-                pass
-        # SSE broadcast (B안 내부통신 실시간)
-        await _broadcast_comms({
-            "id": f"dl_{row_id}", "sender": sender, "receiver": receiver,
-            "message": message, "log_type": body.get("log_type", "delegation"),
-            "source": "delegation", "created_at": datetime.now(KST).isoformat(),
-        })
+        await wm.send_delegation_log(_log_data)
         return {"success": True, "id": row_id}
     except Exception as e:
         return {"success": False, "error": str(e)}
@@ -8365,7 +8269,6 @@ async def get_comms_messages(limit: int = 100, msg_type: str = ""):
 
 
 # ── SSE 엔드포인트 (B안: 내부통신 실시간 스트림) ──
-_sse_clients: list[asyncio.Queue] = []
 
 
 @app.get("/api/comms/stream")
@@ -8378,7 +8281,7 @@ async def comms_sse_stream():
     import json as _j
 
     queue: asyncio.Queue = asyncio.Queue()
-    _sse_clients.append(queue)
+    wm.add_sse_client(queue)
 
     async def event_generator():
         try:
@@ -8394,8 +8297,7 @@ async def comms_sse_stream():
         except asyncio.CancelledError:
             pass
         finally:
-            if queue in _sse_clients:
-                _sse_clients.remove(queue)
+            wm.remove_sse_client(queue)
 
     return StreamingResponse(
         event_generator(),
@@ -8406,11 +8308,7 @@ async def comms_sse_stream():
 
 async def _broadcast_comms(msg_data: dict):
     """SSE 클라이언트들에게 내부통신 메시지 broadcast."""
-    for q in _sse_clients[:]:
-        try:
-            await q.put(msg_data)
-        except Exception:
-            pass
+    await wm.broadcast_sse(msg_data)
 
 
 @app.post("/api/consult")
@@ -8452,17 +8350,7 @@ async def consult_manager_api(request: Request):
             "log_type": "consult",
             "created_at": _time.time(),
         }
-        for _c in connected_clients[:]:
-            try:
-                await _c.send_json({"event": "delegation_log_update", "data": _log_data})
-            except Exception:
-                pass
-        # SSE broadcast
-        await _broadcast_comms({
-            "id": f"dl_{row_id}", "sender": from_agent, "receiver": to_agent,
-            "message": msg_text, "log_type": "consult",
-            "source": "delegation", "created_at": datetime.now(KST).isoformat(),
-        })
+        await wm.send_delegation_log(_log_data)
 
         return {
             "success": True,
@@ -9266,43 +9154,31 @@ async def _start_telegram_bot() -> None:
                 "chief_of_staff",
                 f"[텔레그램] CEO 지시: {text[:50]}{'...' if len(text) > 50 else ''} (#{task['task_id']})",
             )
-            for ws in connected_clients[:]:
-                try:
-                    await ws.send_json({"event": "task_accepted", "data": task})
-                    await ws.send_json({"event": "activity_log", "data": log_entry})
-                    # 텔레그램 대화를 웹 채팅에도 표시
-                    await ws.send_json({
-                        "event": "telegram_message",
-                        "data": {"type": "user", "text": text, "source": "telegram"}
-                    })
-                    if "error" not in result:
-                        await ws.send_json({
-                            "event": "result",
-                            "data": {
-                                "content": result.get("content", ""),
-                                "sender_id": result.get("agent_id", "chief_of_staff"),
-                                "handled_by": result.get("handled_by", "비서실장"),
-                                "delegation": result.get("delegation", ""),
-                                "time_seconds": result.get("time_seconds", 0),
-                                "cost": result.get("total_cost_usd", result.get("cost_usd", 0)),
-                                "model": result.get("model", ""),
-                                "routing_method": result.get("routing_method", ""),
-                                "source": "telegram",
-                            }
-                        })
-                    else:
-                        await ws.send_json({
-                            "event": "result",
-                            "data": {
-                                "content": f"❌ {result['error']}",
-                                "sender_id": "chief_of_staff",
-                                "handled_by": "비서실장",
-                                "time_seconds": 0, "cost": 0,
-                                "source": "telegram",
-                            }
-                        })
-                except Exception:
-                    pass
+            await wm.broadcast_multi([
+                ("task_accepted", task),
+                ("activity_log", log_entry),
+                ("telegram_message", {"type": "user", "text": text, "source": "telegram"}),
+            ])
+            if "error" not in result:
+                await wm.broadcast("result", {
+                    "content": result.get("content", ""),
+                    "sender_id": result.get("agent_id", "chief_of_staff"),
+                    "handled_by": result.get("handled_by", "비서실장"),
+                    "delegation": result.get("delegation", ""),
+                    "time_seconds": result.get("time_seconds", 0),
+                    "cost": result.get("total_cost_usd", result.get("cost_usd", 0)),
+                    "model": result.get("model", ""),
+                    "routing_method": result.get("routing_method", ""),
+                    "source": "telegram",
+                })
+            else:
+                await wm.broadcast("result", {
+                    "content": f"❌ {result['error']}",
+                    "sender_id": "chief_of_staff",
+                    "handled_by": "비서실장",
+                    "time_seconds": 0, "cost": 0,
+                    "source": "telegram",
+                })
 
         def _is_tg_ceo(update: Update) -> bool:
             if not update.effective_chat or not update.message:
@@ -10008,19 +9884,7 @@ async def _broadcast_status(agent_id: str, status: str, progress: float, detail:
     프론트엔드의 상태 표시등(초록불 깜빡임)을 제어합니다.
     status: 'working' | 'done' | 'idle'
     """
-    for c in connected_clients[:]:
-        try:
-            await c.send_json({
-                "event": "agent_status",
-                "data": {
-                    "agent_id": agent_id,
-                    "status": status,
-                    "progress": progress,
-                    "detail": detail,
-                }
-            })
-        except Exception:
-            pass
+    await wm.send_agent_status(agent_id, status, progress, detail)
 
 
 async def _extract_and_save_memory(agent_id: str, task: str, response: str):
@@ -10072,11 +9936,7 @@ async def _call_agent(agent_id: str, text: str) -> dict:
 
     # 활동 로그 — 누가 일하는지 기록
     log_entry = save_activity_log(agent_id, f"[{agent_name}] 작업 시작: {text[:40]}...")
-    for c in connected_clients[:]:
-        try:
-            await c.send_json({"event": "activity_log", "data": log_entry})
-        except Exception:
-            pass
+    await wm.send_activity_log(log_entry)
 
     soul = _load_agent_prompt(agent_id)
 
@@ -10122,22 +9982,11 @@ async def _call_agent(agent_id: str, text: str) -> dict:
                 tool_progress_pct = int(tool_progress * 100)
 
                 # 도구 호출 횟수 포함 agent_status 이벤트 발송
-                for _c in connected_clients[:]:
-                    try:
-                        await _c.send_json({
-                            "event": "agent_status",
-                            "data": {
-                                "agent_id": agent_id,
-                                "status": "working",
-                                "progress": round(tool_progress, 2),
-                                "detail": f"{tool_name} 실행 중...",
-                                "tool_calls": call_count,
-                                "max_calls": _MAX_TOOL_CALLS,
-                                "tool_name": tool_name,
-                            },
-                        })
-                    except Exception:
-                        pass
+                await wm.send_agent_status(
+                    agent_id, "working", round(tool_progress, 2),
+                    f"{tool_name} 실행 중...",
+                    tool_calls=call_count, max_calls=_MAX_TOOL_CALLS, tool_name=tool_name,
+                )
 
                 pool = _init_tool_pool()
                 if pool:
@@ -10208,25 +10057,14 @@ async def _call_agent(agent_id: str, text: str) -> dict:
     cost = result.get("cost_usd", 0)
     content = result.get("content", "")
     log_done = save_activity_log(agent_id, f"[{agent_name}] 작업 완료 (${cost:.4f})")
-    for c in connected_clients[:]:
-        try:
-            await c.send_json({"event": "activity_log", "data": log_done})
-        except Exception:
-            pass
+    await wm.send_activity_log(log_done)
 
     # ── 비용 업데이트 브로드캐스트 (프론트엔드 우측 상단 금액 실시간 반영) ──
     try:
         today_cost = get_today_cost()
     except Exception:
         today_cost = cost
-    for c in connected_clients[:]:
-        try:
-            await c.send_json({
-                "event": "cost_update",
-                "data": {"total_cost": today_cost, "total_tokens": 0},
-            })
-        except Exception:
-            pass
+    await wm.send_cost_update(today_cost)
 
     # ── 기억 자동 추출 (비동기 백그라운드 — 응답에서 중요 정보 저장) ──
     if content and len(content) > 30:
@@ -10307,18 +10145,7 @@ async def _delegate_to_specialists(manager_id: str, text: str) -> list[dict]:
                 "log_type": "delegation",
                 "created_at": _time.time(),
             }
-            for _c in connected_clients[:]:
-                try:
-                    await _c.send_json({"event": "delegation_log_update", "data": _log_data})
-                except Exception:
-                    pass
-            # SSE broadcast (내부통신 실시간 스트림)
-            await _broadcast_comms({
-                "id": f"dl_{row_id}", "sender": mgr_name, "receiver": spec_name,
-                "title": _deleg_title,
-                "message": text[:300], "log_type": "delegation",
-                "source": "delegation", "created_at": datetime.now(KST).isoformat(),
-            })
+            await wm.send_delegation_log(_log_data)
     except Exception:
         pass
 
@@ -10367,19 +10194,7 @@ async def _delegate_to_specialists(manager_id: str, text: str) -> list[dict]:
                     "tools_used": _tools_unique,
                     "created_at": _time.time(),
                 }
-                for _c in connected_clients[:]:
-                    try:
-                        await _c.send_json({"event": "delegation_log_update", "data": _log_data})
-                    except Exception:
-                        pass
-                # SSE broadcast (내부통신 실시간 스트림)
-                await _broadcast_comms({
-                    "id": f"dl_{row_id}", "sender": spec_name, "receiver": mgr_name,
-                    "title": _rpt_title,
-                    "message": content_preview, "log_type": "report",
-                    "tools_used": _tools_unique,
-                    "source": "delegation", "created_at": datetime.now(KST).isoformat(),
-                })
+                await wm.send_delegation_log(_log_data)
             except Exception:
                 pass
             processed.append(r)
@@ -10402,11 +10217,7 @@ async def _manager_with_delegation(manager_id: str, text: str) -> dict:
     # 처장 활동 로그 — 전문가에게 위임
     if specialists:
         log_mgr = save_activity_log(manager_id, f"[{mgr_name}] 전문가 {len(specialists)}명에게 위임: {', '.join(spec_names)}")
-        for c in connected_clients[:]:
-            try:
-                await c.send_json({"event": "activity_log", "data": log_mgr})
-            except Exception:
-                pass
+        await wm.send_activity_log(log_mgr)
 
     # 전문가들에게 병렬 위임
     spec_results = await _delegate_to_specialists(manager_id, text)
@@ -10660,11 +10471,7 @@ async def _broadcast_to_managers_all(text: str, task_id: str) -> dict:
 
     # 활동 로그
     log_entry = save_activity_log("chief_of_staff", f"[비서실장] 6개 처장 + 보좌관 3명에게 명령 전달: {text[:40]}...")
-    for c in connected_clients[:]:
-        try:
-            await c.send_json({"event": "activity_log", "data": log_entry})
-        except Exception:
-            pass
+    await wm.send_activity_log(log_entry)
 
     # ── 1단계: 6개 처장 + 비서실 보좌관 3명 동시 호출 ──
     mgr_tasks = [_manager_with_delegation(mgr_id, text) for mgr_id in managers]
