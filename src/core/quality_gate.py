@@ -48,6 +48,7 @@ class ScoreItem:
     label: str
     score: int  # 1, 3, 5
     weight: int  # 가중치 (%)
+    critical: bool = False  # ★치명적 항목 (1점이면 전체 점수 제한)
     feedback: str = ""
 
 
@@ -80,7 +81,8 @@ class HybridReviewResult:
             ],
             "scores": [
                 {"id": s.id, "label": s.label, "score": s.score,
-                 "weight": s.weight, "feedback": s.feedback}
+                 "weight": s.weight, "critical": s.critical,
+                 "feedback": s.feedback}
                 for s in self.score_results
             ],
         }
@@ -373,8 +375,9 @@ class QualityGate:
         for item in scoring_items:
             criteria = item.get("criteria", {})
             c_desc = ", ".join(f"{k}점={v}" for k, v in sorted(criteria.items()))
+            critical_tag = " ★치명적" if item.get("critical") else ""
             sc_lines.append(
-                f"  - {item['id']}: {item['label']} (가중치 {item.get('weight', 33)}%)\n"
+                f"  - {item['id']}: {item['label']}{critical_tag} (가중치 {item.get('weight', 33)}%)\n"
                 f"    판정 기준: {c_desc}"
             )
         scoring_text = "\n".join(sc_lines)
@@ -465,14 +468,35 @@ class QualityGate:
                 label=item["label"],
                 score=score_val,
                 weight=item.get("weight", 33),
+                critical=item.get("critical", False),
             ))
 
         # 가중 평균 계산
         weighted_average = self._calc_weighted_average(score_results)
 
+        # ★ 치명적 항목 연동: critical 항목이 1점이면 가중 평균 제한
+        critical_cap = self._pass_criteria.get("critical_cap", 2.0)
+        critical_failed = [
+            s for s in score_results if s.critical and s.score == 1
+        ]
+        if critical_failed:
+            original_avg = weighted_average
+            weighted_average = min(weighted_average, critical_cap)
+            failed_labels = ", ".join(f"[{s.id}] {s.label}" for s in critical_failed)
+            logger.info(
+                "[QA] ★치명적 항목 1점 감지: %s | 가중평균 %.1f → %.1f (cap=%.1f)",
+                failed_labels, original_avg, weighted_average, critical_cap,
+            )
+
         # 합격 판정
         feedback = parsed.get("feedback", "")
         rejection_reasons = []
+
+        # 치명적 항목 불합격 사유 추가
+        for s in critical_failed:
+            rejection_reasons.append(
+                f"★치명적 항목 [{s.id}] {s.label}이(가) 1점 → 전체 점수 {critical_cap} 이하로 제한"
+            )
 
         # 필수 체크리스트 확인
         all_required_pass = self._pass_criteria.get("all_required_pass", True)
