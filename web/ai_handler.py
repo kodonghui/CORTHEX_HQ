@@ -929,24 +929,26 @@ async def ask_ai(
             # Google Gemini 포맷은 _call_google 내부에서 변환
             provider_tools = tools
 
+    AI_CALL_TIMEOUT = 180  # AI 응답 대기 최대 180초 (3분)
+
     start = time.time()
     try:
         if provider == "anthropic":
-            result = await _call_anthropic(
+            coro = _call_anthropic(
                 user_message, system_prompt, model,
                 tools=provider_tools, tool_executor=tool_executor,
                 reasoning_effort=reasoning_effort,
                 conversation_history=conversation_history,
             )
         elif provider == "google":
-            result = await _call_google(
+            coro = _call_google(
                 user_message, system_prompt, model,
                 tools=provider_tools, tool_executor=tool_executor,
                 reasoning_effort=reasoning_effort,
                 conversation_history=conversation_history,
             )
         elif provider == "openai":
-            result = await _call_openai(
+            coro = _call_openai(
                 user_message, system_prompt, model,
                 tools=provider_tools, tool_executor=tool_executor,
                 reasoning_effort=reasoning_effort,
@@ -954,6 +956,12 @@ async def ask_ai(
             )
         else:
             return {"error": f"알 수 없는 프로바이더: {provider}"}
+
+        result = await asyncio.wait_for(coro, timeout=AI_CALL_TIMEOUT)
+    except asyncio.TimeoutError:
+        elapsed = time.time() - start
+        logger.error("AI 응답 시간 초과 (%s/%s): %.1f초", provider, model, elapsed)
+        return {"error": f"AI 응답 시간 초과 ({provider}/{model}) — {AI_CALL_TIMEOUT}초 제한 초과"}
     except Exception as e:
         err_str = str(e)
         logger.error("AI 호출 실패 (%s/%s): %s", provider, model, err_str[:500])
