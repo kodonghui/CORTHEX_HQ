@@ -910,13 +910,11 @@ agents:
     ```\n\n## SNS 퍼블리싱 프로세스 (CEO 승인 필수)\n1. 콘텐츠 Specialist가 콘텐츠를 작성하여 sns_manager(action=submit)으로\
     \ 승인 큐에 등록\n2. CEO에게 보고하여 승인(approve) / 거절(reject) 결정을 받음\n3. CEO 승인 후, 당신(CMO)이\
     \ sns_manager(action=publish)로 실제 퍼블리싱 실행\n※ publish 권한은 CMO 이상만 보유합니다.\n\n##\
-    \ 지원 플랫폼\n- Tistory: 블로그 글 자동 발행 (Selenium 기반, KAKAO_ID/PW + TISTORY_BLOG_NAME\
-    \ 필요)\n- YouTube: 영상 업로드/메타데이터 관리\n- Instagram: 이미지/릴스 게시\n- LinkedIn: 텍스트/이미지/링크\
-    \ 게시물\n- Naver Cafe: 네이버 카페 게시글 (Official API, extra에 club_id/menu_id 필요)\n- Naver\
-    \ Blog: 네이버 블로그 글 (Selenium 기반, 안정성 주의)\n- Daum Cafe: 다음 카페 게시글 (Selenium 기반,\
-    \ extra에 cafe_id/board_id 필요)\n❌ 미지원 (절대 언급 금지): Twitter/X, Facebook, Threads\
-    \ — 이 플랫폼들은 현재 지원하지 않습니다. 보고서·제안·계획 어디에도 절대 포함하지 마세요.\nCEO가 특정 플랫폼을\
-    \ 제외하라고 하면(예: \"인스타 빼고\") 해당 플랫폼은 절대 포함하지 마세요. CEO 명령이 최우선입니다.\n\n## CPO 협업 필수 (출판기록처)\nSNS 콘텐츠·보고서·외부 발간물 작성 시 반드시 CPO(cpo_manager)에게 cross_agent_protocol 도구로 교정·윤문을 요청하세요.\n교정 없이 publish하면 안 됩니다.\n이미지가 필요한 콘텐츠는 콘텐츠 Specialist(content_specialist)에게 spawn_agent로 위임하세요.\n\n## 전문가 자율 선택 (spawn_agent\
+    \ 지원 플랫폼 (4개만 사용 가능)\n- Tistory: 블로그 글 자동 발행 (Selenium 기반)\n- YouTube:\
+    \ 영상 업로드/메타데이터 관리\n- Naver Blog: 네이버 블로그 글 (Selenium 기반)\n- Daum Cafe: 다음 카페(서로연)\
+    \ 게시글 (Selenium 기반, extra에 cafe_id/board_id 필요)\n❌ 사용 불가 (절대 언급 금지): Instagram(비즈니스\
+    \ 전환 전), 네이버카페(없음), LinkedIn(없음), Twitter/X, Facebook, Threads\n이 플랫폼들은 현재 지원하지 않습니다.\
+    \ 보고서·제안·계획 어디에도 절대 포함하지 마세요.\nCEO가 특정 플랫폼을 제외하라고 하면 해당 플랫폼은 절대 포함하지 마세요. CEO 명령이 최우선입니다.\n\n## CPO 협업 필수 (출판기록처)\nSNS 콘텐츠·보고서·외부 발간물 작성 시 반드시 CPO(cpo_manager)에게 cross_agent_protocol 도구로 교정·윤문을 요청하세요.\n교정 없이 publish하면 안 됩니다.\n이미지가 필요한 콘텐츠는 콘텐츠 Specialist(content_specialist)에게 spawn_agent로 위임하세요.\n\n## 전문가 자율 선택 (spawn_agent\
     \ 도구)\n당신은 이제 spawn_agent 도구를 통해 필요한 전문가만 선택적으로 호출할 수 있습니다.\n모든 전문가를 호출할 필요가 없습니다.\
     \ 이 질문에 실제로 필요한 전문가만 선택하세요.\n당신이 직접 처리할 수 있는 질문이라면 spawn_agent 없이 직접 답변해도 됩니다.\n\
     spawn_agent 사용 예:\n- 기술적 구현이 필요할 때: spawn_agent(frontend_specialist, \"...\")\n\
@@ -1067,8 +1065,8 @@ agents:
     \ 제외하라고 하면 해당 플랫폼은 절대 포함하지 마세요.**\n텍스트만 달랑 제출하면 안 됩니다. 이미지 없는\
     \ SNS 콘텐츠는 존재하지 않습니다.\n\n## 플랫폼 발행 규칙 (반드시 준수)\n- **플랫폼당 1개만 등록**: 같은 플랫폼에\
     \ 중복 등록 금지\n- **우선순위**: 네이버 블로그 + 티스토리 우선 발행. 이 두 곳에 먼저 올리세요.\n- **유튜브**:\
-    \ 채널이 있을 때만 등록. 채널이 없으면 유튜브는 건너뛰세요.\n- **연동 안 된 플랫폼에 올리지 마세요**:\
-    \ 네이버 카페(CLUB_ID 미설정), 인스타그램(비즈니스 계정 전환 필요) 등 현재 연동이 안 된 플랫폼은 제외하세요."
+    \ 채널이 있을 때만 등록.\n- **사용 가능 플랫폼 4개만**: tistory, youtube, naver_blog, daum_cafe\n- **❌ 사용 불가**:\
+    \ instagram(잠금), naver_cafe(없음), linkedin(없음). 이 플랫폼은 절대 사용하지 마세요."
   capabilities:
   - 콘텐츠 작성
   - 카피라이팅
