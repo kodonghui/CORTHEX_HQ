@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time
 from typing import Any
 
 logger = logging.getLogger("corthex.state")
@@ -72,7 +73,7 @@ class AppState:
         self.sessions: dict[str, float] = {}      # token → 만료 시간
 
         # ── 노션 작업 로그 ──
-        self.notion_log: list[dict] = []          # 최근 20개
+        self.notion_log: list[dict] = []          # 최근 500개
 
         # ── 외부 서비스 인스턴스 (서버 시작 시 초기화) ──
         self.telegram_app: Any = None             # telegram.ext.Application
@@ -81,6 +82,57 @@ class AppState:
 
         # ── 캐시된 프롬프트 ──
         self.chief_prompt: str = ""               # 비서실장 시스템 프롬프트
+
+        # ── 정리 태스크 ──
+        self._cleanup_task: asyncio.Task | None = None
+
+    # ── 메모리 정리 메서드 ──
+
+    def cleanup_old_results(self, max_age_seconds: int = 3600) -> int:
+        """완료된 bg_results 중 1시간 이상 된 것 정리. 반환: 정리된 개수."""
+        cutoff = time.time() - max_age_seconds
+        old_keys = [
+            k for k, v in self.bg_results.items()
+            if v.get("_completed_at", 0) < cutoff
+        ]
+        for k in old_keys:
+            self.bg_results.pop(k, None)
+            self.bg_tasks.pop(k, None)
+        if old_keys:
+            logger.info("bg_results 정리: %d개 제거 (남은: %d개)", len(old_keys), len(self.bg_results))
+        return len(old_keys)
+
+    def trim_notion_log(self, max_size: int = 500) -> None:
+        """notion_log가 max_size를 초과하면 오래된 것부터 삭제."""
+        if len(self.notion_log) > max_size:
+            del self.notion_log[:-max_size]
+
+    async def periodic_cleanup(self, interval_seconds: int = 600) -> None:
+        """10분마다 메모리 정리 실행. on_startup에서 asyncio.create_task로 등록."""
+        while True:
+            try:
+                await asyncio.sleep(interval_seconds)
+                self.cleanup_old_results()
+                self.trim_notion_log()
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                logger.warning("periodic_cleanup 오류: %s", e)
+
+    async def cancel_all_bg_tasks(self) -> int:
+        """모든 백그라운드 태스크 취소. 반환: 취소된 개수."""
+        cancelled = 0
+        for task_id, task in list(self.bg_tasks.items()):
+            if not task.done():
+                task.cancel()
+                cancelled += 1
+        # 정리 태스크도 취소
+        if self._cleanup_task and not self._cleanup_task.done():
+            self._cleanup_task.cancel()
+            cancelled += 1
+        if cancelled:
+            logger.info("bg_tasks 취소: %d개", cancelled)
+        return cancelled
 
 
 # ── 싱글턴 인스턴스 ──

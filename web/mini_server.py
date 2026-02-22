@@ -767,6 +767,7 @@ async def _run_agent_bg(cmd_text: str, task_id: str, target_agent_id: str | None
                 )
             except Exception:
                 pass
+            _result_payload["_completed_at"] = time.time()
             _bg_results[task_id] = _result_payload
             await wm.broadcast("result", _result_payload)
         else:
@@ -794,6 +795,7 @@ async def _run_agent_bg(cmd_text: str, task_id: str, target_agent_id: str | None
                 )
             except Exception:
                 pass
+            _result_data["_completed_at"] = time.time()
             _bg_results[task_id] = _result_data
             await wm.broadcast("result", _result_data)
             update_task(task_id, status="completed",
@@ -805,7 +807,7 @@ async def _run_agent_bg(cmd_text: str, task_id: str, target_agent_id: str | None
     except Exception as e:
         _log(f"[BG-AGENT] 백그라운드 에이전트 오류: {e}")
         update_task(task_id, status="failed", result_summary=str(e)[:200], success=0)
-        _bg_results[task_id] = {"content": f"❌ 에이전트 오류: {e}", "sender_id": "chief_of_staff", "task_id": task_id}
+        _bg_results[task_id] = {"content": f"❌ 에이전트 오류: {e}", "sender_id": "chief_of_staff", "task_id": task_id, "_completed_at": time.time()}
         await wm.broadcast("result", _bg_results[task_id])
     finally:
         _bg_tasks.pop(task_id, None)
@@ -9403,7 +9405,9 @@ def _add_notion_log(status: str, title: str, db: str = "", url: str = "", error:
         "url": url,
         "error": error[:200] if error else "",
     })
-    _notion_log = _notion_log[-20:]
+    # in-place 트리밍 (alias 깨지지 않게)
+    if len(_notion_log) > 500:
+        del _notion_log[:-500]
 
 # 에이전트 ID → 부서명 매핑
 _AGENT_DIVISION: dict[str, str] = {}
@@ -11698,12 +11702,18 @@ async def on_startup():
     _log("[CIO] 주간 soul 자동 업데이트 스케줄러 시작 ✅ (매주 일요일 KST 02:00)")
     asyncio.create_task(_shadow_trading_alert())
     _log("[Shadow] Shadow Trading 알림 스케줄러 시작 ✅ (매일 KST 09:00, +5% 기준)")
+    # 메모리 정리 태스크 (10분마다 bg_results, notion_log 정리)
+    app_state._cleanup_task = asyncio.create_task(app_state.periodic_cleanup())
+    _log("[CLEANUP] 메모리 자동 정리 태스크 시작 ✅ (10분 간격)")
 
 
 @app.on_event("shutdown")
 async def on_shutdown():
-    """서버 종료 시 텔레그램 봇도 함께 종료."""
+    """서버 종료 시 백그라운드 태스크 정리 + 텔레그램 봇 종료."""
+    cancelled = await app_state.cancel_all_bg_tasks()
+    _log(f"[SHUTDOWN] 백그라운드 태스크 {cancelled}개 취소")
     await _stop_telegram_bot()
+    _log("[SHUTDOWN] 서버 종료 완료")
 
 
 if __name__ == "__main__":
