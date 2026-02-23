@@ -223,6 +223,29 @@ def _build_tool_schemas(tool_configs: list, allowed_tools: list | None = None) -
     return schemas
 
 
+def _apply_openai_strict_inline(obj: dict) -> None:
+    """OpenAI strict 모드: 모든 레벨 object에 additionalProperties/required 재귀 적용.
+
+    ★ 모듈 레벨 함수 — _load_tool_schemas()와 ask_ai() 양쪽에서 호출됨.
+    이전에 _load_tool_schemas() 안의 지역 함수로 정의되어 있어서
+    ask_ai()에서 호출 시 NameError 발생 → GPT 모델 전문가 즉사 버그 원인이었음.
+    """
+    if obj.get("type") == "object":
+        props = obj.get("properties", {})
+        obj["additionalProperties"] = False
+        obj["required"] = list(props.keys())
+        for prop in props.values():
+            if isinstance(prop, dict):
+                if isinstance(prop.get("enum"), list):
+                    prop["enum"] = [e for e in prop["enum"] if e is not None]
+                if prop.get("type") == "object":
+                    _apply_openai_strict_inline(prop)
+                if prop.get("type") == "array":
+                    items = prop.get("items", {})
+                    if isinstance(items, dict) and items.get("type") == "object":
+                        _apply_openai_strict_inline(items)
+
+
 def _load_tool_schemas(allowed_tools: list | None = None) -> dict:
     """config/tools.yaml (또는 tools.json)에서 도구 정의를 읽어서
     프로바이더별 포맷으로 변환합니다.
@@ -267,23 +290,7 @@ def _load_tool_schemas(allowed_tools: list | None = None) -> dict:
     anthropic_schemas = _build_tool_schemas(tool_configs, allowed_tools)
 
     # 3) OpenAI 포맷으로 변환 (GPT-5.2 strict-compatible)
-    def _apply_openai_strict_inline(obj: dict) -> None:
-        """OpenAI strict 모드: 모든 레벨 object에 additionalProperties/required 재귀 적용."""
-        if obj.get("type") == "object":
-            props = obj.get("properties", {})
-            obj["additionalProperties"] = False
-            obj["required"] = list(props.keys())
-            for prop in props.values():
-                if isinstance(prop, dict):
-                    if isinstance(prop.get("enum"), list):
-                        prop["enum"] = [e for e in prop["enum"] if e is not None]
-                    if prop.get("type") == "object":
-                        _apply_openai_strict_inline(prop)
-                    if prop.get("type") == "array":
-                        items = prop.get("items", {})
-                        if isinstance(items, dict) and items.get("type") == "object":
-                            _apply_openai_strict_inline(items)
-
+    # _apply_openai_strict_inline()는 모듈 레벨에 정의됨 (ask_ai에서도 사용)
     openai_schemas = []
     for t in anthropic_schemas:
         schema = copy.deepcopy(t.get("input_schema", {"type": "object", "properties": {}}))

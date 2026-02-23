@@ -8,42 +8,31 @@
 
 ## 마지막 업데이트
 
-- **날짜**: 2026-02-23
-- **버전**: `3.02.026`
-- **최신 빌드**: #520 (배포 중)
-- **작업 브랜치**: claude/log-fix-compat (완료)
+- **날짜**: 2026-02-24
+- **버전**: `3.02.027`
+- **최신 빌드**: 배포 대기
+- **작업 브랜치**: claude/qa-c1-finance-fix
 - **접속 주소**: https://corthex-hq.com
 
 ---
 
-## 🔴🔴🔴 P0 긴급 — CIO 혼자 보고서 작성 (전문가 4명 도구 에러) 🔴🔴🔴
+## ✅ P0 해결 — 전문가 즉사 + QA 허위합격 + CIO 할루시네이션 (2026-02-24)
 
-> **2026-02-23 23:02 KST 발견 — 대표님이 "즉시 분석" 실행 시 재현**
+> **2026-02-23 23:02 KST 발견 → 2026-02-24 00:30 KST 3건 수정 완료**
 
-### 증상
-1. CIO가 전문가 4명(시황/종목/기술/리스크)에게 위임
-2. 전문가 4명이 **도구를 전혀 사용하지 못하고** 에러 발생 → 보고 내용 "0"
-3. CIO가 전문가 보고서 대신 **자기 머리(할루시네이션)로 보고서 작성** → 관망 시그널 제출
-4. CIO 보고서 내 에러 언급: `_apply_openai_strict_inline 미정의`
+### 원인 (근본 원인 → 연쇄 실패)
+1. **버그#1 (근본 원인)**: `_apply_openai_strict_inline()`이 `_load_tool_schemas()` 내부 지역함수로 정의됐으나 `ask_ai()`에서도 호출 → **NameError** → GPT 모델 전문가 전원 즉사 (0.023초)
+2. **버그#2**: 전문가 전원 에러 → 유효 보고서 0건 → QA 반복문 0회 → `failed_specs=[]` → "전원 합격" (허위)
+3. **버그#3**: CIO 종합 호출에 `tools` 파라미터 누락 → 도구 없이 상상으로 보고서 작성
 
-### 의심되는 원인 (다음 세션에서 반드시 조사)
-1. **전문가 모델 설정 문제**: 대표님이 전문가 4명을 GPT-5.2로 수동 변경했으나, `_sync_agent_defaults_to_db()`가 서버 재시작 때 yaml 기본값(claude-sonnet-4-6)으로 덮어써서 → 모델 불일치? (이 버그는 PR#529에서 수정 완료)
-2. **도구 스키마 빌드 실패**: `_load_tool_schemas()`에서 OpenAI 포맷 변환 중 에러 발생 가능. `_apply_openai_strict_inline`은 `_load_tool_schemas()` 내부 중첩 함수인데, 스코프 밖에서 참조됐을 수 있음
-3. **CIO가 에러 원인을 할루시네이션**: 실제 에러는 다른 것일 수 있음 (예: 네트워크 타임아웃, 도구 실행 실패 등). `_apply_openai_strict_inline`은 CIO가 추측한 것
+### 수정 내역
+| 파일 | 수정 |
+|------|------|
+| `web/ai_handler.py` | `_apply_openai_strict_inline()` 모듈 레벨로 이동 |
+| `web/mini_server.py` | QA 유효카운트 0 체크 + 처장 종합 시 도구 전달 |
 
-### 조사 방법
-1. `corthex-hq.com`에서 "즉시 분석" 다시 실행
-2. **실행 중 실시간으로** 서버 로그 확인: `GET /api/debug/server-logs?lines=100&service=corthex`
-3. 전문가가 도구를 호출하는 시점의 에러 메시지 캡처
-4. `ask_ai()` 호출 시 전달되는 `tools` 파라미터가 빈 리스트인지 확인
-5. CLASSIFIED(보고서) 탭에서 전문가 4명의 개별 보고서 내용 확인 (현재 "0"인지, 에러 메시지가 있는지)
-
-### 관련 코드 위치
-- `web/mini_server.py` : `_dispatch_specialists()` — 전문가 위임 로직
-- `web/mini_server.py` : `_tool_executor()` — 도구 실행 로직
-- `web/ai_handler.py` : `_load_tool_schemas()` — 도구 스키마 빌드 (line 226)
-- `web/ai_handler.py` : `_apply_openai_strict_inline()` — OpenAI strict 변환 (line 270)
-- `web/ai_handler.py` : `ask_ai()` — 통합 AI 호출 (line 995)
+### 상세 문서
+- `docs/updates/2026-02-24_P0-전문가즉사-버그수정.md`
 
 ---
 

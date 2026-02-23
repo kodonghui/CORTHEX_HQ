@@ -7319,8 +7319,6 @@ async def _manager_with_delegation(manager_id: str, text: str) -> dict:
     # ── 품질검수 (Quality Gate) ── 전문가 결과를 처장이 종합하기 전에 검수
     if app_state.quality_gate and _QUALITY_GATE_AVAILABLE and spec_results:
         await _broadcast_status(manager_id, "working", 0.45, "전문가 결과 품질검수 중...")
-        log_qa = save_activity_log(manager_id, f"[{mgr_name}] 전문가 {len(spec_results)}명 결과 품질검수 시작", "info")
-        await wm.send_activity_log(log_qa)
 
         # 품질검수용 pseudo-chain 구성
         _qa_chain = {
@@ -7338,7 +7336,22 @@ async def _manager_with_delegation(manager_id: str, text: str) -> dict:
                     "cost_usd": r.get("cost_usd", 0),
                 }
 
-        failed_specs = await _quality_review_specialists(_qa_chain)
+        # ★ 버그#2 수정: 검수 대상 0명(전문가 전원 에러) → "합격"이 아니라 에러 경고!
+        _qa_valid_count = len(_qa_chain["results"]["specialists"])
+        _qa_error_count = len(spec_results) - _qa_valid_count
+
+        if _qa_valid_count == 0:
+            # 전문가 전원 에러 — QA 스킵, 에러 경고 로그
+            log_err = save_activity_log(manager_id,
+                f"[{mgr_name}] ⚠️ 전문가 {_qa_error_count}명 전원 에러 — 품질검수 불가 (유효 보고서 0건)", "warning")
+            await wm.send_activity_log(log_err)
+        else:
+            _qa_note = f" (에러 {_qa_error_count}명 제외)" if _qa_error_count else ""
+            log_qa = save_activity_log(manager_id,
+                f"[{mgr_name}] 전문가 {_qa_valid_count}명 결과 품질검수 시작{_qa_note}", "info")
+            await wm.send_activity_log(log_qa)
+
+        failed_specs = await _quality_review_specialists(_qa_chain) if _qa_valid_count > 0 else []
 
         if failed_specs:
             # 불합격 전문가 활동로그
@@ -7365,9 +7378,10 @@ async def _manager_with_delegation(manager_id: str, text: str) -> dict:
                         await wm.send_activity_log(log_rework)
                     if updated.get("quality_warning"):
                         r["quality_warning"] = updated["quality_warning"]
-        else:
+        elif _qa_valid_count > 0:
+            # 불합격 0명 + 검수 대상 1명 이상 → 진짜 전원 합격
             log_pass = save_activity_log(manager_id,
-                f"[{mgr_name}] ✅ 전문가 전원 품질검수 합격", "info")
+                f"[{mgr_name}] ✅ 전문가 {_qa_valid_count}명 품질검수 합격", "info")
             await wm.send_activity_log(log_pass)
 
     # 전문가 결과 취합
@@ -7401,8 +7415,45 @@ async def _manager_with_delegation(manager_id: str, text: str) -> dict:
     override = _get_model_override(manager_id)
     model = select_model(synthesis_prompt, override=override)
 
+    # ★ 버그#3 수정: 처장(CIO 등) 종합 시에도 도구를 전달하여 직접 데이터 검증 가능하게!
+    # 이전에는 ask_ai()에 tools 파라미터 없이 호출 → 처장이 도구 없이 상식으로만 종합
+    # → 전문가 전원 에러 시 할루시네이션 보고서 작성하는 원인이었음
+    synth_tool_schemas = None
+    synth_tool_executor_fn = None
+    synth_tools_used: list[str] = []
+    mgr_detail = _AGENTS_DETAIL.get(manager_id, {})
+    mgr_allowed = mgr_detail.get("allowed_tools", [])
+    if mgr_allowed:
+        mgr_schemas = _load_tool_schemas(allowed_tools=mgr_allowed)
+        if mgr_schemas.get("anthropic"):
+            synth_tool_schemas = mgr_schemas["anthropic"]
+            _MGR_MAX_TOOLS = int(mgr_detail.get("max_tool_calls", 5))
+
+            async def _synth_tool_executor(tool_name: str, tool_input: dict):
+                """처장 종합 단계에서 도구 실행 (데이터 검증용)."""
+                synth_tools_used.append(tool_name)
+                call_count = len(synth_tools_used)
+                tool_log = save_activity_log(
+                    manager_id, f"🔧 [{mgr_name}] 종합검증: {tool_name} ({call_count}/{_MGR_MAX_TOOLS})",
+                    level="tool"
+                )
+                await wm.send_activity_log(tool_log)
+                pool = _init_tool_pool()
+                if pool:
+                    try:
+                        return await pool.invoke(tool_name, caller_id=manager_id, **tool_input)
+                    except Exception as e:
+                        if "ToolNotFoundError" in type(e).__name__ or tool_name in str(e):
+                            return f"도구 '{tool_name}'을(를) 찾을 수 없습니다."
+                        raise
+                return f"도구 '{tool_name}'을(를) 찾을 수 없습니다."
+
+            synth_tool_executor_fn = _synth_tool_executor
+
     await _broadcast_status(manager_id, "working", 0.7, "전문가 결과 검수 + 종합 중...")
-    synthesis = await ask_ai(synthesis_prompt, system_prompt=soul, model=model)
+    synthesis = await ask_ai(synthesis_prompt, system_prompt=soul, model=model,
+                             tools=synth_tool_schemas, tool_executor=synth_tool_executor_fn,
+                             reasoning_effort=_get_agent_reasoning_effort(manager_id))
 
     await _broadcast_status(manager_id, "done", 1.0, "보고 완료")
 
