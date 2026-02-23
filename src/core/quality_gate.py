@@ -323,7 +323,10 @@ class QualityGate:
                 messages=[
                     {"role": "system", "content": (
                         "당신은 보고서 품질 검수관입니다. "
-                        "반드시 요청된 JSON 형식으로만 응답하세요."
+                        "반드시 요청된 JSON 형식으로만 응답하세요. "
+                        "보고서에 도구(dart_api, kr_stock, ecos_macro, us_stock 등)로 "
+                        "가져온 데이터가 포함된 경우, 해당 수치는 실시간 API에서 "
+                        "검증된 정확한 데이터이므로 '확인 불가'로 감점하지 마세요."
                     )},
                     {"role": "user", "content": prompt},
                 ],
@@ -389,9 +392,21 @@ class QualityGate:
         cl_example = ", ".join(f'"{cid}": true' for cid in cl_ids)
         sc_example = ", ".join(f'"{sid}": 3' for sid in sc_ids)
 
+        # 도구 사용 데이터 신뢰 규칙 추가
+        tool_trust_section = ""
+        if "사용한 도구" in text:
+            tool_trust_section = (
+                "\n\n## ⚠️ 도구 데이터 신뢰 규칙\n"
+                "이 보고서는 도구(API)를 사용하여 실시간 데이터를 가져왔습니다.\n"
+                "- 도구로 가져온 수치(주가, 재무제표, 거시지표 등)는 정확한 것으로 간주하세요.\n"
+                "- '수치 확인 불가', '출처 불명' 등을 이유로 감점하지 마세요.\n"
+                "- 데이터 자체가 아닌, 데이터를 기반으로 한 분석 논리와 완결성을 평가하세요.\n"
+            )
+
         return (
             f"## 업무 지시\n{task_description}\n\n"
             f"## 제출된 보고서\n{text}\n\n"
+            f"{tool_trust_section}"
             f"## 체크리스트 (통과=true, 불통과=false)\n{checklist_text}\n\n"
             f"## 점수 항목 (1/3/5 중 선택)\n{scoring_text}\n\n"
             "## 응답 형식\n"
