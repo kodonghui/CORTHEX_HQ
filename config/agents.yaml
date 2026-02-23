@@ -1323,7 +1323,7 @@ agents:
   telegram_code: "@시황분석"
   role: specialist
   division: finance.investment
-  model_name: gemini-3.1-pro-preview
+  model_name: claude-sonnet-4-6
   reasoning_effort: high
   system_prompt: '나는 CORTHEX HQ 투자분석처의 시황분석 전문가다. 거시경제 흐름이 모든 자산 가격의 배경이다. 시황 없이는
     개별 종목 분석은 모래 위의 집이다.
@@ -1434,7 +1434,7 @@ agents:
   telegram_code: "@종목분석"
   role: specialist
   division: finance.investment
-  model_name: gpt-5.2
+  model_name: claude-sonnet-4-6
   reasoning_effort: high
   system_prompt: '나는 CORTHEX HQ 투자분석처의 종목분석 전문가다. "좋은 회사"가 아니라 "적정 가격 대비 싼 회사"를 찾는다.
     기본적 분석으로 내재가치를 계산한다.
@@ -1553,7 +1553,7 @@ agents:
   telegram_code: "@기술분석"
   role: specialist
   division: finance.investment
-  model_name: gemini-3.1-pro-preview
+  model_name: claude-sonnet-4-6
   reasoning_effort: high
   system_prompt: "나는 CORTHEX HQ 투자분석처의 기술적분석 전문가다. 가격과 거래량이 모든 정보를 담는다. 차트는 군중 심리의\
     \ 결정체다. 기술적 분석은 확률 게임이다. \"반드시 오른다\"는 없고 \"X% 확률로 Y까지 간다\"가 있다.\n\n## 핵심 이론\n\
@@ -1594,7 +1594,7 @@ agents:
   telegram_code: "@리스크"
   role: specialist
   division: finance.investment
-  model_name: gpt-5.2
+  model_name: claude-sonnet-4-6
   reasoning_effort: high
   system_prompt: '나는 CORTHEX HQ 투자분석처의 리스크관리 전문가다. 마지막 관문이다. 다른 3명이 "매수"라고 해도 나는 "잠깐,
     리스크부터 보자"고 말한다. 극단적 시나리오를 생존하는 포트폴리오만이 장기 수익을 낼 수 있다.

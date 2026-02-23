@@ -167,7 +167,13 @@ class EcosMacroTool(BaseTool):
         fmt_end = end_date.strftime("%Y%m")
         if cycle == "Q":
             fmt_start = start_date.strftime("%Y") + "Q1"
-            fmt_end = end_date.strftime("%Y") + "Q4"
+            from datetime import datetime as _dt
+            now = _dt.now()
+            current_q = (now.month - 1) // 3  # 0=Q1진행중, 1~3=완료분기
+            if end_date.year >= now.year:
+                fmt_end = f"{now.year - 1}Q4" if current_q == 0 else f"{now.year}Q{current_q}"
+            else:
+                fmt_end = end_date.strftime("%Y") + "Q4"
 
         url = (
             f"{ECOS_BASE}/{api_key}/json/kr/1/100"
