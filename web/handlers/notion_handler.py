@@ -51,8 +51,16 @@ async def get_notion_db_schema(db: str = Query("output", description="secretary 
     db_output = os.getenv("NOTION_DB_OUTPUT", "30a56b49-78dc-81ce-aaca-ef3fc90a6fba")
     db_default = os.getenv("NOTION_DEFAULT_DB_ID", db_output)
 
-    db_id = db_secretary if db == "secretary" else db_default
-    db_name = "비서실" if db == "secretary" else "산출물"
+    if db == "secretary":
+        db_id = db_secretary
+        db_name = "비서실"
+    elif db == "output_raw":
+        # NOTION_DB_OUTPUT 직접 사용 (NOTION_DEFAULT_DB_ID 무시)
+        db_id = db_output
+        db_name = "산출물(raw)"
+    else:
+        db_id = db_default
+        db_name = "산출물"
 
     def _fetch_schema():
         url = f"https://api.notion.com/v1/databases/{db_id}"
@@ -95,7 +103,10 @@ async def get_notion_db_schema(db: str = Query("output", description="secretary 
 
     return {
         "db": db_name,
-        "db_id": db_id[:8] + "...",
+        "db_id": db_id[:12] + "...",
         "db_title": db_title,
+        "env_secretary": db_secretary[:12] + "..." if db_secretary else "(미설정)",
+        "env_output": db_output[:12] + "..." if db_output else "(미설정)",
+        "env_default": db_default[:12] + "..." if db_default else "(미설정)",
         "properties": schema,
     }
