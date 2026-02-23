@@ -475,6 +475,7 @@ async def _call_anthropic(
     tool_executor: callable | None = None,
     reasoning_effort: str = "",
     conversation_history: list | None = None,
+    ai_call_timeout: int = 180,
 ) -> dict:
     """Anthropic (Claude) API 호출.
 
@@ -507,14 +508,16 @@ async def _call_anthropic(
 
     # extended thinking 사용 시 betas 미지원 서버 대비 폴백 처리
     try:
-        resp = await _anthropic_client.messages.create(**kwargs)
+        resp = await asyncio.wait_for(_anthropic_client.messages.create(**kwargs), timeout=ai_call_timeout)
+    except asyncio.TimeoutError:
+        raise  # 상위 ask_ai()에서 처리
     except Exception as e:
         if reasoning_effort and ("betas" in str(e) or "thinking" in str(e)):
             logger.warning("extended thinking 미지원 — 폴백으로 재시도: %s", e)
             kwargs.pop("betas", None)
             kwargs.pop("thinking", None)
             kwargs["temperature"] = 1.0
-            resp = await _anthropic_client.messages.create(**kwargs)
+            resp = await asyncio.wait_for(_anthropic_client.messages.create(**kwargs), timeout=ai_call_timeout)
         else:
             raise
 
@@ -564,9 +567,9 @@ async def _call_anthropic(
             messages.append({"role": "assistant", "content": assistant_content})
             messages.append({"role": "user", "content": tool_results})
 
-            # 다시 AI 호출
+            # 다시 AI 호출 (도구 결과를 포함하여 재호출 — 개별 타임아웃 적용)
             kwargs["messages"] = messages
-            resp = await _anthropic_client.messages.create(**kwargs)
+            resp = await asyncio.wait_for(_anthropic_client.messages.create(**kwargs), timeout=ai_call_timeout)
             total_input_tokens += resp.usage.input_tokens
             total_output_tokens += resp.usage.output_tokens
 
@@ -589,6 +592,7 @@ async def _call_google(
     tool_executor: callable | None = None,
     reasoning_effort: str = "",
     conversation_history: list | None = None,
+    ai_call_timeout: int = 180,
 ) -> dict:
     """Google Gemini API 호출 (google-genai SDK 사용).
 
@@ -641,7 +645,7 @@ async def _call_google(
     else:
         contents = user_message
 
-    resp = await asyncio.to_thread(_sync_call, contents, config.copy(), gemini_tools)
+    resp = await asyncio.wait_for(asyncio.to_thread(_sync_call, contents, config.copy(), gemini_tools), timeout=ai_call_timeout)
 
     usage = getattr(resp, "usage_metadata", None)
     total_input_tokens += getattr(usage, "prompt_token_count", 0) if usage else 0
@@ -698,7 +702,7 @@ async def _call_google(
                     call_kwargs["config"]["tools"] = g_tools
                 return _google_client.models.generate_content(**call_kwargs)
 
-            resp = await asyncio.to_thread(_sync_followup, contents, config.copy(), gemini_tools)
+            resp = await asyncio.wait_for(asyncio.to_thread(_sync_followup, contents, config.copy(), gemini_tools), timeout=ai_call_timeout)
             usage = getattr(resp, "usage_metadata", None)
             total_input_tokens += getattr(usage, "prompt_token_count", 0) if usage else 0
             total_output_tokens += getattr(usage, "candidates_token_count", 0) if usage else 0
@@ -729,6 +733,7 @@ async def _call_openai(
     tool_executor: callable | None = None,
     reasoning_effort: str = "",
     conversation_history: list | None = None,
+    ai_call_timeout: int = 300,
 ) -> dict:
     """OpenAI (GPT) API 호출.
 
@@ -772,7 +777,7 @@ async def _call_openai(
     if tools:
         kwargs["tools"] = tools
 
-    resp = await _openai_client.chat.completions.create(**kwargs)
+    resp = await asyncio.wait_for(_openai_client.chat.completions.create(**kwargs), timeout=ai_call_timeout)
 
     total_input_tokens = resp.usage.prompt_tokens if resp.usage else 0
     total_output_tokens = resp.usage.completion_tokens if resp.usage else 0
@@ -821,9 +826,9 @@ async def _call_openai(
                         "content": f"오류: {e}",
                     })
 
-            # 다시 AI 호출
+            # 다시 AI 호출 (도구 결과 포함 재호출 — 개별 타임아웃 적용)
             kwargs["messages"] = messages
-            resp = await _openai_client.chat.completions.create(**kwargs)
+            resp = await asyncio.wait_for(_openai_client.chat.completions.create(**kwargs), timeout=ai_call_timeout)
             if resp.usage:
                 total_input_tokens += resp.usage.prompt_tokens
                 total_output_tokens += resp.usage.completion_tokens
@@ -845,6 +850,7 @@ async def _call_openai_responses(
     tool_executor: callable | None = None,
     reasoning_effort: str = "",
     conversation_history: list | None = None,
+    ai_call_timeout: int = 300,
 ) -> dict:
     """OpenAI Responses API 호출 (gpt-5.2-pro 등 Responses API 전용 모델용).
 
@@ -896,7 +902,7 @@ async def _call_openai_responses(
                 resp_tools.append(t)
         kwargs["tools"] = resp_tools
 
-    resp = await _openai_client.responses.create(**kwargs)
+    resp = await asyncio.wait_for(_openai_client.responses.create(**kwargs), timeout=ai_call_timeout)
 
     total_input_tokens = resp.usage.input_tokens if resp.usage else 0
     total_output_tokens = resp.usage.output_tokens if resp.usage else 0
@@ -926,13 +932,13 @@ async def _call_openai_responses(
                         "output": f"오류: {e}",
                     })
 
-            # 이전 응답 ID로 연결하여 도구 결과 전달
-            resp = await _openai_client.responses.create(
+            # 이전 응답 ID로 연결하여 도구 결과 전달 (개별 타임아웃 적용)
+            resp = await asyncio.wait_for(_openai_client.responses.create(
                 model=model,
                 input=tool_results,
                 previous_response_id=resp.id,
                 tools=resp_tools,
-            )
+            ), timeout=ai_call_timeout)
             if resp.usage:
                 total_input_tokens += resp.usage.input_tokens
                 total_output_tokens += resp.usage.output_tokens
@@ -1070,8 +1076,9 @@ async def ask_ai(
             # Google Gemini 포맷은 _call_google 내부에서 변환
             provider_tools = tools
 
-    # gpt-5.2-pro는 응답이 수 분 걸릴 수 있어 타임아웃 연장
-    AI_CALL_TIMEOUT = 300 if model in OPENAI_RESPONSES_ONLY_MODELS else 180
+    # 개별 AI API 호출 타임아웃 (도구 실행 시간은 제외됨)
+    # 도구 사용 시 AI가 여러 번 호출되므로, 각 호출마다 독립 타임아웃 적용
+    AI_CALL_TIMEOUT = 300  # 5분 — 개별 AI 호출 1회당 최대 대기 시간
 
     start = time.time()
     try:
@@ -1081,6 +1088,7 @@ async def ask_ai(
                 tools=provider_tools, tool_executor=tool_executor,
                 reasoning_effort=reasoning_effort,
                 conversation_history=conversation_history,
+                ai_call_timeout=AI_CALL_TIMEOUT,
             )
         elif provider == "google":
             coro = _call_google(
@@ -1088,6 +1096,7 @@ async def ask_ai(
                 tools=provider_tools, tool_executor=tool_executor,
                 reasoning_effort=reasoning_effort,
                 conversation_history=conversation_history,
+                ai_call_timeout=AI_CALL_TIMEOUT,
             )
         elif provider == "openai":
             if model in OPENAI_RESPONSES_ONLY_MODELS:
@@ -1097,6 +1106,7 @@ async def ask_ai(
                     tools=provider_tools, tool_executor=tool_executor,
                     reasoning_effort=reasoning_effort,
                     conversation_history=conversation_history,
+                    ai_call_timeout=AI_CALL_TIMEOUT,
                 )
             else:
                 coro = _call_openai(
@@ -1104,11 +1114,13 @@ async def ask_ai(
                     tools=provider_tools, tool_executor=tool_executor,
                     reasoning_effort=reasoning_effort,
                     conversation_history=conversation_history,
+                    ai_call_timeout=AI_CALL_TIMEOUT,
                 )
         else:
             return {"error": f"알 수 없는 프로바이더: {provider}"}
 
-        result = await asyncio.wait_for(coro, timeout=AI_CALL_TIMEOUT)
+        # 도구 실행 시간은 타임아웃에서 제외 — 개별 AI API 호출에만 타임아웃 적용됨
+        result = await coro
     except asyncio.TimeoutError:
         elapsed = time.time() - start
         logger.error("AI 응답 시간 초과 (%s/%s): %.1f초", provider, model, elapsed)
@@ -1130,8 +1142,9 @@ async def ask_ai(
                         tools=provider_tools, tool_executor=tool_executor,
                         reasoning_effort=reasoning_effort,
                         conversation_history=conversation_history,
+                        ai_call_timeout=AI_CALL_TIMEOUT,
                     )
-                    result = await asyncio.wait_for(coro, timeout=180)
+                    result = await coro
                     elapsed = time.time() - start
                     input_tokens = result.get("input_tokens", 0)
                     output_tokens = result.get("output_tokens", 0)
