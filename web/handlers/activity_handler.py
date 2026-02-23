@@ -22,13 +22,49 @@ logger = logging.getLogger("corthex")
 
 router = APIRouter(tags=["activity", "comms"])
 
+# 시스템 노이즈 패턴 — 이 문자열이 포함된 활동로그는 기본 조회에서 숨김
+_SYSTEM_NOISE_PATTERNS = [
+    "포트폴리오 조회",
+    "관심종목 조회",
+    "시세 갱신",
+    "잔고 조회",
+    "GET /api/",
+    "POST /api/",
+    "🌐 GET",
+    "🌐 POST",
+]
+
+
+def _is_noise(message: str) -> bool:
+    """시스템 노이즈 여부 판별."""
+    return any(p in message for p in _SYSTEM_NOISE_PATTERNS)
+
 
 # ── 활동 로그 API ──
 
 @router.get("/api/activity-logs")
-async def get_activity_logs(limit: int = 50, agent_id: str = None):
-    logs = list_activity_logs(limit=limit, agent_id=agent_id)
+async def get_activity_logs(limit: int = 50, agent_id: str = None, include_noise: bool = False):
+    logs = list_activity_logs(limit=limit * 2 if not include_noise else limit, agent_id=agent_id)
+    if not include_noise:
+        logs = [l for l in logs if not _is_noise(l.get("message", ""))][:limit]
     return logs
+
+
+@router.get("/api/quality-reviews")
+async def get_quality_reviews(limit: int = 20):
+    """QA 품질검수 결과 조회 API."""
+    try:
+        conn = get_connection()
+        rows = conn.execute(
+            "SELECT id, chain_id, reviewer_id, target_id, division, passed, "
+            "weighted_score, feedback, rejection_reasons, review_model, created_at "
+            "FROM quality_reviews ORDER BY created_at DESC LIMIT ?",
+            (limit,),
+        ).fetchall()
+        conn.close()
+        return [dict(r) for r in rows]
+    except Exception:
+        return []
 
 
 # ── 협업 로그 API ──

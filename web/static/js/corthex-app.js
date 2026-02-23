@@ -16,7 +16,9 @@ function corthexApp() {
     totalCost: 0,
     totalTokens: 0,
     activityLogs: [],
-    commsLogSubTab: 'activity',  // 'activity' | 'comms' — 통신로그 탭 내 서브탭
+    toolLogs: [],
+    qaLogs: [],
+    commsLogSubTab: 'activity',  // 'activity' | 'comms' | 'qa' | 'tools' — 통신로그 탭 내 서브탭
     activeAgents: {},
     agentToolCallCount: {},  // 에이전트별 도구 호출 횟수 (진행률 계산용)
     // 내부통신 (delegation log)
@@ -610,8 +612,17 @@ function corthexApp() {
           msg.data.timestamp = Date.now();
           msg.data.action = msg.data.message || msg.data.action || '';
           if (!msg.data.action) break;
-          this.activityLogs.push(msg.data);
-          if (this.activityLogs.length > 50) this.activityLogs = this.activityLogs.slice(-50);
+          // level별 배열 분류 (4탭 지원)
+          if (msg.data.level === 'tool') {
+            this.toolLogs.push(msg.data);
+            if (this.toolLogs.length > 100) this.toolLogs = this.toolLogs.slice(-100);
+          } else if (msg.data.level === 'qa_pass' || msg.data.level === 'qa_fail') {
+            this.qaLogs.push(msg.data);
+            if (this.qaLogs.length > 50) this.qaLogs = this.qaLogs.slice(-50);
+          } else {
+            this.activityLogs.push(msg.data);
+            if (this.activityLogs.length > 50) this.activityLogs = this.activityLogs.slice(-50);
+          }
           this.saveActivityLogs();
           break;
 
@@ -3580,6 +3591,9 @@ function corthexApp() {
     },
 
     getCioLogIcon(log) {
+      if (log.level === 'qa_pass') return '✅';
+      if (log.level === 'qa_fail') return '❌';
+      if (log.level === 'tool') return '🔧';
       if (log.type === 'delegation') return '📡';
       if (log.type === 'report') return '📊';
       if (log.type === 'activity') {
@@ -3600,7 +3614,8 @@ function corthexApp() {
     getFilteredCioLogs() {
       const f = this.trading.activityLog.filter;
       if (f === 'all') return this.trading.activityLog.logs;
-      if (f === 'tools') return this.trading.activityLog.logs.filter(l => l.tools.length > 0);
+      if (f === 'tools') return this.trading.activityLog.logs.filter(l => l.tools.length > 0 || l.level === 'tool');
+      if (f === 'qa') return this.trading.activityLog.logs.filter(l => l.level === 'qa_pass' || l.level === 'qa_fail');
       return this.trading.activityLog.logs.filter(l => l.type === f);
     },
 
