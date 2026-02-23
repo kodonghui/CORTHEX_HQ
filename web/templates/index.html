@@ -1530,6 +1530,23 @@
             <button x-show="presets.items && presets.items.length > 0" @click="presets.showModal = true" class="text-[11px] text-hq-muted/80 hover:text-hq-accent transition px-1 shrink-0">
               <svg class="w-3.5 h-3.5 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
             </button>
+            <!-- 대화 세션 버튼 (새 대화 + 목록 + 턴 카운터) -->
+            <div class="flex items-center gap-2 shrink-0">
+              <button @click="showConversationDrawer = !showConversationDrawer"
+                      class="text-[10px] flex items-center gap-1 transition border rounded-lg px-2 py-1"
+                      :class="showConversationDrawer ? 'border-hq-accent/40 text-hq-accent' : 'border-hq-border text-hq-muted hover:text-hq-text'">
+                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7"/></svg>
+                대화목록
+              </button>
+              <button @click="newConversation()"
+                      class="text-[10px] text-hq-accent hover:text-hq-accent/80 flex items-center gap-1 transition border border-hq-accent/30 rounded-lg px-2 py-1">
+                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
+                새 대화
+              </button>
+              <span x-show="conversationTurnCount > 0"
+                    class="text-[9px] font-mono text-hq-muted/60 bg-hq-surface rounded px-1.5 py-0.5"
+                    x-text="conversationTurnCount + '턴'"></span>
+            </div>
             <!-- 대화 내보내기 + 비우기 (오른쪽 끝) -->
             <div x-show="messages.length > 0" class="flex items-center gap-2 ml-auto shrink-0">
               <button @click="exportConversation()"
@@ -1546,6 +1563,49 @@
             </div>
           </div>
         </div>
+      <!-- 대화 목록 서랍 (Conversation List Drawer) -->
+      <div x-show="showConversationDrawer" x-transition:enter="transition ease-out duration-200"
+           x-transition:enter-start="opacity-0 -translate-x-full" x-transition:enter-end="opacity-100 translate-x-0"
+           x-transition:leave="transition ease-in duration-150"
+           x-transition:leave-start="opacity-100 translate-x-0" x-transition:leave-end="opacity-0 -translate-x-full"
+           class="fixed inset-y-0 left-0 z-50 w-72 bg-hq-surface border-r border-hq-border shadow-2xl flex flex-col"
+           @click.outside="showConversationDrawer = false" x-cloak>
+        <div class="p-4 border-b border-hq-border flex items-center justify-between">
+          <h3 class="text-sm font-bold text-hq-text">대화 목록</h3>
+          <button @click="showConversationDrawer = false" class="text-hq-muted hover:text-hq-text">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+          </button>
+        </div>
+        <div class="p-2 border-b border-hq-border">
+          <button @click="newConversation(); showConversationDrawer = false"
+                  class="w-full text-xs text-hq-accent hover:bg-hq-accent/10 flex items-center gap-2 transition rounded-lg px-3 py-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
+            새 대화 시작
+          </button>
+        </div>
+        <div class="flex-1 overflow-y-auto scrollbar-thin p-2 space-y-1">
+          <template x-for="conv in conversationList" :key="conv.conversation_id">
+            <div @click="switchConversation(conv.conversation_id)"
+                 :class="currentConversationId === conv.conversation_id ? 'bg-hq-accent/10 border-hq-accent/30' : 'border-transparent hover:bg-hq-panel'"
+                 class="rounded-lg border px-3 py-2 cursor-pointer transition group">
+              <div class="text-xs text-hq-text font-medium truncate" x-text="conv.title"></div>
+              <div class="flex items-center gap-2 mt-1">
+                <span class="text-[9px] text-hq-muted font-mono" x-text="(conv.turn_count || 0) + '턴'"></span>
+                <span class="text-[9px] text-hq-muted" x-text="new Date(conv.updated_at).toLocaleDateString('ko-KR')"></span>
+                <span x-show="conv.total_cost > 0" class="text-[9px] text-hq-muted font-mono" x-text="'$' + (conv.total_cost || 0).toFixed(3)"></span>
+                <button @click.stop="deleteConversationSession(conv.conversation_id)"
+                        class="ml-auto text-hq-muted/50 hover:text-hq-red opacity-0 group-hover:opacity-100 transition">
+                  <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                </button>
+              </div>
+            </div>
+          </template>
+          <template x-if="conversationList.length === 0">
+            <div class="text-xs text-hq-muted/60 text-center py-8">대화 기록이 없습니다</div>
+          </template>
+        </div>
+      </div>
+
       </div><!-- /command tab -->
 
       <!-- ═══ Tab: 성능 (Performance) ═══ -->

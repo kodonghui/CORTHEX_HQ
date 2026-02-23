@@ -4,6 +4,11 @@ function corthexApp() {
     inputText: '',
     targetAgentId: '',  // 수신자 선택 (빈 문자열 = 자동 라우팅)
     messages: [],
+    // 멀티턴 대화 세션
+    currentConversationId: null,
+    conversationList: [],
+    showConversationDrawer: false,
+    conversationTurnCount: 0,
     showScrollBtn: false,
     newMsgCount: 0,
     systemStatus: 'idle',
@@ -720,6 +725,7 @@ function corthexApp() {
                   quality_score: resultMsg.quality_score,
                   task_id: resultMsg.task_id,
                   source: resultMsg.source,
+                  conversation_id: this.currentConversationId,
                 }),
               });
             } catch (e) {
@@ -858,12 +864,33 @@ function corthexApp() {
 
       if (this.$refs.inputArea) this.$refs.inputArea.style.height = 'auto';
 
+      // 대화 세션 자동 생성 (첫 메시지 시)
+      if (!this.currentConversationId) {
+        try {
+          const sessRes = await fetch('/api/conversation/sessions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              title: text.slice(0, 30) + (text.length > 30 ? '...' : ''),
+              agent_id: this.targetAgentId || null,
+            }),
+          });
+          const sessData = await sessRes.json();
+          if (sessData.success) {
+            this.currentConversationId = sessData.session.conversation_id;
+          }
+        } catch (e) {
+          console.warn('대화 세션 생성 실패:', e);
+        }
+      }
+      this.conversationTurnCount++;
+
       // DB에 사용자 메시지 저장
       try {
         await fetch('/api/conversation/save', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ type: 'user', text }),
+          body: JSON.stringify({ type: 'user', text, conversation_id: this.currentConversationId }),
         });
       } catch (e) {
         console.warn('메시지 저장 실패:', e);
@@ -875,6 +902,7 @@ function corthexApp() {
           text,
           batch: this.useBatch,
           target_agent_id: this.targetAgentId || null,
+          conversation_id: this.currentConversationId,
         }));
       }
 
@@ -2363,18 +2391,30 @@ function corthexApp() {
 
     async loadConversation() {
       try {
-        const res = await fetch('/api/conversation');
-        if (!res.ok) return;
-        const messages = await res.json();
-        if (Array.isArray(messages) && messages.length > 0) {
-          this.messages = messages;
-          // 복원 후 스크롤 — 마크다운 렌더링 시간까지 고려하여 여러 번 시도
-          this.$nextTick(() => this.scrollToBottom());
-          setTimeout(() => this.scrollToBottom(), 200);
-          setTimeout(() => this.scrollToBottom(), 500);
-          setTimeout(() => this.scrollToBottom(), 1000);
-          setTimeout(() => this.scrollToBottom(), 2000);
+        // 대화 목록도 함께 로드
+        this.loadConversationList();
+
+        if (this.currentConversationId) {
+          // 특정 세션 로드
+          const res = await fetch(`/api/conversation/sessions/${this.currentConversationId}/messages`);
+          if (res.ok) {
+            const messages = await res.json();
+            this.messages = Array.isArray(messages) ? messages : [];
+          }
+        } else {
+          // 레거시: 전체 대화 로드
+          const res = await fetch('/api/conversation');
+          if (!res.ok) return;
+          const messages = await res.json();
+          if (Array.isArray(messages) && messages.length > 0) {
+            this.messages = messages;
+          }
         }
+        // 복원 후 스크롤
+        this.$nextTick(() => this.scrollToBottom());
+        setTimeout(() => this.scrollToBottom(), 200);
+        setTimeout(() => this.scrollToBottom(), 500);
+        setTimeout(() => this.scrollToBottom(), 1000);
       } catch (e) {
         console.warn('대화 기록 복원 실패:', e);
       }
@@ -3586,15 +3626,98 @@ function corthexApp() {
     // ── 대화 비우기 ──
     async clearConversation() {
       if (this.messages.length === 0) return;
-      if (!confirm('대화 기록을 모두 삭제하시겠습니까?\n(삭제 후 복구할 수 없습니다)')) return;
+      if (!confirm('현재 대화를 비우고 새 대화를 시작하시겠습니까?')) return;
       try {
-        await fetch('/api/conversation', { method: 'DELETE' });
+        if (this.currentConversationId) {
+          // 세션 보관 처리 (삭제 대신 비활성화)
+          await fetch(`/api/conversation/sessions/${this.currentConversationId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ is_active: 0 }),
+          });
+        } else {
+          // 레거시: 전체 삭제
+          await fetch('/api/conversation', { method: 'DELETE' });
+        }
         this.messages = [];
+        this.currentConversationId = null;
+        this.conversationTurnCount = 0;
         this.activeAgents = {};
         this.systemStatus = 'idle';
-        this.showToast('대화 기록이 삭제되었습니다.', 'success');
+        this.showToast('대화가 비워졌습니다. 새 대화를 시작하세요.', 'success');
+        this.loadConversationList();
       } catch (e) {
         this.showToast('대화 삭제에 실패했습니다.', 'error');
+      }
+    },
+
+    // ── 멀티턴 대화 세션 관리 ──
+    async newConversation(agentId = null) {
+      try {
+        const res = await fetch('/api/conversation/sessions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ agent_id: agentId }),
+        });
+        const data = await res.json();
+        if (data.success) {
+          this.currentConversationId = data.session.conversation_id;
+          this.messages = [];
+          this.conversationTurnCount = 0;
+          this.activeAgents = {};
+          this.systemStatus = 'idle';
+          this.loadConversationList();
+          this.showToast('새 대화가 시작되었습니다.', 'success');
+        }
+      } catch (e) {
+        console.warn('새 대화 생성 실패:', e);
+      }
+    },
+
+    async loadConversationList() {
+      try {
+        const res = await fetch('/api/conversation/sessions?limit=30');
+        if (res.ok) {
+          this.conversationList = await res.json();
+        }
+      } catch (e) {
+        console.warn('대화 목록 로딩 실패:', e);
+      }
+    },
+
+    async switchConversation(conversationId) {
+      try {
+        const res = await fetch(`/api/conversation/sessions/${conversationId}/messages`);
+        if (!res.ok) return;
+        this.messages = await res.json();
+        this.currentConversationId = conversationId;
+        const meta = await fetch(`/api/conversation/sessions/${conversationId}`);
+        if (meta.ok) {
+          const session = await meta.json();
+          this.conversationTurnCount = session.turn_count || 0;
+        }
+        this.showConversationDrawer = false;
+        this.activeAgents = {};
+        this.systemStatus = 'idle';
+        this.$nextTick(() => this.scrollToBottom());
+        setTimeout(() => this.scrollToBottom(), 300);
+      } catch (e) {
+        console.warn('대화 전환 실패:', e);
+      }
+    },
+
+    async deleteConversationSession(conversationId) {
+      if (!confirm('이 대화를 삭제하시겠습니까?')) return;
+      try {
+        await fetch(`/api/conversation/sessions/${conversationId}`, { method: 'DELETE' });
+        this.conversationList = this.conversationList.filter(c => c.conversation_id !== conversationId);
+        if (this.currentConversationId === conversationId) {
+          this.currentConversationId = null;
+          this.messages = [];
+          this.conversationTurnCount = 0;
+        }
+      } catch (e) {
+        console.warn('대화 삭제 실패:', e);
       }
     },
 
