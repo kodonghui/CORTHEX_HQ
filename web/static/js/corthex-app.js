@@ -1667,6 +1667,15 @@ function corthexApp() {
           }
           // 사무실 뷰 카드에도 반영 (표시명 + 추론레벨 형식)
           this._updateAgentCardLabel(this.agentConfigId);
+          // 개별 모델 변경 → 자동으로 '수동' 모드 전환
+          if (this.modelMode !== 'manual') {
+            this.modelMode = 'manual';
+            fetch('/api/model-mode', {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ mode: 'manual' }),
+            }).catch(() => {});
+          }
           this.agentConfigSaveStatus = 'saved';
           this.showToast('모델이 변경되었습니다.', 'success');
         }
@@ -1692,6 +1701,15 @@ function corthexApp() {
           this.agentConfigData.reasoning_effort = this.agentReasoningSelection;
           // 사무실 뷰 카드에도 반영 (표시명 + 추론레벨 형식)
           this._updateAgentCardLabel(this.agentConfigId);
+          // 개별 추론 변경 → 자동으로 '수동' 모드 전환
+          if (this.modelMode !== 'manual') {
+            this.modelMode = 'manual';
+            fetch('/api/model-mode', {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ mode: 'manual' }),
+            }).catch(() => {});
+          }
           this.agentConfigSaveStatus = 'saved';
           this.showToast('추론 정도가 변경되었습니다.', 'success');
         }
