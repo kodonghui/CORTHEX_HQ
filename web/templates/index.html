@@ -4166,7 +4166,7 @@
                    return this.snapHistory.map((s,i) => {
                      const cx = (i/(this.snapHistory.length-1||1))*w;
                      const cy = h - ((( (s.eval||s.cash||0) - min)/range)*h*0.85 + h*0.05);
-                     return `<circle cx="${cx}" cy="${cy}" r="2.5" fill="${color}"/>`;
+                     return '&lt;circle cx=&quot;' + cx + '&quot; cy=&quot;' + cy + '&quot; r=&quot;2.5&quot; fill=&quot;' + color + '&quot;/&gt;';
                    }).join('');
                  },
                  get lineColor() { if (!this.port) return '#3b82f6'; return (this.port.pnl || 0) >= 0 ? '#10b981' : '#ef4444'; }
