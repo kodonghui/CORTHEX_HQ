@@ -646,6 +646,22 @@ function corthexApp() {
             if (this.activityLogs.length > 50) this.activityLogs = this.activityLogs.slice(-50);
           }
           this.saveActivityLogs();
+          // 전략실 활동로그에도 CIO 관련이면 실시간 추가
+          { const cioAgents = ['cio_manager', 'stock_analysis', 'market_condition', 'technical_analysis', 'risk_management'];
+            const aid = (msg.data.agent_id || '').toLowerCase();
+            if (cioAgents.some(k => aid.includes(k))) {
+              const alId = 'al_' + (msg.data.timestamp || Date.now());
+              if (!this.trading.activityLog.logs.find(l => l.id === alId)) {
+                this.trading.activityLog.logs.unshift({
+                  id: alId, type: 'activity', sender: msg.data.agent_id || '',
+                  receiver: '', message: msg.data.action || msg.data.message || '',
+                  tools: [], level: msg.data.level || 'info',
+                  time: new Date().toISOString(), _ts: Date.now(),
+                });
+                if (this.trading.activityLog.logs.length > 100) this.trading.activityLog.logs = this.trading.activityLog.logs.slice(0, 100);
+              }
+            }
+          }
           break;
 
         case 'cost_update':
@@ -656,9 +672,10 @@ function corthexApp() {
 
         case 'delegation_log_update':
           if (msg.data) {
-            // SSE와 중복 방지: id 기반 체크
+            // SSE와 중복 방지: ID를 dl_ 접두사로 정규화하여 통일
             const wsId = 'dl_' + (msg.data.id || '');
-            if (!this.delegationLogs.find(l => l.id === wsId || l.id === msg.data.id)) {
+            msg.data.id = wsId;  // REST/SSE 형식과 통일
+            if (!this.delegationLogs.find(l => l.id === wsId)) {
               msg.data.source = msg.data.source || 'delegation';
               this.delegationLogs.unshift(msg.data);
               // 시간순 내림차순 정렬
@@ -1304,8 +1321,12 @@ function corthexApp() {
         this._commsSSE.addEventListener('comms', (e) => {
           try {
             const msg = JSON.parse(e.data);
-            // 사령관실 교신로그 (중복 방지)
-            if (!this.delegationLogs.find(l => l.id === msg.id)) {
+            // ID 정규화: REST는 "dl_123" 형식, SSE/WS는 123 원본 → dl_ 접두사 통일
+            const rawId = msg.id;
+            const dlId = String(rawId).startsWith('dl_') ? rawId : 'dl_' + rawId;
+            msg.id = dlId;
+            // 사령관실 교신로그 (중복 방지 — 원본 ID + dl_ 접두사 ID 모두 체크)
+            if (!this.delegationLogs.find(l => l.id === dlId || l.id === rawId)) {
               this.delegationLogs.unshift(msg);
               this.delegationLogs.sort((a, b) => {
                 const ta = new Date(a.created_at || 0).getTime();
@@ -1317,7 +1338,7 @@ function corthexApp() {
             // CIO 전략실 로그 (키워드 필터링)
             const s = (msg.sender || '') + (msg.receiver || '');
             if (cioKeywords.some(k => s.includes(k))) {
-              if (!this.trading.cioLogs.find(l => l.id === msg.id)) {
+              if (!this.trading.cioLogs.find(l => l.id === dlId || l.id === rawId)) {
                 msg._fresh = true;
                 this.trading.cioLogs.unshift(msg);
                 if (this.trading.cioLogs.length > 50) this.trading.cioLogs = this.trading.cioLogs.slice(0, 50);
@@ -3652,7 +3673,7 @@ function corthexApp() {
       if (tab === 'activity') return logs.filter(l => l.level !== 'tool' && l.level !== 'qa_pass' && l.level !== 'qa_fail' && l.type !== 'delegation' && l.type !== 'report');
       if (tab === 'comms') return logs.filter(l => l.type === 'delegation' || l.type === 'report');
       if (tab === 'qa') return logs.filter(l => l.level === 'qa_pass' || l.level === 'qa_fail');
-      if (tab === 'tools') return logs.filter(l => l.tools.length > 0 || l.level === 'tool');
+      if (tab === 'tools') return logs.filter(l => (l.tools || []).length > 0 || l.level === 'tool');
       return logs;
     },
     clearCioLogsTab(tab) {
@@ -3660,7 +3681,7 @@ function corthexApp() {
       if (tab === 'activity') { this.trading.activityLog.logs = logs.filter(l => l.level === 'tool' || l.level === 'qa_pass' || l.level === 'qa_fail' || l.type === 'delegation' || l.type === 'report'); fetch('/api/activity-logs', {method:'DELETE'}); }
       else if (tab === 'comms') { this.trading.activityLog.logs = logs.filter(l => l.type !== 'delegation' && l.type !== 'report'); fetch('/api/delegation-log', {method:'DELETE'}); }
       else if (tab === 'qa') { this.trading.activityLog.logs = logs.filter(l => l.level !== 'qa_pass' && l.level !== 'qa_fail'); fetch('/api/activity-logs?level=qa', {method:'DELETE'}); }
-      else if (tab === 'tools') { this.trading.activityLog.logs = logs.filter(l => !l.tools.length && l.level !== 'tool'); fetch('/api/activity-logs?level=tool', {method:'DELETE'}); }
+      else if (tab === 'tools') { this.trading.activityLog.logs = logs.filter(l => !(l.tools || []).length && l.level !== 'tool'); fetch('/api/activity-logs?level=tool', {method:'DELETE'}); }
     },
 
     formatLogTime(timeStr) {
