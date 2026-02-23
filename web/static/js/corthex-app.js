@@ -629,7 +629,7 @@ function corthexApp() {
 
         case 'activity_log':
           { const now = new Date(); const d = now.toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/\.\s*/g, '.').replace(/\.$/, ''); const t = now.toLocaleTimeString('ko-KR', { timeZone: 'Asia/Seoul', hour12: false, hour: '2-digit', minute: '2-digit' }); msg.data.timeDate = d; msg.data.timeClock = t; msg.data.time = d + ' ' + t; }
-          msg.data.timestamp = Date.now();
+          if (!msg.data.timestamp) msg.data.timestamp = Date.now();
           msg.data.action = msg.data.message || msg.data.action || '';
           if (!msg.data.action) break;
           // system 로그 숨기기 (B안 — 노이즈 제거)
@@ -692,7 +692,7 @@ function corthexApp() {
             const cioKw = ['CIO', '투자분석', 'stock_analysis', 'market_condition', 'technical_analysis', 'risk_management'];
             const dlSR = (msg.data.sender || '') + (msg.data.receiver || '');
             if (cioKw.some(k => dlSR.includes(k))) {
-              const dlId = 'dl_' + (msg.data.id || '');
+              const dlId = msg.data.id;  // line 677에서 이미 dl_ 접두사 정규화됨
               if (!this.trading.activityLog.logs.find(l => l.id === dlId)) {
                 const rawTools = msg.data.tools_used || '';
                 const tList = typeof rawTools === 'string'
@@ -1349,7 +1349,7 @@ function corthexApp() {
                   ? toolsRaw.split(',').map(t => t.trim()).filter(Boolean)
                   : (Array.isArray(toolsRaw) ? toolsRaw : []);
                 const alEntry = {
-                  id: 'dl_' + msg.id,
+                  id: msg.id,  // line 1327에서 이미 dl_ 접두사 정규화됨
                   type: msg.log_type || 'delegation',
                   sender: msg.sender || '',
                   receiver: msg.receiver || '',

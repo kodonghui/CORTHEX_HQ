@@ -7311,20 +7311,42 @@ async def _manager_with_delegation(manager_id: str, text: str) -> dict:
     specialists = _MANAGER_SPECIALISTS.get(manager_id, [])
     spec_names = [_SPECIALIST_NAMES.get(s, s) for s in specialists]
 
-    # 처장 상태: 명령 분석 중
-    await _broadcast_status(manager_id, "working", 0.1, "명령 분석 → 전문가 위임 중...")
-
-    # 처장 활동 로그 — 전문가에게 위임
-    if specialists:
-        log_mgr = save_activity_log(manager_id, f"[{mgr_name}] 전문가 {len(specialists)}명에게 위임: {', '.join(spec_names)}")
-        await wm.send_activity_log(log_mgr)
-
-    # 전문가들에게 병렬 위임
-    spec_results = await _delegate_to_specialists(manager_id, text)
-
-    if not spec_results:
-        # 전문가가 없으면 처장이 직접 처리
+    # 전문가가 없으면 처장이 직접 처리
+    if not specialists:
         return await _call_agent(manager_id, text)
+
+    # ── 처장 독자 분석 함수 (CEO 아이디어: 처장 = 5번째 분석가) ──
+    # 전문가와 병렬로 처장도 독자적으로 도구를 사용하여 분석 수행.
+    # "종합 때 도구 써라"(프롬프트 의존) → "독자분석 따로 돌려"(구조적 강제)
+    async def _manager_self_analysis():
+        """처장 독자 분석 — 전문가와 동일하게 도구 사용. 구조적 도구 사용 보장."""
+        log_self = save_activity_log(manager_id,
+            f"[{mgr_name}] 🔧 독자 분석 시작 (5번째 분석가)", "info")
+        await wm.send_activity_log(log_self)
+        self_prompt = (
+            f"당신은 {mgr_name}입니다. 전문가들과 별개로 독자적 분석을 수행하세요.\n"
+            f"반드시 도구(API)를 사용하여 실시간 데이터를 직접 조회하고 분석하세요.\n"
+            f"전문가 결과는 무시하세요 — 당신만의 독립적 관점을 제시하세요.\n\n"
+            f"## 분석 요청\n{text}\n"
+        )
+        self_result = await _call_agent(manager_id, self_prompt)
+        log_done = save_activity_log(manager_id,
+            f"[{mgr_name}] ✅ 독자 분석 완료", "info")
+        await wm.send_activity_log(log_done)
+        return self_result
+
+    # 처장 상태: 독자 분석 + 전문가 위임 시작
+    await _broadcast_status(manager_id, "working", 0.1, "독자 분석 + 전문가 위임 중...")
+    log_mgr = save_activity_log(manager_id,
+        f"[{mgr_name}] 🔧 독자 분석 + 전문가 {len(specialists)}명 위임: {', '.join(spec_names)}")
+    await wm.send_activity_log(log_mgr)
+
+    # 처장 독자분석 + 전문가 병렬 실행 (5번째 분석가 구조)
+    _mgr_self_task = _manager_self_analysis()
+    _spec_task = _delegate_to_specialists(manager_id, text)
+    _parallel = await asyncio.gather(_mgr_self_task, _spec_task, return_exceptions=True)
+    manager_self_result = _parallel[0] if not isinstance(_parallel[0], Exception) else {"error": str(_parallel[0])[:200]}
+    spec_results = _parallel[1] if not isinstance(_parallel[1], Exception) else []
 
     # ── 품질검수 (Quality Gate) ── 전문가 결과를 처장이 종합하기 전에 검수
     if app_state.quality_gate and _QUALITY_GATE_AVAILABLE and spec_results:
@@ -7412,93 +7434,46 @@ async def _manager_with_delegation(manager_id: str, text: str) -> dict:
             spec_cost += r.get("cost_usd", 0)
             spec_time = max(spec_time, r.get("time_seconds", 0))
 
+    # 처장 독자분석 결과 취합
+    manager_self_content = ""
+    mgr_self_tools: list[str] = []
+    if isinstance(manager_self_result, dict) and "error" not in manager_self_result:
+        manager_self_content = manager_self_result.get("content", "")
+        mgr_self_tools = manager_self_result.get("tools_used", [])
+        spec_cost += manager_self_result.get("cost_usd", 0)
+        spec_time = max(spec_time, manager_self_result.get("time_seconds", 0))
+
     # 전문가 성공/실패 집계
     _spec_ok_count = len([r for r in spec_results if "error" not in r])
     _spec_err_count = len(spec_results) - _spec_ok_count
 
-    # 처장 종합 프롬프트 — 독자 분석 + 전문가 결과 종합
-    if _spec_ok_count == 0:
-        # 전문가 전원 실패 → 처장이 직접 도구로 독자 분석 필수
-        synthesis_prompt = (
-            f"당신은 {mgr_name}입니다.\n"
-            f"⚠️ 소속 전문가 {_spec_err_count}명이 전원 에러/실패하여 분석 결과가 없습니다.\n\n"
-            f"**당신이 직접 도구를 사용하여 독자적으로 분석하세요.**\n"
-            f"도구(API)로 실시간 데이터를 직접 조회하고, 그 데이터를 근거로 보고서를 작성하세요.\n"
-            f"전문가 결과 없이도 CEO에게 보고할 수 있는 수준의 독자 분석 보고서를 만드세요.\n\n"
-            f"## CEO 원본 명령\n{text}\n"
-        )
-    else:
-        # 전문가 결과 있음 → 독자 검증 + 전문가 종합
-        _partial_warn = f"\n⚠️ 전문가 {_spec_err_count}명 에러 — 해당 영역은 당신이 도구로 직접 보완하세요.\n" if _spec_err_count > 0 else ""
-        synthesis_prompt = (
-            f"당신은 {mgr_name}입니다.\n"
-            f"소속 전문가들이 아래 분석 결과를 제출했습니다.{_partial_warn}\n"
-            f"**반드시 도구를 사용하여 전문가 결과를 독자적으로 검증하세요.**\n"
-            f"전문가 결과를 그대로 옮기지 말고, 도구로 직접 데이터를 확인한 뒤 종합 보고서를 작성하세요.\n"
-            f"전문가 의견 중 부족하거나 잘못된 부분이 있으면 지적하고 보완하세요.\n\n"
-            f"## CEO 원본 명령\n{text}\n\n"
-            f"## 전문가 분석 결과\n" + "\n\n".join(spec_parts)
-        )
+    # 처장 종합 프롬프트 — 독자분석 + 전문가 결과 취합만 (도구 불필요)
+    # CEO 아이디어: 처장 독자분석에서 이미 도구 사용 완료 → 종합은 단순 취합
+    synthesis_prompt = (
+        f"당신은 {mgr_name}입니다.\n"
+        f"아래 분석 결과(당신의 독자 분석 + 전문가)를 종합하여 최종 보고서를 작성하세요.\n"
+        f"도구를 다시 사용할 필요 없습니다 — 결과를 취합만 하세요.\n\n"
+        f"## CEO 원본 명령\n{text}\n\n"
+        f"## 처장 독자 분석\n{manager_self_content or '(분석 실패)'}\n\n"
+        f"## 전문가 분석 결과\n" + "\n\n".join(spec_parts)
+    )
 
     soul = _load_agent_prompt(manager_id)
     override = _get_model_override(manager_id)
     model = select_model(synthesis_prompt, override=override)
 
-    # ★ 버그#3 수정: 처장(CIO 등) 종합 시에도 도구를 전달하여 직접 데이터 검증 가능하게!
-    # 이전에는 ask_ai()에 tools 파라미터 없이 호출 → 처장이 도구 없이 상식으로만 종합
-    # → 전문가 전원 에러 시 할루시네이션 보고서 작성하는 원인이었음
-    synth_tool_schemas = None
-    synth_tool_executor_fn = None
-    synth_tools_used: list[str] = []
-    mgr_detail = _AGENTS_DETAIL.get(manager_id, {})
-    mgr_allowed = mgr_detail.get("allowed_tools", [])
-    if mgr_allowed:
-        mgr_schemas = _load_tool_schemas(allowed_tools=mgr_allowed)
-        if mgr_schemas.get("anthropic"):
-            synth_tool_schemas = mgr_schemas["anthropic"]
-            _MGR_MAX_TOOLS = int(mgr_detail.get("max_tool_calls", 5))
-
-            async def _synth_tool_executor(tool_name: str, tool_input: dict):
-                """처장 종합 단계에서 도구 실행 (데이터 검증용)."""
-                synth_tools_used.append(tool_name)
-                call_count = len(synth_tools_used)
-                tool_log = save_activity_log(
-                    manager_id, f"🔧 [{mgr_name}] 종합검증: {tool_name} ({call_count}/{_MGR_MAX_TOOLS})",
-                    level="tool"
-                )
-                await wm.send_activity_log(tool_log)
-                pool = _init_tool_pool()
-                if pool:
-                    try:
-                        return await pool.invoke(tool_name, caller_id=manager_id, **tool_input)
-                    except Exception as e:
-                        if "ToolNotFoundError" in type(e).__name__ or tool_name in str(e):
-                            return f"도구 '{tool_name}'을(를) 찾을 수 없습니다."
-                        raise
-                return f"도구 '{tool_name}'을(를) 찾을 수 없습니다."
-
-            synth_tool_executor_fn = _synth_tool_executor
-
-    if _spec_ok_count == 0:
-        await _broadcast_status(manager_id, "working", 0.7, "전문가 전원 실패 → 독자 분석 중...")
-        log_ind = save_activity_log(manager_id,
-            f"[{mgr_name}] 🔧 전문가 전원 실패 → 도구 사용 독자 분석 시작", "info")
-        await wm.send_activity_log(log_ind)
-    elif _spec_err_count > 0:
-        await _broadcast_status(manager_id, "working", 0.7, f"독자 검증 + 종합 중 ({_spec_err_count}명 에러 보완)...")
-    else:
-        await _broadcast_status(manager_id, "working", 0.7, "독자 검증 + 전문가 결과 종합 중...")
+    await _broadcast_status(manager_id, "working", 0.7, "독자분석 + 전문가 결과 종합 중...")
     synthesis = await ask_ai(synthesis_prompt, system_prompt=soul, model=model,
-                             tools=synth_tool_schemas, tool_executor=synth_tool_executor_fn,
+                             tools=None, tool_executor=None,
                              reasoning_effort=_get_agent_reasoning_effort(manager_id))
 
     await _broadcast_status(manager_id, "done", 1.0, "보고 완료")
 
     if "error" in synthesis:
-        # 종합 실패 시 전문가 결과만 반환 (specialists_used 포함!)
+        # 종합 실패 시 독자분석 + 전문가 결과 반환
         _spec_ok = len([r for r in spec_results if "error" not in r])
-        content = f"**{mgr_name} 전문가 분석 결과**\n\n" + "\n\n---\n\n".join(spec_parts)
-        return {"agent_id": manager_id, "name": mgr_name, "content": content, "cost_usd": spec_cost, "specialists_used": _spec_ok}
+        content = f"**{mgr_name} 독자 분석**\n\n{manager_self_content or '(분석 실패)'}\n\n---\n\n**전문가 분석 결과**\n\n" + "\n\n---\n\n".join(spec_parts)
+        return {"agent_id": manager_id, "name": mgr_name, "content": content, "cost_usd": spec_cost, "specialists_used": _spec_ok, "tools_used": mgr_self_tools}
 
     total_cost = spec_cost + synthesis.get("cost_usd", 0)
     specialists_used = len([r for r in spec_results if "error" not in r])
@@ -7539,11 +7514,11 @@ async def _manager_with_delegation(manager_id: str, text: str) -> dict:
             agent_id=manager_id,
         )
 
-    # 독자 분석 도구 사용 기록 로그
-    if synth_tools_used:
-        _unique_synth = list(dict.fromkeys(synth_tools_used))
+    # 처장 독자분석 도구 사용 기록 로그
+    if mgr_self_tools:
+        _unique_self = list(dict.fromkeys(mgr_self_tools))
         log_tools = save_activity_log(manager_id,
-            f"[{mgr_name}] 🔧 독자 분석 도구 {len(synth_tools_used)}건 사용 (고유 {len(_unique_synth)}개): {', '.join(_unique_synth[:5])}", "tool")
+            f"[{mgr_name}] 🔧 독자 분석 도구 {len(mgr_self_tools)}건 사용 (고유 {len(_unique_self)}개): {', '.join(_unique_self[:5])}", "tool")
         await wm.send_activity_log(log_tools)
 
     return {
@@ -7554,7 +7529,7 @@ async def _manager_with_delegation(manager_id: str, text: str) -> dict:
         "model": synthesis.get("model", ""),
         "time_seconds": round(spec_time + synthesis.get("time_seconds", 0), 2),
         "specialists_used": specialists_used,
-        "tools_used": synth_tools_used,
+        "tools_used": mgr_self_tools,
     }
 
 
