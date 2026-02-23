@@ -7059,12 +7059,28 @@ async def _call_agent(agent_id: str, text: str, conversation_id: str | None = No
                           conversation_history=conv_history)
     await _broadcast_status(agent_id, "working", 0.7, "응답 처리 중...")
 
-    # agent_calls 테이블에 AI 호출 기록 저장
+    if "error" in result:
+        # 에러 발생 시 (타임아웃 등) — 에러 내용과 함께 기록
+        try:
+            from db import save_agent_call
+            save_agent_call(
+                agent_id=agent_id, model=model or "error",
+                provider="", cost_usd=0, input_tokens=0, output_tokens=0, time_seconds=0,
+            )
+        except Exception:
+            pass
+        await _broadcast_status(agent_id, "done", 1.0, "오류 발생")
+        # 에러 활동 로그
+        log_err = save_activity_log(agent_id, f"[{agent_name}] ❌ 오류: {result['error'][:80]}", "warning")
+        await wm.send_activity_log(log_err)
+        return {"agent_id": agent_id, "name": agent_name, "error": result["error"], "cost_usd": 0}
+
+    # agent_calls 테이블에 AI 호출 기록 저장 (성공 시)
     try:
         from db import save_agent_call
         save_agent_call(
             agent_id=agent_id,
-            model=result.get("model", "") if isinstance(result, dict) else "",
+            model=result.get("model", model) if isinstance(result, dict) else model,
             provider=result.get("provider", "") if isinstance(result, dict) else "",
             cost_usd=result.get("cost_usd", 0) if isinstance(result, dict) else 0,
             input_tokens=result.get("input_tokens", 0) if isinstance(result, dict) else 0,
@@ -7073,10 +7089,6 @@ async def _call_agent(agent_id: str, text: str, conversation_id: str | None = No
         )
     except Exception as e:
         _log(f"[AGENT_CALL] 기록 실패: {e}")
-
-    if "error" in result:
-        await _broadcast_status(agent_id, "done", 1.0, "오류 발생")
-        return {"agent_id": agent_id, "name": agent_name, "error": result["error"], "cost_usd": 0}
 
     await _broadcast_status(agent_id, "working", 0.9, "저장 완료...")
     await _broadcast_status(agent_id, "done", 1.0, "완료")
