@@ -6886,7 +6886,7 @@ async def _extract_and_save_memory(agent_id: str, task: str, response: str):
         logger.debug(f"기억 추출 건너뜀 ({agent_id}): {e}")
 
 
-async def _call_agent(agent_id: str, text: str) -> dict:
+async def _call_agent(agent_id: str, text: str, conversation_id: str | None = None) -> dict:
     """단일 에이전트에게 AI 호출을 수행합니다 (상태 이벤트 + 활동 로그 + 도구 자동호출 포함)."""
     agent_name = _AGENT_NAMES.get(agent_id, _SPECIALIST_NAMES.get(agent_id, agent_id))
     await _broadcast_status(agent_id, "working", 0.1, f"{agent_name} 작업 준비 중...")
@@ -7725,18 +7725,18 @@ async def _broadcast_to_managers(text: str, task_id: str, target_agent_id: str |
     # CEO 직접 개입: 특정 에이전트에게 직접 전달
     if target_agent_id:
         logger.info("CEO 직접 개입: → %s", target_agent_id)
-        return await _call_agent(target_agent_id, text)
+        return await _call_agent(target_agent_id, text, conversation_id=conversation_id)
 
     level, manager_id = _determine_routing_level(text)
     logger.info("스마트 라우팅 Level %d, 처장: %s", level, manager_id)
 
     if level == 1:
         # 비서실장 직접 처리
-        return await _call_agent("chief_of_staff", text)
+        return await _call_agent("chief_of_staff", text, conversation_id=conversation_id)
 
     elif level == 2:
         # 처장 1명만 호출 (전문가 위임 없음)
-        mgr_result = await _call_agent(manager_id, text)
+        mgr_result = await _call_agent(manager_id, text, conversation_id=conversation_id)
         return await _chief_finalize(text, {manager_id: mgr_result})
 
     elif level == 3:
@@ -8266,7 +8266,7 @@ async def _process_ai_command(text: str, task_id: str, target_agent_id: str | No
         is_specialist = target_id in _SPECIALIST_NAMES
         if is_specialist or target_id not in _AGENT_NAMES:
             # 전문가이거나 처장도 아닌 에이전트 → 바로 _call_agent()
-            direct_result = await _call_agent(target_id, text)
+            direct_result = await _call_agent(target_id, text, conversation_id=conversation_id)
             direct_name = _SPECIALIST_NAMES.get(target_id, _AGENT_NAMES.get(target_id, target_id))
             if "error" in direct_result:
                 update_task(task_id, status="failed",
