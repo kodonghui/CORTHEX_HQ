@@ -3971,7 +3971,7 @@
           <div x-show="trading.tab === 'portfolio' && !trading.loading"
                x-data="{
                  port: null, portLoading: false, portError: '',
-                 history: [],
+                 snapHistory: [],
                  newInitialKrw: null, newInitialUsd: null, newTotalDeposit: null,
                  async loadPortfolio() {
                    this.portLoading = true; this.portError = '';
@@ -3981,7 +3981,7 @@
                        fetch('/api/trading/portfolio/history').then(r => r.json()),
                      ]);
                      this.port = p;
-                     this.history = (h.snapshots || []).slice(-30);
+                     this.snapHistory = (h.snapshots || []).slice(-30);
                    } catch(e) { this.portError = e.message; }
                    finally { this.portLoading = false; }
                  },
@@ -4027,16 +4027,28 @@
                    return paths.join('');
                  },
                  get linePoints() {
-                   if (!this.history.length) return '';
-                   const vals = this.history.map(s => s.eval || s.cash || 0);
+                   if (!this.snapHistory.length) return '';
+                   const vals = this.snapHistory.map(s => s.eval || s.cash || 0);
                    const min = Math.min(...vals), max = Math.max(...vals);
                    const range = max - min || 1;
                    const w=280, h=80;
-                   return this.history.map((s,i) => {
-                     const x = (i/(this.history.length-1||1))*w;
+                   return this.snapHistory.map((s,i) => {
+                     const x = (i/(this.snapHistory.length-1||1))*w;
                      const y = h - ((( (s.eval||s.cash||0) - min)/range)*h*0.85 + h*0.05);
                      return `${x},${y}`;
                    }).join(' ');
+                 },
+                 get svgCircles() {
+                   if (!this.snapHistory.length) return '';
+                   const vals = this.snapHistory.map(s => s.eval || s.cash || 0);
+                   const min = Math.min(...vals), max = Math.max(...vals);
+                   const range = max - min || 1;
+                   const w=280, h=80, color = this.lineColor;
+                   return this.snapHistory.map((s,i) => {
+                     const cx = (i/(this.snapHistory.length-1||1))*w;
+                     const cy = h - ((( (s.eval||s.cash||0) - min)/range)*h*0.85 + h*0.05);
+                     return `<circle cx="${cx}" cy="${cy}" r="2.5" fill="${color}"/>`;
+                   }).join('');
                  },
                  get lineColor() { if (!this.port) return '#3b82f6'; return (this.port.pnl || 0) >= 0 ? '#10b981' : '#ef4444'; }
                }"
@@ -4166,26 +4178,22 @@
                     <h3 class="text-sm font-bold text-hq-text">수익률 추이 (최근 30일)</h3>
                     <span class="text-[10px] text-hq-muted">데이터 누적 중</span>
                   </div>
-                  <template x-if="history.length >= 2">
+                  <template x-if="snapHistory.length >= 2">
                     <div>
                       <svg width="100%" height="90" viewBox="0 0 280 90" preserveAspectRatio="none" class="w-full">
                         <line x1="0" y1="45" x2="280" y2="45" stroke="#374151" stroke-width="0.5" stroke-dasharray="4,4"/>
                         <polyline :points="linePoints" fill="none" :stroke="lineColor" stroke-width="2" stroke-linejoin="round"/>
-                        <template x-for="(s, i) in history" :key="i">
-                          <circle :cx="(i/(history.length-1||1))*280"
-                            :cy="90 - (((s.eval||s.cash||0) - Math.min(...history.map(x=>x.eval||x.cash||0))) / (Math.max(...history.map(x=>x.eval||x.cash||0)) - Math.min(...history.map(x=>x.eval||x.cash||0))||1)) * 90*0.85 - 90*0.05"
-                            r="2.5" :fill="lineColor"/>
-                        </template>
+                        <g x-html="svgCircles"></g>
                       </svg>
                       <div class="flex justify-between text-[9px] text-hq-muted mt-1">
-                        <span x-text="history[0]?.date||''"></span>
-                        <span x-text="history[history.length-1]?.date||''"></span>
+                        <span x-text="snapHistory[0]?.date||''"></span>
+                        <span x-text="snapHistory[snapHistory.length-1]?.date||''"></span>
                       </div>
                     </div>
                   </template>
-                  <template x-if="history.length < 2">
+                  <template x-if="snapHistory.length < 2">
                     <div class="text-center py-6 text-hq-muted/70 text-xs">
-                      데이터가 쌓이면 차트가 표시됩니다 (현재 <span x-text="history.length"></span>일)
+                      데이터가 쌓이면 차트가 표시됩니다 (현재 <span x-text="snapHistory.length"></span>일)
                     </div>
                   </template>
                 </div>

@@ -657,6 +657,23 @@ function corthexApp() {
           this.handlePipelineProgress(msg.data);
           break;
 
+        case 'trading_run_complete':
+          // CIO 백그라운드 분석 완료 알림 (폴링보다 빠른 WebSocket 수신)
+          if (this.trading.runningNow) {
+            if (this._tradingRunPoll) { clearInterval(this._tradingRunPoll); this._tradingRunPoll = null; }
+            const d = msg.data || {};
+            if (d.success) {
+              this.showToast(`CIO 분석 완료! 시그널 ${d.signals_count||0}건 · 주문 ${d.orders_triggered||0}건 → 시그널탭 확인`, d.orders_triggered > 0 ? 'success' : 'info');
+            } else {
+              this.showToast('CIO 분석 완료 (결과 확인 필요)', 'info');
+            }
+            this.trading.tab = 'signals';
+            this.loadTradingSummary();
+            this._stopCioPolling();
+            this.trading.runningNow = false;
+          }
+          break;
+
         case 'telegram_message':
           // 텔레그램에서 온 CEO 메시지를 웹 채팅에 표시
           this.messages.push({ type: 'user', text: msg.data.text, source: 'telegram', timestamp: new Date().toISOString() });
@@ -1254,10 +1271,12 @@ function corthexApp() {
     },
 
     getAgentInitials(id) {
+      if (!id) return '??';
       return this.agentInitials[id] || id.substring(0, 2).toUpperCase();
     },
 
     getAgentAvatarClass(id) {
+      if (!id) return 'bg-hq-accent/20 text-hq-accent';
       const div = this.agentDivision[id];
       return this.agentColorMap[div] || 'bg-hq-accent/20 text-hq-accent';
     },
@@ -3421,57 +3440,55 @@ function corthexApp() {
       this._startCioPolling();
       this.showToast('CIO + 전문가 4명 즉시 분석 + 매매결정 중... (5~10분)', 'info');
       try {
-        const ctrl = new AbortController();
-        const timer = setTimeout(() => ctrl.abort(), 600000);
-        const resp = await fetch('/api/trading/bot/run-now', {method:'POST', signal: ctrl.signal});
-        clearTimeout(timer);
-        if (!resp.ok) {
-          const text = await resp.text();
-          const isProxy = text.includes('<!DOCTYPE') || text.includes('<html');
-          throw new Error(isProxy
-            ? `서버 프록시 타임아웃 (${resp.status}) — 분석은 서버에서 계속 진행 중입니다. 1~2분 후 새로고침하세요`
-            : `서버 오류 (${resp.status}): ${text.slice(0, 150)}`);
-        }
-        const contentType = resp.headers.get('content-type') || '';
-        if (!contentType.includes('application/json')) {
-          const text = await resp.text();
-          throw new Error(text.includes('<!DOCTYPE')
-            ? '서버 프록시 타임아웃 — 분석은 서버에서 계속 진행 중입니다. 1~2분 후 새로고침하세요'
-            : `예상치 못한 응답 형식: ${text.slice(0, 100)}`);
-        }
+        const resp = await fetch('/api/trading/bot/run-now', {method:'POST'});
+        if (!resp.ok) throw new Error(`서버 오류 (${resp.status})`);
         const res = await resp.json();
-        if (!res.success && res.message) {
-          this.showToast(res.message, 'error');
-        } else {
-          const sigs = res.signals || [];
-          const buy = sigs.filter(s => s.action === 'buy').length;
-          const sell = sigs.filter(s => s.action === 'sell').length;
-          const orders = res.orders_triggered || 0;
-          const cal = res.calibration;
-          if (cal) this.trading.calibration = cal;
-          let msg = `분석 완료! 매수 ${buy} · 매도 ${sell}`;
-          if (orders > 0) msg += ` · 주문 ${orders}건 실행됨!`;
-          else msg += ' · 매매 조건 미충족 (신뢰도 부족 또는 관망)';
-          this.showToast(msg + ' → 시그널탭 확인', orders > 0 ? 'success' : 'info');
+        if (res.already_running) {
+          this.showToast('CIO 분석이 이미 진행 중입니다', 'info');
+        } else if (res.background) {
+          this.showToast('CIO 분석 시작! 활동 로그에서 실시간 확인하세요', 'success');
+          // 백그라운드 완료 대기 (폴링)
+          this._tradingRunPoll = setInterval(async () => {
+            try {
+              const st = await fetch('/api/trading/bot/run-status').then(r => r.json());
+              if (st.status === 'completed') {
+                clearInterval(this._tradingRunPoll);
+                this._tradingRunPoll = null;
+                if (st.success) {
+                  const sigs = st.signals || [];
+                  const buy = sigs.filter(s => s.action === 'buy').length;
+                  const sell = sigs.filter(s => s.action === 'sell').length;
+                  const orders = st.orders_triggered || 0;
+                  if (st.calibration) this.trading.calibration = st.calibration;
+                  let msg = `분석 완료! 매수 ${buy} · 매도 ${sell}`;
+                  msg += orders > 0 ? ` · 주문 ${orders}건 실행됨!` : ' · 매매 조건 미충족';
+                  this.showToast(msg + ' → 시그널탭 확인', orders > 0 ? 'success' : 'info');
+                } else {
+                  this.showToast(st.message || '분석 실패', 'error');
+                }
+                this.trading.tab = 'signals';
+                // 최종 데이터 로드
+                try {
+                  const [dec, logs] = await Promise.all([
+                    fetch('/api/trading/decisions').then(r=>r.ok?r.json():{decisions:[]}).catch(()=>({decisions:[]})),
+                    fetch('/api/delegation-log?division=cio&limit=30').then(r=>r.ok?r.json():[]).catch(()=>[]),
+                  ]);
+                  this.trading.decisions = dec.decisions || [];
+                  this.trading.cioLogs = Array.isArray(logs) ? logs : [];
+                  await this.loadTradingSummary();
+                } catch {}
+                this._stopCioPolling();
+                this.trading.runningNow = false;
+              }
+            } catch {}
+          }, 5000); // 5초마다 폴링
+        } else if (!res.success) {
+          this.showToast(res.message || '분석 실패', 'error');
+          this._stopCioPolling();
+          this.trading.runningNow = false;
         }
-        this.trading.tab = 'signals';
       } catch (err) {
-        const isTimeout = err.name === 'AbortError';
-        this.showToast(
-          isTimeout ? '응답 대기 초과 — 서버에서 분석 진행 중. 잠시 후 새로고침하세요'
-                    : `분석 오류: ${err.message || '서버 연결 실패'}`,
-          'error'
-        );
-      } finally {
-        try {
-          const [dec, logs] = await Promise.all([
-            fetch('/api/trading/decisions').then(r=>r.ok?r.json():{decisions:[]}).catch(()=>({decisions:[]})),
-            fetch('/api/delegation-log?division=cio&limit=30').then(r=>r.ok?r.json():[]).catch(()=>[]),
-          ]);
-          this.trading.decisions = dec.decisions || [];
-          this.trading.cioLogs = Array.isArray(logs) ? logs : [];
-          await this.loadTradingSummary();
-        } catch {}
+        this.showToast(`분석 오류: ${err.message || '서버 연결 실패'}`, 'error');
         this._stopCioPolling();
         this.trading.runningNow = false;
       }
