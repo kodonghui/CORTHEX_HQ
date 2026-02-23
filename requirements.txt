@@ -17,7 +17,7 @@ python-multipart>=0.0.6  # FastAPI file uploads
 # LLM Providers (AI 모델 연동)
 # ───────────────────────────────────────────────────────────────
 anthropic>=0.39.0  # src/llm/anthropic_provider.py, web/ai_handler.py
-openai>=1.54.0  # src/llm/openai_provider.py, src/tools/audio_transcriber.py, src/tools/embedding_tool.py
+openai>=1.66.0  # src/llm/openai_provider.py, web/ai_handler.py (Responses API: gpt-5.2-pro)
 google-generativeai>=0.3.0  # src/tools/calendar_tool.py, web/ai_handler.py (Gemini)
 tiktoken>=0.5.0  # src/tools/token_counter.py (OpenAI 토큰 계산)
 
