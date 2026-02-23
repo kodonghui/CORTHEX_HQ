@@ -3913,9 +3913,27 @@ async def generate_trading_signals():
     except Exception as e:
         logger.debug("CIO 위임 로그 저장 실패: %s", e)
 
+    # CIO 독자 분석용 도구 로드
+    cio_detail = _AGENTS_DETAIL.get("cio_manager", {})
+    cio_allowed = cio_detail.get("allowed_tools", [])
+    cio_solo_tools = None
+    cio_solo_executor = None
+    cio_solo_tools_used: list[str] = []
+    if cio_allowed:
+        cio_schemas = _load_tool_schemas(allowed_tools=cio_allowed)
+        if cio_schemas.get("anthropic"):
+            cio_solo_tools = cio_schemas["anthropic"]
+            async def cio_solo_executor(tool_name: str, tool_input: dict):
+                cio_solo_tools_used.append(tool_name)
+                pool = _init_tool_pool()
+                if pool:
+                    return await pool.execute(tool_name, tool_input)
+                return {"error": f"도구 풀 미초기화: {tool_name}"}
+
     # CIO 독자 분석과 전문가 위임을 동시에 실행 (asyncio.gather)
     async def _cio_solo_analysis():
-        result = await ask_ai(cio_solo_prompt, system_prompt=cio_soul, model=cio_solo_model)
+        result = await ask_ai(cio_solo_prompt, system_prompt=cio_soul, model=cio_solo_model,
+                              tools=cio_solo_tools, tool_executor=cio_solo_executor)
         content = result.get("content", "") if isinstance(result, dict) else ""
         cost = result.get("cost_usd", 0) if isinstance(result, dict) else 0
         # 교신 로그 기록
