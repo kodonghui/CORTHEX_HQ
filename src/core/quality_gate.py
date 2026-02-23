@@ -312,7 +312,8 @@ class QualityGate:
 
         # 3. LLM 프롬프트 생성
         prompt = self._build_hybrid_prompt(
-            task_description, text[:3000], checklist_items, scoring_items
+            task_description, text[:3000], checklist_items, scoring_items,
+            division=division,
         )
 
         # 4. 매니저 자기 모델로 호출
@@ -363,6 +364,7 @@ class QualityGate:
         text: str,
         checklist_items: list[dict],
         scoring_items: list[dict],
+        division: str = "",
     ) -> str:
         """하이브리드 검수 프롬프트 생성."""
 
@@ -393,14 +395,18 @@ class QualityGate:
         sc_example = ", ".join(f'"{sid}": 3' for sid in sc_ids)
 
         # 도구 사용 데이터 신뢰 규칙 추가
+        # 투자 분석 부서(finance.investment)는 전문가가 도구(API)로 데이터를 가져오므로 무조건 적용
+        is_investment = division.startswith("finance") if division else False
         tool_trust_section = ""
-        if "사용한 도구" in text:
+        if is_investment or "사용한 도구" in text:
             tool_trust_section = (
-                "\n\n## ⚠️ 도구 데이터 신뢰 규칙\n"
-                "이 보고서는 도구(API)를 사용하여 실시간 데이터를 가져왔습니다.\n"
-                "- 도구로 가져온 수치(주가, 재무제표, 거시지표 등)는 정확한 것으로 간주하세요.\n"
-                "- '수치 확인 불가', '출처 불명' 등을 이유로 감점하지 마세요.\n"
-                "- 데이터 자체가 아닌, 데이터를 기반으로 한 분석 논리와 완결성을 평가하세요.\n"
+                "\n\n## ⚠️ 도구 데이터 신뢰 규칙 (필독!)\n"
+                "이 보고서의 전문가는 실시간 API 도구(DART/KRX/ECOS/증권사 등)를 사용하여 데이터를 가져옵니다.\n"
+                "- 도구로 가져온 수치(주가, 재무제표, 거시지표, 기술지표 등)는 **정확한 것으로 간주**하세요.\n"
+                "- '수치 확인 불가', '출처 불명', '할루시네이션' 등을 이유로 감점하지 마세요.\n"
+                "- C3(할루시네이션) 판정 시: 도구가 제공한 수치는 할루시네이션이 아닙니다. "
+                "존재하지 않는 기관/보고서를 인용하거나, 도구 없이 구체적 수치를 지어낸 경우에만 불통과로 판정하세요.\n"
+                "- 데이터 자체가 아닌, 데이터를 기반으로 한 **분석 논리와 완결성**을 평가하세요.\n"
             )
 
         return (
