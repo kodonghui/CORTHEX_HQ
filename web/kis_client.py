@@ -290,7 +290,7 @@ async def place_order(
                     "ORD_QTY": str(qty),
                     "ORD_UNPR": str(price),
                     "SLL_TYPE": "01" if action == "sell" else "",  # 매도시: 01(일반), 매수시: 공란
-                    "EXCG_ID_DVSN_CD": "",  # 공란(기본값)
+                    "EXCG_ID_DVSN_CD": "01",  # 01=한국거래소(KRX) — 국내주식 필수
                     "CNDT_PRIC": "",        # 조건부가격(공란=미사용)
                 },
             )
