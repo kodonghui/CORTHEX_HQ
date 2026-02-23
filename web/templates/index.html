@@ -148,6 +148,18 @@
                 <span class="text-xs text-hq-muted">텔레그램</span>
                 <span class="text-xs" x-text="healthData.telegram ? '연결됨' : '미연결'"></span>
               </div>
+              <!-- 분석 상태 + 중지 버튼 -->
+              <div class="flex items-center justify-between">
+                <span class="text-xs text-hq-muted">분석 상태</span>
+                <template x-if="trading.runningNow || trading.analyzingSelected">
+                  <button @click="stopAnalysis()" class="text-[10px] px-2 py-0.5 bg-red-600 hover:bg-red-700 text-white rounded-full font-bold transition-colors">
+                    🛑 중지
+                  </button>
+                </template>
+                <template x-if="!trading.runningNow && !trading.analyzingSelected">
+                  <span class="text-[10px] text-hq-muted">대기 중</span>
+                </template>
+              </div>
               <div class="flex items-center justify-between" x-show="healthData.model_router !== undefined">
                 <span class="text-xs text-hq-muted">모델 라우터 (경로 배정)</span>
                 <span class="text-xs" x-text="healthData.model_router ? '✅' : '❌'"></span>

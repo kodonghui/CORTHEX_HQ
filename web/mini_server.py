@@ -4382,6 +4382,18 @@ async def get_trading_run_status():
         return {"status": "idle", "message": "실행 대기 중"}
 
 
+@app.post("/api/trading/bot/stop")
+async def stop_trading_now():
+    """진행 중인 CIO 분석을 즉시 중지합니다."""
+    task = app_state.bg_tasks.get("trading_run_now")
+    if task and not task.done():
+        task.cancel()
+        save_activity_log("cio_manager", "🛑 CEO가 수동으로 분석을 중지했습니다.", "info")
+        await wm.broadcast({"type": "trading_run_complete", "success": False, "stopped": True, "signals_count": 0, "orders_triggered": 0})
+        return {"success": True, "message": "분석이 중지되었습니다."}
+    return {"success": False, "message": "진행 중인 분석이 없습니다."}
+
+
 async def _run_trading_now_inner(selected_tickers: list[str] | None = None):
     """run_trading_now의 실제 로직 (에러 핸들링은 호출자가 담당).
 
