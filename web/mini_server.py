@@ -6740,9 +6740,19 @@ async def _quality_review_specialists(chain: dict) -> list[dict]:
             })
             continue
 
+        # QA에 도구 사용 기록 포함 — D1 판정을 위해 필수
+        _qa_content = content
+        _spec_tools = result_data.get("tools_used", [])
+        if _spec_tools:
+            _unique_tools = list(dict.fromkeys(_spec_tools))
+            _qa_content += (
+                f"\n\n---\n## 사용한 도구 ({len(_spec_tools)}건, 고유 {len(_unique_tools)}개)\n"
+                + ", ".join(_unique_tools)
+            )
+
         try:
             review = await app_state.quality_gate.hybrid_review(
-                result_data=content,
+                result_data=_qa_content,
                 task_description=task_desc,
                 model_router=_qa_router,
                 reviewer_id=target_id,
