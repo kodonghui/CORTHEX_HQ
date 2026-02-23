@@ -138,20 +138,13 @@ class ConnectionManager:
         })
 
     async def send_delegation_log(self, log_data: dict) -> None:
-        """위임 로그 브로드캐스트 (WebSocket + SSE)."""
+        """위임 로그 브로드캐스트 (WebSocket만).
+
+        SSE 이중전송 제거 — WS가 이미 실시간 전달하므로
+        SSE까지 보내면 프론트엔드에서 같은 메시지가 2번 표시됨.
+        SSE는 `/api/comms/stream` 초기 연결 시 DB에서 읽어오는 용도로만 사용.
+        """
         await self.broadcast("delegation_log_update", log_data)
-        # SSE에도 전송
-        await self.broadcast_sse({
-            "id": f"dl_{log_data.get('id', '')}",
-            "sender": log_data.get("sender", ""),
-            "receiver": log_data.get("receiver", ""),
-            "title": log_data.get("title", ""),
-            "message": log_data.get("message", ""),
-            "log_type": log_data.get("log_type", "delegation"),
-            "tools_used": log_data.get("tools_used", []),
-            "source": "delegation",
-            "created_at": log_data.get("created_at", datetime.now(_KST).isoformat()),
-        })
 
 
 # ── 싱글턴 인스턴스 ──

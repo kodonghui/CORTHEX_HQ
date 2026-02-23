@@ -642,8 +642,13 @@ function corthexApp() {
             this.qaLogs.push(msg.data);
             if (this.qaLogs.length > 50) this.qaLogs = this.qaLogs.slice(-50);
           } else {
-            this.activityLogs.push(msg.data);
-            if (this.activityLogs.length > 50) this.activityLogs = this.activityLogs.slice(-50);
+            // 중복 방지: timestamp + agent_id 기반 dedup
+            const _alTs = msg.data.timestamp || 0;
+            const _alAid = msg.data.agent_id || '';
+            if (!this.activityLogs.find(l => l.timestamp === _alTs && l.agent_id === _alAid)) {
+              this.activityLogs.push(msg.data);
+              if (this.activityLogs.length > 50) this.activityLogs = this.activityLogs.slice(-50);
+            }
           }
           this.saveActivityLogs();
           // 전략실 활동로그에도 CIO 관련이면 실시간 추가
