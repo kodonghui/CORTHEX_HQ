@@ -1,6 +1,4 @@
-@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css');
-@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;500;600;700&display=swap');
+/* 폰트는 index.html에서 preload로 비동기 로드 (CSS @import 순차 블로킹 제거) */
 
 /* ═══ 사이버 사령부 팔레트 (Cyber Command Center — 네온 다크) ═══ */
 :root, .dark {
@@ -40,7 +38,7 @@ html:not(.dark) {
 * { box-sizing: border-box; }
 body { font-family: 'Pretendard Variable', 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif; }
 /* 포인트 명조체 — 제목/워크플로우 이름 등에 사용 */
-.font-title { font-family: 'Noto Serif KR', 'Pretendard Variable', serif; }
+.font-title { font-family: 'Pretendard Variable', 'Pretendard', sans-serif; font-weight: 700; letter-spacing: -0.01em; }
 
 /* ═══ 사이버 사령부 배경 (딥 다크 + 네온 글로우) ═══ */
 .dark body {
