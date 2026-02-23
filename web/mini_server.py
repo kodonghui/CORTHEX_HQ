@@ -371,8 +371,8 @@ def _save_config_file(name: str, data: dict) -> None:
 
 
 def _sync_agent_defaults_to_db():
-    """agents.yaml의 model_name, reasoning_effort를 agent_overrides DB에 항상 동기화.
-    yaml 값이 DB와 다르면 yaml 값(=권장모델)으로 덮어씀."""
+    """agents.yaml의 신규 에이전트만 agent_overrides DB에 추가.
+    이미 DB에 존재하는 에이전트는 건드리지 않음 (사용자가 수동 변경한 모델 유지)."""
     try:
         agents_config = _load_config("agents")
         if not agents_config:
@@ -390,9 +390,8 @@ def _sync_agent_defaults_to_db():
             reasoning = agent_data.get("reasoning_effort") or agent_data.get("reasoning")
             if not model_name:
                 continue
-            # DB에 없거나 yaml과 다르면 yaml 값으로 덮어씀
-            existing = overrides.get(agent_id, {})
-            if existing.get("model_name") != model_name or existing.get("reasoning_effort") != reasoning:
+            # DB에 없는 신규 에이전트만 yaml 기본값 적용 (기존 값은 보존)
+            if agent_id not in overrides:
                 overrides[agent_id] = {"model_name": model_name}
                 if reasoning:
                     overrides[agent_id]["reasoning_effort"] = reasoning
@@ -400,7 +399,7 @@ def _sync_agent_defaults_to_db():
 
         if changed:
             _save_data("agent_overrides", overrides)
-            logger.info("agent_overrides DB 동기화: agents.yaml 권장모델 적용 완료")
+            logger.info("agent_overrides DB 동기화: 신규 에이전트 %d건 추가", changed)
     except Exception as e:
         logger.warning("agent_overrides 동기화 실패: %s", e)
 
