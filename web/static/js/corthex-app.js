@@ -241,6 +241,8 @@ function corthexApp() {
       expandedDecision: null,
       cioLogs: [],
       showCioLogs: true,
+      // 활동로그 전용 탭
+      activityLog: { logs: [], loading: false, filter: 'all', autoScroll: true },
       // 주문 폼
       orderForm: { action: 'buy', ticker: '', name: '', qty: 0, price: 0, market: 'KR' },
       // 전략 추가 폼
@@ -631,6 +633,31 @@ function corthexApp() {
               });
               if (this.delegationLogs.length > 100) {
                 this.delegationLogs = this.delegationLogs.slice(0, 100);
+              }
+            }
+            // 전략실 활동로그에도 CIO 관련이면 실시간 추가
+            const cioKw = ['CIO', '투자분석', 'stock_analysis', 'market_condition', 'technical_analysis', 'risk_management'];
+            const dlSR = (msg.data.sender || '') + (msg.data.receiver || '');
+            if (cioKw.some(k => dlSR.includes(k))) {
+              const dlId = 'dl_' + (msg.data.id || '');
+              if (!this.trading.activityLog.logs.find(l => l.id === dlId)) {
+                const rawTools = msg.data.tools_used || '';
+                const tList = typeof rawTools === 'string'
+                  ? rawTools.split(',').map(t => t.trim()).filter(Boolean)
+                  : (Array.isArray(rawTools) ? rawTools : []);
+                this.trading.activityLog.logs.unshift({
+                  id: dlId,
+                  type: msg.data.log_type || 'delegation',
+                  sender: msg.data.sender || '',
+                  receiver: msg.data.receiver || '',
+                  message: msg.data.message || '',
+                  tools: tList,
+                  time: msg.data.created_at ? new Date(msg.data.created_at * 1000).toISOString() : new Date().toISOString(),
+                  _ts: (msg.data.created_at || 0) * 1000 || Date.now(),
+                });
+                if (this.trading.activityLog.logs.length > 100) {
+                  this.trading.activityLog.logs = this.trading.activityLog.logs.slice(0, 100);
+                }
               }
             }
           }
@@ -3408,6 +3435,25 @@ function corthexApp() {
             this.trading.cioLogs.unshift(msg);
             if (this.trading.cioLogs.length > 50) this.trading.cioLogs = this.trading.cioLogs.slice(0, 50);
             setTimeout(() => { msg._fresh = false; }, 2000);
+            // 활동로그 탭에도 실시간 추가
+            const toolsRaw = msg.tools_used || '';
+            const toolsList = typeof toolsRaw === 'string'
+              ? toolsRaw.split(',').map(t => t.trim()).filter(Boolean)
+              : (Array.isArray(toolsRaw) ? toolsRaw : []);
+            const alEntry = {
+              id: 'dl_' + msg.id,
+              type: msg.log_type || 'delegation',
+              sender: msg.sender || '',
+              receiver: msg.receiver || '',
+              message: msg.message || '',
+              tools: toolsList,
+              time: msg.created_at ? new Date(msg.created_at * 1000).toISOString() : new Date().toISOString(),
+              _ts: (msg.created_at || 0) * 1000 || Date.now(),
+            };
+            if (!this.trading.activityLog.logs.find(l => l.id === alEntry.id)) {
+              this.trading.activityLog.logs.unshift(alEntry);
+              if (this.trading.activityLog.logs.length > 100) this.trading.activityLog.logs = this.trading.activityLog.logs.slice(0, 100);
+            }
           } catch {}
         });
       } catch {}
@@ -3432,10 +3478,100 @@ function corthexApp() {
       if (this._cioPollingInterval) { clearInterval(this._cioPollingInterval); this._cioPollingInterval = null; }
     },
 
+    // ── 활동로그 전용 탭 ──
+    async loadCioActivityLog() {
+      const al = this.trading.activityLog;
+      al.loading = true;
+      try {
+        const [delegLogs, actLogs] = await Promise.all([
+          fetch('/api/delegation-log?division=cio&limit=50').then(r => r.ok ? r.json() : []).catch(() => []),
+          fetch('/api/activity-logs?limit=100').then(r => r.ok ? r.json() : []).catch(() => []),
+        ]);
+        // CIO 관련 activity_logs 필터링
+        const cioKeywords = ['cio', 'stock_analysis', 'market_condition', 'technical_analysis', 'risk_management'];
+        const cioActs = (Array.isArray(actLogs) ? actLogs : []).filter(l => {
+          const aid = (l.agent_id || '').toLowerCase();
+          return cioKeywords.some(k => aid.includes(k));
+        });
+        // 통합: delegation_log + activity_logs → 타임라인
+        const merged = [];
+        for (const d of (Array.isArray(delegLogs) ? delegLogs : [])) {
+          const toolsRaw = d.tools_used || '';
+          const toolsList = typeof toolsRaw === 'string'
+            ? toolsRaw.split(',').map(t => t.trim()).filter(Boolean)
+            : (Array.isArray(toolsRaw) ? toolsRaw : []);
+          merged.push({
+            id: 'dl_' + d.id,
+            type: d.log_type || 'delegation',
+            sender: d.sender || '',
+            receiver: d.receiver || '',
+            message: d.message || '',
+            tools: toolsList,
+            time: d.created_at || '',
+            _ts: new Date(d.created_at || 0).getTime(),
+          });
+        }
+        for (const a of cioActs) {
+          merged.push({
+            id: 'al_' + (a.timestamp || Math.random()),
+            type: 'activity',
+            sender: a.agent_id || '',
+            receiver: '',
+            message: a.message || '',
+            tools: [],
+            level: a.level || 'info',
+            time: a.created_at || a.time || '',
+            _ts: a.timestamp || 0,
+          });
+        }
+        // 시간순 정렬 (최신 먼저)
+        merged.sort((a, b) => b._ts - a._ts);
+        al.logs = merged.slice(0, 100);
+      } catch (e) {
+        console.warn('활동로그 로드 실패:', e);
+      }
+      al.loading = false;
+    },
+
+    getCioLogIcon(log) {
+      if (log.type === 'delegation') return '📡';
+      if (log.type === 'report') return '📊';
+      if (log.type === 'activity') {
+        if (log.level === 'error') return '🔴';
+        if (log.level === 'warning') return '⚠️';
+        return '📋';
+      }
+      return '💬';
+    },
+
+    getCioLogColor(log) {
+      if (log.type === 'delegation') return 'text-hq-yellow';
+      if (log.type === 'report') return 'text-hq-green';
+      if (log.type === 'activity') return 'text-hq-accent';
+      return 'text-hq-muted';
+    },
+
+    getFilteredCioLogs() {
+      const f = this.trading.activityLog.filter;
+      if (f === 'all') return this.trading.activityLog.logs;
+      if (f === 'tools') return this.trading.activityLog.logs.filter(l => l.tools.length > 0);
+      return this.trading.activityLog.logs.filter(l => l.type === f);
+    },
+
+    formatLogTime(timeStr) {
+      if (!timeStr) return '';
+      try {
+        const d = new Date(timeStr);
+        if (isNaN(d.getTime())) return timeStr;
+        return d.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      } catch { return timeStr; }
+    },
+
     async runTradingNow() {
       if (this.trading.runningNow) return;
       this.trading.runningNow = true;
       this.trading.cioLogs = [];
+      this.trading.activityLog.logs = [];
       this._connectCioSSE();
       this._startCioPolling();
       this.showToast('CIO + 전문가 4명 즉시 분석 + 매매결정 중... (5~10분)', 'info');

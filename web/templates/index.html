@@ -3603,7 +3603,7 @@
 
           <!-- 서브 탭 -->
           <div class="flex gap-2 mb-4 md:mb-6 overflow-x-auto scrollbar-thin pb-1 -mx-1 px-1">
-            <template x-for="tab in [{id:'dashboard',l:'대시보드'},{id:'shadow',l:'실거래/모의 비교'},{id:'portfolio',l:'포트폴리오'},{id:'watchlist',l:'관심종목'},{id:'history',l:'거래내역'},{id:'strategies',l:'매매전략'},{id:'signals',l:'시그널'},{id:'performance',l:'CIO 성과'}]" :key="tab.id">
+            <template x-for="tab in [{id:'dashboard',l:'대시보드'},{id:'actlog',l:'활동로그'},{id:'shadow',l:'실거래/모의 비교'},{id:'portfolio',l:'포트폴리오'},{id:'watchlist',l:'관심종목'},{id:'history',l:'거래내역'},{id:'strategies',l:'매매전략'},{id:'signals',l:'시그널'},{id:'performance',l:'CIO 성과'}]" :key="tab.id">
               <button @click="trading.tab = tab.id" :class="trading.tab === tab.id ? 'bg-hq-accent/20 text-hq-accent border-hq-accent/30' : 'text-hq-muted border-transparent hover:text-hq-text'" class="px-3 py-1.5 text-xs font-semibold rounded-lg border transition whitespace-nowrap shrink-0" x-text="tab.l"></button>
             </template>
           </div>
@@ -3965,6 +3965,125 @@
             </div>
             <!-- /MISSION CONTROL BOARD -->
 
+          </div>
+
+          <!-- ▸ 서브탭: 활동로그 (CIO팀 전용) -->
+          <div x-show="trading.tab === 'actlog' && !trading.loading">
+            <div x-effect="if(trading.tab === 'actlog') loadCioActivityLog()"></div>
+
+            <!-- 헤더 -->
+            <div class="flex items-center justify-between mb-4">
+              <div>
+                <h3 class="text-sm font-bold text-hq-text flex items-center gap-2">
+                  <span class="w-2 h-2 rounded-full" :class="trading.runningNow ? 'bg-hq-yellow animate-pulse' : 'bg-hq-accent'"></span>
+                  CIO팀 활동로그
+                </h3>
+                <p class="text-[10px] text-hq-muted mt-0.5">투자분석처장 + 전문가 4명의 위임·분석·도구사용 기록</p>
+              </div>
+              <div class="flex items-center gap-2">
+                <span x-show="trading.runningNow" class="text-[10px] text-hq-yellow animate-pulse font-semibold">● LIVE</span>
+                <button @click="loadCioActivityLog()" class="bg-hq-surface border border-hq-border hover:border-hq-accent/30 rounded-lg px-3 py-1.5 text-xs text-hq-muted transition">새로고침</button>
+              </div>
+            </div>
+
+            <!-- 필터 바 -->
+            <div class="flex gap-1.5 mb-3 overflow-x-auto pb-1">
+              <template x-for="f in [{id:'all',l:'전체'},{id:'delegation',l:'위임'},{id:'report',l:'보고'},{id:'activity',l:'상태변화'},{id:'tools',l:'🔧 도구사용'}]" :key="f.id">
+                <button @click="trading.activityLog.filter = f.id"
+                        :class="trading.activityLog.filter === f.id ? 'bg-hq-accent/20 text-hq-accent border-hq-accent/30' : 'bg-hq-surface text-hq-muted border-hq-border hover:text-hq-text'"
+                        class="px-2.5 py-1 text-[10px] font-semibold rounded-lg border transition whitespace-nowrap" x-text="f.l"></button>
+              </template>
+            </div>
+
+            <!-- 로딩 -->
+            <div x-show="trading.activityLog.loading" class="flex items-center justify-center py-12">
+              <div class="w-5 h-5 border-2 border-hq-accent border-t-transparent rounded-full animate-spin mr-2"></div>
+              <span class="text-xs text-hq-muted">로그 조회 중...</span>
+            </div>
+
+            <!-- 빈 상태 -->
+            <template x-if="!trading.activityLog.loading && getFilteredCioLogs().length === 0">
+              <div class="glass border border-hq-border rounded-xl p-8 text-center">
+                <p class="text-hq-muted/50 text-xs">아직 CIO팀 활동 기록이 없습니다</p>
+                <p class="text-hq-muted/30 text-[10px] mt-1">"즉시 분석" 실행 시 실시간으로 기록됩니다</p>
+              </div>
+            </template>
+
+            <!-- 로그 타임라인 -->
+            <div x-show="!trading.activityLog.loading && getFilteredCioLogs().length > 0" class="space-y-1">
+              <template x-for="log in getFilteredCioLogs()" :key="log.id">
+                <div class="glass border border-hq-border/50 rounded-lg px-3 py-2.5 hover:border-hq-accent/20 transition group">
+                  <div class="flex items-start gap-2">
+                    <!-- 아이콘 -->
+                    <span class="text-xs mt-0.5 shrink-0" x-text="getCioLogIcon(log)"></span>
+
+                    <!-- 본문 -->
+                    <div class="flex-1 min-w-0">
+                      <!-- 발신/수신 -->
+                      <div class="flex items-center gap-1.5 mb-0.5">
+                        <span class="text-[11px] font-bold shrink-0" :class="getCioLogColor(log)"
+                              x-text="(getAgentName(log.sender)||log.sender||'').replace('투자분석처장','CIO').replace(' Specialist','').replace('시황분석 전문가','시황분석').replace('종목분석 전문가','종목분석').replace('기술적분석 전문가','기술분석').replace('리스크관리 전문가','리스크')"></span>
+                        <template x-if="log.receiver">
+                          <span class="flex items-center gap-1">
+                            <span class="text-[10px] text-hq-muted/40" x-text="log.type === 'report' ? '→' : '⇢'"></span>
+                            <span class="text-[10px] text-hq-muted/60 shrink-0"
+                                  x-text="(getAgentName(log.receiver)||log.receiver||'').replace('투자분석처장','CIO').replace(' Specialist','').replace('시황분석 전문가','시황분석').replace('종목분석 전문가','종목분석').replace('기술적분석 전문가','기술분석').replace('리스크관리 전문가','리스크')"></span>
+                          </span>
+                        </template>
+                        <span class="text-[9px] text-hq-muted/30 ml-auto shrink-0" x-text="formatLogTime(log.time)"></span>
+                      </div>
+
+                      <!-- 메시지 (2줄까지) -->
+                      <p class="text-[10px] text-hq-muted leading-relaxed line-clamp-2 group-hover:line-clamp-none transition-all"
+                         x-text="stripMarkdownPreview(log.message)"></p>
+
+                      <!-- 도구 사용 태그 -->
+                      <template x-if="log.tools && log.tools.length > 0">
+                        <div class="flex flex-wrap gap-1 mt-1.5">
+                          <template x-for="tool in log.tools" :key="tool">
+                            <span class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-hq-accent/10 border border-hq-accent/20 text-[9px] text-hq-accent font-mono">
+                              <span>🔧</span>
+                              <span x-text="tool"></span>
+                            </span>
+                          </template>
+                        </div>
+                      </template>
+                    </div>
+
+                    <!-- 타입 뱃지 -->
+                    <span class="text-[8px] px-1.5 py-0.5 rounded-full shrink-0 mt-0.5"
+                          :class="{
+                            'bg-hq-yellow/10 text-hq-yellow': log.type === 'delegation',
+                            'bg-hq-green/10 text-hq-green': log.type === 'report',
+                            'bg-hq-accent/10 text-hq-accent': log.type === 'activity',
+                          }"
+                          x-text="log.type === 'delegation' ? '위임' : log.type === 'report' ? '보고' : '활동'"></span>
+                  </div>
+                </div>
+              </template>
+            </div>
+
+            <!-- 통계 요약 -->
+            <div x-show="!trading.activityLog.loading && trading.activityLog.logs.length > 0" class="mt-4 glass border border-hq-border rounded-xl p-3">
+              <div class="grid grid-cols-4 gap-3 text-center">
+                <div>
+                  <p class="text-lg font-bold text-hq-text" x-text="trading.activityLog.logs.length"></p>
+                  <p class="text-[9px] text-hq-muted">전체 로그</p>
+                </div>
+                <div>
+                  <p class="text-lg font-bold text-hq-yellow" x-text="trading.activityLog.logs.filter(l => l.type === 'delegation').length"></p>
+                  <p class="text-[9px] text-hq-muted">위임</p>
+                </div>
+                <div>
+                  <p class="text-lg font-bold text-hq-green" x-text="trading.activityLog.logs.filter(l => l.type === 'report').length"></p>
+                  <p class="text-[9px] text-hq-muted">보고</p>
+                </div>
+                <div>
+                  <p class="text-lg font-bold text-hq-accent" x-text="trading.activityLog.logs.filter(l => l.tools.length > 0).length"></p>
+                  <p class="text-[9px] text-hq-muted">도구사용</p>
+                </div>
+              </div>
+            </div>
           </div>
 
           <!-- ▸ 서브탭 2: 포트폴리오 (C안 — 한국장+미국장 분리) -->
