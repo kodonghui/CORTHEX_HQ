@@ -83,10 +83,12 @@ GET https://corthex-hq.com/api/debug/server-logs?lines=50&service=nginx-access �
 ## 파일 수정 안전 규칙
 - `web/templates/index.html`은 **Write 전체 덮어쓰기 절대 금지** → Edit 부분 수정만
 
-## 외부 API 코딩 시
-- KIS, OpenAI, Google 등 외부 API 코드 → **반드시 WebSearch로 최신 공식 문서 먼저 확인**
-- 기억에 의존해서 TR_ID, 엔드포인트, 파라미터명 쓰면 안 됨
+## 🔴🔴🔴 외부 API 코딩 시 — 반드시 최신 문서 검색 후 코딩! 🔴🔴🔴
+- **모든 외부 API(KIS, OpenAI, Anthropic, Google 등) 코드 작성/수정 시 → 반드시 WebSearch로 최신 공식 문서 먼저 확인**
+- **기억에 의존 금지!** API는 수시로 바뀜. 파라미터명, 필수 필드, 응답 형식이 버전마다 다름
+- 예: Claude extended thinking → `signature` 필드 필수 (4.x), `betas` 파라미터 폐지 (4.x)
 - KIS 참고: [KIS Developers](https://apiportal.koreainvestment.com), [공식 GitHub](https://github.com/koreainvestment/open-trading-api)
+- Anthropic 참고: [Extended Thinking 문서](https://docs.claude.com/en/docs/build-with-claude/extended-thinking)
 
 ## 🔴🔴🔴 GitHub Secrets — 대표님이 이미 전부 등록함! 절대 다시 물어보지 말 것! 🔴🔴🔴
 - **50+ 시크릿 전부 등록 완료**. "API 키 알려주세요" 금지. "키가 없어요" 금지.
