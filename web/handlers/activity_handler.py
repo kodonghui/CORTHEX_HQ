@@ -64,7 +64,7 @@ async def get_delegation_log(agent: str = None, division: str = None, limit: int
                     params.extend([f"%{k}%", f"%{k}%"])
                 params.append(limit)
                 rows = conn.execute(
-                    f"SELECT id, sender, receiver, message, task_id, log_type, created_at "
+                    f"SELECT id, sender, receiver, message, task_id, log_type, tools_used, created_at "
                     f"FROM delegation_log WHERE ({placeholders}) "
                     f"ORDER BY created_at DESC LIMIT ?",
                     params,
