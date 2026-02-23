@@ -2881,16 +2881,26 @@
             <div class="flex items-center gap-3 md:gap-4">
               <h2 class="text-base md:text-lg font-bold text-hq-text font-mono tracking-normal">COMMS LOG</h2>
               <!-- 서브탭 전환 -->
-              <div class="flex bg-hq-surface border border-hq-border rounded-lg overflow-hidden">
+              <div class="flex bg-hq-surface border border-hq-border rounded-lg overflow-hidden flex-wrap">
                 <button @click="commsLogSubTab = 'activity'"
                         :class="commsLogSubTab === 'activity' ? 'bg-hq-accent/20 text-hq-accent font-bold' : 'text-hq-muted hover:text-hq-text'"
                         class="px-3 py-1.5 text-[11px] font-semibold transition">
-                  활동 로그 <span class="font-mono ml-1" x-text="activityLogs.length"></span>
+                  📋 활동 <span class="font-mono ml-1" x-text="activityLogs.length"></span>
                 </button>
                 <button @click="commsLogSubTab = 'comms'"
                         :class="commsLogSubTab === 'comms' ? 'bg-hq-cyan/20 text-hq-cyan font-bold' : 'text-hq-muted hover:text-hq-text'"
                         class="px-3 py-1.5 text-[11px] font-semibold transition border-l border-hq-border">
-                  교신 로그 <span class="font-mono ml-1" x-text="delegationLogs.length"></span>
+                  💬 교신 <span class="font-mono ml-1" x-text="delegationLogs.length"></span>
+                </button>
+                <button @click="commsLogSubTab = 'qa'"
+                        :class="commsLogSubTab === 'qa' ? 'bg-hq-green/20 text-hq-green font-bold' : 'text-hq-muted hover:text-hq-text'"
+                        class="px-3 py-1.5 text-[11px] font-semibold transition border-l border-hq-border">
+                  ✅ 검수 <span class="font-mono ml-1" x-text="qaLogs.length"></span>
+                </button>
+                <button @click="commsLogSubTab = 'tools'"
+                        :class="commsLogSubTab === 'tools' ? 'bg-hq-orange/20 text-hq-orange font-bold' : 'text-hq-muted hover:text-hq-text'"
+                        class="px-3 py-1.5 text-[11px] font-semibold transition border-l border-hq-border">
+                  🔧 도구 <span class="font-mono ml-1" x-text="toolLogs.length"></span>
                 </button>
               </div>
             </div>
@@ -3009,6 +3019,51 @@
             </template>
             <template x-if="delegationLogLoading">
               <div class="text-center text-hq-muted/60 py-8 text-xs animate-pulse">교신 로그 불러오는 중...</div>
+            </template>
+          </div>
+
+          <!-- ── 검수 로그 서브탭 ── -->
+          <div x-show="commsLogSubTab === 'qa'" class="space-y-1">
+            <template x-for="(log, i) in qaLogs.slice().reverse()" :key="i">
+              <div class="flex items-center gap-3 bg-hq-surface border rounded-lg px-4 py-2.5 hover:bg-hq-surface/80 transition"
+                   :class="log.level === 'qa_pass' ? 'border-hq-green/30' : 'border-hq-red/30'">
+                <div class="shrink-0 text-right" style="min-width:72px;">
+                  <div class="text-[10px] font-mono text-hq-muted/60 leading-tight" x-text="log.timeDate || log.time?.split(' ')[0] || ''"></div>
+                  <div class="text-[13px] font-mono font-semibold text-hq-muted leading-tight" x-text="log.timeClock || log.time?.split(' ')[1] || log.time || ''"></div>
+                </div>
+                <span class="w-7 h-7 rounded-md flex items-center justify-center text-[11px] font-bold shrink-0"
+                      :class="log.level === 'qa_pass' ? 'bg-hq-green/20 text-hq-green' : 'bg-hq-red/20 text-hq-red'"
+                      x-text="log.level === 'qa_pass' ? '✅' : '❌'"></span>
+                <span class="text-xs font-medium shrink-0 w-24 truncate" :class="getAgentColor(log.agent_id) || 'text-hq-cyan/80'" x-text="getAgentName(log.agent_id)"></span>
+                <span class="text-xs text-hq-text/90 flex-1" x-text="log.action"></span>
+              </div>
+            </template>
+            <template x-if="qaLogs.length === 0">
+              <div class="text-center text-hq-muted/80 py-12">
+                <div class="text-sm mb-1">아직 검수 로그가 없습니다</div>
+                <div class="text-[11px] text-hq-muted/50">에이전트 작업 시 품질검수 결과가 실시간으로 표시됩니다</div>
+              </div>
+            </template>
+          </div>
+
+          <!-- ── 도구 로그 서브탭 ── -->
+          <div x-show="commsLogSubTab === 'tools'" class="space-y-1">
+            <template x-for="(log, i) in toolLogs.slice().reverse()" :key="i">
+              <div class="flex items-center gap-3 bg-hq-surface border border-hq-border/30 rounded-lg px-4 py-2.5 hover:bg-hq-surface/80 transition">
+                <div class="shrink-0 text-right" style="min-width:72px;">
+                  <div class="text-[10px] font-mono text-hq-muted/60 leading-tight" x-text="log.timeDate || log.time?.split(' ')[0] || ''"></div>
+                  <div class="text-[13px] font-mono font-semibold text-hq-muted leading-tight" x-text="log.timeClock || log.time?.split(' ')[1] || log.time || ''"></div>
+                </div>
+                <span class="w-7 h-7 rounded-md flex items-center justify-center text-[11px] font-bold shrink-0 bg-hq-orange/20 text-hq-orange">🔧</span>
+                <span class="text-xs font-medium shrink-0 w-24 truncate" :class="getAgentColor(log.agent_id) || 'text-hq-cyan/80'" x-text="getAgentName(log.agent_id)"></span>
+                <span class="text-xs text-hq-text/90 flex-1" x-text="log.action"></span>
+              </div>
+            </template>
+            <template x-if="toolLogs.length === 0">
+              <div class="text-center text-hq-muted/80 py-12">
+                <div class="text-sm mb-1">아직 도구 사용 로그가 없습니다</div>
+                <div class="text-[11px] text-hq-muted/50">에이전트가 API를 호출하면 실시간으로 표시됩니다</div>
+              </div>
             </template>
           </div>
         </div>
