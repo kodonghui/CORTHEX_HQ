@@ -42,6 +42,7 @@ function corthexApp() {
       { id: 'knowledge', label: '정보국', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>' },
       { id: 'archive', label: '기밀문서', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8"/></svg>' },
       { id: 'sns', label: '통신국', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z"/></svg>' },
+      { id: 'archmap', label: '조직도', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>' },
       { id: 'trading', label: '전략실', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>' },
     ],
 
@@ -59,6 +60,14 @@ function corthexApp() {
 
     // ── Performance (성능) ──
     performance: { agents: [], totalCalls: 0, totalCost: 0, totalTasks: 0, avgSuccessRate: 0, maxCost: 0, loaded: false },
+
+    // ── Architecture Map (아키텍처 맵) ──
+    archMap: {
+      hierarchy: null, costByAgent: [], costByDivision: [], costSummary: null,
+      costPeriod: 'month', loaded: false, mermaidRendered: false, subTab: 'orgchart',
+    },
+    _divDonutChart: null,
+    _agentBarChart: null,
 
     // ── Error Alert ──
     errorAlert: { visible: false, message: '', severity: 'error' },
@@ -1647,6 +1656,7 @@ function corthexApp() {
       if (tabId === 'workflow') this.loadWorkflows();
       if (tabId === 'knowledge') this.loadKnowledge();
       if (tabId === 'archive') this.loadArchive();
+      if (tabId === 'archmap' && !this.archMap.loaded) this.loadArchMap();
       if (tabId === 'sns') this.loadSNS();
       if (tabId === 'trading') {
         this.loadTradingSummary();
@@ -1788,6 +1798,154 @@ function corthexApp() {
           loaded: true,
         };
       } catch (e) { console.error('Performance load failed:', e); }
+    },
+
+    // ── Architecture Map (아키텍처 맵) ──
+
+    async loadArchMap() {
+      try {
+        const [hierarchy, costSummary] = await Promise.all([
+          fetch('/api/architecture/hierarchy').then(r => r.json()),
+          fetch('/api/architecture/cost-summary').then(r => r.json()),
+        ]);
+        this.archMap.hierarchy = hierarchy;
+        this.archMap.costSummary = costSummary;
+        this.archMap.loaded = true;
+        this.loadArchMapCosts();
+        this.$nextTick(() => this.renderMermaidOrgChart());
+      } catch (e) { console.error('Architecture map load failed:', e); }
+    },
+
+    async loadArchMapCosts() {
+      try {
+        const [byAgent, byDivision] = await Promise.all([
+          fetch('/api/architecture/cost-by-agent?period=' + this.archMap.costPeriod).then(r => r.json()),
+          fetch('/api/architecture/cost-by-division?period=' + this.archMap.costPeriod).then(r => r.json()),
+        ]);
+        this.archMap.costByAgent = byAgent.agents || [];
+        this.archMap.costByDivision = byDivision.divisions || [];
+        this.$nextTick(() => this.renderCostCharts());
+      } catch (e) { console.error('Cost data load failed:', e); }
+    },
+
+    async changeCostPeriod(period) {
+      this.archMap.costPeriod = period;
+      await this.loadArchMapCosts();
+    },
+
+    renderMermaidOrgChart() {
+      const container = document.getElementById('mermaid-orgchart');
+      if (!container || !this.archMap.hierarchy || !window.mermaid) return;
+
+      const { nodes, edges } = this.archMap.hierarchy;
+      const divColorMap = {
+        'secretary': '#FFD200', 'leet_master.tech': '#00E6FF', 'leet_master.strategy': '#00C8FF',
+        'leet_master.legal': '#00B4FF', 'leet_master.marketing': '#00A0FF',
+        'finance.investment': '#8C64FF', 'publishing': '#00FF88',
+      };
+
+      let code = 'graph TD\n';
+      code += '  CEO["CEO\\n고동희 대표님"]\n';
+      for (const n of nodes) {
+        const model = n.model_name ? '\\n' + n.model_name.replace('claude-', 'c-').replace('gemini-', 'g-').replace('-preview', '') : '';
+        const icon = n.role === 'manager' ? '📋' : '🔧';
+        code += '  ' + n.id + '["' + icon + ' ' + n.name_ko + model + '"]\n';
+      }
+      code += '  CEO --> chief_of_staff\n';
+      for (const e of edges) code += '  ' + e.from + ' --> ' + e.to + '\n';
+      code += '\n';
+      for (const n of nodes) {
+        const c = divColorMap[n.division] || '#888';
+        code += '  style ' + n.id + ' fill:' + c + '20,stroke:' + c + ',color:#E5E7EB\n';
+      }
+      code += '  style CEO fill:#FF6B3520,stroke:#FF6B35,color:#E5E7EB\n';
+
+      container.innerHTML = '';
+      container.removeAttribute('data-processed');
+      mermaid.render('orgchart-svg', code).then(({ svg }) => {
+        container.innerHTML = svg;
+        this.archMap.mermaidRendered = true;
+        this.$nextTick(() => this.bindOrgChartClicks());
+      }).catch(e => console.error('Mermaid render failed:', e));
+    },
+
+    bindOrgChartClicks() {
+      const svg = document.querySelector('#mermaid-orgchart svg');
+      if (!svg) return;
+      svg.querySelectorAll('.node').forEach(el => {
+        const rawId = el.id || '';
+        const nodeId = rawId.replace('flowchart-', '').replace(/-\d+$/, '');
+        if (nodeId && nodeId !== 'CEO') {
+          el.style.cursor = 'pointer';
+          el.addEventListener('click', () => {
+            this.targetAgentId = nodeId;
+            this.switchTab('command');
+            this.$nextTick(() => { const inp = this.$refs.inputArea; if (inp) inp.focus(); });
+          });
+        }
+      });
+    },
+
+    renderCostCharts() {
+      this._renderDivisionDonut();
+      this._renderAgentBarChart();
+    },
+
+    _renderDivisionDonut() {
+      const canvas = document.getElementById('division-cost-chart');
+      if (!canvas || !this.archMap.costByDivision.length) return;
+      const colors = {
+        'secretary': 'rgb(255,210,0)', 'tech': 'rgb(0,230,255)', 'strategy': 'rgb(0,200,255)',
+        'legal': 'rgb(0,180,255)', 'marketing': 'rgb(0,160,255)',
+        'finance': 'rgb(140,100,255)', 'publishing': 'rgb(0,255,136)',
+      };
+      const data = this.archMap.costByDivision;
+      if (this._divDonutChart) this._divDonutChart.destroy();
+      this._divDonutChart = new Chart(canvas, {
+        type: 'doughnut',
+        data: {
+          labels: data.map(d => d.label),
+          datasets: [{ data: data.map(d => d.cost_usd), backgroundColor: data.map(d => colors[d.division] || 'rgb(128,128,128)'), borderWidth: 0 }]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { position: 'right', labels: { color: '#9CA3AF', font: { size: 11 } } },
+            tooltip: { callbacks: { label: ctx => ctx.label + ': $' + ctx.parsed.toFixed(4) } } },
+          cutout: '65%',
+        }
+      });
+    },
+
+    _renderAgentBarChart() {
+      const canvas = document.getElementById('agent-cost-chart');
+      if (!canvas || !this.archMap.costByAgent.length) return;
+      const top10 = this.archMap.costByAgent.slice(0, 10);
+      if (this._agentBarChart) this._agentBarChart.destroy();
+      this._agentBarChart = new Chart(canvas, {
+        type: 'bar',
+        data: {
+          labels: top10.map(a => this.agentNames[a.agent_id] || a.agent_id),
+          datasets: [{ label: '비용 (USD)', data: top10.map(a => a.cost_usd),
+            backgroundColor: 'rgba(0,230,255,0.6)', borderColor: 'rgb(0,230,255)', borderWidth: 1 }]
+        },
+        options: {
+          indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { display: false },
+            tooltip: { callbacks: { label: ctx => '$' + ctx.parsed.x.toFixed(4) + ' (' + top10[ctx.dataIndex].call_count + '회)' } } },
+          scales: {
+            x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#9CA3AF', callback: v => '$' + v.toFixed(3) } },
+            y: { grid: { display: false }, ticks: { color: '#9CA3AF', font: { size: 11 } } }
+          }
+        }
+      });
+    },
+
+    getDeptAgents(deptKey) {
+      return Object.entries(this.agentDivision).filter(([, d]) => d === deptKey).map(([id]) => id);
+    },
+
+    getDeptWorkingCount(deptKey) {
+      return this.getDeptAgents(deptKey).filter(id => this.activeAgents[id]?.status === 'working').length;
     },
 
     // ── Task History ──
@@ -3754,8 +3912,8 @@ function corthexApp() {
       return order.map(id => this.tabs.find(t => t.id === id)).filter(Boolean);
     },
     getSecondaryTabs() {
-      // 더보기: 기밀문서 / 자동화 / 크론기지 / 정보국 / 통신국
-      const order = ['archive', 'workflow', 'schedule', 'knowledge', 'sns'];
+      // 더보기: 조직도 / 전력분석 / 기밀문서 / 자동화 / 크론기지 / 정보국 / 통신국
+      const order = ['archmap', 'performance', 'archive', 'workflow', 'schedule', 'knowledge', 'sns'];
       return order.map(id => this.tabs.find(t => t.id === id)).filter(Boolean);
     },
 

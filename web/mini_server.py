@@ -5496,6 +5496,10 @@ from handlers.conversation_handler import router as conversation_router
 app.include_router(conversation_router)
 
 
+# ── 아키텍처 맵 → handlers/architecture_handler.py로 분리 ──
+from handlers.architecture_handler import router as architecture_router
+app.include_router(architecture_router)
+
 # ── SNS 연동 → handlers/sns_handler.py로 분리 ──
 from handlers.sns_handler import router as sns_router
 app.include_router(sns_router)
