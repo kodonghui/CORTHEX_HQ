@@ -67,6 +67,43 @@ async def get_quality_reviews(limit: int = 20):
         return []
 
 
+# ── 로그 삭제 API ──
+
+@router.delete("/api/activity-logs")
+async def delete_activity_logs(level: str = ""):
+    """활동 로그 삭제. ?level=tool → 도구 로그만, ?level=qa → 검수 로그만, 빈값 → 일반 활동 로그."""
+    try:
+        conn = get_connection()
+        if level == "tool":
+            conn.execute("DELETE FROM activity_log WHERE level = 'tool'")
+        elif level == "qa":
+            conn.execute("DELETE FROM activity_log WHERE level IN ('qa_pass', 'qa_fail')")
+        elif level == "all":
+            conn.execute("DELETE FROM activity_log")
+        else:
+            conn.execute("DELETE FROM activity_log WHERE level IS NULL OR level = '' OR level = 'info'")
+        conn.commit()
+        conn.close()
+        return {"success": True}
+    except Exception as e:
+        logger.debug("활동 로그 삭제 실패: %s", e)
+        return {"success": False, "error": str(e)}
+
+
+@router.delete("/api/delegation-log")
+async def delete_delegation_logs():
+    """교신(위임) 로그 전체 삭제."""
+    try:
+        conn = get_connection()
+        conn.execute("DELETE FROM delegation_log")
+        conn.commit()
+        conn.close()
+        return {"success": True}
+    except Exception as e:
+        logger.debug("교신 로그 삭제 실패: %s", e)
+        return {"success": False, "error": str(e)}
+
+
 # ── 협업 로그 API ──
 
 @router.get("/api/delegation-log")
