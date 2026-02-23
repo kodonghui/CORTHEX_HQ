@@ -114,6 +114,11 @@ GET https://corthex-hq.com/api/debug/server-logs?lines=50&service=nginx-access �
 - **폰트**: Pretendard 단일 통일. `font-mono`는 숫자/코드/종목코드에만. Noto Serif KR는 `.font-title`만
 - ❌ 새 Google 폰트 추가, `font-sans` 오버라이드 금지
 
+## 🔴🔴🔴 매매 설정 — 건드리지 마! 🔴🔴🔴
+- **`order_size: 0` = CIO 비중 자율**. 0이 정상! 버그가 아님!
+- 0이면 CIO가 잔고 × 분석비중으로 주문액 자동 계산 (CEO 승인 B안)
+- 0을 다른 값으로 "고쳐주겠다"고 절대 하지 말 것
+
 ## 하드코딩 금지 (매우 중요!)
 - 모델명 정의는 딱 2곳: `config/agents.yaml` + `config/models.yaml`
 - mini_server.py, ai_handler.py, index.html에 모델명 문자열 직접 쓰면 안 됨

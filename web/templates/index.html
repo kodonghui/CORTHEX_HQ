@@ -4425,6 +4425,17 @@
               </template>
               <span x-show="trading.watchDragHint" class="ml-auto text-[9px] text-hq-muted/60 italic">↕ 드래그해서 순서 변경</span>
             </div>
+            <!-- 선택 종목 분석 버튼 -->
+            <div x-show="trading.selectedWatchlist && trading.selectedWatchlist.length > 0" class="mb-3 flex items-center gap-2 p-2.5 rounded-xl bg-hq-accent/10 border border-hq-accent/30">
+              <span class="text-xs text-hq-accent font-bold" x-text="trading.selectedWatchlist.length + '개 종목 선택'"></span>
+              <button @click="analyzeSelectedWatchlist()"
+                      :disabled="trading.analyzingSelected"
+                      class="ml-auto bg-hq-accent text-white rounded-lg px-4 py-1.5 text-xs font-bold hover:bg-hq-accent/80 transition disabled:opacity-50">
+                <span x-show="!trading.analyzingSelected">🔍 선택 종목 분석 및 자동매매</span>
+                <span x-show="trading.analyzingSelected">⏳ CIO 분석 진행 중...</span>
+              </button>
+              <button @click="trading.selectedWatchlist = []" class="text-hq-muted hover:text-hq-text text-xs transition">선택 해제</button>
+            </div>
             <template x-if="trading.watchlist.length === 0">
               <div class="glass border border-hq-border rounded-xl p-8 text-center">
                 <p class="text-hq-muted/70 text-xs mb-3">관심 종목이 없습니다</p>
@@ -4441,9 +4452,13 @@
                      @dragleave="if(trading.dragOverTicker === w.ticker) trading.dragOverTicker = null"
                      @drop.prevent="watchlistDropReorder(w.ticker)"
                      :class="trading.dragOverTicker === w.ticker && trading.draggedTicker !== w.ticker ? 'border-hq-accent/60 scale-[1.02] shadow-lg' : trading.draggedTicker === w.ticker ? 'opacity-40' : ''">
-                  <!-- 헤더: 종목명 + 삭제 -->
+                  <!-- 헤더: 체크박스 + 종목명 + 삭제 -->
                   <div class="flex items-center justify-between mb-2">
                     <div class="flex items-center gap-2">
+                      <input type="checkbox" class="w-4 h-4 rounded border-hq-border accent-hq-accent cursor-pointer"
+                             :checked="trading.selectedWatchlist && trading.selectedWatchlist.includes(w.ticker)"
+                             @change="toggleWatchlistSelect(w.ticker)"
+                             @click.stop>
                       <span class="text-[10px] font-bold px-1.5 py-0.5 rounded" :class="(w.market||'KR')==='US' ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30' : 'bg-red-500/20 text-red-400 border border-red-500/30'" x-text="(w.market||'KR')==='US' ? 'US' : 'KR'"></span>
                       <div>
                         <div class="text-sm font-bold text-hq-text" x-text="w.name"></div>

@@ -9,6 +9,7 @@ import asyncio
 import json
 import logging
 import os
+import re
 import sys
 import time
 import uuid as _uuid
@@ -4269,6 +4270,40 @@ async def toggle_trading_bot():
 
 # ── bot/status, calibration → handlers/trading_handler.py로 분리 ──
 
+@app.post("/api/trading/watchlist/analyze-selected")
+async def analyze_selected_watchlist(request: Request):
+    """관심종목 중 선택한 종목만 즉시 분석 + 자동매매."""
+    body = await request.json()
+    tickers = body.get("tickers", [])
+    if not tickers:
+        return {"success": False, "message": "분석할 종목을 선택하세요."}
+
+    existing = app_state.bg_tasks.get("trading_run_now")
+    if existing and not existing.done():
+        return {"success": True, "message": "CIO 분석이 이미 진행 중입니다.", "already_running": True}
+
+    async def _bg():
+        try:
+            result = await _run_trading_now_inner(selected_tickers=tickers)
+            app_state.bg_results["trading_run_now"] = {**result, "_completed_at": __import__("time").time()}
+        except Exception as e:
+            logger.error("[선택 분석] 백그라운드 오류: %s", e, exc_info=True)
+            app_state.bg_results["trading_run_now"] = {
+                "success": False, "message": f"분석 중 오류: {str(e)[:200]}",
+                "signals": [], "signals_count": 0, "orders_triggered": 0,
+                "_completed_at": __import__("time").time(),
+            }
+        finally:
+            result = app_state.bg_results.get("trading_run_now", {})
+            await wm.broadcast({"type": "trading_run_complete",
+                "success": result.get("success", False),
+                "signals_count": result.get("signals_count", 0),
+                "orders_triggered": result.get("orders_triggered", 0)})
+
+    app_state.bg_tasks["trading_run_now"] = asyncio.create_task(_bg())
+    return {"success": True, "message": f"{len(tickers)}개 종목 분석 시작됨.", "background": True}
+
+
 @app.post("/api/trading/bot/run-now")
 async def run_trading_now():
     """지금 즉시 CIO 분석 + 매매 판단 실행 (장 시간 무관, 수동 트리거).
@@ -4331,8 +4366,11 @@ async def get_trading_run_status():
         return {"status": "idle", "message": "실행 대기 중"}
 
 
-async def _run_trading_now_inner():
-    """run_trading_now의 실제 로직 (에러 핸들링은 호출자가 담당)."""
+async def _run_trading_now_inner(selected_tickers: list[str] | None = None):
+    """run_trading_now의 실제 로직 (에러 핸들링은 호출자가 담당).
+
+    selected_tickers: 지정 시 해당 종목만 분석. None이면 전체 관심종목.
+    """
     settings = _load_data("trading_settings", _default_trading_settings())
     watchlist = _load_data("trading_watchlist", [])
 
@@ -4344,6 +4382,16 @@ async def _run_trading_now_inner():
     if not is_open:
         market = "KR"  # 장 마감 시 한국장 기준으로 분석
     market_watchlist = [w for w in watchlist if w.get("market", "KR") == market] or watchlist
+
+    # 선택 종목 필터링 (selected_tickers 지정 시)
+    if selected_tickers:
+        upper_sel = [t.upper() for t in selected_tickers]
+        market_watchlist = [w for w in watchlist if w.get("ticker", "").upper() in upper_sel]
+        if not market_watchlist:
+            return {"success": False, "message": f"선택한 종목({', '.join(selected_tickers)})이 관심종목에 없습니다."}
+        # 선택 종목의 마켓 자동 결정
+        markets = set(w.get("market", "KR") for w in market_watchlist)
+        market = "US" if "US" in markets else "KR"
 
     # 자기보정 계수 계산
     calibration = _compute_calibration_factor(settings.get("calibration_lookback", 20))
@@ -7206,6 +7254,60 @@ async def _manager_with_delegation(manager_id: str, text: str) -> dict:
         # 전문가가 없으면 처장이 직접 처리
         return await _call_agent(manager_id, text)
 
+    # ── 품질검수 (Quality Gate) ── 전문가 결과를 처장이 종합하기 전에 검수
+    if app_state.quality_gate and _QUALITY_GATE_AVAILABLE and spec_results:
+        await _broadcast_status(manager_id, "working", 0.45, "전문가 결과 품질검수 중...")
+        log_qa = save_activity_log(manager_id, f"[{mgr_name}] 전문가 {len(spec_results)}명 결과 품질검수 시작", "info")
+        await wm.send_activity_log(log_qa)
+
+        # 품질검수용 pseudo-chain 구성
+        _qa_chain = {
+            "chain_id": f"trading_{manager_id}_{int(time.time())}",
+            "target_id": manager_id,
+            "original_command": text[:500],
+            "total_cost_usd": 0,
+            "results": {"specialists": {}},
+        }
+        for r in spec_results:
+            if "error" not in r:
+                _qa_chain["results"]["specialists"][r.get("agent_id", "unknown")] = {
+                    "content": r.get("content", ""),
+                    "model": r.get("model", ""),
+                    "cost_usd": r.get("cost_usd", 0),
+                }
+
+        failed_specs = await _quality_review_specialists(_qa_chain)
+
+        if failed_specs:
+            # 불합격 전문가 활동로그
+            for fs in failed_specs:
+                _fs_name = _SPECIALIST_NAMES.get(fs["agent_id"], fs["agent_id"])
+                log_reject = save_activity_log(manager_id,
+                    f"[{mgr_name}] ❌ {_fs_name} 보고서 반려: {fs.get('reason', '품질 미달')[:80]}", "warning")
+                await wm.send_activity_log(log_reject)
+
+            # 반려 → 재작업 → 재검수
+            await _handle_specialist_rework(_qa_chain, failed_specs)
+
+            # 재작업 결과를 spec_results에 반영
+            for r in spec_results:
+                _aid = r.get("agent_id", "unknown")
+                if _aid in _qa_chain["results"]["specialists"]:
+                    updated = _qa_chain["results"]["specialists"][_aid]
+                    r["content"] = updated.get("content", r.get("content", ""))
+                    r["cost_usd"] = r.get("cost_usd", 0) + updated.get("cost_usd", 0)
+                    if updated.get("rework_attempt"):
+                        r["rework_attempt"] = updated["rework_attempt"]
+                        log_rework = save_activity_log(_aid,
+                            f"[{_SPECIALIST_NAMES.get(_aid, _aid)}] 재작업 완료 (시도 {updated['rework_attempt']}회)")
+                        await wm.send_activity_log(log_rework)
+                    if updated.get("quality_warning"):
+                        r["quality_warning"] = updated["quality_warning"]
+        else:
+            log_pass = save_activity_log(manager_id,
+                f"[{mgr_name}] ✅ 전문가 전원 품질검수 합격", "info")
+            await wm.send_activity_log(log_pass)
+
     # 전문가 결과 취합
     spec_parts = []
     spec_cost = 0.0
@@ -7215,7 +7317,12 @@ async def _manager_with_delegation(manager_id: str, text: str) -> dict:
         if "error" in r:
             spec_parts.append(f"[{name}] 오류: {r['error'][:80]}")
         else:
-            spec_parts.append(f"[{name}]\n{r.get('content', '응답 없음')}")
+            quality_note = ""
+            if r.get("rework_attempt"):
+                quality_note = f"\n⚠️ 재작업 {r['rework_attempt']}회 후 결과"
+            if r.get("quality_warning"):
+                quality_note = f"\n⚠️ 품질 경고: {r['quality_warning'][:60]}"
+            spec_parts.append(f"[{name}]{quality_note}\n{r.get('content', '응답 없음')}")
             spec_cost += r.get("cost_usd", 0)
             spec_time = max(spec_time, r.get("time_seconds", 0))
 
