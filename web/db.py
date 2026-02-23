@@ -883,6 +883,88 @@ def get_monthly_cost() -> float:
         conn.close()
 
 
+def get_cost_by_agent(period: str = "month") -> dict:
+    """에이전트별 AI 비용을 집계합니다.
+
+    period: 'today' | 'month' | 'all'
+    반환: { agents: [{agent_id, cost_usd, call_count, input_tokens, output_tokens}], total_cost_usd }
+    """
+    conn = get_connection()
+    try:
+        if period == "today":
+            time_filter = _today_start_utc_iso()
+        elif period == "month":
+            kst_month_start = _now_kst().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+            utc_month_start = kst_month_start.astimezone(timezone.utc)
+            time_filter = utc_month_start.strftime("%Y-%m-%dT%H:%M:%S")
+        else:
+            time_filter = None
+
+        where = "WHERE created_at >= ?" if time_filter else ""
+        params = (time_filter,) if time_filter else ()
+
+        rows = conn.execute(
+            f"SELECT agent_id, COALESCE(SUM(cost_usd),0), COUNT(*),"
+            f" COALESCE(SUM(input_tokens),0), COALESCE(SUM(output_tokens),0)"
+            f" FROM agent_calls {where} GROUP BY agent_id ORDER BY 2 DESC",
+            params,
+        ).fetchall()
+
+        agents = []
+        total = 0.0
+        for r in rows:
+            cost = round(r[1], 6)
+            agents.append({
+                "agent_id": r[0],
+                "cost_usd": cost,
+                "call_count": r[2],
+                "input_tokens": r[3],
+                "output_tokens": r[4],
+            })
+            total += cost
+
+        return {"agents": agents, "total_cost_usd": round(total, 6)}
+    except Exception:
+        return {"agents": [], "total_cost_usd": 0.0}
+    finally:
+        conn.close()
+
+
+def get_cost_by_agent_raw(period: str = "month") -> dict:
+    """에이전트별 비용 raw 데이터 (division 매핑은 호출자가 수행).
+
+    반환: { agent_costs: { agent_id: {cost_usd, call_count} } }
+    """
+    conn = get_connection()
+    try:
+        if period == "today":
+            time_filter = _today_start_utc_iso()
+        elif period == "month":
+            kst_month_start = _now_kst().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+            utc_month_start = kst_month_start.astimezone(timezone.utc)
+            time_filter = utc_month_start.strftime("%Y-%m-%dT%H:%M:%S")
+        else:
+            time_filter = None
+
+        where = "WHERE created_at >= ?" if time_filter else ""
+        params = (time_filter,) if time_filter else ()
+
+        rows = conn.execute(
+            f"SELECT agent_id, COALESCE(SUM(cost_usd),0), COUNT(*)"
+            f" FROM agent_calls {where} GROUP BY agent_id",
+            params,
+        ).fetchall()
+
+        agent_costs = {}
+        for r in rows:
+            agent_costs[r[0]] = {"cost_usd": round(r[1], 6), "call_count": r[2]}
+        return {"agent_costs": agent_costs}
+    except Exception:
+        return {"agent_costs": {}}
+    finally:
+        conn.close()
+
+
 def save_setting(key: str, value) -> None:
     """설정값을 DB에 저장합니다. value는 JSON 직렬화됩니다."""
     conn = get_connection()
