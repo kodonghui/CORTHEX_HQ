@@ -508,7 +508,6 @@ async def _call_anthropic(
         kwargs["temperature"] = 1.0  # 추론 모델 필수값
         budget = REASONING_BUDGET_TOKENS_MAP.get(reasoning_effort, 8192)
         kwargs["thinking"] = {"type": "enabled", "budget_tokens": budget}
-        kwargs["betas"] = ["interleaved-thinking-2025-05-14"]
     elif "haiku" in model:
         kwargs["temperature"] = 0.5
     else:
@@ -518,15 +517,14 @@ async def _call_anthropic(
     if tools:
         kwargs["tools"] = tools
 
-    # extended thinking 사용 시 betas 미지원 서버 대비 폴백 처리
+    # extended thinking 사용 시 폴백 처리
     try:
         resp = await asyncio.wait_for(_anthropic_client.messages.create(**kwargs), timeout=ai_call_timeout)
     except asyncio.TimeoutError:
         raise  # 상위 ask_ai()에서 처리
     except Exception as e:
-        if reasoning_effort and ("betas" in str(e) or "thinking" in str(e)):
+        if reasoning_effort and "thinking" in str(e):
             logger.warning("extended thinking 미지원 — 폴백으로 재시도: %s", e)
-            kwargs.pop("betas", None)
             kwargs.pop("thinking", None)
             kwargs["temperature"] = 1.0
             resp = await asyncio.wait_for(_anthropic_client.messages.create(**kwargs), timeout=ai_call_timeout)
