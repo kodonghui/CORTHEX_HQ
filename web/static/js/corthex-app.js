@@ -3657,6 +3657,21 @@ function corthexApp() {
       } catch { return timeStr; }
     },
 
+    async stopAnalysis() {
+      try {
+        const res = await fetch('/api/trading/bot/stop', { method: 'POST' }).then(r => r.json());
+        if (res.success) {
+          this.showToast('분석이 중지되었습니다.', 'info');
+          this.trading.runningNow = false;
+          this.trading.analyzingSelected = false;
+          if (this._tradingRunPoll) { clearInterval(this._tradingRunPoll); this._tradingRunPoll = null; }
+          this._stopCioPolling();
+        } else {
+          this.showToast(res.message || '중지할 분석이 없습니다.', 'info');
+        }
+      } catch { this.showToast('중지 요청 실패', 'error'); }
+    },
+
     async runTradingNow() {
       if (this.trading.runningNow) return;
       this.trading.runningNow = true;
