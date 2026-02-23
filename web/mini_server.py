@@ -6768,15 +6768,30 @@ async def _quality_review_specialists(chain: dict) -> list[dict]:
                 logger.debug("검수 결과 DB 저장 실패: %s", e)
 
             if not review.passed:
+                reason = " / ".join(review.rejection_reasons) if review.rejection_reasons else "품질 기준 미달"
                 failed.append({
                     "agent_id": agent_id,
                     "review": review,
                     "content": content,
-                    "reason": " / ".join(review.rejection_reasons) if review.rejection_reasons else "품질 기준 미달",
+                    "reason": reason,
                 })
-                _log(f"[QA] ❌ 불합격: {agent_id} (점수={review.weighted_average:.1f}, 사유={failed[-1]['reason'][:80]})")
+                _log(f"[QA] ❌ 불합격: {agent_id} (점수={review.weighted_average:.1f}, 사유={reason[:80]})")
+                # QA 불합격 실시간 브로드캐스트 (검수로그 탭에 표시)
+                qa_log = save_activity_log(
+                    agent_id,
+                    f"❌ [{agent_id}] 불합격 (점수 {review.weighted_average:.1f}) — {reason[:60]}",
+                    level="qa_fail"
+                )
+                await wm.send_activity_log(qa_log)
             else:
                 _log(f"[QA] ✅ 합격: {agent_id} (점수={review.weighted_average:.1f})")
+                # QA 합격 실시간 브로드캐스트 (검수로그 탭에 표시)
+                qa_log = save_activity_log(
+                    agent_id,
+                    f"✅ [{agent_id}] 합격 (점수 {review.weighted_average:.1f})",
+                    level="qa_pass"
+                )
+                await wm.send_activity_log(qa_log)
 
         except Exception as e:
             _log(f"[QA] 검수 오류 ({agent_id}): {e}")
@@ -7050,6 +7065,13 @@ async def _call_agent(agent_id: str, text: str, conversation_id: str | None = No
                     f"{tool_name} 실행 중...",
                     tool_calls=call_count, max_calls=_MAX_TOOL_CALLS, tool_name=tool_name,
                 )
+
+                # 도구 사용 실시간 브로드캐스트 (도구로그 탭에 표시)
+                tool_log = save_activity_log(
+                    agent_id, f"🔧 [{agent_name}] {tool_name} 호출 ({call_count}/{_MAX_TOOL_CALLS})",
+                    level="tool"
+                )
+                await wm.send_activity_log(tool_log)
 
                 pool = _init_tool_pool()
                 if pool:
