@@ -30,6 +30,13 @@ class TradingSettingsControlTool(BaseTool):
             return await self._get_settings()
         elif action == "update_settings":
             changes = kwargs.get("changes", {})
+            # OpenAI strict mode에서 type: string으로 보내므로 JSON 문자열 파싱
+            if isinstance(changes, str):
+                import json
+                try:
+                    changes = json.loads(changes)
+                except (json.JSONDecodeError, TypeError):
+                    return "❌ changes가 올바른 JSON 형식이 아닙니다."
             reason = kwargs.get("reason", "")
             if not changes:
                 return "❌ 변경할 항목(changes)이 없습니다."

@@ -2603,8 +2603,8 @@ tools:
         - get_risk_profile
         description: "수행할 작업 — get_settings: 현재 설정 조회, update_settings: 설정 변경, get_risk_profile: 투자 성향 및 안전 범위 조회"
       changes:
-        type: object
-        description: "변경할 설정 (update_settings 시 필수). 예: {\"min_confidence\": 60, \"default_stop_loss\": -7}"
+        type: string
+        description: "변경할 설정 JSON 문자열 (update_settings 시 필수). 예: '{\"min_confidence\": 60, \"default_stop_loss\": -7}'"
       reason:
         type: string
         description: "변경 사유 (update_settings 시 필수). 예: '시장 변동성 증가로 손절 기준 완화'"
