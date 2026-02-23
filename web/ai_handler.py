@@ -107,12 +107,12 @@ REASONING_BUDGET_TOKENS_MAP = {
     "xhigh": 32000,
 }
 
-# reasoning_effort → OpenAI reasoning_effort 값 매핑 (OpenAI는 xhigh 없음 → high로 매핑)
+# reasoning_effort → OpenAI reasoning_effort 값 매핑 (GPT-5.2/5.2-pro 모두 xhigh 지원)
 OPENAI_REASONING_MAP = {
     "low": "low",
     "medium": "medium",
     "high": "high",
-    "xhigh": "high",
+    "xhigh": "xhigh",
 }
 
 # OpenAI reasoning 지원 모델 목록 (temperature 없이 reasoning_effort만 사용)
