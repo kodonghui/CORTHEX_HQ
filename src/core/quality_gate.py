@@ -207,17 +207,27 @@ class QualityGate:
         return self._rubrics.get("default", {})
 
     def _build_checklist_items(self, division: str) -> list[dict]:
-        """공통 + 부서별 체크리스트 항목 병합."""
+        """공통 + 부서별 체크리스트 항목 병합.
+
+        부서 rubric에 exclude_common 리스트가 있으면 해당 ID의 공통 항목을 제외.
+        예: exclude_common: ["C1"] → C1을 부서 전용 항목(D1)으로 대체.
+        """
+        rubric = self.get_rubric(division)
+        dept_cl = rubric.get("department_checklist", {})
+        exclude_ids = set(dept_cl.get("exclude_common", []))
+
         items = []
-        # 공통 필수
+        # 공통 필수 (exclude_common에 있으면 건너뜀)
         for item in self._common_checklist.get("required", []):
+            if item.get("id") in exclude_ids:
+                continue
             items.append({**item, "required": True, "source": "common"})
         # 공통 선택
         for item in self._common_checklist.get("optional", []):
+            if item.get("id") in exclude_ids:
+                continue
             items.append({**item, "required": False, "source": "common"})
         # 부서별
-        rubric = self.get_rubric(division)
-        dept_cl = rubric.get("department_checklist", {})
         for item in dept_cl.get("required", []):
             items.append({**item, "required": True, "source": "department"})
         for item in dept_cl.get("optional", []):
