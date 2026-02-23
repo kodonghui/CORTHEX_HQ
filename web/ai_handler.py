@@ -275,13 +275,8 @@ def _load_tool_schemas(allowed_tools: list | None = None) -> dict:
             schema = {"type": "object", "properties": {"query": {"type": "string", "description": "도구에 전달할 질문"}}, "required": ["query"]}
         if not schema.get("properties"):
             schema["properties"] = {"query": {"type": "string", "description": "도구에 전달할 질문"}}
-        # strict 모드: 모든 프로퍼티를 required에 넣고 additionalProperties: false
-        schema["required"] = list(schema["properties"].keys())
-        schema["additionalProperties"] = False
-        # enum 내부에 None이 있으면 제거 (GPT-5.2 strict가 거부함)
-        for prop in schema["properties"].values():
-            if isinstance(prop.get("enum"), list):
-                prop["enum"] = [e for e in prop["enum"] if e is not None]
+        # strict 모드: 모든 레벨의 object에 additionalProperties: false 적용 (재귀)
+        _apply_openai_strict_inline(schema)
         openai_schemas.append({
             "type": "function",
             "function": {
@@ -298,6 +293,24 @@ def _load_tool_schemas(allowed_tools: list | None = None) -> dict:
         "openai": openai_schemas,
         "google": anthropic_schemas,  # _call_google_with_tools 내부에서 Gemini 포맷으로 변환
     }
+
+
+def _apply_openai_strict_inline(obj: dict) -> None:
+    """OpenAI strict 모드용: 모든 레벨의 object에 additionalProperties/required 재귀 적용."""
+    if obj.get("type") == "object":
+        props = obj.get("properties", {})
+        obj["additionalProperties"] = False
+        obj["required"] = list(props.keys())
+        for prop in props.values():
+            if isinstance(prop, dict):
+                if isinstance(prop.get("enum"), list):
+                    prop["enum"] = [e for e in prop["enum"] if e is not None]
+                if prop.get("type") == "object":
+                    _apply_openai_strict_inline(prop)
+                if prop.get("type") == "array":
+                    items = prop.get("items", {})
+                    if isinstance(items, dict) and items.get("type") == "object":
+                        _apply_openai_strict_inline(items)
 
 
 def _get_provider(model: str) -> str:
@@ -1049,20 +1062,14 @@ async def ask_ai(
             provider_tools = tools
         elif provider == "openai":
             # OpenAI function calling 포맷으로 변환
-            # GPT-5.2 strict 모드: required에 전 프로퍼티 + additionalProperties: false
             provider_tools = []
             for t in tools:
                 schema = copy.deepcopy(t.get("input_schema", {"type": "object", "properties": {}}))
-                # 안전장치: type이 없거나 object가 아닌 경우 강제 보정
                 if schema.get("type") != "object":
                     schema = {"type": "object", "properties": {"query": {"type": "string", "description": "도구에 전달할 질문"}}, "required": ["query"]}
                 if not schema.get("properties"):
                     schema["properties"] = {"query": {"type": "string", "description": "도구에 전달할 질문"}}
-                schema["required"] = list(schema["properties"].keys())
-                schema["additionalProperties"] = False
-                for prop in schema["properties"].values():
-                    if isinstance(prop.get("enum"), list):
-                        prop["enum"] = [e for e in prop["enum"] if e is not None]
+                _apply_openai_strict_inline(schema)
                 provider_tools.append({
                     "type": "function",
                     "function": {
