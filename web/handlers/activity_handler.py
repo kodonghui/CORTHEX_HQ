@@ -92,10 +92,15 @@ async def delete_activity_logs(level: str = ""):
 
 @router.delete("/api/delegation-log")
 async def delete_delegation_logs():
-    """교신(위임) 로그 전체 삭제."""
+    """교신(위임) 로그 전체 삭제 — delegation_log + cross_agent_messages 모두."""
     try:
         conn = get_connection()
         conn.execute("DELETE FROM delegation_log")
+        # P2P 메시지도 함께 삭제 (comms/messages API가 두 테이블 병합하므로)
+        try:
+            conn.execute("DELETE FROM cross_agent_messages")
+        except Exception:
+            pass  # 테이블 없어도 무시
         conn.commit()
         conn.close()
         return {"success": True}
