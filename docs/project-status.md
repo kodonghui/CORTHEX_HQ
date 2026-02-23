@@ -8,11 +8,42 @@
 
 ## 마지막 업데이트
 
-- **날짜**: 2026-02-23 (자동매매 6건 버그 수정 + 전문가 Sonnet 전환)
-- **버전**: `3.02.025`
-- **최신 빌드**: #508
-- **작업 브랜치**: claude/sonnet-qa-fix (완료)
+- **날짜**: 2026-02-23
+- **버전**: `3.02.026`
+- **최신 빌드**: #520 (배포 중)
+- **작업 브랜치**: claude/log-fix-compat (완료)
 - **접속 주소**: https://corthex-hq.com
+
+---
+
+## 🔴🔴🔴 P0 긴급 — CIO 혼자 보고서 작성 (전문가 4명 도구 에러) 🔴🔴🔴
+
+> **2026-02-23 23:02 KST 발견 — 대표님이 "즉시 분석" 실행 시 재현**
+
+### 증상
+1. CIO가 전문가 4명(시황/종목/기술/리스크)에게 위임
+2. 전문가 4명이 **도구를 전혀 사용하지 못하고** 에러 발생 → 보고 내용 "0"
+3. CIO가 전문가 보고서 대신 **자기 머리(할루시네이션)로 보고서 작성** → 관망 시그널 제출
+4. CIO 보고서 내 에러 언급: `_apply_openai_strict_inline 미정의`
+
+### 의심되는 원인 (다음 세션에서 반드시 조사)
+1. **전문가 모델 설정 문제**: 대표님이 전문가 4명을 GPT-5.2로 수동 변경했으나, `_sync_agent_defaults_to_db()`가 서버 재시작 때 yaml 기본값(claude-sonnet-4-6)으로 덮어써서 → 모델 불일치? (이 버그는 PR#529에서 수정 완료)
+2. **도구 스키마 빌드 실패**: `_load_tool_schemas()`에서 OpenAI 포맷 변환 중 에러 발생 가능. `_apply_openai_strict_inline`은 `_load_tool_schemas()` 내부 중첩 함수인데, 스코프 밖에서 참조됐을 수 있음
+3. **CIO가 에러 원인을 할루시네이션**: 실제 에러는 다른 것일 수 있음 (예: 네트워크 타임아웃, 도구 실행 실패 등). `_apply_openai_strict_inline`은 CIO가 추측한 것
+
+### 조사 방법
+1. `corthex-hq.com`에서 "즉시 분석" 다시 실행
+2. **실행 중 실시간으로** 서버 로그 확인: `GET /api/debug/server-logs?lines=100&service=corthex`
+3. 전문가가 도구를 호출하는 시점의 에러 메시지 캡처
+4. `ask_ai()` 호출 시 전달되는 `tools` 파라미터가 빈 리스트인지 확인
+5. CLASSIFIED(보고서) 탭에서 전문가 4명의 개별 보고서 내용 확인 (현재 "0"인지, 에러 메시지가 있는지)
+
+### 관련 코드 위치
+- `web/mini_server.py` : `_dispatch_specialists()` — 전문가 위임 로직
+- `web/mini_server.py` : `_tool_executor()` — 도구 실행 로직
+- `web/ai_handler.py` : `_load_tool_schemas()` — 도구 스키마 빌드 (line 226)
+- `web/ai_handler.py` : `_apply_openai_strict_inline()` — OpenAI strict 변환 (line 270)
+- `web/ai_handler.py` : `ask_ai()` — 통합 AI 호출 (line 995)
 
 ---
 
