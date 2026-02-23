@@ -255,6 +255,9 @@ function corthexApp() {
       showWatchModal: false,
       watchEditForm: { ticker: '', name: '', target_price: 0, notes: '', alert_type: 'above', market: 'KR' },
       showWatchEditModal: false,
+      // 관심종목 선택 분석
+      selectedWatchlist: [],
+      analyzingSelected: false,
       // 관심종목 필터 + 드래그
       watchMarketFilter: 'all',
       draggedTicker: null,
@@ -685,8 +688,8 @@ function corthexApp() {
           break;
 
         case 'trading_run_complete':
-          // CIO 백그라운드 분석 완료 알림 (폴링보다 빠른 WebSocket 수신)
-          if (this.trading.runningNow) {
+          // CIO 백그라운드 분석 완료 알림
+          {
             if (this._tradingRunPoll) { clearInterval(this._tradingRunPoll); this._tradingRunPoll = null; }
             const d = msg.data || {};
             if (d.success) {
@@ -698,6 +701,8 @@ function corthexApp() {
             this.loadTradingSummary();
             this._stopCioPolling();
             this.trading.runningNow = false;
+            this.trading.analyzingSelected = false;
+            this.trading.selectedWatchlist = [];
           }
           break;
 
@@ -3298,6 +3303,47 @@ function corthexApp() {
           await this.loadTradingSummary();
         } else { this.showToast(res.error || '수정 실패', 'error'); }
       } catch { this.showToast('수정 오류', 'error'); }
+    },
+
+    // 관심종목 체크 선택/해제
+    toggleWatchlistSelect(ticker) {
+      if (!this.trading.selectedWatchlist) this.trading.selectedWatchlist = [];
+      const idx = this.trading.selectedWatchlist.indexOf(ticker);
+      if (idx >= 0) {
+        this.trading.selectedWatchlist.splice(idx, 1);
+      } else {
+        this.trading.selectedWatchlist.push(ticker);
+      }
+    },
+
+    // 선택 종목 즉시 분석 및 자동매매
+    async analyzeSelectedWatchlist() {
+      if (!this.trading.selectedWatchlist || this.trading.selectedWatchlist.length === 0) {
+        this.showToast('분석할 종목을 선택하세요', 'warning');
+        return;
+      }
+      this.trading.analyzingSelected = true;
+      try {
+        const resp = await fetch('/api/trading/watchlist/analyze-selected', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ tickers: this.trading.selectedWatchlist }),
+        });
+        const data = await resp.json();
+        if (data.success) {
+          const names = this.trading.selectedWatchlist.map(t => {
+            const w = this.trading.watchlist.find(x => x.ticker === t);
+            return w ? w.name : t;
+          }).join(', ');
+          this.showToast(`${names} 분석 시작! 활동로그에서 진행 확인`, 'success');
+        } else {
+          this.showToast(data.message || '분석 실패', 'error');
+          this.trading.analyzingSelected = false;
+        }
+      } catch {
+        this.showToast('분석 요청 실패', 'error');
+        this.trading.analyzingSelected = false;
+      }
     },
 
     async removeWatchlistItem(ticker) {
