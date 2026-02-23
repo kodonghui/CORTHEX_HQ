@@ -3624,10 +3624,10 @@ function corthexApp() {
     },
     clearCioLogsTab(tab) {
       const logs = this.trading.activityLog.logs;
-      if (tab === 'activity') this.trading.activityLog.logs = logs.filter(l => l.level === 'tool' || l.level === 'qa_pass' || l.level === 'qa_fail' || l.type === 'delegation' || l.type === 'report');
-      else if (tab === 'comms') this.trading.activityLog.logs = logs.filter(l => l.type !== 'delegation' && l.type !== 'report');
-      else if (tab === 'qa') this.trading.activityLog.logs = logs.filter(l => l.level !== 'qa_pass' && l.level !== 'qa_fail');
-      else if (tab === 'tools') this.trading.activityLog.logs = logs.filter(l => !l.tools.length && l.level !== 'tool');
+      if (tab === 'activity') { this.trading.activityLog.logs = logs.filter(l => l.level === 'tool' || l.level === 'qa_pass' || l.level === 'qa_fail' || l.type === 'delegation' || l.type === 'report'); fetch('/api/activity-logs', {method:'DELETE'}); }
+      else if (tab === 'comms') { this.trading.activityLog.logs = logs.filter(l => l.type !== 'delegation' && l.type !== 'report'); fetch('/api/delegation-log', {method:'DELETE'}); }
+      else if (tab === 'qa') { this.trading.activityLog.logs = logs.filter(l => l.level !== 'qa_pass' && l.level !== 'qa_fail'); fetch('/api/activity-logs?level=qa', {method:'DELETE'}); }
+      else if (tab === 'tools') { this.trading.activityLog.logs = logs.filter(l => !l.tools.length && l.level !== 'tool'); fetch('/api/activity-logs?level=tool', {method:'DELETE'}); }
     },
 
     formatLogTime(timeStr) {
@@ -3939,12 +3939,12 @@ function corthexApp() {
     saveActivityLogs() {
       // DB에 자동 저장되므로 별도 저장 불필요
     },
-    // ── 탭별 전체삭제 ──
+    // ── 탭별 전체삭제 (DB + 화면) ──
     clearLogsTab(tab) {
-      if (tab === 'activity') this.activityLogs = [];
-      else if (tab === 'comms') this.delegationLogs = [];
-      else if (tab === 'qa') this.qaLogs = [];
-      else if (tab === 'tools') this.toolLogs = [];
+      if (tab === 'activity') { this.activityLogs = []; fetch('/api/activity-logs', {method:'DELETE'}); }
+      else if (tab === 'comms') { this.delegationLogs = []; fetch('/api/delegation-log', {method:'DELETE'}); }
+      else if (tab === 'qa') { this.qaLogs = []; fetch('/api/activity-logs?level=qa', {method:'DELETE'}); }
+      else if (tab === 'tools') { this.toolLogs = []; fetch('/api/activity-logs?level=tool', {method:'DELETE'}); }
     },
 
     // ── #14: Task History Pagination ──
