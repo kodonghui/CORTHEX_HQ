@@ -81,7 +81,7 @@ async def delete_activity_logs(level: str = ""):
         elif level == "all":
             conn.execute("DELETE FROM activity_logs")
         else:
-            conn.execute("DELETE FROM activity_logs WHERE level IS NULL OR level = '' OR level = 'info'")
+            conn.execute("DELETE FROM activity_logs WHERE level NOT IN ('tool', 'qa_pass', 'qa_fail')")
         conn.commit()
         conn.close()
         return {"success": True}

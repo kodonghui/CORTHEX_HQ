@@ -71,7 +71,7 @@
       "tool_id": "sns_manager",
       "name": "SNS Manager",
       "name_ko": "SNS 매니저",
-      "description": "6개 플랫폼(Tistory/YouTube/Instagram/네이버블로그/네이버카페/다음카페) 통합 퍼블리싱. CEO 승인 큐 포함",
+      "description": "4개 플랫폼(티스토리/유튜브/네이버블로그/다음카페(서로연)) 통합 퍼블리싱. CEO 승인 큐 포함. ❌인스타(잠금)/네이버카페(없음)",
       "parameters": {
         "type": "object",
         "properties": {
@@ -89,7 +89,7 @@
           },
           "platform": {
             "type": "string",
-            "description": "발행 플랫폼 (tistory, youtube, instagram, naver_blog, naver_cafe, daum_cafe)"
+            "description": "발행 플랫폼 (tistory, youtube, naver_blog, daum_cafe). ❌instagram/naver_cafe 사용 불가"
           },
           "title": {
             "type": "string",
@@ -4579,6 +4579,197 @@
           "context": {
             "type": "string",
             "description": "추가 맥락/요구사항"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      }
+    },
+    {
+      "tool_id": "gemini_video_generator",
+      "name": "Veo 3.1 Video Generator",
+      "name_ko": "Veo 3.1 영상 생성",
+      "description": "Veo 3.1(veo-3.1-generate-preview)로 마케팅 영상 직접 생성. 릴스/쇼츠/광고 영상 등 SNS 콘텐츠용 짧은 영상.\n",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "generate",
+              "reels",
+              "ad"
+            ],
+            "description": "generate=프롬프트직접, reels=릴스/쇼츠(9:16), ad=광고(16:9)"
+          },
+          "prompt": {
+            "type": "string",
+            "description": "영상 생성 프롬프트"
+          },
+          "topic": {
+            "type": "string",
+            "description": "주제 (prompt 자동생성용)"
+          },
+          "resolution": {
+            "type": "string",
+            "description": "해상도 (720p, 1080p, 4k)"
+          },
+          "duration": {
+            "type": "string",
+            "description": "길이 (4, 6, 8초)"
+          },
+          "aspect_ratio": {
+            "type": "string",
+            "description": "비율 (16:9, 9:16)"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      }
+    },
+    {
+      "tool_id": "tts_generator",
+      "name": "TTS Voice Generator",
+      "name_ko": "TTS 음성 생성",
+      "description": "OpenAI TTS(gpt-4o-mini-tts)로 텍스트를 자연스러운 음성으로 변환. AI 인플루언서 영상의 1단계 — 대본을 음성으로 변환합니다. 주제만 주면 대본 자동 작성 후 음성까지 생성합니다.\n",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "generate",
+              "script"
+            ],
+            "description": "generate=텍스트→음성, script=주제→대본작성→음성"
+          },
+          "text": {
+            "type": "string",
+            "description": "음성으로 변환할 텍스트 (action=generate 시)"
+          },
+          "topic": {
+            "type": "string",
+            "description": "대본 주제 (action=script 시)"
+          },
+          "voice": {
+            "type": "string",
+            "enum": [
+              "alloy",
+              "ash",
+              "ballad",
+              "coral",
+              "echo",
+              "fable",
+              "nova",
+              "onyx",
+              "sage",
+              "shimmer"
+            ],
+            "description": "음성 (nova=친근한여성, onyx=깊은남성, coral=밝은여성)"
+          },
+          "speed": {
+            "type": "number",
+            "description": "속도 (0.25~4.0, 기본 1.0)"
+          },
+          "duration": {
+            "type": "integer",
+            "description": "목표 영상 길이(초) — action=script 시 대본 분량 조절"
+          },
+          "tone": {
+            "type": "string",
+            "description": "대본 톤 (예: 친근하고 전문적인)"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      }
+    },
+    {
+      "tool_id": "lipsync_video_generator",
+      "name": "Lipsync Video Generator",
+      "name_ko": "립싱크 영상 생성",
+      "description": "AI 인플루언서 이미지 + 음성 → 입이 움직이는 영상 생성. Replicate 클라우드 GPU에서 SadTalker를 실행합니다. 이미지+대본만 주면 TTS+립싱크까지 한번에 처리합니다.\n",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "generate",
+              "from_text"
+            ],
+            "description": "generate=이미지+음성→영상, from_text=이미지+대본→TTS→영상(올인원)"
+          },
+          "image": {
+            "type": "string",
+            "description": "인플루언서 이미지 파일명 또는 경로 (미지정 시 기본 이미지 사용)"
+          },
+          "audio": {
+            "type": "string",
+            "description": "음성 파일 경로 (action=generate 시)"
+          },
+          "text": {
+            "type": "string",
+            "description": "대본 텍스트 (action=from_text 시)"
+          },
+          "topic": {
+            "type": "string",
+            "description": "대본 주제 (action=from_text 시, text 미지정 시 자동 작성)"
+          },
+          "voice": {
+            "type": "string",
+            "description": "TTS 음성 선택 (from_text 시)"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      }
+    },
+    {
+      "tool_id": "video_editor",
+      "name": "Video Editor",
+      "name_ko": "영상 편집",
+      "description": "ffmpeg 기반 영상 편집 — 자막, BGM, 클립 합치기. AI 인플루언서 영상의 마지막 단계. 립싱크 영상에 자막과 배경음악을 추가합니다.\n",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "subtitle",
+              "bgm",
+              "concat",
+              "full"
+            ],
+            "description": "subtitle=자막합성, bgm=배경음악, concat=클립합치기, full=자막+BGM"
+          },
+          "video": {
+            "type": "string",
+            "description": "영상 파일 경로 (미지정 시 최신 립싱크 영상)"
+          },
+          "text": {
+            "type": "string",
+            "description": "자막 텍스트 (action=subtitle/full 시, 자동 SRT 생성)"
+          },
+          "srt": {
+            "type": "string",
+            "description": "SRT 자막 파일 경로"
+          },
+          "bgm": {
+            "type": "string",
+            "description": "BGM 파일 경로 (action=bgm/full 시)"
+          },
+          "bgm_volume": {
+            "type": "number",
+            "description": "BGM 볼륨 (0.0~1.0, 기본 0.15)"
+          },
+          "clips": {
+            "type": "array",
+            "description": "이어붙일 클립 파일 경로 리스트 (action=concat 시)"
           }
         },
         "required": [
