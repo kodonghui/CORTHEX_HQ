@@ -7412,14 +7412,33 @@ async def _manager_with_delegation(manager_id: str, text: str) -> dict:
             spec_cost += r.get("cost_usd", 0)
             spec_time = max(spec_time, r.get("time_seconds", 0))
 
-    # 처장이 종합 + 검수 (전문가 결과를 읽고 CEO에게 보고서 작성)
-    synthesis_prompt = (
-        f"당신은 {mgr_name}입니다. 소속 전문가들이 아래 분석 결과를 제출했습니다.\n"
-        f"이를 검수하고 종합하여 CEO에게 보고할 간결한 보고서를 작성하세요.\n"
-        f"전문가 의견 중 부족하거나 잘못된 부분이 있으면 지적하고 보완하세요.\n\n"
-        f"## CEO 원본 명령\n{text}\n\n"
-        f"## 전문가 분석 결과\n" + "\n\n".join(spec_parts)
-    )
+    # 전문가 성공/실패 집계
+    _spec_ok_count = len([r for r in spec_results if "error" not in r])
+    _spec_err_count = len(spec_results) - _spec_ok_count
+
+    # 처장 종합 프롬프트 — 독자 분석 + 전문가 결과 종합
+    if _spec_ok_count == 0:
+        # 전문가 전원 실패 → 처장이 직접 도구로 독자 분석 필수
+        synthesis_prompt = (
+            f"당신은 {mgr_name}입니다.\n"
+            f"⚠️ 소속 전문가 {_spec_err_count}명이 전원 에러/실패하여 분석 결과가 없습니다.\n\n"
+            f"**당신이 직접 도구를 사용하여 독자적으로 분석하세요.**\n"
+            f"도구(API)로 실시간 데이터를 직접 조회하고, 그 데이터를 근거로 보고서를 작성하세요.\n"
+            f"전문가 결과 없이도 CEO에게 보고할 수 있는 수준의 독자 분석 보고서를 만드세요.\n\n"
+            f"## CEO 원본 명령\n{text}\n"
+        )
+    else:
+        # 전문가 결과 있음 → 독자 검증 + 전문가 종합
+        _partial_warn = f"\n⚠️ 전문가 {_spec_err_count}명 에러 — 해당 영역은 당신이 도구로 직접 보완하세요.\n" if _spec_err_count > 0 else ""
+        synthesis_prompt = (
+            f"당신은 {mgr_name}입니다.\n"
+            f"소속 전문가들이 아래 분석 결과를 제출했습니다.{_partial_warn}\n"
+            f"**반드시 도구를 사용하여 전문가 결과를 독자적으로 검증하세요.**\n"
+            f"전문가 결과를 그대로 옮기지 말고, 도구로 직접 데이터를 확인한 뒤 종합 보고서를 작성하세요.\n"
+            f"전문가 의견 중 부족하거나 잘못된 부분이 있으면 지적하고 보완하세요.\n\n"
+            f"## CEO 원본 명령\n{text}\n\n"
+            f"## 전문가 분석 결과\n" + "\n\n".join(spec_parts)
+        )
 
     soul = _load_agent_prompt(manager_id)
     override = _get_model_override(manager_id)
@@ -7460,7 +7479,15 @@ async def _manager_with_delegation(manager_id: str, text: str) -> dict:
 
             synth_tool_executor_fn = _synth_tool_executor
 
-    await _broadcast_status(manager_id, "working", 0.7, "전문가 결과 검수 + 종합 중...")
+    if _spec_ok_count == 0:
+        await _broadcast_status(manager_id, "working", 0.7, "전문가 전원 실패 → 독자 분석 중...")
+        log_ind = save_activity_log(manager_id,
+            f"[{mgr_name}] 🔧 전문가 전원 실패 → 도구 사용 독자 분석 시작", "info")
+        await wm.send_activity_log(log_ind)
+    elif _spec_err_count > 0:
+        await _broadcast_status(manager_id, "working", 0.7, f"독자 검증 + 종합 중 ({_spec_err_count}명 에러 보완)...")
+    else:
+        await _broadcast_status(manager_id, "working", 0.7, "독자 검증 + 전문가 결과 종합 중...")
     synthesis = await ask_ai(synthesis_prompt, system_prompt=soul, model=model,
                              tools=synth_tool_schemas, tool_executor=synth_tool_executor_fn,
                              reasoning_effort=_get_agent_reasoning_effort(manager_id))
@@ -7512,6 +7539,13 @@ async def _manager_with_delegation(manager_id: str, text: str) -> dict:
             agent_id=manager_id,
         )
 
+    # 독자 분석 도구 사용 기록 로그
+    if synth_tools_used:
+        _unique_synth = list(dict.fromkeys(synth_tools_used))
+        log_tools = save_activity_log(manager_id,
+            f"[{mgr_name}] 🔧 독자 분석 도구 {len(synth_tools_used)}건 사용 (고유 {len(_unique_synth)}개): {', '.join(_unique_synth[:5])}", "tool")
+        await wm.send_activity_log(log_tools)
+
     return {
         "agent_id": manager_id,
         "name": mgr_name,
@@ -7520,6 +7554,7 @@ async def _manager_with_delegation(manager_id: str, text: str) -> dict:
         "model": synthesis.get("model", ""),
         "time_seconds": round(spec_time + synthesis.get("time_seconds", 0), 2),
         "specialists_used": specialists_used,
+        "tools_used": synth_tools_used,
     }
 
 
