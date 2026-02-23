@@ -4275,22 +4275,60 @@ async def run_trading_now():
 
     봇 ON/OFF 상태와 무관하게 즉시 1회 분석을 실행합니다.
     수동 실행이므로 auto_execute 설정 무관하게 항상 매매까지 진행합니다.
+
+    Cloudflare 100초 타임아웃 대응: 즉시 응답 + 백그라운드 실행.
+    프론트엔드는 CIO SSE + 폴링으로 실시간 추적.
     """
-    try:
-        return await _run_trading_now_inner()
-    except Exception as e:
-        logger.error("[수동 분석] 전체 오류: %s", e, exc_info=True)
-        # 에러가 나도 이미 저장된 시그널/결정이 있으면 partial 결과 반환
-        signals = _load_data("trading_signals", [])
-        latest = signals[0] if signals else {}
-        return {
-            "success": False,
-            "message": f"분석 중 오류: {str(e)[:200]}",
-            "signals": latest.get("parsed_signals", []),
-            "signals_count": len(latest.get("parsed_signals", [])),
-            "orders_triggered": 0,
-            "error": str(e)[:200],
-        }
+    # 이미 실행 중이면 중복 방지
+    existing = app_state.bg_tasks.get("trading_run_now")
+    if existing and not existing.done():
+        return {"success": True, "message": "CIO 분석이 이미 진행 중입니다. 잠시 기다려주세요.", "already_running": True}
+
+    async def _bg_run_trading():
+        try:
+            result = await _run_trading_now_inner()
+            app_state.bg_results["trading_run_now"] = {
+                **result, "_completed_at": __import__("time").time()
+            }
+        except Exception as e:
+            logger.error("[수동 분석] 백그라운드 오류: %s", e, exc_info=True)
+            signals = _load_data("trading_signals", [])
+            latest = signals[0] if signals else {}
+            app_state.bg_results["trading_run_now"] = {
+                "success": False,
+                "message": f"분석 중 오류: {str(e)[:200]}",
+                "signals": latest.get("parsed_signals", []),
+                "signals_count": len(latest.get("parsed_signals", [])),
+                "orders_triggered": 0,
+                "error": str(e)[:200],
+                "_completed_at": __import__("time").time(),
+            }
+        finally:
+            # 완료 알림 브로드캐스트
+            result = app_state.bg_results.get("trading_run_now", {})
+            await wm.broadcast({
+                "type": "trading_run_complete",
+                "success": result.get("success", False),
+                "signals_count": result.get("signals_count", 0),
+                "orders_triggered": result.get("orders_triggered", 0),
+            })
+
+    app_state.bg_tasks["trading_run_now"] = asyncio.create_task(_bg_run_trading())
+    return {"success": True, "message": "CIO 분석 시작됨. 실시간 진행 상황은 화면에서 확인하세요.", "background": True}
+
+
+@app.get("/api/trading/bot/run-status")
+async def get_trading_run_status():
+    """백그라운드 CIO 분석 진행 상태 확인."""
+    task = app_state.bg_tasks.get("trading_run_now")
+    result = app_state.bg_results.get("trading_run_now")
+
+    if task and not task.done():
+        return {"status": "running", "message": "CIO 분석 진행 중..."}
+    elif result:
+        return {"status": "completed", **result}
+    else:
+        return {"status": "idle", "message": "실행 대기 중"}
 
 
 async def _run_trading_now_inner():
