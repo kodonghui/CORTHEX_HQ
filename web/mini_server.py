@@ -261,9 +261,10 @@ class ActivityLogMiddleware(BaseHTTPMiddleware):
 
         try:
             log_entry = save_activity_log("system", action, level)
-            await wm.send_activity_log(log_entry)
+            # 시스템 HTTP 로그는 브로드캐스트하지 않음 (노이즈 감소)
+            # 에이전트 활동로그만 실시간 전송
         except Exception as e:
-            logger.debug("활동 로그 전송 실패: %s", e)
+            logger.debug("활동 로그 저장 실패: %s", e)
 
         return response
 
