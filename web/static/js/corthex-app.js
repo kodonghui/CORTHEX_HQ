@@ -1,3 +1,23 @@
+// ── 성능 최적화: CDN 라이브러리 동적 로드 헬퍼 ──
+const _scriptCache = {};
+function _loadScript(url) {
+  if (_scriptCache[url]) return _scriptCache[url];
+  _scriptCache[url] = new Promise((resolve, reject) => {
+    if (document.querySelector(`script[src="${url}"]`)) { resolve(); return; }
+    const s = document.createElement('script');
+    s.src = url;
+    s.onload = resolve;
+    s.onerror = reject;
+    document.head.appendChild(s);
+  });
+  return _scriptCache[url];
+}
+const _CDN = {
+  marked: 'https://cdn.jsdelivr.net/npm/marked/marked.min.js',
+  chartjs: 'https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js',
+  mermaid: 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js',
+};
+
 function corthexApp() {
   return {
     // State
@@ -433,41 +453,43 @@ function corthexApp() {
     inputHints: ['명령을 입력하세요 · /명령어 로 명령어 목록 확인'],
     inputHintIndex: 0,
 
+    // ── Lazy load 플래그 (탭별 1회만 로드) ──
+    _commandLoaded: false,
+    _activityLogLoaded: false,
+    _mermaidInited: false,
+
     init() {
-      // Dark mode
+      // ── Stage 1: 즉시 필요 (모든 화면 공통) ──
       const savedTheme = localStorage.getItem('corthex-theme');
       if (savedTheme === 'light') {
         this.darkMode = false;
         document.documentElement.classList.remove('dark');
       }
-      // Greeting
       this.greeting = this.getGreeting();
-      // Notification permission
       this.requestNotificationPermission();
-      // Auth
       this.checkAuth();
-      // Dynamic agent/tool loading (tools도 여기서 함께 로드)
+
+      // Marked 비동기 프리로드 (blocking 아님, 사령관실 진입 전까지 로드 완료)
+      _loadScript(_CDN.marked);
+
+      // 에이전트 목록 + WebSocket + 진행중 작업: 병렬
       this.loadAgentsAndTools();
-      // Load feedback stats (#7)
-      this.loadFeedbackStats();
-      // Restore activity logs from localStorage (#13)
-      this.restoreActivityLogs();
-      // Restore delegation logs (교신로그) from DB
-      this.fetchDelegationLogs(true);
-      this._connectCommsSSE();
-      // Restore conversation
-      this.loadConversation();
       this.connectWebSocket();
-      // 하드 리프레시 후 실행 중인 작업 상태 복원
       this.restoreRunningTask();
+
+      // ── Stage 2: 기본 탭(홈) 데이터 ──
       this.loadDashboard();
-      this.loadPresets();
-      // Keyboard shortcuts (#16)
+
+      // ── Stage 3: 나머지는 switchTab()에서 lazy load ──
+      // loadFeedbackStats → loadDashboard 안에 포함
+      // restoreActivityLogs, fetchDelegationLogs, _connectCommsSSE → activityLog 탭 진입 시
+      // loadConversation, loadPresets → command 탭 진입 시
+
+      // 키보드 단축키 + 기타
       this.initKeyboardShortcuts();
-      // 최근 사용 명령 복원
       try { this.recentCommands = JSON.parse(localStorage.getItem('corthex-recent-cmds') || '[]'); } catch(e) { this.recentCommands = []; }
-      // Input hint — 순환 제거, 고정 텍스트 사용 (#18)
-      // 배치 타이머 — 1초마다 경과 시간 업데이트
+
+      // 타이머 (전역 필수만)
       this._batchTimer = setInterval(() => {
         if (this.batchProgress.active && this.batchProgress.startedAt) {
           const sec = Math.floor((Date.now() - this.batchProgress.startedAt) / 1000);
@@ -477,24 +499,22 @@ function corthexApp() {
         }
       }, 1000);
       this.startElapsedTimer();
-      // 예산 주기적 동기화 (30초마다) — 백그라운드 AI 호출 비용도 반영
       this._budgetTimer = setInterval(async () => {
         try {
           const r = await fetch('/api/budget');
           if (r.ok) { const d = await r.json(); if (d.today_cost !== undefined) this.totalCost = d.today_cost; }
         } catch(e) {}
       }, 30000);
-      // 페이지 언로드 시 SSE/WebSocket/타이머 정리 (메모리 누수 방지)
+
+      // 페이지 언로드 시 정리
       window.addEventListener('beforeunload', () => {
         try { if (this.ws) this.ws.close(); } catch(e) {}
         try { if (this._commsSSE) this._commsSSE.close(); } catch(e) {}
-        try { if (this._cioSSE) this._cioSSE.close(); } catch(e) {}
         try { if (this.trading?.refreshInterval) clearInterval(this.trading.refreshInterval); } catch(e) {}
         try { if (this._batchTimer) clearInterval(this._batchTimer); } catch(e) {}
         try { if (this._budgetTimer) clearInterval(this._budgetTimer); } catch(e) {}
         try { if (this._elapsedTimer) clearInterval(this._elapsedTimer); } catch(e) {}
       });
-      // Mobile responsive: auto-close sidebar on resize to desktop, auto-open on desktop (#12-2)
       window.addEventListener('resize', () => {
         const w = window.innerWidth;
         if (w > 768 && !this.sidebarOpen) this.sidebarOpen = true;
@@ -712,7 +732,6 @@ function corthexApp() {
             }
             this.trading.tab = 'signals';
             this.loadTradingSummary();
-            this._stopCioPolling();
             this.trading.runningNow = false;
             this.trading.analyzingSelected = false;
             this.trading.selectedWatchlist = [];
@@ -1281,13 +1300,13 @@ function corthexApp() {
       if (this._commsSSE) return;
       try {
         this._commsSSE = new EventSource('/api/comms/stream');
+        const cioKeywords = ['CIO', '투자분석', '시황분석', '종목분석', '기술적분석', '리스크관리'];
         this._commsSSE.addEventListener('comms', (e) => {
           try {
             const msg = JSON.parse(e.data);
-            // 중복 방지: 이미 있는 id는 건너뜀
+            // 사령관실 교신로그 (중복 방지)
             if (!this.delegationLogs.find(l => l.id === msg.id)) {
               this.delegationLogs.unshift(msg);
-              // 시간순 내림차순 정렬 (최신 → 오래된 순)
               this.delegationLogs.sort((a, b) => {
                 const ta = new Date(a.created_at || 0).getTime();
                 const tb = new Date(b.created_at || 0).getTime();
@@ -1295,11 +1314,38 @@ function corthexApp() {
               });
               if (this.delegationLogs.length > 100) this.delegationLogs = this.delegationLogs.slice(0, 100);
             }
+            // CIO 전략실 로그 (키워드 필터링)
+            const s = (msg.sender || '') + (msg.receiver || '');
+            if (cioKeywords.some(k => s.includes(k))) {
+              if (!this.trading.cioLogs.find(l => l.id === msg.id)) {
+                msg._fresh = true;
+                this.trading.cioLogs.unshift(msg);
+                if (this.trading.cioLogs.length > 50) this.trading.cioLogs = this.trading.cioLogs.slice(0, 50);
+                setTimeout(() => { msg._fresh = false; }, 2000);
+                // 전략실 활동로그에도 추가
+                const toolsRaw = msg.tools_used || '';
+                const toolsList = typeof toolsRaw === 'string'
+                  ? toolsRaw.split(',').map(t => t.trim()).filter(Boolean)
+                  : (Array.isArray(toolsRaw) ? toolsRaw : []);
+                const alEntry = {
+                  id: 'dl_' + msg.id,
+                  type: msg.log_type || 'delegation',
+                  sender: msg.sender || '',
+                  receiver: msg.receiver || '',
+                  message: msg.message || '',
+                  tools: toolsList,
+                  time: msg.created_at ? new Date(msg.created_at * 1000).toISOString() : new Date().toISOString(),
+                  _ts: (msg.created_at || 0) * 1000 || Date.now(),
+                };
+                if (!this.trading.activityLog.logs.find(l => l.id === alEntry.id)) {
+                  this.trading.activityLog.logs.unshift(alEntry);
+                  if (this.trading.activityLog.logs.length > 100) this.trading.activityLog.logs = this.trading.activityLog.logs.slice(0, 100);
+                }
+              }
+            }
           } catch(err) {}
         });
-        this._commsSSE.onerror = () => {
-          // 재연결 시도 (브라우저가 자동으로 함)
-        };
+        this._commsSSE.onerror = () => {};
       } catch(err) {}
     },
     toggleDelegationLog() {
@@ -1414,9 +1460,12 @@ function corthexApp() {
     },
 
     renderMarkdown(text) {
+      if (typeof marked === 'undefined') {
+        // marked 미로드 시 plaintext 반환 (init에서 비동기 프리로드 중)
+        return (text || '').replace(/</g, '&lt;').replace(/\n/g, '<br>');
+      }
       try {
         let html = marked.parse(text || '');
-        // ■ 문자를 글로우 배지로 변환 (계층 구분은 CSS에서 처리)
         html = html.replace(/■\s*/g, '<span class="badge-marker badge-marker-primary"></span>');
         return html;
       }
@@ -1724,14 +1773,30 @@ function corthexApp() {
 
     switchTab(tabId) {
       this.activeTab = tabId;
-      // 모바일에서 탭 전환 시 사이드바 자동 닫힘 (#12-2)
       if (window.innerWidth <= 768) this.sidebarOpen = false;
-      // 대시보드 뷰 타이머 정리 (다른 탭으로 이동 시)
       if (tabId !== 'command' && this.dashboardRefreshTimer) {
         clearInterval(this.dashboardRefreshTimer);
         this.dashboardRefreshTimer = null;
       }
+      // ── Lazy load per tab (init에서 제거된 호출들) ──
       if (tabId === 'home' && !this.dashboard.loaded) this.loadDashboard();
+      if (tabId === 'command') {
+        if (!this._commandLoaded) {
+          this._commandLoaded = true;
+          this.loadConversation();
+          this.loadPresets();
+        }
+        this.$nextTick(() => { this.scrollToBottom(); });
+        this.loadRecentTasksForCommand();
+      }
+      if (tabId === 'activityLog') {
+        if (!this._activityLogLoaded) {
+          this._activityLogLoaded = true;
+          this.restoreActivityLogs();
+          this.fetchDelegationLogs(true);
+          this._connectCommsSSE();
+        }
+      }
       if (tabId === 'performance' && !this.performance.loaded) this.loadPerformance();
       if (tabId === 'history') this.loadTaskHistory();
       if (tabId === 'schedule') this.loadSchedules();
@@ -1742,13 +1807,12 @@ function corthexApp() {
       if (tabId === 'sns') this.loadSNS();
       if (tabId === 'trading') {
         this.loadTradingSummary();
-        this._connectCioSSE();
+        this._connectCommsSSE(); // SSE 통합: CIO 로그도 여기서 처리
         clearInterval(this.trading.refreshInterval);
         clearInterval(this.trading.priceRefreshInterval);
         this.trading.refreshInterval = setInterval(() => {
           if (this.activeTab === 'trading') this.loadTradingSummary(true);
         }, 30000);
-        // 관심종목 시세 1분마다 자동 새로고침
         this.trading.priceRefreshInterval = setInterval(() => {
           if (this.activeTab === 'trading' && this.trading.watchlist.length > 0) {
             this.loadWatchlistPrices();
@@ -1757,11 +1821,6 @@ function corthexApp() {
       } else {
         clearInterval(this.trading.refreshInterval);
         clearInterval(this.trading.priceRefreshInterval);
-        this._disconnectCioSSE();
-      }
-      if (tabId === 'command') {
-        this.$nextTick(() => { this.scrollToBottom(); });
-        this.loadRecentTasksForCommand();
       }
     },
 
@@ -1886,6 +1945,19 @@ function corthexApp() {
 
     async loadArchMap() {
       try {
+        // Chart.js + Mermaid 동적 로드 (archmap 탭 최초 진입 시만)
+        await Promise.all([
+          _loadScript(_CDN.chartjs),
+          _loadScript(_CDN.mermaid),
+        ]);
+        // Mermaid 초기화 (최초 1회)
+        if (typeof mermaid !== 'undefined' && !this._mermaidInited) {
+          mermaid.initialize({ startOnLoad: false, theme: 'dark', themeVariables: {
+            primaryColor: '#FF6B3520', primaryBorderColor: '#FF6B35', primaryTextColor: '#E5E7EB',
+            lineColor: '#4B5563', secondaryColor: '#1F2937', tertiaryColor: '#111827', fontSize: '13px',
+          }, flowchart: { curve: 'basis', padding: 15 } });
+          this._mermaidInited = true;
+        }
         const [hierarchy, costSummary] = await Promise.all([
           fetch('/api/architecture/hierarchy').then(r => r.json()),
           fetch('/api/architecture/cost-summary').then(r => r.json()),
@@ -3496,64 +3568,7 @@ function corthexApp() {
       return val.toFixed(2);
     },
 
-    _cioSSE: null,
-    _connectCioSSE() {
-      if (this._cioSSE) return;
-      const cioKeywords = ['CIO', '투자분석', '시황분석', '종목분석', '기술적분석', '리스크관리'];
-      try {
-        this._cioSSE = new EventSource('/api/comms/stream');
-        this._cioSSE.addEventListener('comms', (e) => {
-          try {
-            const msg = JSON.parse(e.data);
-            const s = (msg.sender || '') + (msg.receiver || '');
-            if (!cioKeywords.some(k => s.includes(k))) return;
-            if (this.trading.cioLogs.find(l => l.id === msg.id)) return;
-            msg._fresh = true;
-            this.trading.cioLogs.unshift(msg);
-            if (this.trading.cioLogs.length > 50) this.trading.cioLogs = this.trading.cioLogs.slice(0, 50);
-            setTimeout(() => { msg._fresh = false; }, 2000);
-            // 활동로그 탭에도 실시간 추가
-            const toolsRaw = msg.tools_used || '';
-            const toolsList = typeof toolsRaw === 'string'
-              ? toolsRaw.split(',').map(t => t.trim()).filter(Boolean)
-              : (Array.isArray(toolsRaw) ? toolsRaw : []);
-            const alEntry = {
-              id: 'dl_' + msg.id,
-              type: msg.log_type || 'delegation',
-              sender: msg.sender || '',
-              receiver: msg.receiver || '',
-              message: msg.message || '',
-              tools: toolsList,
-              time: msg.created_at ? new Date(msg.created_at * 1000).toISOString() : new Date().toISOString(),
-              _ts: (msg.created_at || 0) * 1000 || Date.now(),
-            };
-            if (!this.trading.activityLog.logs.find(l => l.id === alEntry.id)) {
-              this.trading.activityLog.logs.unshift(alEntry);
-              if (this.trading.activityLog.logs.length > 100) this.trading.activityLog.logs = this.trading.activityLog.logs.slice(0, 100);
-            }
-          } catch {}
-        });
-      } catch {}
-    },
-    _disconnectCioSSE() {
-      if (this._cioSSE) { this._cioSSE.close(); this._cioSSE = null; }
-    },
-
-    _cioPollingInterval: null,
-    _startCioPolling() {
-      if (this._cioPollingInterval) return;
-      this._cioPollingInterval = setInterval(async () => {
-        try {
-          const logs = await fetch('/api/delegation-log?division=cio&limit=30').then(r=>r.ok?r.json():[]).catch(()=>[]);
-          if (Array.isArray(logs) && logs.length > this.trading.cioLogs.length) {
-            this.trading.cioLogs = logs;
-          }
-        } catch {}
-      }, 3000);
-    },
-    _stopCioPolling() {
-      if (this._cioPollingInterval) { clearInterval(this._cioPollingInterval); this._cioPollingInterval = null; }
-    },
+    // CIO SSE/폴링 제거됨 — _connectCommsSSE()에서 통합 처리
 
     // ── 활동로그 전용 탭 ──
     async loadCioActivityLog() {
@@ -3665,7 +3680,6 @@ function corthexApp() {
           this.trading.runningNow = false;
           this.trading.analyzingSelected = false;
           if (this._tradingRunPoll) { clearInterval(this._tradingRunPoll); this._tradingRunPoll = null; }
-          this._stopCioPolling();
         } else {
           this.showToast(res.message || '중지할 분석이 없습니다.', 'info');
         }
@@ -3677,8 +3691,7 @@ function corthexApp() {
       this.trading.runningNow = true;
       this.trading.cioLogs = [];
       this.trading.activityLog.logs = [];
-      this._connectCioSSE();
-      this._startCioPolling();
+      this._connectCommsSSE(); // SSE 통합: CIO 로그 실시간 수신
       this.showToast('CIO + 전문가 4명 즉시 분석 + 매매결정 중... (5~10분)', 'info');
       try {
         const resp = await fetch('/api/trading/bot/run-now', {method:'POST'});
@@ -3718,19 +3731,16 @@ function corthexApp() {
                   this.trading.cioLogs = Array.isArray(logs) ? logs : [];
                   await this.loadTradingSummary();
                 } catch {}
-                this._stopCioPolling();
                 this.trading.runningNow = false;
               }
             } catch {}
           }, 5000); // 5초마다 폴링
         } else if (!res.success) {
           this.showToast(res.message || '분석 실패', 'error');
-          this._stopCioPolling();
           this.trading.runningNow = false;
         }
       } catch (err) {
         this.showToast(`분석 오류: ${err.message || '서버 연결 실패'}`, 'error');
-        this._stopCioPolling();
         this.trading.runningNow = false;
       }
     },

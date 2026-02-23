@@ -129,8 +129,16 @@ GET https://corthex-hq.com/api/debug/server-logs?lines=50&service=nginx-access �
 - 언어: 한국어 | 시간대: `Asia/Seoul` (KST)
 - 프레임워크: Tailwind CSS + Alpine.js (CDN)
 - 디자인: `hq-*` 커스텀 컬러 토큰
-- **폰트**: Pretendard 단일 통일. `font-mono`는 숫자/코드/종목코드에만. Noto Serif KR는 `.font-title`만
-- ❌ 새 Google 폰트 추가, `font-sans` 오버라이드 금지
+- **폰트**: Pretendard + JetBrains Mono 2개만. `font-mono`는 숫자/코드/종목코드에만
+- ❌ 새 Google 폰트 추가 금지, `font-sans` 오버라이드 금지, Noto Serif KR 폐지됨
+
+## 🔴🔴🔴 웹 성능 코딩 규칙 — 최적화 깨뜨리지 마라! 🔴🔴🔴
+1. **CDN 라이브러리 추가 금지**: 새 외부 라이브러리는 `_loadScript()` 동적 로드만. `<script src="CDN">` blocking 추가 절대 금지
+2. **탭 HTML은 x-if**: 새 탭은 `<template x-if="activeTab === 'xxx'">` 필수. x-show는 home/command/schedule/knowledge만
+3. **init()에 API 추가 금지**: 새 탭 API는 `switchTab()` 내부에서 lazy load. init()은 auth/WS/agents만
+4. **폰트 추가 금지**: Pretendard + JetBrains Mono 2개만. CSS @import 금지 → preload 사용
+5. **SSE 1개만**: `/api/comms/stream` 연결은 `_connectCommsSSE()` 하나. 탭별 SSE 추가 금지
+6. **setInterval은 탭 진입/이탈 관리**: 시작 = 탭 진입, 종료 = 탭 이탈. init()에 전역 타이머 추가 금지
 
 ## 🔴🔴🔴 매매 설정 — 건드리지 마! 🔴🔴🔴
 - **`order_size: 0` = CIO 비중 자율**. 0이 정상! 버그가 아님!
