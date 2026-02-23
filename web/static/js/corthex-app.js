@@ -244,7 +244,7 @@ function corthexApp() {
       cioLogs: [],
       showCioLogs: true,
       // 활동로그 전용 탭
-      activityLog: { logs: [], loading: false, filter: 'all', autoScroll: true },
+      activityLog: { logs: [], loading: false, filter: 'all', subTab: 'activity', autoScroll: true },
       // 주문 폼
       orderForm: { action: 'buy', ticker: '', name: '', qty: 0, price: 0, market: 'KR' },
       // 전략 추가 폼
@@ -612,6 +612,8 @@ function corthexApp() {
           msg.data.timestamp = Date.now();
           msg.data.action = msg.data.message || msg.data.action || '';
           if (!msg.data.action) break;
+          // system 로그 숨기기 (B안 — 노이즈 제거)
+          if (msg.data.agent_id === 'system') break;
           // level별 배열 분류 (4탭 지원)
           if (msg.data.level === 'tool') {
             this.toolLogs.push(msg.data);
@@ -3612,11 +3614,20 @@ function corthexApp() {
     },
 
     getFilteredCioLogs() {
-      const f = this.trading.activityLog.filter;
-      if (f === 'all') return this.trading.activityLog.logs;
-      if (f === 'tools') return this.trading.activityLog.logs.filter(l => l.tools.length > 0 || l.level === 'tool');
-      if (f === 'qa') return this.trading.activityLog.logs.filter(l => l.level === 'qa_pass' || l.level === 'qa_fail');
-      return this.trading.activityLog.logs.filter(l => l.type === f);
+      const tab = this.trading.activityLog.subTab;
+      const logs = this.trading.activityLog.logs;
+      if (tab === 'activity') return logs.filter(l => l.level !== 'tool' && l.level !== 'qa_pass' && l.level !== 'qa_fail' && l.type !== 'delegation' && l.type !== 'report');
+      if (tab === 'comms') return logs.filter(l => l.type === 'delegation' || l.type === 'report');
+      if (tab === 'qa') return logs.filter(l => l.level === 'qa_pass' || l.level === 'qa_fail');
+      if (tab === 'tools') return logs.filter(l => l.tools.length > 0 || l.level === 'tool');
+      return logs;
+    },
+    clearCioLogsTab(tab) {
+      const logs = this.trading.activityLog.logs;
+      if (tab === 'activity') this.trading.activityLog.logs = logs.filter(l => l.level === 'tool' || l.level === 'qa_pass' || l.level === 'qa_fail' || l.type === 'delegation' || l.type === 'report');
+      else if (tab === 'comms') this.trading.activityLog.logs = logs.filter(l => l.type !== 'delegation' && l.type !== 'report');
+      else if (tab === 'qa') this.trading.activityLog.logs = logs.filter(l => l.level !== 'qa_pass' && l.level !== 'qa_fail');
+      else if (tab === 'tools') this.trading.activityLog.logs = logs.filter(l => !l.tools.length && l.level !== 'tool');
     },
 
     formatLogTime(timeStr) {
@@ -3907,22 +3918,33 @@ function corthexApp() {
     // ── #13: Activity Log Persistence ──
     restoreActivityLogs() {
       // DB에서 최근 활동 로그 불러오기 (페이지 새로고침해도 이력 유지)
-      fetch('/api/activity-logs?limit=50')
+      fetch('/api/activity-logs?limit=100')
         .then(r => r.json())
         .then(logs => {
           if (Array.isArray(logs)) {
-            this.activityLogs = logs.reverse().map(l => {
+            const formatted = logs.reverse().filter(l => l.agent_id !== 'system').map(l => {
               const d = l.created_at ? new Date(l.created_at) : new Date();
               const dateStr = d.toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/\.\s*/g, '.').replace(/\.$/, '');
               const timeStr = d.toLocaleTimeString('ko-KR', { timeZone: 'Asia/Seoul', hour12: false, hour: '2-digit', minute: '2-digit' });
               return { ...l, action: l.message || l.action || '', timeDate: dateStr, timeClock: timeStr, time: dateStr + ' ' + timeStr, timestamp: l.timestamp || d.getTime() };
             });
+            // level별 분류 (4탭 복원)
+            this.activityLogs = formatted.filter(l => l.level !== 'tool' && l.level !== 'qa_pass' && l.level !== 'qa_fail');
+            this.toolLogs = formatted.filter(l => l.level === 'tool');
+            this.qaLogs = formatted.filter(l => l.level === 'qa_pass' || l.level === 'qa_fail');
           }
         })
         .catch(() => { this.activityLogs = []; });
     },
     saveActivityLogs() {
       // DB에 자동 저장되므로 별도 저장 불필요
+    },
+    // ── 탭별 전체삭제 ──
+    clearLogsTab(tab) {
+      if (tab === 'activity') this.activityLogs = [];
+      else if (tab === 'comms') this.delegationLogs = [];
+      else if (tab === 'qa') this.qaLogs = [];
+      else if (tab === 'tools') this.toolLogs = [];
     },
 
     // ── #14: Task History Pagination ──

@@ -2888,7 +2888,7 @@
                 </button>
               </div>
             </div>
-            <!-- 필터 (활동 로그일 때) -->
+            <!-- 필터 + 🗑️ 삭제 (활동 로그일 때) -->
             <div x-show="commsLogSubTab === 'activity'" class="flex items-center gap-3">
               <select x-model="activityLogFilter"
                       class="bg-hq-surface border border-hq-border rounded-lg px-3 py-1.5 text-xs text-hq-text min-w-[120px]">
@@ -2897,8 +2897,10 @@
                   <option :value="id" x-text="name"></option>
                 </template>
               </select>
+              <button @click="if(confirm('활동 로그를 전체 삭제할까요?')) clearLogsTab('activity')" title="활동 로그 전체삭제"
+                      class="text-hq-muted hover:text-hq-red transition p-1 rounded">🗑️</button>
             </div>
-            <!-- 필터 (교신 로그일 때) -->
+            <!-- 필터 + 🗑️ 삭제 (교신 로그일 때) -->
             <div x-show="commsLogSubTab === 'comms'" class="flex items-center gap-2">
               <button @click="delegationLogFilter = 'all'"
                       :class="delegationLogFilter === 'all' ? 'bg-hq-accent/20 text-hq-accent' : 'text-hq-muted hover:text-hq-text'"
@@ -2920,6 +2922,18 @@
                         d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
                 </svg>
               </button>
+              <button @click="if(confirm('교신 로그를 전체 삭제할까요?')) clearLogsTab('comms')" title="교신 로그 전체삭제"
+                      class="text-hq-muted hover:text-hq-red transition p-1 rounded">🗑️</button>
+            </div>
+            <!-- 🗑️ 삭제 (검수 로그일 때) -->
+            <div x-show="commsLogSubTab === 'qa'" class="flex items-center gap-2">
+              <button @click="if(confirm('검수 로그를 전체 삭제할까요?')) clearLogsTab('qa')" title="검수 로그 전체삭제"
+                      class="text-hq-muted hover:text-hq-red transition p-1 rounded">🗑️</button>
+            </div>
+            <!-- 🗑️ 삭제 (도구 로그일 때) -->
+            <div x-show="commsLogSubTab === 'tools'" class="flex items-center gap-2">
+              <button @click="if(confirm('도구 로그를 전체 삭제할까요?')) clearLogsTab('tools')" title="도구 로그 전체삭제"
+                      class="text-hq-muted hover:text-hq-red transition p-1 rounded">🗑️</button>
             </div>
           </div>
 
@@ -4010,28 +4024,43 @@
           <div x-show="trading.tab === 'actlog' && !trading.loading">
             <div x-effect="if(trading.tab === 'actlog') loadCioActivityLog()"></div>
 
-            <!-- 헤더 -->
-            <div class="flex items-center justify-between mb-4">
-              <div>
+            <!-- 헤더 + 4탭 -->
+            <div class="flex flex-col md:flex-row md:items-center justify-between mb-4 gap-3">
+              <div class="flex items-center gap-3 md:gap-4">
                 <h3 class="text-sm font-bold text-hq-text flex items-center gap-2">
                   <span class="w-2 h-2 rounded-full" :class="trading.runningNow ? 'bg-hq-yellow animate-pulse' : 'bg-hq-accent'"></span>
-                  CIO팀 활동로그
+                  CIO팀 통신로그
                 </h3>
-                <p class="text-[10px] text-hq-muted mt-0.5">투자분석처장 + 전문가 4명의 위임·분석·도구사용 기록</p>
+                <span x-show="trading.runningNow" class="text-[10px] text-hq-yellow animate-pulse font-semibold">● LIVE</span>
+                <!-- 4탭 -->
+                <div class="flex bg-hq-surface border border-hq-border rounded-lg overflow-hidden flex-wrap">
+                  <button @click="trading.activityLog.subTab = 'activity'"
+                          :class="trading.activityLog.subTab === 'activity' ? 'bg-hq-accent/20 text-hq-accent font-bold' : 'text-hq-muted hover:text-hq-text'"
+                          class="px-3 py-1.5 text-[11px] font-semibold transition">
+                    📋 활동 <span class="font-mono ml-1" x-text="trading.activityLog.logs.filter(l => l.level !== 'tool' && l.level !== 'qa_pass' && l.level !== 'qa_fail' && l.type !== 'delegation' && l.type !== 'report').length"></span>
+                  </button>
+                  <button @click="trading.activityLog.subTab = 'comms'"
+                          :class="trading.activityLog.subTab === 'comms' ? 'bg-hq-cyan/20 text-hq-cyan font-bold' : 'text-hq-muted hover:text-hq-text'"
+                          class="px-3 py-1.5 text-[11px] font-semibold transition border-l border-hq-border">
+                    💬 교신 <span class="font-mono ml-1" x-text="trading.activityLog.logs.filter(l => l.type === 'delegation' || l.type === 'report').length"></span>
+                  </button>
+                  <button @click="trading.activityLog.subTab = 'qa'"
+                          :class="trading.activityLog.subTab === 'qa' ? 'bg-hq-green/20 text-hq-green font-bold' : 'text-hq-muted hover:text-hq-text'"
+                          class="px-3 py-1.5 text-[11px] font-semibold transition border-l border-hq-border">
+                    ✅ 검수 <span class="font-mono ml-1" x-text="trading.activityLog.logs.filter(l => l.level === 'qa_pass' || l.level === 'qa_fail').length"></span>
+                  </button>
+                  <button @click="trading.activityLog.subTab = 'tools'"
+                          :class="trading.activityLog.subTab === 'tools' ? 'bg-hq-orange/20 text-hq-orange font-bold' : 'text-hq-muted hover:text-hq-text'"
+                          class="px-3 py-1.5 text-[11px] font-semibold transition border-l border-hq-border">
+                    🔧 도구 <span class="font-mono ml-1" x-text="trading.activityLog.logs.filter(l => l.tools.length > 0 || l.level === 'tool').length"></span>
+                  </button>
+                </div>
               </div>
               <div class="flex items-center gap-2">
-                <span x-show="trading.runningNow" class="text-[10px] text-hq-yellow animate-pulse font-semibold">● LIVE</span>
                 <button @click="loadCioActivityLog()" class="bg-hq-surface border border-hq-border hover:border-hq-accent/30 rounded-lg px-3 py-1.5 text-xs text-hq-muted transition">새로고침</button>
+                <button @click="if(confirm('이 탭의 로그를 삭제할까요?')) clearCioLogsTab(trading.activityLog.subTab)" title="현재 탭 전체삭제"
+                        class="text-hq-muted hover:text-hq-red transition p-1 rounded">🗑️</button>
               </div>
-            </div>
-
-            <!-- 필터 바 -->
-            <div class="flex gap-1.5 mb-3 overflow-x-auto pb-1">
-              <template x-for="f in [{id:'all',l:'전체'},{id:'delegation',l:'위임'},{id:'report',l:'보고'},{id:'activity',l:'상태변화'},{id:'qa',l:'✅ 검수'},{id:'tools',l:'🔧 도구사용'}]" :key="f.id">
-                <button @click="trading.activityLog.filter = f.id"
-                        :class="trading.activityLog.filter === f.id ? 'bg-hq-accent/20 text-hq-accent border-hq-accent/30' : 'bg-hq-surface text-hq-muted border-hq-border hover:text-hq-text'"
-                        class="px-2.5 py-1 text-[10px] font-semibold rounded-lg border transition whitespace-nowrap" x-text="f.l"></button>
-              </template>
             </div>
 
             <!-- 로딩 -->
