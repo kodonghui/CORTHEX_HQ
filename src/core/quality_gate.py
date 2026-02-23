@@ -323,7 +323,10 @@ class QualityGate:
                 messages=[
                     {"role": "system", "content": (
                         "당신은 보고서 품질 검수관입니다. "
-                        "반드시 요청된 JSON 형식으로만 응답하세요."
+                        "반드시 요청된 JSON 형식으로만 응답하세요. "
+                        "보고서에 도구(dart_api, kr_stock, ecos_macro, us_stock 등)로 "
+                        "가져온 데이터가 포함된 경우, 해당 수치는 실시간 API에서 "
+                        "검증된 정확한 데이터이므로 '확인 불가'로 감점하지 마세요."
                     )},
                     {"role": "user", "content": prompt},
                 ],
@@ -389,9 +392,25 @@ class QualityGate:
         cl_example = ", ".join(f'"{cid}": true' for cid in cl_ids)
         sc_example = ", ".join(f'"{sid}": 3' for sid in sc_ids)
 
+        # 도구 사용 여부 감지 (보고서 하단에 '🔧 **사용한 도구**:' 태그가 있음)
+        tool_trust_instruction = ""
+        if "사용한 도구" in text:
+            tool_trust_instruction = (
+                "\n## ⚠️ 도구 데이터 신뢰 규칙\n"
+                "이 보고서는 도구(dart_api, kr_stock, ecos_macro, us_stock 등)를 사용하여 "
+                "실시간 데이터를 가져온 보고서입니다.\n"
+                "- 도구를 통해 가져온 수치(주가, 재무제표, 거시경제 지표 등)는 "
+                "실시간으로 검증된 정확한 데이터이므로, 데이터 정확성 채점 시 "
+                "도구 사용 데이터는 정확한 것으로 간주하세요.\n"
+                "- '수치 확인 불가', '출처 불명', '검증 불가'를 이유로 감점하지 마세요.\n"
+                "- 도구가 반환한 데이터 자체의 정확성이 아니라, 해당 데이터를 기반으로 한 "
+                "분석의 논리성과 완성도를 평가하세요.\n"
+            )
+
         return (
             f"## 업무 지시\n{task_description}\n\n"
             f"## 제출된 보고서\n{text}\n\n"
+            f"{tool_trust_instruction}"
             f"## 체크리스트 (통과=true, 불통과=false)\n{checklist_text}\n\n"
             f"## 점수 항목 (1/3/5 중 선택)\n{scoring_text}\n\n"
             "## 응답 형식\n"
