@@ -17,17 +17,27 @@
 
 **서버 로그 API가 완벽히 작동한다. Cloudflare WAF Skip 규칙이 `/api/*` 경로에 적용되어 있어서 외부에서 접근 가능.**
 
-### 서버 로그 확인 방법 (WebFetch 도구 사용)
+### ★★★ 에이전트 활동 로그 API (분석 모니터링 시 반드시 이걸 써라!) ★★★
 ```
-GET https://corthex-hq.com/api/debug/server-logs?lines=50&service=corthex    ← 앱 로그
+GET https://corthex-hq.com/api/activity-logs?division=cio_manager&limit=50    ← CIO팀 활동 (위임/보고/QA/도구/주문)
+GET https://corthex-hq.com/api/activity-logs?limit=50                         ← 전체 에이전트 활동
+GET https://corthex-hq.com/api/comms/messages?division=cio_manager&limit=50   ← CIO팀 교신(위임/보고) 로그
+GET https://corthex-hq.com/api/quality-reviews?limit=10                       ← QA 품질검수 결과
+```
+- **분석 실행 모니터링 시**: `/api/activity-logs`를 써야 에이전트 활동이 보인다!
+- `/api/debug/server-logs`는 HTTP 접속 기록만 보여줌 (에이전트 활동 안 보임)
+
+### 서버 시스템 로그 (HTTP 접속 기록, nginx)
+```
+GET https://corthex-hq.com/api/debug/server-logs?lines=50&service=corthex    ← 앱 로그 (HTTP 요청)
 GET https://corthex-hq.com/api/debug/server-logs?lines=50&service=nginx-error  ← nginx 에러 로그
 GET https://corthex-hq.com/api/debug/server-logs?lines=50&service=nginx-access ← nginx 접근 로그
 ```
 
-### 언제 확인하는가
-- **배포 후**: 서버가 정상 재시작됐는지 corthex 로그 확인
-- **버그 디버깅**: 에러 발생 시 nginx-error + corthex 로그 동시 확인
-- **에이전트 이상 동작**: 에이전트가 이상하게 행동하면 corthex 로그에서 도구 호출 로그 확인
+### 언제 뭘 확인하는가
+- **분석 모니터링**: `/api/activity-logs` (에이전트 위임/보고/QA/도구)
+- **배포 후**: `/api/debug/server-logs` (서버 재시작 확인)
+- **버그 디버깅**: 둘 다 확인 (activity-logs + server-logs)
 - **API 테스트**: WebFetch로 API 직접 호출하여 응답 확인 가능
 
 ### Cloudflare 설정 현황
@@ -46,6 +56,12 @@ GET https://corthex-hq.com/api/debug/server-logs?lines=50&service=nginx-access �
    - 깨끗하면 → `git checkout main && git pull origin main` 즉시 실행
 3. 새 브랜치에서 작업: `git checkout -b claude/작업명 origin/main` (main 직접 작업 금지)
 4. CORTHEX 요청 시 먼저 코드 탐색: `docs/project-status.md` → `docs/updates/` 최근 파일 → 관련 코드 Read
+
+## 🔴🔴🔴 날짜/시간 — 무조건 한국 시간(KST) 기준! 🔴🔴🔴
+- 서버 로그의 UTC 시간을 **반드시 KST(+9시간)로 변환**하여 표시
+- "2026-02-23T15:05 UTC" → "2026-02-24 00:05 KST"로 변환해서 보고
+- TODO 파일, 업데이트 기록, 대표님 보고 등 **모든 날짜는 한국 날짜 기준**
+- `오늘`의 기준 = 한국 시간 기준 날짜 (UTC 날짜와 다를 수 있음!)
 
 ## 프로젝트 정보
 - 저장소: https://github.com/kodonghui/CORTHEX_HQ
