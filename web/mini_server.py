@@ -370,16 +370,14 @@ def _save_config_file(name: str, data: dict) -> None:
 
 
 def _sync_agent_defaults_to_db():
-    """agents.yaml의 model_name, reasoning_effort를 agent_overrides DB에 동기화.
-    이미 DB에 있는 에이전트는 보존, 없는 것만 채움."""
+    """agents.yaml의 model_name, reasoning_effort를 agent_overrides DB에 항상 동기화.
+    yaml 값이 DB와 다르면 yaml 값(=권장모델)으로 덮어씀."""
     try:
-        # agents.yaml 로드
         agents_config = _load_config("agents")
         if not agents_config:
             return
         agents_list = agents_config.get("agents", [])
 
-        # 현재 agent_overrides DB 로드
         overrides = _load_data("agent_overrides", {})
         changed = False
 
@@ -387,13 +385,13 @@ def _sync_agent_defaults_to_db():
             agent_id = agent_data.get("agent_id")
             if not agent_id:
                 continue
-            # 이미 overrides에 있으면 건드리지 않음 (사용자 설정 보존)
-            if agent_id in overrides:
-                continue
-            # agents.yaml 값으로 초기화
             model_name = agent_data.get("model_name") or agent_data.get("model")
             reasoning = agent_data.get("reasoning_effort") or agent_data.get("reasoning")
-            if model_name:
+            if not model_name:
+                continue
+            # DB에 없거나 yaml과 다르면 yaml 값으로 덮어씀
+            existing = overrides.get(agent_id, {})
+            if existing.get("model_name") != model_name or existing.get("reasoning_effort") != reasoning:
                 overrides[agent_id] = {"model_name": model_name}
                 if reasoning:
                     overrides[agent_id]["reasoning_effort"] = reasoning
@@ -401,7 +399,7 @@ def _sync_agent_defaults_to_db():
 
         if changed:
             _save_data("agent_overrides", overrides)
-            logger.info("agent_overrides DB 초기화: agents.yaml 값 주입 완료")
+            logger.info("agent_overrides DB 동기화: agents.yaml 권장모델 적용 완료")
     except Exception as e:
         logger.warning("agent_overrides 동기화 실패: %s", e)
 
@@ -486,11 +484,11 @@ _AGENTS_FALLBACK = [
     {"agent_id": "survey_specialist", "name_ko": "설문/리서치 Specialist", "role": "specialist", "division": "leet_master.marketing", "status": "idle", "model_name": "gemini-3.1-pro-preview"},
     {"agent_id": "content_specialist", "name_ko": "콘텐츠 Specialist", "role": "specialist", "division": "leet_master.marketing", "status": "idle", "model_name": "gemini-3.1-pro-preview"},
     {"agent_id": "community_specialist", "name_ko": "커뮤니티 Specialist", "role": "specialist", "division": "leet_master.marketing", "status": "idle", "model_name": "gemini-3.1-pro-preview"},
-    {"agent_id": "cio_manager", "name_ko": "투자분석처장 (CIO)", "role": "manager", "division": "finance.investment", "status": "idle", "model_name": "gpt-5.2"},
-    {"agent_id": "market_condition_specialist", "name_ko": "시황분석 Specialist", "role": "specialist", "division": "finance.investment", "status": "idle", "model_name": "gemini-3.1-pro-preview"},
-    {"agent_id": "stock_analysis_specialist", "name_ko": "종목분석 Specialist", "role": "specialist", "division": "finance.investment", "status": "idle", "model_name": "gpt-5.2"},
-    {"agent_id": "technical_analysis_specialist", "name_ko": "기술적분석 Specialist", "role": "specialist", "division": "finance.investment", "status": "idle", "model_name": "gemini-3.1-pro-preview"},
-    {"agent_id": "risk_management_specialist", "name_ko": "리스크관리 Specialist", "role": "specialist", "division": "finance.investment", "status": "idle", "model_name": "gpt-5.2"},
+    {"agent_id": "cio_manager", "name_ko": "투자분석처장 (CIO)", "role": "manager", "division": "finance.investment", "status": "idle", "model_name": "gpt-5.2-pro"},
+    {"agent_id": "market_condition_specialist", "name_ko": "시황분석 Specialist", "role": "specialist", "division": "finance.investment", "status": "idle", "model_name": "claude-sonnet-4-6"},
+    {"agent_id": "stock_analysis_specialist", "name_ko": "종목분석 Specialist", "role": "specialist", "division": "finance.investment", "status": "idle", "model_name": "claude-sonnet-4-6"},
+    {"agent_id": "technical_analysis_specialist", "name_ko": "기술적분석 Specialist", "role": "specialist", "division": "finance.investment", "status": "idle", "model_name": "claude-sonnet-4-6"},
+    {"agent_id": "risk_management_specialist", "name_ko": "리스크관리 Specialist", "role": "specialist", "division": "finance.investment", "status": "idle", "model_name": "claude-sonnet-4-6"},
     {"agent_id": "cpo_manager", "name_ko": "출판·기록처장 (CPO)", "role": "manager", "division": "publishing", "status": "idle", "model_name": "claude-sonnet-4-6"},
     {"agent_id": "chronicle_specialist", "name_ko": "회사연대기 Specialist", "role": "specialist", "division": "publishing", "status": "idle", "model_name": "claude-sonnet-4-6"},
     {"agent_id": "editor_specialist", "name_ko": "콘텐츠편집 Specialist", "role": "specialist", "division": "publishing", "status": "idle", "model_name": "claude-sonnet-4-6"},
