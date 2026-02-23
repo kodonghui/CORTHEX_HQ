@@ -4043,7 +4043,7 @@
 
             <!-- 필터 바 -->
             <div class="flex gap-1.5 mb-3 overflow-x-auto pb-1">
-              <template x-for="f in [{id:'all',l:'전체'},{id:'delegation',l:'위임'},{id:'report',l:'보고'},{id:'activity',l:'상태변화'},{id:'tools',l:'🔧 도구사용'}]" :key="f.id">
+              <template x-for="f in [{id:'all',l:'전체'},{id:'delegation',l:'위임'},{id:'report',l:'보고'},{id:'activity',l:'상태변화'},{id:'qa',l:'✅ 검수'},{id:'tools',l:'🔧 도구사용'}]" :key="f.id">
                 <button @click="trading.activityLog.filter = f.id"
                         :class="trading.activityLog.filter === f.id ? 'bg-hq-accent/20 text-hq-accent border-hq-accent/30' : 'bg-hq-surface text-hq-muted border-hq-border hover:text-hq-text'"
                         class="px-2.5 py-1 text-[10px] font-semibold rounded-lg border transition whitespace-nowrap" x-text="f.l"></button>
@@ -4120,10 +4120,10 @@
 
             <!-- 통계 요약 -->
             <div x-show="!trading.activityLog.loading && trading.activityLog.logs.length > 0" class="mt-4 glass border border-hq-border rounded-xl p-3">
-              <div class="grid grid-cols-4 gap-3 text-center">
+              <div class="grid grid-cols-5 gap-2 text-center">
                 <div>
                   <p class="text-lg font-bold text-hq-text" x-text="trading.activityLog.logs.length"></p>
-                  <p class="text-[9px] text-hq-muted">전체 로그</p>
+                  <p class="text-[9px] text-hq-muted">전체</p>
                 </div>
                 <div>
                   <p class="text-lg font-bold text-hq-yellow" x-text="trading.activityLog.logs.filter(l => l.type === 'delegation').length"></p>
@@ -4134,8 +4134,12 @@
                   <p class="text-[9px] text-hq-muted">보고</p>
                 </div>
                 <div>
-                  <p class="text-lg font-bold text-hq-accent" x-text="trading.activityLog.logs.filter(l => l.tools.length > 0).length"></p>
-                  <p class="text-[9px] text-hq-muted">도구사용</p>
+                  <p class="text-lg font-bold text-hq-cyan" x-text="trading.activityLog.logs.filter(l => l.level === 'qa_pass' || l.level === 'qa_fail').length"></p>
+                  <p class="text-[9px] text-hq-muted">검수</p>
+                </div>
+                <div>
+                  <p class="text-lg font-bold text-hq-accent" x-text="trading.activityLog.logs.filter(l => l.tools.length > 0 || l.level === 'tool').length"></p>
+                  <p class="text-[9px] text-hq-muted">도구</p>
                 </div>
               </div>
             </div>

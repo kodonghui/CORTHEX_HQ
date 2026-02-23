@@ -3591,6 +3591,9 @@ function corthexApp() {
     },
 
     getCioLogIcon(log) {
+      if (log.level === 'qa_pass') return '✅';
+      if (log.level === 'qa_fail') return '❌';
+      if (log.level === 'tool') return '🔧';
       if (log.type === 'delegation') return '📡';
       if (log.type === 'report') return '📊';
       if (log.type === 'activity') {
@@ -3611,7 +3614,8 @@ function corthexApp() {
     getFilteredCioLogs() {
       const f = this.trading.activityLog.filter;
       if (f === 'all') return this.trading.activityLog.logs;
-      if (f === 'tools') return this.trading.activityLog.logs.filter(l => l.tools.length > 0);
+      if (f === 'tools') return this.trading.activityLog.logs.filter(l => l.tools.length > 0 || l.level === 'tool');
+      if (f === 'qa') return this.trading.activityLog.logs.filter(l => l.level === 'qa_pass' || l.level === 'qa_fail');
       return this.trading.activityLog.logs.filter(l => l.type === f);
     },
 
