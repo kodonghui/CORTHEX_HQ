@@ -564,7 +564,10 @@ async def _call_anthropic(
             assistant_content = []
             for b in resp.content:
                 if b.type == "thinking":
-                    assistant_content.append({"type": "thinking", "thinking": b.thinking})
+                    block = {"type": "thinking", "thinking": b.thinking}
+                    if hasattr(b, "signature") and b.signature:
+                        block["signature"] = b.signature
+                    assistant_content.append(block)
                 elif b.type == "text":
                     assistant_content.append({"type": "text", "text": b.text})
                 elif b.type == "tool_use":
