@@ -118,6 +118,17 @@ OPENAI_REASONING_MAP = {
 # OpenAI reasoning 지원 모델 목록 (temperature 없이 reasoning_effort만 사용)
 OPENAI_REASONING_MODELS = {"o3", "o4-mini", "gpt-5.2", "gpt-5.2-pro", "o3-mini", "gpt-5-mini"}
 
+# Responses API 전용 모델 (Chat Completions API 미지원 → client.responses.create 사용)
+OPENAI_RESPONSES_ONLY_MODELS = {"gpt-5.2-pro"}
+
+# Responses API용 reasoning_effort 매핑 (gpt-5.2-pro는 xhigh 지원)
+RESPONSES_REASONING_MAP = {
+    "low": "low",
+    "medium": "medium",
+    "high": "high",
+    "xhigh": "xhigh",
+}
+
 # ── 모델 라우팅 키워드 ──
 _COMPLEX_KEYWORDS = [
     "분석", "보고서", "전략", "계획", "비교", "평가", "조사",
@@ -826,6 +837,115 @@ async def _call_openai(
     }
 
 
+async def _call_openai_responses(
+    user_message: str,
+    system_prompt: str,
+    model: str,
+    tools: list | None = None,
+    tool_executor: callable | None = None,
+    reasoning_effort: str = "",
+    conversation_history: list | None = None,
+) -> dict:
+    """OpenAI Responses API 호출 (gpt-5.2-pro 등 Responses API 전용 모델용).
+
+    Chat Completions API와 달리:
+    - system message → instructions 파라미터
+    - messages → input 파라미터
+    - reasoning_effort → reasoning.effort 파라미터 (xhigh 지원)
+    - tool_calls → function_call 아이템 + previous_response_id 패턴
+    """
+    # input 구성 (대화 이력 + 사용자 메시지)
+    input_items = []
+    if conversation_history:
+        input_items.extend(conversation_history)
+    input_items.append({"role": "user", "content": user_message})
+
+    kwargs = {
+        "model": model,
+        "input": input_items,
+    }
+
+    # 시스템 프롬프트 → instructions
+    if system_prompt:
+        kwargs["instructions"] = system_prompt
+
+    # reasoning effort (gpt-5.2-pro는 xhigh 지원)
+    if reasoning_effort and reasoning_effort != "none":
+        effort = RESPONSES_REASONING_MAP.get(reasoning_effort, "medium")
+        kwargs["reasoning"] = {"effort": effort}
+
+    # 도구 변환: Chat Completions 형식 → Responses API 형식
+    # Chat Completions: {"type": "function", "function": {"name": ..., "parameters": ...}}
+    # Responses API:    {"type": "function", "name": ..., "parameters": ...}
+    resp_tools = None
+    if tools and tool_executor:
+        resp_tools = []
+        for t in tools:
+            if t.get("type") == "function" and "function" in t:
+                func = t["function"]
+                tool_def = {
+                    "type": "function",
+                    "name": func["name"],
+                    "description": func.get("description", ""),
+                    "parameters": func.get("parameters", {"type": "object", "properties": {}}),
+                }
+                if func.get("strict"):
+                    tool_def["strict"] = True
+                resp_tools.append(tool_def)
+            else:
+                resp_tools.append(t)
+        kwargs["tools"] = resp_tools
+
+    resp = await _openai_client.responses.create(**kwargs)
+
+    total_input_tokens = resp.usage.input_tokens if resp.usage else 0
+    total_output_tokens = resp.usage.output_tokens if resp.usage else 0
+
+    # tool calling 처리 루프 (최대 10회)
+    if resp_tools and tool_executor:
+        for _ in range(10):
+            function_calls = [item for item in resp.output if item.type == "function_call"]
+            if not function_calls:
+                break
+
+            tool_results = []
+            for fc in function_calls:
+                try:
+                    args = json.loads(fc.arguments) if fc.arguments else {}
+                    result = await tool_executor(fc.name, args)
+                    tool_results.append({
+                        "type": "function_call_output",
+                        "call_id": fc.call_id,
+                        "output": str(result)[:TOOL_RESULT_MAX_CHARS],
+                    })
+                except Exception as e:
+                    logger.warning("도구 실행 실패 (%s): %s", fc.name, e)
+                    tool_results.append({
+                        "type": "function_call_output",
+                        "call_id": fc.call_id,
+                        "output": f"오류: {e}",
+                    })
+
+            # 이전 응답 ID로 연결하여 도구 결과 전달
+            resp = await _openai_client.responses.create(
+                model=model,
+                input=tool_results,
+                previous_response_id=resp.id,
+                tools=resp_tools,
+            )
+            if resp.usage:
+                total_input_tokens += resp.usage.input_tokens
+                total_output_tokens += resp.usage.output_tokens
+
+    content = resp.output_text or ""
+
+    return {
+        "content": content,
+        "input_tokens": total_input_tokens,
+        "output_tokens": total_output_tokens,
+    }
+
+
 # ── spawn_agent 도구 스키마 (mini_server.py가 처장에게 제공) ──
 SPAWN_AGENT_TOOL_SCHEMA = {
     "name": "spawn_agent",
@@ -950,7 +1070,8 @@ async def ask_ai(
             # Google Gemini 포맷은 _call_google 내부에서 변환
             provider_tools = tools
 
-    AI_CALL_TIMEOUT = 180  # AI 응답 대기 최대 180초 (3분)
+    # gpt-5.2-pro는 응답이 수 분 걸릴 수 있어 타임아웃 연장
+    AI_CALL_TIMEOUT = 300 if model in OPENAI_RESPONSES_ONLY_MODELS else 180
 
     start = time.time()
     try:
@@ -969,12 +1090,21 @@ async def ask_ai(
                 conversation_history=conversation_history,
             )
         elif provider == "openai":
-            coro = _call_openai(
-                user_message, system_prompt, model,
-                tools=provider_tools, tool_executor=tool_executor,
-                reasoning_effort=reasoning_effort,
-                conversation_history=conversation_history,
-            )
+            if model in OPENAI_RESPONSES_ONLY_MODELS:
+                # Responses API 전용 모델 (gpt-5.2-pro 등)
+                coro = _call_openai_responses(
+                    user_message, system_prompt, model,
+                    tools=provider_tools, tool_executor=tool_executor,
+                    reasoning_effort=reasoning_effort,
+                    conversation_history=conversation_history,
+                )
+            else:
+                coro = _call_openai(
+                    user_message, system_prompt, model,
+                    tools=provider_tools, tool_executor=tool_executor,
+                    reasoning_effort=reasoning_effort,
+                    conversation_history=conversation_history,
+                )
         else:
             return {"error": f"알 수 없는 프로바이더: {provider}"}
 
@@ -985,9 +1115,42 @@ async def ask_ai(
         return {"error": f"AI 응답 시간 초과 ({provider}/{model}) — {AI_CALL_TIMEOUT}초 제한 초과"}
     except Exception as e:
         err_str = str(e)
+        err_type = type(e).__name__
         logger.error("AI 호출 실패 (%s/%s): %s", provider, model, err_str[:500])
+
+        # 404 에러 (모델 미지원): 동일 프로바이더 내 폴백 모델로 재시도
+        if "404" in err_str or "NotFoundError" in err_type:
+            _FALLBACK_MODELS = {"gpt-5.2-pro": "gpt-5.2", "gpt-5.2": "gpt-5", "gpt-5": "gpt-5-mini"}
+            fallback = _FALLBACK_MODELS.get(model)
+            if fallback:
+                logger.warning("모델 %s 404 에러 → %s로 폴백 재시도", model, fallback)
+                try:
+                    coro = _call_openai(
+                        user_message, system_prompt, fallback,
+                        tools=provider_tools, tool_executor=tool_executor,
+                        reasoning_effort=reasoning_effort,
+                        conversation_history=conversation_history,
+                    )
+                    result = await asyncio.wait_for(coro, timeout=180)
+                    elapsed = time.time() - start
+                    input_tokens = result.get("input_tokens", 0)
+                    output_tokens = result.get("output_tokens", 0)
+                    cost = _calc_cost(fallback, input_tokens, output_tokens)
+                    return {
+                        "content": result["content"],
+                        "model": fallback,
+                        "provider": provider,
+                        "input_tokens": input_tokens,
+                        "output_tokens": output_tokens,
+                        "cost_usd": round(cost, 6),
+                        "time_seconds": round(elapsed, 2),
+                        "fallback_from": model,
+                    }
+                except Exception as fallback_e:
+                    logger.error("폴백 모델 %s도 실패: %s", fallback, str(fallback_e)[:200])
+
         # 400 에러 상세 로깅 (디버깅용)
-        if "400" in err_str or "BadRequest" in type(e).__name__:
+        if "400" in err_str or "BadRequest" in err_type:
             logger.error("=== 400 에러 전문 ===\n%s\n=== 끝 ===", err_str[:2000])
         return {"error": f"AI 호출 실패 ({provider}): {err_str[:500]}"}
 
