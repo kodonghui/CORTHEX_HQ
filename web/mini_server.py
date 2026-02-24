@@ -7537,8 +7537,12 @@ async def _handle_specialist_rework(chain: dict, failed_specs: list[dict], attem
         # 전문가 초록불 끄기
         await _broadcast_status(agent_id, "done", 1.0, "재작업 완료")
 
-    # ── 불합격 전문가 전원 병렬 재작업 (asyncio.gather) ──
-    await asyncio.gather(*[_do_single_rework(s) for s in failed_specs])
+    # ── 불합격 전문가 시차 출발 재작업 (10초 간격) ──
+    async def _staggered_rework(idx, spec):
+        if idx > 0:
+            await asyncio.sleep(idx * 10)
+        return await _do_single_rework(spec)
+    await asyncio.gather(*[_staggered_rework(i, s) for i, s in enumerate(failed_specs)])
 
     # 재작업 결과 재검수
     _save_chain(chain)
@@ -7900,10 +7904,13 @@ async def _delegate_to_specialists(manager_id: str, text: str) -> list[dict]:
         logger.debug("위임 로그 브로드캐스트 실패: %s", e)
 
     # B안: 전문가별 역할 prefix 추가 — CEO 원문을 그대로 전달하지 않고 역할 지시를 앞에 붙임
-    tasks = [
-        _call_agent(spec_id, _SPECIALIST_ROLE_PREFIX.get(spec_id, "") + text)
-        for spec_id in specialists
-    ]
+    # 시차 출발: 동일 프로바이더(Google 등) 요율 제한(429) 방지 — 10초 간격 순차 시작
+    async def _staggered_call(idx, spec_id):
+        if idx > 0:
+            await asyncio.sleep(idx * 10)
+        return await _call_agent(spec_id, _SPECIALIST_ROLE_PREFIX.get(spec_id, "") + text)
+
+    tasks = [_staggered_call(i, spec_id) for i, spec_id in enumerate(specialists)]
     results = await asyncio.gather(*tasks, return_exceptions=True)
 
     processed = []
