@@ -13,10 +13,21 @@ function _loadScript(url) {
   return _scriptCache[url];
 }
 const _CDN = {
-  marked: 'https://cdn.jsdelivr.net/npm/marked/marked.min.js',
-  chartjs: 'https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js',
-  mermaid: 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js',
+  marked:       'https://cdn.jsdelivr.net/npm/marked/marked.min.js',
+  chartjs:      'https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js',
+  mermaid:      'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js',
+  forcegraph3d: 'https://unpkg.com/3d-force-graph@1/dist/3d-force-graph.min.js',
+  drawflow:     'https://cdn.jsdelivr.net/npm/drawflow/dist/drawflow.min.js',
+  drawflowcss:  'https://cdn.jsdelivr.net/npm/drawflow/dist/drawflow.min.css',
 };
+function _loadCSS(url) {
+  return new Promise(resolve => {
+    if (document.querySelector(`link[href="${url}"]`)) return resolve();
+    const l = document.createElement('link');
+    l.rel = 'stylesheet'; l.href = url;
+    l.onload = resolve; document.head.appendChild(l);
+  });
+}
 
 function corthexApp() {
   return {
@@ -66,7 +77,7 @@ function corthexApp() {
       { id: 'sns', label: '통신국', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z"/></svg>' },
       { id: 'archmap', label: '조직도', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>' },
       { id: 'trading', label: '전략실', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>' },
-      { id: 'flowchart', label: '설계실', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1V5zm0 10a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1v-4zm10-10a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zm0 10a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4zm-5 2h6m-3-3v6"/></svg>' },
+      { id: 'flowchart', label: 'NEXUS', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="6" r="2"/><circle cx="18" cy="6" r="2"/><circle cx="6" cy="18" r="2"/><circle cx="18" cy="18" r="2"/><circle cx="12" cy="12" r="2.5"/><path stroke-linecap="round" d="M8 6h8M6 8v8M18 8v8M8 18h8M9 10.5l2 1M15 10.5l-2 1M9 13.5l2-1M15 13.5l-2-1"/></svg>' },
     ],
 
     // ── Dashboard (홈) ──
@@ -314,22 +325,35 @@ function corthexApp() {
       detailAccount: 'real',
     },
 
-    // ── 설계실 (Flowchart) ──
+    // ── NEXUS (Flowchart / 3D / Canvas) ──
     flowchart: {
-      items: [],          // 저장된 다이어그램 목록 [{name, folder, content}]
-      selected: null,     // 현재 선택된 다이어그램 이름
-      code: '',           // 편집 중인 Mermaid 코드
-      rendered: '',       // 렌더링된 SVG HTML
-      zoom: 1.0,          // 줌 배율
-      panX: 0,            // 패닝 X
-      panY: 0,            // 패닝 Y
+      // 공통
+      mode: '2d',         // '2d' | '3d' | 'canvas'
+      // ── Mode 1: 2D Mermaid 에디터 ──
+      items: [],
+      selected: null,
+      code: '',
+      rendered: '',
+      zoom: 1.0,
+      panX: 0,
+      panY: 0,
       loading: false,
       saving: false,
       renderError: '',
       showNewModal: false,
       newName: '',
       loaded: false,
-      fullscreen: false,  // 미리보기 전체화면
+      fullscreen: false,
+      // ── Mode 2: 3D 뷰 ──
+      graph3dLoaded: false,
+      graph3dInstance: null,
+      // ── Mode 3: 비주얼 캔버스 ──
+      canvasLoaded: false,
+      canvasEditor: null,
+      canvasDirty: false,
+      canvasName: '',
+      canvasItems: [],    // 저장된 캔버스 목록
+      showCanvasNameModal: false,
     },
 
     // Org tree expand state
@@ -647,7 +671,25 @@ function corthexApp() {
               }
               if (div === 'finance') {
                 this.expanded.investment = true;
+                // P2-5: 새로고침 복구 — CIO팀 작업 중이면 runningNow 자동 활성화
+                if (!this.trading.runningNow) {
+                  this.trading.runningNow = true;
+                  this._connectCommsSSE();
+                }
               }
+            }
+          }
+          break;
+        }
+
+        // P2-6: 시세 실시간 푸시 (WebSocket)
+        case 'price_update': {
+          const pd = msg.data;
+          if (pd && pd.prices) {
+            this.trading.watchPrices = pd.prices;
+            if (pd.updated_at) {
+              const dt = new Date(pd.updated_at);
+              this.trading.watchPricesUpdatedAt = dt.toLocaleTimeString('ko-KR', {hour:'2-digit', minute:'2-digit'});
             }
           }
           break;
@@ -4340,8 +4382,8 @@ function corthexApp() {
       return order.map(id => this.tabs.find(t => t.id === id)).filter(Boolean);
     },
     getSecondaryTabs() {
-      // 더보기: 조직도 / 전력분석 / 기밀문서 / 자동화 / 크론기지 / 정보국 / 통신국
-      const order = ['archmap', 'performance', 'archive', 'workflow', 'schedule', 'knowledge', 'sns'];
+      // 더보기: 조직도 / 전력분석 / 기밀문서 / 자동화 / 크론기지 / 정보국 / 통신국 / NEXUS
+      const order = ['archmap', 'performance', 'archive', 'workflow', 'schedule', 'knowledge', 'sns', 'flowchart'];
       return order.map(id => this.tabs.find(t => t.id === id)).filter(Boolean);
     },
 
@@ -4540,6 +4582,149 @@ function corthexApp() {
           fontSize: '14px', fontFamily: 'JetBrains Mono, monospace'
         }
       });
+    },
+
+    // ── NEXUS: 모드 전환 ──
+    async onNexusModeChange(mode) {
+      this.flowchart.mode = mode;
+      if (mode === '3d' && !this.flowchart.graph3dLoaded) await this.initNexus3D();
+      if (mode === 'canvas' && !this.flowchart.canvasLoaded) await this.initNexusCanvas();
+      if (mode === 'canvas') await this.loadCanvasList();
+    },
+
+    // ── NEXUS Mode 2: 3D 뷰 초기화 ──
+    async initNexus3D() {
+      try {
+        await _loadScript(_CDN.forcegraph3d);
+        const r = await fetch('/api/architecture/hierarchy');
+        if (!r.ok) throw new Error('조직도 데이터 로드 실패');
+        const { nodes = [], edges = [] } = await r.json();
+
+        const DIVISION_COLORS = {
+          'secretary': '#a78bfa', 'tech': '#60a5fa', 'strategy': '#f472b6',
+          'legal': '#fb923c', 'marketing': '#4ade80', 'investment': '#34d399',
+          'publishing': '#fbbf24',
+        };
+        const ROLE_SIZE = { executive: 10, manager: 6, specialist: 3 };
+
+        const graphData = {
+          nodes: nodes.map(n => ({
+            id: n.id, name: n.name_ko || n.id,
+            color: DIVISION_COLORS[n.division?.split('.')[0]] || '#6b7280',
+            val: ROLE_SIZE[n.role] || 3,
+          })),
+          links: edges.map(e => ({ source: e.from, target: e.to })),
+        };
+
+        await this.$nextTick();
+        const el = document.getElementById('nexus-3d');
+        if (!el || typeof ForceGraph3D === 'undefined') throw new Error('3D 렌더러 초기화 실패');
+        const Graph = ForceGraph3D()(el)
+          .graphData(graphData)
+          .nodeLabel(n => `${n.name}`)
+          .nodeColor(n => n.color)
+          .nodeVal(n => n.val)
+          .nodeOpacity(0.9)
+          .linkColor(() => '#374151')
+          .linkOpacity(0.5)
+          .backgroundColor('#0a0f1a')
+          .onNodeClick(n => {
+            this.switchTab('command');
+            this.$nextTick(() => { this.inputText = `@${n.id} `; });
+          });
+        this.flowchart.graph3dInstance = Graph;
+        this.flowchart.graph3dLoaded = true;
+      } catch (e) {
+        this.showToast('3D 뷰 오류: ' + e.message, 'error');
+        console.error('initNexus3D:', e);
+      }
+    },
+
+    // ── NEXUS Mode 3: 비주얼 캔버스 초기화 ──
+    async initNexusCanvas() {
+      try {
+        await Promise.all([_loadScript(_CDN.drawflow), _loadCSS(_CDN.drawflowcss)]);
+        await this.$nextTick();
+        const el = document.getElementById('nexus-canvas');
+        if (!el || typeof Drawflow === 'undefined') throw new Error('캔버스 초기화 실패');
+        const editor = new Drawflow(el);
+        editor.reroute = true;
+        editor.reroute_fix_curvature = true;
+        editor.start();
+        // 변경 감지
+        ['nodeCreated','connectionCreated','nodeRemoved','connectionRemoved','nodeMoved'].forEach(ev => {
+          editor.on(ev, () => { this.flowchart.canvasDirty = true; });
+        });
+        this.flowchart.canvasEditor = editor;
+        this.flowchart.canvasLoaded = true;
+      } catch (e) {
+        this.showToast('캔버스 오류: ' + e.message, 'error');
+        console.error('initNexusCanvas:', e);
+      }
+    },
+
+    // ── NEXUS Mode 3: 캔버스 파일 목록 ──
+    async loadCanvasList() {
+      try {
+        const r = await fetch('/api/knowledge');
+        if (!r.ok) return;
+        const data = await r.json();
+        this.flowchart.canvasItems = (data.files || []).filter(f => f.folder === 'flowcharts' && f.name.endsWith('.json'));
+      } catch(e) { console.error('loadCanvasList:', e); }
+    },
+
+    // ── NEXUS Mode 3: 팔레트 노드 추가 ──
+    addCanvasNode(type) {
+      const editor = this.flowchart.canvasEditor;
+      if (!editor) return;
+      const labels = { agent:'에이전트', system:'시스템', api:'외부 API', decide:'결정 분기', start:'시작', end:'종료', note:'메모' };
+      const colors = { agent:'#8b5cf6', system:'#3b82f6', api:'#059669', decide:'#f59e0b', start:'#22c55e', end:'#ef4444', note:'#6b7280' };
+      const html = `<div class="nexus-node" style="background:${colors[type]||'#6b7280'};padding:6px 12px;border-radius:8px;color:#fff;font-size:12px;font-family:Pretendard,sans-serif;min-width:80px;text-align:center;cursor:move">${labels[type]||type}</div>`;
+      editor.addNode(type, 1, 1, 200, 200, type, { label: labels[type] }, html);
+    },
+
+    // ── NEXUS Mode 3: 저장 ──
+    async saveNexusCanvas() {
+      if (!this.flowchart.canvasEditor) return;
+      const name = (this.flowchart.canvasName || '').trim();
+      if (!name) { this.flowchart.showCanvasNameModal = true; return; }
+      const filename = name.endsWith('.json') ? name : name + '.json';
+      try {
+        const data = this.flowchart.canvasEditor.export();
+        const r = await fetch('/api/knowledge', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ folder: 'flowcharts', filename, content: JSON.stringify(data, null, 2) })
+        });
+        if (!r.ok) throw new Error('저장 실패');
+        this.flowchart.canvasDirty = false;
+        this.showToast('캔버스 저장됐습니다 ✓', 'success');
+        await this.loadCanvasList();
+      } catch (e) { this.showToast('저장 실패: ' + e.message, 'error'); }
+    },
+
+    // ── NEXUS Mode 3: 불러오기 ──
+    async loadNexusCanvas(item) {
+      if (!this.flowchart.canvasEditor) return;
+      try {
+        const r = await fetch(`/api/knowledge/${item.folder}/${item.name}`);
+        if (!r.ok) throw new Error('불러오기 실패');
+        const data = await r.json();
+        const parsed = JSON.parse(data.content || '{}');
+        this.flowchart.canvasEditor.import(parsed);
+        this.flowchart.canvasName = item.name.replace('.json', '');
+        this.flowchart.canvasDirty = false;
+        this.showToast(`"${item.name}" 불러왔습니다`, 'success');
+      } catch (e) { this.showToast('불러오기 실패: ' + e.message, 'error'); }
+    },
+
+    // ── NEXUS Mode 3: 캔버스 초기화 ──
+    clearNexusCanvas() {
+      if (this.flowchart.canvasEditor) {
+        this.flowchart.canvasEditor.clearModuleSelected();
+        this.flowchart.canvasEditor.load({ drawflow: { Home: { data: {} } } });
+        this.flowchart.canvasDirty = false;
+        this.flowchart.canvasName = '';
+      }
     },
 
     // ── 설계실: 다이어그램 목록 로드 ──
