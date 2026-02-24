@@ -33,8 +33,10 @@ try:
 except ImportError:
     logger.warning("anthropic 패키지 미설치")
 
-# Google Gemini
-_google_client = None
+# Google Gemini (멀티 키 로테이션 지원)
+_google_client = None          # 호환성 유지용 (첫 번째 클라이언트 참조)
+_google_clients: list = []     # 여러 프로젝트의 클라이언트 리스트
+_google_client_idx = 0         # 라운드로빈 인덱스
 _google_available = False
 try:
     from google import genai
@@ -134,6 +136,20 @@ class _GoogleRateLimiter:
 
 
 _google_rate_limiter = _GoogleRateLimiter(max_concurrent=2, min_interval=4.0)
+
+
+def _next_google_client():
+    """다음 Google 클라이언트를 라운드로빈으로 반환.
+
+    비유: 식당 4개에 번호표 돌려쓰기 — 1번 식당 → 2번 → 3번 → 4번 → 다시 1번.
+    각 프로젝트(식당)마다 별도 RPM 할당이라 요율 제한 분산.
+    """
+    global _google_client_idx
+    if not _google_clients:
+        return None
+    client = _google_clients[_google_client_idx % len(_google_clients)]
+    _google_client_idx += 1
+    return client
 
 
 # ── reasoning_effort 관련 상수 ──
@@ -392,12 +408,27 @@ def init_ai_client() -> bool:
         else:
             logger.warning("ANTHROPIC_API_KEY 미설정")
 
-    # Google Gemini
+    # Google Gemini — 멀티 프로젝트 키 로테이션 지원
+    # 비유: 식당 여러 개 등록 → 요율 제한(RPM) 분산
     if _google_available:
+        _google_clients.clear()
+        # 기본 키
         key = os.getenv("GOOGLE_API_KEY", "") or os.getenv("GEMINI_API_KEY", "")
         if key:
-            _google_client = genai.Client(api_key=key)
-            logger.info("Google Gemini 클라이언트 초기화 완료")
+            _google_clients.append(genai.Client(api_key=key))
+        # 추가 키 (GOOGLE_API_KEY_2, _3, _4, ...)
+        for i in range(2, 10):
+            extra_key = os.getenv(f"GOOGLE_API_KEY_{i}", "")
+            if extra_key:
+                _google_clients.append(genai.Client(api_key=extra_key))
+        if _google_clients:
+            _google_client = _google_clients[0]  # 호환성 유지
+            # 키 개수에 비례하여 속도 제한 완화
+            n = len(_google_clients)
+            _google_rate_limiter._min_interval = max(1.0, 4.0 / n)
+            _google_rate_limiter._max_concurrent = min(6, n * 2)
+            logger.info("Google Gemini 클라이언트 %d개 초기화 완료 (속도제한: 동시%d개, 간격%.1f초)",
+                        n, _google_rate_limiter._max_concurrent, _google_rate_limiter._min_interval)
             any_ok = True
         else:
             logger.warning("GOOGLE_API_KEY 미설정")
@@ -695,11 +726,13 @@ async def _call_google(
     total_output_tokens = 0
 
     # google-genai SDK는 동기 API → asyncio.to_thread로 비동기 실행
+    # _next_google_client()로 라운드로빈 키 로테이션 적용
     def _sync_call(contents, cfg, g_tools=None):
+        client = _next_google_client()
         call_kwargs = {"model": model, "contents": contents, "config": cfg}
         if g_tools:
             call_kwargs["config"]["tools"] = g_tools
-        response = _google_client.models.generate_content(**call_kwargs)
+        response = client.models.generate_content(**call_kwargs)
         return response
 
     # 대화 기록이 있으면 contents를 리스트로 구성
@@ -769,10 +802,11 @@ async def _call_google(
             ]
 
             def _sync_followup(c, cfg, g_tools=None):
+                client = _next_google_client()
                 call_kwargs = {"model": model, "contents": c, "config": cfg}
                 if g_tools:
                     call_kwargs["config"]["tools"] = g_tools
-                return _google_client.models.generate_content(**call_kwargs)
+                return client.models.generate_content(**call_kwargs)
 
             # 도구 루프 재호출에도 전역 속도 제한 적용
             await _google_rate_limiter.acquire()
