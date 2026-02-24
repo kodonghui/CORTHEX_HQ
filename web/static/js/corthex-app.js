@@ -687,7 +687,8 @@ function corthexApp() {
         case 'delegation_log_update':
           if (msg.data) {
             // SSE와 중복 방지: ID를 dl_ 접두사로 정규화하여 통일
-            const wsId = 'dl_' + (msg.data.id || '');
+            const _rawWsId = String(msg.data.id || '');
+            const wsId = _rawWsId.startsWith('dl_') ? _rawWsId : 'dl_' + _rawWsId;
             msg.data.id = wsId;  // REST/SSE 형식과 통일
             if (!this.delegationLogs.find(l => l.id === wsId)) {
               msg.data.source = msg.data.source || 'delegation';
@@ -3628,7 +3629,7 @@ function corthexApp() {
             ? toolsRaw.split(',').map(t => t.trim()).filter(Boolean)
             : (Array.isArray(toolsRaw) ? toolsRaw : []);
           merged.push({
-            id: 'dl_' + d.id,
+            id: String(d.id || '').startsWith('dl_') ? String(d.id) : 'dl_' + d.id,
             type: d.log_type || 'delegation',
             sender: d.sender || '',
             receiver: d.receiver || '',

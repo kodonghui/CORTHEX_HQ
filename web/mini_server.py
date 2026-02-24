@@ -7428,6 +7428,10 @@ async def _manager_with_delegation(manager_id: str, text: str) -> dict:
     _parallel = await asyncio.gather(_mgr_self_task, _spec_task, return_exceptions=True)
     manager_self_result = _parallel[0] if not isinstance(_parallel[0], Exception) else {"error": str(_parallel[0])[:200]}
     spec_results = _parallel[1] if not isinstance(_parallel[1], Exception) else []
+    if isinstance(_parallel[1], Exception):
+        log_spec_err = save_activity_log(manager_id,
+            f"[{mgr_name}] ⚠️ 전문가 위임 실패: {str(_parallel[1])[:100]}", "warning")
+        await wm.send_activity_log(log_spec_err)
 
     # ── 품질검수 (Quality Gate) ── 전문가 결과를 처장이 종합하기 전에 검수
     if app_state.quality_gate and _QUALITY_GATE_AVAILABLE and spec_results:
@@ -7492,6 +7496,8 @@ async def _manager_with_delegation(manager_id: str, text: str) -> dict:
                         await wm.send_activity_log(log_rework)
                     if updated.get("quality_warning"):
                         r["quality_warning"] = updated["quality_warning"]
+                    if updated.get("tools_used"):
+                        r["tools_used"] = r.get("tools_used", []) + updated["tools_used"]
         elif _qa_valid_count > 0:
             # 불합격 0명 + 검수 대상 1명 이상 → 진짜 전원 합격
             log_pass = save_activity_log(manager_id,
@@ -7597,7 +7603,8 @@ async def _manager_with_delegation(manager_id: str, text: str) -> dict:
         # 종합 실패 시 독자분석 + 전문가 결과 반환
         _spec_ok = len([r for r in spec_results if "error" not in r])
         content = f"**{mgr_name} 독자 분석**\n\n{manager_self_content or '(분석 실패)'}\n\n---\n\n**전문가 분석 결과**\n\n" + "\n\n---\n\n".join(spec_parts)
-        return {"agent_id": manager_id, "name": mgr_name, "content": content, "cost_usd": spec_cost, "specialists_used": _spec_ok, "tools_used": mgr_self_tools}
+        _all_spec_tools = [t for r in spec_results if isinstance(r, dict) and "error" not in r for t in r.get("tools_used", [])]
+        return {"agent_id": manager_id, "name": mgr_name, "content": content, "cost_usd": spec_cost, "specialists_used": _spec_ok, "tools_used": mgr_self_tools + _all_spec_tools}
 
     total_cost = spec_cost + synthesis.get("cost_usd", 0)
     specialists_used = len([r for r in spec_results if "error" not in r])
