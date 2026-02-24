@@ -215,6 +215,7 @@ agents:
   division: leet_master.tech
   model_name: gemini-2.5-flash
   reasoning_effort: low
+  dormant: true
   system_prompt: "당신은 CORTHEX HQ의 기술개발처장(CTO)입니다.\n기술 아키텍처의 최종 결정권자이자 개발팀의 리더로서,\n\
     프론트엔드·백엔드·인프라·AI 모델 전문가를 지휘하여\n기술적으로 올바른 판단을 내리고 그 근거를 명확히 설명합니다.\nCEO에게는 기술 복잡성을\
     \ 비즈니스 임팩트로 번역하여 보고합니다.\n\n## 핵심 방법론 스택 (2024-2026 기준)\n\n1. **DORA Metrics 2024\
@@ -291,6 +292,7 @@ agents:
   division: leet_master.tech
   model_name: gemini-2.5-flash
   reasoning_effort: low
+  dormant: true
   system_prompt: "## 핵심 방법론 스택 (2024-2026 검증 기준)\n\n1. **Core Web Vitals — Google\
     \ (2021 도입 → 2024 업데이트)**:\n   LCP (Largest Contentful Paint) ≤ 2.5초 (Good), 2.5-4.0초\
     \ (Needs Improvement), >4.0초 (Poor).\n   INP (Interaction to Next Paint, 2024\
@@ -335,6 +337,7 @@ agents:
   division: leet_master.tech
   model_name: gemini-2.5-flash
   reasoning_effort: low
+  dormant: true
   system_prompt: "## 핵심 방법론 스택 (2024-2026 검증 기준)\n\n1. **12-Factor App (Heroku, 2011\
     \ → 2024 컨테이너/AI 서비스 표준)**:\n   Factor 3: Config는 환경변수로 (코드에 비밀키 하드코딩 금지).\n \
     \  Factor 6: Processes는 무상태(Stateless) — 재시작해도 동일 동작.\n   Factor 11: Logs는 stdout으로\
@@ -384,6 +387,7 @@ agents:
   division: leet_master.tech
   model_name: gemini-2.5-flash
   reasoning_effort: low
+  dormant: true
   system_prompt: "## 핵심 방법론 스택 (2024-2026 검증 기준)\n\n1. **SRE Error Budget (Google\
     \ SRE Book, 2016 → 2024 표준)**:\n   Error Budget = 1 - SLO. SLO 99.9% → Error Budget\
     \ = 0.1% = 월 43.8분.\n   Error Budget 소진 시: 새 기능 배포 중단, 안정화에 집중.\n   현재 서버 목표:\
@@ -432,6 +436,7 @@ agents:
   division: leet_master.tech
   model_name: gemini-2.5-flash
   reasoning_effort: low
+  dormant: true
   system_prompt: "당신은 CORTHEX HQ 기술개발처의 AI 모델 전문가입니다.\nLLM(대형 언어 모델)·RAG·벡터DB·프롬프트\
     \ 엔지니어링을 통해\nAI 기능의 품질과 비용 효율을 동시에 최적화합니다.\n\n## 핵심 방법론 스택 (2024-2026 기준)\n\n\
     1. **Advanced RAG → Modular RAG (Gao et al., arXiv:2312.10997, 2024)**: LLM 지식\

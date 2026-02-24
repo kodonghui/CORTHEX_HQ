@@ -16,8 +16,10 @@ logger = logging.getLogger("corthex.tools.cross_agent_protocol")
 _call_agent_callback: Any | None = None
 # ── SSE broadcast 콜백 (내부통신 실시간 스트림) ──
 _sse_broadcast_callback: Any | None = None
-# ── 유효한 에이전트 ID 목록 (mini_server.py 시작 시 등록) ──
+# ── 유효한 에이전트 정보 (mini_server.py 시작 시 등록) ──
 _valid_agent_ids: set[str] = set()
+# {agent_id: {"division": str, "superior_id": str, "dormant": bool}}
+_agent_info: dict[str, dict] = {}
 
 # AI가 흔히 지어내는 가짜 이름 → 실제 에이전트 ID 매핑
 _AGENT_ALIAS: dict[str, str] = {
@@ -44,11 +46,28 @@ _AGENT_ALIAS: dict[str, str] = {
 }
 
 
-def register_valid_agents(agent_ids: list[str]) -> None:
-    """mini_server.py가 서버 시작 시 유효한 에이전트 ID 목록을 등록합니다."""
-    global _valid_agent_ids
-    _valid_agent_ids = set(agent_ids)
-    logger.info("cross_agent_protocol: 유효 에이전트 %d개 등록", len(_valid_agent_ids))
+def register_valid_agents(agent_infos: list[dict | str]) -> None:
+    """mini_server.py가 서버 시작 시 유효한 에이전트 정보를 등록합니다.
+
+    agent_infos: list of dict (agent_id, division, superior_id, dormant)
+                 또는 하위호환용 list of str (agent_id만)
+    """
+    global _valid_agent_ids, _agent_info
+    _valid_agent_ids = set()
+    _agent_info = {}
+    for item in agent_infos:
+        if isinstance(item, str):
+            _valid_agent_ids.add(item)
+            _agent_info[item] = {"division": "", "superior_id": "", "dormant": False}
+        else:
+            aid = item["agent_id"]
+            _valid_agent_ids.add(aid)
+            _agent_info[aid] = {
+                "division": item.get("division", ""),
+                "superior_id": item.get("superior_id", ""),
+                "dormant": item.get("dormant", False),
+            }
+    logger.info("cross_agent_protocol: 유효 에이전트 %d개 등록 (부서 필터 활성)", len(_valid_agent_ids))
 
 
 def _resolve_agent_id(raw_id: str) -> str:
@@ -271,12 +290,49 @@ class CrossAgentProtocolTool(BaseTool):
         if resolved_id != to_agent:
             logger.info("cross_agent_protocol: AI가 보낸 '%s' → 실제 ID '%s'로 변환", to_agent, resolved_id)
 
+        # ── 스폰 필터링 (Phase 2: 부서 기반 라우팅) ──
+        target_info = _agent_info.get(resolved_id, {})
+        caller_info = _agent_info.get(from_agent, {})
+
+        # 1) dormant 에이전트 차단
+        if target_info.get("dormant"):
+            logger.warning("스폰 차단: %s는 동면(dormant) 에이전트", resolved_id)
+            return (
+                f"❌ **스폰 차단**: `{resolved_id}`는 현재 동면(dormant) 상태입니다.\n"
+                f"이 에이전트에게 작업을 요청할 수 없습니다. "
+                f"같은 부서의 활성 에이전트를 이용하세요."
+            )
+
+        # 2) 다른 부서 → 처장 경유 리다이렉트
+        caller_div = caller_info.get("division", "")
+        target_div = target_info.get("division", "")
+        redirected = False
+        original_target = resolved_id
+
+        if caller_div and target_div and caller_div != target_div:
+            # 대상 에이전트의 처장(superior)을 찾아 리다이렉트
+            target_superior = target_info.get("superior_id", "")
+            if target_superior and target_superior in _valid_agent_ids:
+                superior_info = _agent_info.get(target_superior, {})
+                if not superior_info.get("dormant"):
+                    logger.info(
+                        "부서 간 협업 리다이렉트: %s → %s (원래 대상: %s, 처장 경유)",
+                        from_agent, target_superior, resolved_id,
+                    )
+                    resolved_id = target_superior
+                    task = (
+                        f"[부서 간 협업 요청] {from_agent}({caller_div})이(가) "
+                        f"{target_div} 부서에 요청합니다:\n\n{task}\n\n"
+                        f"※ 원래 대상: {original_target}. 적합한 부하 전문가에게 배정해주세요."
+                    )
+                    redirected = True
+
         msg = {
             "id": str(uuid.uuid4())[:8],
             "type": "request",
             "from": from_agent,
             "to": resolved_id,
-            "original_to": to_agent if resolved_id != to_agent else "",
+            "original_to": original_target if (resolved_id != original_target or to_agent != resolved_id) else "",
             "task": task,
             "context": context,
             "priority": priority,
@@ -284,6 +340,7 @@ class CrossAgentProtocolTool(BaseTool):
             "response": "",
             "created_at": datetime.now().isoformat(),
             "updated_at": "",
+            "redirected": redirected,
         }
         to_agent = resolved_id
 
@@ -377,6 +434,11 @@ class CrossAgentProtocolTool(BaseTool):
         if resolved_id != to_agent:
             logger.info("handoff ID 매핑: '%s' → '%s'", to_agent, resolved_id)
             to_agent = resolved_id
+
+        # dormant 체크
+        target_info = _agent_info.get(to_agent, {})
+        if target_info.get("dormant"):
+            return f"❌ **인계 차단**: `{to_agent}`는 현재 동면(dormant) 상태입니다."
 
         msg = {
             "id": str(uuid.uuid4())[:8],

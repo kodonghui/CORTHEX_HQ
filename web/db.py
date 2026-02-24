@@ -798,12 +798,12 @@ def save_activity_log(agent_id: str, message: str,
             (agent_id, message, level, time_str, ts, created),
         )
         conn.commit()
-        # 자동 정리: 1000건 초과 시 오래된 것 삭제
+        # 자동 정리: 5000건 초과 시 오래된 것 삭제
         count = conn.execute("SELECT COUNT(*) FROM activity_logs").fetchone()[0]
-        if count > 1000:
+        if count > 5000:
             conn.execute(
                 "DELETE FROM activity_logs WHERE id NOT IN "
-                "(SELECT id FROM activity_logs ORDER BY timestamp DESC LIMIT 1000)"
+                "(SELECT id FROM activity_logs ORDER BY timestamp DESC LIMIT 5000)"
             )
             conn.commit()
         return {

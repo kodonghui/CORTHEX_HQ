@@ -672,7 +672,7 @@ function corthexApp() {
                   tools: [], level: msg.data.level || 'info',
                   time: new Date().toISOString(), _ts: Date.now(),
                 });
-                if (this.trading.activityLog.logs.length > 100) this.trading.activityLog.logs = this.trading.activityLog.logs.slice(0, 100);
+                if (this.trading.activityLog.logs.length > 300) this.trading.activityLog.logs = this.trading.activityLog.logs.slice(0, 300);
               }
             }
           }
@@ -723,8 +723,8 @@ function corthexApp() {
                   time: msg.data.created_at ? new Date(msg.data.created_at * 1000).toISOString() : new Date().toISOString(),
                   _ts: (msg.data.created_at || 0) * 1000 || Date.now(),
                 });
-                if (this.trading.activityLog.logs.length > 100) {
-                  this.trading.activityLog.logs = this.trading.activityLog.logs.slice(0, 100);
+                if (this.trading.activityLog.logs.length > 300) {
+                  this.trading.activityLog.logs = this.trading.activityLog.logs.slice(0, 300);
                 }
               }
             }
@@ -1375,7 +1375,7 @@ function corthexApp() {
                 };
                 if (!this.trading.activityLog.logs.find(l => l.id === alEntry.id)) {
                   this.trading.activityLog.logs.unshift(alEntry);
-                  if (this.trading.activityLog.logs.length > 100) this.trading.activityLog.logs = this.trading.activityLog.logs.slice(0, 100);
+                  if (this.trading.activityLog.logs.length > 300) this.trading.activityLog.logs = this.trading.activityLog.logs.slice(0, 300);
                 }
               }
             }
@@ -3664,6 +3664,7 @@ function corthexApp() {
     getCioLogIcon(log) {
       if (log.level === 'qa_pass') return '✅';
       if (log.level === 'qa_fail') return '❌';
+      if (log.level === 'qa_detail') return (log.message || '').startsWith('✅') ? '✅' : '❌';
       if (log.level === 'tool') return '🔧';
       if (log.type === 'delegation') return '📡';
       if (log.type === 'report') return '📊';
@@ -3685,9 +3686,9 @@ function corthexApp() {
     getFilteredCioLogs() {
       const tab = this.trading.activityLog.subTab;
       const logs = this.trading.activityLog.logs;
-      if (tab === 'activity') return logs.filter(l => l.level !== 'tool' && l.level !== 'qa_pass' && l.level !== 'qa_fail' && l.type !== 'delegation' && l.type !== 'report');
+      if (tab === 'activity') return logs.filter(l => l.level !== 'tool' && l.level !== 'qa_pass' && l.level !== 'qa_fail' && l.level !== 'qa_detail' && l.type !== 'delegation' && l.type !== 'report');
       if (tab === 'comms') return logs.filter(l => l.type === 'delegation' || l.type === 'report');
-      if (tab === 'qa') return logs.filter(l => l.level === 'qa_pass' || l.level === 'qa_fail');
+      if (tab === 'qa') return logs.filter(l => l.level === 'qa_pass' || l.level === 'qa_fail' || l.level === 'qa_detail');
       if (tab === 'tools') return logs.filter(l => (l.tools || []).length > 0 || l.level === 'tool');
       return logs;
     },
@@ -4008,9 +4009,9 @@ function corthexApp() {
               return { ...l, action: l.message || l.action || '', timeDate: dateStr, timeClock: timeStr, time: dateStr + ' ' + timeStr, timestamp: l.timestamp || d.getTime() };
             });
             // level별 분류 (4탭 복원)
-            this.activityLogs = formatted.filter(l => l.level !== 'tool' && l.level !== 'qa_pass' && l.level !== 'qa_fail');
+            this.activityLogs = formatted.filter(l => l.level !== 'tool' && l.level !== 'qa_pass' && l.level !== 'qa_fail' && l.level !== 'qa_detail');
             this.toolLogs = formatted.filter(l => l.level === 'tool');
-            this.qaLogs = formatted.filter(l => l.level === 'qa_pass' || l.level === 'qa_fail');
+            this.qaLogs = formatted.filter(l => l.level === 'qa_pass' || l.level === 'qa_fail' || l.level === 'qa_detail');
           }
         })
         .catch(() => { this.activityLogs = []; });

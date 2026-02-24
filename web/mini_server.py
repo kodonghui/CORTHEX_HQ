@@ -519,6 +519,8 @@ def _build_agents_from_yaml() -> list[dict]:
                 "name_ko": detail.get("name_ko", aid),
                 "role": detail.get("role", "specialist"),
                 "division": detail.get("division", ""),
+                "superior_id": detail.get("superior_id", ""),
+                "dormant": detail.get("dormant", False),
                 "status": "idle",
                 "model_name": detail.get("model_name", "claude-sonnet-4-6"),
             }
@@ -7319,25 +7321,23 @@ async def _quality_review_specialists(chain: dict) -> list[dict]:
             app_state.quality_gate.record_review(review, target_id, agent_id, task_desc)
             chain["total_cost_usd"] += getattr(review, "_cost", 0)
 
-            # ★ 품질검수 항목별 상세 로그 (CEO 요청: 각 항목 모두 로그에 남기기)
+            # ★ 품질검수 통합 로그 — 전문가당 1건 (Phase 4: #10/#10-2)
             _spec_name = _SPECIALIST_NAMES.get(agent_id, agent_id)
+            _qa_parts = []
             for ci in review.checklist_results:
-                _ci_status = "✅ 통과" if ci.passed else "❌ 불통과"
-                _ci_req = " [필수]" if ci.required else ""
-                _ci_log = save_activity_log(
-                    agent_id,
-                    f"📋 [{_spec_name}] {ci.id} {ci.label}: {_ci_status}{_ci_req}",
-                    level="qa_detail"
-                )
-                await wm.send_activity_log(_ci_log)
+                _ico = "✅" if ci.passed else "❌"
+                _req = "[필]" if ci.required else ""
+                _qa_parts.append(f"{ci.id}{_ico}{_req}")
             for si in review.score_results:
-                _si_crit = " ⚠️치명적" if si.critical and si.score == 1 else ""
-                _si_log = save_activity_log(
-                    agent_id,
-                    f"📊 [{_spec_name}] {si.id} {si.label}: {si.score}점/5 (가중 {si.weight}%){_si_crit}",
-                    level="qa_detail"
-                )
-                await wm.send_activity_log(_si_log)
+                _crit = "⬇" if si.critical and si.score == 1 else ""
+                _qa_parts.append(f"{si.id}:{si.score}{_crit}")
+            _pass_icon = "✅" if review.passed else "❌"
+            _pass_text = "합격" if review.passed else "부합격"
+            _qa_summary = f"{_pass_icon} {_spec_name} {_pass_text}({review.weighted_average:.1f}) {' '.join(_qa_parts)}"
+            _qa_unified_log = save_activity_log(
+                agent_id, _qa_summary, level="qa_detail"
+            )
+            await wm.send_activity_log(_qa_unified_log)
 
             # DB에 검수 결과 저장
             import json as _json
@@ -7388,6 +7388,62 @@ async def _quality_review_specialists(chain: dict) -> list[dict]:
                     level="qa_fail"
                 )
                 await wm.send_activity_log(qa_log)
+
+                # ── Phase 3: 반려사유 교신로그 + 기밀문서 + 반려 학습 ──
+                _spec_name_rej = _SPECIALIST_NAMES.get(agent_id, agent_id)
+                # (A) 교신로그에 반려 메시지 broadcast
+                _rej_comms = {
+                    "id": f"rej_{chain.get('chain_id', '')[:6]}_{agent_id[:8]}",
+                    "sender": target_id,
+                    "receiver": agent_id,
+                    "message": f"❌ {_spec_name_rej} 반려: {reason[:200]}",
+                    "log_type": "delegation",
+                    "source": "qa_rejection",
+                    "status": "반려",
+                    "created_at": datetime.now().isoformat(),
+                }
+                await _broadcast_comms(_rej_comms)
+
+                # (B) 기밀문서에 반려사유 저장
+                from datetime import datetime as _dt_rej
+                _rej_date = _dt_rej.now().strftime("%Y%m%d_%H%M")
+                _rej_filename = f"반려사유_{_spec_name_rej}_{_rej_date}.md"
+                _rej_detail = []
+                for ci in review.checklist_results:
+                    if not ci.passed:
+                        _rej_detail.append(f"- {ci.id} {ci.label}: ❌ 불통과{' [필수]' if ci.required else ''}")
+                for si in review.score_results:
+                    if si.score <= 3:
+                        _fb = f" — {si.feedback}" if si.feedback else ""
+                        _rej_detail.append(f"- {si.id} {si.label}: {si.score}점/5{_fb}")
+                _rej_content = (
+                    f"# 반려사유 — {_spec_name_rej}\n\n"
+                    f"**점수**: {review.weighted_average:.1f}/5.0\n"
+                    f"**사유**: {reason}\n\n"
+                    f"## 항목별 문제점\n" + "\n".join(_rej_detail) + "\n\n"
+                    f"## 피드백\n{review.feedback[:500]}\n"
+                )
+                try:
+                    save_archive(division, _rej_filename, _rej_content,
+                                 correlation_id=chain.get("chain_id", ""),
+                                 agent_id=target_id)
+                except Exception as _ae:
+                    logger.debug("반려사유 기밀문서 저장 실패: %s", _ae)
+
+                # (C) 반려 학습: warnings 카테고리에 교훈 저장
+                try:
+                    _mem_key = f"memory_categorized_{agent_id}"
+                    _existing_mem = load_setting(_mem_key, {})
+                    _warning_lesson = f"{_dt_rej.now().strftime('%m/%d')}: {reason[:100]}"
+                    _prev_warnings = _existing_mem.get("warnings", "")
+                    _existing_mem["warnings"] = (
+                        (_prev_warnings + " | " + _warning_lesson).strip(" |")
+                        if _prev_warnings else _warning_lesson
+                    )
+                    save_setting(_mem_key, _existing_mem)
+                    _log(f"[QA] 반려 학습 저장: {agent_id} ← {_warning_lesson[:60]}")
+                except Exception as _me:
+                    logger.debug("반려 학습 저장 실패: %s", _me)
             else:
                 _log(f"[QA] ✅ 합격: {agent_id} (점수={review.weighted_average:.1f})")
                 # QA 합격 실시간 브로드캐스트 (검수로그 탭에 표시)
@@ -7435,7 +7491,7 @@ async def _handle_specialist_rework(chain: dict, failed_specs: list[dict], attem
     async def _do_single_rework(spec: dict) -> None:
         agent_id = spec["agent_id"]
         reason = spec.get("reason", "품질 기준 미달")
-        original_content = spec.get("content", "")[:1000]
+        original_content = spec.get("content", "")  # 전문 첨부 (부분수정을 위해)
 
         # 전문가 초록불 다시 켜기
         agent_name = _AGENT_NAMES.get(agent_id, agent_id)
@@ -7461,12 +7517,12 @@ async def _handle_specialist_rework(chain: dict, failed_specs: list[dict], attem
             f"## 원래 업무 지시\n{task_desc}\n\n"
             f"## 불합격 사유\n{reason}\n\n"
             f"## 항목별 검수 결과\n{_detail_block}\n\n"
-            f"## 당신의 원본 보고서 (앞부분)\n{original_content}...\n\n"
+            f"## 당신의 이전 보고서 (전문)\n{original_content}\n\n"
             f"## 지시사항\n"
-            f"위 불합격 사유를 반영하여 보고서를 전면 수정하세요. "
-            f"특히 지적된 문제점을 확실히 보완하고, "
-            f"반드시 도구(API)를 사용하여 실시간 데이터를 직접 조회하고, "
-            f"구체적인 근거와 데이터를 추가하세요."
+            f"⚠️ 반려된 항목만 수정하고 나머지는 그대로 유지하세요.\n"
+            f"- 정확했던 수치(매출, PER, 주가 등)를 변경하지 마세요.\n"
+            f"- 지적된 부분만 보완하세요 (도구 재호출하여 최신 데이터 확인).\n"
+            f"- 보고서 전체를 다시 쓰지 말고, 문제 항목을 정확히 수정하세요."
         )
 
         try:
@@ -7496,8 +7552,8 @@ async def _handle_specialist_rework(chain: dict, failed_specs: list[dict], attem
                             f"{tool_name} 실행 중... (재작업)",
                         )
                         _rw_log = save_activity_log(
-                            _rw_agent_id,
-                            f"🔧 [{_rw_agent_name}] {tool_name} 호출 ({_cnt}회) [재작업#{attempt}]",
+                            _aid,
+                            f"🔧 [{_aname}] {tool_name} 호출 ({_cnt}회) [재작업#{attempt}]",
                             level="tool",
                         )
                         await wm.send_activity_log(_rw_log)
@@ -7528,6 +7584,26 @@ async def _handle_specialist_rework(chain: dict, failed_specs: list[dict], attem
                 }
                 chain["total_cost_usd"] += result.get("cost_usd", 0)
                 _log(f"[QA] 재작업 완료: {agent_id} (시도 {attempt})")
+
+                # ── Phase 3: 재작업 보고서 기밀문서 저장 + 활동로그 ──
+                from datetime import datetime as _dt_rw
+                _rw_date = _dt_rw.now().strftime("%Y%m%d_%H%M")
+                _rw_div = _AGENT_DIVISION.get(agent_id, "default")
+                _rw_filename = f"{agent_name}_보고서_재작업v{attempt}_{_rw_date}.md"
+                try:
+                    save_archive(
+                        _rw_div, _rw_filename, result["content"],
+                        correlation_id=chain.get("chain_id", ""),
+                        agent_id=agent_id,
+                    )
+                except Exception as _ae2:
+                    logger.debug("재작업 기밀문서 저장 실패: %s", _ae2)
+                _rw_log = save_activity_log(
+                    agent_id,
+                    f"🔄 [{agent_name}] 재작업 보고서 제출 (v{attempt})",
+                    level="info",
+                )
+                await wm.send_activity_log(_rw_log)
             else:
                 _log(f"[QA] 재작업 실패: {agent_id} — {result.get('error', '')[:100]}")
 
@@ -7999,6 +8075,35 @@ async def _manager_with_delegation(manager_id: str, text: str) -> dict:
         log_spec_err = save_activity_log(manager_id,
             f"[{mgr_name}] ⚠️ 전문가 위임 실패: {str(_parallel[1])[:100]}", "warning")
         await wm.send_activity_log(log_spec_err)
+
+    # ── Phase 8: CIO 7단계 — (1) 선판단+독자분석 기밀문서 저장 ──
+    _p8_div = _MANAGER_DIVISION.get(manager_id, "default")
+    _p8_date = datetime.now(KST).strftime("%Y%m%d_%H%M")
+    if isinstance(manager_self_result, dict) and "error" not in manager_self_result:
+        try:
+            save_archive(
+                _p8_div,
+                f"{mgr_name}_보고서1_독자분석_{_p8_date}.md",
+                manager_self_result.get("content", ""),
+                agent_id=manager_id,
+            )
+        except Exception as _ae_p8:
+            logger.debug("Phase8 독자분석 기밀문서 저장 실패: %s", _ae_p8)
+
+    # ── Phase 8: CIO 7단계 — (2) 전문가 보고서 각각 기밀문서 저장 ──
+    for _p8r in (spec_results or []):
+        if isinstance(_p8r, dict) and "error" not in _p8r:
+            _p8_spec_id = _p8r.get("agent_id", "unknown")
+            _p8_spec_name = _SPECIALIST_NAMES.get(_p8_spec_id, _p8_spec_id)
+            try:
+                save_archive(
+                    _p8_div,
+                    f"{_p8_spec_name}_보고서1_{_p8_date}.md",
+                    _p8r.get("content", ""),
+                    agent_id=_p8_spec_id,
+                )
+            except Exception as _ae_p8s:
+                logger.debug("Phase8 전문가 기밀문서 저장 실패: %s", _ae_p8s)
 
     # ── 품질검수 (Quality Gate) ── 전문가 결과를 처장이 종합하기 전에 검수
     if app_state.quality_gate and _QUALITY_GATE_AVAILABLE and spec_results:
@@ -9482,7 +9587,12 @@ async def on_startup():
         from src.tools.cross_agent_protocol import register_call_agent, register_sse_broadcast, register_valid_agents
         register_call_agent(_call_agent)
         register_sse_broadcast(_broadcast_comms)
-        register_valid_agents([a["agent_id"] for a in AGENTS])
+        register_valid_agents([{
+            "agent_id": a["agent_id"],
+            "division": a.get("division", ""),
+            "superior_id": a.get("superior_id", ""),
+            "dormant": a.get("dormant", False),
+        } for a in AGENTS])
         _log("[P2P] cross_agent_protocol 콜백 등록 완료 ✅ (에이전트 호출 + SSE broadcast)")
     except Exception as e:
         _log(f"[P2P] cross_agent_protocol 콜백 등록 실패: {e}")
