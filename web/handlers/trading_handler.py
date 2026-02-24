@@ -716,7 +716,19 @@ async def get_watchlist_prices():
                     "from_cache": True,
                 }
 
-    return {"prices": prices, "updated_at": datetime.now(KST).isoformat()}
+    result = {"prices": prices, "updated_at": datetime.now(KST).isoformat()}
+
+    # P2-6: 가격 조회 결과를 WebSocket으로 자동 브로드캐스트
+    try:
+        from ws_manager import wm
+        await wm.broadcast({
+            "event": "price_update",
+            "data": result,
+        })
+    except Exception:
+        pass  # WebSocket 미연결 시 무시
+
+    return result
 
 
 @router.get("/api/trading/prices/cached")

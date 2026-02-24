@@ -7088,46 +7088,23 @@ async def _save_to_notion(agent_id: str, title: str, content: str,
     properties: dict = {
         "Name": {"title": [{"text": {"content": title[:100]}}]},
     }
-    # 산출물 DB: "에이전트" select, 비서실 DB: "담당자" select
+    # 양쪽 DB 모두 "담당자" select (2/25 전수검사: 산출물 DB에 "에이전트" 속성 없음)
     if agent_name:
-        prop_name = "담당자" if db_target == "secretary" else "에이전트"
-        properties[prop_name] = {"select": {"name": agent_name}}
-    if division and db_target != "secretary":
-        properties["부서"] = {"select": {"name": division}}
+        properties["담당자"] = {"select": {"name": agent_name}}
+    # "부서", "태그" 속성은 실제 노션 DB에 없으므로 제거 (2/25 전수검사 확인)
     # 카테고리: 양쪽 DB 모두 존재. 산출물=report_type, 비서실="보고서"
     if db_target == "secretary":
         properties["카테고리"] = {"select": {"name": "보고서"}}
     elif report_type:
         properties["카테고리"] = {"select": {"name": report_type}}
     properties["상태"] = {"select": {"name": "완료"}}
-    # 날짜 속성 — 산출물 DB: "Date"(영어), 비서실 DB: "날짜"(한국어)
-    date_prop = "날짜" if db_target == "secretary" else "Date"
-    properties[date_prop] = {"date": {"start": now_str}}
+    # 양쪽 DB 모두 "날짜" (2/25 전수검사: 산출물 DB에 "Date" 속성 없음, "날짜"만 존재)
+    properties["날짜"] = {"date": {"start": now_str}}
     # 내용 속성 — 양쪽 DB 모두 존재 (rich_text, 최대 2000자)
     if content:
         properties["내용"] = {"rich_text": [{"text": {"content": content[:2000]}}]}
 
-    # 태그 자동 생성 — 부서(division) + 역할(role) 기반 (multi_select)
-    _DIV_TAG = {
-        "finance.investment": "투자처", "leet_master.strategy": "전략실",
-        "leet_master.tech": "기술처", "leet_master.legal": "법무처",
-        "leet_master.marketing": "마케팅처", "publishing": "출판처",
-        "secretary": "비서실",
-    }
-    auto_tags = []
-    if division:
-        tag = _DIV_TAG.get(division)
-        if tag:
-            auto_tags.append({"name": tag})
-    # 역할 태그: manager → 임원급, specialist → 전문가급
-    agent_detail = _AGENTS_DETAIL.get(agent_id, {})
-    role = agent_detail.get("role", "")
-    if role == "manager":
-        auto_tags.append({"name": "임원급"})
-    elif role == "specialist":
-        auto_tags.append({"name": "전문가급"})
-    if auto_tags and db_target != "secretary":
-        properties["태그"] = {"multi_select": auto_tags}
+    # (태그/부서 속성은 실제 노션 DB에 없으므로 제거 — 2/25 전수검사)
 
     # 본문 → 노션 블록 (최대 2000자, 노션 블록 크기 제한)
     children = []
