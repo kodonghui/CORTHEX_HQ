@@ -636,11 +636,20 @@ function corthexApp() {
           if (msg.data.agent_id === 'system') break;
           // level별 배열 분류 (4탭 지원)
           if (msg.data.level === 'tool') {
-            this.toolLogs.push(msg.data);
-            if (this.toolLogs.length > 100) this.toolLogs = this.toolLogs.slice(-100);
-          } else if (msg.data.level === 'qa_pass' || msg.data.level === 'qa_fail') {
-            this.qaLogs.push(msg.data);
-            if (this.qaLogs.length > 50) this.qaLogs = this.qaLogs.slice(-50);
+            const _tlTs = msg.data.timestamp || 0;
+            const _tlAid = msg.data.agent_id || '';
+            if (!this.toolLogs.find(l => l.timestamp === _tlTs && l.agent_id === _tlAid)) {
+              this.toolLogs.push(msg.data);
+              if (this.toolLogs.length > 100) this.toolLogs = this.toolLogs.slice(-100);
+            }
+          } else if (msg.data.level === 'qa_pass' || msg.data.level === 'qa_fail' || msg.data.level === 'qa_detail') {
+            const _qaTs = msg.data.timestamp || 0;
+            const _qaAid = msg.data.agent_id || '';
+            const _qaAct = (msg.data.action || '').substring(0, 60);
+            if (!this.qaLogs.find(l => l.timestamp === _qaTs && l.agent_id === _qaAid && (l.action || '').substring(0, 60) === _qaAct)) {
+              this.qaLogs.push(msg.data);
+              if (this.qaLogs.length > 200) this.qaLogs = this.qaLogs.slice(-200);
+            }
           } else {
             // 중복 방지: timestamp + agent_id 기반 dedup
             const _alTs = msg.data.timestamp || 0;
@@ -678,7 +687,8 @@ function corthexApp() {
         case 'delegation_log_update':
           if (msg.data) {
             // SSE와 중복 방지: ID를 dl_ 접두사로 정규화하여 통일
-            const wsId = 'dl_' + (msg.data.id || '');
+            const _rawWsId = String(msg.data.id || '');
+            const wsId = _rawWsId.startsWith('dl_') ? _rawWsId : 'dl_' + _rawWsId;
             msg.data.id = wsId;  // REST/SSE 형식과 통일
             if (!this.delegationLogs.find(l => l.id === wsId)) {
               msg.data.source = msg.data.source || 'delegation';
@@ -3619,7 +3629,7 @@ function corthexApp() {
             ? toolsRaw.split(',').map(t => t.trim()).filter(Boolean)
             : (Array.isArray(toolsRaw) ? toolsRaw : []);
           merged.push({
-            id: 'dl_' + d.id,
+            id: String(d.id || '').startsWith('dl_') ? String(d.id) : 'dl_' + d.id,
             type: d.log_type || 'delegation',
             sender: d.sender || '',
             receiver: d.receiver || '',

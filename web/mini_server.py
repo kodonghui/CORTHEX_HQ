@@ -6764,6 +6764,26 @@ async def _quality_review_specialists(chain: dict) -> list[dict]:
             app_state.quality_gate.record_review(review, target_id, agent_id, task_desc)
             chain["total_cost_usd"] += getattr(review, "_cost", 0)
 
+            # ★ 품질검수 항목별 상세 로그 (CEO 요청: 각 항목 모두 로그에 남기기)
+            _spec_name = _SPECIALIST_NAMES.get(agent_id, agent_id)
+            for ci in review.checklist_results:
+                _ci_status = "✅ 통과" if ci.passed else "❌ 불통과"
+                _ci_req = " [필수]" if ci.required else ""
+                _ci_log = save_activity_log(
+                    agent_id,
+                    f"📋 [{_spec_name}] {ci.id} {ci.label}: {_ci_status}{_ci_req}",
+                    level="qa_detail"
+                )
+                await wm.send_activity_log(_ci_log)
+            for si in review.score_results:
+                _si_crit = " ⚠️치명적" if si.critical and si.score == 1 else ""
+                _si_log = save_activity_log(
+                    agent_id,
+                    f"📊 [{_spec_name}] {si.id} {si.label}: {si.score}점/5 (가중 {si.weight}%){_si_crit}",
+                    level="qa_detail"
+                )
+                await wm.send_activity_log(_si_log)
+
             # DB에 검수 결과 저장
             import json as _json
             try:
@@ -6788,6 +6808,14 @@ async def _quality_review_specialists(chain: dict) -> list[dict]:
                 )
             except Exception as e:
                 logger.debug("검수 결과 DB 저장 실패: %s", e)
+
+            # ★ 기밀문서용: 모든 리뷰 결과 수집 (합격/불합격 무관)
+            chain.setdefault("qa_reviews", []).append({
+                "agent_id": agent_id,
+                "passed": review.passed,
+                "weighted_average": review.weighted_average,
+                "review_dict": review.to_dict(),
+            })
 
             if not review.passed:
                 reason = " / ".join(review.rejection_reasons) if review.rejection_reasons else "품질 기준 미달"
@@ -6857,35 +6885,88 @@ async def _handle_specialist_rework(chain: dict, failed_specs: list[dict], attem
         agent_name = _AGENT_NAMES.get(agent_id, agent_id)
         await _broadcast_status(agent_id, "working", 0.5, f"{agent_name} 재작업 중...")
 
+        # ★ QA 항목별 구체적 문제점 생성 (재작업 시 뭘 고쳐야 하는지 명확히)
+        _review = spec.get("review")
+        _detail_lines = []
+        if _review:
+            for ci in _review.checklist_results:
+                _st = "✅ 통과" if ci.passed else "❌ 불통과"
+                _rq = " [필수]" if ci.required else ""
+                _fb = f" — {ci.feedback}" if ci.feedback and not ci.passed else ""
+                _detail_lines.append(f"- {ci.id} {ci.label}: {_st}{_rq}{_fb}")
+            for si in _review.score_results:
+                _crit = " ⚠️치명적" if si.critical and si.score == 1 else ""
+                _fb = f" — {si.feedback}" if si.feedback and si.score <= 3 else ""
+                _detail_lines.append(f"- {si.id} {si.label}: {si.score}점/5 (가중 {si.weight}%){_crit}{_fb}")
+        _detail_block = "\n".join(_detail_lines) if _detail_lines else "(상세 항목 없음)"
+
         rework_prompt = (
             f"[재작업 요청 #{attempt}] 당신의 보고서가 품질검수에서 불합격되었습니다.\n\n"
             f"## 원래 업무 지시\n{task_desc}\n\n"
             f"## 불합격 사유\n{reason}\n\n"
+            f"## 항목별 검수 결과\n{_detail_block}\n\n"
             f"## 당신의 원본 보고서 (앞부분)\n{original_content}...\n\n"
             f"## 지시사항\n"
             f"위 불합격 사유를 반영하여 보고서를 전면 수정하세요. "
             f"특히 지적된 문제점을 확실히 보완하고, "
+            f"반드시 도구(API)를 사용하여 실시간 데이터를 직접 조회하고, "
             f"구체적인 근거와 데이터를 추가하세요."
         )
 
         try:
-            # 전문가 모델로 재작업 실행
+            # 전문가 모델로 재작업 실행 (★ 도구 포함! — 재작업에서도 API 호출 가능)
             spec_model = _get_model_override(agent_id) or "claude-sonnet-4-6"
             spec_soul = _load_agent_prompt(agent_id)
+            rework_tool_schemas = None
+            rework_tool_executor = None
+            rework_tools_used: list[str] = []
+            _rw_detail = _AGENTS_DETAIL.get(agent_id, {})
+            _rw_allowed = _rw_detail.get("allowed_tools", [])
+            if _rw_allowed:
+                _rw_schemas = _load_tool_schemas(allowed_tools=_rw_allowed)
+                if _rw_schemas.get("anthropic"):
+                    rework_tool_schemas = _rw_schemas["anthropic"]
+                    _rw_max = int(_rw_detail.get("max_tool_calls", 5))
+                    _rw_agent_id = agent_id  # 클로저 캡처
+                    _rw_agent_name = agent_name
+
+                    async def _rework_executor(tool_name: str, tool_input: dict):
+                        rework_tools_used.append(tool_name)
+                        _cnt = len(rework_tools_used)
+                        await _broadcast_status(
+                            _rw_agent_id, "working", 0.5 + min(_cnt / _rw_max, 1.0) * 0.3,
+                            f"{tool_name} 실행 중... (재작업)",
+                        )
+                        _rw_log = save_activity_log(
+                            _rw_agent_id,
+                            f"🔧 [{_rw_agent_name}] {tool_name} 호출 ({_cnt}/{_rw_max}) [재작업#{attempt}]",
+                            level="tool",
+                        )
+                        await wm.send_activity_log(_rw_log)
+                        pool = _init_tool_pool()
+                        if pool:
+                            return await pool.invoke(tool_name, caller_id=_rw_agent_id, **tool_input)
+                        return f"도구 '{tool_name}'을(를) 찾을 수 없습니다."
+
+                    rework_tool_executor = _rework_executor
 
             result = await ask_ai(
                 user_message=rework_prompt,
                 system_prompt=spec_soul,
                 model=spec_model,
+                tools=rework_tool_schemas,
+                tool_executor=rework_tool_executor,
+                reasoning_effort=_get_agent_reasoning_effort(agent_id),
             )
 
             if "error" not in result:
-                # 재작업 결과로 교체
+                # 재작업 결과로 교체 (도구 사용 기록 포함)
                 chain["results"]["specialists"][agent_id] = {
                     "content": result["content"],
                     "model": result.get("model", spec_model),
                     "cost_usd": result.get("cost_usd", 0),
                     "rework_attempt": attempt,
+                    "tools_used": result.get("tools_used", []),
                 }
                 chain["total_cost_usd"] += result.get("cost_usd", 0)
                 _log(f"[QA] 재작업 완료: {agent_id} (시도 {attempt})")
@@ -7347,6 +7428,10 @@ async def _manager_with_delegation(manager_id: str, text: str) -> dict:
     _parallel = await asyncio.gather(_mgr_self_task, _spec_task, return_exceptions=True)
     manager_self_result = _parallel[0] if not isinstance(_parallel[0], Exception) else {"error": str(_parallel[0])[:200]}
     spec_results = _parallel[1] if not isinstance(_parallel[1], Exception) else []
+    if isinstance(_parallel[1], Exception):
+        log_spec_err = save_activity_log(manager_id,
+            f"[{mgr_name}] ⚠️ 전문가 위임 실패: {str(_parallel[1])[:100]}", "warning")
+        await wm.send_activity_log(log_spec_err)
 
     # ── 품질검수 (Quality Gate) ── 전문가 결과를 처장이 종합하기 전에 검수
     if app_state.quality_gate and _QUALITY_GATE_AVAILABLE and spec_results:
@@ -7366,6 +7451,7 @@ async def _manager_with_delegation(manager_id: str, text: str) -> dict:
                     "content": r.get("content", ""),
                     "model": r.get("model", ""),
                     "cost_usd": r.get("cost_usd", 0),
+                    "tools_used": r.get("tools_used", []),
                 }
 
         # ★ 버그#2 수정: 검수 대상 0명(전문가 전원 에러) → "합격"이 아니라 에러 경고!
@@ -7410,11 +7496,55 @@ async def _manager_with_delegation(manager_id: str, text: str) -> dict:
                         await wm.send_activity_log(log_rework)
                     if updated.get("quality_warning"):
                         r["quality_warning"] = updated["quality_warning"]
+                    if updated.get("tools_used"):
+                        r["tools_used"] = r.get("tools_used", []) + updated["tools_used"]
         elif _qa_valid_count > 0:
             # 불합격 0명 + 검수 대상 1명 이상 → 진짜 전원 합격
             log_pass = save_activity_log(manager_id,
                 f"[{mgr_name}] ✅ 전문가 {_qa_valid_count}명 품질검수 합격", "info")
             await wm.send_activity_log(log_pass)
+
+        # ★ 품질검수 결과를 기밀문서에 저장
+        _qa_reviews = _qa_chain.get("qa_reviews", [])
+        if _qa_reviews:
+            try:
+                _now_str = datetime.now(KST).strftime("%Y-%m-%d %H:%M")
+                _qa_lines = [f"# 품질검수 보고서 — {mgr_name} ({_now_str})\n"]
+                _qa_lines.append(f"검수 대상: {_qa_valid_count}명 | 불합격: {len(failed_specs)}명\n")
+                for qr in _qa_reviews:
+                    _qr_name = _SPECIALIST_NAMES.get(qr["agent_id"], qr["agent_id"])
+                    _qr_pass = "✅ 합격" if qr["passed"] else "❌ 불합격"
+                    _qa_lines.append(f"## {_qr_name} — {qr['weighted_average']:.1f}점 {_qr_pass}\n")
+                    _rd = qr.get("review_dict", {})
+                    # 체크리스트
+                    for ci in _rd.get("checklist", []):
+                        _st = "✅" if ci["passed"] else "❌"
+                        _rq = " [필수]" if ci.get("required") else ""
+                        _fb = f" — {ci['feedback']}" if ci.get("feedback") and not ci["passed"] else ""
+                        _qa_lines.append(f"- 📋 {ci['id']} {ci.get('label','')}: {_st}{_rq}{_fb}")
+                    # 점수
+                    for si in _rd.get("scores", []):
+                        _cr = " ⚠️치명적" if si.get("critical") and si["score"] == 1 else ""
+                        _fb = f" — {si['feedback']}" if si.get("feedback") and si["score"] <= 3 else ""
+                        _qa_lines.append(f"- 📊 {si['id']} {si.get('label','')}: {si['score']}점/5 (가중 {si.get('weight',0)}%){_cr}{_fb}")
+                    # 반려 사유
+                    _rej = _rd.get("rejection_reasons", [])
+                    if _rej:
+                        _qa_lines.append(f"\n**반려 사유**: {' / '.join(_rej)}")
+                    _qa_lines.append("")
+                _qa_content = "\n".join(_qa_lines)
+                _qa_filename = f"QA_{mgr_name}_{datetime.now(KST).strftime('%Y%m%d_%H%M')}.md"
+                _division = _MANAGER_DIVISION.get(manager_id, "default")
+                save_archive(
+                    division=_division,
+                    filename=_qa_filename,
+                    content=_qa_content,
+                    correlation_id=_qa_chain.get("chain_id", ""),
+                    agent_id=manager_id,
+                )
+                _log(f"[QA] 품질검수 보고서 기밀문서 저장: {_qa_filename}")
+            except Exception as e:
+                _log(f"[QA] 기밀문서 저장 실패: {e}")
 
     # 전문가 결과 취합
     spec_parts = []
@@ -7473,7 +7603,8 @@ async def _manager_with_delegation(manager_id: str, text: str) -> dict:
         # 종합 실패 시 독자분석 + 전문가 결과 반환
         _spec_ok = len([r for r in spec_results if "error" not in r])
         content = f"**{mgr_name} 독자 분석**\n\n{manager_self_content or '(분석 실패)'}\n\n---\n\n**전문가 분석 결과**\n\n" + "\n\n---\n\n".join(spec_parts)
-        return {"agent_id": manager_id, "name": mgr_name, "content": content, "cost_usd": spec_cost, "specialists_used": _spec_ok, "tools_used": mgr_self_tools}
+        _all_spec_tools = [t for r in spec_results if isinstance(r, dict) and "error" not in r for t in r.get("tools_used", [])]
+        return {"agent_id": manager_id, "name": mgr_name, "content": content, "cost_usd": spec_cost, "specialists_used": _spec_ok, "tools_used": mgr_self_tools + _all_spec_tools}
 
     total_cost = spec_cost + synthesis.get("cost_usd", 0)
     specialists_used = len([r for r in spec_results if "error" not in r])
