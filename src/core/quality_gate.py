@@ -335,9 +335,11 @@ class QualityGate:
                     {"role": "system", "content": (
                         "당신은 보고서 품질 검수관입니다. "
                         "반드시 요청된 JSON 형식으로만 응답하세요. "
-                        "보고서에 도구(dart_api, kr_stock, ecos_macro, us_stock 등)로 "
-                        "가져온 데이터가 포함된 경우, 해당 수치는 실시간 API에서 "
-                        "검증된 정확한 데이터이므로 '확인 불가'로 감점하지 마세요."
+                        "불합격/감점 항목에는 '뭘 고쳐야 하는지' 구체적으로 피드백하세요. "
+                        "예: '최근 FOMC 결과를 분석에 반영하고 종목 영향을 연결해야 함' "
+                        "(나쁜 예: '시의성 부족'). "
+                        "보고서에 도구(dart_api, kr_stock 등)로 가져온 데이터가 포함된 경우, "
+                        "해당 수치는 실시간 API의 정확한 데이터이므로 '확인 불가'로 감점하지 마세요."
                     )},
                     {"role": "user", "content": prompt},
                 ],
@@ -407,17 +409,32 @@ class QualityGate:
         # 도구 사용 데이터 신뢰 규칙 추가
         # 투자 분석 부서(finance.investment)는 전문가가 도구(API)로 데이터를 가져오므로 무조건 적용
         is_investment = division.startswith("finance") if division else False
+        has_tools = "사용한 도구" in text
         tool_trust_section = ""
-        if is_investment or "사용한 도구" in text:
+        if is_investment or has_tools:
             tool_trust_section = (
                 "\n\n## ⚠️ 도구 데이터 신뢰 규칙 (필독!)\n"
                 "이 보고서의 전문가는 실시간 API 도구(DART/KRX/ECOS/증권사 등)를 사용하여 데이터를 가져옵니다.\n"
                 "- 도구로 가져온 수치(주가, 재무제표, 거시지표, 기술지표 등)는 **정확한 것으로 간주**하세요.\n"
                 "- '수치 확인 불가', '출처 불명', '할루시네이션' 등을 이유로 감점하지 마세요.\n"
-                "- C3(할루시네이션) 판정 시: 도구가 제공한 수치는 할루시네이션이 아닙니다. "
-                "존재하지 않는 기관/보고서를 인용하거나, 도구 없이 구체적 수치를 지어낸 경우에만 불통과로 판정하세요.\n"
                 "- 데이터 자체가 아닌, 데이터를 기반으로 한 **분석 논리와 완결성**을 평가하세요.\n"
             )
+            if has_tools:
+                tool_trust_section += (
+                    "\n### ★ Q1 시의성 판정 보조 규칙\n"
+                    "보고서 하단에 '사용한 도구' 섹션이 있다면, 이 전문가는 **분석 당일 실시간 API로 최신 데이터를 확보**한 것입니다.\n"
+                    "- Q1 시의성에서 **최소 3점 이상**을 부여하세요.\n"
+                    "- 1점은 '도구를 호출했으나 가져온 데이터를 보고서에 전혀 활용하지 않은' 극단적 경우에만 부여하세요.\n"
+                    "- 도구 데이터를 적극 인용하고 시장 이벤트와 연결했다면 5점을 부여하세요.\n"
+                )
+
+        # 피드백 예시 생성 (불합격 항목만 구체적 피드백 필수)
+        cl_fb_example = ", ".join(
+            f'"{cid}": "불통과 시 구체적 사유"' for cid in cl_ids[:2]
+        )
+        sc_fb_example = ", ".join(
+            f'"{sid}": "3점 이하 시 구체적 감점 사유와 개선 방향"' for sid in sc_ids[:2]
+        )
 
         return (
             f"## 업무 지시\n{task_description}\n\n"
@@ -427,10 +444,15 @@ class QualityGate:
             f"## 점수 항목 (1/3/5 중 선택)\n{scoring_text}\n\n"
             "## 응답 형식\n"
             "반드시 아래 JSON 형식으로만 답하세요. JSON 외 텍스트는 쓰지 마세요.\n"
+            "★ 불합격/감점 항목에는 반드시 **구체적 피드백**을 작성하세요.\n"
+            "  - 나쁜 예: 'Q1 시의성 부족' (뭘 고쳐야 하는지 모름)\n"
+            "  - 좋은 예: '2026-02-24 FOMC 결과, 삼성전자 4Q 실적 등 최근 이벤트를 구체적으로 언급하고 종목과 연결해야 함'\n"
             "```json\n"
             "{\n"
             f'  "checklist": {{{cl_example}}},\n'
             f'  "scores": {{{sc_example}}},\n'
+            f'  "checklist_feedback": {{{cl_fb_example}}},\n'
+            f'  "score_feedback": {{{sc_fb_example}}},\n'
             '  "feedback": "종합 피드백 (1~2문장)"\n'
             "}\n"
             "```"
@@ -464,6 +486,10 @@ class QualityGate:
                 review_model=model_used,
             )
 
+        # 항목별 피드백 추출
+        cl_feedback_data = parsed.get("checklist_feedback", {})
+        sc_feedback_data = parsed.get("score_feedback", {})
+
         # 체크리스트 결과 구성
         cl_data = parsed.get("checklist", {})
         checklist_results = []
@@ -471,11 +497,13 @@ class QualityGate:
             item_passed = cl_data.get(item["id"], True)
             if isinstance(item_passed, str):
                 item_passed = item_passed.lower() in ("true", "yes", "통과")
+            item_fb = cl_feedback_data.get(item["id"], "") if not item_passed else ""
             checklist_results.append(ChecklistItem(
                 id=item["id"],
                 label=item["label"],
                 passed=bool(item_passed),
                 required=item.get("required", False),
+                feedback=str(item_fb)[:200],
             ))
 
         # 점수 결과 구성
@@ -494,12 +522,14 @@ class QualityGate:
                 score_val = 3
             else:
                 score_val = 5
+            item_fb = sc_feedback_data.get(item["id"], "") if score_val <= 3 else ""
             score_results.append(ScoreItem(
                 id=item["id"],
                 label=item["label"],
                 score=score_val,
                 weight=item.get("weight", 33),
                 critical=item.get("critical", False),
+                feedback=str(item_fb)[:200],
             ))
 
         # 가중 평균 계산
@@ -523,25 +553,38 @@ class QualityGate:
         feedback = parsed.get("feedback", "")
         rejection_reasons = []
 
-        # 치명적 항목 불합격 사유 추가
+        # 치명적 항목 불합격 사유 추가 (구체적 피드백 포함)
         for s in critical_failed:
-            rejection_reasons.append(
-                f"★치명적 항목 [{s.id}] {s.label}이(가) 1점 → 전체 점수 {critical_cap} 이하로 제한"
-            )
+            reason = f"★치명적 [{s.id}] {s.label} 1점"
+            if s.feedback:
+                reason += f": {s.feedback}"
+            else:
+                reason += f" → 전체 점수 {critical_cap} 이하로 제한"
+            rejection_reasons.append(reason)
 
-        # 필수 체크리스트 확인
+        # 필수 체크리스트 확인 (구체적 피드백 포함)
         all_required_pass = self._pass_criteria.get("all_required_pass", True)
         if all_required_pass:
             for cl in checklist_results:
                 if cl.required and not cl.passed:
-                    rejection_reasons.append(f"필수항목 불통과: [{cl.id}] {cl.label}")
+                    reason = f"필수항목 불통과: [{cl.id}] {cl.label}"
+                    if cl.feedback:
+                        reason += f" — {cl.feedback}"
+                    rejection_reasons.append(reason)
 
-        # 점수 기준 확인
+        # 점수 기준 확인 — 낮은 점수 항목의 구체적 피드백도 포함
         min_avg = self._pass_criteria.get("min_average_score", 3.0)
         if weighted_average < min_avg:
-            rejection_reasons.append(
-                f"가중 평균 {weighted_average:.1f} < 기준 {min_avg}"
-            )
+            low_items = [s for s in score_results if s.score <= 1 and s.feedback]
+            if low_items:
+                details = "; ".join(f"[{s.id}] {s.feedback}" for s in low_items)
+                rejection_reasons.append(
+                    f"가중 평균 {weighted_average:.1f} < 기준 {min_avg} — {details}"
+                )
+            else:
+                rejection_reasons.append(
+                    f"가중 평균 {weighted_average:.1f} < 기준 {min_avg}"
+                )
 
         passed = len(rejection_reasons) == 0
 

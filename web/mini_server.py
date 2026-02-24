@@ -7289,14 +7289,20 @@ async def _quality_review_specialists(chain: dict) -> list[dict]:
             })
             continue
 
-        # QA에 도구 사용 기록 포함 — D1 판정을 위해 필수
+        # QA에 도구 사용 기록 포함 — D1 + Q1 판정을 위해 필수
         _qa_content = content
         _spec_tools = result_data.get("tools_used", [])
         if _spec_tools:
             _unique_tools = list(dict.fromkeys(_spec_tools))
+            # 도구별 호출 횟수 집계
+            from collections import Counter as _Counter
+            _tool_counts = _Counter(_spec_tools)
+            _tool_detail = ", ".join(f"{t}({c}회)" for t, c in _tool_counts.most_common())
             _qa_content += (
-                f"\n\n---\n## 사용한 도구 ({len(_spec_tools)}건, 고유 {len(_unique_tools)}개)\n"
-                + ", ".join(_unique_tools)
+                f"\n\n---\n## 사용한 도구 (총 {len(_spec_tools)}회 호출, 고유 {len(_unique_tools)}종)\n"
+                f"{_tool_detail}\n"
+                f"※ 위 도구들은 실시간 API를 호출하여 분석 당일의 최신 데이터를 가져온 것입니다.\n"
+                f"※ 도구가 반환한 수치(주가, 재무제표, 거시지표 등)는 정확한 실시간 데이터입니다."
             )
 
         try:
