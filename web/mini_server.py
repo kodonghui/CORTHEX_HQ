@@ -6884,28 +6884,64 @@ async def _handle_specialist_rework(chain: dict, failed_specs: list[dict], attem
             f"## 당신의 원본 보고서 (앞부분)\n{original_content}...\n\n"
             f"## 지시사항\n"
             f"위 불합격 사유를 반영하여 보고서를 전면 수정하세요. "
-            f"특히 지적된 문제점을 확실히 보완하고, "
+            f"반드시 도구(API)를 사용하여 실시간 데이터를 직접 조회하고, "
             f"구체적인 근거와 데이터를 추가하세요."
         )
 
         try:
-            # 전문가 모델로 재작업 실행
+            # 전문가 모델로 재작업 실행 (★ 도구 포함! — 재작업에서도 API 호출 가능)
             spec_model = _get_model_override(agent_id) or "claude-sonnet-4-6"
             spec_soul = _load_agent_prompt(agent_id)
+            rework_tool_schemas = None
+            rework_tool_executor = None
+            rework_tools_used: list[str] = []
+            _rw_detail = _AGENTS_DETAIL.get(agent_id, {})
+            _rw_allowed = _rw_detail.get("allowed_tools", [])
+            if _rw_allowed:
+                _rw_schemas = _load_tool_schemas(allowed_tools=_rw_allowed)
+                if _rw_schemas.get("anthropic"):
+                    rework_tool_schemas = _rw_schemas["anthropic"]
+                    _rw_max = int(_rw_detail.get("max_tool_calls", 5))
+                    _rw_agent_id = agent_id  # 클로저 캡처
+                    _rw_agent_name = agent_name
+
+                    async def _rework_executor(tool_name: str, tool_input: dict):
+                        rework_tools_used.append(tool_name)
+                        _cnt = len(rework_tools_used)
+                        await _broadcast_status(
+                            _rw_agent_id, "working", 0.5 + min(_cnt / _rw_max, 1.0) * 0.3,
+                            f"{tool_name} 실행 중... (재작업)",
+                        )
+                        _rw_log = save_activity_log(
+                            _rw_agent_id,
+                            f"🔧 [{_rw_agent_name}] {tool_name} 호출 ({_cnt}/{_rw_max}) [재작업#{attempt}]",
+                            level="tool",
+                        )
+                        await wm.send_activity_log(_rw_log)
+                        pool = _init_tool_pool()
+                        if pool:
+                            return await pool.invoke(tool_name, caller_id=_rw_agent_id, **tool_input)
+                        return f"도구 '{tool_name}'을(를) 찾을 수 없습니다."
+
+                    rework_tool_executor = _rework_executor
 
             result = await ask_ai(
                 user_message=rework_prompt,
                 system_prompt=spec_soul,
                 model=spec_model,
+                tools=rework_tool_schemas,
+                tool_executor=rework_tool_executor,
+                reasoning_effort=_get_agent_reasoning_effort(agent_id),
             )
 
             if "error" not in result:
-                # 재작업 결과로 교체
+                # 재작업 결과로 교체 (도구 사용 기록 포함)
                 chain["results"]["specialists"][agent_id] = {
                     "content": result["content"],
                     "model": result.get("model", spec_model),
                     "cost_usd": result.get("cost_usd", 0),
                     "rework_attempt": attempt,
+                    "tools_used": result.get("tools_used", []),
                 }
                 chain["total_cost_usd"] += result.get("cost_usd", 0)
                 _log(f"[QA] 재작업 완료: {agent_id} (시도 {attempt})")
