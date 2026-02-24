@@ -17,6 +17,7 @@ const _CDN = {
   chartjs:      'https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js',
   mermaid:      'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js',
   forcegraph3d: 'https://unpkg.com/3d-force-graph@1/dist/3d-force-graph.min.js',
+  spritetext:   'https://unpkg.com/three-spritetext',
   drawflow:     'https://cdn.jsdelivr.net/npm/drawflow/dist/drawflow.min.js',
   drawflowcss:  'https://cdn.jsdelivr.net/npm/drawflow/dist/drawflow.min.css',
 };
@@ -325,34 +326,21 @@ function corthexApp() {
       detailAccount: 'real',
     },
 
-    // ── NEXUS (Flowchart / 3D / Canvas) ──
+    // ── NEXUS 풀스크린 오버레이 ──
+    nexusOpen: false,
+
+    // ── NEXUS (3D / Canvas) ──
     flowchart: {
-      // 공통
-      mode: '2d',         // '2d' | '3d' | 'canvas'
-      // ── Mode 1: 2D Mermaid 에디터 ──
-      items: [],
-      selected: null,
-      code: '',
-      rendered: '',
-      zoom: 1.0,
-      panX: 0,
-      panY: 0,
-      loading: false,
-      saving: false,
-      renderError: '',
-      showNewModal: false,
-      newName: '',
-      loaded: false,
-      fullscreen: false,
-      // ── Mode 2: 3D 뷰 ──
+      mode: '3d',         // '3d' | 'canvas'
+      // ── 3D 시스템 맵 ──
       graph3dLoaded: false,
       graph3dInstance: null,
-      // ── Mode 3: 비주얼 캔버스 ──
+      // ── 비주얼 캔버스 ──
       canvasLoaded: false,
       canvasEditor: null,
       canvasDirty: false,
       canvasName: '',
-      canvasItems: [],    // 저장된 캔버스 목록
+      canvasItems: [],
       showCanvasNameModal: false,
     },
 
@@ -1927,7 +1915,7 @@ function corthexApp() {
         clearInterval(this.trading.refreshInterval);
         clearInterval(this.trading.priceRefreshInterval);
       }
-      if (tabId === 'flowchart' && !this.flowchart.loaded) this.loadFlowchartList();
+      // NEXUS는 openNexus()에서 독립적으로 초기화 (풀스크린 오버레이)
     },
 
     // ── Command Tab: 최근 작업 로드 (새로고침 후에도 표시) ──
@@ -4365,6 +4353,7 @@ function corthexApp() {
         }
         // Esc → 모달 닫기
         if (e.key === 'Escape') {
+          if (this.nexusOpen) { this.nexusOpen = false; return; }
           if (this.showAgentConfig) { this.showAgentConfig = false; return; }
           if (this.showQualitySettings) { this.showQualitySettings = false; return; }
           if (this.showTaskDetail) { this.showTaskDetail = false; return; }
@@ -4382,8 +4371,8 @@ function corthexApp() {
       return order.map(id => this.tabs.find(t => t.id === id)).filter(Boolean);
     },
     getSecondaryTabs() {
-      // 더보기: 조직도 / 전력분석 / 기밀문서 / 자동화 / 크론기지 / 정보국 / 통신국 / NEXUS
-      const order = ['archmap', 'performance', 'archive', 'workflow', 'schedule', 'knowledge', 'sns', 'flowchart'];
+      // 더보기: 전력분석 / 기밀문서 / 자동화 / 크론기지 / 정보국 / 통신국 (조직도·NEXUS → 헤더로 이동)
+      const order = ['performance', 'archive', 'workflow', 'schedule', 'knowledge', 'sns'];
       return order.map(id => this.tabs.find(t => t.id === id)).filter(Boolean);
     },
 
@@ -4584,54 +4573,167 @@ function corthexApp() {
       });
     },
 
+    // ── NEXUS: 풀스크린 오버레이 열기 ──
+    openNexus() {
+      this.nexusOpen = true;
+      this.$nextTick(() => {
+        if (this.flowchart.mode === '3d' && !this.flowchart.graph3dLoaded) this.initNexus3D();
+        if (this.flowchart.mode === 'canvas' && !this.flowchart.canvasLoaded) this.initNexusCanvas();
+      });
+    },
+
     // ── NEXUS: 모드 전환 ──
     async onNexusModeChange(mode) {
       this.flowchart.mode = mode;
+      await this.$nextTick();
       if (mode === '3d' && !this.flowchart.graph3dLoaded) await this.initNexus3D();
       if (mode === 'canvas' && !this.flowchart.canvasLoaded) await this.initNexusCanvas();
       if (mode === 'canvas') await this.loadCanvasList();
     },
 
-    // ── NEXUS Mode 2: 3D 뷰 초기화 ──
+    // ── NEXUS 3D: 시스템 전체 그래프 데이터 빌드 ──
+    _buildSystemGraphData(agentNodes, agentEdges) {
+      const CAT = {
+        core:    { color: '#e879f9', label: 'CORTHEX' },
+        tab:     { color: '#60a5fa', label: 'UI 탭' },
+        division:{ color: '#a78bfa', label: '부서' },
+        agent:   { color: '#34d399', label: '에이전트' },
+        store:   { color: '#fbbf24', label: '저장소' },
+        service: { color: '#fb923c', label: '외부서비스' },
+        process: { color: '#f87171', label: '핵심프로세스' },
+      };
+
+      const nodes = [];
+      const links = [];
+
+      // ① 코어 허브
+      nodes.push({ id: 'corthex_hq', name: 'CORTHEX HQ', category: 'core' });
+
+      // ② UI 탭 (13개)
+      const tabs = [
+        { id: 't_home', name: '홈' }, { id: 't_command', name: '사령관실' },
+        { id: 't_activity', name: '모니터링' }, { id: 't_trading', name: '투자' },
+        { id: 't_history', name: '기록보관소' }, { id: 't_performance', name: '전력분석' },
+        { id: 't_archive', name: '기밀문서' }, { id: 't_workflow', name: '자동화' },
+        { id: 't_schedule', name: '크론기지' }, { id: 't_knowledge', name: '정보국' },
+        { id: 't_sns', name: '통신국' }, { id: 't_nexus', name: 'NEXUS' },
+        { id: 't_dashboard', name: '대시보드' },
+      ];
+      tabs.forEach(t => {
+        nodes.push({ id: t.id, name: t.name, category: 'tab' });
+        links.push({ source: 'corthex_hq', target: t.id });
+      });
+
+      // ③ 부서 (7개)
+      const divisions = [
+        { id: 'd_secretary', name: '비서실' }, { id: 'd_tech', name: '기술개발처' },
+        { id: 'd_strategy', name: '전략기획처' }, { id: 'd_legal', name: '법무처' },
+        { id: 'd_marketing', name: '마케팅처' }, { id: 'd_investment', name: '금융분석처' },
+        { id: 'd_publishing', name: '콘텐츠처' },
+      ];
+      divisions.forEach(d => {
+        nodes.push({ id: d.id, name: d.name, category: 'division' });
+        links.push({ source: 'corthex_hq', target: d.id });
+      });
+
+      // ④ 에이전트 (API에서)
+      const divMap = { secretary:'d_secretary', tech:'d_tech', strategy:'d_strategy',
+                       legal:'d_legal', marketing:'d_marketing', investment:'d_investment',
+                       publishing:'d_publishing' };
+      agentNodes.forEach(a => {
+        nodes.push({ id: a.id, name: a.name_ko || a.id, category: 'agent' });
+        const div = a.division?.split('.')[0];
+        if (divMap[div]) links.push({ source: divMap[div], target: a.id });
+        else links.push({ source: 'corthex_hq', target: a.id });
+      });
+      agentEdges.forEach(e => links.push({ source: e.from, target: e.to }));
+
+      // ⑤ 저장소
+      const stores = [
+        { id: 's_sqlite', name: 'SQLite DB' }, { id: 's_archive', name: '기밀문서 아카이브' },
+        { id: 's_knowledge', name: '지식베이스' }, { id: 's_notion', name: '노션' },
+      ];
+      stores.forEach(s => {
+        nodes.push({ id: s.id, name: s.name, category: 'store' });
+        links.push({ source: 'corthex_hq', target: s.id });
+      });
+
+      // ⑥ 외부 서비스
+      const services = [
+        { id: 'x_anthropic', name: 'Anthropic API' }, { id: 'x_openai', name: 'OpenAI API' },
+        { id: 'x_google', name: 'Google AI' }, { id: 'x_telegram', name: '텔레그램' },
+        { id: 'x_kis', name: '한국투자증권' }, { id: 'x_github', name: 'GitHub' },
+        { id: 'x_cloudflare', name: 'Cloudflare' }, { id: 'x_oracle', name: 'Oracle Cloud' },
+      ];
+      services.forEach(s => {
+        nodes.push({ id: s.id, name: s.name, category: 'service' });
+        links.push({ source: 'corthex_hq', target: s.id });
+      });
+
+      // ⑦ 핵심 프로세스
+      const processes = [
+        { id: 'p_routing', name: '지능형 라우팅' }, { id: 'p_qa', name: 'QA 검수' },
+        { id: 'p_rework', name: '재작업 루프' }, { id: 'p_kelly', name: '켈리 크라이터리온' },
+        { id: 'p_soul', name: '에이전트 소울' },
+      ];
+      processes.forEach(p => {
+        nodes.push({ id: p.id, name: p.name, category: 'process' });
+        links.push({ source: 'corthex_hq', target: p.id });
+      });
+
+      return { nodes, links, CAT };
+    },
+
+    // ── NEXUS 3D: 초기화 (SpriteText 라벨 노드) ──
     async initNexus3D() {
       try {
-        await _loadScript(_CDN.forcegraph3d);
+        await Promise.all([_loadScript(_CDN.forcegraph3d), _loadScript(_CDN.spritetext)]);
         const r = await fetch('/api/architecture/hierarchy');
-        if (!r.ok) throw new Error('조직도 데이터 로드 실패');
-        const { nodes = [], edges = [] } = await r.json();
+        if (!r.ok) throw new Error('시스템 데이터 로드 실패');
+        const { nodes: agentNodes = [], edges: agentEdges = [] } = await r.json();
 
-        const DIVISION_COLORS = {
-          'secretary': '#a78bfa', 'tech': '#60a5fa', 'strategy': '#f472b6',
-          'legal': '#fb923c', 'marketing': '#4ade80', 'investment': '#34d399',
-          'publishing': '#fbbf24',
-        };
-        const ROLE_SIZE = { executive: 10, manager: 6, specialist: 3 };
-
-        const graphData = {
-          nodes: nodes.map(n => ({
-            id: n.id, name: n.name_ko || n.id,
-            color: DIVISION_COLORS[n.division?.split('.')[0]] || '#6b7280',
-            val: ROLE_SIZE[n.role] || 3,
-          })),
-          links: edges.map(e => ({ source: e.from, target: e.to })),
-        };
+        const { nodes, links, CAT } = this._buildSystemGraphData(agentNodes, agentEdges);
+        const graphNodes = nodes.map(n => ({
+          id: n.id, name: n.name, category: n.category,
+          color: CAT[n.category]?.color || '#6b7280',
+        }));
+        const graphLinks = links.map(l => ({ source: l.source, target: l.target }));
 
         await this.$nextTick();
         const el = document.getElementById('nexus-3d');
         if (!el || typeof ForceGraph3D === 'undefined') throw new Error('3D 렌더러 초기화 실패');
+
         const Graph = ForceGraph3D()(el)
-          .graphData(graphData)
-          .nodeLabel(n => `${n.name}`)
-          .nodeColor(n => n.color)
-          .nodeVal(n => n.val)
-          .nodeOpacity(0.9)
-          .linkColor(() => '#374151')
-          .linkOpacity(0.5)
-          .backgroundColor('#0a0f1a')
+          .graphData({ nodes: graphNodes, links: graphLinks })
+          .backgroundColor('#060a14')
+          .nodeThreeObject(node => {
+            const sprite = new SpriteText(node.name);
+            sprite.color = '#ffffff';
+            sprite.backgroundColor = node.color;
+            sprite.borderColor = node.color;
+            sprite.borderWidth = 0.5;
+            sprite.borderRadius = 4;
+            sprite.padding = [3, 6];
+            sprite.textHeight = node.category === 'core' ? 6 : (node.category === 'division' ? 4 : 3);
+            sprite.fontFace = 'Pretendard, sans-serif';
+            return sprite;
+          })
+          .nodeLabel(n => `${n.name} (${CAT[n.category]?.label || n.category})`)
+          .linkColor(() => 'rgba(255,255,255,0.15)')
+          .linkWidth(0.3)
+          .linkOpacity(0.4)
           .onNodeClick(n => {
-            this.switchTab('command');
-            this.$nextTick(() => { this.inputText = `@${n.id} `; });
-          });
+            if (n.category === 'agent') {
+              this.nexusOpen = false;
+              this.switchTab('command');
+              this.$nextTick(() => { this.inputText = `@${n.id} `; });
+            }
+          })
+          .d3AlphaDecay(0.02)
+          .d3VelocityDecay(0.3)
+          .warmupTicks(80)
+          .cooldownTicks(200);
+
         this.flowchart.graph3dInstance = Graph;
         this.flowchart.graph3dLoaded = true;
       } catch (e) {
@@ -4640,7 +4742,7 @@ function corthexApp() {
       }
     },
 
-    // ── NEXUS Mode 3: 비주얼 캔버스 초기화 ──
+    // ── NEXUS 캔버스: 초기화 (dblclick 노드 이름 편집 포함) ──
     async initNexusCanvas() {
       try {
         await Promise.all([_loadScript(_CDN.drawflow), _loadCSS(_CDN.drawflowcss)]);
@@ -4655,6 +4757,30 @@ function corthexApp() {
         ['nodeCreated','connectionCreated','nodeRemoved','connectionRemoved','nodeMoved'].forEach(ev => {
           editor.on(ev, () => { this.flowchart.canvasDirty = true; });
         });
+        // 더블클릭 노드 이름 편집
+        el.addEventListener('dblclick', (e) => {
+          const nodeEl = e.target.closest('.nexus-node');
+          if (!nodeEl) return;
+          const current = nodeEl.textContent.trim();
+          const input = document.createElement('input');
+          input.type = 'text';
+          input.value = current;
+          input.style.cssText = 'background:rgba(0,0,0,0.6);color:#fff;border:1px solid #8b5cf6;border-radius:4px;padding:2px 6px;font-size:12px;width:100%;text-align:center;outline:none;font-family:Pretendard,sans-serif';
+          nodeEl.textContent = '';
+          nodeEl.appendChild(input);
+          input.focus();
+          input.select();
+          const commit = () => {
+            const val = input.value.trim() || current;
+            nodeEl.textContent = val;
+            this.flowchart.canvasDirty = true;
+          };
+          input.addEventListener('blur', commit, { once: true });
+          input.addEventListener('keydown', (ke) => {
+            if (ke.key === 'Enter') { ke.preventDefault(); input.blur(); }
+            if (ke.key === 'Escape') { input.value = current; input.blur(); }
+          });
+        });
         this.flowchart.canvasEditor = editor;
         this.flowchart.canvasLoaded = true;
       } catch (e) {
@@ -4663,7 +4789,7 @@ function corthexApp() {
       }
     },
 
-    // ── NEXUS Mode 3: 캔버스 파일 목록 ──
+    // ── NEXUS 캔버스: 파일 목록 ──
     async loadCanvasList() {
       try {
         const r = await fetch('/api/knowledge');
@@ -4673,7 +4799,7 @@ function corthexApp() {
       } catch(e) { console.error('loadCanvasList:', e); }
     },
 
-    // ── NEXUS Mode 3: 팔레트 노드 추가 ──
+    // ── NEXUS 캔버스: 팔레트 노드 추가 ──
     addCanvasNode(type) {
       const editor = this.flowchart.canvasEditor;
       if (!editor) return;
@@ -4683,7 +4809,7 @@ function corthexApp() {
       editor.addNode(type, 1, 1, 200, 200, type, { label: labels[type] }, html);
     },
 
-    // ── NEXUS Mode 3: 저장 ──
+    // ── NEXUS 캔버스: 저장 ──
     async saveNexusCanvas() {
       if (!this.flowchart.canvasEditor) return;
       const name = (this.flowchart.canvasName || '').trim();
@@ -4697,12 +4823,12 @@ function corthexApp() {
         });
         if (!r.ok) throw new Error('저장 실패');
         this.flowchart.canvasDirty = false;
-        this.showToast('캔버스 저장됐습니다 ✓', 'success');
+        this.showToast('캔버스 저장됐습니다', 'success');
         await this.loadCanvasList();
       } catch (e) { this.showToast('저장 실패: ' + e.message, 'error'); }
     },
 
-    // ── NEXUS Mode 3: 불러오기 ──
+    // ── NEXUS 캔버스: 불러오기 ──
     async loadNexusCanvas(item) {
       if (!this.flowchart.canvasEditor) return;
       try {
@@ -4717,7 +4843,7 @@ function corthexApp() {
       } catch (e) { this.showToast('불러오기 실패: ' + e.message, 'error'); }
     },
 
-    // ── NEXUS Mode 3: 캔버스 초기화 ──
+    // ── NEXUS 캔버스: 초기화 ──
     clearNexusCanvas() {
       if (this.flowchart.canvasEditor) {
         this.flowchart.canvasEditor.clearModuleSelected();
@@ -4725,159 +4851,6 @@ function corthexApp() {
         this.flowchart.canvasDirty = false;
         this.flowchart.canvasName = '';
       }
-    },
-
-    // ── 설계실: 다이어그램 목록 로드 ──
-    async loadFlowchartList() {
-      this.flowchart.loading = true;
-      try {
-        const r = await fetch('/api/knowledge');
-        if (!r.ok) throw new Error('API 오류');
-        const data = await r.json();
-        const files = (data.files || []).filter(f => f.folder === 'flowcharts');
-        this.flowchart.items = files;
-        this.flowchart.loaded = true;
-        if (files.length > 0 && !this.flowchart.selected) {
-          await this.selectFlowchart(files[0]);
-        }
-      } catch (e) {
-        console.error('설계실 목록 로드 실패:', e);
-      } finally {
-        this.flowchart.loading = false;
-      }
-    },
-
-    // ── 설계실: 다이어그램 선택 ──
-    async selectFlowchart(item) {
-      this.flowchart.selected = item.name;
-      this.flowchart.renderError = '';
-      this.flowchart.rendered = '';
-      // pan/zoom 리셋
-      this.flowchart.zoom = 1.0;
-      this.flowchart.panX = 0;
-      this.flowchart.panY = 0;
-      try {
-        const r = await fetch(`/api/knowledge/${item.folder}/${item.name}`);
-        if (!r.ok) throw new Error('파일 로드 실패');
-        const data = await r.json();
-        const raw = data.content || '';
-        const match = raw.match(/```mermaid\n([\s\S]*?)```/);
-        this.flowchart.code = match ? match[1].trim() : raw;
-        await this.renderFlowchart();
-      } catch (e) {
-        this.flowchart.renderError = e.message;
-      }
-    },
-
-    // ── 설계실: Mermaid 렌더링 ──
-    async renderFlowchart() {
-      if (!this.flowchart.code.trim()) { this.flowchart.rendered = ''; return; }
-      this.flowchart.renderError = '';
-      try {
-        await this._initMermaid();
-        const id = 'fc-render-' + Date.now();
-        const { svg } = await window.mermaid.render(id, this.flowchart.code);
-        this.flowchart.rendered = svg;
-      } catch (e) {
-        this.flowchart.renderError = String(e.message || e).replace(/\n/g, ' ').slice(0, 200);
-        this.flowchart.rendered = '';
-      }
-    },
-
-    // ── 설계실: 코드 변경 시 디바운스 렌더링 ──
-    _fcDebounceTimer: null,
-    onFlowchartCodeChange() {
-      clearTimeout(this._fcDebounceTimer);
-      this._fcDebounceTimer = setTimeout(() => this.renderFlowchart(), 400);
-    },
-
-    // ── 설계실: 저장 (Ctrl+S도 동일) ──
-    async saveFlowchart() {
-      if (!this.flowchart.selected) return;
-      this.flowchart.saving = true;
-      try {
-        const content = '```mermaid\n' + this.flowchart.code + '\n```\n';
-        const r = await fetch('/api/knowledge', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ folder: 'flowcharts', filename: this.flowchart.selected, content })
-        });
-        if (!r.ok) throw new Error('저장 실패');
-        this.showToast('저장됐습니다 ✓', 'success');
-      } catch (e) {
-        this.showToast('저장 실패: ' + e.message, 'error');
-      } finally {
-        this.flowchart.saving = false;
-      }
-    },
-
-    // ── 설계실: SVG 내보내기 ──
-    exportFlowchartSvg() {
-      if (!this.flowchart.rendered) return;
-      const blob = new Blob([this.flowchart.rendered], { type: 'image/svg+xml' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = (this.flowchart.selected || 'diagram').replace('.md', '') + '.svg';
-      a.click();
-      URL.revokeObjectURL(url);
-    },
-
-    // ── 설계실: 마우스 휠 줌 ──
-    onFlowchartWheel(e) {
-      e.preventDefault();
-      const delta = e.deltaY < 0 ? 0.1 : -0.1;
-      this.flowchart.zoom = Math.min(3, Math.max(0.3, this.flowchart.zoom + delta));
-    },
-
-    // ── 설계실: 드래그 패닝 ──
-    _fcPanStart: null,
-    onFlowchartPanStart(e) {
-      if (e.button !== 0) return;
-      this._fcPanStart = { x: e.clientX - (this.flowchart.panX||0), y: e.clientY - (this.flowchart.panY||0) };
-      const move = (ev) => {
-        if (!this._fcPanStart) return;
-        this.flowchart.panX = ev.clientX - this._fcPanStart.x;
-        this.flowchart.panY = ev.clientY - this._fcPanStart.y;
-      };
-      const up = () => { this._fcPanStart = null; window.removeEventListener('mousemove', move); window.removeEventListener('mouseup', up); };
-      window.addEventListener('mousemove', move);
-      window.addEventListener('mouseup', up);
-    },
-
-    // ── 설계실: 새 다이어그램 생성 ──
-    async createFlowchart() {
-      const name = (this.flowchart.newName || '').trim();
-      if (!name) return;
-      const filename = name.endsWith('.md') ? name : name + '.md';
-      const starter = 'flowchart TD\n    A["📌 시작"] --> B["🔄 처리"]\n    B --> C["✅ 완료"]';
-      const content = '```mermaid\n' + starter + '\n```\n';
-      try {
-        const r = await fetch('/api/knowledge', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ folder: 'flowcharts', filename, content })
-        });
-        if (!r.ok) throw new Error('생성 실패');
-        this.flowchart.showNewModal = false;
-        this.flowchart.newName = '';
-        await this.loadFlowchartList();
-        const newItem = this.flowchart.items.find(i => i.name === filename);
-        if (newItem) await this.selectFlowchart(newItem);
-        this.showToast('새 다이어그램이 생성됐습니다', 'success');
-      } catch (e) {
-        this.showToast('생성 실패: ' + e.message, 'error');
-      }
-    },
-
-    // ── 설계실: Mermaid 문법 템플릿 삽입 ──
-    insertFlowchartTemplate(type) {
-      const templates = {
-        flowchart: 'flowchart TD\n    A["시작"] --> B{"조건"}\n    B -->|"예"| C["처리 A"]\n    B -->|"아니오"| D["처리 B"]\n    C --> E["끝"]\n    D --> E',
-        sequence: 'sequenceDiagram\n    participant 대표님\n    participant 서버\n    participant AI\n    대표님->>서버: 명령 전송\n    서버->>AI: 에이전트 호출\n    AI-->>서버: 분석 결과\n    서버-->>대표님: 보고',
-        er: 'erDiagram\n    TASK ||--o{ AGENT : "수행"\n    AGENT ||--o{ TOOL : "사용"\n    TOOL ||--o{ LOG : "기록"',
-        mindmap: 'mindmap\n  root((CORTHEX))\n    투자분석\n      CIO\n      전문가 4명\n    기술개발\n      CTO\n      Frontend\n    비서실\n      CoS',
-      };
-      const t = templates[type];
-      if (t) { this.flowchart.code = t; this.renderFlowchart(); }
     },
   };
 }
