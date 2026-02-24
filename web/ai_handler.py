@@ -745,12 +745,7 @@ async def _call_google(
     else:
         contents = user_message
 
-    # 전역 속도 제한기: Google API 호출 전 대기 (429 방지)
-    await _google_rate_limiter.acquire()
-    try:
-        resp = await asyncio.wait_for(asyncio.to_thread(_sync_call, contents, config.copy(), gemini_tools), timeout=ai_call_timeout)
-    finally:
-        _google_rate_limiter.release()
+    resp = await asyncio.wait_for(asyncio.to_thread(_sync_call, contents, config.copy(), gemini_tools), timeout=ai_call_timeout)
 
     usage = getattr(resp, "usage_metadata", None)
     total_input_tokens += getattr(usage, "prompt_token_count", 0) if usage else 0
@@ -808,12 +803,7 @@ async def _call_google(
                     call_kwargs["config"]["tools"] = g_tools
                 return client.models.generate_content(**call_kwargs)
 
-            # 도구 루프 재호출에도 전역 속도 제한 적용
-            await _google_rate_limiter.acquire()
-            try:
-                resp = await asyncio.wait_for(asyncio.to_thread(_sync_followup, contents, config.copy(), gemini_tools), timeout=ai_call_timeout)
-            finally:
-                _google_rate_limiter.release()
+            resp = await asyncio.wait_for(asyncio.to_thread(_sync_followup, contents, config.copy(), gemini_tools), timeout=ai_call_timeout)
             usage = getattr(resp, "usage_metadata", None)
             total_input_tokens += getattr(usage, "prompt_token_count", 0) if usage else 0
             total_output_tokens += getattr(usage, "candidates_token_count", 0) if usage else 0

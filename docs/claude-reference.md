@@ -58,7 +58,7 @@ GET https://corthex-hq.com/api/debug/server-logs?lines=50&service=nginx-access  
 
 | 분류 | 키 |
 |------|-----|
-| AI | `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GOOGLE_API_KEY` |
+| AI | `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GOOGLE_API_KEY`, `GOOGLE_API_KEY_2`, `GOOGLE_API_KEY_3`, `GOOGLE_API_KEY_4` |
 | 텔레그램 | `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CEO_CHAT_ID` |
 | 노션 | `NOTION_API_KEY`, `NOTION_DB_SECRETARY`, `NOTION_DB_OUTPUT`, `NOTION_DEFAULT_DB_ID` |
 | 주식 | `KOREA_INVEST_APP_KEY/SECRET/ACCOUNT` (실전+모의) |
