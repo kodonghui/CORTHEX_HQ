@@ -997,3 +997,9 @@ html:not(.dark) .log-item:hover { background: rgb(var(--hq-accent) / 0.08) !impo
 
 /* ═══ 상태 뱃지 색상 보장 ═══ */
 .status-badge { color: inherit !important; }
+
+/* ═══ AGORA — 논문 Diff 스타일 ═══ */
+.agora-diff .diff-del { background: rgba(255, 60, 80, 0.15); color: #ff6b7a; text-decoration: line-through; }
+.agora-diff .diff-add { background: rgba(0, 255, 136, 0.12); color: #6bffb0; }
+.agora-diff .diff-hdr { color: rgb(var(--hq-muted)); opacity: 0.5; font-size: 10px; margin-top: 8px; }
+.agora-diff .diff-ctx { color: rgb(var(--hq-text)); opacity: 0.6; }

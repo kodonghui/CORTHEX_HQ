@@ -6857,5 +6857,266 @@
     </div>
   </template>
 
+  <!-- ══════════════════════════════════════════════════ AGORA 탭 ══ -->
+  <template x-if="viewMode === 'chat' && activeTab === 'agora'">
+    <div class="flex-1 flex flex-col overflow-hidden">
+
+      <!-- 상단 툴바 -->
+      <div class="shrink-0 flex items-center gap-2 px-4 py-2.5 border-b border-hq-border bg-hq-panel/80 backdrop-blur-sm">
+        <!-- AGORA 로고 -->
+        <div class="flex items-center gap-2 mr-2">
+          <span class="text-sm font-bold tracking-widest text-hq-accent">AGORA</span>
+          <template x-if="agora.status">
+            <span class="text-[10px] px-1.5 py-0.5 rounded-full font-semibold"
+                  :class="{'bg-green-500/20 text-green-400': agora.status==='active', 'bg-yellow-500/20 text-yellow-400': agora.status==='paused', 'bg-hq-muted/20 text-hq-muted': agora.status==='completed'}"
+                  x-text="({active:'진행중',paused:'일시정지',completed:'완료'})[agora.status]"></span>
+          </template>
+        </div>
+
+        <!-- 컨트롤 버튼들 -->
+        <template x-if="!agora.sessionId">
+          <button @click="startAgora()"
+                  class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-hq-accent/20 text-hq-accent hover:bg-hq-accent/30 transition">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+            새 토론 시작
+          </button>
+        </template>
+        <template x-if="agora.status === 'active'">
+          <button @click="pauseAgora()"
+                  class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-yellow-500/20 text-yellow-400 hover:bg-yellow-500/30 transition">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+            일시정지
+          </button>
+        </template>
+        <template x-if="agora.status === 'paused'">
+          <button @click="resumeAgora()"
+                  class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-green-500/20 text-green-400 hover:bg-green-500/30 transition">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+            재개
+          </button>
+        </template>
+
+        <div class="flex-1"></div>
+
+        <!-- 라운드 + 비용 표시 -->
+        <template x-if="agora.sessionId">
+          <div class="flex items-center gap-3">
+            <span class="text-xs text-hq-muted/60 font-mono">
+              R<span class="text-hq-text" x-text="agora.totalRounds"></span>
+            </span>
+            <span class="text-xs font-mono px-2 py-0.5 rounded bg-hq-surface border border-hq-border">
+              <span class="text-hq-muted/60">$</span><span class="text-hq-accent" x-text="(agora.totalCost || 0).toFixed(2)"></span>
+            </span>
+          </div>
+        </template>
+      </div>
+
+      <!-- 3패널 본문 -->
+      <div class="flex-1 flex overflow-hidden">
+
+        <!-- ▌좌측: 쟁점 트리 ▌ -->
+        <div class="w-60 shrink-0 border-r border-hq-border overflow-y-auto bg-hq-bg/50">
+          <div class="p-3">
+            <h3 class="text-[10px] font-semibold text-hq-muted/50 uppercase tracking-widest mb-3">쟁점 트리</h3>
+            <div class="space-y-0.5">
+              <template x-for="issue in agora.issues" :key="issue.id">
+                <button @click="selectAgoraIssue(issue.id)"
+                        :class="agora.selectedIssueId === issue.id ? 'bg-hq-accent/10 border-hq-accent/30 text-hq-text' : 'border-transparent text-hq-text/70 hover:bg-hq-surface hover:text-hq-text'"
+                        :style="`padding-left: ${(issue._depth || 0) * 14 + 8}px`"
+                        class="w-full text-left py-1.5 pr-2 rounded-lg text-xs border transition-all flex items-center gap-1.5">
+                  <span x-text="agoraIssueIcon(issue.status)" class="text-[11px] shrink-0"></span>
+                  <span x-text="issue.title" class="truncate"></span>
+                </button>
+              </template>
+            </div>
+            <template x-if="agora.issues.length === 0">
+              <div class="flex flex-col items-center justify-center py-12 text-hq-muted/40">
+                <svg class="w-8 h-8 mb-2 opacity-30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3"/></svg>
+                <p class="text-[10px]">토론을 시작하면</p>
+                <p class="text-[10px]">쟁점이 여기에 표시됩니다</p>
+              </div>
+            </template>
+          </div>
+        </div>
+
+        <!-- ▌중앙: 토론 라이브 ▌ -->
+        <div class="flex-1 flex flex-col overflow-hidden min-w-0">
+          <div class="shrink-0 px-4 py-2 border-b border-hq-border flex items-center gap-2">
+            <h3 class="text-[10px] font-semibold text-hq-muted/50 uppercase tracking-widest">토론 라이브</h3>
+            <template x-if="agora.selectedIssueId">
+              <span class="text-[10px] text-hq-muted/40" x-text="'— ' + (agora.issues.find(i => i.id === agora.selectedIssueId)?.title || '')"></span>
+            </template>
+          </div>
+          <div class="flex-1 overflow-y-auto p-4 space-y-4" x-ref="agoraLive">
+            <template x-for="round in agora.rounds" :key="`${round.issue_id}-${round.round_num}-${round.speaker}`">
+              <div class="flex gap-3 group">
+                <!-- 아바타 -->
+                <div class="shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold mt-0.5"
+                     :class="{'bg-blue-500/20 text-blue-400': round.speaker==='kodh', 'bg-red-500/20 text-red-400': round.speaker==='psb', 'bg-purple-500/20 text-purple-400': round.speaker==='kdw'}">
+                  <span x-text="agoraSpeakerName(round.speaker)[0]"></span>
+                </div>
+                <!-- 발언 내용 -->
+                <div class="flex-1 min-w-0">
+                  <div class="flex items-center gap-2 mb-1">
+                    <span class="text-xs font-bold" :class="agoraSpeakerColor(round.speaker)" x-text="agoraSpeakerName(round.speaker)"></span>
+                    <span class="text-[10px] text-hq-muted/30 font-mono">R<span x-text="round.round_num"></span></span>
+                    <template x-if="round.speaker === 'kdw'">
+                      <span class="text-[10px] px-1.5 py-0.5 rounded-full bg-purple-500/10 text-purple-400/60">사회자</span>
+                    </template>
+                  </div>
+                  <div class="text-sm text-hq-text/80 whitespace-pre-wrap leading-relaxed" x-text="round.content"></div>
+                  <!-- 인용 표시 -->
+                  <template x-if="round.citations && JSON.parse(round.citations || '[]').length > 0">
+                    <div class="mt-2 space-y-1">
+                      <template x-for="cite in JSON.parse(round.citations || '[]')" :key="cite.title">
+                        <div class="text-[10px] px-2 py-1 rounded bg-hq-surface/50 border border-hq-border/50 text-hq-muted/60 flex items-center gap-1.5">
+                          <span :class="cite.verified ? 'text-green-400' : 'text-yellow-400'" x-text="cite.verified ? '✓' : '?'"></span>
+                          <span x-text="`${cite.author}, 「${cite.title}」 (${cite.year})`"></span>
+                        </div>
+                      </template>
+                    </div>
+                  </template>
+                </div>
+              </div>
+            </template>
+            <!-- 빈 상태 -->
+            <template x-if="agora.rounds.length === 0">
+              <div class="flex flex-col items-center justify-center h-full text-hq-muted/40">
+                <svg class="w-10 h-10 mb-3 opacity-20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+                <p class="text-xs">쟁점을 선택하면</p>
+                <p class="text-xs">토론 내용이 여기에 표시됩니다</p>
+              </div>
+            </template>
+          </div>
+        </div>
+
+        <!-- ▌우측: 논문 DIFF / 대화록 ▌ -->
+        <div class="w-80 shrink-0 border-l border-hq-border flex flex-col overflow-hidden">
+          <!-- 탭 바 -->
+          <div class="shrink-0 flex border-b border-hq-border">
+            <button @click="agora.rightTab = 'diff'"
+                    :class="agora.rightTab === 'diff' ? 'border-b-2 border-hq-accent text-hq-accent' : 'text-hq-muted/50 hover:text-hq-text'"
+                    class="flex-1 px-3 py-2 text-xs font-semibold transition">
+              <span class="flex items-center justify-center gap-1.5">
+                <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v18M3 12h18"/></svg>
+                논문 DIFF
+              </span>
+            </button>
+            <button @click="agora.rightTab = 'book'"
+                    :class="agora.rightTab === 'book' ? 'border-b-2 border-hq-accent text-hq-accent' : 'text-hq-muted/50 hover:text-hq-text'"
+                    class="flex-1 px-3 py-2 text-xs font-semibold transition">
+              <span class="flex items-center justify-center gap-1.5">
+                <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg>
+                대화록
+              </span>
+            </button>
+          </div>
+
+          <!-- DIFF 내용 -->
+          <div x-show="agora.rightTab === 'diff'" class="flex-1 overflow-y-auto">
+            <template x-if="agora.diffHtml">
+              <div class="p-4 text-xs font-mono leading-relaxed agora-diff" x-html="agora.diffHtml"></div>
+            </template>
+            <template x-if="!agora.diffHtml">
+              <div class="flex flex-col items-center justify-center h-full text-hq-muted/40">
+                <svg class="w-8 h-8 mb-2 opacity-20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 14l-7 7m0 0l-7-7m7 7V3"/></svg>
+                <p class="text-[10px]">논문 수정이 발생하면</p>
+                <p class="text-[10px]">diff가 여기에 표시됩니다</p>
+              </div>
+            </template>
+          </div>
+
+          <!-- 대화록 내용 -->
+          <div x-show="agora.rightTab === 'book'" class="flex-1 overflow-y-auto">
+            <template x-if="agora.bookChapters.length > 0">
+              <div class="p-4 space-y-6">
+                <!-- 대화록 헤더 -->
+                <div class="text-center pb-4 border-b border-hq-border/30">
+                  <p class="text-[10px] text-hq-muted/40 uppercase tracking-widest mb-1">플라톤 대화록</p>
+                  <p class="text-[10px] text-hq-muted/30">저자: 고동희 · 박성범 | 엮은이: 권대옥</p>
+                </div>
+                <template x-for="ch in agora.bookChapters" :key="ch.chapter_num">
+                  <div class="space-y-2">
+                    <h4 class="text-sm font-bold text-hq-accent/80 flex items-center gap-2">
+                      <span class="text-[10px] text-hq-muted/30 font-mono" x-text="`CH.${ch.chapter_num}`"></span>
+                      <span x-text="ch.title"></span>
+                    </h4>
+                    <div class="text-xs text-hq-text/70 whitespace-pre-wrap leading-relaxed pl-2 border-l-2 border-hq-border/30" x-text="ch.content"></div>
+                  </div>
+                </template>
+              </div>
+            </template>
+            <template x-if="agora.bookChapters.length === 0">
+              <div class="flex flex-col items-center justify-center h-full text-hq-muted/40">
+                <svg class="w-8 h-8 mb-2 opacity-20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg>
+                <p class="text-[10px]">합의가 도달되면</p>
+                <p class="text-[10px]">플라톤 대화록이 여기에 편찬됩니다</p>
+              </div>
+            </template>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </template>
+
+  <!-- AGORA: 논문 입력 모달 -->
+  <template x-if="activeTab === 'agora' && agora.showPaperInput">
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+         @click.self="agora.showPaperInput = false">
+      <div class="bg-hq-panel border border-hq-border rounded-2xl w-full max-w-2xl mx-4 p-6 shadow-2xl" @click.stop>
+        <h3 class="text-base font-bold text-hq-text mb-1 flex items-center gap-2">
+          <svg class="w-5 h-5 text-hq-accent" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3"/></svg>
+          새 토론 시작
+        </h3>
+        <p class="text-xs text-hq-muted/60 mb-4">논문 텍스트를 입력하면 AI 에이전트 3명이 자동으로 토론을 시작합니다</p>
+
+        <label class="text-xs font-semibold text-hq-muted/70 mb-1 block">논문 제목</label>
+        <input x-model="agora.inputTitle" type="text" placeholder="예: 부진정부작위범의 인과관계 및 객관적 귀속 평가의 가능성과 방향성 재검토"
+               class="w-full bg-hq-surface border border-hq-border rounded-xl px-3 py-2.5 text-sm text-hq-text placeholder:text-hq-muted/30 outline-none focus:border-hq-accent/50 mb-3 font-mono">
+
+        <label class="text-xs font-semibold text-hq-muted/70 mb-1 block">논문 전문</label>
+        <textarea x-model="agora.inputPaper" placeholder="논문 전문을 여기에 붙여넣으세요..."
+                  class="w-full h-64 bg-hq-surface border border-hq-border rounded-xl px-3 py-2.5 text-sm text-hq-text placeholder:text-hq-muted/30 outline-none focus:border-hq-accent/50 resize-none mb-1 font-mono"></textarea>
+        <p class="text-[10px] text-hq-muted/40 mb-4">💡 고동희(Opus) vs 박성범(GPT-5.2) — 사회자: 권대옥(GPT-5.2/Sonnet)</p>
+
+        <div class="flex justify-end gap-2">
+          <button @click="agora.showPaperInput = false"
+                  class="px-4 py-2 rounded-lg text-sm bg-hq-surface text-hq-muted hover:bg-hq-border transition">취소</button>
+          <button @click="submitAgora()" :disabled="!agora.inputTitle.trim() || !agora.inputPaper.trim()"
+                  class="px-4 py-2 rounded-lg text-sm bg-hq-accent text-white hover:bg-hq-accent/80 transition disabled:opacity-40 flex items-center gap-1.5">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+            토론 시작
+          </button>
+        </div>
+      </div>
+    </div>
+  </template>
+
+  <!-- 설계실: 새 다이어그램 모달 -->
+  <template x-if="activeTab === 'flowchart' && flowchart.showNewModal">
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+         @click.self="flowchart.showNewModal = false">
+      <div class="bg-hq-panel border border-hq-border rounded-2xl w-full max-w-sm mx-4 p-6 shadow-2xl" @click.stop>
+        <h3 class="text-base font-bold text-hq-text mb-4 flex items-center gap-2">
+          <svg class="w-4 h-4 text-hq-accent" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          새 다이어그램
+        </h3>
+        <input x-model="flowchart.newName" @keydown.enter="createFlowchart()"
+               type="text" placeholder="이름 입력 (예: 매매봇-흐름)"
+               class="w-full bg-hq-surface border border-hq-border rounded-xl px-3 py-2.5 text-sm text-hq-text placeholder:text-hq-muted/40 outline-none focus:border-hq-accent/50 mb-4 font-mono"
+               x-ref="newFcInput"
+               x-init="$nextTick(()=>$el.focus())">
+        <div class="flex justify-end gap-2">
+          <button @click="flowchart.showNewModal = false"
+                  class="px-4 py-2 rounded-lg text-sm bg-hq-surface text-hq-muted hover:bg-hq-border transition">취소</button>
+          <button @click="createFlowchart()" :disabled="!flowchart.newName.trim()"
+                  class="px-4 py-2 rounded-lg text-sm bg-hq-accent text-white hover:bg-hq-accent/80 transition disabled:opacity-40">생성</button>
+        </div>
+      </div>
+    </div>
+  </template>
+
+
 </body>
 </html>
