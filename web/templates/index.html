@@ -3669,8 +3669,8 @@
               </div>
               <div class="flex items-center gap-2 md:gap-3 flex-wrap">
                 <span class="text-[10px] px-2 py-1 rounded-full border"
-                      :class="(trading.summary.settings||{}).paper_trading !== false ? 'border-hq-purple/30 bg-hq-purple/10 text-hq-purple' : 'border-hq-green/30 bg-hq-green/10 text-hq-green'"
-                      x-text="(trading.summary.settings||{}).paper_trading !== false ? '모의투자' : '실거래'"></span>
+                      :class="(() => { const s = trading.summary.settings||{}; if(s.enable_real && !s.paper_trading) return 'border-hq-green/30 bg-hq-green/10 text-hq-green'; if(s.enable_mock) return 'border-hq-purple/30 bg-hq-purple/10 text-hq-purple'; return 'border-hq-accent/30 bg-hq-accent/10 text-hq-accent'; })()"
+                      x-text="(() => { const s = trading.summary.settings||{}; if(s.enable_real && !s.paper_trading) return '실거래'; if(s.enable_mock) return '모의투자'; return '가상투자'; })()"></span>
                 <span class="text-[10px] px-2 py-1 rounded-full border"
                       :class="(trading.summary.settings||{}).kis_connected ? 'border-hq-green/30 bg-hq-green/10 text-hq-green' : 'border-hq-muted/30 bg-hq-muted/10 text-hq-muted'"
                       x-text="(trading.summary.settings||{}).kis_connected ? 'KIS 연결' : 'KIS 미연결'"></span>
@@ -5472,24 +5472,53 @@
         </div>
       </div>
 
-      <!-- 자동매매 실행 대상 (이것만 CEO가 직접 토글) -->
-      <div class="p-3 bg-hq-surface rounded-lg space-y-2 mb-4">
-        <p class="text-[10px] font-bold text-hq-muted mb-2">자동매매 실행 대상</p>
-        <label class="flex items-center gap-2 text-xs text-hq-text cursor-pointer">
-          <input type="checkbox" x-model="trading.settings.auto_execute" class="rounded">
-          <span class="text-hq-yellow font-bold">CIO 자동실행 (신뢰도 이상 시 자동 매수/매도)</span>
-        </label>
-        <div class="ml-4 space-y-1.5 border-l-2 border-hq-border pl-3"
-             :class="trading.settings.auto_execute ? 'opacity-100' : 'opacity-40 pointer-events-none'">
-          <label class="flex items-center gap-2 text-xs text-hq-text cursor-pointer">
-            <input type="checkbox" x-model="trading.settings.enable_real" class="rounded accent-green-500">
-            <span class="text-hq-green font-semibold">실거래 계좌에 주문</span>
+      <!-- 매매 모드 선택 (3단 라디오) -->
+      <div class="p-3 bg-hq-surface rounded-lg space-y-3 mb-4">
+        <p class="text-[10px] font-bold text-hq-muted mb-1">매매 모드</p>
+        <div class="space-y-2">
+          <label class="flex items-center gap-3 p-2 rounded-lg cursor-pointer transition"
+                 :class="trading.settings.enable_real && !trading.settings.paper_trading ? 'bg-green-500/10 border border-green-500/30' : 'hover:bg-hq-bg border border-transparent'">
+            <input type="radio" name="trading_mode" value="real"
+                   :checked="trading.settings.enable_real && !trading.settings.paper_trading"
+                   @change="trading.settings.enable_real=true; trading.settings.enable_mock=false; trading.settings.paper_trading=false"
+                   class="accent-green-500">
+            <div>
+              <span class="text-xs font-bold text-hq-green">실거래</span>
+              <p class="text-[9px] text-hq-muted">KIS 실계좌로 실제 주문 (실제 돈)</p>
+            </div>
           </label>
-          <label class="flex items-center gap-2 text-xs text-hq-text cursor-pointer">
-            <input type="checkbox" x-model="trading.settings.enable_mock" class="rounded accent-purple-500">
-            <span class="text-hq-purple font-semibold">모의투자 계좌에 주문</span>
+          <label class="flex items-center gap-3 p-2 rounded-lg cursor-pointer transition"
+                 :class="trading.settings.enable_mock && trading.settings.paper_trading ? 'bg-purple-500/10 border border-purple-500/30' : 'hover:bg-hq-bg border border-transparent'">
+            <input type="radio" name="trading_mode" value="mock"
+                   :checked="trading.settings.enable_mock && trading.settings.paper_trading"
+                   @change="trading.settings.enable_real=false; trading.settings.enable_mock=true; trading.settings.paper_trading=true"
+                   class="accent-purple-500">
+            <div>
+              <span class="text-xs font-bold text-hq-purple">모의투자</span>
+              <p class="text-[9px] text-hq-muted">KIS 모의계좌로 주문 (연습용)</p>
+            </div>
+          </label>
+          <label class="flex items-center gap-3 p-2 rounded-lg cursor-pointer transition"
+                 :class="!trading.settings.enable_real && !trading.settings.enable_mock ? 'bg-hq-accent/10 border border-hq-accent/30' : 'hover:bg-hq-bg border border-transparent'">
+            <input type="radio" name="trading_mode" value="virtual"
+                   :checked="!trading.settings.enable_real && !trading.settings.enable_mock"
+                   @change="trading.settings.enable_real=false; trading.settings.enable_mock=false; trading.settings.paper_trading=true"
+                   class="accent-blue-500">
+            <div>
+              <span class="text-xs font-bold text-hq-accent">가상투자</span>
+              <p class="text-[9px] text-hq-muted">내부 포트폴리오만 (KIS 미사용)</p>
+            </div>
           </label>
         </div>
+        <!-- CIO 자동실행 토글 -->
+        <div class="pt-2 border-t border-hq-border/50">
+          <label class="flex items-center gap-2 text-xs text-hq-text cursor-pointer">
+            <input type="checkbox" x-model="trading.settings.auto_execute" class="rounded">
+            <span class="text-hq-yellow font-bold">CIO 자동실행</span>
+            <span class="text-[9px] text-hq-muted">(신뢰도 이상 시 자동 매수/매도)</span>
+          </label>
+        </div>
+        <!-- 손절/익절 -->
         <div class="flex gap-4 pt-1 border-t border-hq-border/50">
           <label class="flex items-center gap-2 text-xs text-hq-text cursor-pointer">
             <input type="checkbox" x-model="trading.settings.auto_stop_loss" class="rounded">
@@ -5501,7 +5530,7 @@
           </label>
         </div>
       </div>
-      <button @click="saveTradingSettings()" class="w-full bg-hq-accent/20 text-hq-accent hover:bg-hq-accent/30 rounded-lg py-2.5 text-sm font-bold transition mb-4">실행 대상 저장</button>
+      <button @click="saveTradingSettings()" class="w-full bg-hq-accent/20 text-hq-accent hover:bg-hq-accent/30 rounded-lg py-2.5 text-sm font-bold transition mb-4">설정 저장</button>
 
       <!-- CIO 변경 이력 -->
       <div x-show="changeHistory.length > 0" x-data="{ showHistory: false }">
