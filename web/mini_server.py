@@ -7537,12 +7537,22 @@ async def _handle_specialist_rework(chain: dict, failed_specs: list[dict], attem
         # 전문가 초록불 끄기
         await _broadcast_status(agent_id, "done", 1.0, "재작업 완료")
 
-    # ── 불합격 전문가 시차 출발 재작업 (10초 간격) ──
-    async def _staggered_rework(idx, spec):
-        if idx > 0:
-            await asyncio.sleep(idx * 10)
+    # ── 불합격 전문가 재작업 (Google만 시차 출발) ──
+    google_rework_idx = 0
+    async def _staggered_rework(spec, delay):
+        if delay > 0:
+            await asyncio.sleep(delay)
         return await _do_single_rework(spec)
-    await asyncio.gather(*[_staggered_rework(i, s) for i, s in enumerate(failed_specs)])
+
+    rework_tasks = []
+    for spec in failed_specs:
+        spec_model = (_get_model_override(spec["agent_id"]) or "").lower()
+        if spec_model.startswith("gemini-"):
+            rework_tasks.append(_staggered_rework(spec, delay=google_rework_idx * 10))
+            google_rework_idx += 1
+        else:
+            rework_tasks.append(_staggered_rework(spec, delay=0))
+    await asyncio.gather(*rework_tasks)
 
     # 재작업 결과 재검수
     _save_chain(chain)
@@ -7904,13 +7914,23 @@ async def _delegate_to_specialists(manager_id: str, text: str) -> list[dict]:
         logger.debug("위임 로그 브로드캐스트 실패: %s", e)
 
     # B안: 전문가별 역할 prefix 추가 — CEO 원문을 그대로 전달하지 않고 역할 지시를 앞에 붙임
-    # 시차 출발: 동일 프로바이더(Google 등) 요율 제한(429) 방지 — 10초 간격 순차 시작
-    async def _staggered_call(idx, spec_id):
-        if idx > 0:
-            await asyncio.sleep(idx * 10)
+    # Google(Gemini) 전문가만 시차 출발 — Anthropic/OpenAI는 즉시 병렬 출발
+    # 비유: Google 식당만 줄 세움, 다른 식당은 바로 입장
+    google_idx = 0
+    async def _smart_call(spec_id, delay):
+        if delay > 0:
+            await asyncio.sleep(delay)
         return await _call_agent(spec_id, _SPECIALIST_ROLE_PREFIX.get(spec_id, "") + text)
 
-    tasks = [_staggered_call(i, spec_id) for i, spec_id in enumerate(specialists)]
+    tasks = []
+    for spec_id in specialists:
+        spec_model = (_get_model_override(spec_id) or "").lower()
+        if spec_model.startswith("gemini-"):
+            tasks.append(_smart_call(spec_id, delay=google_idx * 10))
+            google_idx += 1
+        else:
+            tasks.append(_smart_call(spec_id, delay=0))
+
     results = await asyncio.gather(*tasks, return_exceptions=True)
 
     processed = []
