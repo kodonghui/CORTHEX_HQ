@@ -1791,14 +1791,14 @@ async def _start_batch_chain(text: str, task_id: str) -> dict:
         return {"chain_id": chain_id, "status": "started", "step": chain["step"]}
 
     # ── AI 분류가 필요 → Batch API로 분류 요청 제출 ──
-    # 가장 저렴한 사용 가능 모델 선택
+    # 가장 저렴한 사용 가능 모델 선택 (Gemini Flash → GPT Mini → Claude)
     providers = get_available_providers()
-    if providers.get("anthropic"):
-        classify_model = "claude-sonnet-4-6"
-    elif providers.get("google"):
+    if providers.get("google"):
         classify_model = "gemini-2.5-flash"
     elif providers.get("openai"):
         classify_model = "gpt-5-mini"
+    elif providers.get("anthropic"):
+        classify_model = "claude-sonnet-4-6"
     else:
         # AI 없음 → 비서실장 직접
         chain["target_id"] = "chief_of_staff"
@@ -1901,14 +1901,14 @@ async def _chain_create_delegation(chain: dict):
         json_example=json_example,
     )
 
-    # 가장 저렴한 모델로 실시간 API 호출 (배치 대기 없이 즉시 응답)
+    # 가장 저렴한 모델로 실시간 API 호출 (Gemini Flash → GPT Mini → Claude)
     providers = get_available_providers()
-    if providers.get("anthropic"):
-        deleg_model = "claude-sonnet-4-6"
-    elif providers.get("google"):
+    if providers.get("google"):
         deleg_model = "gemini-2.5-flash"
     elif providers.get("openai"):
         deleg_model = "gpt-5-mini"
+    elif providers.get("anthropic"):
+        deleg_model = "claude-sonnet-4-6"
     else:
         deleg_model = None
 
@@ -1978,14 +1978,14 @@ async def _chain_create_delegation_broadcast(chain: dict):
     text = chain["text"]
     all_managers = ["cto_manager", "cso_manager", "clo_manager", "cmo_manager", "cio_manager", "cpo_manager"]
 
-    # 가장 저렴한 모델 선택
+    # 가장 저렴한 모델 선택 (Gemini Flash → GPT Mini → Claude)
     providers = get_available_providers()
-    if providers.get("anthropic"):
-        deleg_model = "claude-sonnet-4-6"
-    elif providers.get("google"):
+    if providers.get("google"):
         deleg_model = "gemini-2.5-flash"
     elif providers.get("openai"):
         deleg_model = "gpt-5-mini"
+    elif providers.get("anthropic"):
+        deleg_model = "claude-sonnet-4-6"
     else:
         deleg_model = None
 
@@ -7490,8 +7490,8 @@ async def _handle_specialist_rework(chain: dict, failed_specs: list[dict], attem
                             f"{tool_name} 실행 중... (재작업)",
                         )
                         _rw_log = save_activity_log(
-                            _aid,
-                            f"🔧 [{_aname}] {tool_name} 호출 ({_cnt}/{_rw_max}) [재작업#{attempt}]",
+                            _rw_agent_id,
+                            f"🔧 [{_rw_agent_name}] {tool_name} 호출 ({_cnt}회) [재작업#{attempt}]",
                             level="tool",
                         )
                         await wm.send_activity_log(_rw_log)
@@ -7638,9 +7638,17 @@ async def _extract_and_save_memory(agent_id: str, task: str, response: str):
             "JSON만 반환 (설명 없이):"
         )
 
+        # 가장 저렴한 모델로 메모리 추출 (Gemini Flash → GPT Mini → Claude)
+        _mem_providers = get_available_providers()
+        if _mem_providers.get("google"):
+            _mem_model = "gemini-2.5-flash"
+        elif _mem_providers.get("openai"):
+            _mem_model = "gpt-5-mini"
+        else:
+            _mem_model = "claude-sonnet-4-6"
         result = await ask_ai(
             user_message=extraction_prompt,
-            model="claude-sonnet-4-6",
+            model=_mem_model,
             max_tokens=400,
             system_prompt="JSON만 반환. 설명 없이."
         )
@@ -7726,7 +7734,7 @@ async def _call_agent(agent_id: str, text: str, conversation_id: str | None = No
 
                 # 도구 사용 실시간 브로드캐스트 (도구로그 탭에 표시)
                 tool_log = save_activity_log(
-                    agent_id, f"🔧 [{agent_name}] {tool_name} 호출 ({call_count}/{_MAX_TOOL_CALLS})",
+                    agent_id, f"🔧 [{agent_name}] {tool_name} 호출 ({call_count}회)",
                     level="tool"
                 )
                 await wm.send_activity_log(tool_log)
@@ -9015,21 +9023,26 @@ def _load_chief_prompt() -> None:
 def _get_model_override(agent_id: str) -> str | None:
     """에이전트에 지정된 모델을 반환합니다.
 
-    - 에이전트에 model_name이 지정되어 있으면 → 항상 그 모델 반환
-      (agents.yaml / AGENTS 리스트 / CEO 직접 설정)
-    - 글로벌 오버라이드가 있으면 → 그 모델 반환
-    - 어느 것도 없으면 → None (select_model이 자동 선택)
+    우선순위:
+    1. agent_overrides DB (CEO 수동 설정 / 권장 버튼 / 일괄 변경)
+    2. _AGENTS_DETAIL (agents.yaml 기본값)
+    3. AGENTS 리스트 폴백
+    4. 글로벌 오버라이드
     """
-    # 1. 에이전트별 개별 지정 모델 (가장 우선)
+    # 1. DB 오버라이드 (CEO 수동 설정 — 가장 우선!)
+    overrides = _load_data("agent_overrides", {})
+    if agent_id in overrides and "model_name" in overrides[agent_id]:
+        return overrides[agent_id]["model_name"]
+    # 2. 에이전트별 개별 지정 모델 (agents.yaml 기본값)
     detail = _AGENTS_DETAIL.get(agent_id, {})
     agent_model = detail.get("model_name")
     if agent_model:
         return agent_model
-    # AGENTS 리스트에서도 확인
+    # 3. AGENTS 리스트 폴백
     for a in AGENTS:
         if a["agent_id"] == agent_id and a.get("model_name"):
             return a["model_name"]
-    # 2. 글로벌 오버라이드 (텔레그램 /models 또는 웹 대시보드에서 설정한 전체 모델)
+    # 4. 글로벌 오버라이드 (텔레그램 /models 또는 웹 대시보드에서 설정한 전체 모델)
     global_override = load_setting("model_override")
     if global_override:
         return global_override
