@@ -7425,7 +7425,8 @@ async def _handle_specialist_rework(chain: dict, failed_specs: list[dict], attem
         f"🔄 품질검수 불합격 {len(failed_specs)}건 → 재작업 지시 (시도 {attempt}/{max_retry})"
     )
 
-    for spec in failed_specs:
+    # ── 개별 전문가 재작업 코루틴 (병렬 실행용) ──
+    async def _do_single_rework(spec: dict) -> None:
         agent_id = spec["agent_id"]
         reason = spec.get("reason", "품질 기준 미달")
         original_content = spec.get("content", "")[:1000]
@@ -7476,14 +7477,16 @@ async def _handle_specialist_rework(chain: dict, failed_specs: list[dict], attem
                 if _rw_schemas.get("anthropic"):
                     rework_tool_schemas = _rw_schemas["anthropic"]
                     _rw_max = int(_rw_detail.get("max_tool_calls", 5))
-                    _rw_agent_id = agent_id  # 클로저 캡처
-                    _rw_agent_name = agent_name
+                    # 클로저 캡처: 함수 인자로 바인딩하여 병렬 안전
+                    _captured_id = agent_id
+                    _captured_name = agent_name
 
-                    async def _rework_executor(tool_name: str, tool_input: dict):
+                    async def _rework_executor(tool_name: str, tool_input: dict,
+                                               _aid=_captured_id, _aname=_captured_name):
                         rework_tools_used.append(tool_name)
                         _cnt = len(rework_tools_used)
                         await _broadcast_status(
-                            _rw_agent_id, "working", 0.5 + min(_cnt / _rw_max, 1.0) * 0.3,
+                            _aid, "working", 0.5 + min(_cnt / _rw_max, 1.0) * 0.3,
                             f"{tool_name} 실행 중... (재작업)",
                         )
                         _rw_log = save_activity_log(
@@ -7494,7 +7497,7 @@ async def _handle_specialist_rework(chain: dict, failed_specs: list[dict], attem
                         await wm.send_activity_log(_rw_log)
                         pool = _init_tool_pool()
                         if pool:
-                            return await pool.invoke(tool_name, caller_id=_rw_agent_id, **tool_input)
+                            return await pool.invoke(tool_name, caller_id=_aid, **tool_input)
                         return f"도구 '{tool_name}'을(를) 찾을 수 없습니다."
 
                     rework_tool_executor = _rework_executor
@@ -7527,6 +7530,9 @@ async def _handle_specialist_rework(chain: dict, failed_specs: list[dict], attem
 
         # 전문가 초록불 끄기
         await _broadcast_status(agent_id, "done", 1.0, "재작업 완료")
+
+    # ── 불합격 전문가 전원 병렬 재작업 (asyncio.gather) ──
+    await asyncio.gather(*[_do_single_rework(s) for s in failed_specs])
 
     # 재작업 결과 재검수
     _save_chain(chain)
