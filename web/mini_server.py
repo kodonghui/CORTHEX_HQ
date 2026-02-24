@@ -7552,8 +7552,8 @@ async def _handle_specialist_rework(chain: dict, failed_specs: list[dict], attem
                             f"{tool_name} 실행 중... (재작업)",
                         )
                         _rw_log = save_activity_log(
-                            _rw_agent_id,
-                            f"🔧 [{_rw_agent_name}] {tool_name} 호출 ({_cnt}회) [재작업#{attempt}]",
+                            _aid,
+                            f"🔧 [{_aname}] {tool_name} 호출 ({_cnt}회) [재작업#{attempt}]",
                             level="tool",
                         )
                         await wm.send_activity_log(_rw_log)
