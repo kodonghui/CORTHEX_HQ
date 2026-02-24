@@ -1,312 +1,140 @@
 # CORTHEX HQ - Claude 작업 규칙
 
-## 🔴🔴🔴 처장 = 5번째 분석가! (CEO 핵심 아이디어) 🔴🔴🔴
+> 상세 참조(API URL, 시크릿 목록, 모델표, 보고 템플릿, 비유 사전 등): `docs/claude-reference.md`
+
+## 🔴 처장 = 5번째 분석가! (CEO 핵심 아이디어)
 - **모든 부서 처장(CIO/CSO/CLO/CMO/CPO)은 전문가와 별개로 독자 분석을 병렬 수행**
 - 구조: [처장 독자분석 + 전문가 N명] 병렬 gather → 전부 합쳐서 종합
 - "종합할 때 도구 써라"(프롬프트 의존) ❌ → "독자분석 따로 돌려"(구조적 강제) ✅
-- 이 구조를 깨뜨리는 코드 변경 절대 금지
-- 코드 위치: `_manager_with_delegation()` in mini_server.py
+- 이 구조를 깨뜨리는 코드 변경 절대 금지 | 코드: `_manager_with_delegation()` in mini_server.py
 
-## 🔴🔴🔴 실시간 분석 모니터링 — 1분마다 보고! 🔴🔴🔴
-- 대표님이 "로그 확인해" / "분석 모니터링" → `/api/activity-logs` 1분마다 자동 보고
-- 보고 형식: 전문가별 도구 호출 횟수 + 비용 + QA 결과 표
-- 분석 완료까지 중단 없이 보고
+## 🔴 실시간 분석 모니터링 — 1분마다 보고!
+- "로그 확인해" / "분석 모니터링" → `/api/activity-logs` 1분마다 자동 보고
+- 전문가별 도구 호출 횟수 + 비용 + QA 결과 표. 완료까지 중단 없이
 
----
+## 🔴 메모리 파일 금지!
+- `~/.claude/` memory 폴더 저장 금지. **모든 상태/기록/설정은 git 파일에만**: `docs/`, `config/`, `CLAUDE.md`
 
-## 🔴🔴🔴 메모리 파일 사용 금지! — 모든 정보는 GitHub 파일에만! 🔴🔴🔴
-
-**절대 `~/.claude/` 아래 memory 폴더에 저장하지 마라!**
-- memory 파일은 로컬 전용 → 노트북에서 안 보임, 다른 세션에서도 불안정
-- **모든 상태/기록/설정은 git에 올라가는 파일에만 작성**:
-  - 프로젝트 현황 → `docs/project-status.md`
-  - 작업 기록 → `docs/updates/YYYY-MM-DD_제목.md`
-  - 계획/방법론 → `docs/` 하위 폴더
-  - 설정 → `CLAUDE.md`, `config/*.yaml`
-- memory 폴더에 뭔가 적고 싶으면 → `docs/`에 적어라. 예외 없음.
+## 🔴 서버 로그 — 되니까 "안 된다"고 말하지 마라!
+- 분석 모니터링: `/api/activity-logs` | 배포 후: `/api/debug/server-logs` | 둘 다 외부 접근 가능
+- **상세 API URL**: `docs/claude-reference.md` | Cloudflare WAF Skip 만료: 2026-03-07
 
 ---
 
-## 🔴🔴🔴 서버 로그 접근 — 이미 되니까 대표님한테 안 된다고 절대 말하지 마라! 🔴🔴🔴
+## ⚡ 세션 시작
+1. `git worktree list` → 다른 세션과 겹치면 전용 worktree 생성
+2. `git fetch origin && git status` → 미커밋 있으면 대표님에게 물어볼 것
+3. 깨끗하면 `git checkout main && git pull` → `git checkout -b claude/작업명 origin/main`
+4. 먼저 탐색: `docs/project-status.md` → `docs/updates/` 최근 파일 → 관련 코드 Read
 
-**서버 로그 API가 완벽히 작동한다. Cloudflare WAF Skip 규칙이 `/api/*` 경로에 적용되어 있어서 외부에서 접근 가능.**
-
-### ★★★ 에이전트 활동 로그 API (분석 모니터링 시 반드시 이걸 써라!) ★★★
-```
-GET https://corthex-hq.com/api/activity-logs?division=cio_manager&limit=50    ← CIO팀 활동 (위임/보고/QA/도구/주문)
-GET https://corthex-hq.com/api/activity-logs?limit=50                         ← 전체 에이전트 활동
-GET https://corthex-hq.com/api/comms/messages?division=cio_manager&limit=50   ← CIO팀 교신(위임/보고) 로그
-GET https://corthex-hq.com/api/quality-reviews?limit=10                       ← QA 품질검수 결과
-```
-- **분석 실행 모니터링 시**: `/api/activity-logs`를 써야 에이전트 활동이 보인다!
-- `/api/debug/server-logs`는 HTTP 접속 기록만 보여줌 (에이전트 활동 안 보임)
-
-### 서버 시스템 로그 (HTTP 접속 기록, nginx)
-```
-GET https://corthex-hq.com/api/debug/server-logs?lines=50&service=corthex    ← 앱 로그 (HTTP 요청)
-GET https://corthex-hq.com/api/debug/server-logs?lines=50&service=nginx-error  ← nginx 에러 로그
-GET https://corthex-hq.com/api/debug/server-logs?lines=50&service=nginx-access ← nginx 접근 로그
-```
-
-### 언제 뭘 확인하는가
-- **분석 모니터링**: `/api/activity-logs` (에이전트 위임/보고/QA/도구)
-- **배포 후**: `/api/debug/server-logs` (서버 재시작 확인)
-- **버그 디버깅**: 둘 다 확인 (activity-logs + server-logs)
-- **API 테스트**: WebFetch로 API 직접 호출하여 응답 확인 가능
-
-### Cloudflare 설정 현황
-- WAF Skip 규칙: `/api/*` 경로 → Cloudflare 보안 우회 (2026-02-22 설정)
-- ⚠️ 만료일 2026-03-07. 만료 임박 시 대표님에게 알릴 것
-
----
-
-## ⚡ 세션 시작 (매 세션 반드시)
-1. **worktree 확인**: `git worktree list` 실행
-   - 다른 세션이 같은 폴더를 쓰면 브랜치가 꼬임 → **반드시 자기 worktree에서만 작업**
-   - 현재 worktree가 없거나 다른 세션과 겹치면 → `git worktree add "../CORTHEX_세션N" main`으로 전용 폴더 생성
-   - 세션1: `CORTHEX_HQ/CORTHEX_HQ/` | 세션2: `CORTHEX_HQ/CORTHEX_세션2/`
-2. `git fetch origin && git status` 실행
-   - 미커밋 있으면 → **작업 중지**, 대표님에게 "미커밋 있습니다. 커밋할까요?" 물어볼 것
-   - 깨끗하면 → `git checkout main && git pull origin main` 즉시 실행
-3. 새 브랜치에서 작업: `git checkout -b claude/작업명 origin/main` (main 직접 작업 금지)
-4. CORTHEX 요청 시 먼저 코드 탐색: `docs/project-status.md` → `docs/updates/` 최근 파일 → 관련 코드 Read
-
-## 🔴🔴🔴 날짜/시간 — 무조건 한국 시간(KST) 기준! 🔴🔴🔴
-- 서버 로그의 UTC 시간을 **반드시 KST(+9시간)로 변환**하여 표시
-- "2026-02-23T15:05 UTC" → "2026-02-24 00:05 KST"로 변환해서 보고
-- TODO 파일, 업데이트 기록, 대표님 보고 등 **모든 날짜는 한국 날짜 기준**
-- `오늘`의 기준 = 한국 시간 기준 날짜 (UTC 날짜와 다를 수 있음!)
+## 🔴 날짜/시간 — 한국 시간(KST) 기준!
+- UTC → KST(+9시간) 변환 필수. TODO/업데이트/보고 모든 날짜는 한국 날짜 기준
 
 ## 프로젝트 정보
-- 저장소: https://github.com/kodonghui/CORTHEX_HQ
-- 소유자: kodonghui (고동희 대표님, 법학전공 / 비개발자)
-- 언어: 한국어 소통 | 도메인: `corthex-hq.com`
+- 저장소: https://github.com/kodonghui/CORTHEX_HQ | 도메인: `corthex-hq.com`
+- 소유자: kodonghui (고동희 대표님, 법학전공 / 비개발자) | 언어: 한국어
 
-## 소통 규칙 (예외 없이)
-- 호칭: **"고동희 대표님"** 또는 **"대표님"** (CEO님 금지). 존댓말 필수
-- **뻔한 질문 금지**: "커밋할까요?" "배포할까요?" → 바로 실행
-- **"논의" 키워드 → 코딩 금지**: 아이디어/옵션 + 추천 제시. 대표님 결정 후 실행
-- **소신 발언 필수**: B가 더 나으면 먼저 말할 것. 대표님이 최종 결정권자
+## 소통 규칙
+- 호칭: **"대표님"** (CEO님 금지). 존댓말 필수
+- **뻔한 질문 금지**: "커밋할까요?" → 바로 실행
+- **"논의" 키워드 → 코딩 금지**: 옵션 + 추천 제시, 대표님 결정 후 실행
+- **소신 발언 필수**: B가 더 나으면 먼저 말할 것
 - **"로컬에서 확인" 금지** → 항상 `corthex-hq.com`에서 확인
-- 작업 완료 = 커밋 + 푸시 + 배포 + 서버 확인 + 대표님에게 빌드번호 체크리스트 보고
+- 작업 완료 = 커밋 + 푸시 + 배포 + 서버 확인 + 빌드번호 보고
 
-## 🔴🔴🔴 기술 설명 규칙 — 대표님은 비개발자! 🔴🔴🔴
-대표님에게 기술적인 내용 설명할 때 **반드시** 아래 규칙을 따를 것:
-1. **비유 필수**: 모든 기술 용어에 일상 비유를 붙여라
-   - "WebSocket" → "카카오톡처럼 실시간 양방향 통신"
-   - "리팩토링" → "기능은 그대로, 코드 정리 (방 청소 같은 것)"
-   - "브로드캐스트" → "모든 접속자에게 동시 전송 (방송)"
-   - "API" → "프로그램끼리 대화하는 약속된 창구"
-   - "모듈" → "기능별로 나눈 코드 파일 (부서별 사무실)"
-2. **구체적 숫자로**: "최적화했습니다"(X) → "8,500줄→6,000줄로 줄었습니다"(O)
-3. **구조적으로**: 장문 시 표/번호/구분선 사용. 글 덩어리 금지
-4. **한국어로**: 도구 권한 요청도 한국어. "grep in?"(X) → "이 폴더에서 검색할까요?"(O)
-5. **작업 과정도 설명**: "뭘 왜 하는지" 먼저 말하고 실행. 갑자기 코드 삭제하면 안 됨
-6. **기록 남기기**: 기술 설명은 GitHub(`docs/`) + 노션에도 기록
+## 🔴 기술 설명 — 대표님은 비개발자!
+- **비유 필수**: 기술 용어에 일상 비유 (비유 사전: `docs/claude-reference.md`)
+- **구체적 숫자로**: "최적화했습니다" ❌ → "8,500줄→6,000줄" ✅
+- **구조적으로**: 표/번호/구분선 사용, 글 덩어리 금지
+- **한국어로**: 도구 권한 요청도 한국어 | **작업 과정 먼저 설명** 후 실행
 
 ## Git 규칙
-- 매 작업마다 `origin/main` 기준 새 브랜치: `claude/작업명`
-- 마지막 커밋에 `[완료]` 포함 → 자동 머지 트리거
-- 작업 중간에도 수시로 커밋 + 푸시 (중간 저장)
-- 기존 브랜치에 무관한 작업 추가 금지
+- `origin/main` 기준 새 브랜치: `claude/작업명` | 마지막 커밋 `[완료]` → 자동 머지
+- 중간에도 수시 커밋+푸시 | 기존 브랜치에 무관한 작업 추가 금지
 
-## 파일 수정 안전 규칙
-- `web/templates/index.html`은 **Write 전체 덮어쓰기 절대 금지** → Edit 부분 수정만
+## 파일 수정 규칙
+- `web/templates/index.html` — Write 전체 덮어쓰기 절대 금지 → Edit 부분 수정만
 
-## 🔴🔴🔴 외부 API 코딩 시 — 반드시 최신 문서 검색 후 코딩! 🔴🔴🔴
-- **모든 외부 API(KIS, OpenAI, Anthropic, Google 등) 코드 작성/수정 시 → 반드시 WebSearch로 최신 공식 문서 먼저 확인**
-- **기억에 의존 금지!** API는 수시로 바뀜. 파라미터명, 필수 필드, 응답 형식이 버전마다 다름
-- 예: Claude extended thinking → `signature` 필드 필수 (4.x), `betas` 파라미터 폐지 (4.x)
-- KIS 참고: [KIS Developers](https://apiportal.koreainvestment.com), [공식 GitHub](https://github.com/koreainvestment/open-trading-api)
-- Anthropic 참고: [Extended Thinking 문서](https://docs.claude.com/en/docs/build-with-claude/extended-thinking)
+## 🔴 외부 API — 반드시 최신 문서 검색 후 코딩!
+- 모든 외부 API 코드 작성/수정 시 WebSearch로 최신 공식 문서 확인. 기억 의존 금지
+- KIS: [API 포털](https://apiportal.koreainvestment.com) | Anthropic: [Extended Thinking](https://docs.claude.com/en/docs/build-with-claude/extended-thinking)
 
-## 🔴🔴🔴 GitHub Secrets — 대표님이 이미 전부 등록함! 절대 다시 물어보지 말 것! 🔴🔴🔴
-- **50+ 시크릿 전부 등록 완료**. "API 키 알려주세요" 금지. "키가 없어요" 금지.
-- deploy.yml이 서버 `/home/ubuntu/corthex.env`에 자동 반영
-- **등록된 API 키 목록** (전부 있음. "미설정"이라 판단하지 말 것):
-  - AI: `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GOOGLE_API_KEY`
-  - 텔레그램: `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CEO_CHAT_ID`
-  - 노션: `NOTION_API_KEY`, `NOTION_DB_SECRETARY`, `NOTION_DB_OUTPUT`, `NOTION_DEFAULT_DB_ID`
-  - 주식: `KOREA_INVEST_APP_KEY/SECRET/ACCOUNT` (실전+모의 둘 다)
-  - 공공: `DART_API_KEY`, `ECOS_API_KEY`, `KIPRIS_API_KEY`, `LAW_API_KEY`, `SERPAPI_KEY`
-  - 인스타: `INSTAGRAM_APP_ID/APP_SECRET/ACCESS_TOKEN/USER_ID`
-  - 유튜브: `YOUTUBE_CLIENT_ID/CLIENT_SECRET/REFRESH_TOKEN`
-  - 카카오: `KAKAO_REST_API_KEY/ID/PW`
-  - 네이버: `NAVER_CLIENT_ID/CLIENT_SECRET/ID/PW/BLOG_ID`
-  - 다음: `DAUM_ID/PW/CAFE_ID/CAFE_BOARD_ID`
-  - 이메일: `SMTP_HOST/PORT/USER/PASS`
-  - 구글 OAuth: `GOOGLE_CLIENT_ID/CLIENT_SECRET/REDIRECT_URI/CALENDAR_REDIRECT_URI`
-  - Replicate: `REPLICATE_API_TOKEN` (영상/이미지 AI — $10 결제 완료, 2026-02-23)
-  - 기타: `REPO_ACCESS_TOKEN`, `SERVER_IP_ARM`, `SERVER_SSH_KEY_ARM`
+## 🔴 GitHub Secrets — 전부 등록됨! 다시 물어보지 마!
+- 50+ 시크릿 등록 완료. "키가 없어요" 금지. deploy.yml → `/home/ubuntu/corthex.env` 자동 반영
+- **전체 목록**: `docs/claude-reference.md` 참조
 
 ## UI/UX 규칙
-- 언어: 한국어 | 시간대: `Asia/Seoul` (KST)
-- 프레임워크: Tailwind CSS + Alpine.js (CDN)
-- 디자인: `hq-*` 커스텀 컬러 토큰
-- **폰트**: Pretendard + JetBrains Mono 2개만. `font-mono`는 숫자/코드/종목코드에만
-- ❌ 새 Google 폰트 추가 금지, `font-sans` 오버라이드 금지, Noto Serif KR 폐지됨
+- 한국어 | KST | Tailwind + Alpine.js | `hq-*` 컬러 토큰
+- **폰트**: Pretendard + JetBrains Mono 2개만. 새 Google 폰트/`font-sans` 오버라이드 금지
 
-## 🔴🔴🔴 웹 성능 코딩 규칙 — 최적화 깨뜨리지 마라! 🔴🔴🔴
-1. **CDN 라이브러리 추가 금지**: 새 외부 라이브러리는 `_loadScript()` 동적 로드만. `<script src="CDN">` blocking 추가 절대 금지
-2. **탭 HTML은 x-if**: 새 탭은 `<template x-if="activeTab === 'xxx'">` 필수. x-show는 home/command/schedule/knowledge만
-3. **init()에 API 추가 금지**: 새 탭 API는 `switchTab()` 내부에서 lazy load. init()은 auth/WS/agents만
-4. **폰트 추가 금지**: Pretendard + JetBrains Mono 2개만. CSS @import 금지 → preload 사용
-5. **SSE 1개만**: `/api/comms/stream` 연결은 `_connectCommsSSE()` 하나. 탭별 SSE 추가 금지
-6. **setInterval은 탭 진입/이탈 관리**: 시작 = 탭 진입, 종료 = 탭 이탈. init()에 전역 타이머 추가 금지
+## 🔴 웹 성능 코딩 규칙
+1. CDN 라이브러리는 `_loadScript()` 동적 로드만. blocking `<script>` 금지
+2. 새 탭은 `<template x-if>` 필수 (x-show는 home/command/schedule/knowledge만)
+3. init()에 API 추가 금지 → `switchTab()` lazy load
+4. 폰트 추가 금지 | CSS @import 금지 → preload
+5. SSE 1개만 (`_connectCommsSSE()`) | setInterval은 탭 진입/이탈 관리
 
-## 🔴🔴🔴 매매 설정 — 건드리지 마! 🔴🔴🔴
-- **`order_size: 0` = CIO 비중 자율**. 0이 정상! 버그가 아님!
-- 0이면 CIO가 잔고 × 분석비중으로 주문액 자동 계산 (CEO 승인 B안)
-- 0을 다른 값으로 "고쳐주겠다"고 절대 하지 말 것
+## 🔴 매매 설정 — 건드리지 마!
+- `order_size: 0` = CIO 비중 자율 (정상!). 0을 다른 값으로 바꾸지 말 것
 
-## 하드코딩 금지 (매우 중요!)
-- 모델명 정의는 딱 2곳: `config/agents.yaml` + `config/models.yaml`
-- mini_server.py, ai_handler.py, index.html에 모델명 문자열 직접 쓰면 안 됨
-- **새 모델 추가/변경 시 10곳 체크리스트**:
-  1. `config/agents.yaml` 2. `config/models.yaml` 3. `yaml2json.py` 실행
-  4. mini_server.py AGENTS 리스트 5. `get_available_models()` 6. `_TG_MODELS`
-  7. ai_handler.py `_PRICING` 8. 기본값/폴백 모델 9. index.html 모델 표시명 10. 추론 레벨 매핑
+## 하드코딩 금지
+- 모델명 정의: `config/agents.yaml` + `config/models.yaml` 2곳만. 코드에 직접 쓰기 금지
+- **모델 변경 시 10곳 체크리스트 + 실제 모델 목록**: `docs/claude-reference.md`
 
-## 실제 존재하는 모델명 (이 목록이 절대 기준!)
-"있을 것 같은" 모델명 지어내기 금지. 아래 목록에 없으면 API 오류 발생.
+## 데이터 저장
+- SQLite DB(`settings` 테이블)에 저장. JSON 파일 금지 (배포 시 날아감)
+- `save_setting()` / `load_setting()` | DB: `/home/ubuntu/corthex.db` (git 밖)
 
-| 모델 ID | 표시명 | 용도 |
-|---------|--------|------|
-| `claude-sonnet-4-6` | Claude Sonnet 4.6 | 기본 (대부분 에이전트) |
-| `claude-opus-4-6` | Claude Opus 4.6 | 최고급 (CLO, CSO) |
-| `claude-haiku-4-5-20251001` | Claude Haiku 4.5 | 경량 Anthropic |
-| `gpt-5.2-pro` | GPT-5.2 Pro | CIO |
-| `gpt-5.2` | GPT-5.2 | 투자 분석가들 |
-| `gpt-5` | GPT-5 | 일반 OpenAI |
-| `gpt-5-mini` | GPT-5 Mini | 경량 OpenAI |
-| `gemini-3.1-pro-preview` | Gemini 3.1 Pro | CMO, 콘텐츠 |
-| `gemini-2.5-pro` | Gemini 2.5 Pro | Gemini 고급 |
-| `gemini-2.5-flash` | Gemini 2.5 Flash | 경량 Gemini |
+## 서버 배포
+- Oracle Cloud ARM 4코어 24GB (춘천, Always Free) | `corthex-hq.com` (Cloudflare)
+- 자동: `[완료]` push → auto-merge → deploy.yml → SSH → `git fetch + reset --hard`
+- 서버에서 `git pull` 금지! | **상세**: `docs/claude-reference.md`, `docs/deploy-guide.md`
 
-- ⚠️ `claude-haiku-4-6` 존재하지 않음 | ⚠️ `gpt-4o`, `gpt-4o-mini`, `gpt-4.1` 구버전 금지
-
-## 데이터 저장 (SQLite DB)
-- 모든 웹 데이터는 SQLite DB(`settings` 테이블)에 저장. JSON 파일(`data/*.json`) 저장 금지 (배포 시 날아감)
-- `save_setting(key, value)` / `load_setting(key, default)` 사용
-- DB 위치: `/home/ubuntu/corthex.db` (git 밖 → 배포해도 안 날아감)
-
-## 서버 배포 (Oracle Cloud ARM 24GB)
-- **스펙**: ARM Ampere A1, 4코어 24GB RAM (Oracle Cloud 춘천, Always Free)
-- **접속**: `SERVER_IP_ARM` + `SERVER_SSH_KEY_ARM` (GitHub Secrets)
-- **도메인**: `corthex-hq.com` (Cloudflare) | HTTPS: Let's Encrypt 자동
-- **자동 배포 흐름**: claude/ 브랜치 [완료] push → auto-merge → deploy.yml 직접 실행 → 서버 SSH → git fetch + reset --hard → 재시작
-- **중요**: 서버에서 `git pull` 금지! 반드시 `git fetch + git reset --hard`
-- **수동 배포**: GitHub → Actions → "Deploy to Oracle Cloud Server" → Run workflow
-- **서버 구조**: `/home/ubuntu/CORTHEX_HQ/` (코드) | `/home/ubuntu/corthex.db` (DB) | `/home/ubuntu/corthex.env` (환경변수) | `/var/www/html/` (nginx 정적파일)
-- **배포 문제 시** → `docs/deploy-guide.md` 참조
-
-## 빌드 번호
-- 소스: `deploy.yml`의 `${{ github.run_number }}`만. 커밋 개수와 무관
-- 작업 완료 시: `gh run list --workflow=deploy.yml --limit=1`로 확인 → 대표님에게 체크리스트 표 제공
-- 대표님 보고 시 **"빌드#N"** 사용 (PR#N 아님!)
-
-## 버전 번호
-- 형식: `X.YY.ZZZ` | 현재: `3.02.021`
-- 큰 변경 → YY 올림 + ZZZ 리셋 | 작은 변경 → ZZZ만 올림
+## 빌드/버전
+- 빌드: `deploy.yml` `run_number` | 확인: `gh run list --workflow=deploy.yml --limit=1`
+- 대표님 보고 시 **"빌드#N"** | 버전: `X.YY.ZZZ` (현재 `3.02.021`)
 
 ## 디버그 URL
-- 버그 시 `/api/debug/xxx` 엔드포인트 즉석 생성 → 대표님에게 URL 제공
-- 보안: 계좌번호 마스킹, API 키 노출 금지
+- 버그 시 `/api/debug/xxx` 즉석 생성 → 대표님에게 URL 제공 | 계좌번호 마스킹, API 키 노출 금지
 
-## AI 도구 자동호출 (Function Calling)
-- `ai_handler.py`의 `ask_ai()`가 3개 프로바이더 도구 자동호출 지원
-- 도구 스키마: `config/tools.yaml` | 에이전트별 제한: `config/agents.yaml`의 `allowed_tools`
-- 🔴 **도구 호출 루프 횟수 제한 없음!** 라운드당 최대 호출 수만 있음 (기본 5, agents.yaml에서 에이전트별 설정)
-- 로그의 `(23/5)` = "총 23회 호출 / 라운드당 최대 5회" — 라운드 자체는 무제한 반복
+## AI 도구 자동호출
+- `ai_handler.py` `ask_ai()` → 3개 프로바이더 도구 자동호출 | 스키마: `config/tools.yaml`
+- 🔴 루프 횟수 제한 없음! 로그 `(23/5)` = 총 23회 / 라운드당 최대 5회
 
-## ⚠️ 업데이트 기록 + 버그리포트 (절대 빠뜨리지 말 것!)
+## ⚠️ 작업 완료 5단계 (전부 안 하면 미완성!)
 
-### 작업 완료 5단계 (전부 안 하면 미완성)
-| 순서 | 해야 할 일 | 파일 |
-|------|----------|------|
-| ① | 업데이트 기록 작성 | `docs/updates/YYYY-MM-DD_작업요약.md` |
-| ② | 프로젝트 현황 갱신 | `docs/project-status.md` |
-| ③ | **TODO 갱신** | `docs/todo/YYYY-MM-DD.md` |
-| ④ | 커밋 + 푸시 + 배포 | `[완료]` 태그 포함 |
-| ⑤ | 대표님에게 보고 | 아래 보고 형식 사용 |
+| ① 업데이트 기록 | ② 프로젝트 현황 | ③ TODO 갱신 | ④ 커밋+배포 `[완료]` | ⑤ 대표님 보고 |
+|---|---|---|---|---|
+| `docs/updates/날짜_요약.md` | `docs/project-status.md` | `docs/todo/날짜.md` | 자동 머지 | `docs/claude-reference.md` 형식 |
 
-- **업데이트 기록 템플릿**: `docs/templates/update-template.md` 참조
-- **버그 발견 시**: 수정 여부 무관하게 전부 기록. ✅/🔴 표시. 심각하면 🚨 즉시 보고
-- **콘텐츠 소재**: 인스타/쇼츠에 쓸 만한 장면이 있으면 업데이트 기록에 📸 태그
+- 버그 발견 시 전부 기록 (✅/🔴). 심각하면 🚨 즉시 보고
+- 팀 작업 시 팀장 최종 기록 책임 | 전수검사: `docs/inspection-protocol.md`
 
-### 대표님 보고 형식
-```
-## ✅ 작업 완료 보고
-| 항목 | 내용 |
-|------|------|
-| **빌드** | #431 |
-| **버전** | 3.02.016 |
-| **브랜치** | claude/fix-something |
+## 🔴 TODO 관리 — 배포 시 반드시 갱신!
+- 일일: `docs/todo/YYYY-MM-DD.md` | 대형: `날짜_프로젝트명.TODO.md`
+- 상태: ⬜ 대기 / 🔄 진행중 / ✅ 완료 / 🔴 블로킹
+- 🔴 **맥락 필수!**: 왜 필요한지 + 어떤 상황 + 구체적 현상까지 기록. 한 줄짜리 금지
 
-### 변경 내용
-| # | 이전 | 이후 |
-|---|------|------|
-| 1 | 로딩 3초 | 로딩 1초 |
+## 에이전트 소울
+- 로드: ①`config/agents.yaml` system_prompt → ②`souls/agents/*.md` 폴백 | 웹 수정 불가
 
-### 발견한 버그
-| 버그 | 상태 |
-|------|------|
-| 차트 안 나옴 | ✅ 수정 |
-
-📄 상세: `docs/updates/2026-02-21_작업요약.md`
-```
-
-### 팀 작업 시
-- 팀장이 최종 기록 책임. 팀원은 SendMessage로 보고 필수
-- 전수검사 시 → `docs/inspection-protocol.md` 참조
-
-## 🔴🔴🔴 TODO 관리 — 배포할 때마다 반드시 업데이트! 🔴🔴🔴
-- **⚠️ 배포 완료 시 `docs/todo/YYYY-MM-DD.md` 반드시 갱신** (완료 항목 ✅ 체크, 새 항목 추가)
-- **일일 TODO**: `docs/todo/YYYY-MM-DD.md` (매일 작업 시작 시 생성/갱신)
-- **대형 프로젝트**: `docs/todo/YYYY-MM-DD_프로젝트명.TODO.md` (대문자 TODO)
-- **날짜 변경 시**: 미완료 항목을 새 날짜 파일로 이관, 이전 파일에 이관 메모
-- **상태 표기**: ⬜ 대기 / 🔄 진행중 / ✅ 완료 / 🔴 블로킹
-
-## 에이전트 소울 관리
-- 소울 로드 우선순위: ①`config/agents.yaml` → ②`souls/agents/*.md` (DB 오버라이드 제거됨)
-- **웹에서 soul 수정 불가** — API 엔드포인트 비활성화, UI 읽기 전용
-- soul 변경은 반드시 `config/agents.yaml`의 system_prompt를 직접 수정
-- souls/*.md 파일은 yaml에 프롬프트가 없을 때만 폴백으로 사용
-
-## 🔴 CORTHEX 비전 + 리트마스터 (반드시 참조!)
-- **비전 상세**: `docs/corthex-vision.md` ← 반드시 읽을 것 (대표님이 왜 CORTHEX를 만들었는지)
-- **리트마스터 GitHub**: https://github.com/kodonghui/leet-master
-- 핵심: AI 해설 + 피드백 시스템 / 수험생 수요 분석 / 통계+크롤링+SNS 자동화
-
-## 대표님 문서 (논의/기록용)
-- `docs/ceo-ideas.md` — 대표님 아이디어 & 기여 로그. **아이디어/버그 발견 시 자동 업데이트 필수**
-- `docs/monetization.md` — 수익화 논의
-- `docs/defining-age.md` — "Defining Age" 패러다임
-
-## CLAUDE.md 작성 규칙 (이 파일 수정 시)
-- 정확하고 구체적이되 간략하게 (한 규칙 = 1~2줄)
-- 새 규칙 추가 전 기존 규칙과 중복 검사
-- 예시/템플릿은 별도 파일로 분리, 여기엔 참조 링크만
-- **전체 200줄 이내** 유지 목표. 길어지면 분리
-
-## 워크플로우 예측 테스트 (대표님 발명, 2026-02-22)
-- 새 기능/복잡한 흐름 → **먼저 코드 전수검사 → 워크플로우 다이어그램 예측 → 실패 지점 선제 보강 → 실제 테스트 → 로그 비교 → 차이 수정**
-- 예측도 저장: `docs/workflow-predictions/날짜_주제.md` (git 추적) | 상세: `docs/methodology/workflow-prediction.md`
-
-## 작업 진행 표시
-- 3개 이상 작업 시 TodoWrite 도구로 진행 상황 표시 (대표님이 실시간 확인 가능)
-- 작업 시작 = in_progress, 완료 = completed로 즉시 갱신. 한 번에 in_progress 1개만
-
-## 노션 연동
-- API 버전: `2022-06-28` (2025 버전 사용 금지 — DB ID가 달라짐)
-- 비서실 DB: `30a56b49-78dc-8153-bac1-dee5d04d6a74`
-- 에이전트 산출물 DB: `30a56b49-78dc-81ce-aaca-ef3fc90a6fba`
-- 배포 로그 DB: `30e56b49-78dc-819d-b666-e50aec6a04aa`
-- Integration: CORTHEX_HQ (corthex.hq 워크스페이스)
+## 참조 문서
+- `docs/corthex-vision.md` — CORTHEX 비전 (반드시 참조)
+- `docs/ceo-ideas.md` — 대표님 아이디어 로그 (**아이디어/버그 발견 시 자동 업데이트**)
+- `docs/monetization.md` — 수익화 | `docs/defining-age.md` — "Defining Age" 패러다임
+- 리트마스터: https://github.com/kodonghui/leet-master
 
 ## 서버 우선 원칙
-- 에이전트 프롬프트에 규칙 추가 안 해도 되는 기계적 처리(태그, 제목 정제, 형식 검증 등)는 **서버 코드(`mini_server.py`)에서 구현**
-- 에이전트는 "생각하는 일"(분석, 판단, 글쓰기)에 집중. 기계적 후처리는 서버가 담당
+- 기계적 처리(태그, 형식 검증)는 서버 코드(`mini_server.py`). 에이전트는 "생각하는 일"에 집중
 
-## 환경 설정
+## 워크플로우 예측 (대표님 발명)
+- 새 기능 → 코드 전수검사 → 워크플로우 예측 → 선제 보강 → 실제 테스트 → 로그 비교
+- 저장: `docs/workflow-predictions/` | 상세: `docs/methodology/workflow-prediction.md`
+
+## 노션 연동
+- API `2022-06-28` (2025 금지). DB ID/Integration 상세: `docs/claude-reference.md`
+
+## 기타
+- TodoWrite로 진행 표시 (3개+ 작업 시). in_progress 1개만
 - gh CLI 없으면 세션 시작 시 설치
+- CLAUDE.md 수정 시: 간략하게, 중복 검사, 예시는 별도 파일. **200줄 이내 유지**
