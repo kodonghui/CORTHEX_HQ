@@ -819,6 +819,8 @@ async def execute_trading_order(request: Request):
 
             order_no = order_result.get("order_no", "")
             mode = order_result.get("mode", "실거래")
+        except Exception as e:
+            return {"success": False, "error": f"KIS 주문 오류: {e}"}
 
     # ── KIS 모의투자 주문 ──
     elif use_mock_kis:
@@ -835,7 +837,7 @@ async def execute_trading_order(request: Request):
             order_no = order_result.get("order_no", "")
             mode = "모의투자"
         except Exception as e:
-            return {"success": False, "error": f"KIS 주문 오류: {e}"}
+            return {"success": False, "error": f"KIS 모의투자 주문 오류: {e}"}
 
     # ── 가상 포트폴리오 업데이트 (실거래도 모의투자도 아닌 경우만) ──
     pnl = 0
