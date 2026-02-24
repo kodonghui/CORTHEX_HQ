@@ -264,6 +264,93 @@ CREATE TABLE IF NOT EXISTS conversations (
 
 CREATE INDEX IF NOT EXISTS idx_conversations_active ON conversations(is_active);
 CREATE INDEX IF NOT EXISTS idx_conversations_updated ON conversations(updated_at);
+
+-- ═══════════════════════════════════════════════════════════════
+-- 신뢰도 검증 파이프라인 (Confidence Validation Pipeline)
+-- ═══════════════════════════════════════════════════════════════
+
+-- 전문가별 예측 기여 기록
+CREATE TABLE IF NOT EXISTS prediction_specialist_data (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    prediction_id   INTEGER NOT NULL,
+    agent_id        TEXT NOT NULL,
+    recommendation  TEXT DEFAULT 'hold',
+    confidence      REAL DEFAULT 0.0,
+    tools_used      TEXT DEFAULT '[]',
+    cost_usd        REAL DEFAULT 0.0,
+    created_at      DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_psd_pred ON prediction_specialist_data(prediction_id);
+CREATE INDEX IF NOT EXISTS idx_psd_agent ON prediction_specialist_data(agent_id);
+
+-- 전문가 ELO 레이팅
+CREATE TABLE IF NOT EXISTS analyst_elo_ratings (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    agent_id        TEXT NOT NULL UNIQUE,
+    elo_rating      REAL NOT NULL DEFAULT 1500.0,
+    total_predictions INTEGER DEFAULT 0,
+    correct_predictions INTEGER DEFAULT 0,
+    avg_return_pct  REAL DEFAULT 0.0,
+    last_updated    TEXT,
+    created_at      DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ELO 변동 히스토리
+CREATE TABLE IF NOT EXISTS analyst_elo_history (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    agent_id        TEXT NOT NULL,
+    prediction_id   INTEGER NOT NULL,
+    elo_before      REAL NOT NULL,
+    elo_after       REAL NOT NULL,
+    elo_change      REAL NOT NULL,
+    correct         INTEGER,
+    return_pct      REAL,
+    created_at      DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_elo_hist_agent ON analyst_elo_history(agent_id);
+CREATE INDEX IF NOT EXISTS idx_elo_hist_pred ON analyst_elo_history(prediction_id);
+
+-- 베이지안 신뢰도 칼리브레이션 (구간별)
+CREATE TABLE IF NOT EXISTS confidence_calibration (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    bucket          TEXT NOT NULL UNIQUE,
+    total_count     INTEGER DEFAULT 0,
+    correct_count   INTEGER DEFAULT 0,
+    actual_rate     REAL DEFAULT 0.5,
+    bayesian_alpha  REAL DEFAULT 1.0,
+    bayesian_beta   REAL DEFAULT 1.0,
+    ci_lower        REAL DEFAULT 0.0,
+    ci_upper        REAL DEFAULT 1.0,
+    last_updated    TEXT,
+    created_at      DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 도구별 예측 성공 상관관계
+CREATE TABLE IF NOT EXISTS tool_effectiveness (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    tool_name       TEXT NOT NULL UNIQUE,
+    used_correct    INTEGER DEFAULT 0,
+    used_incorrect  INTEGER DEFAULT 0,
+    total_uses      INTEGER DEFAULT 0,
+    eff_score       REAL DEFAULT 0.5,
+    last_updated    TEXT,
+    created_at      DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 탐지된 오답 패턴
+CREATE TABLE IF NOT EXISTS error_patterns (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    pattern_type    TEXT NOT NULL,
+    description     TEXT NOT NULL,
+    hit_count       INTEGER DEFAULT 0,
+    miss_count      INTEGER DEFAULT 0,
+    hit_rate        REAL DEFAULT 0.0,
+    active          INTEGER DEFAULT 1,
+    detected_at     TEXT,
+    last_triggered  TEXT,
+    created_at      DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_err_pattern_active ON error_patterns(active);
 """
 
 
@@ -302,6 +389,20 @@ def init_db() -> None:
             conn.commit()
         except sqlite3.OperationalError:
             pass
+        # cio_predictions에 신뢰도 파이프라인 컬럼 추가
+        _cio_migrate = [
+            ("return_pct_3d", "REAL DEFAULT NULL"),
+            ("return_pct_7d", "REAL DEFAULT NULL"),
+            ("brier_score", "REAL DEFAULT NULL"),
+            ("market_context", "TEXT DEFAULT ''"),
+            ("specialists_json", "TEXT DEFAULT '{}'"),
+        ]
+        for col_name, col_def in _cio_migrate:
+            try:
+                conn.execute(f"ALTER TABLE cio_predictions ADD COLUMN {col_name} {col_def}")
+                conn.commit()
+            except sqlite3.OperationalError:
+                pass
         print(f"[DB] 초기화 완료: {DB_PATH}")
     except Exception as e:
         print(f"[DB] 초기화 실패: {e}")
@@ -1395,32 +1496,46 @@ def update_cio_prediction_result(
     prediction_id: int,
     actual_price_3d: int = None,
     actual_price_7d: int = None,
-) -> None:
-    """3일/7일 후 실제 주가를 기록하고 예측 정확도를 계산합니다."""
+) -> dict:
+    """3일/7일 후 실제 주가를 기록하고 예측 정확도·수익률·Brier Score를 계산합니다."""
     conn = get_connection()
     try:
         row = conn.execute(
-            "SELECT direction, predicted_price FROM cio_predictions WHERE id=?",
+            "SELECT direction, predicted_price, confidence FROM cio_predictions WHERE id=?",
             (prediction_id,),
         ).fetchone()
         if not row:
-            return
-        direction, predicted_price = row["direction"], row["predicted_price"]
+            return {}
+        direction = row["direction"]
+        predicted_price = row["predicted_price"]
+        confidence = row["confidence"] or 0.0
 
         correct_3d = None
         correct_7d = None
+        return_pct_3d = None
+        return_pct_7d = None
+        brier_score = None
 
-        if actual_price_3d is not None and predicted_price is not None:
+        if actual_price_3d is not None and predicted_price and predicted_price > 0:
             went_up = actual_price_3d > predicted_price
             correct_3d = 1 if (direction == "BUY" and went_up) or (direction == "SELL" and not went_up) else 0
+            # 수익률 (방향 고려): 매수면 그대로, 매도면 반대
+            raw_pct = (actual_price_3d - predicted_price) / predicted_price * 100
+            return_pct_3d = round(raw_pct if direction == "BUY" else -raw_pct, 2)
 
-        if actual_price_7d is not None and predicted_price is not None:
+        if actual_price_7d is not None and predicted_price and predicted_price > 0:
             went_up = actual_price_7d > predicted_price
             correct_7d = 1 if (direction == "BUY" and went_up) or (direction == "SELL" and not went_up) else 0
+            raw_pct = (actual_price_7d - predicted_price) / predicted_price * 100
+            return_pct_7d = round(raw_pct if direction == "BUY" else -raw_pct, 2)
+            # Brier Score: (p - o)² where p=stated confidence, o=actual outcome
+            outcome = 1.0 if correct_7d else 0.0
+            brier_score = round((confidence / 100.0 - outcome) ** 2, 4)
 
         conn.execute(
             """UPDATE cio_predictions SET
                actual_price_3d=?, actual_price_7d=?, correct_3d=?, correct_7d=?,
+               return_pct_3d=?, return_pct_7d=?, brier_score=?,
                verified_at=?
                WHERE id=?""",
             (
@@ -1428,13 +1543,22 @@ def update_cio_prediction_result(
                 actual_price_7d,
                 correct_3d,
                 correct_7d,
+                return_pct_3d,
+                return_pct_7d,
+                brier_score,
                 datetime.now(KST).isoformat(),
                 prediction_id,
             ),
         )
         conn.commit()
+        return {
+            "correct_3d": correct_3d, "correct_7d": correct_7d,
+            "return_pct_3d": return_pct_3d, "return_pct_7d": return_pct_7d,
+            "brier_score": brier_score, "direction": direction,
+            "confidence": confidence,
+        }
     except sqlite3.OperationalError:
-        pass
+        return {}
     finally:
         conn.close()
 
@@ -1500,6 +1624,40 @@ def get_cio_performance_summary() -> dict:
             "SELECT COUNT(*) FROM cio_predictions WHERE direction='SELL' AND correct_7d=1"
         ).fetchone()[0]
 
+        # Brier Score 평균
+        brier_row = conn.execute(
+            "SELECT AVG(brier_score) FROM cio_predictions WHERE brier_score IS NOT NULL"
+        ).fetchone()
+        avg_brier = round(brier_row[0], 4) if brier_row and brier_row[0] is not None else None
+
+        # 평균 수익률
+        ret_row = conn.execute(
+            "SELECT AVG(return_pct_7d) FROM cio_predictions WHERE return_pct_7d IS NOT NULL"
+        ).fetchone()
+        avg_return = round(ret_row[0], 2) if ret_row and ret_row[0] is not None else None
+
+        # 구간별 적중률
+        bucket_rows = conn.execute(
+            """SELECT
+                 CASE
+                   WHEN confidence < 60 THEN '50-60'
+                   WHEN confidence < 70 THEN '60-70'
+                   WHEN confidence < 80 THEN '70-80'
+                   WHEN confidence < 90 THEN '80-90'
+                   ELSE '90-100'
+                 END as bucket,
+                 COUNT(*) as cnt,
+                 SUM(CASE WHEN correct_7d=1 THEN 1 ELSE 0 END) as correct_cnt
+               FROM cio_predictions
+               WHERE correct_7d IS NOT NULL
+               GROUP BY bucket ORDER BY bucket"""
+        ).fetchall()
+        bucket_accuracy = {
+            r[0]: {"total": r[1], "correct": r[2],
+                   "accuracy": round(r[2] / r[1] * 100, 1) if r[1] > 0 else None}
+            for r in bucket_rows
+        }
+
         return {
             "total": total,
             "verified": verified,
@@ -1509,6 +1667,9 @@ def get_cio_performance_summary() -> dict:
             "recent_total": recent_total,
             "buy_accuracy": round(buy_correct / buy_total * 100, 1) if buy_total > 0 else None,
             "sell_accuracy": round(sell_correct / sell_total * 100, 1) if sell_total > 0 else None,
+            "avg_brier_score": avg_brier,
+            "avg_return_pct_7d": avg_return,
+            "bucket_accuracy": bucket_accuracy,
         }
     except sqlite3.OperationalError:
         return {}
@@ -1523,26 +1684,28 @@ def get_pending_verifications(days_threshold: int = 3) -> list:
     try:
         if days_threshold == 3:
             rows = conn.execute(
-                "SELECT id, ticker, verify_at_3d, predicted_price "
+                "SELECT id, ticker, ticker_name, direction, confidence, verify_at_3d, predicted_price "
                 "FROM cio_predictions "
                 "WHERE correct_3d IS NULL AND verify_at_3d <= ? "
                 "ORDER BY verify_at_3d ASC LIMIT 20",
                 (now,),
             ).fetchall()
             return [
-                {"id": r[0], "ticker": r[1], "verify_at": r[2], "predicted_price": r[3], "days": 3}
+                {"id": r[0], "ticker": r[1], "ticker_name": r[2], "direction": r[3],
+                 "confidence": r[4], "verify_at": r[5], "predicted_price": r[6], "days": 3}
                 for r in rows
             ]
         else:
             rows = conn.execute(
-                "SELECT id, ticker, verify_at_7d, predicted_price "
+                "SELECT id, ticker, ticker_name, direction, confidence, verify_at_7d, predicted_price "
                 "FROM cio_predictions "
                 "WHERE correct_7d IS NULL AND verify_at_7d <= ? "
                 "ORDER BY verify_at_7d ASC LIMIT 20",
                 (now,),
             ).fetchall()
             return [
-                {"id": r[0], "ticker": r[1], "verify_at": r[2], "predicted_price": r[3], "days": 7}
+                {"id": r[0], "ticker": r[1], "ticker_name": r[2], "direction": r[3],
+                 "confidence": r[4], "verify_at": r[5], "predicted_price": r[6], "days": 7}
                 for r in rows
             ]
     except sqlite3.OperationalError:
@@ -1659,5 +1822,328 @@ def get_quality_stats() -> dict:
     except Exception as e:
         print(f"[DB] quality stats 조회 실패: {e}")
         return {"total_reviews": 0, "passed": 0, "failed": 0, "pass_rate": 100.0, "average_score": 0}
+    finally:
+        conn.close()
+
+
+# ═══════════════════════════════════════════════════════════════
+# 신뢰도 검증 파이프라인 — CRUD 함수
+# ═══════════════════════════════════════════════════════════════
+
+# ── 전문가별 예측 기여 ──
+
+def save_prediction_specialist(
+    prediction_id: int, agent_id: str, recommendation: str = "hold",
+    confidence: float = 0.0, tools_used: str = "[]", cost_usd: float = 0.0,
+) -> int:
+    """전문가의 개별 예측 기여를 저장합니다."""
+    conn = get_connection()
+    try:
+        cur = conn.execute(
+            """INSERT INTO prediction_specialist_data
+               (prediction_id, agent_id, recommendation, confidence, tools_used, cost_usd)
+               VALUES (?, ?, ?, ?, ?, ?)""",
+            (prediction_id, agent_id, recommendation.upper(), confidence, tools_used, cost_usd),
+        )
+        conn.commit()
+        return cur.lastrowid or 0
+    except sqlite3.OperationalError:
+        return 0
+    finally:
+        conn.close()
+
+
+def get_prediction_specialists(prediction_id: int) -> list:
+    """특정 예측의 전문가 기여 목록을 조회합니다."""
+    conn = get_connection()
+    try:
+        rows = conn.execute(
+            "SELECT agent_id, recommendation, confidence, tools_used, cost_usd "
+            "FROM prediction_specialist_data WHERE prediction_id=?",
+            (prediction_id,),
+        ).fetchall()
+        return [
+            {"agent_id": r[0], "recommendation": r[1], "confidence": r[2],
+             "tools_used": r[3], "cost_usd": r[4]}
+            for r in rows
+        ]
+    except sqlite3.OperationalError:
+        return []
+    finally:
+        conn.close()
+
+
+# ── ELO 레이팅 ──
+
+def get_analyst_elo(agent_id: str) -> dict:
+    """특정 전문가의 ELO 레이팅을 조회합니다."""
+    conn = get_connection()
+    try:
+        row = conn.execute(
+            "SELECT agent_id, elo_rating, total_predictions, correct_predictions, "
+            "avg_return_pct, last_updated FROM analyst_elo_ratings WHERE agent_id=?",
+            (agent_id,),
+        ).fetchone()
+        if not row:
+            return {"agent_id": agent_id, "elo_rating": 1500.0, "total_predictions": 0,
+                    "correct_predictions": 0, "avg_return_pct": 0.0, "last_updated": None}
+        return {"agent_id": row[0], "elo_rating": row[1], "total_predictions": row[2],
+                "correct_predictions": row[3], "avg_return_pct": row[4], "last_updated": row[5]}
+    except sqlite3.OperationalError:
+        return {"agent_id": agent_id, "elo_rating": 1500.0, "total_predictions": 0,
+                "correct_predictions": 0, "avg_return_pct": 0.0, "last_updated": None}
+    finally:
+        conn.close()
+
+
+def get_all_analyst_elos() -> list:
+    """모든 전문가의 ELO 레이팅을 조회합니다."""
+    conn = get_connection()
+    try:
+        rows = conn.execute(
+            "SELECT agent_id, elo_rating, total_predictions, correct_predictions, "
+            "avg_return_pct, last_updated FROM analyst_elo_ratings ORDER BY elo_rating DESC"
+        ).fetchall()
+        return [
+            {"agent_id": r[0], "elo_rating": r[1], "total_predictions": r[2],
+             "correct_predictions": r[3], "avg_return_pct": r[4], "last_updated": r[5]}
+            for r in rows
+        ]
+    except sqlite3.OperationalError:
+        return []
+    finally:
+        conn.close()
+
+
+def upsert_analyst_elo(
+    agent_id: str, elo_rating: float, total_predictions: int,
+    correct_predictions: int, avg_return_pct: float,
+) -> None:
+    """전문가 ELO 레이팅을 생성 또는 갱신합니다."""
+    now = datetime.now(KST).isoformat()
+    conn = get_connection()
+    try:
+        existing = conn.execute(
+            "SELECT id FROM analyst_elo_ratings WHERE agent_id=?", (agent_id,)
+        ).fetchone()
+        if existing:
+            conn.execute(
+                """UPDATE analyst_elo_ratings SET elo_rating=?, total_predictions=?,
+                   correct_predictions=?, avg_return_pct=?, last_updated=? WHERE agent_id=?""",
+                (elo_rating, total_predictions, correct_predictions, avg_return_pct, now, agent_id),
+            )
+        else:
+            conn.execute(
+                """INSERT INTO analyst_elo_ratings
+                   (agent_id, elo_rating, total_predictions, correct_predictions, avg_return_pct, last_updated)
+                   VALUES (?, ?, ?, ?, ?, ?)""",
+                (agent_id, elo_rating, total_predictions, correct_predictions, avg_return_pct, now),
+            )
+        conn.commit()
+    except sqlite3.OperationalError:
+        pass
+    finally:
+        conn.close()
+
+
+def save_elo_history(
+    agent_id: str, prediction_id: int, elo_before: float,
+    elo_after: float, elo_change: float, correct: int, return_pct: float,
+) -> None:
+    """ELO 변동 히스토리를 저장합니다."""
+    conn = get_connection()
+    try:
+        conn.execute(
+            """INSERT INTO analyst_elo_history
+               (agent_id, prediction_id, elo_before, elo_after, elo_change, correct, return_pct)
+               VALUES (?, ?, ?, ?, ?, ?, ?)""",
+            (agent_id, prediction_id, elo_before, elo_after, elo_change, correct, return_pct),
+        )
+        conn.commit()
+    except sqlite3.OperationalError:
+        pass
+    finally:
+        conn.close()
+
+
+def get_elo_history(agent_id: str, limit: int = 30) -> list:
+    """특정 전문가의 ELO 변동 히스토리를 조회합니다."""
+    conn = get_connection()
+    try:
+        rows = conn.execute(
+            "SELECT prediction_id, elo_before, elo_after, elo_change, correct, return_pct, created_at "
+            "FROM analyst_elo_history WHERE agent_id=? ORDER BY id DESC LIMIT ?",
+            (agent_id, limit),
+        ).fetchall()
+        return [
+            {"prediction_id": r[0], "elo_before": r[1], "elo_after": r[2],
+             "elo_change": r[3], "correct": r[4], "return_pct": r[5], "created_at": r[6]}
+            for r in rows
+        ]
+    except sqlite3.OperationalError:
+        return []
+    finally:
+        conn.close()
+
+
+# ── 베이지안 칼리브레이션 ──
+
+def get_all_calibration_buckets() -> list:
+    """모든 신뢰도 구간의 칼리브레이션 데이터를 조회합니다."""
+    conn = get_connection()
+    try:
+        rows = conn.execute(
+            "SELECT bucket, total_count, correct_count, actual_rate, "
+            "bayesian_alpha, bayesian_beta, ci_lower, ci_upper, last_updated "
+            "FROM confidence_calibration ORDER BY bucket"
+        ).fetchall()
+        return [
+            {"bucket": r[0], "total_count": r[1], "correct_count": r[2],
+             "actual_rate": r[3], "bayesian_alpha": r[4], "bayesian_beta": r[5],
+             "ci_lower": r[6], "ci_upper": r[7], "last_updated": r[8]}
+            for r in rows
+        ]
+    except sqlite3.OperationalError:
+        return []
+    finally:
+        conn.close()
+
+
+def upsert_calibration_bucket(
+    bucket: str, total_count: int, correct_count: int,
+    actual_rate: float, alpha: float, beta_val: float,
+    ci_lower: float, ci_upper: float,
+) -> None:
+    """신뢰도 구간 칼리브레이션 데이터를 생성 또는 갱신합니다."""
+    now = datetime.now(KST).isoformat()
+    conn = get_connection()
+    try:
+        existing = conn.execute(
+            "SELECT id FROM confidence_calibration WHERE bucket=?", (bucket,)
+        ).fetchone()
+        if existing:
+            conn.execute(
+                """UPDATE confidence_calibration SET total_count=?, correct_count=?,
+                   actual_rate=?, bayesian_alpha=?, bayesian_beta=?, ci_lower=?, ci_upper=?,
+                   last_updated=? WHERE bucket=?""",
+                (total_count, correct_count, actual_rate, alpha, beta_val,
+                 ci_lower, ci_upper, now, bucket),
+            )
+        else:
+            conn.execute(
+                """INSERT INTO confidence_calibration
+                   (bucket, total_count, correct_count, actual_rate,
+                    bayesian_alpha, bayesian_beta, ci_lower, ci_upper, last_updated)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (bucket, total_count, correct_count, actual_rate,
+                 alpha, beta_val, ci_lower, ci_upper, now),
+            )
+        conn.commit()
+    except sqlite3.OperationalError:
+        pass
+    finally:
+        conn.close()
+
+
+# ── 도구 효과 ──
+
+def upsert_tool_effectiveness(
+    tool_name: str, used_correct: int, used_incorrect: int,
+    total_uses: int, eff_score: float,
+) -> None:
+    """도구별 예측 성공 상관관계 데이터를 생성 또는 갱신합니다."""
+    now = datetime.now(KST).isoformat()
+    conn = get_connection()
+    try:
+        existing = conn.execute(
+            "SELECT id FROM tool_effectiveness WHERE tool_name=?", (tool_name,)
+        ).fetchone()
+        if existing:
+            conn.execute(
+                """UPDATE tool_effectiveness SET used_correct=?, used_incorrect=?,
+                   total_uses=?, eff_score=?, last_updated=? WHERE tool_name=?""",
+                (used_correct, used_incorrect, total_uses, eff_score, now, tool_name),
+            )
+        else:
+            conn.execute(
+                """INSERT INTO tool_effectiveness
+                   (tool_name, used_correct, used_incorrect, total_uses, eff_score, last_updated)
+                   VALUES (?, ?, ?, ?, ?, ?)""",
+                (tool_name, used_correct, used_incorrect, total_uses, eff_score, now),
+            )
+        conn.commit()
+    except sqlite3.OperationalError:
+        pass
+    finally:
+        conn.close()
+
+
+def get_tool_effectiveness_all() -> list:
+    """모든 도구의 효과 데이터를 조회합니다."""
+    conn = get_connection()
+    try:
+        rows = conn.execute(
+            "SELECT tool_name, used_correct, used_incorrect, total_uses, eff_score, last_updated "
+            "FROM tool_effectiveness ORDER BY eff_score DESC"
+        ).fetchall()
+        return [
+            {"tool_name": r[0], "used_correct": r[1], "used_incorrect": r[2],
+             "total_uses": r[3], "eff_score": r[4], "last_updated": r[5]}
+            for r in rows
+        ]
+    except sqlite3.OperationalError:
+        return []
+    finally:
+        conn.close()
+
+
+# ── 오답 패턴 ──
+
+def upsert_error_pattern(
+    pattern_type: str, description: str, hit_count: int, miss_count: int, hit_rate: float,
+) -> None:
+    """오답 패턴을 생성 또는 갱신합니다."""
+    now = datetime.now(KST).isoformat()
+    conn = get_connection()
+    try:
+        existing = conn.execute(
+            "SELECT id FROM error_patterns WHERE pattern_type=?", (pattern_type,)
+        ).fetchone()
+        if existing:
+            conn.execute(
+                """UPDATE error_patterns SET description=?, hit_count=?, miss_count=?,
+                   hit_rate=?, last_triggered=? WHERE pattern_type=?""",
+                (description, hit_count, miss_count, hit_rate, now, pattern_type),
+            )
+        else:
+            conn.execute(
+                """INSERT INTO error_patterns
+                   (pattern_type, description, hit_count, miss_count, hit_rate, detected_at, last_triggered)
+                   VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                (pattern_type, description, hit_count, miss_count, hit_rate, now, now),
+            )
+        conn.commit()
+    except sqlite3.OperationalError:
+        pass
+    finally:
+        conn.close()
+
+
+def get_active_error_patterns() -> list:
+    """활성화된 오답 패턴 목록을 조회합니다."""
+    conn = get_connection()
+    try:
+        rows = conn.execute(
+            "SELECT pattern_type, description, hit_count, miss_count, hit_rate, "
+            "detected_at, last_triggered FROM error_patterns WHERE active=1 "
+            "ORDER BY miss_count DESC LIMIT 20"
+        ).fetchall()
+        return [
+            {"pattern_type": r[0], "description": r[1], "hit_count": r[2],
+             "miss_count": r[3], "hit_rate": r[4], "detected_at": r[5], "last_triggered": r[6]}
+            for r in rows
+        ]
+    except sqlite3.OperationalError:
+        return []
     finally:
         conn.close()

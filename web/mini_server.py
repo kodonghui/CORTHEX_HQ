@@ -3039,6 +3039,371 @@ def _should_run_schedule(schedule: dict, now: datetime) -> bool:
 
 
 # ────────────────────────────────────────────────────────────────
+# 신뢰도 검증 파이프라인 — 학습 엔진
+# ────────────────────────────────────────────────────────────────
+
+_CIO_ANALYSTS = [
+    "cio_manager", "market_condition_specialist", "stock_analysis_specialist",
+    "technical_analysis_specialist", "risk_management_specialist",
+]
+
+
+def _run_confidence_learning_pipeline(verified_7d_ids: list[int]) -> None:
+    """7일 검증 완료된 예측에 대해 학습 파이프라인 실행.
+    ① ELO 업데이트 → ② 칼리브레이션 갱신 → ③ 도구 효과 → ④ 오답 패턴 탐지
+    """
+    _lp = logging.getLogger("corthex.confidence")
+    try:
+        for pred_id in verified_7d_ids:
+            _update_analyst_elos_for_prediction(pred_id)
+        _lp.info("[학습] ELO 업데이트 완료: %d건", len(verified_7d_ids))
+    except Exception as e:
+        _lp.warning("[학습] ELO 업데이트 실패: %s", e)
+
+    try:
+        _rebuild_calibration_buckets()
+        _lp.info("[학습] 칼리브레이션 버킷 갱신 완료")
+    except Exception as e:
+        _lp.warning("[학습] 칼리브레이션 갱신 실패: %s", e)
+
+    try:
+        for pred_id in verified_7d_ids:
+            _update_tool_effectiveness_for_prediction(pred_id)
+        _lp.info("[학습] 도구 효과 업데이트 완료")
+    except Exception as e:
+        _lp.warning("[학습] 도구 효과 업데이트 실패: %s", e)
+
+    try:
+        _detect_error_patterns()
+        _lp.info("[학습] 오답 패턴 탐지 완료")
+    except Exception as e:
+        _lp.warning("[학습] 오답 패턴 탐지 실패: %s", e)
+
+
+def _update_analyst_elos_for_prediction(prediction_id: int) -> None:
+    """단일 예측에 대해 5명 전문가 ELO를 업데이트합니다."""
+    import math
+    from db import (
+        get_prediction_specialists, get_analyst_elo, upsert_analyst_elo,
+        save_elo_history,
+    )
+
+    conn = get_connection()
+    try:
+        pred = conn.execute(
+            "SELECT correct_7d, return_pct_7d, direction, confidence "
+            "FROM cio_predictions WHERE id=?", (prediction_id,)
+        ).fetchone()
+    finally:
+        conn.close()
+    if not pred or pred[0] is None:
+        return
+
+    correct_7d = pred[0]
+    return_pct = pred[1] or 0.0
+    direction = pred[2]
+
+    # 전문가 데이터
+    spec_data = get_prediction_specialists(prediction_id)
+    spec_map = {s["agent_id"]: s for s in spec_data}
+
+    # 현재 ELO 조회 + 평균 ELO 계산
+    elos = {aid: get_analyst_elo(aid) for aid in _CIO_ANALYSTS}
+    avg_elo = sum(e["elo_rating"] for e in elos.values()) / len(elos)
+
+    for agent_id in _CIO_ANALYSTS:
+        current = elos[agent_id]
+        agent_elo = current["elo_rating"]
+        total = current["total_predictions"]
+
+        # 전문가가 이 예측에 참여했는지 확인
+        spec_info = spec_map.get(agent_id)
+        if spec_info:
+            # 개별 전문가의 추천이 실제 결과와 일치하는지
+            rec = spec_info.get("recommendation", "HOLD")
+            if rec in ("BUY", "SELL"):
+                agent_correct = 1 if (
+                    (rec == direction and correct_7d == 1) or
+                    (rec != direction and correct_7d == 0)
+                ) else 0
+                outcome = 1.0 if agent_correct else 0.0
+                # 부분적중: 방향 맞으나 수익 < 0.5%
+                if agent_correct and abs(return_pct) < 0.5:
+                    outcome = 0.5
+            else:
+                # HOLD 추천 → 관망은 약간의 보상/패널티
+                outcome = 0.5
+        else:
+            # 전문가 데이터 없으면 전체 결과 사용
+            outcome = 1.0 if correct_7d else 0.0
+
+        # K-factor: 첫 30건은 K=48 (빠른 조정), 이후 K=32
+        k = 48 if total < 30 else 32
+
+        # ELO 변동 계산
+        expected = 1.0 / (1.0 + math.pow(10, (avg_elo - agent_elo) / 400.0))
+        elo_change = round(k * (outcome - expected), 2)
+        new_elo = round(agent_elo + elo_change, 1)
+
+        # DB 업데이트
+        new_total = total + 1
+        new_correct = current["correct_predictions"] + (1 if outcome >= 0.75 else 0)
+        # 이동 평균 수익률
+        old_avg_ret = current["avg_return_pct"]
+        new_avg_ret = round(
+            (old_avg_ret * total + return_pct) / new_total if new_total > 0 else 0, 2
+        )
+
+        upsert_analyst_elo(agent_id, new_elo, new_total, new_correct, new_avg_ret)
+        save_elo_history(agent_id, prediction_id, agent_elo, new_elo, elo_change,
+                         1 if outcome >= 0.75 else 0, return_pct)
+
+
+def _rebuild_calibration_buckets() -> None:
+    """cio_predictions 전체 데이터를 기반으로 칼리브레이션 버킷을 재계산합니다."""
+    import math
+    from db import upsert_calibration_bucket
+
+    conn = get_connection()
+    try:
+        rows = conn.execute(
+            """SELECT
+                 CASE
+                   WHEN confidence < 60 THEN '50-60'
+                   WHEN confidence < 70 THEN '60-70'
+                   WHEN confidence < 80 THEN '70-80'
+                   WHEN confidence < 90 THEN '80-90'
+                   ELSE '90-100'
+                 END as bucket,
+                 COUNT(*) as total,
+                 SUM(CASE WHEN correct_7d=1 THEN 1 ELSE 0 END) as correct
+               FROM cio_predictions
+               WHERE correct_7d IS NOT NULL
+               GROUP BY bucket"""
+        ).fetchall()
+    finally:
+        conn.close()
+
+    for r in rows:
+        bucket, total, correct = r[0], r[1], r[2]
+        # Beta 분포: 사전분포 Beta(1,1) + 데이터
+        alpha = 1.0 + correct
+        beta_val = 1.0 + (total - correct)
+        actual_rate = round(alpha / (alpha + beta_val), 4)
+        # 95% CI: 정규 근사 (scipy 불필요)
+        ab = alpha + beta_val
+        var = (alpha * beta_val) / (ab * ab * (ab + 1))
+        std = math.sqrt(var) if var > 0 else 0
+        ci_lower = round(max(0, actual_rate - 1.96 * std), 4)
+        ci_upper = round(min(1, actual_rate + 1.96 * std), 4)
+
+        upsert_calibration_bucket(
+            bucket, total, correct, actual_rate, alpha, beta_val, ci_lower, ci_upper
+        )
+
+
+def _update_tool_effectiveness_for_prediction(prediction_id: int) -> None:
+    """단일 예측에 대해 도구별 효과를 업데이트합니다."""
+    import json as _json_te
+    from db import get_prediction_specialists, upsert_tool_effectiveness, get_tool_effectiveness_all
+
+    conn = get_connection()
+    try:
+        pred = conn.execute(
+            "SELECT correct_7d FROM cio_predictions WHERE id=?", (prediction_id,)
+        ).fetchone()
+    finally:
+        conn.close()
+    if not pred or pred[0] is None:
+        return
+
+    correct = pred[0] == 1
+    spec_data = get_prediction_specialists(prediction_id)
+
+    # 기존 도구 효과 캐시
+    existing = {t["tool_name"]: t for t in get_tool_effectiveness_all()}
+
+    tools_seen = set()
+    for spec in spec_data:
+        try:
+            tools = _json_te.loads(spec.get("tools_used", "[]"))
+        except (ValueError, TypeError):
+            tools = []
+        for tool in tools:
+            if tool in tools_seen:
+                continue
+            tools_seen.add(tool)
+            e = existing.get(tool, {"used_correct": 0, "used_incorrect": 0, "total_uses": 0})
+            new_correct = e["used_correct"] + (1 if correct else 0)
+            new_incorrect = e["used_incorrect"] + (0 if correct else 1)
+            new_total = e["total_uses"] + 1
+            eff = round(new_correct / new_total, 4) if new_total > 0 else 0.5
+            upsert_tool_effectiveness(tool, new_correct, new_incorrect, new_total, eff)
+
+
+def _detect_error_patterns() -> None:
+    """검증된 예측에서 오답 패턴을 탐지합니다."""
+    from db import upsert_error_pattern
+
+    conn = get_connection()
+    try:
+        # 패턴 1: 신뢰도 구간별 과신 탐지
+        overconf_rows = conn.execute(
+            """SELECT
+                 CASE WHEN confidence >= 80 THEN 'high_confidence_overfit'
+                      WHEN confidence >= 70 THEN 'mid_confidence_overfit'
+                      ELSE NULL END as ptype,
+                 COUNT(*) as total,
+                 SUM(CASE WHEN correct_7d=1 THEN 1 ELSE 0 END) as correct
+               FROM cio_predictions
+               WHERE correct_7d IS NOT NULL AND confidence >= 70
+               GROUP BY ptype HAVING ptype IS NOT NULL"""
+        ).fetchall()
+        for r in overconf_rows:
+            ptype, total, correct = r[0], r[1], r[2]
+            miss = total - correct
+            hit_rate = round(correct / total * 100, 1) if total > 0 else 0
+            if total >= 5 and hit_rate < 60:
+                conf_range = "80%+" if "high" in ptype else "70-80%"
+                upsert_error_pattern(
+                    ptype,
+                    f"신뢰도 {conf_range} 시그널의 실제 적중률이 {hit_rate}%로 낮음 ({correct}/{total}건)",
+                    correct, miss, hit_rate,
+                )
+
+        # 패턴 2: 같은 종목 연속 오답 (3회+)
+        streak_rows = conn.execute(
+            """SELECT ticker, ticker_name, COUNT(*) as miss_streak
+               FROM cio_predictions
+               WHERE correct_7d = 0
+               GROUP BY ticker HAVING miss_streak >= 3
+               ORDER BY miss_streak DESC LIMIT 5"""
+        ).fetchall()
+        for r in streak_rows:
+            ticker, name, streak = r[0], r[1] or r[0], r[2]
+            # 해당 종목의 전체 기록
+            ticker_total = conn.execute(
+                "SELECT COUNT(*), SUM(CASE WHEN correct_7d=1 THEN 1 ELSE 0 END) "
+                "FROM cio_predictions WHERE ticker=? AND correct_7d IS NOT NULL",
+                (ticker,),
+            ).fetchone()
+            t_total = ticker_total[0] or 0
+            t_correct = ticker_total[1] or 0
+            hit_rate = round(t_correct / t_total * 100, 1) if t_total > 0 else 0
+            upsert_error_pattern(
+                f"ticker_streak_{ticker}",
+                f"{name}({ticker}) 연속 {streak}회 오답, 전체 적중률 {hit_rate}% ({t_correct}/{t_total})",
+                t_correct, t_total - t_correct, hit_rate,
+            )
+
+        # 패턴 3: 매수/매도 편향
+        dir_rows = conn.execute(
+            """SELECT direction, COUNT(*) as total,
+                      SUM(CASE WHEN correct_7d=1 THEN 1 ELSE 0 END) as correct
+               FROM cio_predictions WHERE correct_7d IS NOT NULL
+               GROUP BY direction"""
+        ).fetchall()
+        for r in dir_rows:
+            direction, total, correct = r[0], r[1], r[2]
+            miss = total - correct
+            hit_rate = round(correct / total * 100, 1) if total > 0 else 0
+            if total >= 5 and hit_rate < 45:
+                upsert_error_pattern(
+                    f"direction_bias_{direction.lower()}",
+                    f"{direction} 시그널 적중률 {hit_rate}% ({correct}/{total}건) — 편향 주의",
+                    correct, miss, hit_rate,
+                )
+    finally:
+        conn.close()
+
+
+def _capture_specialist_contributions_sync(
+    parsed_signals: list[dict],
+    spec_results: list[dict],
+    cio_solo_content: str,
+    sig_id: str,
+) -> None:
+    """전문가별 기여를 prediction_specialist_data 테이블에 기록합니다.
+
+    parsed_signals에서 예측 ID를 찾고, spec_results에서 각 전문가의
+    추천(BUY/SELL/HOLD)을 파싱하여 저장합니다.
+    """
+    import json as _json_cap
+    import re as _re_cap
+    from db import save_prediction_specialist, get_connection
+
+    if not parsed_signals or not spec_results:
+        return
+
+    try:
+        conn = get_connection()
+        # sig_id(task_id)로 저장된 예측 ID들 조회
+        pred_rows = conn.execute(
+            "SELECT id, ticker, direction FROM cio_predictions WHERE task_id=? ORDER BY id DESC",
+            (sig_id,),
+        ).fetchall()
+        conn.close()
+
+        if not pred_rows:
+            logger.debug("[신뢰도] 예측 ID 조회 실패 (sig_id=%s)", sig_id)
+            return
+
+        # 전문가별 추천 추출 패턴
+        _buy_pat = _re_cap.compile(r"(?:매수|BUY|buy|강력\s*매수|적극\s*매수)", _re_cap.IGNORECASE)
+        _sell_pat = _re_cap.compile(r"(?:매도|SELL|sell|강력\s*매도)", _re_cap.IGNORECASE)
+
+        for pred_row in pred_rows:
+            pred_id = pred_row[0]
+
+            # CIO 처장 독자분석 기여 저장
+            if cio_solo_content:
+                cio_rec = "HOLD"
+                if _buy_pat.search(cio_solo_content[:500]):
+                    cio_rec = "BUY"
+                elif _sell_pat.search(cio_solo_content[:500]):
+                    cio_rec = "SELL"
+                save_prediction_specialist(
+                    prediction_id=pred_id,
+                    agent_id="cio_manager",
+                    recommendation=cio_rec,
+                    confidence=0.0,
+                    tools_used="[]",
+                    cost_usd=0.0,
+                )
+
+            # 각 전문가 기여 저장
+            for r in spec_results:
+                if not isinstance(r, dict) or "error" in r:
+                    continue
+                agent_id = r.get("agent_id", "unknown")
+                content = r.get("content", "")
+                tools = r.get("tools_used", [])
+                cost = r.get("cost_usd", 0)
+
+                # 추천 추출
+                rec = "HOLD"
+                snippet = content[:800] if content else ""
+                if _buy_pat.search(snippet):
+                    rec = "BUY"
+                elif _sell_pat.search(snippet):
+                    rec = "SELL"
+
+                save_prediction_specialist(
+                    prediction_id=pred_id,
+                    agent_id=agent_id,
+                    recommendation=rec,
+                    confidence=0.0,
+                    tools_used=_json_cap.dumps(tools[:20]) if tools else "[]",
+                    cost_usd=cost or 0.0,
+                )
+
+        logger.info("[신뢰도] 전문가 기여 %d건 × %d예측 캡처 완료",
+                     len(spec_results) + (1 if cio_solo_content else 0), len(pred_rows))
+    except Exception as e:
+        logger.warning("[신뢰도] 전문가 기여 캡처 실패: %s", e)
+
+
+# ────────────────────────────────────────────────────────────────
 # CIO 자기학습 크론 + Shadow Trading 알림
 # ────────────────────────────────────────────────────────────────
 
@@ -3067,39 +3432,61 @@ async def _cio_prediction_verifier():
                 verified_count = 0
                 verified_results = []
 
+                verified_7d_ids = []  # 7일 검증 완료된 prediction_id (학습 파이프라인용)
+
                 for days in [3, 7]:
                     pending = get_pending_verifications(days_threshold=days)
                     for p in pending:
                         try:
                             price = await get_current_price(p["ticker"])
                             if days == 3:
-                                update_cio_prediction_result(p["id"], actual_price_3d=price)
-                                predicted = p.get("predicted_price_3d") or p.get("predicted_price")
-                                correct = bool(predicted and (
-                                    (p.get("direction") == "상승" and price >= predicted) or
-                                    (p.get("direction") == "하락" and price <= predicted)
-                                ))
-                                verified_results.append({"correct_3d": correct, "ticker": p["ticker"]})
+                                result = update_cio_prediction_result(p["id"], actual_price_3d=price)
+                                correct = bool(result.get("correct_3d"))
+                                verified_results.append({
+                                    "correct_3d": correct, "ticker": p["ticker"],
+                                    "direction": p.get("direction", "BUY"),
+                                })
                                 verified_count += 1
                             else:
-                                update_cio_prediction_result(p["id"], actual_price_7d=price)
+                                result = update_cio_prediction_result(p["id"], actual_price_7d=price)
+                                if result:
+                                    verified_7d_ids.append(p["id"])
                             _logger_v.info("[CIO검증] %s %d일 검증 완료: %d원", p["ticker"], days, price)
                         except Exception as e:
                             _logger_v.warning("[CIO검증] %s 주가 조회 실패: %s", p["ticker"], e)
 
-                save_activity_log("system", "✅ CIO 예측 사후검증 완료", "info")
+                save_activity_log("system", f"✅ CIO 예측 사후검증 완료 (3일 {verified_count}건, 7일 {len(verified_7d_ids)}건)", "info")
 
-                # 검증 완료 후 텔레그램 알림
+                # ── 신뢰도 학습 파이프라인 (7일 검증 완료된 건에 대해) ──
+                if verified_7d_ids:
+                    try:
+                        _run_confidence_learning_pipeline(verified_7d_ids)
+                        _logger_v.info("[CIO학습] 신뢰도 학습 파이프라인 완료: %d건", len(verified_7d_ids))
+                    except Exception as le:
+                        _logger_v.warning("[CIO학습] 학습 파이프라인 실패: %s", le)
+
+                # 검증 완료 후 텔레그램 알림 (수정: direction 버그 수정)
                 if verified_count > 0:
                     try:
                         ceo_id = os.getenv("TELEGRAM_CEO_CHAT_ID", "")
                         if app_state.telegram_app and ceo_id:
                             correct_count = sum(1 for r in verified_results if r.get("correct_3d"))
                             accuracy = round(correct_count / verified_count * 100) if verified_count > 0 else 0
+                            # ELO 요약 추가
+                            from db import get_all_analyst_elos, get_cio_performance_summary
+                            elo_data = get_all_analyst_elos()
+                            perf = get_cio_performance_summary()
+                            elo_section = "\n".join(
+                                f"  {e['agent_id'].split('_')[0]}: {e['elo_rating']:.0f}"
+                                for e in elo_data[:5]
+                            ) if elo_data else "  (초기화 대기 중)"
+                            brier_text = f"\nBrier Score: {perf.get('avg_brier_score', '-')}" if perf.get('avg_brier_score') else ""
                             msg = (
                                 f"📊 CIO 자기학습 검증 완료\n"
                                 f"오늘 검증: {verified_count}건\n"
-                                f"3일 정확도: {accuracy}% ({correct_count}/{verified_count})"
+                                f"3일 정확도: {accuracy}% ({correct_count}/{verified_count})\n"
+                                f"전체 7일 정확도: {perf.get('overall_accuracy', '-')}%{brier_text}\n"
+                                f"전문가 ELO:\n{elo_section}"
                             )
                             await app_state.telegram_app.bot.send_message(
                                 chat_id=int(ceo_id),
@@ -3797,6 +4184,147 @@ def _compute_calibration_factor(lookback: int = 20) -> dict:
     }
 
 
+def _build_calibration_prompt_section(settings: dict | None = None) -> str:
+    """CIO 분석 프롬프트에 삽입할 자기학습 보정 섹션을 구축합니다.
+
+    포함 항목:
+    1. 기존 Platt Scaling 보정 (호환성)
+    2. 베이지안 구간별 보정 데이터
+    3. 전문가 ELO 가중치
+    4. 오답 패턴 경고
+    5. 도구 추천/경고
+    """
+    from db import (
+        get_all_calibration_buckets, get_all_analyst_elos,
+        get_active_error_patterns, get_tool_effectiveness_all,
+    )
+
+    if settings is None:
+        settings = {}
+
+    parts = []
+
+    # ─ 1. 베이지안 구간별 보정 ─
+    try:
+        buckets = get_all_calibration_buckets()
+        if buckets:
+            rows = []
+            for b in buckets:
+                total = b.get("total_count", 0)
+                if total < 3:
+                    continue
+                actual = b.get("actual_rate", 0)
+                ci_lo = b.get("ci_lower", 0)
+                ci_hi = b.get("ci_upper", 1)
+                actual_pct = round(actual * 100, 1)
+                ci_lo_pct = round(ci_lo * 100)
+                ci_hi_pct = round(ci_hi * 100)
+                # 보정 방향 판단
+                bucket_label = b["bucket"]
+                mid = 0.5  # 기본
+                try:
+                    lo, hi = bucket_label.split("-")
+                    mid = (int(lo) + int(hi)) / 200.0
+                except Exception:
+                    pass
+                if actual < mid - 0.05:
+                    direction = "↓ 하향 보정 필요"
+                elif actual > mid + 0.05:
+                    direction = "↑ 상향 가능"
+                else:
+                    direction = "≈ 적정"
+                rows.append(f"| {bucket_label}% | {total}건 | {actual_pct}% | [{ci_lo_pct}-{ci_hi_pct}%] | {direction} |")
+
+            if rows:
+                parts.append(
+                    "\n## 📊 신뢰도 보정 데이터 (Bayesian Calibration)\n"
+                    "| 구간 | 예측 횟수 | 실제 적중률 | 95% CI | 보정 방향 |\n"
+                    "|------|----------|-----------|--------|----------|\n"
+                    + "\n".join(rows)
+                    + "\n→ 위 데이터를 참고하여 신뢰도 수치를 보정하세요."
+                )
+    except Exception:
+        pass
+
+    # ─ 2. 전문가 ELO 가중치 ─
+    try:
+        elos = get_all_analyst_elos()
+        if elos and len(elos) >= 2:
+            elo_rows = []
+            for e in sorted(elos, key=lambda x: x.get("elo_rating", 1500), reverse=True):
+                agent = e["agent_id"].replace("_specialist", "").replace("_", " ").title()
+                rating = round(e.get("elo_rating", 1500))
+                total = e.get("total_predictions", 0)
+                correct = e.get("correct_predictions", 0)
+                hit = round(correct / total * 100) if total > 0 else 0
+                weight = "★★★" if rating >= 1560 else ("★★" if rating >= 1520 else "★")
+                elo_rows.append(f"| {agent} | {rating} | {hit}% ({correct}/{total}) | {weight} |")
+
+            if elo_rows:
+                parts.append(
+                    "\n## 🏆 전문가 신뢰 가중치 (ELO 기반)\n"
+                    "| 전문가 | ELO | 적중률 | 가중치 |\n"
+                    "|--------|-----|--------|--------|\n"
+                    + "\n".join(elo_rows)
+                    + "\n→ ELO 높은 전문가의 의견에 더 높은 가중치를 부여하세요."
+                )
+    except Exception:
+        pass
+
+    # ─ 3. 오답 패턴 경고 ─
+    try:
+        patterns = get_active_error_patterns()
+        if patterns:
+            warns = []
+            for p in patterns[:5]:
+                warns.append(f"- {p['description']}")
+            parts.append(
+                "\n## ⚠️ 주의 패턴 (최근 오류에서 학습)\n"
+                + "\n".join(warns)
+            )
+    except Exception:
+        pass
+
+    # ─ 4. 도구 추천/경고 ─
+    try:
+        tools = get_tool_effectiveness_all()
+        if tools and len(tools) >= 3:
+            good = [t for t in tools if t.get("total_uses", 0) >= 3 and t.get("eff_score", 0.5) >= 0.6]
+            bad = [t for t in tools if t.get("total_uses", 0) >= 3 and t.get("eff_score", 0.5) < 0.45]
+            tool_lines = []
+            if good:
+                good_s = sorted(good, key=lambda x: x["eff_score"], reverse=True)[:4]
+                names = ", ".join(f"{t['tool_name']}({round(t['eff_score']*100)}%)" for t in good_s)
+                tool_lines.append(f"- 우수: {names}")
+            if bad:
+                bad_s = sorted(bad, key=lambda x: x["eff_score"])[:3]
+                names = ", ".join(f"{t['tool_name']}({round(t['eff_score']*100)}%)" for t in bad_s)
+                tool_lines.append(f"- 부진: {names} — 분석 참고만, 결정 기반 금지")
+            if tool_lines:
+                parts.append(
+                    "\n## 🔧 도구 추천 (성과 기반)\n"
+                    + "\n".join(tool_lines)
+                )
+    except Exception:
+        pass
+
+    # ─ 5. 기존 Platt Scaling 보정 (하위 호환) ─
+    if settings.get("calibration_enabled", True):
+        calibration = _compute_calibration_factor(settings.get("calibration_lookback", 20))
+        if calibration.get("win_rate") is not None:
+            diff = calibration["win_rate"] - (calibration.get("avg_confidence") or calibration["win_rate"])
+            direction = "보수적으로" if diff < -5 else ("적극적으로" if diff > 5 else "현재 수준으로")
+            parts.append(
+                f"\n## 📈 매매 성과 보정 (Platt Scaling)\n"
+                f"- 최근 {calibration['n']}건 실제 승률: {calibration['win_rate']}%\n"
+                f"- 평균 예측 신뢰도: {calibration.get('avg_confidence', 'N/A')}%\n"
+                f"- {calibration['note']}\n"
+                f"→ 이번 신뢰도를 {direction} 설정하세요."
+            )
+
+    return "\n".join(parts) if parts else ""
+
+
 # ── 트레이딩 CRUD 엔드포인트 → handlers/trading_handler.py로 분리 ──
 # summary, portfolio, strategies, watchlist, prices, chart, order,
 # history, signals, decisions (CRUD) 등은 trading_handler.py에서 제공
@@ -4039,6 +4567,11 @@ async def generate_trading_signals():
         logger.info("[CIO성과] %d건 예측 저장 완료 (sig_id=%s)", len([s for s in parsed_signals if s.get("action") in ("buy", "sell")]), sig_id)
     except Exception as e:
         logger.warning("[CIO성과] 예측 저장 실패: %s", e)
+
+    # 신뢰도 파이프라인: 전문가 기여 캡처
+    _capture_specialist_contributions_sync(
+        parsed_signals, spec_results or [], cio_solo_content or "", sig_id if 'sig_id' in dir() else ""
+    )
 
     # P2-7: CIO 목표가 → 관심종목 자동 반영
     try:
@@ -4421,26 +4954,13 @@ async def _run_trading_now_inner(selected_tickers: list[str] | None = None):
         markets = set(w.get("market", "KR") for w in market_watchlist)
         market = "US" if "US" in markets else "KR"
 
-    # 자기보정 계수 계산
-    calibration = _compute_calibration_factor(settings.get("calibration_lookback", 20))
-    calibration_factor = calibration.get("factor", 1.0) if settings.get("calibration_enabled", True) else 1.0
+    # 자기학습 보정 섹션 (베이지안 + ELO + 오답패턴 + Platt Scaling 통합)
+    cal_section = _build_calibration_prompt_section(settings)
 
     tickers_info = ", ".join([f"{w['name']}({w['ticker']})" for w in market_watchlist])
     strategies = _load_data("trading_strategies", [])
     active_strats = [s for s in strategies if s.get("active")]
     strats_info = ", ".join([s["name"] for s in active_strats[:5]]) or "기본 전략"
-
-    cal_section = ""
-    if calibration.get("win_rate") is not None:
-        diff = calibration["win_rate"] - (calibration.get("avg_confidence") or calibration["win_rate"])
-        direction = "보수적으로" if diff < -5 else ("적극적으로" if diff > 5 else "현재 수준으로")
-        cal_section = f"""
-
-## 📊 당신의 최근 예측 성과 (자기보정 참고)
-- 최근 {calibration['n']}건 실제 승률: {calibration['win_rate']}%
-- 평균 예측 신뢰도: {calibration.get('avg_confidence', 'N/A')}%
-- {calibration['note']}
-→ 이 데이터를 반영하여 이번 신뢰도를 {direction} 설정하세요."""
 
     market_label = "한국" if market == "KR" else "미국"
     prompt = f"""[수동 즉시 분석 요청 — {market_label}장]
@@ -4828,21 +5348,8 @@ async def _trading_bot_loop():
             active = [s for s in strategies if s.get("active")]
             strats_info = ", ".join([s["name"] for s in active[:5]]) or "기본 전략"
 
-            # 자기보정 계수 계산 (Platt Scaling 단순화)
-            calibration = _compute_calibration_factor(settings.get("calibration_lookback", 20))
-            calibration_factor = calibration.get("factor", 1.0) if settings.get("calibration_enabled", True) else 1.0
-
-            cal_section = ""
-            if settings.get("calibration_enabled", True) and calibration.get("win_rate") is not None:
-                diff = calibration["win_rate"] - (calibration.get("avg_confidence") or calibration["win_rate"])
-                direction = "보수적으로" if diff < -5 else ("적극적으로" if diff > 5 else "현재 수준으로")
-                cal_section = f"""
-
-## 📊 당신의 최근 예측 성과 (자기보정 참고)
-- 최근 {calibration['n']}건 실제 승률: {calibration['win_rate']}%
-- 평균 예측 신뢰도: {calibration.get('avg_confidence', 'N/A')}%
-- {calibration['note']}
-→ 이 데이터를 반영하여 이번 신뢰도를 {direction} 설정하세요."""
+            # 자기학습 보정 섹션 (베이지안 + ELO + 오답패턴 + Platt Scaling 통합)
+            cal_section = _build_calibration_prompt_section(settings)
 
             prompt = f"""[자동매매 봇 — {market_name}장 정기 분석]
 
