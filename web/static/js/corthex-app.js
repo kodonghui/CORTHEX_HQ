@@ -4701,13 +4701,15 @@ function corthexApp() {
         }));
         const graphLinks = links.map(l => ({ source: l.source, target: l.target }));
 
-        // DOM 준비 확인 (template x-if 렌더링 대기)
+        // DOM 준비 + 컨테이너 크기 확인 (template x-if 렌더링 대기)
         let el = document.getElementById('nexus-3d');
-        if (!el) {
-          await new Promise(resolve => setTimeout(resolve, 300));
+        let retries = 0;
+        while ((!el || el.clientWidth === 0) && retries < 10) {
+          await new Promise(resolve => setTimeout(resolve, 200));
           el = document.getElementById('nexus-3d');
+          retries++;
         }
-        if (!el || typeof ForceGraph3D === 'undefined') throw new Error('3D 렌더러 초기화 실패');
+        if (!el || el.clientWidth === 0 || typeof ForceGraph3D === 'undefined') throw new Error('3D 렌더러 초기화 실패 (컨테이너 크기: ' + (el?.clientWidth||0) + 'x' + (el?.clientHeight||0) + ')');
 
         const Graph = ForceGraph3D()(el)
           .graphData({ nodes: graphNodes, links: graphLinks })
