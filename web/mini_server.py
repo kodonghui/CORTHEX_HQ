@@ -33,6 +33,7 @@ from db import (
     delete_task as db_delete_task, bulk_delete_tasks, bulk_archive_tasks,
     set_task_tags, mark_task_read, bulk_mark_read,
     save_quality_review, get_quality_stats,
+    save_collaboration_log,
 )
 try:
     from ai_handler import (
@@ -3752,6 +3753,15 @@ async def _cron_loop():
             # 환율 주기적 갱신 (1시간마다)
             if time.time() - app_state.last_fx_update > _FX_UPDATE_INTERVAL:
                 asyncio.create_task(_update_fx_rate())
+
+            # Soul 자동 진화: 매주 일요일 03:00 KST
+            _now_cron = datetime.now(KST)
+            if _now_cron.weekday() == 6 and _now_cron.hour == 3 and _now_cron.minute == 0:
+                logger.info("🧬 주간 Soul 진화 크론 실행")
+                save_activity_log("system", "🧬 주간 Soul 진화 분석 시작 (크론)", "info")
+                from handlers.soul_evolution_handler import run_soul_evolution_analysis
+                asyncio.create_task(run_soul_evolution_analysis())
+
             schedules = _load_data("schedules", [])
             now = datetime.now(KST)
 
@@ -6210,6 +6220,10 @@ app.include_router(archive_router)
 # ── 텔레그램 상태/테스트 API → handlers/telegram_handler.py로 분리 ──
 from handlers.telegram_handler import router as telegram_router
 app.include_router(telegram_router)
+
+# ── Soul 자동 진화 API → handlers/soul_evolution_handler.py로 분리 ──
+from handlers.soul_evolution_handler import router as soul_evolution_router
+app.include_router(soul_evolution_router)
 
 
 # ── 텔레그램 봇 ──
@@ -9584,7 +9598,7 @@ async def on_startup():
     _init_tool_pool()
     # cross_agent_protocol 실시간 콜백 등록
     try:
-        from src.tools.cross_agent_protocol import register_call_agent, register_sse_broadcast, register_valid_agents
+        from src.tools.cross_agent_protocol import register_call_agent, register_sse_broadcast, register_valid_agents, register_collaboration_log_callback
         register_call_agent(_call_agent)
         register_sse_broadcast(_broadcast_comms)
         register_valid_agents([{
@@ -9593,7 +9607,11 @@ async def on_startup():
             "superior_id": a.get("superior_id", ""),
             "dormant": a.get("dormant", False),
         } for a in AGENTS])
-        _log("[P2P] cross_agent_protocol 콜백 등록 완료 ✅ (에이전트 호출 + SSE broadcast)")
+        # Phase 12: 부서 간 협업 로그 콜백
+        register_collaboration_log_callback(
+            lambda **kw: save_collaboration_log(**kw)
+        )
+        _log("[P2P] cross_agent_protocol 콜백 등록 완료 ✅ (에이전트 호출 + SSE + 협업로그)")
     except Exception as e:
         _log(f"[P2P] cross_agent_protocol 콜백 등록 실패: {e}")
     # PENDING 배치 또는 진행 중인 체인이 있으면 폴러 시작

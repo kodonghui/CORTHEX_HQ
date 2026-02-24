@@ -20,6 +20,8 @@ _sse_broadcast_callback: Any | None = None
 _valid_agent_ids: set[str] = set()
 # {agent_id: {"division": str, "superior_id": str, "dormant": bool}}
 _agent_info: dict[str, dict] = {}
+# ── 협업 로그 저장 콜백 (mini_server.py가 시작 시 등록) ──
+_save_collaboration_log_callback: Any | None = None
 
 # AI가 흔히 지어내는 가짜 이름 → 실제 에이전트 ID 매핑
 _AGENT_ALIAS: dict[str, str] = {
@@ -44,6 +46,12 @@ _AGENT_ALIAS: dict[str, str] = {
     "content_creator": "content_specialist",
     "community_manager": "community_specialist",
 }
+
+
+def register_collaboration_log_callback(callback) -> None:
+    """협업 로그 저장 콜백 등록. mini_server.py에서 호출."""
+    global _save_collaboration_log_callback
+    _save_collaboration_log_callback = callback
 
 
 def register_valid_agents(agent_infos: list[dict | str]) -> None:
@@ -326,6 +334,20 @@ class CrossAgentProtocolTool(BaseTool):
                         f"※ 원래 대상: {original_target}. 적합한 부하 전문가에게 배정해주세요."
                     )
                     redirected = True
+
+                    # Phase 12: 협업 로그 기록
+                    if _save_collaboration_log_callback:
+                        try:
+                            _save_collaboration_log_callback(
+                                from_division=caller_div,
+                                to_division=target_div,
+                                from_agent=from_agent,
+                                to_agent=original_target,
+                                redirected_to=target_superior,
+                                task_summary=task[:200],
+                            )
+                        except Exception as _cl_err:
+                            logger.debug("협업 로그 저장 실패: %s", _cl_err)
 
         msg = {
             "id": str(uuid.uuid4())[:8],

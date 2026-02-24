@@ -15,6 +15,8 @@ from db import (
     list_activity_logs,
     save_activity_log,
     get_connection,
+    get_collaboration_logs,
+    get_collaboration_summary,
 )
 from ws_manager import wm
 
@@ -300,3 +302,22 @@ async def comms_sse_stream():
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
+
+
+# ── 부서 간 협업 로그 API (Phase 12) ──
+
+@router.get("/api/collaboration/logs")
+async def api_collaboration_logs(request: Request):
+    """최근 부서 간 협업 로그 조회."""
+    days = int(request.query_params.get("days", "30"))
+    limit = int(request.query_params.get("limit", "50"))
+    logs = get_collaboration_logs(days=days, limit=limit)
+    return {"logs": logs, "count": len(logs)}
+
+
+@router.get("/api/collaboration/summary")
+async def api_collaboration_summary(request: Request):
+    """부서 간 협업 빈도 요약 (히트맵용)."""
+    days = int(request.query_params.get("days", "30"))
+    summary = get_collaboration_summary(days=days)
+    return {"summary": summary}

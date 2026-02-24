@@ -351,6 +351,21 @@ CREATE TABLE IF NOT EXISTS error_patterns (
     created_at      DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS idx_err_pattern_active ON error_patterns(active);
+
+-- 부서 간 협업 로그 (Phase 12)
+CREATE TABLE IF NOT EXISTS collaboration_logs (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    from_division   TEXT NOT NULL,
+    to_division     TEXT NOT NULL,
+    from_agent      TEXT NOT NULL,
+    to_agent        TEXT NOT NULL,
+    redirected_to   TEXT DEFAULT '',
+    task_summary    TEXT DEFAULT '',
+    created_at      DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_collab_from ON collaboration_logs(from_division);
+CREATE INDEX IF NOT EXISTS idx_collab_to ON collaboration_logs(to_division);
+CREATE INDEX IF NOT EXISTS idx_collab_created ON collaboration_logs(created_at);
 """
 
 
@@ -1826,6 +1841,60 @@ def get_quality_stats() -> dict:
         conn.close()
 
 
+def get_quality_scores_timeline(days: int = 30, agent_id: str = "") -> list[dict]:
+    """에이전트별 품질 점수 타임라인 조회 (대시보드 차트용).
+
+    반환: [{target_id, weighted_score, passed, created_at, scores_json}, ...]
+    """
+    conn = get_connection()
+    try:
+        query = """SELECT target_id, weighted_score, passed, created_at, scores_json
+                   FROM quality_reviews
+                   WHERE created_at >= datetime('now', ?)"""
+        params: list = [f"-{days} days"]
+        if agent_id:
+            query += " AND target_id = ?"
+            params.append(agent_id)
+        query += " ORDER BY created_at ASC"
+        rows = conn.execute(query, params).fetchall()
+        return [
+            {
+                "target_id": r[0],
+                "weighted_score": r[1],
+                "passed": bool(r[2]),
+                "created_at": r[3],
+                "scores_json": r[4],
+            }
+            for r in rows
+        ]
+    except Exception as e:
+        print(f"[DB] quality scores timeline 조회 실패: {e}")
+        return []
+    finally:
+        conn.close()
+
+
+def get_top_rejection_reasons(limit: int = 5) -> list[dict]:
+    """가장 많이 반려된 항목 Top N 조회."""
+    conn = get_connection()
+    try:
+        rows = conn.execute(
+            """SELECT target_id, rejection_reasons, COUNT(*) as cnt
+               FROM quality_reviews
+               WHERE passed = 0 AND rejection_reasons != ''
+               GROUP BY target_id, rejection_reasons
+               ORDER BY cnt DESC
+               LIMIT ?""",
+            (limit,),
+        ).fetchall()
+        return [{"target_id": r[0], "reason": r[1], "count": r[2]} for r in rows]
+    except Exception as e:
+        print(f"[DB] top rejection reasons 조회 실패: {e}")
+        return []
+    finally:
+        conn.close()
+
+
 # ═══════════════════════════════════════════════════════════════
 # 신뢰도 검증 파이프라인 — CRUD 함수
 # ═══════════════════════════════════════════════════════════════
@@ -2144,6 +2213,78 @@ def get_active_error_patterns() -> list:
             for r in rows
         ]
     except sqlite3.OperationalError:
+        return []
+    finally:
+        conn.close()
+
+
+# ═══════════════════════════════════════════════════════════════
+# 부서 간 협업 로그 (Phase 12)
+# ═══════════════════════════════════════════════════════════════
+
+def save_collaboration_log(
+    from_division: str, to_division: str,
+    from_agent: str, to_agent: str,
+    redirected_to: str = "", task_summary: str = "",
+) -> int:
+    """부서 간 협업 발생 시 로그를 DB에 저장합니다."""
+    conn = get_connection()
+    try:
+        cur = conn.execute(
+            """INSERT INTO collaboration_logs
+               (from_division, to_division, from_agent, to_agent, redirected_to, task_summary)
+               VALUES (?, ?, ?, ?, ?, ?)""",
+            (from_division, to_division, from_agent, to_agent, redirected_to, task_summary),
+        )
+        conn.commit()
+        return cur.lastrowid or 0
+    except Exception:
+        return 0
+    finally:
+        conn.close()
+
+
+def get_collaboration_logs(days: int = 30, limit: int = 50) -> list[dict]:
+    """최근 협업 로그 조회."""
+    conn = get_connection()
+    try:
+        rows = conn.execute(
+            """SELECT from_division, to_division, from_agent, to_agent,
+                      redirected_to, task_summary, created_at
+               FROM collaboration_logs
+               WHERE created_at >= datetime('now', ?)
+               ORDER BY id DESC LIMIT ?""",
+            (f"-{days} days", limit),
+        ).fetchall()
+        return [
+            {
+                "from_division": r[0], "to_division": r[1],
+                "from_agent": r[2], "to_agent": r[3],
+                "redirected_to": r[4], "task_summary": r[5],
+                "created_at": r[6],
+            }
+            for r in rows
+        ]
+    except Exception:
+        return []
+    finally:
+        conn.close()
+
+
+def get_collaboration_summary(days: int = 30) -> list[dict]:
+    """부서 간 협업 빈도 요약 (히트맵용)."""
+    conn = get_connection()
+    try:
+        rows = conn.execute(
+            """SELECT from_division, to_division, COUNT(*) as cnt
+               FROM collaboration_logs
+               WHERE created_at >= datetime('now', ?)
+               GROUP BY from_division, to_division
+               ORDER BY cnt DESC""",
+            (f"-{days} days",),
+        ).fetchall()
+        return [{"from": r[0], "to": r[1], "count": r[2]} for r in rows]
+    except Exception:
         return []
     finally:
         conn.close()

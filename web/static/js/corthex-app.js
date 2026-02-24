@@ -83,6 +83,13 @@ function corthexApp() {
     // ── Performance (성능) ──
     performance: { agents: [], totalCalls: 0, totalCost: 0, totalTasks: 0, avgSuccessRate: 0, maxCost: 0, loaded: false },
 
+    // ── Soul 자동 진화 ──
+    soulEvolution: { proposals: [], loading: false, message: '' },
+
+    // ── 품질 대시보드 ──
+    qualityDash: { totalReviews: 0, passRate: 0, avgScore: 0, failed: 0, topRejections: [], loaded: false },
+    _qualityChart: null,
+
     // ── Architecture Map (아키텍처 맵) ──
     archMap: {
       hierarchy: null, costByAgent: [], costByDivision: [], costSummary: null,
@@ -1834,6 +1841,7 @@ function corthexApp() {
         }
       }
       if (tabId === 'performance' && !this.performance.loaded) this.loadPerformance();
+      if (tabId === 'performance') { this.loadSoulEvolutionProposals(); if (!this.qualityDash.loaded) this.loadQualityDashboard(); }
       if (tabId === 'history') this.loadTaskHistory();
       if (tabId === 'schedule') this.loadSchedules();
       if (tabId === 'workflow') this.loadWorkflows();
@@ -1975,6 +1983,71 @@ function corthexApp() {
           loaded: true,
         };
       } catch (e) { console.error('Performance load failed:', e); }
+    },
+
+    // ── Soul 자동 진화 ──
+    async loadSoulEvolutionProposals() {
+      try {
+        const data = await fetch('/api/soul-evolution/proposals').then(r => r.json());
+        this.soulEvolution.proposals = data.proposals || [];
+      } catch (e) { console.error('Soul evolution load failed:', e); }
+    },
+
+    // ── 품질 대시보드 ──
+    async loadQualityDashboard() {
+      try {
+        const [stats, scores, rejections] = await Promise.all([
+          fetch('/api/quality').then(r => r.json()),
+          fetch('/api/quality/scores?days=30').then(r => r.json()),
+          fetch('/api/quality/top-rejections').then(r => r.json()),
+        ]);
+        this.qualityDash.totalReviews = stats.total_reviews || 0;
+        this.qualityDash.passRate = stats.pass_rate || 0;
+        this.qualityDash.avgScore = stats.average_score || 0;
+        this.qualityDash.failed = stats.failed || 0;
+        this.qualityDash.topRejections = rejections.rejections || [];
+        this.qualityDash.loaded = true;
+
+        // Chart.js 차트 렌더링
+        if (scores.by_agent && Object.keys(scores.by_agent).length > 0) {
+          await _loadScript(_CDN.chartjs);
+          this.$nextTick(() => this._renderQualityChart(scores.by_agent));
+        }
+      } catch (e) { console.error('Quality dashboard load failed:', e); }
+    },
+
+    _renderQualityChart(byAgent) {
+      const canvas = document.getElementById('qualityScoreChart');
+      if (!canvas) return;
+      if (this._qualityChart) this._qualityChart.destroy();
+
+      const colors = ['#00d4aa', '#00b4d8', '#fbbf24', '#f87171', '#a78bfa', '#34d399'];
+      const datasets = Object.entries(byAgent).map(([aid, points], idx) => ({
+        label: aid.replace('_specialist', '').replace('_', ' '),
+        data: points.map(p => ({ x: p.date, y: p.score })),
+        borderColor: colors[idx % colors.length],
+        backgroundColor: colors[idx % colors.length] + '20',
+        tension: 0.3,
+        pointRadius: 3,
+        borderWidth: 2,
+        fill: false,
+      }));
+
+      this._qualityChart = new Chart(canvas, {
+        type: 'line',
+        data: { datasets },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          scales: {
+            x: { type: 'time', time: { unit: 'day' }, grid: { color: '#ffffff10' }, ticks: { color: '#888', font: { size: 9 } } },
+            y: { min: 0, max: 5, grid: { color: '#ffffff10' }, ticks: { color: '#888', font: { size: 9 } } },
+          },
+          plugins: {
+            legend: { labels: { color: '#ccc', font: { size: 10 } } },
+            tooltip: { mode: 'index', intersect: false },
+          },
+        },
+      });
     },
 
     // ── Architecture Map (아키텍처 맵) ──

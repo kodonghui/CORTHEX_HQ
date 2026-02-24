@@ -23,4 +23,5 @@
   - consult_handler:      /api/consult (처장 간 협의)
   - replay_handler:       /api/replay/* (배치 체인 리플레이)
   - calendar_handler:     /api/google-calendar/* (Google Calendar OAuth)
+  - soul_evolution_handler: /api/soul-evolution/* (Soul 자동 진화 — 반려학습 분석+제안+승인)
 """

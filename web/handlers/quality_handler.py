@@ -9,7 +9,7 @@ from pathlib import Path
 
 from fastapi import APIRouter, Request
 
-from db import load_setting, save_setting, get_quality_stats
+from db import load_setting, save_setting, get_quality_stats, get_quality_scores_timeline, get_top_rejection_reasons
 from state import app_state
 
 logger = logging.getLogger("corthex")
@@ -160,3 +160,43 @@ async def save_quality_rules(request: Request):
     if app_state.quality_gate:
         app_state.quality_gate.reload_config()
     return {"success": True}
+
+
+# ── 품질 점수 타임라인 (대시보드용) ──
+
+@router.get("/api/quality/scores")
+async def get_quality_scores(request: Request):
+    """에이전트별 품질 점수 타임라인 조회 (Chart.js 대시보드용).
+
+    Query params:
+      - days: 최근 N일 (기본 30)
+      - agent_id: 특정 에이전트 필터 (옵션)
+    """
+    days = int(request.query_params.get("days", "30"))
+    agent_id = request.query_params.get("agent_id", "")
+    timeline = get_quality_scores_timeline(days=days, agent_id=agent_id)
+
+    # 에이전트별 그룹화 (Chart.js datasets용)
+    by_agent: dict[str, list] = {}
+    for row in timeline:
+        aid = row["target_id"]
+        if aid not in by_agent:
+            by_agent[aid] = []
+        by_agent[aid].append({
+            "score": row["weighted_score"],
+            "passed": row["passed"],
+            "date": row["created_at"],
+        })
+
+    return {
+        "timeline": timeline,
+        "by_agent": by_agent,
+        "agent_ids": list(by_agent.keys()),
+        "total_reviews": len(timeline),
+    }
+
+
+@router.get("/api/quality/top-rejections")
+async def get_top_rejections():
+    """가장 많이 반려된 항목 Top 5 조회."""
+    return {"rejections": get_top_rejection_reasons(limit=5)}
