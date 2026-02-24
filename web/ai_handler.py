@@ -17,6 +17,7 @@ import os
 import time
 import logging
 import asyncio
+import random
 from pathlib import Path
 
 logger = logging.getLogger("corthex.ai")
@@ -88,6 +89,52 @@ _PRICING_FALLBACK = {
     "gpt-5-mini": {"input": 0.25, "output": 2.00},
 }
 _PRICING = _load_pricing_from_yaml() or _PRICING_FALLBACK
+
+
+# ── Google API 전역 속도 제한기 ──
+# Google Gemini는 분당 요청 제한(RPM)이 엄격함.
+# 모든 에이전트가 같은 API 키 공유 → 전역적으로 호출 간격 제어 필요.
+# 비유: 식당 앞 번호표 기계 — 동시 입장 2명, 입장 간격 최소 4초.
+class _GoogleRateLimiter:
+    """Google API 전역 속도 제한기.
+
+    - 동시 호출 최대 max_concurrent개 (세마포어)
+    - 호출 시작 간 최소 min_interval초 (쓰로틀)
+    """
+
+    def __init__(self, max_concurrent: int = 2, min_interval: float = 4.0):
+        self._max_concurrent = max_concurrent
+        self._min_interval = min_interval
+        self._last_call_time = 0.0
+        # asyncio 객체는 이벤트 루프 안에서 생성해야 안전 → lazy init
+        self._semaphore: asyncio.Semaphore | None = None
+        self._lock: asyncio.Lock | None = None
+
+    def _ensure_init(self):
+        if self._semaphore is None:
+            self._semaphore = asyncio.Semaphore(self._max_concurrent)
+            self._lock = asyncio.Lock()
+
+    async def acquire(self):
+        """호출 전 대기. 동시성 제한 + 최소 간격 모두 적용."""
+        self._ensure_init()
+        await self._semaphore.acquire()
+        async with self._lock:
+            now = time.time()
+            wait = self._min_interval - (now - self._last_call_time)
+            if wait > 0:
+                logger.debug("Google 속도 제한: %.1f초 대기 (간격 유지)", wait)
+                await asyncio.sleep(wait)
+            self._last_call_time = time.time()
+
+    def release(self):
+        """호출 완료 후 슬롯 반납."""
+        if self._semaphore:
+            self._semaphore.release()
+
+
+_google_rate_limiter = _GoogleRateLimiter(max_concurrent=2, min_interval=4.0)
+
 
 # ── reasoning_effort 관련 상수 ──
 
@@ -665,7 +712,12 @@ async def _call_google(
     else:
         contents = user_message
 
-    resp = await asyncio.wait_for(asyncio.to_thread(_sync_call, contents, config.copy(), gemini_tools), timeout=ai_call_timeout)
+    # 전역 속도 제한기: Google API 호출 전 대기 (429 방지)
+    await _google_rate_limiter.acquire()
+    try:
+        resp = await asyncio.wait_for(asyncio.to_thread(_sync_call, contents, config.copy(), gemini_tools), timeout=ai_call_timeout)
+    finally:
+        _google_rate_limiter.release()
 
     usage = getattr(resp, "usage_metadata", None)
     total_input_tokens += getattr(usage, "prompt_token_count", 0) if usage else 0
@@ -722,7 +774,12 @@ async def _call_google(
                     call_kwargs["config"]["tools"] = g_tools
                 return _google_client.models.generate_content(**call_kwargs)
 
-            resp = await asyncio.wait_for(asyncio.to_thread(_sync_followup, contents, config.copy(), gemini_tools), timeout=ai_call_timeout)
+            # 도구 루프 재호출에도 전역 속도 제한 적용
+            await _google_rate_limiter.acquire()
+            try:
+                resp = await asyncio.wait_for(asyncio.to_thread(_sync_followup, contents, config.copy(), gemini_tools), timeout=ai_call_timeout)
+            finally:
+                _google_rate_limiter.release()
             usage = getattr(resp, "usage_metadata", None)
             total_input_tokens += getattr(usage, "prompt_token_count", 0) if usage else 0
             total_output_tokens += getattr(usage, "candidates_token_count", 0) if usage else 0
@@ -1145,11 +1202,12 @@ async def ask_ai(
         err_type = type(e).__name__
         logger.error("AI 호출 실패 (%s/%s): %s", provider, model, err_str[:500])
 
-        # 429 에러 (요율 제한): 지수 백오프로 최대 5회 재시도
+        # 429 에러 (요율 제한): 충분한 대기 후 재시도 (Google 쿨타임 ≥ 60초)
         if "429" in err_str or "RESOURCE_EXHAUSTED" in err_str or "ResourceExhausted" in err_type:
+            _RETRY_DELAYS = [15, 30, 60, 60, 120]  # 이전: 2,4,8,16,32 → 쿨타임 부족
             for retry_i in range(1, 6):
-                delay = 2 ** retry_i  # 2, 4, 8, 16, 32초
-                logger.warning("429 요율 제한 (%s) → %d초 후 재시도 (%d/5)", model, delay, retry_i)
+                delay = _RETRY_DELAYS[retry_i - 1] + random.uniform(1, 5)  # 지터 추가 (동시 재시도 방지)
+                logger.warning("429 요율 제한 (%s) → %.0f초 후 재시도 (%d/5)", model, delay, retry_i)
                 await asyncio.sleep(delay)
                 try:
                     if provider == "anthropic":
