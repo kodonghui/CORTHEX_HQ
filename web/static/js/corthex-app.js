@@ -4884,8 +4884,13 @@ function corthexApp() {
     // ── NEXUS 캔버스: 저장 ──
     async saveNexusCanvas() {
       if (!this.flowchart.canvasEditor) return;
-      const name = (this.flowchart.canvasName || '').trim();
-      if (!name) { this.flowchart.showCanvasNameModal = true; return; }
+      let name = (this.flowchart.canvasName || '').trim();
+      if (!name) {
+        const input = prompt('캔버스 이름을 입력하세요:');
+        if (!input || !input.trim()) return;
+        name = input.trim();
+        this.flowchart.canvasName = name;
+      }
       const filename = name.endsWith('.json') ? name : name + '.json';
       try {
         const data = this.flowchart.canvasEditor.export();
