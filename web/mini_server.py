@@ -6764,6 +6764,26 @@ async def _quality_review_specialists(chain: dict) -> list[dict]:
             app_state.quality_gate.record_review(review, target_id, agent_id, task_desc)
             chain["total_cost_usd"] += getattr(review, "_cost", 0)
 
+            # ★ 품질검수 항목별 상세 로그 (CEO 요청: 각 항목 모두 로그에 남기기)
+            _spec_name = _SPECIALIST_NAMES.get(agent_id, agent_id)
+            for ci in review.checklist_results:
+                _ci_status = "✅ 통과" if ci.passed else "❌ 불통과"
+                _ci_req = " [필수]" if ci.required else ""
+                _ci_log = save_activity_log(
+                    agent_id,
+                    f"📋 [{_spec_name}] {ci.id} {ci.label}: {_ci_status}{_ci_req}",
+                    level="qa_detail"
+                )
+                await wm.send_activity_log(_ci_log)
+            for si in review.score_results:
+                _si_crit = " ⚠️치명적" if si.critical and si.score == 1 else ""
+                _si_log = save_activity_log(
+                    agent_id,
+                    f"📊 [{_spec_name}] {si.id} {si.label}: {si.score}점/5 (가중 {si.weight}%){_si_crit}",
+                    level="qa_detail"
+                )
+                await wm.send_activity_log(_si_log)
+
             # DB에 검수 결과 저장
             import json as _json
             try:
@@ -7366,6 +7386,7 @@ async def _manager_with_delegation(manager_id: str, text: str) -> dict:
                     "content": r.get("content", ""),
                     "model": r.get("model", ""),
                     "cost_usd": r.get("cost_usd", 0),
+                    "tools_used": r.get("tools_used", []),
                 }
 
         # ★ 버그#2 수정: 검수 대상 0명(전문가 전원 에러) → "합격"이 아니라 에러 경고!

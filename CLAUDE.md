@@ -216,7 +216,8 @@ GET https://corthex-hq.com/api/debug/server-logs?lines=50&service=nginx-access �
 ## AI 도구 자동호출 (Function Calling)
 - `ai_handler.py`의 `ask_ai()`가 3개 프로바이더 도구 자동호출 지원
 - 도구 스키마: `config/tools.yaml` | 에이전트별 제한: `config/agents.yaml`의 `allowed_tools`
-- 도구 호출 루프 최대 5회 (무한 루프 방지)
+- 🔴 **도구 호출 루프 횟수 제한 없음!** 라운드당 최대 호출 수만 있음 (기본 5, agents.yaml에서 에이전트별 설정)
+- 로그의 `(23/5)` = "총 23회 호출 / 라운드당 최대 5회" — 라운드 자체는 무제한 반복
 
 ## ⚠️ 업데이트 기록 + 버그리포트 (절대 빠뜨리지 말 것!)
 
