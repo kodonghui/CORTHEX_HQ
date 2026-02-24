@@ -17,7 +17,6 @@ const _CDN = {
   chartjs:      'https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js',
   mermaid:      'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js',
   forcegraph3d: 'https://unpkg.com/3d-force-graph@1/dist/3d-force-graph.min.js',
-  spritetext:   'https://unpkg.com/three-spritetext',
   drawflow:     'https://cdn.jsdelivr.net/npm/drawflow/dist/drawflow.min.js',
   drawflowcss:  'https://cdn.jsdelivr.net/npm/drawflow/dist/drawflow.min.css',
 };
@@ -4576,10 +4575,11 @@ function corthexApp() {
     // ── NEXUS: 풀스크린 오버레이 열기 ──
     openNexus() {
       this.nexusOpen = true;
-      this.$nextTick(() => {
+      // template x-if DOM 렌더링 대기 (nextTick 1회로 부족할 수 있음)
+      setTimeout(() => {
         if (this.flowchart.mode === '3d' && !this.flowchart.graph3dLoaded) this.initNexus3D();
         if (this.flowchart.mode === 'canvas' && !this.flowchart.canvasLoaded) this.initNexusCanvas();
-      });
+      }, 200);
     },
 
     // ── NEXUS: 모드 전환 ──
@@ -4684,44 +4684,41 @@ function corthexApp() {
       return { nodes, links, CAT };
     },
 
-    // ── NEXUS 3D: 초기화 (SpriteText 라벨 노드) ──
+    // ── NEXUS 3D: 초기화 (컬러 구체 + 라벨) ──
     async initNexus3D() {
       try {
-        await Promise.all([_loadScript(_CDN.forcegraph3d), _loadScript(_CDN.spritetext)]);
+        await _loadScript(_CDN.forcegraph3d);
         const r = await fetch('/api/architecture/hierarchy');
         if (!r.ok) throw new Error('시스템 데이터 로드 실패');
         const { nodes: agentNodes = [], edges: agentEdges = [] } = await r.json();
 
         const { nodes, links, CAT } = this._buildSystemGraphData(agentNodes, agentEdges);
+        const SIZES = { core: 25, division: 12, tab: 6, agent: 5, store: 8, service: 7, process: 8 };
         const graphNodes = nodes.map(n => ({
           id: n.id, name: n.name, category: n.category,
           color: CAT[n.category]?.color || '#6b7280',
+          val: SIZES[n.category] || 5,
         }));
         const graphLinks = links.map(l => ({ source: l.source, target: l.target }));
 
-        await this.$nextTick();
-        const el = document.getElementById('nexus-3d');
+        // DOM 준비 확인 (template x-if 렌더링 대기)
+        let el = document.getElementById('nexus-3d');
+        if (!el) {
+          await new Promise(resolve => setTimeout(resolve, 300));
+          el = document.getElementById('nexus-3d');
+        }
         if (!el || typeof ForceGraph3D === 'undefined') throw new Error('3D 렌더러 초기화 실패');
 
         const Graph = ForceGraph3D()(el)
           .graphData({ nodes: graphNodes, links: graphLinks })
           .backgroundColor('#060a14')
-          .nodeThreeObject(node => {
-            const sprite = new SpriteText(node.name);
-            sprite.color = '#ffffff';
-            sprite.backgroundColor = node.color;
-            sprite.borderColor = node.color;
-            sprite.borderWidth = 0.5;
-            sprite.borderRadius = 4;
-            sprite.padding = [3, 6];
-            sprite.textHeight = node.category === 'core' ? 6 : (node.category === 'division' ? 4 : 3);
-            sprite.fontFace = 'Pretendard, sans-serif';
-            return sprite;
-          })
-          .nodeLabel(n => `${n.name} (${CAT[n.category]?.label || n.category})`)
-          .linkColor(() => 'rgba(255,255,255,0.15)')
-          .linkWidth(0.3)
-          .linkOpacity(0.4)
+          .nodeColor(n => n.color)
+          .nodeVal(n => n.val)
+          .nodeOpacity(0.9)
+          .nodeLabel(n => `${n.name}\n(${CAT[n.category]?.label || n.category})`)
+          .linkColor(() => 'rgba(255,255,255,0.12)')
+          .linkWidth(0.4)
+          .linkOpacity(0.3)
           .onNodeClick(n => {
             if (n.category === 'agent') {
               this.nexusOpen = false;
@@ -4733,6 +4730,9 @@ function corthexApp() {
           .d3VelocityDecay(0.3)
           .warmupTicks(80)
           .cooldownTicks(200);
+
+        // 카메라 줌아웃 (전체 조감도)
+        setTimeout(() => Graph.cameraPosition({ z: 400 }), 500);
 
         this.flowchart.graph3dInstance = Graph;
         this.flowchart.graph3dLoaded = true;
