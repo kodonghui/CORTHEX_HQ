@@ -1145,6 +1145,73 @@ async def ask_ai(
         err_type = type(e).__name__
         logger.error("AI 호출 실패 (%s/%s): %s", provider, model, err_str[:500])
 
+        # 429 에러 (요율 제한): 지수 백오프로 최대 5회 재시도
+        if "429" in err_str or "RESOURCE_EXHAUSTED" in err_str or "ResourceExhausted" in err_type:
+            for retry_i in range(1, 6):
+                delay = 2 ** retry_i  # 2, 4, 8, 16, 32초
+                logger.warning("429 요율 제한 (%s) → %d초 후 재시도 (%d/5)", model, delay, retry_i)
+                await asyncio.sleep(delay)
+                try:
+                    if provider == "anthropic":
+                        retry_coro = _call_anthropic(
+                            user_message, system_prompt, model,
+                            tools=provider_tools, tool_executor=tool_executor,
+                            reasoning_effort=reasoning_effort,
+                            conversation_history=conversation_history,
+                            ai_call_timeout=AI_CALL_TIMEOUT,
+                        )
+                    elif provider == "google":
+                        retry_coro = _call_google(
+                            user_message, system_prompt, model,
+                            tools=provider_tools, tool_executor=tool_executor,
+                            reasoning_effort=reasoning_effort,
+                            conversation_history=conversation_history,
+                            ai_call_timeout=AI_CALL_TIMEOUT,
+                        )
+                    elif provider == "openai":
+                        if model in OPENAI_RESPONSES_ONLY_MODELS:
+                            retry_coro = _call_openai_responses(
+                                user_message, system_prompt, model,
+                                tools=provider_tools, tool_executor=tool_executor,
+                                reasoning_effort=reasoning_effort,
+                                conversation_history=conversation_history,
+                                ai_call_timeout=AI_CALL_TIMEOUT,
+                            )
+                        else:
+                            retry_coro = _call_openai(
+                                user_message, system_prompt, model,
+                                tools=provider_tools, tool_executor=tool_executor,
+                                reasoning_effort=reasoning_effort,
+                                conversation_history=conversation_history,
+                                ai_call_timeout=AI_CALL_TIMEOUT,
+                            )
+                    else:
+                        break
+                    result = await retry_coro
+                    elapsed = time.time() - start
+                    input_tokens = result.get("input_tokens", 0)
+                    output_tokens = result.get("output_tokens", 0)
+                    cost = _calc_cost(model, input_tokens, output_tokens)
+                    logger.info("429 재시도 %d/5 성공 (%s): %.1f초", retry_i, model, elapsed)
+                    return {
+                        "content": result["content"],
+                        "model": model,
+                        "provider": provider,
+                        "input_tokens": input_tokens,
+                        "output_tokens": output_tokens,
+                        "cost_usd": round(cost, 6),
+                        "time_seconds": round(elapsed, 2),
+                        "retry_count": retry_i,
+                    }
+                except Exception as retry_e:
+                    retry_err = str(retry_e)
+                    if "429" not in retry_err and "RESOURCE_EXHAUSTED" not in retry_err:
+                        logger.error("429 재시도 %d/5 중 다른 에러: %s", retry_i, retry_err[:200])
+                        break
+                    logger.warning("429 재시도 %d/5 실패 (%s)", retry_i, model)
+            logger.error("429 재시도 5회 모두 실패 (%s/%s)", provider, model)
+            return {"error": f"AI 호출 실패 ({provider}): 요율 제한 5회 재시도 모두 실패 — {err_str[:300]}"}
+
         # 404 에러 (모델 미지원): 동일 프로바이더 내 폴백 모델로 재시도
         if "404" in err_str or "NotFoundError" in err_type:
             _FALLBACK_MODELS = {"gpt-5.2-pro": "gpt-5.2", "gpt-5.2": "gpt-5", "gpt-5": "gpt-5-mini"}
