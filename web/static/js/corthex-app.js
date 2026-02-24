@@ -4352,7 +4352,12 @@ function corthexApp() {
         }
         // Esc → 모달 닫기
         if (e.key === 'Escape') {
-          if (this.nexusOpen) { this.nexusOpen = false; return; }
+          if (this.nexusOpen) {
+            this.nexusOpen = false;
+            // 라벨 애니메이션 정리
+            if (this.flowchart.graph3dLabelsAnimId) { cancelAnimationFrame(this.flowchart.graph3dLabelsAnimId); this.flowchart.graph3dLabelsAnimId = 0; }
+            return;
+          }
           if (this.showAgentConfig) { this.showAgentConfig = false; return; }
           if (this.showQualitySettings) { this.showQualitySettings = false; return; }
           if (this.showTaskDetail) { this.showTaskDetail = false; return; }
@@ -4684,7 +4689,7 @@ function corthexApp() {
       return { nodes, links, CAT };
     },
 
-    // ── NEXUS 3D: 초기화 (컬러 구체 + 라벨) ──
+    // ── NEXUS 3D: 초기화 (방사형 계층 + 라벨 오버레이 + 화살표) ──
     async initNexus3D() {
       try {
         await _loadScript(_CDN.forcegraph3d);
@@ -4693,7 +4698,7 @@ function corthexApp() {
         const { nodes: agentNodes = [], edges: agentEdges = [] } = await r.json();
 
         const { nodes, links, CAT } = this._buildSystemGraphData(agentNodes, agentEdges);
-        const SIZES = { core: 25, division: 12, tab: 6, agent: 5, store: 8, service: 7, process: 8 };
+        const SIZES = { core: 30, division: 15, tab: 8, agent: 6, store: 10, service: 9, process: 10 };
         const graphNodes = nodes.map(n => ({
           id: n.id, name: n.name, category: n.category,
           color: CAT[n.category]?.color || '#6b7280',
@@ -4701,7 +4706,7 @@ function corthexApp() {
         }));
         const graphLinks = links.map(l => ({ source: l.source, target: l.target }));
 
-        // DOM 준비 + 컨테이너 크기 확인 (template x-if 렌더링 대기)
+        // DOM 준비 + 컨테이너 크기 확인
         let el = document.getElementById('nexus-3d');
         let retries = 0;
         while ((!el || el.clientWidth === 0) && retries < 10) {
@@ -4709,18 +4714,43 @@ function corthexApp() {
           el = document.getElementById('nexus-3d');
           retries++;
         }
-        if (!el || el.clientWidth === 0 || typeof ForceGraph3D === 'undefined') throw new Error('3D 렌더러 초기화 실패 (컨테이너 크기: ' + (el?.clientWidth||0) + 'x' + (el?.clientHeight||0) + ')');
+        if (!el || el.clientWidth === 0 || typeof ForceGraph3D === 'undefined') throw new Error('3D 렌더러 초기화 실패');
 
         const Graph = ForceGraph3D()(el)
           .graphData({ nodes: graphNodes, links: graphLinks })
           .backgroundColor('#060a14')
+          // ★ 방사형 계층 구조 (허브 중심 → 바깥 확산)
+          .dagMode('radialout')
+          .dagLevelDistance(50)
+          // 노드
           .nodeColor(n => n.color)
           .nodeVal(n => n.val)
-          .nodeOpacity(0.9)
+          .nodeOpacity(0.85)
           .nodeLabel(n => `${n.name}\n(${CAT[n.category]?.label || n.category})`)
-          .linkColor(() => 'rgba(255,255,255,0.12)')
-          .linkWidth(0.4)
-          .linkOpacity(0.3)
+          // ★ 연결선: 두껍고 + 색깔 + 화살표 + 흐르는 입자
+          .linkColor(link => {
+            const srcId = typeof link.source === 'object' ? link.source.id : link.source;
+            const src = graphNodes.find(n => n.id === srcId);
+            return (src?.color || '#ffffff') + '50';
+          })
+          .linkWidth(1.5)
+          .linkOpacity(0.5)
+          .linkDirectionalArrowLength(5)
+          .linkDirectionalArrowRelPos(0.85)
+          .linkDirectionalArrowColor(link => {
+            const tgtId = typeof link.target === 'object' ? link.target.id : link.target;
+            const tgt = graphNodes.find(n => n.id === tgtId);
+            return (tgt?.color || '#ffffff') + '90';
+          })
+          .linkDirectionalParticles(2)
+          .linkDirectionalParticleWidth(1.5)
+          .linkDirectionalParticleSpeed(0.005)
+          .linkDirectionalParticleColor(link => {
+            const srcId = typeof link.source === 'object' ? link.source.id : link.source;
+            const src = graphNodes.find(n => n.id === srcId);
+            return src?.color || '#ffffff';
+          })
+          // 클릭
           .onNodeClick(n => {
             if (n.category === 'agent') {
               this.nexusOpen = false;
@@ -4728,15 +4758,55 @@ function corthexApp() {
               this.$nextTick(() => { this.inputText = `@${n.id} `; });
             }
           })
-          .d3AlphaDecay(0.02)
-          .d3VelocityDecay(0.3)
-          .warmupTicks(80)
-          .cooldownTicks(200);
+          .d3AlphaDecay(0.03)
+          .d3VelocityDecay(0.4)
+          .warmupTicks(120)
+          .cooldownTicks(300);
 
-        // 카메라 줌아웃 (전체 조감도)
-        setTimeout(() => Graph.cameraPosition({ z: 400 }), 500);
+        // ★ HTML 오버레이 라벨 (3D 위에 텍스트 표시)
+        const labelBox = document.createElement('div');
+        labelBox.id = 'nexus-3d-labels';
+        labelBox.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;overflow:hidden;z-index:10;';
+        el.style.position = 'relative';
+        el.appendChild(labelBox);
+
+        const labelEls = {};
+        const fontSizes = { core: '15px', division: '12px', store: '11px', service: '11px', process: '11px', tab: '10px', agent: '9px' };
+        graphNodes.forEach(n => {
+          const lbl = document.createElement('div');
+          lbl.textContent = n.name;
+          lbl.style.cssText = `position:absolute;left:0;top:0;color:${n.color};font-size:${fontSizes[n.category] || '9px'};font-weight:${n.category === 'core' ? '800' : '600'};font-family:Pretendard,system-ui,sans-serif;white-space:nowrap;pointer-events:none;text-shadow:0 0 6px #060a14,0 0 12px #060a14,0 1px 3px rgba(0,0,0,0.9);opacity:0;will-change:transform;`;
+          labelBox.appendChild(lbl);
+          labelEls[n.id] = lbl;
+        });
+
+        // 프레임마다 라벨 위치 갱신
+        let animId;
+        const updateLabels = () => {
+          if (!this.nexusOpen || !this.flowchart.graph3dLoaded) { animId = 0; return; }
+          const w = el.clientWidth, h = el.clientHeight;
+          graphNodes.forEach(n => {
+            const le = labelEls[n.id];
+            if (!le || n.x === undefined) return;
+            const sc = Graph.graph2ScreenCoords(n.x, n.y, n.z);
+            if (sc.x > -50 && sc.x < w + 50 && sc.y > -50 && sc.y < h + 50) {
+              le.style.transform = `translate(${sc.x}px,${sc.y - (n.val || 5) * 1.1}px) translate(-50%,-100%)`;
+              le.style.opacity = '1';
+            } else {
+              le.style.opacity = '0';
+            }
+          });
+          animId = requestAnimationFrame(updateLabels);
+        };
+
+        // 카메라 줌아웃 + 라벨 시작
+        setTimeout(() => {
+          Graph.cameraPosition({ z: 500 });
+          updateLabels();
+        }, 800);
 
         this.flowchart.graph3dInstance = Graph;
+        this.flowchart.graph3dLabelsAnimId = animId;
         this.flowchart.graph3dLoaded = true;
       } catch (e) {
         this.showToast('3D 뷰 오류: ' + e.message, 'error');
