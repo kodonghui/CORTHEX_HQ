@@ -78,6 +78,7 @@ function corthexApp() {
       { id: 'archmap', label: '조직도', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>' },
       { id: 'trading', label: '전략실', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>' },
       { id: 'flowchart', label: 'NEXUS', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="6" r="2"/><circle cx="18" cy="6" r="2"/><circle cx="6" cy="18" r="2"/><circle cx="18" cy="18" r="2"/><circle cx="12" cy="12" r="2.5"/><path stroke-linecap="round" d="M8 6h8M6 8v8M18 8v8M8 18h8M9 10.5l2 1M15 10.5l-2 1M9 13.5l2-1M15 13.5l-2-1"/></svg>' },
+      { id: 'agora', label: 'AGORA', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3"/></svg>' },
     ],
 
     // ── Dashboard (홈) ──
@@ -341,6 +342,25 @@ function corthexApp() {
       canvasName: '',
       canvasItems: [],
       showCanvasNameModal: false,
+    },
+
+    // ── AGORA (토론/논쟁 엔진) ──
+    agoraOpen: false,
+    agora: {
+        sessionId: null,
+        status: '',           // active/paused/completed
+        totalRounds: 0,
+        totalCost: 0,
+        issues: [],           // [{id, title, status, parent_id, _depth}]
+        selectedIssueId: null,
+        rounds: [],           // 현재 선택된 쟁점의 라운드
+        rightTab: 'diff',     // 'diff' | 'book'
+        diffHtml: '',
+        bookChapters: [],
+        showPaperInput: false,
+        inputTitle: '',
+        inputPaper: '',
+        sseSource: null,
     },
 
     // Org tree expand state
@@ -1897,6 +1917,7 @@ function corthexApp() {
       if (tabId === 'archive') this.loadArchive();
       if (tabId === 'archmap' && !this.archMap.loaded) this.loadArchMap();
       if (tabId === 'sns') this.loadSNS();
+      if (tabId === 'agora') { this._connectAgoraSSE(); this._loadAgoraStatus(); }
       if (tabId === 'trading') {
         this.loadTradingSummary();
         this._connectCommsSSE(); // SSE 통합: CIO 로그도 여기서 처리
@@ -4354,10 +4375,10 @@ function corthexApp() {
         if (e.key === 'Escape') {
           if (this.nexusOpen) {
             this.nexusOpen = false;
-            // 라벨 애니메이션 정리
             if (this.flowchart.graph3dLabelsAnimId) { cancelAnimationFrame(this.flowchart.graph3dLabelsAnimId); this.flowchart.graph3dLabelsAnimId = 0; }
             return;
           }
+          if (this.agoraOpen) { this.agoraOpen = false; if (this.agora.sseSource) { this.agora.sseSource.close(); this.agora.sseSource = null; } return; }
           if (this.showAgentConfig) { this.showAgentConfig = false; return; }
           if (this.showQualitySettings) { this.showQualitySettings = false; return; }
           if (this.showTaskDetail) { this.showTaskDetail = false; return; }
@@ -4580,12 +4601,153 @@ function corthexApp() {
     // ── NEXUS: 풀스크린 오버레이 열기 ──
     openNexus() {
       this.nexusOpen = true;
-      // template x-if DOM 렌더링 대기 (nextTick 1회로 부족할 수 있음)
       setTimeout(() => {
         if (this.flowchart.mode === '3d' && !this.flowchart.graph3dLoaded) this.initNexus3D();
         if (this.flowchart.mode === 'canvas' && !this.flowchart.canvasLoaded) this.initNexusCanvas();
       }, 200);
     },
+
+    // ══════════════════════════════════════════════ AGORA ══
+    openAgora() {
+      this.agoraOpen = true;
+      this._connectAgoraSSE();
+      this._loadAgoraStatus();
+    },
+    async _loadAgoraStatus() {
+      try {
+        const r = await fetch('/api/agora/status');
+        if (!r.ok) return;
+        const d = await r.json();
+        if (d.session) {
+          this.agora.sessionId = d.session.id;
+          this.agora.status = d.session.status;
+          this.agora.totalRounds = d.session.total_rounds || 0;
+          this.agora.totalCost = d.session.total_cost_usd || 0;
+          await this._loadAgoraIssues();
+          await this._loadAgoraBook();
+        }
+      } catch(e) { console.warn('AGORA status:', e); }
+    },
+    async _loadAgoraIssues() {
+      if (!this.agora.sessionId) return;
+      try {
+        const r = await fetch(`/api/agora/issues?session_id=${this.agora.sessionId}`);
+        if (!r.ok) return;
+        const d = await r.json();
+        const issues = d.issues || [];
+        const depthMap = {};
+        issues.forEach(i => {
+          if (!i.parent_id) { i._depth = 0; depthMap[i.id] = 0; }
+          else { i._depth = (depthMap[i.parent_id] || 0) + 1; depthMap[i.id] = i._depth; }
+        });
+        this.agora.issues = issues;
+        const active = issues.find(i => i.status === 'active');
+        if (active) this.selectAgoraIssue(active.id);
+        else if (issues.length > 0 && !this.agora.selectedIssueId) this.selectAgoraIssue(issues[issues.length-1].id);
+      } catch(e) { console.warn('AGORA issues:', e); }
+    },
+    async selectAgoraIssue(issueId) {
+      this.agora.selectedIssueId = issueId;
+      try {
+        const r = await fetch(`/api/agora/rounds/${issueId}`);
+        if (!r.ok) return;
+        const d = await r.json();
+        this.agora.rounds = d.rounds || [];
+        this.$nextTick(() => { const el = this.$refs.agoraLive; if (el) el.scrollTop = el.scrollHeight; });
+      } catch(e) {}
+      await this._loadAgoraDiff();
+    },
+    async _loadAgoraDiff() {
+      if (!this.agora.sessionId) return;
+      try {
+        const r = await fetch(`/api/agora/paper/latest?session_id=${this.agora.sessionId}`);
+        if (!r.ok) return;
+        const d = await r.json();
+        this.agora.diffHtml = d.diff_html || '';
+      } catch(e) {}
+    },
+    async _loadAgoraBook() {
+      if (!this.agora.sessionId) return;
+      try {
+        const r = await fetch(`/api/agora/book?session_id=${this.agora.sessionId}`);
+        if (!r.ok) return;
+        const d = await r.json();
+        this.agora.bookChapters = d.chapters || [];
+      } catch(e) {}
+    },
+    startAgora() { this.agora.showPaperInput = true; },
+    async submitAgora() {
+      const title = this.agora.inputTitle.trim();
+      const paper = this.agora.inputPaper.trim();
+      if (!title || !paper) return;
+      this.agora.showPaperInput = false;
+      try {
+        const r = await fetch('/api/agora/start', {
+          method: 'POST', headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({title, paper_text: paper}),
+        });
+        const d = await r.json();
+        this.agora.sessionId = d.session_id;
+        this.agora.status = 'active';
+        this.agora.totalRounds = 0;
+        this.agora.totalCost = 0;
+        this.agora.issues = [];
+        this.agora.rounds = [];
+        this.agora.diffHtml = '';
+        this.agora.bookChapters = [];
+      } catch(e) { console.error('AGORA start:', e); }
+    },
+    async pauseAgora() {
+      if (!this.agora.sessionId) return;
+      await fetch('/api/agora/pause', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({session_id: this.agora.sessionId}) });
+      this.agora.status = 'paused';
+    },
+    async resumeAgora() {
+      if (!this.agora.sessionId) return;
+      await fetch('/api/agora/resume', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({session_id: this.agora.sessionId}) });
+      this.agora.status = 'active';
+    },
+    _connectAgoraSSE() {
+      if (this.agora.sseSource) return;
+      try {
+        const es = new EventSource('/api/agora/stream');
+        this.agora.sseSource = es;
+        es.addEventListener('agora', (e) => {
+          try { this._handleAgoraEvent(JSON.parse(e.data)); } catch(err) {}
+        });
+        es.onerror = () => {
+          es.close(); this.agora.sseSource = null;
+          setTimeout(() => { if (this.agoraOpen) this._connectAgoraSSE(); }, 3000);
+        };
+      } catch(e) {}
+    },
+    _handleAgoraEvent(msg) {
+      const t = msg.type, d = msg.data;
+      if (t === 'agora_issue_created' || t === 'agora_derived_issue') { this._loadAgoraIssues(); }
+      else if (t === 'agora_round_complete') {
+        if (d.issue_id === this.agora.selectedIssueId) {
+          this.agora.rounds.push(d);
+          this.$nextTick(() => { const el = this.$refs.agoraLive; if (el) el.scrollTop = el.scrollHeight; });
+        }
+        this.agora.totalRounds = (this.agora.totalRounds || 0) + 1;
+      }
+      else if (t === 'agora_round_start' && d.issue_id !== this.agora.selectedIssueId) { this.selectAgoraIssue(d.issue_id); }
+      else if (t === 'agora_consensus') { this._loadAgoraIssues(); }
+      else if (t === 'agora_paper_updated') { this._loadAgoraDiff(); }
+      else if (t === 'agora_chapter_written') { this._loadAgoraBook(); }
+      else if (t === 'agora_cost_update') { this.agora.totalCost = d.total_cost_usd || 0; }
+      else if (t === 'agora_debate_complete') { this.agora.status = 'completed'; this._loadAgoraIssues(); }
+    },
+    agoraIssueIcon(status) {
+      return {pending:'⬜',active:'🔴',resolved:'✅',shelved:'🟡'}[status] || '⬜';
+    },
+    agoraSpeakerColor(speaker) {
+      return {kodh:'text-blue-400',psb:'text-red-400',kdw:'text-purple-400'}[speaker] || 'text-gray-400';
+    },
+    agoraSpeakerName(speaker) {
+      return {kodh:'고동희',psb:'박성범',kdw:'권대옥'}[speaker] || speaker;
+    },
+    // ══════════════════════════════════════════════ AGORA 끝 ══
 
     // ── NEXUS: 모드 전환 ──
     async onNexusModeChange(mode) {

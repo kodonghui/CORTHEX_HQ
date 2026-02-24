@@ -6225,6 +6225,10 @@ app.include_router(telegram_router)
 from handlers.soul_evolution_handler import router as soul_evolution_router
 app.include_router(soul_evolution_router)
 
+# ── AGORA: AI 법학 토론 시스템 → handlers/agora_handler.py로 분리 ──
+from handlers.agora_handler import router as agora_router
+app.include_router(agora_router)
+
 
 # ── 텔레그램 봇 ──
 # 주의: python-telegram-bot 미설치 시에도 서버가 정상 작동해야 함

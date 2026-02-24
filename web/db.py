@@ -366,6 +366,79 @@ CREATE TABLE IF NOT EXISTS collaboration_logs (
 CREATE INDEX IF NOT EXISTS idx_collab_from ON collaboration_logs(from_division);
 CREATE INDEX IF NOT EXISTS idx_collab_to ON collaboration_logs(to_division);
 CREATE INDEX IF NOT EXISTS idx_collab_created ON collaboration_logs(created_at);
+
+-- ============================================================
+-- AGORA: AI 법학 토론 시스템
+-- ============================================================
+
+-- 토론 세션
+CREATE TABLE IF NOT EXISTS agora_sessions (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    title           TEXT NOT NULL,
+    paper_text      TEXT NOT NULL,
+    status          TEXT DEFAULT 'active',
+    total_cost_usd  REAL DEFAULT 0,
+    total_rounds    INTEGER DEFAULT 0,
+    created_at      TEXT NOT NULL,
+    updated_at      TEXT NOT NULL
+);
+
+-- 쟁점 (트리 구조 — parent_id로 파생 쟁점 무한 확장)
+CREATE TABLE IF NOT EXISTS agora_issues (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id      INTEGER NOT NULL,
+    parent_id       INTEGER,
+    title           TEXT NOT NULL,
+    description     TEXT DEFAULT '',
+    status          TEXT DEFAULT 'pending',
+    resolution      TEXT DEFAULT '',
+    created_at      TEXT NOT NULL,
+    FOREIGN KEY (session_id) REFERENCES agora_sessions(id)
+);
+CREATE INDEX IF NOT EXISTS idx_agora_issues_session ON agora_issues(session_id);
+CREATE INDEX IF NOT EXISTS idx_agora_issues_parent ON agora_issues(parent_id);
+
+-- 토론 라운드 (각 발언)
+CREATE TABLE IF NOT EXISTS agora_rounds (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    issue_id        INTEGER NOT NULL,
+    round_num       INTEGER NOT NULL,
+    speaker         TEXT NOT NULL,
+    speaker_model   TEXT NOT NULL,
+    content         TEXT NOT NULL,
+    citations       TEXT DEFAULT '[]',
+    cost_usd        REAL DEFAULT 0,
+    created_at      TEXT NOT NULL,
+    FOREIGN KEY (issue_id) REFERENCES agora_issues(id)
+);
+CREATE INDEX IF NOT EXISTS idx_agora_rounds_issue ON agora_rounds(issue_id);
+
+-- 논문 버전 (diff 추적)
+CREATE TABLE IF NOT EXISTS agora_paper_versions (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id      INTEGER NOT NULL,
+    issue_id        INTEGER,
+    version_num     INTEGER NOT NULL,
+    full_text       TEXT NOT NULL,
+    diff_html       TEXT DEFAULT '',
+    change_summary  TEXT DEFAULT '',
+    created_at      TEXT NOT NULL,
+    FOREIGN KEY (session_id) REFERENCES agora_sessions(id)
+);
+CREATE INDEX IF NOT EXISTS idx_agora_paper_session ON agora_paper_versions(session_id);
+
+-- 플라톤 대화록 (챕터별)
+CREATE TABLE IF NOT EXISTS agora_book_chapters (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id      INTEGER NOT NULL,
+    issue_id        INTEGER NOT NULL,
+    chapter_num     INTEGER NOT NULL,
+    title           TEXT NOT NULL,
+    content         TEXT NOT NULL,
+    created_at      TEXT NOT NULL,
+    FOREIGN KEY (session_id) REFERENCES agora_sessions(id)
+);
+CREATE INDEX IF NOT EXISTS idx_agora_book_session ON agora_book_chapters(session_id);
 """
 
 
@@ -2286,5 +2359,182 @@ def get_collaboration_summary(days: int = 30) -> list[dict]:
         return [{"from": r[0], "to": r[1], "count": r[2]} for r in rows]
     except Exception:
         return []
+    finally:
+        conn.close()
+
+
+# ============================================================
+# AGORA: AI 법학 토론 시스템
+# ============================================================
+
+def agora_create_session(title: str, paper_text: str) -> int:
+    conn = get_connection()
+    try:
+        now = _now_iso()
+        cur = conn.execute(
+            "INSERT INTO agora_sessions (title, paper_text, status, created_at, updated_at) VALUES (?,?,?,?,?)",
+            (title, paper_text, "active", now, now),
+        )
+        conn.commit()
+        return cur.lastrowid
+    finally:
+        conn.close()
+
+
+def agora_get_session(session_id: int) -> dict | None:
+    conn = get_connection()
+    try:
+        row = conn.execute("SELECT * FROM agora_sessions WHERE id=?", (session_id,)).fetchone()
+        if not row:
+            return None
+        return dict(row)
+    finally:
+        conn.close()
+
+
+def agora_update_session(session_id: int, **kwargs) -> None:
+    conn = get_connection()
+    try:
+        kwargs["updated_at"] = _now_iso()
+        sets = ", ".join(f"{k}=?" for k in kwargs)
+        conn.execute(f"UPDATE agora_sessions SET {sets} WHERE id=?", (*kwargs.values(), session_id))
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def agora_create_issue(session_id: int, title: str, description: str = "", parent_id: int | None = None) -> int:
+    conn = get_connection()
+    try:
+        cur = conn.execute(
+            "INSERT INTO agora_issues (session_id, parent_id, title, description, status, created_at) VALUES (?,?,?,?,?,?)",
+            (session_id, parent_id, title, description, "pending", _now_iso()),
+        )
+        conn.commit()
+        return cur.lastrowid
+    finally:
+        conn.close()
+
+
+def agora_get_issues(session_id: int) -> list[dict]:
+    conn = get_connection()
+    try:
+        rows = conn.execute(
+            "SELECT * FROM agora_issues WHERE session_id=? ORDER BY id", (session_id,)
+        ).fetchall()
+        return [dict(r) for r in rows]
+    finally:
+        conn.close()
+
+
+def agora_update_issue(issue_id: int, **kwargs) -> None:
+    conn = get_connection()
+    try:
+        sets = ", ".join(f"{k}=?" for k in kwargs)
+        conn.execute(f"UPDATE agora_issues SET {sets} WHERE id=?", (*kwargs.values(), issue_id))
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def agora_save_round(issue_id: int, round_num: int, speaker: str,
+                     speaker_model: str, content: str,
+                     citations: str = "[]", cost_usd: float = 0) -> int:
+    conn = get_connection()
+    try:
+        cur = conn.execute(
+            "INSERT INTO agora_rounds (issue_id, round_num, speaker, speaker_model, content, citations, cost_usd, created_at)"
+            " VALUES (?,?,?,?,?,?,?,?)",
+            (issue_id, round_num, speaker, speaker_model, content, citations, cost_usd, _now_iso()),
+        )
+        conn.commit()
+        return cur.lastrowid
+    finally:
+        conn.close()
+
+
+def agora_get_rounds(issue_id: int) -> list[dict]:
+    conn = get_connection()
+    try:
+        rows = conn.execute(
+            "SELECT * FROM agora_rounds WHERE issue_id=? ORDER BY round_num, id", (issue_id,)
+        ).fetchall()
+        return [dict(r) for r in rows]
+    finally:
+        conn.close()
+
+
+def agora_save_paper_version(session_id: int, version_num: int, full_text: str,
+                             diff_html: str = "", change_summary: str = "",
+                             issue_id: int | None = None) -> int:
+    conn = get_connection()
+    try:
+        cur = conn.execute(
+            "INSERT INTO agora_paper_versions (session_id, issue_id, version_num, full_text, diff_html, change_summary, created_at)"
+            " VALUES (?,?,?,?,?,?,?)",
+            (session_id, issue_id, version_num, full_text, diff_html, change_summary, _now_iso()),
+        )
+        conn.commit()
+        return cur.lastrowid
+    finally:
+        conn.close()
+
+
+def agora_get_paper_latest(session_id: int) -> dict | None:
+    conn = get_connection()
+    try:
+        row = conn.execute(
+            "SELECT * FROM agora_paper_versions WHERE session_id=? ORDER BY version_num DESC LIMIT 1",
+            (session_id,),
+        ).fetchone()
+        return dict(row) if row else None
+    finally:
+        conn.close()
+
+
+def agora_get_paper_versions(session_id: int) -> list[dict]:
+    conn = get_connection()
+    try:
+        rows = conn.execute(
+            "SELECT id, session_id, issue_id, version_num, change_summary, created_at FROM agora_paper_versions WHERE session_id=? ORDER BY version_num",
+            (session_id,),
+        ).fetchall()
+        return [dict(r) for r in rows]
+    finally:
+        conn.close()
+
+
+def agora_get_paper_diff(version_id: int) -> dict | None:
+    conn = get_connection()
+    try:
+        row = conn.execute("SELECT * FROM agora_paper_versions WHERE id=?", (version_id,)).fetchone()
+        return dict(row) if row else None
+    finally:
+        conn.close()
+
+
+def agora_save_chapter(session_id: int, issue_id: int, chapter_num: int,
+                       title: str, content: str) -> int:
+    conn = get_connection()
+    try:
+        cur = conn.execute(
+            "INSERT INTO agora_book_chapters (session_id, issue_id, chapter_num, title, content, created_at)"
+            " VALUES (?,?,?,?,?,?)",
+            (session_id, issue_id, chapter_num, title, content, _now_iso()),
+        )
+        conn.commit()
+        return cur.lastrowid
+    finally:
+        conn.close()
+
+
+def agora_get_book(session_id: int) -> list[dict]:
+    conn = get_connection()
+    try:
+        rows = conn.execute(
+            "SELECT * FROM agora_book_chapters WHERE session_id=? ORDER BY chapter_num",
+            (session_id,),
+        ).fetchall()
+        return [dict(r) for r in rows]
     finally:
         conn.close()
