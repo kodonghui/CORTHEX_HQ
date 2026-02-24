@@ -6877,13 +6877,30 @@ async def _handle_specialist_rework(chain: dict, failed_specs: list[dict], attem
         agent_name = _AGENT_NAMES.get(agent_id, agent_id)
         await _broadcast_status(agent_id, "working", 0.5, f"{agent_name} 재작업 중...")
 
+        # ★ QA 항목별 구체적 문제점 생성 (재작업 시 뭘 고쳐야 하는지 명확히)
+        _review = spec.get("review")
+        _detail_lines = []
+        if _review:
+            for ci in _review.checklist_results:
+                _st = "✅ 통과" if ci.passed else "❌ 불통과"
+                _rq = " [필수]" if ci.required else ""
+                _fb = f" — {ci.feedback}" if ci.feedback and not ci.passed else ""
+                _detail_lines.append(f"- {ci.id} {ci.label}: {_st}{_rq}{_fb}")
+            for si in _review.score_results:
+                _crit = " ⚠️치명적" if si.critical and si.score == 1 else ""
+                _fb = f" — {si.feedback}" if si.feedback and si.score <= 3 else ""
+                _detail_lines.append(f"- {si.id} {si.label}: {si.score}점/5 (가중 {si.weight}%){_crit}{_fb}")
+        _detail_block = "\n".join(_detail_lines) if _detail_lines else "(상세 항목 없음)"
+
         rework_prompt = (
             f"[재작업 요청 #{attempt}] 당신의 보고서가 품질검수에서 불합격되었습니다.\n\n"
             f"## 원래 업무 지시\n{task_desc}\n\n"
             f"## 불합격 사유\n{reason}\n\n"
+            f"## 항목별 검수 결과\n{_detail_block}\n\n"
             f"## 당신의 원본 보고서 (앞부분)\n{original_content}...\n\n"
             f"## 지시사항\n"
             f"위 불합격 사유를 반영하여 보고서를 전면 수정하세요. "
+            f"특히 지적된 문제점을 확실히 보완하고, "
             f"반드시 도구(API)를 사용하여 실시간 데이터를 직접 조회하고, "
             f"구체적인 근거와 데이터를 추가하세요."
         )
