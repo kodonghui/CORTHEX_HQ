@@ -6809,6 +6809,14 @@ async def _quality_review_specialists(chain: dict) -> list[dict]:
             except Exception as e:
                 logger.debug("검수 결과 DB 저장 실패: %s", e)
 
+            # ★ 기밀문서용: 모든 리뷰 결과 수집 (합격/불합격 무관)
+            chain.setdefault("qa_reviews", []).append({
+                "agent_id": agent_id,
+                "passed": review.passed,
+                "weighted_average": review.weighted_average,
+                "review_dict": review.to_dict(),
+            })
+
             if not review.passed:
                 reason = " / ".join(review.rejection_reasons) if review.rejection_reasons else "품질 기준 미달"
                 failed.append({
@@ -7489,6 +7497,48 @@ async def _manager_with_delegation(manager_id: str, text: str) -> dict:
             log_pass = save_activity_log(manager_id,
                 f"[{mgr_name}] ✅ 전문가 {_qa_valid_count}명 품질검수 합격", "info")
             await wm.send_activity_log(log_pass)
+
+        # ★ 품질검수 결과를 기밀문서에 저장
+        _qa_reviews = _qa_chain.get("qa_reviews", [])
+        if _qa_reviews:
+            try:
+                _now_str = datetime.now(KST).strftime("%Y-%m-%d %H:%M")
+                _qa_lines = [f"# 품질검수 보고서 — {mgr_name} ({_now_str})\n"]
+                _qa_lines.append(f"검수 대상: {_qa_valid_count}명 | 불합격: {len(failed_specs)}명\n")
+                for qr in _qa_reviews:
+                    _qr_name = _SPECIALIST_NAMES.get(qr["agent_id"], qr["agent_id"])
+                    _qr_pass = "✅ 합격" if qr["passed"] else "❌ 불합격"
+                    _qa_lines.append(f"## {_qr_name} — {qr['weighted_average']:.1f}점 {_qr_pass}\n")
+                    _rd = qr.get("review_dict", {})
+                    # 체크리스트
+                    for ci in _rd.get("checklist", []):
+                        _st = "✅" if ci["passed"] else "❌"
+                        _rq = " [필수]" if ci.get("required") else ""
+                        _fb = f" — {ci['feedback']}" if ci.get("feedback") and not ci["passed"] else ""
+                        _qa_lines.append(f"- 📋 {ci['id']} {ci.get('label','')}: {_st}{_rq}{_fb}")
+                    # 점수
+                    for si in _rd.get("scores", []):
+                        _cr = " ⚠️치명적" if si.get("critical") and si["score"] == 1 else ""
+                        _fb = f" — {si['feedback']}" if si.get("feedback") and si["score"] <= 3 else ""
+                        _qa_lines.append(f"- 📊 {si['id']} {si.get('label','')}: {si['score']}점/5 (가중 {si.get('weight',0)}%){_cr}{_fb}")
+                    # 반려 사유
+                    _rej = _rd.get("rejection_reasons", [])
+                    if _rej:
+                        _qa_lines.append(f"\n**반려 사유**: {' / '.join(_rej)}")
+                    _qa_lines.append("")
+                _qa_content = "\n".join(_qa_lines)
+                _qa_filename = f"QA_{mgr_name}_{datetime.now(KST).strftime('%Y%m%d_%H%M')}.md"
+                _division = _MANAGER_DIVISION.get(manager_id, "default")
+                save_archive(
+                    division=_division,
+                    filename=_qa_filename,
+                    content=_qa_content,
+                    correlation_id=_qa_chain.get("chain_id", ""),
+                    agent_id=manager_id,
+                )
+                _log(f"[QA] 품질검수 보고서 기밀문서 저장: {_qa_filename}")
+            except Exception as e:
+                _log(f"[QA] 기밀문서 저장 실패: {e}")
 
     # 전문가 결과 취합
     spec_parts = []
