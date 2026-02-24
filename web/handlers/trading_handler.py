@@ -32,6 +32,9 @@ try:
         is_configured as _kis_configured,
         get_overseas_price as _kis_us_price,
         place_overseas_order as _kis_us_order,
+        place_mock_order as _kis_mock_order,
+        place_mock_overseas_order as _kis_mock_us_order,
+        is_mock_configured as _kis_mock_configured,
         KIS_IS_MOCK,
     )
     _KIS_AVAILABLE = True
@@ -44,6 +47,9 @@ except ImportError:
     def _kis_configured(): return False
     async def _kis_us_price(symbol, exchange=""): return {"success": False, "price": 0}
     async def _kis_us_order(symbol, action, qty, price=0, exchange=""): return {"success": False, "message": "kis_client 미설치", "order_no": ""}
+    async def _kis_mock_order(ticker, action, qty, price=0): return {"success": False, "message": "kis_client 미설치", "order_no": ""}
+    async def _kis_mock_us_order(symbol, action, qty, price=0, exchange=""): return {"success": False, "message": "kis_client 미설치", "order_no": ""}
+    def _kis_mock_configured(): return False
 
 logger = logging.getLogger("corthex.trading")
 KST = timezone(timedelta(hours=9))
@@ -787,10 +793,17 @@ async def execute_trading_order(request: Request):
 
     settings = _load_data("trading_settings", _default_trading_settings())
     paper_mode = settings.get("paper_trading", True)
-    use_kis = _KIS_AVAILABLE and not paper_mode and _kis_configured()
+    enable_real = settings.get("enable_real", True)
+    enable_mock = settings.get("enable_mock", False)
+    use_kis = enable_real and _KIS_AVAILABLE and not paper_mode and _kis_configured()
+    use_mock_kis = (not use_kis) and enable_mock and _KIS_AVAILABLE and _kis_mock_configured()
 
     order_no = ""
-    mode = "가상" if not use_kis else "실거래"
+    mode = "가상"
+    if use_kis:
+        mode = "실거래"
+    elif use_mock_kis:
+        mode = "모의투자"
 
     # ── KIS 실주문 ──
     if use_kis:
@@ -806,12 +819,27 @@ async def execute_trading_order(request: Request):
 
             order_no = order_result.get("order_no", "")
             mode = order_result.get("mode", "실거래")
+
+    # ── KIS 모의투자 주문 ──
+    elif use_mock_kis:
+        try:
+            if market == "US":
+                order_result = await _kis_mock_us_order(ticker, action, qty, price=float(price))
+            else:
+                order_result = await _kis_mock_order(ticker, action, qty, price=0)  # 시장가
+
+            if not order_result.get("success"):
+                msg = order_result.get("message", "알 수 없는 오류")
+                return {"success": False, "error": f"KIS 모의투자 주문 실패: {msg}"}
+
+            order_no = order_result.get("order_no", "")
+            mode = "모의투자"
         except Exception as e:
             return {"success": False, "error": f"KIS 주문 오류: {e}"}
 
-    # ── 가상 포트폴리오 업데이트 (paper_trading일 때만) ──
+    # ── 가상 포트폴리오 업데이트 (실거래도 모의투자도 아닌 경우만) ──
     pnl = 0
-    if not use_kis:
+    if not use_kis and not use_mock_kis:
         portfolio = _load_data("trading_portfolio", _default_portfolio())
         total_amount = qty * price
 
@@ -1095,10 +1123,20 @@ async def get_kis_status():
             account_display = f"****{_acct[-4:]}" if len(_acct) >= 4 else "설정됨"
         except Exception:
             account_display = "설정됨"
+    # 실제 동작 모드 = 설정 기반 (KIS 서버 연결 모드가 아닌 사용자 설정 반영)
+    settings = _load_data("trading_settings", _default_trading_settings())
+    enable_real = settings.get("enable_real", True)
+    enable_mock = settings.get("enable_mock", False)
+    if enable_real and configured:
+        active_mode = "실거래"
+    elif enable_mock and _KIS_AVAILABLE and _kis_mock_configured():
+        active_mode = "모의투자"
+    else:
+        active_mode = "가상"
     return {
         "available": configured,
         "is_mock": KIS_IS_MOCK,
-        "mode": "모의투자" if KIS_IS_MOCK else "실거래",
+        "mode": active_mode,
         "account": account_display,
     }
 
