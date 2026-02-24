@@ -6764,7 +6764,7 @@
       </div>
 
       <!-- ── 3D 시스템 맵 ── -->
-      <div x-show="flowchart.mode === '3d'" class="flex-1 flex flex-col overflow-hidden" style="display:none">
+      <div x-show="flowchart.mode === '3d'" class="flex-1 flex flex-col overflow-hidden" x-cloak>
         <template x-if="!flowchart.graph3dLoaded">
           <div class="flex-1 flex items-center justify-center">
             <div class="flex flex-col items-center gap-4 text-center px-8">
@@ -6795,7 +6795,7 @@
       </div>
 
       <!-- ── 비주얼 캔버스 ── -->
-      <div x-show="flowchart.mode === 'canvas'" class="flex-1 flex overflow-hidden" style="display:none">
+      <div x-show="flowchart.mode === 'canvas'" class="flex-1 flex overflow-hidden" x-cloak>
         <!-- 좌측: 팔레트 + 목록 -->
         <div class="w-44 shrink-0 border-r border-white/10 bg-[#0a0f1a] flex flex-col overflow-hidden">
           <div class="px-3 py-2 border-b border-white/10">
