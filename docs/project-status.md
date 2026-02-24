@@ -9,14 +9,14 @@
 ## 마지막 업데이트
 
 - **날짜**: 2026-02-25
-- **버전**: `3.02.028` (배포 대기)
+- **버전**: `3.02.029` (배포 대기)
 - **최신 빌드**: 배포 대기
-- **작업 브랜치**: claude/mock-trading-activation
+- **작업 브랜치**: claude/phase10-13-quality-expansion
 - **접속 주소**: https://corthex-hq.com
 
 ---
 
-## 🔄 진행 중 — 블라인드 채점 기반 전체 품질 개선 (2026-02-25)
+## ✅ 완료 — 블라인드 채점 기반 전체 품질 개선 (2026-02-25)
 
 > 13 Phase 대형 프로젝트. 아키텍처: `docs/architecture/quality-improvement/`
 
@@ -28,17 +28,24 @@
 | 3 | ✅ | 반려/재작업/학습 — 교신로그+기밀문서+warnings 자동 저장 |
 | 4 | ✅ | 검수 로그 통합 — 전문가당 1건 + 아이콘 구분 |
 | 5 | ✅ | 로그 소실 — 프론트 300건 + DB 5,000건 |
-| 8 | ✅ | CIO 7단계 — 독자분석+전문가 각각 기밀문서 저장 |
 | 6 | ✅ | 배포 완료 (빌드#552) |
-| 7 | ✅ | 모의투자 활성화 — 기본값 변경 + 3단 라디오 UI |
-| 10~13 | ⬜ | Soul 진화 + 대시보드 + 협업로그 + 테스트 |
+| 7 | ✅ | 모의투자 활성화 — 기본값 변경 + 3단 라디오 UI (빌드#554) |
+| 8 | ✅ | CIO 7단계 — 독자분석+전문가 각각 기밀문서 저장 |
+| 10 | ✅ | Soul 자동 진화 크론 — 매주 일요일 03:00 warnings 분석 + 제안 + 대표님 승인 |
+| 11 | ✅ | 품질 대시보드 — quality_reviews 타임라인 + Chart.js 시간 추이 + 반려 Top 5 |
+| 12 | ✅ | 부서 간 협업 로그 — collaboration_logs DB + 리다이렉트 시 자동 기록 + API |
+| 13 | ✅ | 테스트 25건 — test_spawn_filter.py (13건) + test_rework.py (12건) 전체 통과 |
 
-### 수정 파일 총 5개
-- `src/tools/cross_agent_protocol.py` — 부서 필터 + dormant + 처장 리다이렉트
-- `web/mini_server.py` — 스폰필터 + 반려 + 학습 + 검수로그 + 7단계 아카이브
-- `web/static/js/corthex-app.js` — 검수 아이콘 + 로그 300건
-- `web/db.py` — DB 5,000건 보관
-- `souls/agents/*.md` (5개) + `config/*.yaml` (2개) — Phase 0~1
+### Phase 10~13 수정 파일
+- `web/handlers/soul_evolution_handler.py` — Soul 진화 API (신규)
+- `web/handlers/quality_handler.py` — 품질 점수 타임라인 + 반려 Top N API
+- `web/handlers/activity_handler.py` — 협업 로그 API
+- `web/mini_server.py` — Soul 진화 크론 등록 + 협업 로그 콜백
+- `web/db.py` — collaboration_logs 테이블 + 타임라인/협업 쿼리 함수
+- `web/static/js/corthex-app.js` — Soul 진화 + 품질 대시보드 UI
+- `web/templates/index.html` — 전력분석 탭에 품질 대시보드 + Soul 진화 섹션
+- `src/tools/cross_agent_protocol.py` — 협업 로그 콜백 등록 + 리다이렉트 시 기록
+- `tests/test_spawn_filter.py` + `tests/test_rework.py` — 테스트 25건 (신규)
 
 ---
 
