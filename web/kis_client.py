@@ -516,6 +516,157 @@ def is_mock_configured() -> bool:
     return bool(MOCK_APP_KEY and MOCK_APP_SECRET and MOCK_ACCOUNT_NO)
 
 
+async def place_mock_order(
+    ticker: str,
+    action: str,       # "buy" or "sell"
+    qty: int,
+    price: int = 0,    # 0 = 시장가
+) -> dict:
+    """모의투자 계좌로 국내주식 주문 실행 (매수/매도).
+
+    메인 place_order()와 독립 — MOCK_APP_KEY/SECRET/ACCOUNT 사용.
+    TR_ID는 항상 모의투자용 V 접두사.
+
+    Returns:
+        {"success": bool, "order_no": str, "message": str, "mode": "모의투자", "raw": dict}
+    """
+    if not is_mock_configured():
+        return {"success": False, "message": "모의투자 App Key 미설정 (KOREA_INVEST_MOCK_APP_KEY)", "order_no": ""}
+
+    if action not in ("buy", "sell"):
+        return {"success": False, "message": f"잘못된 action: {action}", "order_no": ""}
+
+    order_type = "01" if price == 0 else "00"  # 01=시장가, 00=지정가
+    tr_id = "VTTC0012U" if action == "buy" else "VTTC0011U"
+
+    try:
+        token = await _get_mock_token()
+        async with httpx.AsyncClient(timeout=15) as client:
+            resp = await client.post(
+                f"{MOCK_BASE}/uapi/domestic-stock/v1/trading/order-cash",
+                headers={
+                    "authorization": f"Bearer {token}",
+                    "appkey": MOCK_APP_KEY,
+                    "appsecret": MOCK_APP_SECRET,
+                    "tr_id": tr_id,
+                    "custtype": "P",
+                    "content-type": "application/json; charset=utf-8",
+                },
+                json={
+                    "CANO": MOCK_ACCOUNT_NO,
+                    "ACNT_PRDT_CD": MOCK_ACCOUNT_CODE,
+                    "PDNO": ticker,
+                    "ORD_DVSN": order_type,
+                    "ORD_QTY": str(qty),
+                    "ORD_UNPR": str(price),
+                    "SLL_TYPE": "01" if action == "sell" else "",
+                    "EXCG_ID_DVSN_CD": "",
+                    "CNDT_PRIC": "",
+                },
+            )
+            data = resp.json()
+
+            rt_cd = data.get("rt_cd", "1")
+            msg = data.get("msg1", "")
+            order_no = data.get("output", {}).get("ODNO", "")
+            success = rt_cd == "0"
+
+            action_kr = "매수" if action == "buy" else "매도"
+            if success:
+                logger.info("[KIS-Shadow] 모의투자 %s %s %d주 주문 완료 (주문번호: %s)", action_kr, ticker, qty, order_no)
+            else:
+                logger.warning("[KIS-Shadow] 모의투자 %s %s %d주 주문 실패: %s (rt_cd=%s)", action_kr, ticker, qty, msg, rt_cd)
+
+            return {
+                "success": success,
+                "order_no": order_no,
+                "message": msg,
+                "mode": "모의투자",
+                "raw": data,
+            }
+    except Exception as e:
+        logger.error("[KIS-Shadow] 모의투자 주문 실패 (%s %s): %s", action, ticker, e)
+        return {"success": False, "message": str(e), "order_no": ""}
+
+
+async def place_mock_overseas_order(
+    symbol: str,
+    action: str,       # "buy" or "sell"
+    qty: int,
+    price: float = 0,  # 해외주식은 지정가 필수
+    exchange: str = "",
+) -> dict:
+    """모의투자 계좌로 해외주식 주문 실행 (매수/매도).
+
+    메인 place_overseas_order()와 독립 — MOCK_APP_KEY/SECRET/ACCOUNT 사용.
+    TR_ID는 항상 모의투자용 V 접두사.
+
+    Returns:
+        {"success": bool, "order_no": str, "message": str, "mode": "모의투자", "market": "US", "raw": dict}
+    """
+    if not is_mock_configured():
+        return {"success": False, "message": "모의투자 App Key 미설정 (KOREA_INVEST_MOCK_APP_KEY)", "order_no": ""}
+
+    if action not in ("buy", "sell"):
+        return {"success": False, "message": f"잘못된 action: {action}", "order_no": ""}
+
+    if price <= 0:
+        return {"success": False, "message": "해외주식은 시장가 주문 미지원. 지정가(price>0) 필수", "order_no": ""}
+
+    excd = _EXCHANGE_CODES.get(exchange.upper(), "") if exchange else _detect_exchange(symbol)
+    tr_id = "VTTT1002U" if action == "buy" else "VTTT1006U"
+
+    try:
+        token = await _get_mock_token()
+        async with httpx.AsyncClient(timeout=15) as client:
+            resp = await client.post(
+                f"{MOCK_BASE}/uapi/overseas-stock/v1/trading/order",
+                headers={
+                    "authorization": f"Bearer {token}",
+                    "appkey": MOCK_APP_KEY,
+                    "appsecret": MOCK_APP_SECRET,
+                    "tr_id": tr_id,
+                    "custtype": "P",
+                    "content-type": "application/json; charset=utf-8",
+                },
+                json={
+                    "CANO": MOCK_ACCOUNT_NO,
+                    "ACNT_PRDT_CD": MOCK_ACCOUNT_CODE,
+                    "OVRS_EXCG_CD": excd,
+                    "PDNO": symbol.upper(),
+                    "ORD_DVSN": "00",  # 해외=지정가만
+                    "ORD_QTY": str(qty),
+                    "OVRS_ORD_UNPR": f"{price:.2f}",
+                    "SLL_TYPE": "00" if action == "sell" else "",
+                    "ORD_SVR_DVSN_CD": "0",
+                },
+            )
+            data = resp.json()
+
+            rt_cd = data.get("rt_cd", "1")
+            msg = data.get("msg1", "")
+            order_no = data.get("output", {}).get("ODNO", "")
+            success = rt_cd == "0"
+
+            action_kr = "매수" if action == "buy" else "매도"
+            if success:
+                logger.info("[KIS-Shadow] 모의투자 해외 %s %s %d주 주문 완료 (주문번호: %s)", action_kr, symbol, qty, order_no)
+            else:
+                logger.warning("[KIS-Shadow] 모의투자 해외 %s %s %d주 주문 실패: %s", action_kr, symbol, qty, msg)
+
+            return {
+                "success": success,
+                "order_no": order_no,
+                "message": msg,
+                "mode": "모의투자",
+                "market": "US",
+                "raw": data,
+            }
+    except Exception as e:
+        logger.error("[KIS-Shadow] 모의투자 해외주식 주문 실패 (%s %s): %s", action, symbol, e)
+        return {"success": False, "message": str(e), "order_no": ""}
+
+
 async def _get_mock_token() -> str:
     """Shadow Trading 전용 OAuth2 토큰 발급.
     우선순위: 메모리 캐시 → DB 캐시 → KIS 모의투자 API 신규 발급
