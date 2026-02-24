@@ -209,7 +209,7 @@
         <span class="text-[11px] header-conn-text" x-text="wsConnected ? '연결됨' : '끊김'"></span>
       </div>
 
-      <!-- View Toggle: 채팅/사무실/대시보드 -->
+      <!-- View Toggle: 채팅/사무실/대시보드 + NEXUS -->
       <div class="flex items-center bg-hq-surface border border-hq-border rounded-lg header-view-toggle">
         <button @click="if(dashboardRefreshTimer){clearInterval(dashboardRefreshTimer);dashboardRefreshTimer=null;} viewMode = 'chat'"
                 :class="viewMode === 'chat' ? 'bg-hq-accent/20 text-hq-accent' : 'text-hq-muted hover:text-hq-text'"
@@ -219,7 +219,10 @@
                 class="px-3 py-1 text-xs font-semibold border-x border-hq-border transition-colors">사무실</button>
         <button @click="viewMode = 'dashboard'; loadDashboard(); if(dashboardRefreshTimer){clearInterval(dashboardRefreshTimer);} dashboardRefreshTimer = setInterval(() => loadDashboard(), 30000)"
                 :class="viewMode === 'dashboard' ? 'bg-hq-accent/20 text-hq-accent' : 'text-hq-muted hover:text-hq-text'"
-                class="px-3 py-1 text-xs font-semibold rounded-r-lg transition-colors">대시보드</button>
+                class="px-3 py-1 text-xs font-semibold border-r border-hq-border transition-colors">대시보드</button>
+        <button @click="openNexus()"
+                :class="nexusOpen ? 'bg-[#e879f9]/20 text-[#e879f9]' : 'text-hq-muted hover:text-[#e879f9]'"
+                class="px-3 py-1 text-xs font-semibold rounded-r-lg transition-colors tracking-wider">NEXUS</button>
       </div>
 
       <!-- Dark/Light Toggle -->
@@ -6708,256 +6711,154 @@
     </div>
   </div>
 
-  <!-- ══════════════════════════════════════════════════ 설계실 탭 ══ -->
-  <template x-if="viewMode === 'chat' && activeTab === 'flowchart'">
-    <div class="flex-1 flex flex-col overflow-hidden" @keydown.ctrl.s.prevent.window="activeTab==='flowchart' && saveFlowchart()">
+  <!-- ══════════════════════════════════════════════════ NEXUS 전체화면 오버레이 ══ -->
+  <template x-if="nexusOpen">
+    <div class="fixed inset-0 z-50 flex flex-col bg-[#060a14]"
+         @keydown.ctrl.s.prevent.window="nexusOpen && flowchart.mode==='canvas' && saveNexusCanvas()"
+         @keydown.escape.window="nexusOpen = false">
 
-      <!-- 상단 툴바 (Mermaid Live 스타일) -->
-      <div class="shrink-0 flex items-center gap-2 px-4 py-2.5 border-b border-hq-border bg-hq-panel/80 backdrop-blur-sm">
-        <div class="flex items-center gap-2 mr-2">
-          <svg class="w-4 h-4 text-hq-accent" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M4 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1V5zm0 10a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1v-4zm10-10a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zm0 10a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z"/>
-          </svg>
-          <span class="text-sm font-semibold text-hq-text">설계실</span>
-          <span class="text-xs text-hq-muted/60 font-mono" x-text="flowchart.selected ? flowchart.selected.replace('.md','') : ''"></span>
+      <!-- 상단 헤더 -->
+      <div class="shrink-0 flex items-center gap-3 px-5 py-3 border-b border-[#1e293b] bg-[#0a0f1a]/90 backdrop-blur-sm">
+        <!-- NEXUS 로고 -->
+        <div class="flex items-center gap-2">
+          <svg class="w-5 h-5 text-[#e879f9]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="6" r="2"/><circle cx="18" cy="6" r="2"/><circle cx="6" cy="18" r="2"/><circle cx="18" cy="18" r="2"/><circle cx="12" cy="12" r="2.5"/><path stroke-linecap="round" d="M8 6h8M6 8v8M18 8v8M8 18h8M9 10.5l2 1M15 10.5l-2 1M9 13.5l2-1M15 13.5l-2-1"/></svg>
+          <span class="text-sm font-bold tracking-[0.3em] text-[#e879f9]">NEXUS</span>
         </div>
 
-        <!-- 템플릿 드롭다운 -->
-        <div class="relative" x-data="{open:false}">
-          <button @click="open=!open" class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs text-hq-muted border border-hq-border hover:border-hq-accent/40 hover:text-hq-text transition bg-hq-surface">
-            <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h7"/></svg>
-            템플릿
-            <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+        <!-- 모드 선택 -->
+        <div class="flex items-center bg-[#0f172a] border border-[#1e293b] rounded-lg p-0.5 gap-0.5 ml-4">
+          <button @click="onNexusModeChange('3d')"
+                  :class="flowchart.mode==='3d' ? 'bg-[#059669]/20 text-[#34d399]' : 'text-gray-500 hover:text-gray-300'"
+                  class="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+            3D 시스템 맵
           </button>
-          <div x-show="open" @click.away="open=false" x-cloak
-               class="absolute top-full left-0 mt-1 w-44 bg-hq-panel border border-hq-border rounded-xl shadow-2xl z-50 py-1 overflow-hidden">
-            <button @click="insertFlowchartTemplate('flowchart'); open=false" class="w-full text-left px-3 py-2 text-xs text-hq-muted hover:bg-hq-surface hover:text-hq-text transition">플로우차트 (flowchart)</button>
-            <button @click="insertFlowchartTemplate('sequence'); open=false" class="w-full text-left px-3 py-2 text-xs text-hq-muted hover:bg-hq-surface hover:text-hq-text transition">시퀀스 다이어그램</button>
-            <button @click="insertFlowchartTemplate('er'); open=false" class="w-full text-left px-3 py-2 text-xs text-hq-muted hover:bg-hq-surface hover:text-hq-text transition">ER 다이어그램</button>
-            <button @click="insertFlowchartTemplate('mindmap'); open=false" class="w-full text-left px-3 py-2 text-xs text-hq-muted hover:bg-hq-surface hover:text-hq-text transition">마인드맵</button>
+          <button @click="onNexusModeChange('canvas')"
+                  :class="flowchart.mode==='canvas' ? 'bg-[#f59e0b]/20 text-[#fbbf24]' : 'text-gray-500 hover:text-gray-300'"
+                  class="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+            비주얼 캔버스
+          </button>
+        </div>
+
+        <!-- 캔버스 모드 전용 도구 -->
+        <template x-if="flowchart.mode === 'canvas'">
+          <div class="flex items-center gap-2 ml-4">
+            <input x-model="flowchart.canvasName" type="text" placeholder="파일명..."
+                   class="bg-[#0f172a] border border-[#1e293b] rounded-lg px-2.5 py-1.5 text-xs text-gray-300 font-mono outline-none focus:border-[#fbbf24]/50 w-36"/>
+            <button @click="saveNexusCanvas()"
+                    class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#f59e0b]/20 text-[#fbbf24] hover:bg-[#f59e0b]/30 transition"
+                    :class="flowchart.canvasDirty ? 'ring-1 ring-[#f59e0b]/40' : ''">
+              <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17,21 17,13 7,13 7,21"/><polyline points="7,3 7,8 15,8"/></svg>
+              <span x-text="flowchart.canvasDirty ? '저장 *' : '저장'"></span>
+            </button>
+            <button @click="clearNexusCanvas()" class="px-2.5 py-1.5 rounded-lg text-xs bg-[#0f172a] border border-[#1e293b] text-gray-500 hover:text-red-400 hover:border-red-400/40 transition">초기화</button>
           </div>
-        </div>
+        </template>
 
-        <div class="ml-auto flex items-center gap-2">
-          <!-- Ctrl+S 힌트 -->
-          <span class="text-xs text-hq-muted/40 font-mono hidden sm:block">Ctrl+S 저장</span>
-
-          <!-- 저장 버튼 -->
-          <button @click="saveFlowchart()" :disabled="flowchart.saving || !flowchart.selected"
-                  class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition"
-                  :class="flowchart.saving ? 'bg-hq-surface text-hq-muted cursor-wait' : 'bg-hq-accent/20 text-hq-accent hover:bg-hq-accent/30'">
-            <svg x-show="flowchart.saving" class="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
-            <svg x-show="!flowchart.saving" class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17,21 17,13 7,13 7,21"/><polyline points="7,3 7,8 15,8"/></svg>
-            <span x-text="flowchart.saving ? '저장 중...' : '저장'"></span>
-          </button>
-
-          <!-- SVG 내보내기 -->
-          <button @click="exportFlowchartSvg()" :disabled="!flowchart.rendered"
-                  class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-hq-surface border border-hq-border hover:border-hq-accent/40 text-hq-muted hover:text-hq-text transition disabled:opacity-40">
-            <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7,10 12,15 17,10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-            SVG
-          </button>
-
-          <!-- 새 다이어그램 -->
-          <button @click="flowchart.showNewModal = true"
-                  class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-hq-green/20 text-hq-green hover:bg-hq-green/30 transition">
-            <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-            새 다이어그램
+        <!-- 닫기 (우측 끝) -->
+        <div class="ml-auto flex items-center gap-3">
+          <span class="text-xs text-gray-600 font-mono hidden sm:block">ESC</span>
+          <button @click="nexusOpen = false"
+                  class="w-8 h-8 rounded-lg bg-[#0f172a] border border-[#1e293b] text-gray-500 hover:text-white hover:border-red-500/50 flex items-center justify-center transition">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
           </button>
         </div>
       </div>
 
-      <!-- 3분할 본문 (사이드바 | 코드 에디터 | 미리보기) -->
-      <div class="flex-1 flex overflow-hidden">
-
-        <!-- ① 사이드바: 파일 목록 -->
-        <div class="w-52 shrink-0 border-r border-hq-border bg-hq-panel/60 flex flex-col overflow-hidden">
-          <div class="px-3 py-2 border-b border-hq-border/50">
-            <span class="text-xs font-semibold text-hq-muted uppercase tracking-wider">다이어그램</span>
+      <!-- ── 3D 시스템 맵 ── -->
+      <div x-show="flowchart.mode === '3d'" class="flex-1 flex flex-col overflow-hidden" style="display:none">
+        <template x-if="!flowchart.graph3dLoaded">
+          <div class="flex-1 flex items-center justify-center">
+            <div class="flex flex-col items-center gap-4 text-center px-8">
+              <div class="w-12 h-12 border-2 border-[#34d399]/30 border-t-[#34d399] rounded-full animate-spin"></div>
+              <p class="text-sm text-gray-400">CORTHEX 시스템 맵 로딩 중...</p>
+              <p class="text-xs text-gray-600">탭 · 에이전트 · API · 데이터 저장소 · 외부 서비스</p>
+            </div>
           </div>
+        </template>
+        <div id="nexus-3d" class="flex-1 w-full" style="min-height:400px"></div>
+        <!-- 범례 + 안내 -->
+        <div class="shrink-0 flex items-center justify-between px-5 py-2.5 bg-[#0a0f1a]/90 border-t border-[#1e293b]">
+          <div class="flex items-center gap-4 text-xs text-gray-500">
+            <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-[#8b5cf6]"></span>핵심</span>
+            <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-[#fbbf24]"></span>탭</span>
+            <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-[#34d399]"></span>부서</span>
+            <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-[#60a5fa]"></span>에이전트</span>
+            <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-[#38bdf8]"></span>데이터</span>
+            <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-[#f87171]"></span>외부서비스</span>
+            <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-[#c084fc]"></span>프로세스</span>
+          </div>
+          <div class="flex items-center gap-4 text-xs text-gray-600">
+            <span>드래그: 회전</span>
+            <span>우클릭 드래그: 이동</span>
+            <span>휠: 줌</span>
+            <span>에이전트 클릭: 사령관실 이동</span>
+          </div>
+        </div>
+      </div>
 
+      <!-- ── 비주얼 캔버스 ── -->
+      <div x-show="flowchart.mode === 'canvas'" class="flex-1 flex overflow-hidden" style="display:none">
+        <!-- 좌측: 노드 팔레트 + 파일 목록 -->
+        <div class="w-48 shrink-0 border-r border-[#1e293b] bg-[#0a0f1a] flex flex-col overflow-hidden">
+          <div class="px-3 py-2.5 border-b border-[#1e293b]">
+            <span class="text-xs font-semibold text-gray-500 uppercase tracking-wider">노드 팔레트</span>
+          </div>
+          <div class="p-2 flex flex-col gap-1.5 border-b border-[#1e293b]">
+            <template x-if="flowchart.canvasLoaded">
+              <div class="flex flex-col gap-1.5">
+                <template x-for="n in [{t:'agent',l:'에이전트',c:'#8b5cf6'},{t:'system',l:'시스템',c:'#3b82f6'},{t:'api',l:'외부 API',c:'#059669'},{t:'decide',l:'결정 분기',c:'#f59e0b'},{t:'start',l:'시작',c:'#22c55e'},{t:'end',l:'종료',c:'#ef4444'},{t:'note',l:'메모',c:'#6b7280'}]" :key="n.t">
+                  <button @click="addCanvasNode(n.t)"
+                          class="w-full text-left py-1.5 px-2 rounded-lg text-xs font-semibold transition hover:opacity-80 flex items-center gap-2"
+                          :style="`background:${n.c}22; border:1px solid ${n.c}44; color:${n.c}`">
+                    <span class="w-2 h-2 rounded-full shrink-0" :style="`background:${n.c}`"></span>
+                    <span x-text="n.l"></span>
+                  </button>
+                </template>
+              </div>
+            </template>
+            <template x-if="!flowchart.canvasLoaded">
+              <div class="text-xs text-gray-600 py-2 animate-pulse">로딩 중...</div>
+            </template>
+          </div>
+          <div class="px-3 py-2.5 border-b border-[#1e293b]">
+            <span class="text-xs font-semibold text-gray-500 uppercase tracking-wider">저장된 캔버스</span>
+          </div>
           <div class="flex-1 overflow-y-auto scrollbar-thin py-1">
-            <!-- 뼈대 다이어그램 그룹 -->
-            <div class="px-3 py-1.5">
-              <span class="text-xs text-hq-muted/50 uppercase tracking-wider">뼈대 (읽기 전용)</span>
-            </div>
-            <template x-if="flowchart.loading">
-              <div class="px-3 py-2 text-xs text-hq-muted/50 animate-pulse">로딩 중...</div>
+            <template x-if="flowchart.canvasItems.length === 0">
+              <div class="px-3 py-2 text-xs text-gray-600 italic">아직 없습니다</div>
             </template>
-            <template x-for="item in flowchart.items.filter(i => i.name.match(/^0\d-/))" :key="item.name">
-              <button @click="selectFlowchart(item)"
-                      :class="flowchart.selected === item.name
-                        ? 'bg-hq-accent/15 text-hq-accent border-l-2 border-hq-accent pl-[10px]'
-                        : 'text-hq-muted hover:text-hq-text hover:bg-hq-surface pl-3'"
-                      class="w-full text-left py-1.5 pr-3 text-xs font-mono transition rounded-r-lg flex items-center gap-2 group">
-                <svg class="w-3 h-3 shrink-0 opacity-50" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M9 17H7A5 5 0 017 7h2M15 7h2a5 5 0 010 10h-2M8 12h8"/>
-                </svg>
-                <span class="truncate" x-text="item.name.replace('.md','').replace(/^\d+-/,'')"></span>
+            <template x-for="item in flowchart.canvasItems" :key="item.name">
+              <button @click="loadNexusCanvas(item)"
+                      class="w-full text-left py-1.5 px-3 text-xs text-gray-500 hover:text-gray-200 hover:bg-[#1e293b]/50 transition rounded-r-lg font-mono truncate"
+                      x-text="item.name.replace('.json','')">
               </button>
             </template>
-
-            <!-- 내 다이어그램 그룹 -->
-            <div class="px-3 py-1.5 mt-2">
-              <span class="text-xs text-hq-muted/50 uppercase tracking-wider">내 작업</span>
-            </div>
-            <template x-for="item in flowchart.items.filter(i => !i.name.match(/^0\d-/))" :key="item.name">
-              <button @click="selectFlowchart(item)"
-                      :class="flowchart.selected === item.name
-                        ? 'bg-hq-accent/15 text-hq-accent border-l-2 border-hq-accent pl-[10px]'
-                        : 'text-hq-muted hover:text-hq-text hover:bg-hq-surface pl-3'"
-                      class="w-full text-left py-1.5 pr-3 text-xs font-mono transition rounded-r-lg flex items-center gap-2">
-                <svg class="w-3 h-3 shrink-0 opacity-50" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/>
-                </svg>
-                <span class="truncate" x-text="item.name.replace('.md','')"></span>
-              </button>
-            </template>
-
-            <template x-if="!flowchart.loading && flowchart.items.filter(i => !i.name.match(/^0\d-/)).length === 0">
-              <div class="px-3 py-2 text-xs text-hq-muted/40 italic">아직 없습니다</div>
-            </template>
+          </div>
+          <!-- 팁 -->
+          <div class="px-3 py-2.5 border-t border-[#1e293b] text-xs text-gray-600 leading-relaxed">
+            더블클릭으로 노드 이름 수정
           </div>
         </div>
-
-        <!-- ② 코드 에디터 (VS Code 스타일) -->
-        <div class="w-[380px] shrink-0 border-r border-hq-border flex flex-col bg-[#0d1117]" :class="flowchart.fullscreen ? 'hidden' : ''">
-          <!-- 에디터 헤더 -->
-          <div class="flex items-center justify-between px-3 py-1.5 border-b border-hq-border/50 bg-[#161b22]">
-            <div class="flex items-center gap-2">
-              <div class="w-2 h-2 rounded-full bg-[#f97316]/60"></div>
-              <div class="w-2 h-2 rounded-full bg-[#eab308]/60"></div>
-              <div class="w-2 h-2 rounded-full bg-[#22c55e]/60"></div>
-              <span class="text-xs text-hq-muted/50 font-mono ml-2">Mermaid</span>
-            </div>
-            <span class="text-xs text-hq-muted/40 font-mono" x-text="flowchart.code ? flowchart.code.split('\n').length + ' 줄' : ''"></span>
-          </div>
-
-          <!-- textarea (라인 번호 + 코드) -->
-          <div class="flex-1 flex overflow-hidden">
-            <!-- 라인 번호 -->
-            <div class="w-10 shrink-0 bg-[#0d1117] border-r border-hq-border/30 overflow-hidden">
-              <div class="pt-3 pr-1 text-right font-mono text-[11px] text-hq-muted/25 leading-[1.6rem] select-none"
-                   x-html="flowchart.code ? flowchart.code.split('\n').map((_,i)=>'<div>'+(i+1)+'</div>').join('') : '<div>1</div>'">
+        <!-- 우측: Drawflow 캔버스 -->
+        <div class="flex-1 overflow-hidden relative">
+          <template x-if="!flowchart.canvasLoaded">
+            <div class="absolute inset-0 flex items-center justify-center z-10">
+              <div class="flex flex-col items-center gap-3">
+                <div class="w-8 h-8 border-2 border-[#fbbf24]/30 border-t-[#fbbf24] rounded-full animate-spin"></div>
+                <span class="text-xs text-gray-500">비주얼 캔버스 로딩 중...</span>
               </div>
             </div>
-            <!-- 코드 입력 -->
-            <textarea
-              x-model="flowchart.code"
-              @input="onFlowchartCodeChange()"
-              placeholder="flowchart TD&#10;    A[&quot;시작&quot;] --> B[&quot;처리&quot;]&#10;    B --> C[&quot;완료&quot;]"
-              class="flex-1 bg-[#0d1117] text-[#e6edf3] text-[13px] font-mono leading-[1.6rem] resize-none outline-none p-3 scrollbar-thin placeholder:text-hq-muted/20 tab-size-2"
-              spellcheck="false"
-              @keydown.tab.prevent="
-                const s=flowchart.code, ss=$el.selectionStart, se=$el.selectionEnd;
-                flowchart.code=s.substring(0,ss)+'  '+s.substring(se);
-                $nextTick(()=>{$el.selectionStart=$el.selectionEnd=ss+2;})
-              "
-            ></textarea>
-          </div>
-
-          <!-- 에러 표시 -->
-          <div x-show="flowchart.renderError" x-cloak
-               class="shrink-0 px-3 py-2 bg-red-900/30 border-t border-red-500/30 text-xs text-red-400 font-mono leading-relaxed">
-            <span class="text-red-500 font-bold">✕ 오류: </span>
-            <span x-text="flowchart.renderError"></span>
-          </div>
-          <div x-show="!flowchart.renderError && flowchart.rendered" x-cloak
-               class="shrink-0 px-3 py-1.5 bg-green-900/20 border-t border-green-500/20 text-xs text-green-400/70">
-            ✓ 렌더링 완료
-          </div>
-        </div>
-
-        <!-- ③ 미리보기 (Excalidraw 스타일 줌/패닝) -->
-        <div class="flex-1 flex flex-col overflow-hidden bg-[#0a0f1a]" style="background-image: radial-gradient(circle, #1e293b 1px, transparent 1px); background-size: 24px 24px;">
-
-          <!-- 미리보기 컨트롤 -->
-          <div class="shrink-0 flex items-center justify-between px-4 py-2 bg-hq-panel/40 backdrop-blur-sm border-b border-hq-border/30">
-            <span class="text-xs text-hq-muted/50">미리보기 — 마우스 휠로 줌 · 드래그로 이동</span>
-            <div class="flex items-center gap-2">
-              <!-- 줌 표시 + 버튼 -->
-              <button @click="flowchart.zoom = Math.max(0.3, flowchart.zoom - 0.1)"
-                      class="w-6 h-6 rounded-md bg-hq-surface border border-hq-border text-hq-muted hover:text-hq-text flex items-center justify-center text-sm transition">−</button>
-              <span class="text-xs text-hq-muted font-mono w-10 text-center" x-text="Math.round(flowchart.zoom*100)+'%'"></span>
-              <button @click="flowchart.zoom = Math.min(3, flowchart.zoom + 0.1)"
-                      class="w-6 h-6 rounded-md bg-hq-surface border border-hq-border text-hq-muted hover:text-hq-text flex items-center justify-center text-sm transition">+</button>
-              <button @click="flowchart.zoom=1; flowchart.panX=0; flowchart.panY=0"
-                      class="px-2 py-1 rounded-md text-xs bg-hq-surface border border-hq-border text-hq-muted hover:text-hq-text transition">리셋</button>
-              <!-- 전체화면 토글 -->
-              <button @click="flowchart.fullscreen = !flowchart.fullscreen"
-                      class="w-6 h-6 rounded-md bg-hq-surface border border-hq-border text-hq-muted hover:text-hq-accent flex items-center justify-center transition"
-                      :title="flowchart.fullscreen ? '편집기 보기' : '전체화면 미리보기'">
-                <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <template x-if="!flowchart.fullscreen"><path d="M8 3H5a2 2 0 00-2 2v3m18 0V5a2 2 0 00-2-2h-3m0 18h3a2 2 0 002-2v-3M3 16v3a2 2 0 002 2h3"/></template>
-                  <template x-if="flowchart.fullscreen"><path d="M8 3v3a2 2 0 01-2 2H3m18 0h-3a2 2 0 01-2-2V3m0 18v-3a2 2 0 012-2h3M3 16h3a2 2 0 012 2v3"/></template>
-                </svg>
-              </button>
-            </div>
-          </div>
-
-          <!-- SVG 캔버스 영역 -->
-          <div class="flex-1 overflow-hidden relative cursor-grab active:cursor-grabbing select-none"
-               @wheel.prevent="onFlowchartWheel($event)"
-               @mousedown="onFlowchartPanStart($event)">
-
-            <!-- 빈 상태 -->
-            <template x-if="!flowchart.rendered && !flowchart.renderError && !flowchart.loading">
-              <div class="absolute inset-0 flex flex-col items-center justify-center gap-4 text-center px-8">
-                <div class="w-16 h-16 rounded-2xl bg-hq-accent/10 border border-hq-accent/20 flex items-center justify-center">
-                  <svg class="w-8 h-8 text-hq-accent/40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                    <path d="M4 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1V5zm10 0a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zM4 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1v-4z"/>
-                  </svg>
-                </div>
-                <div>
-                  <p class="text-sm text-hq-muted mb-1">왼쪽에서 다이어그램을 선택하거나</p>
-                  <p class="text-xs text-hq-muted/50">코드를 입력하면 여기에 그림이 나타납니다</p>
-                </div>
-              </div>
-            </template>
-
-            <!-- 로딩 스피너 -->
-            <template x-if="flowchart.loading">
-              <div class="absolute inset-0 flex items-center justify-center">
-                <div class="flex flex-col items-center gap-3">
-                  <div class="w-8 h-8 border-2 border-hq-accent/30 border-t-hq-accent rounded-full animate-spin"></div>
-                  <span class="text-xs text-hq-muted/60">다이어그램 로딩 중...</span>
-                </div>
-              </div>
-            </template>
-
-            <!-- 렌더링된 SVG (줌 + 패닝) -->
-            <div x-show="flowchart.rendered" x-cloak
-                 class="absolute inset-0 flex items-center justify-center overflow-hidden">
-              <div :style="`transform: translate(${flowchart.panX}px, ${flowchart.panY}px) scale(${flowchart.zoom}); transform-origin: center; transition: none;`"
-                   x-html="flowchart.rendered"
-                   class="max-w-none">
+          </template>
+          <template x-if="flowchart.canvasLoaded">
+            <div class="absolute top-4 left-1/2 -translate-x-1/2 z-10 pointer-events-none">
+              <div class="bg-[#0a0f1a]/80 border border-[#1e293b] rounded-lg px-3 py-1.5 text-xs text-gray-500 backdrop-blur-sm">
+                좌측 팔레트에서 노드 클릭 → 연결선 드래그 → 더블클릭으로 이름 수정
               </div>
             </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </template>
-
-  <!-- 설계실: 새 다이어그램 모달 -->
-  <template x-if="activeTab === 'flowchart' && flowchart.showNewModal">
-    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
-         @click.self="flowchart.showNewModal = false">
-      <div class="bg-hq-panel border border-hq-border rounded-2xl w-full max-w-sm mx-4 p-6 shadow-2xl" @click.stop>
-        <h3 class="text-base font-bold text-hq-text mb-4 flex items-center gap-2">
-          <svg class="w-4 h-4 text-hq-accent" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-          새 다이어그램
-        </h3>
-        <input x-model="flowchart.newName" @keydown.enter="createFlowchart()"
-               type="text" placeholder="이름 입력 (예: 매매봇-흐름)"
-               class="w-full bg-hq-surface border border-hq-border rounded-xl px-3 py-2.5 text-sm text-hq-text placeholder:text-hq-muted/40 outline-none focus:border-hq-accent/50 mb-4 font-mono"
-               x-ref="newFcInput"
-               x-init="$nextTick(()=>$el.focus())">
-        <div class="flex justify-end gap-2">
-          <button @click="flowchart.showNewModal = false"
-                  class="px-4 py-2 rounded-lg text-sm bg-hq-surface text-hq-muted hover:bg-hq-border transition">취소</button>
-          <button @click="createFlowchart()" :disabled="!flowchart.newName.trim()"
-                  class="px-4 py-2 rounded-lg text-sm bg-hq-accent text-white hover:bg-hq-accent/80 transition disabled:opacity-40">생성</button>
+          </template>
+          <div id="nexus-canvas" class="w-full h-full"></div>
         </div>
       </div>
     </div>

@@ -1,21 +1,17 @@
 {
   "permissions": {
     "allow": [
-      "Bash(git checkout:*)",
-      "Bash(git add:*)",
-      "Bash(git commit:*)",
-      "Bash(git push:*)",
-      "Bash(gh run list:*)",
-      "Bash(git stash push:*)",
-      "Bash(git pull:*)",
-      "Bash(git stash:*)",
-      "Bash(git restore:*)",
-      "Bash(git reset:*)",
-      "Bash(git mv:*)",
-      "Bash(gh pr create:*)",
-      "Bash(git fetch:*)",
-      "Bash(python3:*)",
-      "Bash(python -c:*)"
+      "Read",
+      "Edit",
+      "Write",
+      "Glob",
+      "Grep",
+      "Bash(*)",
+      "WebFetch(domain:news.skhynix.co.kr)",
+      "WebFetch(domain:news.samsung.com)",
+      "WebFetch(domain:ko.tradingeconomics.com)",
+      "WebFetch(domain:www.investing.com)",
+      "WebFetch(domain:corthex-hq.com)"
     ]
   }
 }
