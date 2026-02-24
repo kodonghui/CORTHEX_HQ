@@ -1243,3 +1243,114 @@ async def get_cio_performance_summary():
     except Exception as e:
         logger.error("[CIO] 성과 조회 실패: %s", e)
         return {"total_predictions": 0, "accuracy_3d": 0, "accuracy_7d": 0, "pending_count": 0}
+
+
+# ────────────────────────────────────────────────────────────────
+# 신뢰도 검증 파이프라인 API — 자기학습 대시보드
+# ────────────────────────────────────────────────────────────────
+
+@router.get("/api/cio/confidence-dashboard")
+async def cio_confidence_dashboard():
+    """종합 신뢰도 대시보드 — ELO + 보정 + 도구 + 오답패턴 한번에."""
+    try:
+        from db import (
+            get_cio_performance_summary as _perf,
+            get_all_analyst_elos, get_all_calibration_buckets,
+            get_tool_effectiveness_all, get_active_error_patterns,
+        )
+        return {
+            "performance": _perf(),
+            "analyst_elos": get_all_analyst_elos(),
+            "calibration_buckets": get_all_calibration_buckets(),
+            "tool_effectiveness": get_tool_effectiveness_all(),
+            "error_patterns": get_active_error_patterns(),
+        }
+    except Exception as e:
+        logger.error("[CIO] 신뢰도 대시보드 조회 실패: %s", e)
+        return {"error": str(e)}
+
+
+@router.get("/api/cio/analyst-elos")
+async def cio_analyst_elos():
+    """전문가별 ELO 레이팅 순위."""
+    try:
+        from db import get_all_analyst_elos
+        elos = get_all_analyst_elos()
+        return {"analysts": sorted(elos, key=lambda x: x.get("elo_rating", 1500), reverse=True)}
+    except Exception as e:
+        logger.error("[CIO] ELO 조회 실패: %s", e)
+        return {"analysts": [], "error": str(e)}
+
+
+@router.get("/api/cio/calibration")
+async def cio_calibration():
+    """구간별 베이지안 보정 데이터."""
+    try:
+        from db import get_all_calibration_buckets
+        buckets = get_all_calibration_buckets()
+        return {"buckets": buckets}
+    except Exception as e:
+        logger.error("[CIO] 칼리브레이션 조회 실패: %s", e)
+        return {"buckets": [], "error": str(e)}
+
+
+@router.get("/api/cio/tool-effectiveness")
+async def cio_tool_effectiveness():
+    """도구별 예측 기여 효과 순위."""
+    try:
+        from db import get_tool_effectiveness_all
+        tools = get_tool_effectiveness_all()
+        return {"tools": sorted(tools, key=lambda x: x.get("eff_score", 0.5), reverse=True)}
+    except Exception as e:
+        logger.error("[CIO] 도구 효과 조회 실패: %s", e)
+        return {"tools": [], "error": str(e)}
+
+
+@router.get("/api/cio/error-patterns")
+async def cio_error_patterns():
+    """탐지된 오답 패턴 목록."""
+    try:
+        from db import get_active_error_patterns
+        patterns = get_active_error_patterns()
+        return {"patterns": patterns}
+    except Exception as e:
+        logger.error("[CIO] 오답 패턴 조회 실패: %s", e)
+        return {"patterns": [], "error": str(e)}
+
+
+@router.get("/api/cio/prediction-history")
+async def cio_prediction_history(limit: int = 30, offset: int = 0):
+    """예측 히스토리 + 채점 결과 (전문가 기여 포함)."""
+    try:
+        from db import get_connection, get_prediction_specialists
+        conn = get_connection()
+        rows = conn.execute(
+            """SELECT id, ticker, ticker_name, direction, confidence, predicted_price,
+                      target_price, analysis_summary, correct_3d, correct_7d,
+                      return_pct_3d, return_pct_7d, brier_score, created_at,
+                      verify_at_3d, verify_at_7d
+               FROM cio_predictions ORDER BY id DESC LIMIT ? OFFSET ?""",
+            (limit, offset),
+        ).fetchall()
+        total = conn.execute("SELECT COUNT(*) FROM cio_predictions").fetchone()[0]
+        conn.close()
+
+        predictions = []
+        for r in rows:
+            pred = {
+                "id": r[0], "ticker": r[1], "ticker_name": r[2],
+                "direction": r[3], "confidence": r[4],
+                "predicted_price": r[5], "target_price": r[6],
+                "analysis_summary": (r[7] or "")[:200],
+                "correct_3d": r[8], "correct_7d": r[9],
+                "return_pct_3d": r[10], "return_pct_7d": r[11],
+                "brier_score": r[12], "created_at": r[13],
+                "verify_at_3d": r[14], "verify_at_7d": r[15],
+                "specialists": get_prediction_specialists(r[0]),
+            }
+            predictions.append(pred)
+
+        return {"predictions": predictions, "total": total, "limit": limit, "offset": offset}
+    except Exception as e:
+        logger.error("[CIO] 예측 히스토리 조회 실패: %s", e)
+        return {"predictions": [], "total": 0, "error": str(e)}
