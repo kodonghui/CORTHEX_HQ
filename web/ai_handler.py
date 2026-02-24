@@ -447,13 +447,13 @@ async def classify_task(text: str) -> dict:
     if not is_ai_ready():
         return {"agent_id": "chief_of_staff", "reason": "AI 미연결", "cost_usd": 0}
 
-    # 분류용 모델: 가장 저렴한 모델 선택
-    if _anthropic_client:
-        classify_model = "claude-sonnet-4-6"
-    elif _google_client:
+    # 분류용 모델: 가장 저렴한 모델 선택 (Gemini Flash → GPT Mini → Claude)
+    if _google_client:
         classify_model = "gemini-2.5-flash"
     elif _openai_client:
         classify_model = "gpt-5-mini"
+    elif _anthropic_client:
+        classify_model = "claude-sonnet-4-6"
     else:
         return {"agent_id": "chief_of_staff", "reason": "AI 미연결", "cost_usd": 0}
 
