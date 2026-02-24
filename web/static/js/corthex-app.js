@@ -3770,10 +3770,29 @@ function corthexApp() {
     },
 
     getCioLogColor(log) {
+      // #4: 에이전트별 색상 구분 (CIO팀 내부)
+      const sender = (log.sender || log.agent_id || '').toLowerCase();
+      if (sender.includes('cio_manager') || sender.includes('투자분석처장')) return 'text-hq-accent';
+      if (sender.includes('market_condition') || sender.includes('시황')) return 'text-hq-cyan';
+      if (sender.includes('stock_analysis') || sender.includes('종목')) return 'text-hq-green';
+      if (sender.includes('technical_analysis') || sender.includes('기술')) return 'text-hq-yellow';
+      if (sender.includes('risk_management') || sender.includes('리스크')) return 'text-hq-red';
+      // 로그 타입 폴백
       if (log.type === 'delegation') return 'text-hq-yellow';
       if (log.type === 'report') return 'text-hq-green';
-      if (log.type === 'activity') return 'text-hq-accent';
       return 'text-hq-muted';
+    },
+
+    // #5: CIO팀 발신자 표기 통일 — 짧고 일관된 이름
+    getCioShortName(agentIdOrName) {
+      if (!agentIdOrName) return '';
+      const id = agentIdOrName.toLowerCase();
+      if (id.includes('cio_manager') || id.includes('투자분석처장')) return 'CIO';
+      if (id.includes('market_condition') || id.includes('시황분석')) return '시황분석';
+      if (id.includes('stock_analysis') || id.includes('종목분석')) return '종목분석';
+      if (id.includes('technical_analysis') || id.includes('기술적분석') || id.includes('기술분석')) return '기술분석';
+      if (id.includes('risk_management') || id.includes('리스크')) return '리스크';
+      return this.getAgentName(agentIdOrName) || agentIdOrName;
     },
 
     getFilteredCioLogs() {
@@ -4454,12 +4473,18 @@ function corthexApp() {
       if (hr < 24) return hr + '시간 전';
       return Math.floor(hr / 24) + '일 전';
     },
-    // 내부통신 — 부서별 컬러 (발신자 agentId 기반)
+    // 내부통신 — 에이전트별 컬러 (발신자 agentId 기반)
     getDeptColor(agentId) {
       if (!agentId) return '#6b7280';
       const id = agentId.toLowerCase();
-      // CIO / 투자분석처 (노란색)
-      if (id.includes('cio') || id.includes('투자분석') || id.includes('finance') || id.includes('stock') || id.includes('market_condition') || id.includes('시황') || id.includes('종목분석') || id.includes('technical_analysis') || id.includes('기술적분석') || id.includes('risk') || id.includes('리스크')) return '#fbbf24';
+      // CIO 팀 — 개별 색상 구분 (#4)
+      if (id.includes('cio_manager') || id === 'cio' || id.includes('투자분석처장')) return '#00d4aa';  // 청록 (처장)
+      if (id.includes('market_condition') || id.includes('시황분석')) return '#00b4d8';  // 시안 (시황)
+      if (id.includes('stock_analysis') || id.includes('종목분석')) return '#34d399';   // 초록 (종목)
+      if (id.includes('technical_analysis') || id.includes('기술적분석')) return '#fbbf24';  // 노랑 (기술)
+      if (id.includes('risk_management') || id.includes('리스크')) return '#f87171';    // 빨강 (리스크)
+      // CIO 팀 기타 (finance division)
+      if (id.includes('finance')) return '#fbbf24';
       // CTO / 기술개발처 (청록색)
       if (id.includes('cto') || id.includes('기술개발') || id.includes('frontend') || id.includes('프론트엔드') || id.includes('backend') || id.includes('백엔드') || id.includes('infra') || id.includes('인프라') || id.includes('ai_model') || id.includes('ai모델')) return '#22d3ee';
       // CMO / 마케팅고객처 (보라색)

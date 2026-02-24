@@ -3264,7 +3264,7 @@
                 <button @click="archive.filterDivision = 'all'; loadArchive()"
                   :class="archive.filterDivision === 'all' ? 'bg-hq-accent/20 text-hq-accent' : 'text-hq-muted'"
                   class="px-2.5 py-1 text-[11px] font-semibold rounded-lg transition">전체</button>
-                <template x-for="div in ['secretary','leet_master.tech','leet_master.strategy','leet_master.legal','leet_master.marketing','finance.investment']" :key="div">
+                <template x-for="div in ['secretary','leet_master.tech','leet_master.strategy','leet_master.legal','leet_master.marketing','finance.investment','publishing']" :key="div">
                   <button @click="archive.filterDivision = div; loadArchive()"
                     :class="archive.filterDivision === div ? 'bg-hq-accent/20 text-hq-accent' : 'text-hq-muted'"
                     class="px-2.5 py-1 text-[11px] font-semibold rounded-lg transition" x-text="getDivisionLabel(div)"></button>
@@ -4174,12 +4174,12 @@
                       <!-- 발신/수신 -->
                       <div class="flex items-center gap-1.5 mb-0.5">
                         <span class="text-[11px] font-bold shrink-0" :class="getCioLogColor(log)"
-                              x-text="(getAgentName(log.sender)||log.sender||'').replace('투자분석처장','CIO').replace(' Specialist','').replace('시황분석 전문가','시황분석').replace('종목분석 전문가','종목분석').replace('기술적분석 전문가','기술분석').replace('리스크관리 전문가','리스크')"></span>
+                              x-text="getCioShortName(log.sender)"></span>
                         <template x-if="log.receiver">
                           <span class="flex items-center gap-1">
                             <span class="text-[10px] text-hq-muted/40" x-text="log.type === 'report' ? '→' : '⇢'"></span>
                             <span class="text-[10px] text-hq-muted/60 shrink-0"
-                                  x-text="(getAgentName(log.receiver)||log.receiver||'').replace('투자분석처장','CIO').replace(' Specialist','').replace('시황분석 전문가','시황분석').replace('종목분석 전문가','종목분석').replace('기술적분석 전문가','기술분석').replace('리스크관리 전문가','리스크')"></span>
+                                  x-text="getCioShortName(log.receiver)"></span>
                           </span>
                         </template>
                         <span class="text-[9px] text-hq-muted/30 ml-auto shrink-0" x-text="formatLogTime(log.time)"></span>

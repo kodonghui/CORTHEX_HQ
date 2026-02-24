@@ -7293,6 +7293,15 @@ async def _quality_review_specialists(chain: dict) -> list[dict]:
     task_desc = chain.get("original_command", "")[:500]
     failed = []
 
+    # #2: 검수 시작 로그 — 전 직원 작업 시작 시 로그 기록
+    _spec_ids = list(chain.get("results", {}).get("specialists", {}).keys())
+    if _spec_ids:
+        _spec_names = ", ".join(_AGENT_NAMES.get(s, _SPECIALIST_NAMES.get(s, s)) for s in _spec_ids[:4])
+        _qa_start_log = save_activity_log(
+            target_id, f"🔍 검수 시작: {_spec_names} ({len(_spec_ids)}명)", level="qa_start"
+        )
+        await wm.send_activity_log(_qa_start_log)
+
     for agent_id, result_data in chain.get("results", {}).get("specialists", {}).items():
         content = result_data.get("content", "")
         if result_data.get("error"):
