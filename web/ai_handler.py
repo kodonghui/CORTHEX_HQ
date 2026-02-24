@@ -382,6 +382,24 @@ def _load_tool_schemas(allowed_tools: list | None = None) -> dict:
     }
 
 
+def _apply_openai_strict_inline(obj: dict) -> None:
+    """OpenAI strict 모드용: 모든 레벨의 object에 additionalProperties/required 재귀 적용."""
+    if obj.get("type") == "object":
+        props = obj.get("properties", {})
+        obj["additionalProperties"] = False
+        obj["required"] = list(props.keys())
+        for prop in props.values():
+            if isinstance(prop, dict):
+                if isinstance(prop.get("enum"), list):
+                    prop["enum"] = [e for e in prop["enum"] if e is not None]
+                if prop.get("type") == "object":
+                    _apply_openai_strict_inline(prop)
+                if prop.get("type") == "array":
+                    items = prop.get("items", {})
+                    if isinstance(items, dict) and items.get("type") == "object":
+                        _apply_openai_strict_inline(items)
+
+
 def _get_provider(model: str) -> str:
     """모델명으로 프로바이더를 판별합니다."""
     if model.startswith("claude-"):
