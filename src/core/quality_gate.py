@@ -349,6 +349,7 @@ class QualityGate:
             result = self._parse_hybrid_response(
                 response.content, checklist_items, scoring_items,
                 reviewer_id, target_agent_id, model_to_use,
+                original_text=text,
             )
             logger.info(
                 "[QA] %s → %s | 모델=%s | 점수=%.1f | %s",
@@ -466,6 +467,7 @@ class QualityGate:
         reviewer_id: str,
         target_agent_id: str,
         model_used: str,
+        original_text: str = "",
     ) -> HybridReviewResult:
         """LLM 하이브리드 응답 파싱."""
 
@@ -531,6 +533,18 @@ class QualityGate:
                 critical=item.get("critical", False),
                 feedback=str(item_fb)[:200],
             ))
+
+        # ★ Q1 안전장치: 도구를 사용한 보고서에서 Q1이 1점이면 3점으로 보정
+        # (도구 사용 여부는 코드에서 구조적으로 확인 — LLM 판정에 의존하지 않음)
+        if original_text and "사용한 도구" in original_text:
+            for s in score_results:
+                if s.id == "Q1" and s.score == 1:
+                    logger.info(
+                        "[QA] ★Q1 안전장치 발동: '사용한 도구' 섹션 확인됨 → Q1 1점→3점 보정 (%s)",
+                        target_agent_id,
+                    )
+                    s.score = 3
+                    s.feedback = (s.feedback or "") + " [안전장치: 도구 사용 확인됨, 1점→3점 보정]"
 
         # 가중 평균 계산
         weighted_average = self._calc_weighted_average(score_results)

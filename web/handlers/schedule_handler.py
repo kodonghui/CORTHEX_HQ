@@ -69,10 +69,18 @@ async def toggle_schedule(schedule_id: str):
 
 @router.delete("/api/schedules/{schedule_id}")
 async def delete_schedule(schedule_id: str):
-    """예약 삭제."""
+    """예약 삭제. 기본 크론(default_*) 삭제 시 서버 재시작 후 복원 방지."""
     schedules = _load_data("schedules", [])
     schedules = [s for s in schedules if s.get("id") != schedule_id]
     _save_data("schedules", schedules)
+
+    # 기본 크론 삭제 시 deleted_schedules에 기록 → 서버 재시작 시 복원하지 않음
+    if schedule_id.startswith("default_"):
+        deleted = _load_data("deleted_schedules", [])
+        if schedule_id not in deleted:
+            deleted.append(schedule_id)
+            _save_data("deleted_schedules", deleted)
+
     return {"success": True}
 
 

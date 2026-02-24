@@ -1174,7 +1174,7 @@ async def ask_ai(
 
     # 개별 AI API 호출 타임아웃 (도구 실행 시간은 제외됨)
     # 도구 사용 시 AI가 여러 번 호출되므로, 각 호출마다 독립 타임아웃 적용
-    AI_CALL_TIMEOUT = 300  # 5분 — 개별 AI 호출 1회당 최대 대기 시간
+    AI_CALL_TIMEOUT = 600  # 10분 — 개별 AI 호출 1회당 최대 대기 시간 (GPT-5.2-pro 추론 모델 대응)
 
     start = time.time()
     try:
@@ -1220,7 +1220,7 @@ async def ask_ai(
     except asyncio.TimeoutError:
         elapsed = time.time() - start
         logger.error("AI 응답 시간 초과 (%s/%s): %.1f초", provider, model, elapsed)
-        return {"error": f"AI 응답 시간 초과 ({provider}/{model}) — {AI_CALL_TIMEOUT}초 제한 초과"}
+        return {"error": f"AI 응답 시간 초과 ({provider}/{model}) — {AI_CALL_TIMEOUT}초 제한 초과 (도구 시간 제외, 순수 AI 응답만)"}
     except Exception as e:
         err_str = str(e)
         err_type = type(e).__name__

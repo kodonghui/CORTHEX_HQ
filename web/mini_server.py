@@ -3787,22 +3787,35 @@ async def _cron_loop():
 
 
 def _register_default_schedules():
-    """서버 시작 시 기본 스케줄이 없으면 자동 등록합니다."""
+    """서버 시작 시 기본 스케줄이 없으면 자동 등록합니다.
+    대표님이 삭제한 크론은 deleted_schedules에 기록 → 서버 재시작 시 복원하지 않음.
+    """
     schedules = _load_data("schedules", [])
+    deleted_ids: set = set(_load_data("deleted_schedules", []))  # 대표님이 삭제한 기본 크론 ID 목록
     existing_ids = {s.get("id") for s in schedules}
+
+    # 마이그레이션: 기존 CSO 주식분석 크론 → CIO로 교체 (주식분석은 CIO 업무)
+    _old_ids = {"default_cso_morning", "default_cso_weekly"}
+    before_count = len(schedules)
+    schedules = [s for s in schedules if s.get("id") not in _old_ids]
+    _migrated = before_count - len(schedules)
+    if _migrated:
+        existing_ids = {s.get("id") for s in schedules}
+        deleted_ids -= _old_ids  # 기존 CSO 삭제 기록 제거 (새 CIO ID로 대체)
+        _log(f"[CRON] 기존 CSO 주식분석 크론 {_migrated}개 제거 → CIO로 교체 예정")
 
     defaults = [
         {
-            "id": "default_cso_morning",
-            "name": "전략실 일일 시장 분석",
-            "command": "@전략실장 오늘 한국 주식시장 주요 동향과 섹터별 분석을 보고해주세요. 주요 이슈와 투자 관점 포함.",
+            "id": "default_cio_morning",
+            "name": "CIO 일일 시장 분석",
+            "command": "@투자분석처장 오늘 한국 주식시장 주요 동향과 섹터별 분석을 보고해주세요. 주요 이슈와 투자 관점 포함.",
             "cron": "30 8 * * 1-5",  # 평일 08:30
             "enabled": True,
         },
         {
-            "id": "default_cso_weekly",
-            "name": "전략실 주간 시장 리뷰",
-            "command": "@전략실장 이번 주 시장 총평과 다음 주 전망을 종합 보고서로 작성해주세요.",
+            "id": "default_cio_weekly",
+            "name": "CIO 주간 시장 리뷰",
+            "command": "@투자분석처장 이번 주 시장 총평과 다음 주 전망을 종합 보고서로 작성해주세요.",
             "cron": "0 18 * * 5",  # 금요일 18:00
             "enabled": True,
         },
@@ -3810,6 +3823,9 @@ def _register_default_schedules():
 
     added = 0
     for d in defaults:
+        # 대표님이 삭제한 기본 크론은 다시 등록하지 않음
+        if d["id"] in deleted_ids:
+            continue
         if d["id"] not in existing_ids:
             d["last_run"] = ""
             d["last_run_ts"] = 0
@@ -3817,16 +3833,37 @@ def _register_default_schedules():
             schedules.append(d)
             added += 1
 
-    if added:
+    if added or _migrated:
         _save_data("schedules", schedules)
-        _log(f"[CRON] 기본 스케줄 {added}개 자동 등록 ✅")
+        _log(f"[CRON] 기본 스케줄 {added}개 등록, {_migrated}개 마이그레이션 ✅")
 
 
 async def _run_scheduled_command(command: str, schedule_name: str):
     """예약된 명령을 실행하고, 결과를 텔레그램 CEO에게 발송합니다."""
     try:
-        task = create_task(command, source="cron")
-        result = await _process_ai_command(command, task["task_id"])
+        # @멘션 파싱 — 텔레그램과 동일 로직 (크론 명령에서도 target_agent_id 지정)
+        target_agent_id = None
+        actual_command = command
+        stripped = command.strip()
+        if stripped.startswith("@"):
+            parts = stripped.split(None, 1)
+            if len(parts) >= 2:
+                mention = parts[0][1:]
+                mention_lower = mention.lower()
+                for a in AGENTS:
+                    aid = a.get("agent_id", "").lower()
+                    aname = a.get("name_ko", "")
+                    tcode = a.get("telegram_code", "").lstrip("@")
+                    if (aid == mention_lower or aid.startswith(mention_lower)
+                            or mention_lower in aname.lower() or mention == tcode):
+                        target_agent_id = a["agent_id"]
+                        actual_command = parts[1]  # @멘션 제거
+                        break
+                if not target_agent_id:
+                    logger.warning("[CRON] @멘션 '%s' 매칭 실패, 스마트 라우팅으로 진행", mention)
+
+        task = create_task(actual_command, source="cron")
+        result = await _process_ai_command(actual_command, task["task_id"], target_agent_id=target_agent_id)
         save_activity_log("system", f"✅ 예약 완료: {schedule_name}", "info")
 
         # 크론 결과를 텔레그램 CEO에게 발송
