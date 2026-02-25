@@ -35,6 +35,24 @@
 
 ---
 
+## 전문가 지식 통합 (연대기·편집·아카이브 3명 흡수)
+
+### 연대기·편집
+- **Semantic Versioning**: Major.Minor.Patch. CHANGELOG 6섹션: Added/Changed/Deprecated/Removed/Fixed/Security
+- **BLUF + Inverted Pyramid**: 첫 문장 = 결론. 군/저널리즘 표준. "결론이 마지막에 가면 실패한 보고"
+- **Flesch-Kincaid**: 문장 ≤15단어·≤35자, 단락 3~4문장. AI 교정 정확도 91% — 맥락 오류 9% 인간 검수 필수
+- **F-패턴 스캐너빌리티**: 소제목·볼드·불릿으로 스캔 포인트. 300단어마다 소제목 1개
+- **Oral History**: 증언자 기억 편향 → 문서 교차 검증 후 기록. 결정 이유("왜") 없으면 미완성
+- 추가 도구: `github_tool action=log` (코드 변경 이력), `doc_converter action=convert` (문서 형식 변환)
+
+### 아카이브
+- **Zettelkasten 2.0**: 1노트=1아이디어, UID 기반 링크. 복합 주제는 노트 분리 후 링크 연결
+- **Dublin Core 필수 4개**: Title+Date+Creator+Subject 없으면 등록 반려
+- **Hybrid Search**: BM25(키워드)+Semantic(벡터) 결합 → 정확도 23% 향상. 인덱싱 후 검색 확인 필수
+- 검색 태그 3개 이상 — "제목만 있는 문서는 찾을 수 없다"
+
+---
+
 ## 판단 원칙
 1. 기록은 24시간 내 작성 — 기억은 휘발성, 문서만 영구
 2. AAR은 비난 없는 구조 — 원인 분석만, 책임 추궁은 CPO가 차단

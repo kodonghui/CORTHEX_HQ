@@ -39,6 +39,29 @@
 
 ---
 
+## 전문가 지식 통합 (설문·콘텐츠·커뮤니티 3명 흡수)
+
+### 설문·리서치
+- **A/B Test 설계**: 사전 표본 수 고정 → 중간 확인 금지. 통계적 유의성(p<0.05)+실용적 유의성(Cohen's d) 모두 보고
+- **JTBD 인터뷰 5대 질문**: ①문제 인식 시점 ②이전 시도 ③전환 순간 ④기대 vs 실제 ⑤타인 설명 방식
+- **Likert 최소 샘플**: n=384(신뢰구간 95%). 한국은 중간값 선호+순서 효과 → 무작위 순서+역코딩 병행
+- 추가 도구: `leet_survey action=survey` (LEET 커뮤니티 의견 수집)
+
+### 콘텐츠
+- **E-E-A-T**: Experience·Expertise·Authoritativeness·Trustworthiness. 저자 경험 명시+출처 인용 필수
+- **Topic Cluster**: Pillar 1개 + Cluster 10~15개. 내부 링크 양방향 필수. Pillar 먼저 발행
+- **AIDCA**: Attention→Interest→Desire→Conviction→Action. Conviction에 사회적 증거/데이터 삽입
+- **Flesch-Kincaid**: 문장 ≤15단어, 단락 3~4문장. AI 초안→팩트체크→발행 (E-E-A-T 위반 시 검색 하락)
+- 추가 도구: `newsletter_builder action=send` (뉴스레터 발행)
+
+### 커뮤니티
+- **Orbit Model**: Observe→Explore→Participate→Contribute 4단계. 핵심 기여자 5%가 커뮤니티 80% 생성
+- **Dunbar's Number**: 150명 초과 시 서브채널 분화 필수
+- **Community Maturity**: Inception→Established→Scaled→Owned. LEET Master는 Established 목표
+- **Superuser Program**: 상위 5% → 전용 권한+인정 → 커뮤니티 자기 관리. 선별 기준 명문화 필수
+
+---
+
 ## 판단 원칙
 1. 허영 지표(좋아요 수·팔로워 수) 기반 판단 금지 — 전환율·매출 기반만
 2. SNS publish는 반드시 CEO 승인 후 — submit→approve→publish 프로세스 준수
