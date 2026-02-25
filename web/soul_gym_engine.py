@@ -35,6 +35,9 @@ MIN_IMPROVEMENT = 3.0                # 최소 개선폭 (전 종목 평균 기�
 COST_CAP_USD = 20.0                  # 1회 전체 진화 비용 상한
 MAX_SOUL_SNIPPET = 1500              # 소울 스니펫 길이
 
+# 벤치마크가 모의투자 분석이므로, 투자팀장만 대상
+GYM_TARGET_AGENTS = ["cio_manager"]
+
 
 def _load_agents_yaml() -> list[dict]:
     """config/agents.yaml에서 에이전트 목록 로드."""
@@ -401,17 +404,17 @@ async def evolve_agent(agent_id: str, dry_run: bool = False) -> dict:
 # ══════════════════════════════════════════════════════════════
 
 async def evolve_all(dry_run: bool = False) -> dict:
-    """전체 6명 팀장 순차 진화. 비용 캡 초과 시 중단.
+    """투자팀장 진화. 벤치마크가 모의투자 분석이므로 투자팀장만 대상.
 
-    QA 점수 기준 정렬은 하지 않음 (전체 다 돌리므로).
+    다른 팀장은 부서별 벤치마크 추가 시 확장 가능.
     """
-    from db import save_activity_log, get_quality_scores_timeline
+    from db import save_activity_log
 
     agents = _load_agents_yaml()
-    managers = [a for a in agents if not a.get("dormant") and a.get("agent_id") != "chief_of_staff"]
+    managers = [a for a in agents if a.get("agent_id") in GYM_TARGET_AGENTS and not a.get("dormant")]
 
     if not managers:
-        return {"status": "error", "message": "진화 대상 에이전트 없음"}
+        return {"status": "error", "message": "진화 대상 에이전트 없음 (투자팀장 확인)"}
 
     logger.info("🧬 Soul Gym 전체 진화 시작: %d명", len(managers))
     save_activity_log("system", f"🧬 Soul Gym 전체 진화 시작: {len(managers)}명", "info")
