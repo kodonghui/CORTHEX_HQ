@@ -3762,12 +3762,7 @@ async def _cron_loop():
                 from handlers.soul_evolution_handler import run_soul_evolution_analysis
                 asyncio.create_task(run_soul_evolution_analysis())
 
-            # Soul Gym 경쟁 진화: 매주 월요일 03:00 KST (flash2.5로 모의투자 기반)
-            if _now_cron.weekday() == 0 and _now_cron.hour == 3 and _now_cron.minute == 0:
-                logger.info("🧬 Soul Gym 주간 경쟁 진화 크론 실행")
-                save_activity_log("system", "🧬 Soul Gym 주간 경쟁 진화 시작 (크론)", "info")
-                from soul_gym_engine import evolve_all as _soul_gym_evolve_all
-                asyncio.create_task(_soul_gym_evolve_all())
+            # Soul Gym 24/7 상시 진화 — _soul_gym_loop()로 이관 (서버 시작 시 자동 실행)
 
             schedules = _load_data("schedules", [])
             now = datetime.now(KST)
@@ -9779,6 +9774,45 @@ def _init_tool_pool():
 # ── 도구 실행/상태/건강 → handlers/tools_handler.py로 분리 ──
 
 
+# ── Soul Gym 24/7 상시 루프 ──
+
+_soul_gym_running = False  # 중복 실행 방지 플래그
+
+async def _soul_gym_loop():
+    """Soul Gym 상시 진화 루프 — 한 라운드 끝나면 5분 쉬고 다음 라운드.
+
+    비유: 24시간 운영 헬스장. 선수가 운동 끝나면 5분 쉬고 다시 시작.
+    """
+    global _soul_gym_running
+    if _soul_gym_running:
+        logger.warning("[SOUL GYM] 이미 루프 실행 중 — 중복 방지")
+        return
+    _soul_gym_running = True
+    INTERVAL_SECONDS = 300  # 라운드 간 대기 (5분)
+
+    try:
+        from soul_gym_engine import evolve_all as _evolve_all
+    except ImportError:
+        logger.error("[SOUL GYM] soul_gym_engine 임포트 실패")
+        _soul_gym_running = False
+        return
+
+    round_num = 0
+    while True:
+        try:
+            round_num += 1
+            logger.info("🧬 Soul Gym 라운드 #%d 시작", round_num)
+            save_activity_log("system", f"🧬 Soul Gym 라운드 #{round_num} 시작", "info")
+            result = await _evolve_all()
+            logger.info("🧬 Soul Gym 라운드 #%d 완료: %s", round_num, result.get("status", "unknown"))
+            save_activity_log("system", f"🧬 Soul Gym 라운드 #{round_num} 완료 — {result.get('status', '')}", "info")
+        except Exception as e:
+            logger.error("🧬 Soul Gym 라운드 #%d 에러: %s", round_num, e)
+            save_activity_log("system", f"🧬 Soul Gym 라운드 #{round_num} 에러: {e}", "error")
+
+        await asyncio.sleep(INTERVAL_SECONDS)
+
+
 @app.on_event("startup")
 async def on_startup():
     """서버 시작 시 DB 초기화 + AI 클라이언트 + 텔레그램 봇 + 크론 엔진 + 도구 풀 시작."""
@@ -9850,6 +9884,9 @@ async def on_startup():
     # 메모리 정리 태스크 (10분마다 bg_results, notion_log 정리)
     app_state._cleanup_task = asyncio.create_task(app_state.periodic_cleanup())
     _log("[CLEANUP] 메모리 자동 정리 태스크 시작 ✅ (10분 간격)")
+    # Soul Gym 24/7 상시 루프 (대표님 지시 2026-02-25: "24시간 7일 내내")
+    asyncio.create_task(_soul_gym_loop())
+    _log("[SOUL GYM] 24/7 상시 진화 루프 시작 ✅ (라운드당 ~$0.012)")
 
 
 @app.on_event("shutdown")

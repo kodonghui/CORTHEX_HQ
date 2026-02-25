@@ -616,6 +616,8 @@ async def _call_anthropic(
         kwargs["temperature"] = 1.0  # 추론 모델 필수값
         budget = REASONING_BUDGET_TOKENS_MAP.get(reasoning_effort, 8192)
         kwargs["thinking"] = {"type": "adaptive", "budget_tokens": budget}
+        # max_tokens = thinking budget + 응답 여유 (잘림 방지)
+        kwargs["max_tokens"] = budget + 16384
     elif "haiku" in model:
         kwargs["temperature"] = 0.5
     else:
