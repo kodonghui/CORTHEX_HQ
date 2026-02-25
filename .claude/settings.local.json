@@ -1,21 +1,19 @@
 {
   "permissions": {
     "allow": [
-      "Bash(git checkout:*)",
-      "Bash(git add:*)",
-      "Bash(git commit:*)",
-      "Bash(git push:*)",
-      "Bash(gh run list:*)",
-      "Bash(git stash push:*)",
-      "Bash(git pull:*)",
-      "Bash(git stash:*)",
-      "Bash(git restore:*)",
-      "Bash(git reset:*)",
-      "Bash(git mv:*)",
-      "Bash(gh pr create:*)",
-      "Bash(git fetch:*)",
-      "Bash(python3:*)",
-      "Bash(python -c:*)"
+      "Bash(*)",
+      "Read(*)",
+      "Write(*)",
+      "Edit(*)",
+      "Glob(*)",
+      "Grep(*)",
+      "WebFetch(*)",
+      "WebSearch(*)",
+      "Task(*)",
+      "TodoWrite(*)",
+      "NotebookEdit(*)",
+      "AskUserQuestion(*)",
+      "Skill(*)"
     ]
   }
 }
