@@ -7294,8 +7294,14 @@ class _QAModelRouter:
 _qa_router = _QAModelRouter()
 
 
-async def _quality_review_specialists(chain: dict) -> list[dict]:
+async def _quality_review_specialists(
+    chain: dict,
+    previous_reviews: dict | None = None,
+) -> list[dict]:
     """전문가 결과를 매니저 모델로 개별 검수. 불합격 목록 반환.
+
+    previous_reviews: {agent_id: HybridReviewResult} — 재작업 시 이전 검수 결과.
+        제공되면 사유 특정 재검수 (반려 항목만 재평가, 나머지는 이전 점수 유지).
 
     Returns: [{"agent_id": ..., "review": HybridReviewResult, "content": ...}, ...]
     """
@@ -7322,6 +7328,11 @@ async def _quality_review_specialists(chain: dict) -> list[dict]:
 
     for agent_id, result_data in chain.get("results", {}).get("specialists", {}).items():
         content = result_data.get("content", "")
+
+        # ★ 사유 특정 재검수 모드: 이전에 합격한 전문가는 건너뜀 (LLM 비용 절약)
+        if previous_reviews and agent_id not in previous_reviews:
+            continue  # 이 전문가는 이전 검수에서 합격 → 재검수 불필요
+
         if result_data.get("error"):
             # 에러 결과는 자동 불합격 처리
             failed.append({
@@ -7349,15 +7360,29 @@ async def _quality_review_specialists(chain: dict) -> list[dict]:
             )
 
         try:
-            review = await app_state.quality_gate.hybrid_review(
-                result_data=_qa_content,
-                task_description=task_desc,
-                model_router=_qa_router,
-                reviewer_id=target_id,
-                reviewer_model=reviewer_model,
-                division=division,
-                target_agent_id=agent_id,
-            )
+            # ★ 사유 특정 재검수: 이전 리뷰가 있으면 반려 항목만 재평가
+            _prev_review = (previous_reviews or {}).get(agent_id)
+            if _prev_review is not None:
+                review = await app_state.quality_gate.targeted_hybrid_review(
+                    result_data=_qa_content,
+                    task_description=task_desc,
+                    model_router=_qa_router,
+                    previous_review=_prev_review,
+                    reviewer_id=target_id,
+                    reviewer_model=reviewer_model,
+                    division=division,
+                    target_agent_id=agent_id,
+                )
+            else:
+                review = await app_state.quality_gate.hybrid_review(
+                    result_data=_qa_content,
+                    task_description=task_desc,
+                    model_router=_qa_router,
+                    reviewer_id=target_id,
+                    reviewer_model=reviewer_model,
+                    division=division,
+                    target_agent_id=agent_id,
+                )
             # 통계 기록 (메모리)
             app_state.quality_gate.record_review(review, target_id, agent_id, task_desc)
             chain["total_cost_usd"] += getattr(review, "_cost", 0)
@@ -7541,20 +7566,29 @@ async def _handle_specialist_rework(chain: dict, failed_specs: list[dict], attem
         # ★ QA 항목별 구체적 문제점 생성 (재작업 시 뭘 고쳐야 하는지 명확히)
         _review = spec.get("review")
         _detail_lines = []
+        _failed_ids: list[str] = []  # ★ 반려 항목 ID 리스트 (사유 특정 재검수용)
         if _review:
+            from src.core.quality_gate import QualityGate as _QG
+            _failed_ids = _QG.get_failed_item_ids(_review)
+            # 불합격 항목만 상세 표시 (통과 항목은 간략히)
             for ci in _review.checklist_results:
-                _st = "✅ 통과" if ci.passed else "❌ 불통과"
-                _rq = " [필수]" if ci.required else ""
-                _fb = f" — {ci.feedback}" if ci.feedback and not ci.passed else ""
-                _detail_lines.append(f"- {ci.id} {ci.label}: {_st}{_rq}{_fb}")
+                if not ci.passed:
+                    _rq = " [필수]" if ci.required else ""
+                    _fb = f" — {ci.feedback}" if ci.feedback else ""
+                    _detail_lines.append(f"- ❌ {ci.id} {ci.label}{_rq}{_fb}")
             for si in _review.score_results:
-                _crit = " ⚠️치명적" if si.critical and si.score == 1 else ""
-                _fb = f" — {si.feedback}" if si.feedback and si.score <= 3 else ""
-                _detail_lines.append(f"- {si.id} {si.label}: {si.score}점/5 (가중 {si.weight}%){_crit}{_fb}")
+                if si.score <= 1:
+                    _crit = " ⚠️치명적" if si.critical else ""
+                    _fb = f" — {si.feedback}" if si.feedback else ""
+                    _detail_lines.append(f"- ❌ {si.id} {si.label}: {si.score}점/5{_crit}{_fb}")
         _detail_block = "\n".join(_detail_lines) if _detail_lines else "(상세 항목 없음)"
+        _failed_ids_str = ", ".join(_failed_ids) if _failed_ids else "(전체)"
 
         rework_prompt = (
             f"[재작업 요청 #{attempt}] 당신의 보고서가 품질검수에서 불합격되었습니다.\n\n"
+            f"## 반려 항목 ID: {_failed_ids_str}\n"
+            f"⚠️ 위 항목만 수정하세요. 통과한 항목은 수정하지 마세요.\n"
+            f"⚠️ 재검수 시 위 항목만 재채점됩니다. 나머지는 이전 점수가 유지됩니다.\n\n"
             f"## 원래 업무 지시\n{task_desc}\n\n"
             f"## 불합격 사유\n{reason}\n\n"
             f"## 항목별 검수 결과\n{_detail_block}\n\n"
@@ -7657,9 +7691,15 @@ async def _handle_specialist_rework(chain: dict, failed_specs: list[dict], attem
     # ── 불합격 전문가 재작업 (전원 즉시 병렬) ──
     await asyncio.gather(*[_do_single_rework(spec) for spec in failed_specs])
 
-    # 재작업 결과 재검수
+    # ★ 사유 특정 재검수: 이전 검수 결과를 전달하여 반려 항목만 재평가
+    _prev_reviews = {}
+    for spec in failed_specs:
+        _rv = spec.get("review")
+        if _rv is not None:
+            _prev_reviews[spec["agent_id"]] = _rv
+
     _save_chain(chain)
-    still_failed = await _quality_review_specialists(chain)
+    still_failed = await _quality_review_specialists(chain, previous_reviews=_prev_reviews)
 
     if still_failed:
         # 아직 불합격인 건 → 다시 재작업 (attempt+1)
