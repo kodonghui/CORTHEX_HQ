@@ -5058,7 +5058,7 @@ async def _run_trading_now_inner(selected_tickers: list[str] | None = None):
     save_activity_log("chief_of_staff",
         f"📋 금융분석팀장 보고서 QA: {'✅ 승인' if qa_passed else '❌ 반려'} — {qa_reason[:80]}",
         "info" if qa_passed else "warning")
-    await wm.broadcast_comms({
+    await _broadcast_comms({
         "type": "comms",
         "agent_id": "chief_of_staff",
         "agent_name": "비서실장",
