@@ -109,7 +109,7 @@ jobs:
             Type=simple
             User=ubuntu
             WorkingDirectory=/home/ubuntu/CORTHEX_HQ/web
-            ExecStart=/home/ubuntu/venv/bin/uvicorn mini_server:app --host 0.0.0.0 --port 8000
+            ExecStart=/home/ubuntu/venv/bin/uvicorn arm_server:app --host 0.0.0.0 --port 8000
             EnvironmentFile=/home/ubuntu/corthex.env
             Restart=always
             RestartSec=5
@@ -230,7 +230,7 @@ jobs:
             echo "🐍 서버 파일 복사 중..."
             mkdir -p /home/ubuntu/web/templates
             mkdir -p /home/ubuntu/config
-            cp web/mini_server.py /home/ubuntu/web/mini_server.py
+            cp web/arm_server.py /home/ubuntu/web/arm_server.py
             cp web/ai_handler.py /home/ubuntu/web/ai_handler.py
             cp web/db.py /home/ubuntu/web/db.py
             cp /tmp/index.html /home/ubuntu/web/templates/index.html
@@ -453,9 +453,9 @@ jobs:
 
             # 6단계: 서버 재시작
             echo "🔁 서버 재시작 중..."
-            # corthex.service가 올바른 경로로 mini_server.py를 실행하도록 강제 설정
+            # corthex.service가 올바른 경로로 arm_server.py를 실행하도록 강제 설정
             echo "♻️ corthex.service ExecStart 복원 중..."
-            sudo sed -i 's|ExecStart=.*|ExecStart=/home/ubuntu/venv/bin/uvicorn mini_server:app --host 0.0.0.0 --port 8000|' /etc/systemd/system/corthex.service
+            sudo sed -i 's|ExecStart=.*|ExecStart=/home/ubuntu/venv/bin/uvicorn arm_server:app --host 0.0.0.0 --port 8000|' /etc/systemd/system/corthex.service
             sudo sed -i 's|WorkingDirectory=.*|WorkingDirectory=/home/ubuntu/CORTHEX_HQ/web|' /etc/systemd/system/corthex.service
             sudo systemctl daemon-reload
             sudo systemctl restart corthex

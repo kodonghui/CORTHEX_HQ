@@ -7,7 +7,7 @@ Anthropic (Claude), Google (Gemini), OpenAI (GPT) 3개 프로바이더를 지원
   - gemini-*  → Google Generative AI API
   - gpt-*     → OpenAI API
 
-mini_server.py에서 import하여 사용합니다.
+arm_server.py에서 import하여 사용합니다.
 """
 from __future__ import annotations
 
@@ -1076,7 +1076,7 @@ async def _call_openai_responses(
     }
 
 
-# ── spawn_agent 도구 스키마 (mini_server.py가 처장에게 제공) ──
+# ── spawn_agent 도구 스키마 (arm_server.py가 처장에게 제공) ──
 SPAWN_AGENT_TOOL_SCHEMA = {
     "name": "spawn_agent",
     "description": "소속 전문가 에이전트를 호출하여 특정 분석/작업을 수행합니다.",

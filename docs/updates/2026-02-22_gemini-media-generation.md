@@ -40,7 +40,7 @@
 |------|------|
 | `src/tools/gemini_image_generator.py` | 전면 개편 (프롬프트→실제 생성) |
 | `src/tools/gemini_video_generator.py` | **신규** (Veo 3.1) |
-| `web/mini_server.py` | 미디어 서빙 3개 엔드포인트 추가 |
+| `web/arm_server.py` | 미디어 서빙 3개 엔드포인트 추가 |
 | `web/templates/index.html` | 미디어 갤러리 + 미리보기 UI |
 | `config/tools.yaml` | 두 도구 스키마 업데이트 |
 | `config/agents.yaml` | content_specialist 도구 교체 |

@@ -10,10 +10,10 @@
 
 ## 왜 서버를 업그레이드하나요?
 
-지금 서버(1GB RAM)에서는 `mini_server.py` 1개 파일로 가볍게 돌리고 있습니다.
+지금 서버(1GB RAM)에서는 `arm_server.py` 1개 파일로 가볍게 돌리고 있습니다.
 그런데 프로젝트에는 **이미 완성된 풀 백엔드(`app.py` + `src/` 160개 파일)**가 있습니다.
 
-| 비교 | mini_server.py (지금) | app.py + src/ (풀 백엔드) |
+| 비교 | arm_server.py (지금) | app.py + src/ (풀 백엔드) |
 |------|----------------------|--------------------------|
 | 파일 수 | 1개 (1,707줄) | 160개+ (수만 줄) |
 | AI 모델 | Anthropic만 | Anthropic + **OpenAI** |
@@ -109,7 +109,7 @@ Oracle Cloud는 ARM 서버를 **무료로** 줍니다 (Always Free Tier):
 "deploy.yml을 ARM 서버용으로 업데이트해줘.
 변경 사항:
 1. app.py + src/ 폴더 전체를 서버에 배포
-2. mini_server.py 대신 app.py를 uvicorn으로 실행
+2. arm_server.py 대신 app.py를 uvicorn으로 실행
 3. Python venv 사용 (시스템 Python 오염 방지)
 4. pip install로 모든 의존성 설치 (requirements.txt 기반)
 5. corthex.service가 app.py를 실행하도록 변경
@@ -123,11 +123,11 @@ Oracle Cloud는 ARM 서버를 **무료로** 줍니다 (Always Free Tier):
 
 ---
 
-## Phase 7: 풀 백엔드 전환 (mini_server.py → app.py)
+## Phase 7: 풀 백엔드 전환 (arm_server.py → app.py)
 
-> **목표**: 서버에서 실제로 app.py를 돌리고, mini_server.py가 하던 모든 것이 유지되게 하기
+> **목표**: 서버에서 실제로 app.py를 돌리고, arm_server.py가 하던 모든 것이 유지되게 하기
 > **난이도**: ★★★★☆ (코드 병합 필요)
-> **핵심**: app.py가 mini_server.py의 SQLite DB 기능을 물려받아야 함
+> **핵심**: app.py가 arm_server.py의 SQLite DB 기능을 물려받아야 함
 
 ### 7-1. requirements.txt 생성
 
@@ -161,11 +161,11 @@ requirements.txt를 만들어줘.
 ```
 아래 프롬프트를 클로드에게 주세요:
 
-"app.py가 mini_server.py의 SQLite DB(db.py)를 사용하도록 수정해줘.
+"app.py가 arm_server.py의 SQLite DB(db.py)를 사용하도록 수정해줘.
 
 현재 상황:
 - app.py는 YAML/JSON 파일로 데이터를 저장함 (재배포하면 날아감)
-- mini_server.py는 SQLite DB(db.py)로 영구 저장함 (재배포해도 유지)
+- arm_server.py는 SQLite DB(db.py)로 영구 저장함 (재배포해도 유지)
 
 해야 할 것:
 1. app.py 시작 시 db.init_db() 호출
@@ -178,7 +178,7 @@ requirements.txt를 만들어줘.
 주의:
 - src/core/의 매니저 클래스들(PresetManager, Scheduler 등)은 각자 YAML 파일을 읽는데,
   이것들도 DB에서 읽도록 수정하거나, 시작 시 DB→YAML 동기화 메커니즘 추가
-- 기존 mini_server.py의 인증 시스템(비밀번호 해싱, 세션)도 유지
+- 기존 arm_server.py의 인증 시스템(비밀번호 해싱, 세션)도 유지
 - settings 테이블의 key-value 구조 활용"
 ```
 
@@ -193,8 +193,8 @@ requirements.txt를 만들어줘.
 ### 7-4. corthex.service 변경
 
 ```ini
-# 기존 (mini_server.py)
-ExecStart=/usr/bin/python3 -m uvicorn mini_server:app --host 0.0.0.0 --port 8000
+# 기존 (arm_server.py)
+ExecStart=/usr/bin/python3 -m uvicorn arm_server:app --host 0.0.0.0 --port 8000
 WorkingDirectory=/home/ubuntu/CORTHEX_HQ/web
 
 # 변경 후 (app.py + venv)
@@ -330,7 +330,7 @@ NOTION_API_KEY가 없으면 조용히 건너뛰기."
 
 ### 9-4. 텔레그램 봇 업그레이드
 
-현재 `mini_server.py`의 텔레그램 봇은 기본 기능만 있음.
+현재 `arm_server.py`의 텔레그램 봇은 기본 기능만 있음.
 `src/telegram/` 폴더에 향상된 버전이 있음:
 - `bot.py` — 양방향 브릿지 (웹↔텔레그램 실시간 연동)
 - `bridge.py` — 에이전트 이벤트를 텔레그램으로 중계

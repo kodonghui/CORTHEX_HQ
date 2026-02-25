@@ -12,7 +12,7 @@
 
 | 항목 | 현재 | 정상 기준 |
 |------|------|----------|
-| `mini_server.py` | **11,906줄** | 500줄 이하/모듈 |
+| `arm_server.py` | **11,906줄** | 500줄 이하/모듈 |
 | `index.html` | **10,666줄** | 컴포넌트별 분리 |
 | 전역 변수 | **44개** | 최소한 + Lock |
 | API 엔드포인트 | **55개** (인증 1개만) | 전체 인증 |
@@ -27,7 +27,7 @@
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                    mini_server.py (11,906줄)                 │
+│                    arm_server.py (11,906줄)                 │
 │                                                             │
 │  ┌─────────┐ ┌──────────┐ ┌─────────┐ ┌──────────────────┐ │
 │  │WebSocket│ │ 55개 API │ │텔레그램  │ │ 에이전트 라우팅/ │ │
@@ -58,7 +58,7 @@
               └───────────────────────┘
 ```
 
-**문제**: 모든 것이 `mini_server.py` 한 파일에 들어있음. 기능 추가할 때마다 이 파일이 커짐.
+**문제**: 모든 것이 `arm_server.py` 한 파일에 들어있음. 기능 추가할 때마다 이 파일이 커짐.
 
 ---
 
@@ -113,18 +113,18 @@ for c in connected_clients[:]:
 1. `web/broadcast.py` 생성
 2. `broadcast_ws(event, data)` 함수 작성 (타임아웃 2초, 실패 시 클라이언트 제거)
 3. `broadcast_sse(msg_data)` 함수 작성
-4. `mini_server.py`의 24곳을 `broadcast_ws()` 호출로 교체
+4. `arm_server.py`의 24곳을 `broadcast_ws()` 호출로 교체
 5. `connected_clients` 리스트에 `asyncio.Lock` 추가
 
 **검증**: 웹에서 프롬프트 보내기 → 응답 정상 수신 확인
 
-**예상 효과**: mini_server.py **-200줄**, 레이스컨디션 해결
+**예상 효과**: arm_server.py **-200줄**, 레이스컨디션 해결
 
 ---
 
 ### Step 2: 전역 상태 관리 모듈
 
-**문제**: 44개 전역 변수가 mini_server.py에 흩어져 있고, Lock 없이 여러 async 태스크에서 동시 접근
+**문제**: 44개 전역 변수가 arm_server.py에 흩어져 있고, Lock 없이 여러 async 태스크에서 동시 접근
 
 **작업 내용**:
 1. `web/state.py` 생성
@@ -145,7 +145,7 @@ for c in connected_clients[:]:
 
    app_state = AppState()
    ```
-3. `mini_server.py`에서 `global` 키워드 전부 제거, `app_state.xxx`로 교체
+3. `arm_server.py`에서 `global` 키워드 전부 제거, `app_state.xxx`로 교체
 4. `_bg_current_task_id` 레이스컨디션: Lock으로 보호
 
 **검증**: 서버 시작 → 동시 2개 브라우저 탭에서 프롬프트 전송 → 충돌 없음
@@ -204,7 +204,7 @@ for c in connected_clients[:]:
 
 ### Step 5: 핸들러 모듈 분리 — 미디어 + SNS + 디버그
 
-**문제**: 미디어, SNS, 디버그 엔드포인트가 mini_server.py에 섞여 있음
+**문제**: 미디어, SNS, 디버그 엔드포인트가 arm_server.py에 섞여 있음
 
 **작업 내용**:
 1. `web/handlers/` 디렉토리 생성
@@ -228,11 +228,11 @@ for c in connected_clients[:]:
    @router.get("/list")
    async def list_media(): ...
    ```
-6. `mini_server.py`에서 `app.include_router(media_router)` 등록
+6. `arm_server.py`에서 `app.include_router(media_router)` 등록
 
 **검증**: 미디어 탭 열기, SNS 승인큐 열기, 서버 로그 확인 — 전부 정상
 
-**예상 효과**: mini_server.py **-800줄**
+**예상 효과**: arm_server.py **-800줄**
 
 ---
 
@@ -251,7 +251,7 @@ for c in connected_clients[:]:
 
 **검증**: 배치 체인 실행, 품질검수 탭, 작업 목록 — 전부 정상
 
-**예상 효과**: mini_server.py **-2,000줄**
+**예상 효과**: arm_server.py **-2,000줄**
 
 ---
 
@@ -270,7 +270,7 @@ for c in connected_clients[:]:
 
 **검증**: 웹 채팅, 텔레그램 메시지, 에이전트 응답 — 전부 정상
 
-**예상 효과**: mini_server.py → **app.py (500줄)** 으로 축소. 11,906줄 → 500줄 달성
+**예상 효과**: arm_server.py → **app.py (500줄)** 으로 축소. 11,906줄 → 500줄 달성
 
 ---
 
@@ -426,7 +426,7 @@ Step 12 (index.html 분리)    ──────────┘
 ```
 
 **Step 1~4는 기반 작업** → 이게 끝나야 5~7 분리 가능
-**Step 5~7은 핵심** → mini_server.py를 11,906줄 → 500줄로 줄임
+**Step 5~7은 핵심** → arm_server.py를 11,906줄 → 500줄로 줄임
 **Step 8~12는 마무리** → 품질 향상
 
 ---
@@ -435,7 +435,7 @@ Step 12 (index.html 분리)    ──────────┘
 
 | 항목 | 현재 | 완료 후 |
 |------|------|---------|
-| `mini_server.py` | 11,906줄 | **~500줄** (라우터 등록만) |
+| `arm_server.py` | 11,906줄 | **~500줄** (라우터 등록만) |
 | 전역 변수 | 44개 (Lock 없음) | **AppState 1개** (Lock 있음) |
 | 중복 코드 | 24곳 브로드캐스트 | **헬퍼 1개** |
 | 에러 핸들링 | `pass` 40곳 | **구체적 로깅** |
@@ -561,7 +561,7 @@ Step 12 (index.html 분리)    ──────────┘
 
 | 금지 사항 | 이유 |
 |-----------|------|
-| mini_server.py에 직접 코드 추가 | 리팩토링 완료 후 mini_server.py는 진입점만. handler에 추가할 것 |
+| arm_server.py에 직접 코드 추가 | 리팩토링 완료 후 arm_server.py는 진입점만. handler에 추가할 것 |
 | 전역 변수 직접 선언 | `state.py`의 AppState에 추가할 것 |
 | `for c in connected_clients` 루프 | `wm.broadcast()` 사용할 것 |
 | JSON 파일에 데이터 저장 | SQLite DB (`save_setting`/`load_setting`) 사용할 것 |
@@ -626,7 +626,7 @@ Step 12 (index.html 분리)    ──────────┘
   - `wm.send_agent_status(...)`: 에이전트 상태등 제어
   - `wm.send_cost_update(...)`: 비용 업데이트
   - `wm.send_delegation_log(...)`: 위임 로그 (WS + SSE 동시)
-- `mini_server.py` 30곳 `for c in connected_clients[:]:` 루프 → `await wm.broadcast(...)` 1줄로 교체
+- `arm_server.py` 30곳 `for c in connected_clients[:]:` 루프 → `await wm.broadcast(...)` 1줄로 교체
 - 죽은 WebSocket 연결 자동 제거 로직 포함
 
 **같이 진행한 작업:**
@@ -641,7 +641,7 @@ Step 12 (index.html 분리)    ──────────┘
   - `diag`, `bg_tasks`, `bg_results`, `batch_queue`, `sessions`, `notion_log` 등 전역변수 통합
   - `trading_bot_active`, `trading_bot_task`, `price_cache`, `price_cache_lock` 등
   - `telegram_app`, `quality_gate`, `tool_pool` 외부 서비스 인스턴스
-- `mini_server.py`에서 `global` 키워드 15개 제거 → `app_state.xxx` 참조로 교체
+- `arm_server.py`에서 `global` 키워드 15개 제거 → `app_state.xxx` 참조로 교체
 - dict/list는 alias 패턴(`_bg_tasks = app_state.bg_tasks`), primitive는 직접 참조
 
 **Step 3 완료 (PR#495, 자동 머지 완료)**
@@ -652,7 +652,7 @@ Step 12 (index.html 분리)    ──────────┘
   - `periodic_cleanup()`: 10분마다 자동 실행
   - `cancel_all_bg_tasks()`: 서버 종료 시 전체 취소
 - `ai_handler.py`에 `asyncio.wait_for(timeout=180)` AI 타임아웃 추가
-- `mini_server.py` `_notion_log` 트리밍 버그 수정: `= x[-20:]` → `del x[:-500]` (alias 깨짐 방지)
+- `arm_server.py` `_notion_log` 트리밍 버그 수정: `= x[-20:]` → `del x[:-500]` (alias 깨짐 방지)
 - `on_startup`에 periodic_cleanup 등록, `on_shutdown`에 cancel_all_bg_tasks 추가
 
 **Step 4 완료 (PR#495, Step 3과 동일 브랜치)**
@@ -667,18 +667,18 @@ Step 12 (index.html 분리)    ──────────┘
 - **5c**: sns_handler (16 endpoints, 383줄 이동)
 - **5d**: trading_handler (41 endpoints, 973줄 이동)
 - **6**: agent, tools, telegram, consult, replay, calendar (787줄 이동)
-- 총 144 endpoints 분리, mini_server.py 11,906줄 → 8,527줄 (28% 축소)
-- 핸들러별 필요 헬퍼 자체 복사, `sys.modules.get("mini_server")` 지연 임포트로 순환 참조 방지
+- 총 144 endpoints 분리, arm_server.py 11,906줄 → 8,527줄 (28% 축소)
+- 핸들러별 필요 헬퍼 자체 복사, `sys.modules.get("arm_server")` 지연 임포트로 순환 참조 방지
 
 **Step 8+10 완료 (현재 브랜치 `claude/refactor-step8-config`)**
 - `ai_handler.py`: `_load_pricing_from_yaml()` — models.yaml에서 가격 자동 로드
 - `ai_handler.py`: `TOOL_RESULT_MAX_CHARS = 4000` 상수화, `[:4000]` 3곳 교체
-- `mini_server.py`: WebSocket 메시지 64KB 크기 제한 추가
+- `arm_server.py`: WebSocket 메시지 64KB 크기 제한 추가
 - Step 9: deploy.yml에 yaml2json 단계 이미 존재하여 추가 작업 불필요
 - Step 11: graceful shutdown은 Step 3에서 이미 완료
 
 **리팩토링 완료 요약 (Step 1~11)**
-- mini_server.py: 11,906줄 → 8,527줄 (28% 축소, 3,379줄 핸들러로 이동)
+- arm_server.py: 11,906줄 → 8,527줄 (28% 축소, 3,379줄 핸들러로 이동)
 - 전역변수: 44개 산재 → AppState 1개 클래스
 - 브로드캐스트: 30곳 반복 → wm.broadcast() 1곳
 - 에러 핸들링: 38개 pass → logger.debug 로깅

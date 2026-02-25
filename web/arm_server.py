@@ -167,7 +167,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from typing import Optional
 
-logger = logging.getLogger("corthex.mini_server")
+logger = logging.getLogger("corthex.arm_server")
 
 # ── 텔레그램 봇 (선택적 로드) ──
 _telegram_available = False
@@ -3907,7 +3907,7 @@ from handlers.schedule_handler import router as schedule_router
 app.include_router(schedule_router)
 
 
-# ── 워크플로우 실행 (AI 의존 — mini_server.py에 유지) ──
+# ── 워크플로우 실행 (AI 의존 — arm_server.py에 유지) ──
 
 @app.post("/api/workflows/{wf_id}/run")
 async def run_workflow(wf_id: str):
@@ -9707,7 +9707,7 @@ def _init_tool_pool():
             """ask_ai()를 ModelRouter.complete() 인터페이스로 감싸는 어댑터."""
 
             class cost_tracker:
-                """더미 비용 추적기 (mini_server는 자체 비용 추적 사용)."""
+                """더미 비용 추적기 (arm_server는 자체 비용 추적 사용)."""
                 @staticmethod
                 def record(*args, **kwargs):
                     pass

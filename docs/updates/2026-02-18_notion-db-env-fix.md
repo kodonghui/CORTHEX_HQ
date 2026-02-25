@@ -19,7 +19,7 @@ CEO가 노션 DB 2개 ID를 제공했고, GitHub Secrets에 등록했지만, `de
 |------|---------|
 | `NOTION_DB_SECRETARY` | deploy.yml이 읽는 Secret 이름이 `NOTION_SECRETARY_DB_ID`로 달랐음 (없는 Secret 참조) |
 | `NOTION_DB_OUTPUT` | deploy.yml에 아예 없었음 — Secret 등록해도 서버로 전달 안 됨 |
-| 서버 저장 이름 | `NOTION_SECRETARY_DB_ID`로 저장 → mini_server.py가 `NOTION_DB_SECRETARY`로 읽음 (이름 불일치) |
+| 서버 저장 이름 | `NOTION_SECRETARY_DB_ID`로 저장 → arm_server.py가 `NOTION_DB_SECRETARY`로 읽음 (이름 불일치) |
 
 ## 변경 사항
 
@@ -33,7 +33,7 @@ CEO가 노션 DB 2개 ID를 제공했고, GitHub Secrets에 등록했지만, `de
    - `NOTION_SECRETARY_DB_ID_VAR` → `NOTION_DB_SECRETARY_VAR, NOTION_DB_OUTPUT_VAR`
 
 3. **스크립트 섹션** (서버 환경변수 파일에 저장하는 부분)
-   - 저장 이름: `NOTION_SECRETARY_DB_ID` (잘못됨) → `NOTION_DB_SECRETARY` (mini_server.py와 일치)
+   - 저장 이름: `NOTION_SECRETARY_DB_ID` (잘못됨) → `NOTION_DB_SECRETARY` (arm_server.py와 일치)
    - `NOTION_DB_OUTPUT` 저장 코드 신규 추가
 
 ## 등록된 GitHub Secrets (CEO 제공 실제 ID)

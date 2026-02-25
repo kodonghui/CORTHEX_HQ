@@ -133,7 +133,7 @@ flowchart LR
 | **2** | `config/soul_gym_benchmarks.yaml` | 6부서 × 3문항 벤치마크 (신규) | 새 파일 |
 | **3** | `web/soul_gym_engine.py` | 핵심 진화 엔진 5개 함수 (신규) | ~300줄 |
 | **4** | `web/handlers/soul_gym_handler.py` | API 엔드포인트 5개 (신규) | ~100줄 |
-| **5** | `web/mini_server.py` | 크론 3줄 + include_router 2줄 | +5줄 |
+| **5** | `web/arm_server.py` | 크론 3줄 + include_router 2줄 | +5줄 |
 | **6** | `web/templates/index.html` | 전력분석 탭 Soul Gym 섹션 | +80줄 |
 | **7** | 서버 테스트 | Dry Run → 결과 확인 → 실제 실행 | 검증 |
 

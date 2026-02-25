@@ -13,7 +13,7 @@
 
 **작업 시작 전 반드시 읽을 파일:**
 1. `docs/project-status.md` — "🔥 다음 대규모 작업" 섹션 (이 논의의 결론이 요약되어 있음)
-2. `web/mini_server.py` 5396~5650번째 줄 (`_MANAGER_SPECIALISTS`, `_delegate_to_specialists`, `_manager_with_delegation`)
+2. `web/arm_server.py` 5396~5650번째 줄 (`_MANAGER_SPECIALISTS`, `_delegate_to_specialists`, `_manager_with_delegation`)
 3. `src/tools/cross_agent_protocol.py` 전체
 4. `web/ai_handler.py` 전체
 5. `config/agents.yaml` — `chief_of_staff`, `cto_manager`, `cio_manager` 섹션
@@ -38,11 +38,11 @@ CEO가 이 기능들을 보고 "이게 내가 원하던 거야!"라고 했습니
 ```
 CEO 명령 입력
     ↓
-mini_server.py 코드가 판단: "이건 CIO에게 줘야겠다"
+arm_server.py 코드가 판단: "이건 CIO에게 줘야겠다"
     ↓
 _call_agent("cio_manager", text) — CIO AI 호출
     ↓
-mini_server.py 코드가 _MANAGER_SPECIALISTS 딕셔너리 조회:
+arm_server.py 코드가 _MANAGER_SPECIALISTS 딕셔너리 조회:
     cio_manager → [market_condition_specialist, stock_analysis_specialist,
                    technical_analysis_specialist, risk_management_specialist]
     4명 전원 무조건 병렬 호출 (_delegate_to_specialists)
@@ -57,14 +57,14 @@ CEO가 보고서 1개 받음 ✅
 ```
 
 **이 구조에서 핵심 파일들:**
-- `web/mini_server.py` 5396번째 줄: `_MANAGER_SPECIALISTS` 딕셔너리 (처장 → 전문가 매핑, 코드로 고정)
-- `web/mini_server.py` 5570번째 줄: `_delegate_to_specialists()` (처장 → 전문가 병렬 호출)
-- `web/mini_server.py` 5592번째 줄: `_manager_with_delegation()` (처장 + 전문가 전체 흐름)
+- `web/arm_server.py` 5396번째 줄: `_MANAGER_SPECIALISTS` 딕셔너리 (처장 → 전문가 매핑, 코드로 고정)
+- `web/arm_server.py` 5570번째 줄: `_delegate_to_specialists()` (처장 → 전문가 병렬 호출)
+- `web/arm_server.py` 5592번째 줄: `_manager_with_delegation()` (처장 + 전문가 전체 흐름)
 - `src/tools/cross_agent_protocol.py`: 에이전트 간 메시지를 파일에 저장만 함 (실시간 처리 안 됨)
 
 ### 현재 시스템의 6가지 한계
 
-1. **코드가 모든 결정권을 가짐**: `mini_server.py` 코드가 "어느 처장에게 줄지", "어떤 전문가를 부를지"를 전부 결정. AI 에이전트는 시킨 것만 함.
+1. **코드가 모든 결정권을 가짐**: `arm_server.py` 코드가 "어느 처장에게 줄지", "어떤 전문가를 부를지"를 전부 결정. AI 에이전트는 시킨 것만 함.
 
 2. **처장이 전문가 선택 못함**: CIO 처장이 "이번엔 시황 분석만 필요해, 리스크는 내가 직접 할게"라고 판단해도 불가능. 항상 4명 전원 호출 → 비용 낭비.
 
@@ -213,7 +213,7 @@ LEVEL 4 | 전사 협력이 필요한 질문
 
 ## 5. 수정할 파일 목록 + 정확한 작업 내용
 
-### 파일 1: `web/mini_server.py` (BE 담당)
+### 파일 1: `web/arm_server.py` (BE 담당)
 
 **변경 1: 스마트 라우팅 Level 판단 함수 추가**
 ```python
@@ -261,7 +261,7 @@ async def _request(self, kwargs):
 
     # 기존: 파일에 저장만
     # 변경: 실제로 to_agent를 AI 호출하고 결과 반환
-    result = await _call_agent(to_agent, task)  # mini_server의 _call_agent 참조
+    result = await _call_agent(to_agent, task)  # arm_server의 _call_agent 참조
     return result
 ```
 
@@ -355,7 +355,7 @@ Level 2~4는 해당 처장(들)에게 위임합니다.
 
 | 팀원 | 코드명 | 담당 파일 | 구체적 작업 |
 |------|--------|---------|-----------|
-| 팀원1 | **BE** | `web/mini_server.py`, `web/ai_handler.py`, `src/tools/cross_agent_protocol.py` | 스마트 라우팅 Level 1~4, 처장 자율 전문가 선택, spawn_agent 도구, cross_agent_protocol 실시간화 |
+| 팀원1 | **BE** | `web/arm_server.py`, `web/ai_handler.py`, `src/tools/cross_agent_protocol.py` | 스마트 라우팅 Level 1~4, 처장 자율 전문가 선택, spawn_agent 도구, cross_agent_protocol 실시간화 |
 | 팀원2 | **FE** | `web/templates/index.html` | CEO 직접 개입 드롭다운 UI, 에이전트 간 소통 표시 |
 | 팀원3 | **QA** | 전체 파일 | 수정 결과 검증, Level 테스트, 보고서 1개 확인, Soul 유지 확인 |
 
@@ -370,8 +370,8 @@ Level 2~4는 해당 처장(들)에게 위임합니다.
 Phase 1 (BE 먼저):
   BE: cross_agent_protocol.py 실시간 소통으로 업그레이드
   BE: ai_handler.py에 spawn_agent 도구 스키마 추가
-  BE: mini_server.py 스마트 라우팅 Level 1~4 로직 추가
-  BE: mini_server.py 처장 자율 전문가 선택 로직 추가
+  BE: arm_server.py 스마트 라우팅 Level 1~4 로직 추가
+  BE: arm_server.py 처장 자율 전문가 선택 로직 추가
   BE: config/agents.yaml 비서실장 + 처장들 Soul 업데이트
 
 Phase 2 (BE 완료 후 FE):
@@ -418,7 +418,7 @@ Phase 3 (QA):
 
 ## 9. 참고: 현재 코드에서 수정 시작점
 
-### mini_server.py 수정 시작점
+### arm_server.py 수정 시작점
 ```python
 # 5396번째 줄 — _MANAGER_SPECIALISTS 딕셔너리
 # 이 딕셔너리는 폴백(fallback)으로만 남기고
@@ -441,7 +441,7 @@ _MANAGER_SPECIALISTS: dict[str, list[str]] = {
 ```python
 # 56번째 줄 — _request() 메서드
 # 현재: 파일에 저장만
-# 변경: 실제로 mini_server._call_agent() 호출
+# 변경: 실제로 arm_server._call_agent() 호출
 async def _request(self, kwargs: dict) -> str:
     # 현재 코드: 저장만 하고 끝
     # 변경: to_agent를 실제로 AI 호출하고 결과 반환

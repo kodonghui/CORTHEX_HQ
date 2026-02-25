@@ -35,8 +35,8 @@
 
 == 현재 상태 ==
 index.html 수정 완료. 백엔드 /api/delegation-log 엔드포인트는 별도 구현 필요.
-(mini_server.py 미수정 — 본 작업 범위 외)
+(arm_server.py 미수정 — 본 작업 범위 외)
 
 == 다음에 할 일 ==
-- mini_server.py에 /api/delegation-log 엔드포인트 구현
+- arm_server.py에 /api/delegation-log 엔드포인트 구현
 - DB delegation_log 테이블 생성 또는 기존 로그 연결

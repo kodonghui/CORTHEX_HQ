@@ -18,14 +18,14 @@ logger = logging.getLogger("corthex")
 router = APIRouter(tags=["agents"])
 
 
-# ── mini_server 참조 헬퍼 ──
+# ── arm_server 참조 헬퍼 ──
 def _ms():
-    """mini_server 모듈 참조 (lazy import로 순환 참조 방지)."""
-    return sys.modules.get("mini_server") or sys.modules.get("web.mini_server")
+    """arm_server 모듈 참조 (lazy import로 순환 참조 방지)."""
+    return sys.modules.get("arm_server") or sys.modules.get("web.arm_server")
 
 
 def _load_data(name: str, default=None):
-    """DB에서 설정 로드 (mini_server._load_data 위임)."""
+    """DB에서 설정 로드 (arm_server._load_data 위임)."""
     ms = _ms()
     if ms and hasattr(ms, "_load_data"):
         return ms._load_data(name, default)
@@ -34,7 +34,7 @@ def _load_data(name: str, default=None):
 
 
 def _save_data(name: str, data) -> None:
-    """DB에 설정 저장 (mini_server._save_data 위임)."""
+    """DB에 설정 저장 (arm_server._save_data 위임)."""
     ms = _ms()
     if ms and hasattr(ms, "_save_data"):
         ms._save_data(name, data)
@@ -43,7 +43,7 @@ def _save_data(name: str, data) -> None:
 
 
 def _load_config(name: str) -> dict:
-    """설정 파일 로드 (mini_server._load_config 위임)."""
+    """설정 파일 로드 (arm_server._load_config 위임)."""
     ms = _ms()
     if ms and hasattr(ms, "_load_config"):
         return ms._load_config(name)
@@ -69,7 +69,7 @@ def _get_model_reasoning_map():
 
 
 def _init_tool_pool():
-    """ToolPool 초기화 (mini_server._init_tool_pool 위임)."""
+    """ToolPool 초기화 (arm_server._init_tool_pool 위임)."""
     ms = _ms()
     if ms and hasattr(ms, "_init_tool_pool"):
         return ms._init_tool_pool()

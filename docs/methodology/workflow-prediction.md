@@ -20,7 +20,7 @@
 ┌─────────────────────────────────────────────────┐
 │  1단계: 코드 전수검사                             │
 │  → 관련 코드 전체 흐름 추적                       │
-│  → index.html → mini_server.py → ai_handler.py  │
+│  → index.html → arm_server.py → ai_handler.py  │
 │  → agents.yaml → tools.yaml → 도구 코드          │
 └──────────────────────┬──────────────────────────┘
                        ▼

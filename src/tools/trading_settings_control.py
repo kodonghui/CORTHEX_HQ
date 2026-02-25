@@ -51,7 +51,7 @@ class TradingSettingsControlTool(BaseTool):
     async def _get_settings(self) -> str:
         try:
             import importlib
-            ms = importlib.import_module("web.mini_server")
+            ms = importlib.import_module("web.arm_server")
             settings = ms._load_data("trading_settings", ms._default_trading_settings())
             profile = ms._get_risk_profile()
             ranges = ms.RISK_PROFILES.get(profile, {})
@@ -74,7 +74,7 @@ class TradingSettingsControlTool(BaseTool):
     async def _update_settings(self, changes: dict, reason: str) -> str:
         try:
             import importlib
-            ms = importlib.import_module("web.mini_server")
+            ms = importlib.import_module("web.arm_server")
             profile = ms._get_risk_profile()
             settings = ms._load_data("trading_settings", ms._default_trading_settings())
             applied = {}
@@ -96,7 +96,7 @@ class TradingSettingsControlTool(BaseTool):
             ms._save_data("trading_settings", settings)
 
             # 변경 이력 기록
-            from web.mini_server import load_setting, save_setting, save_activity_log, KST
+            from web.arm_server import load_setting, save_setting, save_activity_log, KST
             from datetime import datetime
             history = load_setting("trading_settings_history", [])
             history.append({
@@ -124,7 +124,7 @@ class TradingSettingsControlTool(BaseTool):
     async def _get_risk_profile(self) -> str:
         try:
             import importlib
-            ms = importlib.import_module("web.mini_server")
+            ms = importlib.import_module("web.arm_server")
             profile = ms._get_risk_profile()
             ranges = ms.RISK_PROFILES.get(profile, {})
             result = f"## 투자 성향: {ranges.get('label', profile)} {ranges.get('emoji', '')}\n\n"

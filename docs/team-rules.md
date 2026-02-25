@@ -17,7 +17,7 @@
 | 팀원 | 코드명 | 담당 파일 | 역할 |
 |------|--------|----------|------|
 | 팀원1 | **FE** | index.html, CSS, Alpine.js | 화면, 디자인, 다크/밝은 모드 |
-| 팀원2 | **BE** | mini_server.py, db.py, src/tools/, config/*.yaml | API, DB, 도구, 서버 로직 |
+| 팀원2 | **BE** | arm_server.py, db.py, src/tools/, config/*.yaml | API, DB, 도구, 서버 로직 |
 | 팀원3 | **QA** | 전체 | 수정 결과 검증, 파일 충돌 확인 |
 
 ### 확장 역할 (필요할 때만)

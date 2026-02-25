@@ -100,7 +100,7 @@ GET https://corthex-hq.com/api/debug/server-logs?lines=50&service=nginx-access  
 1. `config/agents.yaml`
 2. `config/models.yaml`
 3. `yaml2json.py` 실행
-4. mini_server.py AGENTS 리스트
+4. arm_server.py AGENTS 리스트
 5. `get_available_models()`
 6. `_TG_MODELS`
 7. ai_handler.py `_PRICING`

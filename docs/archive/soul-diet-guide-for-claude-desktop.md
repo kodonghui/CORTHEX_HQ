@@ -11,7 +11,7 @@
 ### 실제 파일 경로 (반드시 이 경로만 수정할 것)
 - **수정 대상**: `C:\Users\elddl\Desktop\PJ0_CORTHEX\CORTHEX_HQ\CORTHEX_HQ\souls\agents\[파일명].md`
 - **참고 소스**: `C:\Users\elddl\Desktop\PJ0_CORTHEX\CORTHEX_수석실\soul_v3\[처별 파일].md`
-- **절대 수정 금지**: `config/agents.yaml`, `web/mini_server.py`, `web/templates/index.html`
+- **절대 수정 금지**: `config/agents.yaml`, `web/arm_server.py`, `web/templates/index.html`
 
 ---
 

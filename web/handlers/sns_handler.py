@@ -269,7 +269,7 @@ async def reject_sns(item_id: str, request: Request):
 async def _rework_delegate(item: dict, reason: str):
     """거절된 콘텐츠를 원본 전문가에게 재작업 위임.
 
-    _process_ai_command는 mini_server.py에 정의되어 있으므로 런타임에 참조.
+    _process_ai_command는 arm_server.py에 정의되어 있으므로 런타임에 참조.
     """
     try:
         requested_by = item.get("requested_by", "content_specialist")
@@ -297,8 +297,8 @@ async def _rework_delegate(item: dict, reason: str):
         )
         update_task(task["task_id"], status="running")
 
-        # _process_ai_command는 mini_server.py 내부 함수 — 런타임 import
-        import mini_server as _ms
+        # _process_ai_command는 arm_server.py 내부 함수 — 런타임 import
+        import arm_server as _ms
         result = await _ms._process_ai_command(
             rework_command,
             task["task_id"],

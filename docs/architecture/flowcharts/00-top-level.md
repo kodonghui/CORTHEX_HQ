@@ -25,7 +25,7 @@ flowchart TB
         T13["📐 설계실"]
     end
 
-    subgraph SERVER["⚡ FastAPI 서버 (mini_server.py)"]
+    subgraph SERVER["⚡ FastAPI 서버 (arm_server.py)"]
         direction TB
         API["40개+ API 엔드포인트"]
         ROUTER["명령 라우터\n(Level 1~4 분류)"]

@@ -13,7 +13,7 @@
 | Step 2 | 전역 상태 관리 — 44개 전역변수 → AppState | ✅ PR#494 |
 | Step 3 | 메모리 누수 — TTL 자동 정리, AI 180초 타임아웃 | ✅ PR#495 |
 | Step 4 | 에러 핸들링 — pass 38곳 → 로깅 | ✅ PR#495 |
-| Step 5~7 | 핸들러 20개 분리 — 144 endpoints, mini_server.py 11,906→8,527줄 | ✅ PR#497 |
+| Step 5~7 | 핸들러 20개 분리 — 144 endpoints, arm_server.py 11,906→8,527줄 | ✅ PR#497 |
 | Step 8~11 | ai_handler 정리 + WS 64KB 제한 | ✅ 배포 |
 | Step 12 | index.html 외부 분리 — 10,666줄→6,049줄(-43%) | ✅ #485 |
 | Step 12-2 | 반응형 디자인 — 모바일 최적화, 11개 탭 | ✅ #487 |

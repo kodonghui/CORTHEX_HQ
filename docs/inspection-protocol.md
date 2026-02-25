@@ -63,7 +63,7 @@
 | 팀원 | 담당 파일 | 서브에이전트 | 핵심 검사 항목 |
 |------|----------|------------|--------------|
 | **FE** | `web/templates/index.html` | 5명 | 하드코딩 배열, SNS, 배치 탭, 사령관실, 다크모드 |
-| **BE** | `web/mini_server.py` | 5명 | API 중복, 에이전트 목록, async/await |
+| **BE** | `web/arm_server.py` | 5명 | API 중복, 에이전트 목록, async/await |
 | **AI** | `web/ai_handler.py` + `src/llm/` | 4명 | 배치 SDK 형식, 모델명, _PRICING |
 | **TG** | `src/telegram/` | 3명 | 명령어, 배치 연동 |
 | **AGENT** | `src/core/` | 3명 | soul DB, quality_gate, 도구 루프 5회 |

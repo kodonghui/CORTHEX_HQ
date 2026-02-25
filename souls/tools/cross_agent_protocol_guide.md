@@ -7,7 +7,7 @@ CORTHEX HQ의 에이전트들이 서로 대화하고 협업할 수 있게 해주
 
 ## 어떤 API를 쓰나요?
 - **자체 구현** — SQLite DB (`cross_agent_messages` 테이블)에 메시지 저장
-- **mini_server.py의 _call_agent 콜백** — request 액션 시 대상 에이전트를 실시간으로 호출
+- **arm_server.py의 _call_agent 콜백** — request 액션 시 대상 에이전트를 실시간으로 호출
 - 비용: **무료** (메시지 저장 자체는 무료. 실시간 에이전트 호출 시 해당 에이전트의 AI 모델 비용 발생)
 - 필요한 키: 없음
 
@@ -98,7 +98,7 @@ action=collect, request_ids="ID1,ID2,ID3"
 
 ## 주의사항
 - 메시지는 SQLite DB(cross_agent_messages 테이블)에 영구 저장됩니다
-- request 액션에서 실시간 에이전트 호출이 되려면 mini_server.py가 _call_agent 콜백을 등록해야 합니다
+- request 액션에서 실시간 에이전트 호출이 되려면 arm_server.py가 _call_agent 콜백을 등록해야 합니다
 - 실시간 호출 시 대상 에이전트의 AI 모델 비용이 발생합니다
 - 존재하지 않는 에이전트 ID를 to_agent에 지정하면 실시간 호출이 실패합니다
 - collect 액션의 종합 분석은 AI를 호출하므로 추가 토큰 비용이 발생합니다

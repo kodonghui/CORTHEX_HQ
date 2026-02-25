@@ -33,7 +33,7 @@ claude/phase1-sqlite-db
 | 파일 | 작업 | 설명 |
 |------|------|------|
 | `web/db.py` | **새로 생성** | SQLite DB 모듈 — 테이블 생성, 데이터 저장/조회 함수들 (~300줄) |
-| `web/mini_server.py` | **수정** | DB 연동, API 7개 재작성/신규 추가, 텔레그램/웹소켓 핸들러 수정 |
+| `web/arm_server.py` | **수정** | DB 연동, API 7개 재작성/신규 추가, 텔레그램/웹소켓 핸들러 수정 |
 | `.github/workflows/deploy.yml` | **수정** | 서버 배포 시 db.py 파일도 복사하도록 추가 |
 | `docs/project-status.md` | **수정** | 프로젝트 현재 상태 업데이트 |
 

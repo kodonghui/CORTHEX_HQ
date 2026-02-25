@@ -16,7 +16,7 @@ logger = logging.getLogger("corthex")
 
 router = APIRouter(tags=["quality"])
 
-# ── 설정 파일 로드 유틸 (mini_server.py의 _load_config 경량 복제) ──
+# ── 설정 파일 로드 유틸 (arm_server.py의 _load_config 경량 복제) ──
 _CONFIG_DIR = Path(os.path.dirname(os.path.abspath(__file__))).parent.parent / "config"
 
 try:

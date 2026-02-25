@@ -4,7 +4,7 @@
     {
       "name": "CORTHEX HQ 서버",
       "runtimeExecutable": "python",
-      "runtimeArgs": ["web/mini_server.py"],
+      "runtimeArgs": ["web/arm_server.py"],
       "port": 8000,
       "autoPort": false,
       "cwd": "${workspaceFolder}"

@@ -14,11 +14,11 @@ router = APIRouter(tags=["health"])
 
 
 def _get_agent_count() -> int:
-    """에이전트 수를 반환. mini_server.py의 AGENTS 목록 길이를 동적으로 가져옴."""
+    """에이전트 수를 반환. arm_server.py의 AGENTS 목록 길이를 동적으로 가져옴."""
     try:
-        # mini_server 모듈에서 AGENTS를 동적 import (순환 참조 방지)
+        # arm_server 모듈에서 AGENTS를 동적 import (순환 참조 방지)
         import sys
-        mini = sys.modules.get("mini_server")
+        mini = sys.modules.get("arm_server")
         if mini and hasattr(mini, "AGENTS"):
             return len(mini.AGENTS)
     except Exception:
@@ -30,7 +30,7 @@ def _is_telegram_available() -> bool:
     """텔레그램 봇 사용 가능 여부."""
     try:
         import sys
-        mini = sys.modules.get("mini_server")
+        mini = sys.modules.get("arm_server")
         if mini and hasattr(mini, "_telegram_available"):
             return mini._telegram_available
     except Exception:

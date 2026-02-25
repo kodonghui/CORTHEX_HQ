@@ -12,15 +12,15 @@ from src.tools.base import BaseTool
 
 logger = logging.getLogger("corthex.tools.cross_agent_protocol")
 
-# ── 실시간 에이전트 호출 콜백 (mini_server.py가 시작 시 등록) ──
+# ── 실시간 에이전트 호출 콜백 (arm_server.py가 시작 시 등록) ──
 _call_agent_callback: Any | None = None
 # ── SSE broadcast 콜백 (내부통신 실시간 스트림) ──
 _sse_broadcast_callback: Any | None = None
-# ── 유효한 에이전트 정보 (mini_server.py 시작 시 등록) ──
+# ── 유효한 에이전트 정보 (arm_server.py 시작 시 등록) ──
 _valid_agent_ids: set[str] = set()
 # {agent_id: {"division": str, "superior_id": str, "dormant": bool}}
 _agent_info: dict[str, dict] = {}
-# ── 협업 로그 저장 콜백 (mini_server.py가 시작 시 등록) ──
+# ── 협업 로그 저장 콜백 (arm_server.py가 시작 시 등록) ──
 _save_collaboration_log_callback: Any | None = None
 
 # AI가 흔히 지어내는 가짜 이름 → 실제 에이전트 ID 매핑
@@ -49,13 +49,13 @@ _AGENT_ALIAS: dict[str, str] = {
 
 
 def register_collaboration_log_callback(callback) -> None:
-    """협업 로그 저장 콜백 등록. mini_server.py에서 호출."""
+    """협업 로그 저장 콜백 등록. arm_server.py에서 호출."""
     global _save_collaboration_log_callback
     _save_collaboration_log_callback = callback
 
 
 def register_valid_agents(agent_infos: list[dict | str]) -> None:
-    """mini_server.py가 서버 시작 시 유효한 에이전트 정보를 등록합니다.
+    """arm_server.py가 서버 시작 시 유효한 에이전트 정보를 등록합니다.
 
     agent_infos: list of dict (agent_id, division, superior_id, dormant)
                  또는 하위호환용 list of str (agent_id만)
@@ -116,7 +116,7 @@ def _resolve_agent_id(raw_id: str) -> str:
 
 
 def register_call_agent(fn: Any) -> None:
-    """mini_server.py가 서버 시작 시 _call_agent 함수를 등록합니다.
+    """arm_server.py가 서버 시작 시 _call_agent 함수를 등록합니다.
 
     등록된 콜백은 cross_agent_protocol의 request 액션에서
     실제 에이전트 AI를 실시간으로 호출하는 데 사용됩니다.
@@ -127,7 +127,7 @@ def register_call_agent(fn: Any) -> None:
 
 
 def register_sse_broadcast(fn: Any) -> None:
-    """mini_server.py가 서버 시작 시 SSE broadcast 함수를 등록합니다.
+    """arm_server.py가 서버 시작 시 SSE broadcast 함수를 등록합니다.
     P2P 메시지 저장 시 내부통신 패널에 실시간 push됩니다.
     """
     global _sse_broadcast_callback

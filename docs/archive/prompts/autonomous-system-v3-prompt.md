@@ -36,7 +36,7 @@
 
 | 파일 경로 | 왜 읽어야 하는가 |
 |----------|----------------|
-| `web/mini_server.py` | 서버 핵심 파일 (6600줄+). `_call_agent()`, `_broadcast_to_managers()`, WebSocket 핸들러 위치 파악 필수 |
+| `web/arm_server.py` | 서버 핵심 파일 (6600줄+). `_call_agent()`, `_broadcast_to_managers()`, WebSocket 핸들러 위치 파악 필수 |
 | `web/ai_handler.py` | AI 호출 함수. `ask_ai()`, `SPAWN_AGENT_TOOL_SCHEMA` 위치 확인 |
 | `web/db.py` | DB 함수. `save_setting()`, `load_setting()` 사용법 파악 |
 | `web/templates/index.html` | 프론트엔드 (5000줄+). Alpine.js 상태, WebSocket, 탭 구조 확인 |
@@ -49,7 +49,7 @@
 
 2026-02-17 세션에서 완료됨.
 
-### 스마트 라우팅 (mini_server.py)
+### 스마트 라우팅 (arm_server.py)
 - `_determine_routing_level(message)` — Level 1~4 판단
   - Level 1: 비서실장만 (인사말, 간단 질문)
   - Level 2: 처장 1명만 (특정 담당 업무)
@@ -100,7 +100,7 @@ def load_agent_memory(agent_id: str) -> dict:
     return load_setting(f"memory_{agent_id}", {})
 ```
 
-**② mini_server.py의 `_call_agent()` 수정**
+**② arm_server.py의 `_call_agent()` 수정**
 
 `_call_agent()` 호출 직전에 해당 에이전트 기억을 DB에서 꺼내 system_prompt 앞에 붙임.
 
@@ -195,7 +195,7 @@ DELETE /api/agent-memory/{agent_id}   → 기억 초기화
 **① 능동 스케줄 기본값 설정**
 
 ```python
-# mini_server.py 상단 상수로 추가
+# arm_server.py 상단 상수로 추가
 DEFAULT_PROACTIVE_SCHEDULES = [
     {
         "id": "morning_brief",
@@ -236,7 +236,7 @@ DEFAULT_PROACTIVE_SCHEDULES = [
 ]
 ```
 
-**② 백그라운드 스케줄러 (mini_server.py 서버 시작 부분에 추가)**
+**② 백그라운드 스케줄러 (arm_server.py 서버 시작 부분에 추가)**
 
 ```python
 async def start_proactive_scheduler():
@@ -503,7 +503,7 @@ DEBATE_ROTATION = {
 
 #### 구현 위치
 
-새 함수 `_broadcast_with_debate()` 추가 (mini_server.py). 기존 `_broadcast_to_managers_all()`은 건드리지 말 것.
+새 함수 `_broadcast_with_debate()` 추가 (arm_server.py). 기존 `_broadcast_to_managers_all()`은 건드리지 말 것.
 
 ```python
 async def _broadcast_with_debate(ceo_message, rounds=2):
@@ -599,7 +599,7 @@ WORKFLOW_SCHEMA_EXAMPLE = {
 }
 ```
 
-**② 워크플로우 실행 엔진 (mini_server.py)**
+**② 워크플로우 실행 엔진 (arm_server.py)**
 
 ```python
 async def _run_workflow(workflow: dict):
@@ -671,7 +671,7 @@ GET    /api/workflows/{id}/history  → 실행 이력
 | 팀원 | 코드명 | 담당 파일 | 역할 |
 |------|--------|----------|------|
 | 팀원1 | FE | `web/templates/index.html` | 기능 1,2,3,5의 UI 구현 |
-| 팀원2 | BE | `web/mini_server.py`, `web/db.py` | 기능 1,2,3,4,5의 서버 로직 구현 |
+| 팀원2 | BE | `web/arm_server.py`, `web/db.py` | 기능 1,2,3,4,5의 서버 로직 구현 |
 | 팀원3 | QA | 전체 | 다크모드 확인, API 응답 검증, 파일 충돌 점검 |
 
 **팀 규칙:**
@@ -759,7 +759,7 @@ CEO가 직접 만든 별도 프로젝트의 토론 시스템. 기능 4 구현 �
 
 **CORTHEX 적용 차이점:**
 - startup_investment.py는 외부 스크립트로 Claude/Gemini/GPT 각각 직접 호출
-- CORTHEX는 mini_server.py 내부에서 `_call_agent()`로 처장들 호출
+- CORTHEX는 arm_server.py 내부에서 `_call_agent()`로 처장들 호출
 - 다른 AI 모델은 `ai_handler.py`의 `ask_ai(model=...)` 파라미터로 지정 가능
   (예: CTO처장에게 gemini-2.0-flash 배정 가능)
 ```
