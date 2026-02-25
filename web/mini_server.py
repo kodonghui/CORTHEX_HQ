@@ -8596,7 +8596,7 @@ def _determine_routing_level(text: str) -> tuple[int, str | None]:
     return (4, None)
 
 
-async def _manager_with_delegation_autonomous(manager_id: str, text: str) -> dict:
+async def _manager_with_delegation_autonomous(manager_id: str, text: str, conversation_id: str | None = None) -> dict:
     """처장이 spawn_agent 도구로 필요한 전문가만 자율 선택하여 호출 (Level 3용)."""
     agent_cfg = next((a for a in AGENTS if a.get("agent_id") == manager_id), None)
     if not agent_cfg:
@@ -8638,7 +8638,7 @@ async def _manager_with_delegation_autonomous(manager_id: str, text: str) -> dic
             if sid in specialists_pool:
                 logger.info("spawn_agent: %s → %s", manager_id, sid)
                 await _broadcast_status(manager_id, "working", 0.5, f"전문가 {_SPECIALIST_NAMES.get(sid, sid)} 호출 중...")
-                result = await _call_agent(sid, task)
+                result = await _call_agent(sid, task, conversation_id=conversation_id)
                 content = result.get("content", "")
                 specialist_results[sid] = content
                 return content
@@ -9019,7 +9019,7 @@ async def _broadcast_with_debate(ceo_message: str, rounds: int = 2) -> dict:
     }
 
 
-async def _broadcast_to_managers(text: str, task_id: str, target_agent_id: str | None = None) -> dict:
+async def _broadcast_to_managers(text: str, task_id: str, target_agent_id: str | None = None, conversation_id: str | None = None) -> dict:
     """스마트 라우팅: Level에 따라 적절한 에이전트만 호출.
 
     Level 1: 비서실장 직접 처리 (처장 호출 없음)
@@ -9046,7 +9046,7 @@ async def _broadcast_to_managers(text: str, task_id: str, target_agent_id: str |
 
     elif level == 3:
         # 처장 + spawn_agent 자율 전문가 선택
-        mgr_result = await _manager_with_delegation_autonomous(manager_id, text)
+        mgr_result = await _manager_with_delegation_autonomous(manager_id, text, conversation_id=conversation_id)
         return await _chief_finalize(text, {manager_id: mgr_result})
 
     else:  # level == 4
@@ -9563,7 +9563,7 @@ async def _process_ai_command(text: str, task_id: str, target_agent_id: str | No
     # ── 슬래시 명령어 이외: 키워드 기반 브로드캐스트 (기존 호환) ──
     # "전체", "출석체크" 등의 키워드는 스마트 라우팅 적용 (Level 1~4)
     if _is_broadcast_command(text):
-        return await _broadcast_to_managers(text, task_id, target_agent_id=target_agent_id)
+        return await _broadcast_to_managers(text, task_id, target_agent_id=target_agent_id, conversation_id=conversation_id)
 
     # 3) CEO가 @에이전트로 직접 지정한 경우 → 자동 라우팅 건너뜀
     if target_agent_id:
