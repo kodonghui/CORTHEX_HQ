@@ -453,22 +453,45 @@ def is_ai_ready() -> bool:
     return any([_anthropic_client, _google_client, _openai_client])
 
 
+_exhausted_providers: set[str] = set()  # 크레딧 소진된 프로바이더 (런타임 중 기억)
+
+
+def mark_provider_exhausted(provider: str) -> None:
+    """프로바이더를 크레딧 소진 상태로 표시합니다."""
+    _exhausted_providers.add(provider)
+    logger.warning("⚠️ %s 프로바이더 크레딧 소진 → 이번 세션 동안 자동 우회", provider)
+
+
+def reset_exhausted_providers() -> None:
+    """소진 표시를 초기화합니다 (크레딧 충전 후 호출)."""
+    _exhausted_providers.clear()
+    logger.info("프로바이더 소진 상태 초기화 완료")
+
+
 def get_available_providers() -> dict:
     """현재 사용 가능한 프로바이더 상태를 반환합니다."""
     return {
-        "anthropic": _anthropic_client is not None,
-        "google": _google_client is not None,
-        "openai": _openai_client is not None,
+        "anthropic": _anthropic_client is not None and "anthropic" not in _exhausted_providers,
+        "google": _google_client is not None and "google" not in _exhausted_providers,
+        "openai": _openai_client is not None and "openai" not in _exhausted_providers,
     }
 
 
-def _pick_fallback_model(provider: str) -> str | None:
-    """요청한 프로바이더가 없을 때, 사용 가능한 다른 모델을 반환합니다."""
-    if _anthropic_client:
+def _pick_fallback_model(provider: str, *, exclude: str | None = None) -> str | None:
+    """요청한 프로바이더가 없을 때, 사용 가능한 다른 모델을 반환합니다.
+
+    Args:
+        provider: 원래 요청했던 프로바이더
+        exclude: 추가로 제외할 프로바이더 (크레딧 소진 등)
+    """
+    _skip = {provider} | _exhausted_providers
+    if exclude:
+        _skip.add(exclude)
+    if "anthropic" not in _skip and _anthropic_client:
         return "claude-sonnet-4-6"
-    if _google_client:
+    if "google" not in _skip and _google_client:
         return "gemini-2.5-flash"
-    if _openai_client:
+    if "openai" not in _skip and _openai_client:
         return "gpt-5-mini"
     return None
 
@@ -491,18 +514,18 @@ def select_model(text: str, override: str | None = None) -> str:
             return fallback
         return override  # 폴백도 없으면 그냥 반환 (ask_ai에서 에러 처리)
 
-    # 자동 모드: 사용 가능한 프로바이더 중에서 선택
+    # 자동 모드: 사용 가능한 프로바이더 중에서 선택 (소진된 프로바이더 건너뜀)
     is_complex = any(kw in text for kw in _COMPLEX_KEYWORDS)
 
-    if _anthropic_client:
+    if _anthropic_client and "anthropic" not in _exhausted_providers:
         if len(text) <= 50 and not is_complex:
             return "claude-haiku-4-5-20251001"
         return "claude-sonnet-4-6"
-    elif _google_client:
+    elif _google_client and "google" not in _exhausted_providers:
         if len(text) <= 50 and not is_complex:
             return "gemini-2.5-flash"
         return "gemini-2.5-pro"
-    elif _openai_client:
+    elif _openai_client and "openai" not in _exhausted_providers:
         if len(text) <= 50 and not is_complex:
             return "gpt-5-mini"
         return "gpt-5.2"
@@ -1325,6 +1348,75 @@ async def ask_ai(
                     }
                 except Exception as fallback_e:
                     logger.error("폴백 모델 %s도 실패: %s", fallback, str(fallback_e)[:200])
+
+        # 400 크레딧/빌링 소진: 다른 프로바이더로 폴백
+        _is_credit_error = (
+            ("400" in err_str or "BadRequest" in err_type)
+            and any(kw in err_str.lower() for kw in ("credit balance", "billing", "insufficient_quota", "quota"))
+        )
+        if _is_credit_error:
+            logger.error("=== %s 크레딧 소진 감지 ===\n%s", provider, err_str[:500])
+            mark_provider_exhausted(provider)  # 이후 호출에서도 이 프로바이더 건너뜀
+            _fb = _pick_fallback_model(provider, exclude=provider)
+            if _fb:
+                _fb_provider = _get_provider(_fb)
+                logger.warning("%s 크레딧 소진 → %s(%s)로 폴백 재시도", provider, _fb, _fb_provider)
+                try:
+                    if _fb_provider == "anthropic":
+                        fb_coro = _call_anthropic(
+                            user_message, system_prompt, _fb,
+                            tools=provider_tools, tool_executor=tool_executor,
+                            reasoning_effort=reasoning_effort,
+                            conversation_history=conversation_history,
+                            ai_call_timeout=AI_CALL_TIMEOUT,
+                        )
+                    elif _fb_provider == "google":
+                        fb_coro = _call_google(
+                            user_message, system_prompt, _fb,
+                            tools=provider_tools, tool_executor=tool_executor,
+                            reasoning_effort=reasoning_effort,
+                            conversation_history=conversation_history,
+                            ai_call_timeout=AI_CALL_TIMEOUT,
+                        )
+                    elif _fb_provider == "openai":
+                        if _fb in OPENAI_RESPONSES_ONLY_MODELS:
+                            fb_coro = _call_openai_responses(
+                                user_message, system_prompt, _fb,
+                                tools=provider_tools, tool_executor=tool_executor,
+                                reasoning_effort=reasoning_effort,
+                                conversation_history=conversation_history,
+                                ai_call_timeout=AI_CALL_TIMEOUT,
+                            )
+                        else:
+                            fb_coro = _call_openai(
+                                user_message, system_prompt, _fb,
+                                tools=provider_tools, tool_executor=tool_executor,
+                                reasoning_effort=reasoning_effort,
+                                conversation_history=conversation_history,
+                                ai_call_timeout=AI_CALL_TIMEOUT,
+                            )
+                    else:
+                        fb_coro = None
+                    if fb_coro:
+                        result = await fb_coro
+                        elapsed = time.time() - start
+                        input_tokens = result.get("input_tokens", 0)
+                        output_tokens = result.get("output_tokens", 0)
+                        cost = _calc_cost(_fb, input_tokens, output_tokens)
+                        logger.info("크레딧 소진 폴백 성공: %s → %s (%.1f초)", model, _fb, elapsed)
+                        return {
+                            "content": result["content"],
+                            "model": _fb,
+                            "provider": _fb_provider,
+                            "input_tokens": input_tokens,
+                            "output_tokens": output_tokens,
+                            "cost_usd": round(cost, 6),
+                            "time_seconds": round(elapsed, 2),
+                            "fallback_from": model,
+                            "fallback_reason": "credit_exhausted",
+                        }
+                except Exception as fb_e:
+                    logger.error("크레딧 소진 폴백(%s)도 실패: %s", _fb, str(fb_e)[:200])
 
         # 400 에러 상세 로깅 (디버깅용)
         if "400" in err_str or "BadRequest" in err_type:

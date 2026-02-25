@@ -5840,17 +5840,29 @@ async def debug_ai_providers():
         "google": type(_ah._google_client).__name__ if _ah._google_client else None,
     }
     env_key_map = {"anthropic": "ANTHROPIC_API_KEY", "openai": "OPENAI_API_KEY", "google": "GOOGLE_API_KEY"}
+    exhausted = list(_ah._exhausted_providers)
     return {
         "providers_available": providers,
         "env_keys_present": env_keys,
         "client_types": client_info,
+        "exhausted_providers": exhausted,
         "diagnosis": {
-            k: ("정상" if providers.get(k) else
+            k: ("🔴 크레딧 소진" if k in _ah._exhausted_providers else
+                "정상" if providers.get(k) else
                 ("API 키 없음" if not env_keys.get(env_key_map[k]) else
                  "키 있으나 클라이언트 초기화 실패"))
             for k in ["anthropic", "openai", "google"]
         },
     }
+
+
+@app.post("/api/debug/reset-exhausted-providers")
+async def reset_exhausted_providers():
+    """크레딧 충전 후 소진 상태를 초기화합니다."""
+    import ai_handler as _ah
+    prev = list(_ah._exhausted_providers)
+    _ah.reset_exhausted_providers()
+    return {"reset": prev, "message": f"{len(prev)}개 프로바이더 소진 상태 초기화 완료"}
 
 
 @app.get("/api/debug/agent-calls")
