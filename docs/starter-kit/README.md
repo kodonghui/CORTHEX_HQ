@@ -24,6 +24,8 @@ CORTHEX HQ를 만들면서 검증된 것들만 넣었습니다.
 3. CLAUDE.md에 규칙 반영
 4. Claude에게 "starter-kit 참조해서 진행해" 하면 끝
 
+| 5 | `05-quality-rubric.md` | 시험지 + 채점관 | AI 에이전트 품질 검수 루브릭 (D1/ID/블라인드 채점) |
+
 ## 향후 추가 예정
 
-- `05-ux-patterns.md` — 고급 UX 패턴 (온보딩 / 에러 복구 / 제스처)
+- `06-ux-patterns.md` — 고급 UX 패턴 (온보딩 / 에러 복구 / 제스처)
