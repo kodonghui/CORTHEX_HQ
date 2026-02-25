@@ -477,28 +477,28 @@ _AGENTS_FALLBACK = [
     {"agent_id": "report_specialist", "name_ko": "정보 보좌관", "role": "specialist", "division": "secretary", "status": "idle", "model_name": "gemini-3.1-pro-preview"},
     {"agent_id": "schedule_specialist", "name_ko": "일정 보좌관", "role": "specialist", "division": "secretary", "status": "idle", "model_name": "gemini-2.5-flash"},
     {"agent_id": "relay_specialist", "name_ko": "검수 보좌관", "role": "specialist", "division": "secretary", "status": "idle", "model_name": "claude-sonnet-4-6"},
-    {"agent_id": "cto_manager", "name_ko": "기술개발처장 (CTO)", "role": "manager", "division": "leet_master.tech", "status": "idle", "model_name": "gemini-2.5-flash"},
+    {"agent_id": "cto_manager", "name_ko": "기술개발팀장", "role": "manager", "division": "leet_master.tech", "status": "idle", "model_name": "gemini-2.5-flash"},
     {"agent_id": "frontend_specialist", "name_ko": "프론트엔드 Specialist", "role": "specialist", "division": "leet_master.tech", "status": "idle", "model_name": "gemini-2.5-flash"},
     {"agent_id": "backend_specialist", "name_ko": "백엔드/API Specialist", "role": "specialist", "division": "leet_master.tech", "status": "idle", "model_name": "gemini-2.5-flash"},
     {"agent_id": "infra_specialist", "name_ko": "DB/인프라 Specialist", "role": "specialist", "division": "leet_master.tech", "status": "idle", "model_name": "gemini-2.5-flash"},
     {"agent_id": "ai_model_specialist", "name_ko": "AI 모델 Specialist", "role": "specialist", "division": "leet_master.tech", "status": "idle", "model_name": "gemini-2.5-flash"},
-    {"agent_id": "cso_manager", "name_ko": "사업기획처장 (CSO)", "role": "manager", "division": "leet_master.strategy", "status": "idle", "model_name": "gemini-3.1-pro-preview"},
+    {"agent_id": "cso_manager", "name_ko": "전략팀장", "role": "manager", "division": "leet_master.strategy", "status": "idle", "model_name": "gemini-3.1-pro-preview"},
     {"agent_id": "market_research_specialist", "name_ko": "시장조사 Specialist", "role": "specialist", "division": "leet_master.strategy", "status": "idle", "model_name": "gemini-3.1-pro-preview"},
     {"agent_id": "business_plan_specialist", "name_ko": "사업계획서 Specialist", "role": "specialist", "division": "leet_master.strategy", "status": "idle", "model_name": "gemini-3.1-pro-preview"},
     {"agent_id": "financial_model_specialist", "name_ko": "재무모델링 Specialist", "role": "specialist", "division": "leet_master.strategy", "status": "idle", "model_name": "gpt-5.2"},
-    {"agent_id": "clo_manager", "name_ko": "법무·IP처장 (CLO)", "role": "manager", "division": "leet_master.legal", "status": "idle", "model_name": "claude-sonnet-4-6"},
+    {"agent_id": "clo_manager", "name_ko": "법무팀장", "role": "manager", "division": "leet_master.legal", "status": "idle", "model_name": "claude-sonnet-4-6"},
     {"agent_id": "copyright_specialist", "name_ko": "저작권 Specialist", "role": "specialist", "division": "leet_master.legal", "status": "idle", "model_name": "claude-sonnet-4-6"},
     {"agent_id": "patent_specialist", "name_ko": "특허/약관 Specialist", "role": "specialist", "division": "leet_master.legal", "status": "idle", "model_name": "claude-sonnet-4-6"},
-    {"agent_id": "cmo_manager", "name_ko": "마케팅·고객처장 (CMO)", "role": "manager", "division": "leet_master.marketing", "status": "idle", "model_name": "gemini-3.1-pro-preview"},
+    {"agent_id": "cmo_manager", "name_ko": "마케팅팀장", "role": "manager", "division": "leet_master.marketing", "status": "idle", "model_name": "gemini-3.1-pro-preview"},
     {"agent_id": "survey_specialist", "name_ko": "설문/리서치 Specialist", "role": "specialist", "division": "leet_master.marketing", "status": "idle", "model_name": "gemini-3.1-pro-preview"},
     {"agent_id": "content_specialist", "name_ko": "콘텐츠 Specialist", "role": "specialist", "division": "leet_master.marketing", "status": "idle", "model_name": "gemini-3.1-pro-preview"},
     {"agent_id": "community_specialist", "name_ko": "커뮤니티 Specialist", "role": "specialist", "division": "leet_master.marketing", "status": "idle", "model_name": "gemini-3.1-pro-preview"},
-    {"agent_id": "cio_manager", "name_ko": "투자분석처장 (CIO)", "role": "manager", "division": "finance.investment", "status": "idle", "model_name": "gpt-5.2-pro"},
+    {"agent_id": "cio_manager", "name_ko": "투자팀장", "role": "manager", "division": "finance.investment", "status": "idle", "model_name": "gpt-5.2"},
     {"agent_id": "market_condition_specialist", "name_ko": "시황분석 Specialist", "role": "specialist", "division": "finance.investment", "status": "idle", "model_name": "claude-sonnet-4-6"},
     {"agent_id": "stock_analysis_specialist", "name_ko": "종목분석 Specialist", "role": "specialist", "division": "finance.investment", "status": "idle", "model_name": "claude-sonnet-4-6"},
     {"agent_id": "technical_analysis_specialist", "name_ko": "기술적분석 Specialist", "role": "specialist", "division": "finance.investment", "status": "idle", "model_name": "claude-sonnet-4-6"},
     {"agent_id": "risk_management_specialist", "name_ko": "리스크관리 Specialist", "role": "specialist", "division": "finance.investment", "status": "idle", "model_name": "claude-sonnet-4-6"},
-    {"agent_id": "cpo_manager", "name_ko": "출판·기록처장 (CPO)", "role": "manager", "division": "publishing", "status": "idle", "model_name": "claude-sonnet-4-6"},
+    {"agent_id": "cpo_manager", "name_ko": "콘텐츠팀장", "role": "manager", "division": "publishing", "status": "idle", "model_name": "claude-sonnet-4-6"},
     {"agent_id": "chronicle_specialist", "name_ko": "회사연대기 Specialist", "role": "specialist", "division": "publishing", "status": "idle", "model_name": "claude-sonnet-4-6"},
     {"agent_id": "editor_specialist", "name_ko": "콘텐츠편집 Specialist", "role": "specialist", "division": "publishing", "status": "idle", "model_name": "claude-sonnet-4-6"},
     {"agent_id": "archive_specialist", "name_ko": "아카이브 Specialist", "role": "specialist", "division": "publishing", "status": "idle", "model_name": "gemini-2.5-flash"},
@@ -675,7 +675,7 @@ async def websocket_endpoint(ws: WebSocket):
                             "data": {
                                 "content": (
                                     f"🗣️ **임원 토론을 시작합니다** ({debate_rounds}라운드)\n\n"
-                                    f"처장 6명이 토론 중입니다. 2~5분 소요됩니다.\n"
+                                    f"팀장 6명이 토론 중입니다. 2~5분 소요됩니다.\n"
                                     f"**토론이 완료되면 자동으로 결과를 전달해드립니다.**\n"
                                     f"💡 토론이 진행되는 동안 채팅을 계속 사용할 수 있습니다."
                                 ),
@@ -1628,7 +1628,7 @@ async def _batch_poller_loop():
 #
 #   [1단계] 비서실장 분류 → Batch 제출 → PENDING → 결과: "CIO에게 위임"
 #   [2단계] 전문가 N명 → 프로바이더별 묶어서 Batch 제출 → PENDING → 전부 대기
-#   [3단계] 처장 종합보고서 → Batch 제출 → PENDING → 결과: 종합 보고서
+#   [3단계] 팀장 종합보고서 → Batch 제출 → PENDING → 결과: 종합 보고서
 #   [4단계] CEO에게 전달 + 아카이브 저장
 #
 # 매 단계마다 Batch API 사용 → 비용 ~50% 절감
@@ -1685,7 +1685,7 @@ async def _broadcast_chain_status(chain: dict, message: str):
     """배치 체인 진행 상황을 WebSocket으로 CEO에게 알립니다."""
     step_labels = {
         "classify": "1단계: 분류",
-        "delegation": "2단계: 처장 지시서",
+        "delegation": "2단계: 팀장 지시서",
         "specialists": "3단계: 전문가 분석",
         "synthesis": "4단계: 종합 보고서",
         "completed": "완료",
@@ -1738,8 +1738,8 @@ async def _start_batch_chain(text: str, task_id: str) -> dict:
         "batches": {"classify": None, "specialists": [], "synthesis": []},
         "results": {"classify": None, "specialists": {}, "synthesis": {}},
         "custom_id_map": {},  # custom_id → {"agent_id", "step"} 역매핑
-        "delegation_instructions": {},  # 처장 지시서 (단일 부서)
-        "broadcast_delegations": {},  # 처장 지시서 (브로드캐스트)
+        "delegation_instructions": {},  # 팀장 지시서 (단일 부서)
+        "broadcast_delegations": {},  # 팀장 지시서 (브로드캐스트)
         "total_cost_usd": 0.0,
         "created_at": datetime.now(KST).isoformat(),
         "completed_at": None,
@@ -1757,13 +1757,13 @@ async def _start_batch_chain(text: str, task_id: str) -> dict:
                     success=0)
         return {"error": f"일일 예산을 초과했습니다 (${today:.2f}/${limit:.0f})"}
 
-    # ── 브로드캐스트 모드 → 분류 건너뛰고 처장 지시서 → 전 부서 전문가 ──
+    # ── 브로드캐스트 모드 → 분류 건너뛰고 팀장 지시서 → 전 부서 전문가 ──
     if chain["mode"] == "broadcast":
         chain["step"] = "delegation"
         chain["target_id"] = "broadcast"
         _save_chain(chain)
 
-        await _broadcast_chain_status(chain, "📦 배치 체인 시작 (브로드캐스트: 6개 부서 → 처장 지시서 생성 중)")
+        await _broadcast_chain_status(chain, "📦 배치 체인 시작 (브로드캐스트: 6개 부서 → 팀장 지시서 생성 중)")
         await _chain_create_delegation_broadcast(chain)
         return {"chain_id": chain_id, "status": "started", "mode": "broadcast", "step": chain["step"]}
 
@@ -1784,7 +1784,7 @@ async def _start_batch_chain(text: str, task_id: str) -> dict:
             await _broadcast_chain_status(chain, "📦 키워드 분류 → 비서실장 직접 처리")
             await _chain_submit_synthesis(chain)
         else:
-            # 처장 부서로 위임 → 처장 지시서 → 전문가 호출 단계
+            # 팀장 부서로 위임 → 팀장 지시서 → 전문가 호출 단계
             chain["step"] = "delegation"
             _save_chain(chain)
             target_name = _AGENT_NAMES.get(keyword_match, keyword_match)
@@ -1850,7 +1850,7 @@ async def _start_batch_chain(text: str, task_id: str) -> dict:
     return {"chain_id": chain_id, "status": "pending", "step": "classify"}
 
 
-# ── 처장 지시서 생성 프롬프트 ──
+# ── 팀장 지시서 생성 프롬프트 ──
 _DELEGATION_PROMPT = """당신은 {mgr_name}입니다. CEO로부터 아래 업무 지시를 받았습니다.
 
 소속 전문가들에게 각각 구체적인 작업 지시를 내려야 합니다.
@@ -1870,10 +1870,10 @@ _DELEGATION_PROMPT = """당신은 {mgr_name}입니다. CEO로부터 아래 업�
 
 
 async def _chain_create_delegation(chain: dict):
-    """배치 체인 — 처장이 전문가별 지시서를 작성합니다 (실시간 API 1회 호출).
+    """배치 체인 — 팀장이 전문가별 지시서를 작성합니다 (실시간 API 1회 호출).
 
     분류 완료 후, 전문가 배치 제출 전에 호출됩니다.
-    처장에게 CEO 명령을 전달하고, 각 전문가에게 내릴 구체적 지시서를 받습니다.
+    팀장에게 CEO 명령을 전달하고, 각 전문가에게 내릴 구체적 지시서를 받습니다.
     """
     target_id = chain["target_id"]
     text = chain["text"]
@@ -1916,7 +1916,7 @@ async def _chain_create_delegation(chain: dict):
         deleg_model = None
 
     if deleg_model:
-        # 처장 초록불 켜기
+        # 팀장 초록불 켜기
         await _broadcast_status(target_id, "working", 0.2, f"{mgr_name} 지시서 작성 중...")
         try:
             result = await ask_ai(
@@ -1962,7 +1962,7 @@ async def _chain_create_delegation(chain: dict):
             _log(f"[CHAIN] {chain['chain_id']} — 지시서 생성 실패: {e}")
             # 실패해도 진행 (지시서 없이 원본 명령으로)
 
-    # 지시서 상태 업데이트 + 처장 초록불 끄기
+    # 지시서 상태 업데이트 + 팀장 초록불 끄기
     has_instructions = bool(chain.get("delegation_instructions"))
     deleg_status = f"✅ {mgr_name} 지시서 생성 완료" if has_instructions else f"⚠️ 지시서 없이 진행"
     await _broadcast_status(target_id, "done", 0.5, deleg_status)
@@ -1977,7 +1977,7 @@ async def _chain_create_delegation(chain: dict):
 
 
 async def _chain_create_delegation_broadcast(chain: dict):
-    """배치 체인 — 브로드캐스트: 6개 처장이 각각 지시서를 작성합니다."""
+    """배치 체인 — 브로드캐스트: 6개 팀장이 각각 지시서를 작성합니다."""
     text = chain["text"]
     all_managers = ["cto_manager", "cso_manager", "clo_manager", "cmo_manager", "cio_manager", "cpo_manager"]
 
@@ -2031,7 +2031,7 @@ async def _chain_create_delegation_broadcast(chain: dict):
                 _log(f"[CHAIN] 브로드캐스트 지시서 실패 ({mgr_id}): {e}")
                 return mgr_id, {}
 
-        # 6개 처장에게 동시에 지시서 요청
+        # 6개 팀장에게 동시에 지시서 요청
         tasks = [_get_delegation(m) for m in all_managers]
         results = await _asyncio.gather(*tasks, return_exceptions=True)
         for r in results:
@@ -2049,8 +2049,8 @@ async def _chain_create_delegation_broadcast(chain: dict):
     deleg_count = sum(1 for d in broadcast_delegations.values() if d)
     _log(f"[CHAIN] {chain['chain_id']} — 브로드캐스트 지시서 {deleg_count}/6 완료")
     update_task(chain["task_id"], status="pending",
-                result_summary=f"📦 [배치 체인] 2단계: 처장 지시서 {deleg_count}/6 완료")
-    await _broadcast_chain_status(chain, f"📦 2단계: 처장 지시서 {deleg_count}/6 완료")
+                result_summary=f"📦 [배치 체인] 2단계: 팀장 지시서 {deleg_count}/6 완료")
+    await _broadcast_chain_status(chain, f"📦 2단계: 팀장 지시서 {deleg_count}/6 완료")
     _save_chain(chain)
 
     # 전문가 배치 제출로 진행
@@ -2064,13 +2064,13 @@ async def _chain_submit_specialists(chain: dict):
     specialists = _MANAGER_SPECIALISTS.get(target_id, [])
 
     if not specialists:
-        # 전문가 없음 → 바로 종합(처장 직접 처리) 단계
+        # 전문가 없음 → 바로 종합(팀장 직접 처리) 단계
         chain["step"] = "synthesis"
         _save_chain(chain)
         await _chain_submit_synthesis(chain)
         return
 
-    # 처장 지시서가 있으면 전문가에게 함께 전달
+    # 팀장 지시서가 있으면 전문가에게 함께 전달
     delegation = chain.get("delegation_instructions", {})
 
     requests = []
@@ -2084,11 +2084,11 @@ async def _chain_submit_specialists(chain: dict):
         model = select_model(text, override=override)
         custom_id = f"{chain['chain_id']}_spec_{spec_id}"
 
-        # 처장 지시서가 있으면 전문가에게 함께 전달
+        # 팀장 지시서가 있으면 전문가에게 함께 전달
         spec_instruction = delegation.get(spec_id, "")
         if spec_instruction:
             message = (
-                f"## 처장 지시\n{spec_instruction}\n\n"
+                f"## 팀장 지시\n{spec_instruction}\n\n"
                 f"## CEO 원본 명령\n{text}"
             )
         else:
@@ -2137,7 +2137,7 @@ async def _chain_submit_specialists_broadcast(chain: dict):
     text = chain["text"]
     all_managers = ["cto_manager", "cso_manager", "clo_manager", "cmo_manager", "cio_manager", "cpo_manager"]
 
-    # 브로드캐스트 모드의 처장별 지시서
+    # 브로드캐스트 모드의 팀장별 지시서
     broadcast_delegations = chain.get("broadcast_delegations", {})
 
     requests = []
@@ -2150,11 +2150,11 @@ async def _chain_submit_specialists_broadcast(chain: dict):
             model = select_model(text, override=override)
             custom_id = f"{chain['chain_id']}_spec_{spec_id}"
 
-            # 처장 지시서가 있으면 전문가에게 함께 전달
+            # 팀장 지시서가 있으면 전문가에게 함께 전달
             spec_instruction = mgr_delegation.get(spec_id, "")
             if spec_instruction:
                 message = (
-                    f"## 처장 지시\n{spec_instruction}\n\n"
+                    f"## 팀장 지시\n{spec_instruction}\n\n"
                     f"## CEO 원본 명령\n{text}"
                 )
             else:
@@ -2204,13 +2204,13 @@ async def _chain_submit_specialists_broadcast(chain: dict):
 
 
 async def _chain_submit_synthesis(chain: dict):
-    """배치 체인 — 처장(들)이 전문가 결과를 종합하는 배치를 제출합니다."""
+    """배치 체인 — 팀장(들)이 전문가 결과를 종합하는 배치를 제출합니다."""
     text = chain["text"]
 
     requests = []
 
     if chain["mode"] == "broadcast":
-        # 브로드캐스트: 6개 처장이 각각 자기 팀 결과를 종합
+        # 브로드캐스트: 6개 팀장이 각각 자기 팀 결과를 종합
         all_managers = ["cto_manager", "cso_manager", "clo_manager", "cmo_manager", "cio_manager", "cpo_manager"]
         for mgr_id in all_managers:
             specialists = _MANAGER_SPECIALISTS.get(mgr_id, [])
@@ -2265,12 +2265,12 @@ async def _chain_submit_synthesis(chain: dict):
         chain["custom_id_map"][custom_id] = {"agent_id": "chief_of_staff", "step": "synthesis"}
 
     else:
-        # 단일 부서: 처장이 전문가 결과를 종합
+        # 단일 부서: 팀장이 전문가 결과를 종합
         target_id = chain["target_id"]
         specialists = _MANAGER_SPECIALISTS.get(target_id, [])
 
         if not specialists or not chain["results"]["specialists"]:
-            # 전문가 결과 없음 → 처장이 직접 답변
+            # 전문가 결과 없음 → 팀장이 직접 답변
             soul = _load_agent_prompt(target_id, include_tools=False) + _BATCH_MODE_SUFFIX
             override = _get_model_override(target_id)
             model = select_model(text, override=override)
@@ -2286,7 +2286,7 @@ async def _chain_submit_synthesis(chain: dict):
             })
             chain["custom_id_map"][custom_id] = {"agent_id": target_id, "step": "synthesis"}
         else:
-            # 전문가 결과 취합 → 처장에게 종합 요청
+            # 전문가 결과 취합 → 팀장에게 종합 요청
             spec_parts = []
             for s_id in specialists:
                 s_res = chain["results"]["specialists"].get(s_id, {})
@@ -2346,8 +2346,8 @@ async def _chain_submit_synthesis(chain: dict):
 
     if chain["mode"] == "broadcast":
         update_task(chain["task_id"], status="pending",
-                    result_summary="📦 [배치 체인] 4단계: 6개 처장 종합보고서 배치 제출")
-        await _broadcast_chain_status(chain, "📦 4단계: 6개 처장이 종합보고서 작성 중 (배치)")
+                    result_summary="📦 [배치 체인] 4단계: 6개 팀장 종합보고서 배치 제출")
+        await _broadcast_chain_status(chain, "📦 4단계: 6개 팀장이 종합보고서 작성 중 (배치)")
     else:
         target_name = _AGENT_NAMES.get(chain["target_id"], chain["target_id"])
         update_task(chain["task_id"], status="pending",
@@ -2491,7 +2491,7 @@ async def _deliver_chain_result(chain: dict):
     total_cost = chain.get("total_cost_usd", 0)
 
     if chain["mode"] == "broadcast":
-        # 브로드캐스트: 6개 처장 종합 결과를 모아서 전달
+        # 브로드캐스트: 6개 팀장 종합 결과를 모아서 전달
         all_managers = ["cto_manager", "cso_manager", "clo_manager", "cmo_manager", "cio_manager", "cpo_manager"]
         parts = []
         total_specialists = 0
@@ -2534,8 +2534,8 @@ async def _deliver_chain_result(chain: dict):
         await wm.broadcast("result", {
             "content": compiled,
             "sender_id": "chief_of_staff",
-            "handled_by": "비서실장 → 6개 처장",
-            "delegation": "비서실장 → 처장 → 전문가 (배치)",
+            "handled_by": "비서실장 → 6개 팀장",
+            "delegation": "비서실장 → 팀장 → 전문가 (배치)",
             "time_seconds": 0,
             "cost": total_cost,
             "model": "multi-agent-batch",
@@ -2686,7 +2686,7 @@ async def _advance_batch_chain(chain_id: str):
                 await _broadcast_chain_status(chain, f"📦 분류 완료: 비서실장 직접 처리")
                 await _chain_submit_synthesis(chain)
             else:
-                # 처장 지시서 → 전문가 단계로 진행
+                # 팀장 지시서 → 전문가 단계로 진행
                 chain["step"] = "delegation"
                 _save_chain(chain)
                 await _broadcast_chain_status(chain, f"📦 분류 완료: {target_name} 지시서 생성 중")
@@ -2799,7 +2799,7 @@ async def _advance_batch_chain(chain_id: str):
                     error_summary = " | ".join(all_errors[:3])
                     await _broadcast_chain_status(chain, f"⚠️ 전문가 배치 실패 — 원인: {error_summary}")
                 else:
-                    await _broadcast_chain_status(chain, "⚠️ 전문가 배치 결과 없음 — 처장 직접 처리로 전환")
+                    await _broadcast_chain_status(chain, "⚠️ 전문가 배치 결과 없음 — 팀장 직접 처리로 전환")
 
             # ── 품질검수 HOOK: 전문가 결과 검수 ──
             if spec_count > 0 and app_state.quality_gate:
@@ -2814,7 +2814,7 @@ async def _advance_batch_chain(chain_id: str):
                     qa_msg = f"✅ 품질검수 완료 (합격 {spec_count - len(failed_specs)}/{spec_count}명)"
                     await _broadcast_chain_status(chain, qa_msg)
 
-            # 종합 단계로 진행 — 처장 초록불 켜기
+            # 종합 단계로 진행 — 팀장 초록불 켜기
             target_id = chain.get("target_id", "chief_of_staff")
             target_name = _AGENT_NAMES.get(target_id, target_id)
             await _broadcast_status(target_id, "working", 0.7, f"{target_name} 종합보고서 작성 중...")
@@ -2848,7 +2848,7 @@ async def _advance_batch_chain(chain_id: str):
         _save_chain(chain)
 
         if not all_done:
-            # ── 종합보고서 배치 대기 중 → 처장 초록불 유지 ──
+            # ── 종합보고서 배치 대기 중 → 팀장 초록불 유지 ──
             target_id = chain.get("target_id", "chief_of_staff")
             target_name = _AGENT_NAMES.get(target_id, target_id)
             await _broadcast_status(target_id, "working", 0.8, f"{target_name} 종합보고서 작성 중...")
@@ -2931,7 +2931,7 @@ async def _advance_batch_chain(chain_id: str):
                             _log(f"[QA] 종합보고서 검수 오류 ({agent_id}): {e}")
                     _save_chain(chain)
 
-            # 처장 초록불 끄기
+            # 팀장 초록불 끄기
             target_id = chain.get("target_id", "chief_of_staff")
             await _broadcast_status(target_id, "done", 1.0, "보고 완료")
 
@@ -3366,7 +3366,7 @@ def _capture_specialist_contributions_sync(
         for pred_row in pred_rows:
             pred_id = pred_row[0]
 
-            # CIO 처장 독자분석 기여 저장
+            # CIO 팀장 독자분석 기여 저장
             if cio_solo_content:
                 cio_rec = "HOLD"
                 if _buy_pat.search(cio_solo_content[:500]):
@@ -3558,7 +3558,7 @@ async def _cio_weekly_soul_update():
             ])
 
             analysis_prompt = (
-                "당신은 CLO(준법감시인)입니다. CIO(투자분석처장)의 최근 투자 예측 결과를 분석하여,\n"
+                "당신은 CLO(준법감시인)입니다. CIO(투자팀장)의 최근 투자 예측 결과를 분석하여,\n"
                 "반복되는 오류 패턴을 찾고 cio_manager.md에 추가할 규칙을 제안하세요.\n\n"
                 f"## CIO 최근 예측 결과\n"
                 f"전체 정확도: {summary.get('overall_accuracy', '-')}%\n"
@@ -3762,12 +3762,7 @@ async def _cron_loop():
                 from handlers.soul_evolution_handler import run_soul_evolution_analysis
                 asyncio.create_task(run_soul_evolution_analysis())
 
-            # Soul Gym 경쟁 진화: 매주 월요일 03:00 KST (flash2.5로 모의투자 기반)
-            if _now_cron.weekday() == 0 and _now_cron.hour == 3 and _now_cron.minute == 0:
-                logger.info("🧬 Soul Gym 주간 경쟁 진화 크론 실행")
-                save_activity_log("system", "🧬 Soul Gym 주간 경쟁 진화 시작 (크론)", "info")
-                from soul_gym_engine import evolve_all as _soul_gym_evolve_all
-                asyncio.create_task(_soul_gym_evolve_all())
+            # Soul Gym 24/7 상시 진화 — _soul_gym_loop()로 이관 (서버 시작 시 자동 실행)
 
             schedules = _load_data("schedules", [])
             now = datetime.now(KST)
@@ -3815,14 +3810,14 @@ def _register_default_schedules():
         {
             "id": "default_cio_morning",
             "name": "CIO 일일 시장 분석",
-            "command": "@투자분석처장 오늘 한국 주식시장 주요 동향과 섹터별 분석을 보고해주세요. 주요 이슈와 투자 관점 포함.",
+            "command": "@투자처장 오늘 한국 주식시장 주요 동향과 섹터별 분석을 보고해주세요. 주요 이슈와 투자 관점 포함.",
             "cron": "30 8 * * 1-5",  # 평일 08:30
             "enabled": True,
         },
         {
             "id": "default_cio_weekly",
             "name": "CIO 주간 시장 리뷰",
-            "command": "@투자분석처장 이번 주 시장 총평과 다음 주 전망을 종합 보고서로 작성해주세요.",
+            "command": "@투자처장 이번 주 시장 총평과 다음 주 전망을 종합 보고서로 작성해주세요.",
             "cron": "0 18 * * 5",  # 금요일 18:00
             "enabled": True,
         },
@@ -4396,7 +4391,7 @@ def _build_calibration_prompt_section(settings: dict | None = None) -> str:
 
 @app.post("/api/trading/signals/generate")
 async def generate_trading_signals():
-    """CIO(투자분석처장) + 4명 전문가가 관심종목을 분석 → 매매 시그널 생성.
+    """투자팀장이 관심종목을 분석 → 매매 시그널 생성.
 
     흐름:
     1. 시황분석 Specialist → 거시경제/시장 분위기 분석
@@ -4483,7 +4478,7 @@ async def generate_trading_signals():
     # CIO + 4명 전문가에게 위임 (실제 도구 사용 + 병렬 분석)
     save_activity_log("cio_manager", f"📊 자동매매 시그널 생성 — {len(watchlist)}개 종목 분석 시작", "info")
 
-    # 1단계: CIO 독자 분석 + 전문가 4명 병렬 실행 (P2-4: 병렬화)
+    # 1단계: 투자팀장 독자 분석 + 도구 활용 (P2-4: 병렬화)
     cio_solo_prompt = (
         f"CEO 투자 성향: {_profile_label}. 관심종목 독자 분석을 작성하세요:\n{tickers_info or '없음'}\n\n"
         f"활성 전략: {strats_info or '기본 전략'}\n\n"
@@ -4499,7 +4494,7 @@ async def generate_trading_signals():
     # CIO 독자 분석 시작 교신 로그
     try:
         from db import save_delegation_log as _sdl
-        _sdl(sender="투자분석처장 (CIO)", receiver="CIO 독자 분석", message="전문가 위임과 병렬로 독립 판단 시작", log_type="delegation")
+        _sdl(sender="투자팀장", receiver="CIO 독자 분석", message="전문가 위임과 병렬로 독립 판단 시작", log_type="delegation")
     except Exception as e:
         logger.debug("CIO 위임 로그 저장 실패: %s", e)
 
@@ -4529,14 +4524,14 @@ async def generate_trading_signals():
         # 교신 로그 기록
         try:
             preview = content[:300] if content else "분석 결과 없음"
-            _sdl(sender="CIO 독자 분석", receiver="투자분석처장 (CIO)", message=preview, log_type="report")
-            await _broadcast_comms({"id": f"cio_solo_{datetime.now(KST).strftime('%H%M%S')}", "sender": "CIO 독자 분석", "receiver": "투자분석처장 (CIO)", "message": preview, "log_type": "report", "source": "delegation", "created_at": datetime.now(KST).isoformat()})
+            _sdl(sender="CIO 독자 분석", receiver="투자팀장", message=preview, log_type="report")
+            await _broadcast_comms({"id": f"cio_solo_{datetime.now(KST).strftime('%H%M%S')}", "sender": "CIO 독자 분석", "receiver": "투자팀장", "message": preview, "log_type": "report", "source": "delegation", "created_at": datetime.now(KST).isoformat()})
         except Exception as e:
             logger.debug("CIO 독자 분석 교신 로그 실패: %s", e)
         return {"content": content, "cost_usd": cost}
 
     # 병렬 실행: CIO 독자 분석 + 전문가 위임
-    await _broadcast_status("cio_manager", "working", 0.1, "CIO 독자 분석 + 전문가 4명 병렬 진행 중...")
+    await _broadcast_status("cio_manager", "working", 0.1, "투자팀장 분석 진행 중...")
     cio_solo_task = _cio_solo_analysis()
     spec_task = _delegate_to_specialists("cio_manager", prompt)
     cio_solo_result, spec_results = await asyncio.gather(cio_solo_task, spec_task)
@@ -5389,7 +5384,7 @@ def _next_trading_run_time():
 
 
 async def _trading_bot_loop():
-    """자동매매 봇 루프 — CIO(투자분석처장) + 4명 전문가가 분석 → 자동 매매.
+    """자동매매 봇 루프 — 투자팀장이 분석 → 자동 매매.
 
     흐름:
     1. 하루 2회 정해진 시각에 실행 (09:10 KST, 14:50 KST)
@@ -6309,7 +6304,7 @@ async def _broadcast_comms(msg_data: dict):
     await wm.broadcast_sse(msg_data)
 
 
-# ── 처장 간 협의(Consult) API → handlers/consult_handler.py로 분리 ──
+# ── 팀장 간 협의(Consult) API → handlers/consult_handler.py로 분리 ──
 from handlers.consult_handler import router as consult_router
 app.include_router(consult_router)
 
@@ -6856,7 +6851,7 @@ async def _start_telegram_bot() -> None:
                         content = content[:3900] + "\n\n... (결과가 잘렸습니다. 웹에서 전체 확인)"
                     delegation = result.get("delegation", "")
                     model_short = model.split("-")[1] if "-" in model else model
-                    # 담당자 표시: 처장 이름 또는 비서실장
+                    # 담당자 표시: 팀장 이름 또는 비서실장
                     footer_who = delegation if delegation else "비서실장"
                     update_task(task["task_id"], status="completed",
                                 result_summary=(content or "")[:200],
@@ -7094,12 +7089,12 @@ _ROUTING_KEYWORDS: dict[str, list[str]] = {
 # 에이전트 ID → 한국어 이름 매핑
 _AGENT_NAMES: dict[str, str] = {
     "chief_of_staff": "비서실장",
-    "cto_manager": "CTO (기술개발처장)",
-    "cso_manager": "CSO (사업기획처장)",
-    "clo_manager": "CLO (법무IP처장)",
-    "cmo_manager": "CMO (마케팅고객처장)",
-    "cio_manager": "CIO (투자분석처장)",
-    "cpo_manager": "CPO (출판기록처장)",
+    "cto_manager": "기술개발팀장",
+    "cso_manager": "전략팀장",
+    "clo_manager": "법무팀장",
+    "cmo_manager": "마케팅팀장",
+    "cio_manager": "투자팀장",
+    "cpo_manager": "콘텐츠팀장",
 }
 
 # ── 노션 API 연동 (에이전트 산출물 자동 저장) ──
@@ -7304,7 +7299,7 @@ _BROADCAST_KEYWORDS = [
     "총괄", "전원", "각 부서", "출석체크", "브리핑",
 ]
 
-# 처장/비서실장 → 소속 전문가 매핑
+# 팀장/비서실장 → 소속 전문가 매핑
 # 2026-02-25: 전문가 전원 동면 → 팀장 단독 분석 체제.
 # 재도입 시점: 팀장 혼자 30분+ & 병렬이 의미 있을 때 (CLAUDE.md 규칙)
 _MANAGER_SPECIALISTS: dict[str, list[str]] = {
@@ -7792,7 +7787,7 @@ async def _handle_specialist_rework(chain: dict, failed_specs: list[dict], attem
         _log(f"[QA] 재작업 후 전원 합격 (시도 {attempt})")
 
 
-# B안: 전문가별 역할 prefix — 처장이 위임할 때 CEO 원문을 그대로 전달하지 않고,
+# B안: 전문가별 역할 prefix — 팀장이 위임할 때 CEO 원문을 그대로 전달하지 않고,
 # 각 전문가의 역할에 맞는 지시를 앞에 붙여서 보냄
 _SPECIALIST_ROLE_PREFIX: dict[str, str] = {
     # ── 비서실 ──
@@ -8114,7 +8109,7 @@ async def _chief_qa_review(report_content: str, team_leader_name: str) -> tuple[
     qa_prompt = f"""당신은 비서실장입니다. {team_leader_name}의 보고서를 검수하세요.
 
 ## 보고서
-{report_content[:3000]}
+{report_content[:8000]}
 
 ## 검수 기준 (5항목, 각 통과/미달)
 1. **결론 존재**: 매수/매도/관망 시그널이 명확한가?
@@ -8123,8 +8118,8 @@ async def _chief_qa_review(report_content: str, team_leader_name: str) -> tuple[
 4. **형식 준수**: [시그널] 형식으로 종목별 결과가 있는가?
 5. **논리 일관성**: 분석과 결론이 모순되지 않는가?
 
-## 응답 형식 (반드시 이 형식만)
-판정: 승인 또는 반려
+## 응답 형식 (반드시 첫 줄에 이 형식만)
+판정: PASS 또는 FAIL
 사유: [1줄 요약]"""
 
     try:
@@ -8139,12 +8134,19 @@ async def _chief_qa_review(report_content: str, team_leader_name: str) -> tuple[
         )
         qa_text = result.get("content", "")
 
-        # 파싱: "판정: 승인" or "판정: 반려"
-        passed = "승인" in qa_text and "반려" not in qa_text.split("판정")[-1].split("\n")[0] if "판정" in qa_text else "승인" in qa_text
+        # 파싱: "판정: PASS" or "판정: FAIL" (영어 키워드로 오판 방지)
+        qa_upper = qa_text.upper()
+        if "PASS" in qa_upper and "FAIL" not in qa_upper:
+            passed = True
+        elif "FAIL" in qa_upper:
+            passed = False
+        else:
+            # 폴백: 한국어 키워드
+            passed = "승인" in qa_text and "반려" not in qa_text[:200]
         reason = ""
         for line in qa_text.split("\n"):
-            if "사유" in line:
-                reason = line.split(":", 1)[-1].strip() if ":" in line else line
+            if "사유" in line and ":" in line:
+                reason = line.split(":", 1)[-1].strip()
                 break
         if not reason:
             reason = "승인" if passed else "기준 미달"
@@ -8156,7 +8158,7 @@ async def _chief_qa_review(report_content: str, team_leader_name: str) -> tuple[
 
 
 async def _delegate_to_specialists(manager_id: str, text: str) -> list[dict]:
-    """처장이 소속 전문가들에게 병렬로 위임합니다.
+    """팀장이 소속 전문가들에게 병렬로 위임합니다.
 
     asyncio.gather로 전문가들을 동시에 호출 → 상태 표시등 전부 깜빡임.
     위임 발생 시 delegation_log에 자동 기록합니다.
@@ -8244,24 +8246,24 @@ async def _delegate_to_specialists(manager_id: str, text: str) -> list[dict]:
 
 
 async def _manager_with_delegation(manager_id: str, text: str, conversation_id: str | None = None) -> dict:
-    """처장이 전문가에게 위임 → 결과 종합(검수) → 보고서 작성.
+    """팀장이 전문가에게 위임 → 결과 종합(검수) → 보고서 작성.
 
-    흐름: 처장 분석 시작 → 전문가 병렬 호출 → 처장이 결과 종합 + 검수 → 보고서 반환
-    검수: 처장이 전문가 결과를 읽고 종합하는 과정 자체가 품질 검수 역할을 합니다.
+    흐름: 팀장 분석 시작 → 전문가 병렬 호출 → 팀장이 결과 종합 + 검수 → 보고서 반환
+    검수: 팀장이 전문가 결과를 읽고 종합하는 과정 자체가 품질 검수 역할을 합니다.
     """
     mgr_name = _AGENT_NAMES.get(manager_id, manager_id)
     specialists = _MANAGER_SPECIALISTS.get(manager_id, [])
     spec_names = [_SPECIALIST_NAMES.get(s, s) for s in specialists]
 
-    # 전문가가 없으면 처장이 직접 처리
+    # 전문가가 없으면 팀장이 직접 처리
     if not specialists:
         return await _call_agent(manager_id, text, conversation_id=conversation_id)
 
-    # ── 처장 독자 분석 함수 (CEO 아이디어: 처장 = 5번째 분석가) ──
-    # 전문가와 병렬로 처장도 독자적으로 도구를 사용하여 분석 수행.
+    # ── 팀장 독자 분석 함수 (CEO 아이디어: 팀장 = 5번째 분석가) ──
+    # 전문가와 병렬로 팀장도 독자적으로 도구를 사용하여 분석 수행.
     # "종합 때 도구 써라"(프롬프트 의존) → "독자분석 따로 돌려"(구조적 강제)
     async def _manager_self_analysis():
-        """처장 독자 분석 — 전문가와 동일하게 도구 사용. 구조적 도구 사용 보장."""
+        """팀장 독자 분석 — 전문가와 동일하게 도구 사용. 구조적 도구 사용 보장."""
         log_self = save_activity_log(manager_id,
             f"[{mgr_name}] 🔧 독자 분석 시작 (5번째 분석가)", "info")
         await wm.send_activity_log(log_self)
@@ -8277,13 +8279,13 @@ async def _manager_with_delegation(manager_id: str, text: str, conversation_id: 
         await wm.send_activity_log(log_done)
         return self_result
 
-    # 처장 상태: 독자 분석 + 전문가 위임 시작
+    # 팀장 상태: 독자 분석 + 전문가 위임 시작
     await _broadcast_status(manager_id, "working", 0.1, "독자 분석 + 전문가 위임 중...")
     log_mgr = save_activity_log(manager_id,
         f"[{mgr_name}] 🔧 독자 분석 + 전문가 {len(specialists)}명 위임: {', '.join(spec_names)}")
     await wm.send_activity_log(log_mgr)
 
-    # 처장 독자분석 + 전문가 병렬 실행 (5번째 분석가 구조)
+    # 팀장 독자분석 + 전문가 병렬 실행 (5번째 분석가 구조)
     _mgr_self_task = _manager_self_analysis()
     _spec_task = _delegate_to_specialists(manager_id, text)
     _parallel = await asyncio.gather(_mgr_self_task, _spec_task, return_exceptions=True)
@@ -8323,7 +8325,7 @@ async def _manager_with_delegation(manager_id: str, text: str, conversation_id: 
             except Exception as _ae_p8s:
                 logger.debug("Phase8 전문가 기밀문서 저장 실패: %s", _ae_p8s)
 
-    # ── 품질검수 (Quality Gate) ── 전문가 결과를 처장이 종합하기 전에 검수
+    # ── 품질검수 (Quality Gate) ── 전문가 결과를 팀장이 종합하기 전에 검수
     if app_state.quality_gate and _QUALITY_GATE_AVAILABLE and spec_results:
         await _broadcast_status(manager_id, "working", 0.45, "전문가 결과 품질검수 중...")
 
@@ -8454,7 +8456,7 @@ async def _manager_with_delegation(manager_id: str, text: str, conversation_id: 
             spec_cost += r.get("cost_usd", 0)
             spec_time = max(spec_time, r.get("time_seconds", 0))
 
-    # 처장 독자분석 결과 취합
+    # 팀장 독자분석 결과 취합
     manager_self_content = ""
     mgr_self_tools: list[str] = []
     if isinstance(manager_self_result, dict) and "error" not in manager_self_result:
@@ -8467,14 +8469,14 @@ async def _manager_with_delegation(manager_id: str, text: str, conversation_id: 
     _spec_ok_count = len([r for r in spec_results if "error" not in r])
     _spec_err_count = len(spec_results) - _spec_ok_count
 
-    # 처장 종합 프롬프트 — 독자분석 + 전문가 결과 취합만 (도구 불필요)
-    # CEO 아이디어: 처장 독자분석에서 이미 도구 사용 완료 → 종합은 단순 취합
+    # 팀장 종합 프롬프트 — 독자분석 + 전문가 결과 취합만 (도구 불필요)
+    # CEO 아이디어: 팀장 독자분석에서 이미 도구 사용 완료 → 종합은 단순 취합
     synthesis_prompt = (
         f"당신은 {mgr_name}입니다.\n"
         f"아래 분석 결과(당신의 독자 분석 + 전문가)를 종합하여 최종 보고서를 작성하세요.\n"
         f"도구를 다시 사용할 필요 없습니다 — 결과를 취합만 하세요.\n\n"
         f"## CEO 원본 명령\n{text}\n\n"
-        f"## 처장 독자 분석\n{manager_self_content or '(분석 실패)'}\n\n"
+        f"## 팀장 독자 분석\n{manager_self_content or '(분석 실패)'}\n\n"
         f"## 전문가 분석 결과\n" + "\n\n".join(spec_parts)
     )
 
@@ -8535,7 +8537,7 @@ async def _manager_with_delegation(manager_id: str, text: str, conversation_id: 
             agent_id=manager_id,
         )
 
-    # 처장 독자분석 도구 사용 기록 로그
+    # 팀장 독자분석 도구 사용 기록 로그
     if mgr_self_tools:
         _unique_self = list(dict.fromkeys(mgr_self_tools))
         log_tools = save_activity_log(manager_id,
@@ -8555,12 +8557,12 @@ async def _manager_with_delegation(manager_id: str, text: str, conversation_id: 
 
 
 def _determine_routing_level(text: str) -> tuple[int, str | None]:
-    """질문 복잡도에 따라 Level 1~4와 대상 처장 ID 반환.
+    """질문 복잡도에 따라 Level 1~4와 대상 팀장 ID 반환.
 
     Returns: (level, manager_id_or_None)
-    - Level 1: 간단한 인사/단순 질문 → 비서실장 직접 처리 (처장 호출 없음)
-    - Level 2: 특정 부서 전문 질문 → 처장 1명만 호출
-    - Level 3: 특정 부서 심층 분석 → 처장 1명 + spawn_agent 자율 전문가 선택
+    - Level 1: 간단한 인사/단순 질문 → 비서실장 직접 처리 (팀장 호출 없음)
+    - Level 2: 특정 부서 전문 질문 → 팀장 1명만 호출
+    - Level 3: 특정 부서 심층 분석 → 팀장 1명 + spawn_agent 자율 전문가 선택
     - Level 4: 복합/전사 질문 → 전원 병렬 호출 (기존 브로드캐스트)
     """
     t = text.lower()
@@ -8597,7 +8599,7 @@ def _determine_routing_level(text: str) -> tuple[int, str | None]:
 
 
 async def _manager_with_delegation_autonomous(manager_id: str, text: str, conversation_id: str | None = None) -> dict:
-    """처장이 spawn_agent 도구로 필요한 전문가만 자율 선택하여 호출 (Level 3용)."""
+    """팀장이 spawn_agent 도구로 필요한 전문가만 자율 선택하여 호출 (Level 3용)."""
     agent_cfg = next((a for a in AGENTS if a.get("agent_id") == manager_id), None)
     if not agent_cfg:
         return {"content": f"에이전트 설정을 찾을 수 없습니다: {manager_id}", "error": True}
@@ -8673,7 +8675,7 @@ async def _chief_finalize(original_text: str, manager_results: dict) -> dict:
     """Level 2/3 완료 후 비서실장이 최종 보고서 1개 작성."""
     chief_cfg = next((a for a in AGENTS if a.get("agent_id") == "chief_of_staff"), None)
     if not chief_cfg:
-        # fallback: 처장 결과 그대로 반환
+        # fallback: 팀장 결과 그대로 반환
         combined = "\n\n".join(r.get("content", "") for r in manager_results.values())
         return {"content": combined}
 
@@ -8684,7 +8686,7 @@ async def _chief_finalize(original_text: str, manager_results: dict) -> dict:
 
     synthesis_prompt = (
         f"CEO 질문: {original_text}\n\n"
-        f"처장 보고 내용:\n{results_text}\n\n"
+        f"팀장 보고 내용:\n{results_text}\n\n"
         "위 내용을 바탕으로 CEO에게 드릴 최종 보고서를 작성하세요. "
         "핵심 결론을 먼저, 세부 내용을 뒤에 정리하세요."
     )
@@ -8716,7 +8718,7 @@ async def _broadcast_to_managers_all(text: str, task_id: str, conversation_id: s
     log_entry = save_activity_log("chief_of_staff", f"[비서실장] {len(managers)}개 팀장에게 명령 전달: {text[:40]}...")
     await wm.send_activity_log(log_entry)
 
-    # ── 1단계: 6개 처장 + 비서실 보좌관 3명 동시 호출 ──
+    # ── 1단계: 6개 팀장 + 비서실 보좌관 3명 동시 호출 ──
     mgr_tasks = [_manager_with_delegation(mgr_id, text, conversation_id=conversation_id) for mgr_id in managers]
     staff_tasks = [_call_agent(spec_id, text, conversation_id=conversation_id) for spec_id in staff_specialists]
     all_results = await asyncio.gather(*(mgr_tasks + staff_tasks), return_exceptions=True)
@@ -8724,7 +8726,7 @@ async def _broadcast_to_managers_all(text: str, task_id: str, conversation_id: s
     mgr_results = all_results[:6]
     staff_results = all_results[6:]
 
-    # ── 2단계: 처장 결과 정리 (기밀문서에는 이미 _manager_with_delegation에서 저장됨) ──
+    # ── 2단계: 팀장 결과 정리 (기밀문서에는 이미 _manager_with_delegation에서 저장됨) ──
     mgr_summaries = []  # 비서실장에게 전달할 요약
     total_cost = 0.0
     total_time = 0.0
@@ -8767,14 +8769,14 @@ async def _broadcast_to_managers_all(text: str, task_id: str, conversation_id: s
 
     synthesis_input = (
         f"CEO 원본 명령: {text}\n\n"
-        f"## 6개 부서 처장 보고서\n\n"
+        f"## 6개 부서 팀장 보고서\n\n"
         + "\n\n---\n\n".join(mgr_summaries)
         + f"\n\n## 비서실 보좌관 보고\n\n"
         + "\n\n".join(staff_summaries)
     )
 
     synthesis_system = (
-        "당신은 비서실장입니다. 6개 부서 처장과 비서실 보좌관 3명의 보고를 검토하고, "
+        "당신은 비서실장입니다. 6개 부서 팀장과 비서실 보좌관 3명의 보고를 검토하고, "
         "CEO에게 종합 보고서를 작성하세요.\n\n"
         "## 반드시 아래 구조를 따를 것\n\n"
         "### 핵심 요약\n"
@@ -8785,7 +8787,7 @@ async def _broadcast_to_managers_all(text: str, task_id: str, conversation_id: s
         "| CTO (기술개발) | ... | 정상/주의/위험 |\n"
         "(6개 부서 전부)\n\n"
         "### CEO 결재/결정 필요 사항\n"
-        "(각 처장 보고서에서 CEO가 결정해야 할 것만 추출. 체크리스트 형태)\n"
+        "(각 팀장 보고서에서 CEO가 결정해야 할 것만 추출. 체크리스트 형태)\n"
         "- [ ] 부서명: 결정 사항 — 배경 설명\n"
         "(결재할 것이 없으면 '현재 결재 대기 사항 없음')\n\n"
         "### 특이사항 / 리스크\n"
@@ -8798,7 +8800,7 @@ async def _broadcast_to_managers_all(text: str, task_id: str, conversation_id: s
         "- 한국어로 작성\n"
         "- 간결하게. CEO가 30초 안에 핵심을 파악할 수 있게\n"
         "- 중요한 숫자/데이터는 반드시 포함\n"
-        "- 처장 보고서를 그대로 복사하지 말고, 핵심만 추출하여 재구성\n"
+        "- 팀장 보고서를 그대로 복사하지 말고, 핵심만 추출하여 재구성\n"
     )
 
     soul = _load_agent_prompt("chief_of_staff")
@@ -8819,7 +8821,7 @@ async def _broadcast_to_managers_all(text: str, task_id: str, conversation_id: s
 
     # ── 4단계: 최종 출력 = 비서실장 종합 보고서만 ──
     if "error" in chief_synthesis:
-        # 종합 실패 시 처장 요약만 간단히 표시
+        # 종합 실패 시 팀장 요약만 간단히 표시
         chief_content = "⚠️ 비서실장 종합 보고서 작성 실패\n\n" + "\n\n---\n\n".join(
             f"**{_AGENT_NAMES.get(managers[i], managers[i])}**: "
             + (mgr_results[i].get("content", "")[:100] + "..." if not isinstance(mgr_results[i], Exception) else "오류")
@@ -8831,11 +8833,11 @@ async def _broadcast_to_managers_all(text: str, task_id: str, conversation_id: s
     # 맨 아래 안내 추가
     final_content = (
         f"📋 **비서실장 종합 보고** "
-        f"(6개 처장 + 전문가 {total_specialists}명 + 보좌관 3명 동원)\n\n"
+        f"(6개 팀장 + 전문가 {total_specialists}명 + 보좌관 3명 동원)\n\n"
         f"{chief_content}\n\n"
         f"---\n\n"
         f"📂 **상세 보고서 {success_count}건이 기밀문서에 저장되었습니다.** "
-        f"기밀문서 탭에서 부서별 필터로 각 처장의 전체 보고서를 확인할 수 있습니다."
+        f"기밀문서 탭에서 부서별 필터로 각 팀장의 전체 보고서를 확인할 수 있습니다."
     )
 
     # 비서실장 종합 보고서도 아카이브에 저장
@@ -8859,8 +8861,8 @@ async def _broadcast_to_managers_all(text: str, task_id: str, conversation_id: s
     return {
         "content": final_content,
         "agent_id": "chief_of_staff",
-        "handled_by": "비서실장 → 6개 처장 + 보좌관 3명",
-        "delegation": "비서실장 → 처장 → 전문가",
+        "handled_by": "비서실장 → 6개 팀장 + 보좌관 3명",
+        "delegation": "비서실장 → 팀장 → 전문가",
         "total_cost_usd": round(total_cost, 6),
         "time_seconds": round(total_time, 2),
         "model": "multi-agent",
@@ -8876,7 +8878,7 @@ DEBATE_ROTATION = [
     ["cso_manager", "cmo_manager", "cto_manager", "cio_manager", "cpo_manager", "clo_manager"],
 ]
 
-# 처장별 토론 관점 — 1라운드에서 각자 무엇을 분석해야 하는지 구체적으로 지시
+# 팀장별 토론 관점 — 1라운드에서 각자 무엇을 분석해야 하는지 구체적으로 지시
 _DEBATE_LENSES: dict[str, str] = {
     "cio_manager": (
         "투자/재무 관점에서 분석하세요:\n"
@@ -8922,10 +8924,10 @@ async def _call_agent_debate(agent_id: str, topic: str, history: str, extra_inst
     prompt = (
         f"[임원 토론 모드]\n"
         f"지금은 CEO가 소집한 임원 토론입니다. 보고서가 아니라 \"토론 발언\"으로 답하세요.\n"
-        f"형식적인 보고서 틀(## 처장 의견, ## 팀원 보고서 요약 등)은 사용하지 마세요.\n"
+        f"형식적인 보고서 틀(## 팀장 의견, ## 팀원 보고서 요약 등)은 사용하지 마세요.\n"
         f"대신 당신의 핵심 주장을 명확히 밝히고, 근거를 들어 설득하세요.\n\n"
         f"[토론 주제]\n{topic}\n\n"
-        f"[이전 발언들]\n{history if history else '(첫 발언입니다. 다른 처장의 의견 없이 독립적으로 발언하세요.)'}\n\n"
+        f"[이전 발언들]\n{history if history else '(첫 발언입니다. 다른 팀장의 의견 없이 독립적으로 발언하세요.)'}\n\n"
         f"{extra_instruction}"
     )
     result = await _call_agent(agent_id, prompt)
@@ -8933,10 +8935,10 @@ async def _call_agent_debate(agent_id: str, topic: str, history: str, extra_inst
 
 
 async def _broadcast_with_debate(ceo_message: str, rounds: int = 2) -> dict:
-    """임원 회의 방식 토론 — CEO 메시지를 처장들이 다단계 토론 후 비서실장이 종합."""
+    """임원 회의 방식 토론 — CEO 메시지를 팀장들이 다단계 토론 후 비서실장이 종합."""
     debate_history = ""
 
-    # 참가 처장 목록 (설정에 존재하는 처장만)
+    # 참가 팀장 목록 (설정에 존재하는 팀장만)
     all_managers = ["cio_manager", "cto_manager", "cso_manager", "cmo_manager", "clo_manager", "cpo_manager"]
     manager_ids = [m for m in all_managers if m in _AGENTS_DETAIL]
 
@@ -8945,7 +8947,7 @@ async def _broadcast_with_debate(ceo_message: str, rounds: int = 2) -> dict:
         ordered_managers = [m for m in DEBATE_ROTATION[rotation_idx] if m in manager_ids]
 
         if round_num == 1:
-            # 라운드 1: 병렬 — 서로 모르고 독립 의견 제시 (처장별 맞춤 분석 관점)
+            # 라운드 1: 병렬 — 서로 모르고 독립 의견 제시 (팀장별 맞춤 분석 관점)
             tasks = []
             for mid in ordered_managers:
                 lens = _DEBATE_LENSES.get(mid, "당신의 전문 분야 관점에서 구체적으로 분석하세요.")
@@ -8969,13 +8971,13 @@ async def _broadcast_with_debate(ceo_message: str, rounds: int = 2) -> dict:
             rebuttal_instruction = (
                 f"\n\n[{round_num}라운드 — 반박 및 보강]\n"
                 "위 발언들을 읽고 아래 3가지를 반드시 수행하세요:\n\n"
-                "1. **반박**: 다른 처장 의견 중 가장 취약한 논리나 빠진 관점을 구체적으로 지적하세요.\n"
+                "1. **반박**: 다른 팀장 의견 중 가장 취약한 논리나 빠진 관점을 구체적으로 지적하세요.\n"
                 "   - 누구의 어떤 주장이 왜 틀렸거나 부족한지 이름을 거론하여 명확히 밝히세요.\n"
                 "   - \"일리 있지만\"으로 시작하는 빈 양보 표현 금지.\n\n"
                 "2. **새로운 정보 추가**: 1라운드에서 아무도 언급하지 않은 새로운 관점, 데이터, 리스크를 하나 이상 제시하세요.\n\n"
                 "3. **입장 표명**: 이 주제에 대한 당신의 최종 입장을 한 문장으로 명확히 밝히세요.\n"
                 "   찬성/반대/조건부 찬성 중 하나를 선택하고 그 이유를 대세요.\n\n"
-                "- '동의합니다', '좋은 의견입니다', '각 처장의 의견을 존중합니다' 같은 빈 동의/예의 표현은 절대 금지\n"
+                "- '동의합니다', '좋은 의견입니다', '각 팀장의 의견을 존중합니다' 같은 빈 동의/예의 표현은 절대 금지\n"
                 "- 300자 이상 800자 이하로 핵심만"
             )
             for mid in ordered_managers:
@@ -8987,15 +8989,15 @@ async def _broadcast_with_debate(ceo_message: str, rounds: int = 2) -> dict:
     synthesis_prompt = (
         f"[임원 토론 종합 보고]\n\n"
         f"[토론 주제]\n{ceo_message}\n\n"
-        f"[처장들의 토론 내용]\n{debate_history}\n\n"
+        f"[팀장들의 토론 내용]\n{debate_history}\n\n"
         "위 토론을 바탕으로 CEO에게 보고하세요. 아래 형식을 따르세요:\n\n"
         "## 한줄 결론\n"
         "(이 토론의 결론을 CEO가 즉시 이해할 수 있는 한 문장으로)\n\n"
-        "## 핵심 쟁점 (처장 간 실제로 대립한 것만)\n"
+        "## 핵심 쟁점 (팀장 간 실제로 대립한 것만)\n"
         "| 쟁점 | 찬성 측 | 반대 측 | 판정 |\n"
         "(형식적으로 이견이 없는 항목은 제외. 실제 의견 충돌만 기록)\n\n"
         "## 전원 합의 사항\n"
-        "(처장들이 실제로 공통 동의한 핵심 포인트만. 없으면 '없음')\n\n"
+        "(팀장들이 실제로 공통 동의한 핵심 포인트만. 없으면 '없음')\n\n"
         "## CEO 결정 필요 사항\n"
         "(CEO가 결정해야 할 구체적 선택지를 A/B 형태로 제시. 각 선택지의 장단점 1줄씩)\n\n"
         "## 비서실장 권고\n"
@@ -9022,9 +9024,9 @@ async def _broadcast_with_debate(ceo_message: str, rounds: int = 2) -> dict:
 async def _broadcast_to_managers(text: str, task_id: str, target_agent_id: str | None = None, conversation_id: str | None = None) -> dict:
     """스마트 라우팅: Level에 따라 적절한 에이전트만 호출.
 
-    Level 1: 비서실장 직접 처리 (처장 호출 없음)
-    Level 2: 처장 1명만 호출 (전문가 위임 없음)
-    Level 3: 처장 1명 + spawn_agent 자율 전문가 선택
+    Level 1: 비서실장 직접 처리 (팀장 호출 없음)
+    Level 2: 팀장 1명만 호출 (전문가 위임 없음)
+    Level 3: 팀장 1명 + spawn_agent 자율 전문가 선택
     Level 4: 전원 병렬 호출 (기존 브로드캐스트)
     """
     # CEO 직접 개입: 특정 에이전트에게 직접 전달
@@ -9033,19 +9035,19 @@ async def _broadcast_to_managers(text: str, task_id: str, target_agent_id: str |
         return await _call_agent(target_agent_id, text, conversation_id=conversation_id)
 
     level, manager_id = _determine_routing_level(text)
-    logger.info("스마트 라우팅 Level %d, 처장: %s", level, manager_id)
+    logger.info("스마트 라우팅 Level %d, 팀장: %s", level, manager_id)
 
     if level == 1:
         # 비서실장 직접 처리
         return await _call_agent("chief_of_staff", text, conversation_id=conversation_id)
 
     elif level == 2:
-        # 처장 1명만 호출 (전문가 위임 없음)
+        # 팀장 1명만 호출 (전문가 위임 없음)
         mgr_result = await _call_agent(manager_id, text, conversation_id=conversation_id)
         return await _chief_finalize(text, {manager_id: mgr_result})
 
     elif level == 3:
-        # 처장 + spawn_agent 자율 전문가 선택
+        # 팀장 + spawn_agent 자율 전문가 선택
         mgr_result = await _manager_with_delegation_autonomous(manager_id, text, conversation_id=conversation_id)
         return await _chief_finalize(text, {manager_id: mgr_result})
 
@@ -9429,10 +9431,10 @@ async def _process_ai_command(text: str, task_id: str, target_agent_id: str | No
 
     흐름:
       예산 확인 → 브로드캐스트 확인 → 라우팅(분류) → 상태 전송
-      → 처장+전문가 풀 체인 위임 → 검수 → DB 저장
+      → 팀장+전문가 풀 체인 위임 → 검수 → DB 저장
 
     브로드캐스트 모드: "전체", "출석체크" 등 → 스마트 라우팅 (Level 1~4)
-    단일 위임 모드: 키워드/AI 분류 → 처장+전문가 체인 호출
+    단일 위임 모드: 키워드/AI 분류 → 팀장+전문가 체인 호출
     직접 처리: 비서실장이 직접 답변 (단순 질문)
     target_agent_id: CEO가 특정 에이전트를 직접 지정한 경우
     """
@@ -9572,10 +9574,10 @@ async def _process_ai_command(text: str, task_id: str, target_agent_id: str | No
         routing = {"agent_id": target_id, "method": "ceo_direct", "cost_usd": 0}
         routing_cost = 0
 
-        # 처장이든 전문가든 — 비서실장 위임 없이 직접 호출
+        # 팀장이든 전문가든 — 비서실장 위임 없이 직접 호출
         is_specialist = target_id in _SPECIALIST_NAMES
         if is_specialist or target_id not in _AGENT_NAMES:
-            # 전문가이거나 처장도 아닌 에이전트 → 바로 _call_agent()
+            # 전문가이거나 팀장도 아닌 에이전트 → 바로 _call_agent()
             direct_result = await _call_agent(target_id, text, conversation_id=conversation_id)
             direct_name = _SPECIALIST_NAMES.get(target_id, _AGENT_NAMES.get(target_id, target_id))
             if "error" in direct_result:
@@ -9598,7 +9600,7 @@ async def _process_ai_command(text: str, task_id: str, target_agent_id: str | No
             direct_result["routing_method"] = "ceo_direct"
             direct_result["total_cost_usd"] = total_cost
             return direct_result
-        # 처장이면 아래 기존 위임 로직으로 진행
+        # 팀장이면 아래 기존 위임 로직으로 진행
     else:
         # 라우팅 — 적합한 에이전트 결정
         routing = await _route_task(text)
@@ -9640,11 +9642,11 @@ async def _process_ai_command(text: str, task_id: str, target_agent_id: str | No
         result["total_cost_usd"] = total_cost
         return result
 
-    # 5) 부서 위임 — 비서실장이 적합한 처장에게 전달
+    # 5) 부서 위임 — 비서실장이 적합한 팀장에게 전달
     target_name = _AGENT_NAMES.get(target_id, target_id)
     await _broadcast_status("chief_of_staff", "working", 0.1, f"{target_name}에게 위임 중...")
 
-    # 처장이 자기 전문가를 호출 → 결과 검수 → 종합 보고서
+    # 팀장이 자기 전문가를 호출 → 결과 검수 → 종합 보고서
     delegation_result = await _manager_with_delegation(target_id, text, conversation_id=conversation_id)
     await _broadcast_status("chief_of_staff", "done", 1.0, "위임 완료")
 
@@ -9779,6 +9781,45 @@ def _init_tool_pool():
 # ── 도구 실행/상태/건강 → handlers/tools_handler.py로 분리 ──
 
 
+# ── Soul Gym 24/7 상시 루프 ──
+
+_soul_gym_running = False  # 중복 실행 방지 플래그
+
+async def _soul_gym_loop():
+    """Soul Gym 상시 진화 루프 — 한 라운드 끝나면 5분 쉬고 다음 라운드.
+
+    비유: 24시간 운영 헬스장. 선수가 운동 끝나면 5분 쉬고 다시 시작.
+    """
+    global _soul_gym_running
+    if _soul_gym_running:
+        logger.warning("[SOUL GYM] 이미 루프 실행 중 — 중복 방지")
+        return
+    _soul_gym_running = True
+    INTERVAL_SECONDS = 300  # 라운드 간 대기 (5분)
+
+    try:
+        from soul_gym_engine import evolve_all as _evolve_all
+    except ImportError:
+        logger.error("[SOUL GYM] soul_gym_engine 임포트 실패")
+        _soul_gym_running = False
+        return
+
+    round_num = 0
+    while True:
+        try:
+            round_num += 1
+            logger.info("🧬 Soul Gym 라운드 #%d 시작", round_num)
+            save_activity_log("system", f"🧬 Soul Gym 라운드 #{round_num} 시작", "info")
+            result = await _evolve_all()
+            logger.info("🧬 Soul Gym 라운드 #%d 완료: %s", round_num, result.get("status", "unknown"))
+            save_activity_log("system", f"🧬 Soul Gym 라운드 #{round_num} 완료 — {result.get('status', '')}", "info")
+        except Exception as e:
+            logger.error("🧬 Soul Gym 라운드 #%d 에러: %s", round_num, e)
+            save_activity_log("system", f"🧬 Soul Gym 라운드 #{round_num} 에러: {e}", "error")
+
+        await asyncio.sleep(INTERVAL_SECONDS)
+
+
 @app.on_event("startup")
 async def on_startup():
     """서버 시작 시 DB 초기화 + AI 클라이언트 + 텔레그램 봇 + 크론 엔진 + 도구 풀 시작."""
@@ -9850,6 +9891,9 @@ async def on_startup():
     # 메모리 정리 태스크 (10분마다 bg_results, notion_log 정리)
     app_state._cleanup_task = asyncio.create_task(app_state.periodic_cleanup())
     _log("[CLEANUP] 메모리 자동 정리 태스크 시작 ✅ (10분 간격)")
+    # Soul Gym 24/7 상시 루프 (대표님 지시 2026-02-25: "24시간 7일 내내")
+    asyncio.create_task(_soul_gym_loop())
+    _log("[SOUL GYM] 24/7 상시 진화 루프 시작 ✅ (라운드당 ~$0.012)")
 
 
 @app.on_event("shutdown")

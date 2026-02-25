@@ -158,14 +158,14 @@ function corthexApp() {
     showSlashDropdown: false,
     slashSelectedIndex: 0,
     slashCommands: [
-      { cmd: '/전체', args: '[메시지]', desc: '6명 처장에게 동시 지시', icon: '📡' },
+      { cmd: '/전체', args: '[메시지]', desc: '6명 팀장에게 동시 지시', icon: '📡' },
       { cmd: '/순차', args: '[메시지]', desc: '에이전트 릴레이 모드', icon: '🔗' },
       { cmd: '/도구점검', args: '', desc: '전체 도구 상태 확인', icon: '🔧' },
       { cmd: '/배치실행', args: '', desc: '대기 중인 AI 요청 일괄 전송', icon: '📤' },
       { cmd: '/배치상태', args: '', desc: '배치 작업 진행 확인', icon: '📊' },
       { cmd: '/명령어', args: '', desc: '전체 명령어 목록', icon: '📋' },
-      { cmd: '/토론', args: '[주제]', desc: '6명 처장 임원 토론 (2라운드)', icon: '🗣️' },
-      { cmd: '/심층토론', args: '[주제]', desc: '6명 처장 심층 토론 (3라운드)', icon: '💬' },
+      { cmd: '/토론', args: '[주제]', desc: '6명 팀장 임원 토론 (2라운드)', icon: '🗣️' },
+      { cmd: '/심층토론', args: '[주제]', desc: '6명 팀장 심층 토론 (3라운드)', icon: '💬' },
     ],
     filteredSlashCommands: [],
     currentTaskId: null,
@@ -1224,7 +1224,7 @@ function corthexApp() {
     getFilteredPresets() {
       const defaults = [
         { name: '기술 스택 제안', command: 'LEET MASTER 서비스의 기술 스택을 제안해줘', category: '전략', color: 'hq-cyan', desc: 'CTO + 기술팀이 최적의 아키텍처를 설계합니다' },
-        { name: '주가 분석', command: '삼성전자 주가를 분석해줘', category: '분석', color: 'hq-purple', desc: '4명의 투자분석팀이 병렬로 분석합니다' },
+        { name: '주가 분석', command: '삼성전자 주가를 분석해줘', category: '분석', color: 'hq-purple', desc: '투자팀장이 분석합니다' },
         { name: '이용약관 작성', command: '서비스 이용약관 초안을 만들어줘', category: '법무', color: 'hq-green', desc: 'CLO + 법무팀이 법적 문서를 작성합니다' },
         { name: '마케팅 전략', command: '마케팅 콘텐츠 전략을 수립해줘', category: '마케팅', color: 'hq-yellow', desc: 'CMO + 마케팅팀이 전략을 수립합니다' },
         { name: '사업계획서', command: '스타트업 사업계획서 초안을 작성해줘', category: '전략', color: 'hq-cyan', desc: 'CSO + 사업기획팀이 사업계획을 수립합니다' },
@@ -3772,7 +3772,7 @@ function corthexApp() {
     getCioLogColor(log) {
       // #4: 에이전트별 색상 구분 (CIO팀 내부)
       const sender = (log.sender || log.agent_id || '').toLowerCase();
-      if (sender.includes('cio_manager') || sender.includes('투자분석처장')) return 'text-hq-accent';
+      if (sender.includes('cio_manager') || sender.includes('투자팀장')) return 'text-hq-accent';
       if (sender.includes('market_condition') || sender.includes('시황')) return 'text-hq-cyan';
       if (sender.includes('stock_analysis') || sender.includes('종목')) return 'text-hq-green';
       if (sender.includes('technical_analysis') || sender.includes('기술')) return 'text-hq-yellow';
@@ -3787,7 +3787,7 @@ function corthexApp() {
     getCioShortName(agentIdOrName) {
       if (!agentIdOrName) return '';
       const id = agentIdOrName.toLowerCase();
-      if (id.includes('cio_manager') || id.includes('투자분석처장')) return 'CIO';
+      if (id.includes('cio_manager') || id.includes('투자팀장')) return 'CIO';
       if (id.includes('market_condition') || id.includes('시황분석')) return '시황분석';
       if (id.includes('stock_analysis') || id.includes('종목분석')) return '종목분석';
       if (id.includes('technical_analysis') || id.includes('기술적분석') || id.includes('기술분석')) return '기술분석';
@@ -3841,7 +3841,7 @@ function corthexApp() {
       this.trading.cioLogs = [];
       this.trading.activityLog.logs = [];
       this._connectCommsSSE(); // SSE 통합: CIO 로그 실시간 수신
-      this.showToast('CIO + 전문가 4명 즉시 분석 + 매매결정 중... (5~10분)', 'info');
+      this.showToast('투자팀장 분석 + 매매결정 중... (5~10분)', 'info');
       try {
         const resp = await fetch('/api/trading/bot/run-now', {method:'POST'});
         if (!resp.ok) throw new Error(`서버 오류 (${resp.status})`);
@@ -3906,7 +3906,7 @@ function corthexApp() {
 
     async generateTradingSignals() {
       this.trading.loadingSignals = true;
-      this.showToast('CIO + 전문가 4명 분석 중... (5~10분 소요)', 'info');
+      this.showToast('투자팀장 분석 중... (5~10분 소요)', 'info');
       try {
         const res = await fetch('/api/trading/signals/generate', {method:'POST'}).then(r => r.json());
         if (res.success) {
@@ -4370,20 +4370,16 @@ function corthexApp() {
     getAgentTier(agentId) {
       if (!agentId) return 'unknown';
       if (agentId === 'argos') return 'system';
-      const executives = ['chief_of_staff','cto_manager','cso_manager','clo_manager','cmo_manager','cio_manager','cpo_manager'];
-      const staffList = ['report_specialist','schedule_specialist','relay_specialist'];
-      if (executives.includes(agentId)) return 'executive';
-      if (staffList.includes(agentId)) return 'staff';
-      if (agentId.includes('specialist') || agentId.includes('_specialist')) return 'specialist';
-      return 'specialist';
+      const managers = ['chief_of_staff','cto_manager','cso_manager','clo_manager','cmo_manager','cio_manager','cpo_manager'];
+      if (managers.includes(agentId)) return 'manager';
+      return 'other';
     },
 
     getAgentTierLabel(agentId) {
       const tier = this.getAgentTier(agentId);
       if (tier === 'system') return 'SYSTEM';
-      if (tier === 'executive') return '임원급';
-      if (tier === 'staff') return '보좌관급';
-      return '전문가급';
+      if (tier === 'manager') return '팀장';
+      return '기타';
     },
 
     // 기밀문서 카드용: agent_id → 한글 이름
@@ -4486,7 +4482,7 @@ function corthexApp() {
       if (!agentId) return '#6b7280';
       const id = agentId.toLowerCase();
       // CIO 팀 — 개별 색상 구분 (#4)
-      if (id.includes('cio_manager') || id === 'cio' || id.includes('투자분석처장')) return '#00d4aa';  // 청록 (처장)
+      if (id.includes('cio_manager') || id === 'cio' || id.includes('투자팀장')) return '#00d4aa';  // 청록 (처장)
       if (id.includes('market_condition') || id.includes('시황분석')) return '#00b4d8';  // 시안 (시황)
       if (id.includes('stock_analysis') || id.includes('종목분석')) return '#34d399';   // 초록 (종목)
       if (id.includes('technical_analysis') || id.includes('기술적분석')) return '#fbbf24';  // 노랑 (기술)

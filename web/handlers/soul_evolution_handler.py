@@ -1,8 +1,8 @@
-"""Soul 자동 진화 API — 반려 학습(warnings) 분석 → 소울 변경 제안 → 대표님 승인.
+"""Soul 자동 진화 API — 반려 학습(warnings) 분석 → 소울 변경 제안 → 자동 적용.
 
-비유: 주간 인사팀 보고서 — 직원들의 반복 실수 패턴을 분석해서
-      "이 직원 매뉴얼에 이걸 추가하면 좋겠습니다" 보고서를 대표님에게 올림.
-      대표님이 승인하면 매뉴얼(소울) 자동 수정 + 경고(warnings) 초기화.
+비유: 인사팀이 직원들의 반복 실수 패턴을 분석해서
+      매뉴얼(소울)을 자동으로 개선 + 경고(warnings) 초기화.
+      대표님은 결과만 확인. (2026-02-25 대표님 지시: "귀찮아 알아서 해라")
 """
 import logging
 import os
@@ -139,21 +139,45 @@ async def run_soul_evolution_analysis() -> dict:
         if not content or "변경 불필요" in content:
             continue
 
-        proposals.append({
+        proposal = {
             "id": str(uuid.uuid4())[:8],
             "agent_id": aid,
             "agent_name": agent_name,
             "warnings": warnings,
             "current_soul_snippet": current_soul[:300] + ("..." if len(current_soul) > 300 else ""),
             "proposed_change": content,
-            "status": "pending",  # pending / approved / rejected
+            "status": "auto_approved",
             "created_at": now_str,
+            "approved_at": now_str,
             "cost_usd": result.get("cost_usd", 0),
-        })
+        }
 
-    # 3) 제안 저장
+        # 자동 적용: 소울 업데이트 + warnings 초기화
+        add_text = _extract_addition_text(content)
+        if add_text:
+            updated_soul = current_soul.rstrip() + "\n\n" + add_text
+            save_setting(f"soul_{aid}", updated_soul)
+            logger.info("Soul 진화 자동 적용: %s — 소울 업데이트 완료", aid)
+
+            # warnings 초기화
+            mem_key = f"memory_categorized_{aid}"
+            mem = load_setting(mem_key, {})
+            proposal["cleared_warnings"] = mem.get("warnings", "")
+            mem["warnings"] = ""
+            save_setting(mem_key, mem)
+
+        proposals.append(proposal)
+
+    # 3) 제안 저장 + 히스토리 자동 기록
     save_setting(_PROPOSALS_KEY, proposals)
-    save_activity_log("system", f"🧬 Soul 진화 분석 완료: {len(warnings_by_agent)}명 분석 → {len(proposals)}건 제안", "info")
+    if proposals:
+        history = load_setting(_HISTORY_KEY, [])
+        for p in proposals:
+            history.insert(0, p)
+        if len(history) > 100:
+            history = history[:100]
+        save_setting(_HISTORY_KEY, history)
+    save_activity_log("system", f"🧬 Soul 진화 자동 적용 완료: {len(warnings_by_agent)}명 분석 → {len(proposals)}건 적용", "info")
 
     # 4) 텔레그램 알림
     if proposals:

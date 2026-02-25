@@ -3262,7 +3262,7 @@
               </div>
               <!-- 직급 필터 -->
               <div class="flex gap-1.5 mb-2 sticky top-8 z-10 pb-1" style="background: rgb(var(--hq-bg));">
-                <template x-for="tier in [{id:'all',label:'전체'},{id:'executive',label:'임원급 (C-Level)'},{id:'specialist',label:'전문가급'},{id:'staff',label:'보좌관급'}]" :key="tier.id">
+                <template x-for="tier in [{id:'all',label:'전체'},{id:'manager',label:'팀장급'}]" :key="tier.id">
                   <button @click="archive.filterTier = tier.id"
                     :class="archive.filterTier === tier.id ? 'bg-hq-purple/20 text-hq-purple' : 'text-hq-muted'"
                     class="px-2 py-0.5 text-[10px] font-semibold rounded-md transition" x-text="tier.label"></button>
@@ -3751,7 +3751,7 @@
                   <span class="text-sm font-bold" :class="trading.botActive ? 'text-hq-green' : 'text-hq-muted'"
                         x-text="trading.botActive ? 'CIO 자동매매 : 가동 중' : 'CIO 자동매매 : 대기'"></span>
                   <p class="text-[10px] text-hq-muted"
-                     x-text="trading.botActive ? `CIO + 전문가 4명이 하루 2회 관심종목 분석 중 (09:10 한국장 · ${trading.schedule?.us_time || '23:40'} 미국장 ${trading.schedule?.us_tz || ''})` : 'CIO 자동매매가 꺼져 있습니다. 설정에서 켜세요.'"></p>
+                     x-text="trading.botActive ? `투자팀장이 하루 2회 관심종목 분석 중 (09:10 한국장 · ${trading.schedule?.us_time || '23:40'} 미국장 ${trading.schedule?.us_tz || ''})` : '자동매매가 꺼져 있습니다. 설정에서 켜세요.'"></p>
                 </div>
               </div>
               <div class="flex items-center gap-2 md:gap-3 flex-wrap">
@@ -4064,10 +4064,10 @@
                            :class="log._fresh ? 'bg-hq-yellow/10 border-l-2 border-hq-yellow' : 'bg-hq-surface/30'">
                         <span class="text-[10px] font-bold shrink-0"
                               :class="log.log_type === 'delegation' ? 'text-hq-yellow' : 'text-hq-green'"
-                              x-text="(getAgentName(log.sender)||log.sender).replace('투자분석처장','CIO').replace(' Specialist','')"></span>
+                              x-text="getAgentName(log.sender)||log.sender"></span>
                         <span class="text-[10px] text-hq-muted/40" x-text="log.log_type === 'delegation' ? '→' : '←'"></span>
                         <span class="text-[10px] text-hq-muted/60 shrink-0"
-                              x-text="(getAgentName(log.receiver)||log.receiver).replace('투자분석처장','CIO').replace(' Specialist','')"></span>
+                              x-text="getAgentName(log.receiver)||log.receiver"></span>
                         <span class="text-[9px] text-hq-muted/40 flex-1 line-clamp-1" x-text="stripMarkdownPreview(log.message)"></span>
                         <template x-if="log.tools_used && log.tools_used.length > 0">
                           <span class="text-[9px] text-hq-accent/60 shrink-0 ml-1" x-text="'🔧' + log.tools_used.join(', ')"></span>
@@ -4744,7 +4744,7 @@
             <div class="flex items-center justify-between mb-3">
               <div>
                 <h3 class="text-sm font-bold text-hq-text">작전일지</h3>
-                <p class="text-[10px] text-hq-muted mt-0.5">CIO + 전문가 4명의 매매 결정 기록 (분석별 그룹)</p>
+                <p class="text-[10px] text-hq-muted mt-0.5">투자팀장의 매매 결정 기록 (분석별 그룹)</p>
               </div>
               <button x-show="trading.decisions.length > 0"
                       @click="if(confirm('작전일지를 전체 삭제하시겠습니까?')){fetch('/api/trading/decisions',{method:'DELETE'}).then(r=>r.json()).then(d=>{if(d.success){trading.decisions=[];$dispatch('notify',{message:'작전일지 전체 삭제됨',type:'success'})}})}"
