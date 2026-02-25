@@ -492,53 +492,76 @@ jobs:
               echo "📝 노션 배포 로그 기록 중..."
               export NOTION_KEY="${NOTION_KEY}"
               export BUILD_NUMBER="${BUILD_NUMBER}"
-              # 머지 커밋이면 실제 작업 커밋 메시지 추출, 아니면 현재 커밋 메시지
               cd /home/ubuntu/CORTHEX_HQ
+              # 머지 커밋이면 실제 작업 커밋 메시지 추출, 아니면 현재 커밋 메시지
               if git rev-parse HEAD^2 >/dev/null 2>&1; then
-                export DEPLOY_COMMIT="$(git log -1 --pretty=%s HEAD^2 | sed 's/\[완료\]//g; s/^feat: //; s/^fix: //; s/^refactor: //' | head -c 200)"
+                export DEPLOY_COMMIT="$(git log -1 --pretty=%s HEAD^2 | sed 's/\[완료\]//g; s/^feat: //; s/^fix: //; s/^refactor: //; s/^docs: //' | head -c 200)"
+                export DEPLOY_BODY="$(git log -1 --pretty=%b HEAD^2 | head -c 1800)"
               else
-                export DEPLOY_COMMIT="$(git log -1 --pretty=%s | sed 's/\[완료\]//g; s/^feat: //; s/^fix: //; s/^refactor: //' | head -c 200)"
+                export DEPLOY_COMMIT="$(git log -1 --pretty=%s | sed 's/\[완료\]//g; s/^feat: //; s/^fix: //; s/^refactor: //; s/^docs: //' | head -c 200)"
+                export DEPLOY_BODY="$(git log -1 --pretty=%b | head -c 1800)"
               fi
               export DEPLOY_FILES="$(git diff --name-only HEAD~1 HEAD 2>/dev/null | wc -l | tr -d ' ')"
               export DEPLOY_DATE="$(TZ=Asia/Seoul date +%Y-%m-%d)"
-              export DEPLOY_VERSION="$(grep -oP '현재 버전\*\*: \K[0-9.]+' docs/project-status.md 2>/dev/null || echo '')"
+              # 버전: 4.00.{빌드번호} — 빌드마다 자동 증가, 순환 커밋 없음
+              export DEPLOY_VERSION="4.00.${BUILD_NUMBER}"
+              # 내용 열 없으면 먼저 DB 스키마에 추가
               /home/ubuntu/venv/bin/python3 << 'PYEOF'
             import urllib.request, json, os, sys
+            notion_key = os.environ.get("NOTION_KEY", "")
+            db_id = "30e56b49-78dc-819d-b666-e50aec6a04aa"
+            headers = {
+                "Authorization": "Bearer " + notion_key,
+                "Notion-Version": "2022-06-28",
+                "Content-Type": "application/json"
+            }
+            # DB 스키마 조회 → 내용 열 없으면 추가
+            try:
+                req = urllib.request.Request(f"https://api.notion.com/v1/databases/{db_id}", headers=headers)
+                with urllib.request.urlopen(req, timeout=10) as r:
+                    db_info = json.loads(r.read())
+                if "내용" not in db_info.get("properties", {}):
+                    patch_body = json.dumps({"properties": {"내용": {"rich_text": {}}}}).encode()
+                    req2 = urllib.request.Request(f"https://api.notion.com/v1/databases/{db_id}",
+                                                   data=patch_body, headers=headers, method="PATCH")
+                    urllib.request.urlopen(req2, timeout=10)
+                    print("내용 열 추가 완료")
+            except Exception as e:
+                print(f"스키마 확인 실패 (무시): {e}")
+            # 페이지 저장
             url = "https://api.notion.com/v1/pages"
             commit = os.environ.get("DEPLOY_COMMIT", "auto deploy").strip()
+            body_text = os.environ.get("DEPLOY_BODY", "").strip()
             build = int(os.environ.get("BUILD_NUMBER", "0"))
             date = os.environ.get("DEPLOY_DATE", "")
             version = os.environ.get("DEPLOY_VERSION", "")
             files = int(os.environ.get("DEPLOY_FILES", "0"))
             props = {
                 "Name": {"title": [{"text": {"content": commit}}]},
-                "\ube4c\ub4dc": {"number": build},
-                "\ub0a0\uc9dc": {"date": {"start": date}},
-                "\uce74\ud14c\uace0\ub9ac": {"select": {"name": "\uc790\ub3d9\ubc30\ud3ec"}},
-                "\uc0c1\ud0dc": {"select": {"name": "\ubc30\ud3ec\uc644\ub8cc"}},
-                "\ubcc0\uacbd\ud30c\uc77c\uc218": {"number": files},
-                "\uc911\uc694\ub3c4": {"select": {"name": "\uc911"}}
+                "빌드": {"number": build},
+                "날짜": {"date": {"start": date}},
+                "카테고리": {"select": {"name": "자동배포"}},
+                "상태": {"select": {"name": "배포완료"}},
+                "변경파일수": {"number": files},
+                "중요도": {"select": {"name": "중"}},
+                "버전": {"rich_text": [{"text": {"content": version}}]},
             }
-            if version:
-                props["\ubc84\uc804"] = {"rich_text": [{"text": {"content": version}}]}
-            body = json.dumps({
-                "parent": {"database_id": "30e56b49-78dc-819d-b666-e50aec6a04aa"},
+            if body_text:
+                props["내용"] = {"rich_text": [{"text": {"content": body_text[:1900]}}]}
+            page_body = json.dumps({
+                "parent": {"database_id": db_id},
                 "properties": props
             }).encode("utf-8")
-            req = urllib.request.Request(url, data=body, headers={
-                "Authorization": "Bearer " + os.environ.get("NOTION_KEY", ""),
-                "Notion-Version": "2022-06-28",
-                "Content-Type": "application/json"
-            }, method="POST")
+            req = urllib.request.Request(url, data=page_body, headers=headers, method="POST")
             try:
                 urllib.request.urlopen(req)
-                print("OK - recorded build #" + str(build))
+                print(f"OK - recorded build #{build} v{version}")
             except Exception as e:
                 print("FAIL: " + str(e))
                 sys.exit(1)
             PYEOF
               if [ $? -eq 0 ]; then
-                echo "✅ 노션 배포 로그 기록 완료 (빌드 #${BUILD_NUMBER})"
+                echo "✅ 노션 배포 로그 기록 완료 (빌드 #${BUILD_NUMBER}, v${DEPLOY_VERSION})"
               else
                 echo "⚠️ 노션 배포 로그 기록 실패 (배포 자체는 성공)"
               fi
