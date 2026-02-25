@@ -9,81 +9,113 @@
 
 - **날짜**: 2026-02-25
 - **버전**: `4.00.000`
-- **빌드**: 배포 대기 중
+- **빌드**: #594
 - **서버**: https://corthex-hq.com
 
-## ✅ 완료 — Soul Gym 경쟁 진화 시스템 (2026-02-25)
+---
 
-- **새 파일**: `web/soul_gym_engine.py` (~300줄), `web/handlers/soul_gym_handler.py` (~100줄)
-- **DB 추가**: `soul_gym_rounds` 테이블 + CRUD 함수 3개
-- **크론**: 매주 월요일 03:00 KST 자동 실행
-- **웹 UI**: 전력분석 탭에 SOUL GYM 섹션 (기록 테이블 + Dry Run + 전체 진화 버튼)
-- **이원화**: Gym=flash2.5(모의투자) / 실사용=기존 모델
-- **자동 채택**: +3점 이상 개선 시 자동 소울 교체 (EvoPrompt/OPRO/DGM 논문 기반)
-- **설계 문서**: `docs/architecture/soul-gym-algorithm.md`
+## 🔴 전수검사 + 정비 마스터 플랜 (대표님 승인 2026-02-25)
 
-## ✅ 완료 — 노션 DB 매핑 수정 (2026-02-25, 빌드#575)
+> **원칙**: 새 기능 추가 전에 지금 있는 것부터 제대로 고친다.
 
-- 비서실장만 비서실 DB, 팀장 6명→에이전트 산출물 DB 분리
-- 에이전트 산출물 DB 컬럼명 수정: 에이전트/보고유형/부서
-- 상세: `docs/updates/2026-02-25_v4대개편-노션수정.md`
+### Phase 0 — 즉시 수정
 
-## ⬜ Bash 도구 이슈 메모 (2.1.55 현재는 괜찮음)
+| # | 내용 | 파일 | 상태 |
+|---|------|------|------|
+| 0-1 | **CIO 보고서 잘림** — 서버 로그에서 원인 확정 (토큰 한도 vs AI 장문). 대표님: "max token 늘리면 되는 일 아냐?" → 로그 먼저 확인 후 판단 | `web/mini_server.py`, `web/ai_handler.py` | ⬜ |
+| 0-2 | **Soul Evolution 자동 승인** — 대표님: "귀찮아 버려 알아서하라해" → CEO 승인 단계 제거, 개선안 자동 적용 | `web/handlers/soul_evolution_handler.py` | ⬜ |
+| 0-3 | **Soul Gym 24/7 상시 운영** — 대표님: "24시간 7일 내내 하라니까" → 매주 월요일 크론 → 상시 루프로 변경. 비용: 라운드당 ~$0.012 | `web/mini_server.py`, `web/soul_gym_engine.py` | ⬜ |
+| 0-4 | **conversation_id 전달 버그** — 에이전트 호출 체인에서 conversation_id 누락 → `NameError` | `web/mini_server.py` | ✅ 빌드#594 |
 
-- 패치 스크립트 위치: `C:\Users\elddl\.claude\patch-claude-extension.ps1`
-- 업데이트 후 재발 시: PowerShell 관리자로 setup-auto-patch.ps1 실행
-- 주의: extension.js 직접 Edit 패치는 역효과날 수 있음 (데스크탑앱이 복구함)
+### Phase 1 — CIO 반려 원인 분석 + 검수 시스템 점검
+
+**목표**: 투자팀장이 왜 반려당했는지 정확히 진단. 부당한 반려인지, 루브릭이 문제인지.
+
+| # | 내용 | 확인 위치 |
+|---|------|----------|
+| 1-1 | 서버 로그에서 CIO 마지막 분석 → **보고서 원문** 확인 | `/api/debug/server-logs` 또는 기밀문서 |
+| 1-2 | **QA 반려 사유 원문** 확인 → 5항목(결론/근거/리스크/형식/논리) 중 뭐가 걸렸는지 | `_chief_qa_review()` 로그 |
+| 1-3 | **루브릭 검토** — D1/Q2~Q5 기준이 합리적인지 | `config/quality_rules.yaml`, `knowhow/05-quality-rubric.md` |
+| 1-4 | 팀장 출력 형식 ↔ 비서실장 검수 입력 형식 **일치 여부** | CIO soul prompt vs QA prompt |
+| 1-5 | **반려 사유 원문 검토** — 부당 반려인지 판정 (대표님: "통과율 의미없어, 반려사유를 봐라") | 반려 로그 직접 분석 |
+
+### Phase 2 — 기능 다이어트 + 코드 전수검사
+
+**목표**: 불필요 코드 삭제, 레거시 정리, 실제 동작하는 것만 남기기.
+
+| # | 내용 | 확인 위치 |
+|---|------|----------|
+| 2-1 | **agents.yaml specialist 잔재 제거** — `spawn_agent(frontend_specialist...)` 예시가 남아있어 AI가 호출 시도할 수 있음 | `config/agents.yaml` system_prompt |
+| 2-2 | **도구 매핑 전수 확인** — 89개 도구가 실제 함수와 매핑되는지 전수 검사 | `config/tools.yaml` ↔ 실제 함수 |
+| 2-3 | **동영상 제작 / SNS 업로드** 코드 동작 여부 — 16개 엔드포인트 중 실제 작동하는 것 확인 | `web/handlers/sns_handler.py` |
+| 2-4 | **고아 핸들러 제거** — `consult_handler.py` 등 미사용 파일 | `web/handlers/` 전체 (27개 파일) |
+| 2-5 | **JS 레거시 정리** — `staffList = ['report_specialist'...]`, `"CIO + 전문가 4명 즉시 분석 중..."` 토스트, `tierOrder` 등 전문가 참조 전부 제거 | `web/static/js/corthex-app.js` (5,047줄) |
+| 2-6 | **로그 형식 정리** — 현재 comms_log에 뭐가 들어가고 뭐가 빠지는지. 필요 정보 vs 실제 저장 차이 | `db.py`, comms_log 테이블 |
+
+### Phase 3 — UX/UI 버그 + 디자인 정비
+
+**목표**: 눈에 보이는 문제들 전부 해결.
+
+| # | 내용 |
+|---|------|
+| 3-1 | **사무실 너무 빽빽** — 레이아웃 여백/배치 정리 |
+| 3-2 | **왼쪽 직원 목록** — 이슈 확인 + 수정 |
+| 3-3 | **전략실 교신로그 대시보드** — 표시 이슈 |
+| 3-4 | **기타 UI 불편** — 대표님이 corthex-hq.com 열고 하나씩 지적하면 실시간 수정 |
+
+### Phase 4 — 아키텍처 품질 검토
+
+**목표**: 코드가 01번 노하우(대규모 리빌딩 패턴)처럼 제대로 짜여있는지 확인.
+
+| # | 내용 |
+|---|------|
+| 4-1 | **mini_server.py 9,866줄** — 모듈 분리 상태 점검 (리팩토링 14단계 중 Step 1만 완료) |
+| 4-2 | **handler 27개** 파일 역할 중복/누락 검토 |
+| 4-3 | **17-cutting-edge 전부 검토** — S1(WebGPU), S2(장기기억), A2(MCP), B3(Agent SDK) 각 기술 적용 가능성 재평가 |
+| 4-4 | **AI 프로바이더 폴백** 실제 동작 테스트 — Anthropic 소진 시 Google/OpenAI 전환 검증 |
+| 4-5 | **노션 연동** 실제 저장 검증 — QA 통과한 분석이 노션 DB에 저장되는지 확인 |
+
+### Phase 5 — 새 기능 추가 (Phase 0~4 완료 후)
+
+| # | 내용 | 상세 |
+|---|------|------|
+| 5-1 | **NEXUS 재설계** — 왼쪽: Mermaid 시스템 플로우차트 (기능이 어떻게 돌아가는지), 오른쪽: Excalidraw SketchVibe 캔버스 (대표님 손그림 → Claude 정식 다이어그램) | 3D→2D 전환 확정 (`knowhow/14`) |
+| 5-2 | **Soul Gym 전 팀장 확장** — 6팀장 맞춤 벤치마크 (`docs/architecture/soul-gym-benchmarks.md`) |
+| 5-3 | **신기술 도입** — 17번에서 확정된 것들 |
+| 5-4 | **mini_server.py 이름 변경** + 추가 리팩토링 |
 
 ---
 
-## ✅ 완료 — CORTHEX v4 대개편 (2026-02-25)
+## 🔍 별도 진행 — SketchVibe 특허 조사
 
-**6팀장 체제로 전면 개편:**
-- 전문가급 22명 전원 해고, 팀장 6명 체제 확립
-- 처장→팀장 리브랜딩: 투자팀장/법무팀장/전략팀장/마케팅팀장/콘텐츠팀장
-- 팀장 Soul 강화: 전문가 지식 전부 흡수 (FILM, 6시그마, Lean Canvas, IPR Landscaping 등)
-- agents.yaml 22개 specialist 삭제, UI agentNames 정리
-- 상세: `docs/archive/2026-02-25_구조조정-고별사.md`
+- **법무팀장 + 전략팀장 합동 조사** 지시 대기 중
+- 법무팀장: 선행기술 재조사 + 청구항 설계 + 출원 절차 상세 + 비용
+- 전략팀장: 시장 분석(TAM/SAM/SOM) + 사업 모델 + ROI + 타이밍
+- **핵심 결론**: 통합 파이프라인(스케치+말→다이어그램→config→배포)은 전 세계에 없음 (2026-02-25 확인)
+- **위험**: tldraw Computer/Agent Starter Kit이 확장되면 위협 가능 → 선점 필요
+- **미결**: 변리사 선임 150~300만원, 상표 출원 ~50만원
 
 ---
 
-## ✅ 완료 — AI 크레딧 소진 자동 폴백 (2026-02-25)
+## ✅ 최근 완료
 
-- Anthropic 400 에러 → Google/OpenAI 자동 전환
-- 리셋: `/api/debug/reset-exhausted-providers`
-- 상세: `docs/updates/2026-02-25_크레딧소진-자동폴백.md`
-
-## ✅ 완료 — 긴급 버그 4건 + 사유 특정 재검수 (2026-02-25)
-
-- CIO 타임아웃 300→600초
-- CSO 무단 스폰 차단 (CSO→CIO 기본 크론 변경)
-- QA D1 기준 "도구사용→논리연결"로 변경
-- 크론 삭제 → deleted_schedules DB 기록
-- 사유 특정 재검수: `targeted_hybrid_review()` — 반려 항목만 재채점
-
-## ✅ 완료 — NEXUS 대개편 (2026-02-25)
-
-- 3D 시스템 맵: 70노드 (7카테고리), 풀스크린 오버레이
-- 헤더 4번째 버튼 (채팅/사무실/대시보드/NEXUS), ESC 닫기
-- 조직도 탭 삭제 (NEXUS 3D 대체)
-- 설계 문서: `docs/architecture/nexus-design.md`
-
-## ✅ 완료 — 블라인드 채점 품질 개선 13 Phase (2026-02-25)
-
-- Phase 0~13 전체 완료, 테스트 25건 통과
-- 상세: `docs/updates/2026-02-25_블라인드채점-품질개선.md`
-
-## ✅ 완료 — P0 버그 3건 + 로그 버그 6건 (2026-02-24)
-
-- P0: GPT 전문가 즉사 / QA 허위합격 / CIO 할루시네이션
-- 로그 버그 6건: 중복표시, 실시간 미반영, 개수 불일치 등
+| 날짜 | 내용 | 빌드 |
+|------|------|------|
+| 02-25 | conversation_id 전달 버그 수정 | #594 |
+| 02-25 | Soul Gym 경쟁 진화 시스템 | #591 |
+| 02-25 | 팀장 단독 분석 + QA 게이트 | #591 |
+| 02-25 | v4 대개편 (6팀장 체제) | #575 |
+| 02-25 | AI 크레딧 소진 자동 폴백 | #575 |
+| 02-25 | NEXUS 3D 대개편 | — |
+| 02-25 | 블라인드 채점 품질 개선 13 Phase | — |
+| 02-24 | P0 버그 3건 + 로그 버그 6건 | — |
 
 ---
 
 ## ⬜ 미완료 이관
 
-- **노션 DB 실제 저장 검증** — CIO 분석 실행 후 노션 확인 필요
-- **NEXUS MCP 연동** — Claude가 캔버스 JSON 읽어서 시스템 이해
+- **노션 DB 실제 저장 검증** — Phase 4-5에서 처리
+- **NEXUS 재설계** — Phase 5-1에서 처리 (3D→2D + Excalidraw)
 
 ---
 
@@ -108,16 +140,9 @@ NVDA 1주 @ $189.115 — KIS 실계좌 체결 완료
 | 디버그 URL | 버그 시 즉석 생성 → 대표님에게 적극 제공 |
 | CIO 목표가 | CIO가 분석 후 직접 산출 |
 | order_size: 0 | CIO 비중 자율 (정상! 변경 금지) |
-
----
-
-## ✅ 팀장 단독 분석 + QA 게이트 (2026-02-25 저녁)
-
-- 전문가 위임 제거 → `_call_agent()` 직접 호출 (동면 전문가 무한대기 해결)
-- `_chief_qa_review()` — 비서실장 5항목 QA (결론/근거/리스크/형식/논리)
-- 시그널에 qa_passed/qa_reason 추가, QA 반려 시 매매 자동 중단
-- `thinking.type: enabled → adaptive` (Claude API deprecation 대응)
-- Soul Gym 벤치마크 설계: `docs/architecture/soul-gym-benchmarks.md` (6팀장 맞춤)
+| NEXUS | 2D 전환: 왼쪽 시스템 플로우차트 + 오른쪽 Excalidraw |
+| Soul Evolution | 자동 승인 (CEO 승인 불필요) |
+| Soul Gym | 24/7 상시 운영 |
 
 ---
 
