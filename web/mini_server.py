@@ -7086,11 +7086,13 @@ def _extract_notion_title(content: str, fallback: str = "보고서",
 
 
 _NOTION_API_KEY = os.getenv("NOTION_API_KEY", "")
-# 비서실 DB (CEO 명령 관리)
+# 비서실 DB (비서실장→CEO 보고서만)
 _NOTION_DB_SECRETARY = os.getenv("NOTION_DB_SECRETARY", "30a56b49-78dc-8153-bac1-dee5d04d6a74")
-# 에이전트 산출물 DB (보고서 아카이브)
+# 에이전트 산출물 DB (팀장 6명 작업물)
 _NOTION_DB_OUTPUT = os.getenv("NOTION_DB_OUTPUT", "30a56b49-78dc-81ce-aaca-ef3fc90a6fba")
-# 하위 호환: 기존 환경변수도 지원
+# 아카이브 DB (v3 데이터 + 구버전 이관)
+_NOTION_DB_ARCHIVE = os.getenv("NOTION_DB_ARCHIVE", "31256b49-78dc-81c9-9ad2-e31a076d0d97")
+# 하위 호환
 _NOTION_DB_ID = os.getenv("NOTION_DEFAULT_DB_ID", _NOTION_DB_OUTPUT)
 
 # 노션 로그 → app_state 사용 (alias)

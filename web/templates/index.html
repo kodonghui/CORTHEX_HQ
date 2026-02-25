@@ -377,35 +377,6 @@
           </button>
           <div x-show="expanded.leet_master" x-collapse class="space-y-0.5 mt-1">
 
-            <!-- 기술개발처 CTO (cyan) -->
-            <div class="ml-4 mb-1.5">
-              <button @click="toggleSection('tech')"
-                      class="w-full text-left px-3 py-2.5 rounded-xl border transition-all duration-200"
-                      :class="expanded.tech ? 'bg-cyan-500/10 border-cyan-500/30' : 'bg-hq-panel/15 border-transparent hover:bg-hq-panel/25 hover:border-hq-border'">
-                <div class="flex items-center gap-2.5">
-                  <div class="w-8 h-8 rounded-lg bg-cyan-500/20 flex items-center justify-center text-cyan-500 text-[10px] font-bold shrink-0"
-                       :class="getAgentDotClass('cto_manager').includes('pulse') ? 'ring-1 ring-hq-green ring-offset-1 ring-offset-hq-bg' : ''">CTO</div>
-                  <div class="flex-1 min-w-0">
-                    <div class="text-xs font-semibold text-hq-text">기술개발처</div>
-                    <div class="text-[10px] text-hq-muted">AI 에이전트 5명</div>
-                  </div>
-                  <span class="status-badge" :class="getSectionBadgeClass('tech')" x-text="getSectionStatusText('tech')"></span>
-                  <span class="text-[10px] text-hq-muted/85 transition-transform duration-200" :class="expanded.tech ? 'rotate-90' : ''">&#9654;</span>
-                </div>
-              </button>
-              <div x-show="expanded.tech" x-collapse class="ml-3 mt-1 pl-8 border-l border-cyan-500/20 space-y-0.5">
-                <template x-for="id in getSectionAgentIds('tech')" :key="id">
-                  <div :id="'agent-' + id" @click="openAgentConfig(id)" class="flex items-center gap-2 px-2 py-1 rounded-md hover:bg-cyan-500/10 transition-all duration-300 cursor-pointer" title="클릭하면 모델·추론·소울 설정 가능">
-                    <span class="w-1.5 h-1.5 rounded-full transition-colors" :class="[getAgentDotClass(id), activeAgents[id]?.status==='working' ? 'agent-working-glow' : '']"></span>
-                    <span class="text-xs text-hq-muted" x-text="getAgentName(id)"></span>
-                    <span x-show="activeAgents[id]?.status === 'working'"
-                          class="ml-auto text-[9px] font-mono text-hq-yellow"
-                          x-text="activeAgents[id]?.elapsed || '00:00'"></span>
-                  </div>
-                </template>
-              </div>
-            </div>
-
             <!-- 사업기획처 CSO (indigo) -->
             <div class="ml-4 mb-1.5">
               <button @click="toggleSection('strategy')"
@@ -947,10 +918,10 @@
                     <div class="text-sm font-medium text-hq-text group-hover:text-hq-accent">📊 전 부서 현황</div>
                     <div class="text-[11px] text-hq-muted mt-1">전 부서 현황 보고</div>
                   </button>
-                  <button @click="switchTab('command'); $nextTick(() => { inputText = '@CTO 기술 점검 실행'; sendMessage(); })"
+                  <button @click="switchTab('command'); $nextTick(() => { inputText = '@사업기획팀장 시장분석 시작'; sendMessage(); })"
                           class="text-left p-4 glass border border-hq-border rounded-xl hover-glow transition group">
-                    <div class="text-sm font-medium text-hq-text group-hover:text-hq-accent">🔧 기술 점검</div>
-                    <div class="text-[11px] text-hq-muted mt-1">@CTO 기술 점검 실행</div>
+                    <div class="text-sm font-medium text-hq-text group-hover:text-hq-accent">📊 시장분석</div>
+                    <div class="text-[11px] text-hq-muted mt-1">@사업기획팀장 시장분석 시작</div>
                   </button>
                   <button @click="switchTab('command'); $nextTick(() => { inputText = '@CSO 보안 스캔 시작'; sendMessage(); })"
                           class="text-left p-4 glass border border-hq-border rounded-xl hover-glow transition group">
@@ -1866,12 +1837,12 @@
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
               <template x-for="dept in [
                 {key:'secretary',label:'비서실',color:'hq-yellow',icon:'🏛️'},
-                {key:'tech',label:'기술개발처 (CTO)',color:'hq-cyan',icon:'💻'},
-                {key:'strategy',label:'사업기획처 (CSO)',color:'hq-cyan',icon:'📊'},
-                {key:'legal',label:'법무처 (CLO)',color:'hq-cyan',icon:'⚖️'},
-                {key:'marketing',label:'마케팅처 (CMO)',color:'hq-cyan',icon:'📢'},
+                {key:'tech',label:'기술개발팀장',color:'hq-cyan',icon:'💻'},
+                {key:'strategy',label:'사업기획팀장',color:'hq-cyan',icon:'📊'},
+                {key:'legal',label:'법무팀장',color:'hq-cyan',icon:'⚖️'},
+                {key:'marketing',label:'마케팅팀장',color:'hq-cyan',icon:'📢'},
                 {key:'finance',label:'투자분석처 (CIO)',color:'hq-purple',icon:'💰'},
-                {key:'publishing',label:'출판기록처 (CPO)',color:'hq-green',icon:'📚'},
+                {key:'publishing',label:'콘텐츠팀장',color:'hq-green',icon:'📚'},
               ]" :key="dept.key">
                 <div class="glass border rounded-xl p-4" :class="'border-' + dept.color + '/20'">
                   <div class="flex items-center gap-2 mb-3">
@@ -1981,158 +1952,24 @@
             </div>
           </div>
 
-          <!-- 비서실 (amber) -->
-          <div class="office-room glass border border-amber-500/20 bg-amber-500/[0.04]">
-            <div class="flex items-center gap-3 mb-3 px-3 py-2.5 rounded-lg glass border-l-[3px] border-l-amber-500 border border-amber-500/10">
-              <span class="text-lg">🎖️</span>
-              <span class="text-sm font-bold text-amber-500 uppercase tracking-wider font-mono">STAFF OPS</span>
-              <span class="text-[10px] text-hq-muted ml-auto">4명</span>
+          <!-- 참모진 — 팀장 6명 (단일 그리드) -->
+          <div class="office-room glass border border-hq-border/40 bg-hq-surface/30">
+            <div class="flex items-center gap-3 mb-3 px-3 py-2 rounded-lg border-l-[3px] border-l-hq-purple border border-hq-purple/10 bg-hq-purple/[0.04]">
+              <span class="text-base">👥</span>
+              <span class="text-xs font-bold text-hq-purple uppercase tracking-wider font-mono">CORTHEX STAFF — 팀장 6명</span>
+              <span class="text-[10px] text-hq-muted ml-auto">v4.0</span>
             </div>
-            <div class="grid grid-cols-4 gap-3">
-              <template x-for="id in getSectionAgentIds('secretary')" :key="id">
-                <div class="desk-card glass border border-hq-border hover:border-amber-500/30" @click="openAgentConfig(id)">
-                  <div class="flex items-center justify-between mb-2">
-                    <div class="agent-avatar bg-amber-500/20 text-amber-500 text-[9px]" x-text="getAgentInitials(id)"></div>
+            <div class="grid grid-cols-6 gap-2">
+              <template x-for="id in ['chief_of_staff','cso_manager','clo_manager','cmo_manager','cio_manager','cpo_manager']" :key="id">
+                <div class="desk-card glass border border-hq-border hover:border-hq-purple/40 cursor-pointer" @click="openAgentConfig(id)">
+                  <div class="flex items-center justify-between mb-1.5">
+                    <div class="agent-avatar text-[9px]"
+                         :class="{'bg-amber-500/20 text-amber-400': id==='chief_of_staff', 'bg-purple-500/20 text-purple-400': id==='cso_manager', 'bg-emerald-500/20 text-emerald-400': id==='clo_manager', 'bg-orange-500/20 text-orange-400': id==='cmo_manager', 'bg-red-500/20 text-red-400': id==='cio_manager', 'bg-fuchsia-500/20 text-fuchsia-400': id==='cpo_manager'}"
+                         x-text="getAgentInitials(id)"></div>
                     <div class="status-light" :class="getAgentStatusLight(id)"></div>
                   </div>
-                  <div class="text-[13px] font-semibold text-hq-text truncate" x-text="getAgentName(id)"></div>
-                  <div class="text-[11px] text-hq-muted truncate" x-text="agentRoles[id] || id"></div>
-                  <div x-show="agentModels[id]" class="text-[10px] text-hq-cyan/80 font-mono truncate" x-text="getModelDisplayName(agentModels[id]) + (agentReasonings[id] ? ' (' + agentReasonings[id] + ')' : '')"></div>
-                </div>
-              </template>
-            </div>
-          </div>
-
-          <!-- LEET Master 본부 (blue) -->
-          <div class="office-room glass border border-blue-500/20 bg-blue-500/[0.04]">
-            <div class="flex items-center gap-3 mb-4 px-3 py-2.5 rounded-lg glass border-l-[3px] border-l-blue-500 border border-blue-500/10">
-              <span class="text-lg">🛡️</span>
-              <span class="text-sm font-bold text-blue-500 uppercase tracking-wider font-mono">LEET MASTER HQ</span>
-              <span class="text-[10px] text-hq-muted ml-auto">16명 (4개 처)</span>
-            </div>
-            <div class="grid grid-cols-2 gap-4">
-              <!-- 기술개발처 CTO (cyan) -->
-              <div class="bg-cyan-500/[0.04] border border-cyan-500/15 rounded-xl p-3">
-                <div class="flex items-center gap-2 mb-3 px-2 py-1.5 rounded-md bg-cyan-500/[0.08] border-l-2 border-l-cyan-500">
-                  <span class="text-sm">🔧</span>
-                  <span class="text-xs font-bold text-cyan-500">기술개발처 (CTO)</span>
-                </div>
-                <div class="grid grid-cols-2 gap-2">
-                  <template x-for="id in getSectionAgentIds('tech')" :key="id">
-                    <div class="desk-card bg-hq-surface border border-hq-border hover:border-cyan-500/30" @click="openAgentConfig(id)">
-                      <div class="flex items-center justify-between mb-1.5">
-                        <div class="agent-avatar bg-cyan-500/20 text-cyan-500 text-[8px]" x-text="getAgentInitials(id)"></div>
-                        <div class="status-light" :class="getAgentStatusLight(id)"></div>
-                      </div>
-                      <div class="text-[13px] font-medium text-hq-text truncate" x-text="getAgentName(id)"></div>
-                      <div class="text-[11px] text-hq-muted truncate" x-show="agentRoles[id]" x-text="agentRoles[id]"></div>
-                      <div x-show="agentModels[id]" class="text-[10px] text-hq-cyan/80 font-mono truncate" x-text="getModelDisplayName(agentModels[id]) + (agentReasonings[id] ? ' (' + agentReasonings[id] + ')' : '')"></div>
-                    </div>
-                  </template>
-                </div>
-              </div>
-              <!-- 사업기획처 CSO (indigo) -->
-              <div class="bg-purple-500/[0.04] border border-purple-500/15 rounded-xl p-3">
-                <div class="flex items-center gap-2 mb-3 px-2 py-1.5 rounded-md bg-purple-500/[0.08] border-l-2 border-l-purple-500">
-                  <span class="text-sm">📊</span>
-                  <span class="text-xs font-bold text-purple-400">사업기획처 (CSO)</span>
-                </div>
-                <div class="grid grid-cols-2 gap-2">
-                  <template x-for="id in getSectionAgentIds('strategy')" :key="id">
-                    <div class="desk-card bg-hq-surface border border-hq-border hover:border-purple-500/30" @click="openAgentConfig(id)">
-                      <div class="flex items-center justify-between mb-1.5">
-                        <div class="agent-avatar bg-purple-500/20 text-purple-400 text-[8px]" x-text="getAgentInitials(id)"></div>
-                        <div class="status-light" :class="getAgentStatusLight(id)"></div>
-                      </div>
-                      <div class="text-[13px] font-medium text-hq-text truncate" x-text="getAgentName(id)"></div>
-                      <div class="text-[11px] text-hq-muted truncate" x-show="agentRoles[id]" x-text="agentRoles[id]"></div>
-                      <div x-show="agentModels[id]" class="text-[10px] text-hq-cyan/80 font-mono truncate" x-text="getModelDisplayName(agentModels[id]) + (agentReasonings[id] ? ' (' + agentReasonings[id] + ')' : '')"></div>
-                    </div>
-                  </template>
-                </div>
-              </div>
-              <!-- 법무·IP처 CLO (emerald) -->
-              <div class="bg-emerald-500/[0.04] border border-emerald-500/15 rounded-xl p-3">
-                <div class="flex items-center gap-2 mb-3 px-2 py-1.5 rounded-md bg-emerald-500/[0.08] border-l-2 border-l-emerald-500">
-                  <span class="text-sm">⚖️</span>
-                  <span class="text-xs font-bold text-emerald-500">법무·IP처 (CLO)</span>
-                </div>
-                <div class="grid grid-cols-2 gap-2">
-                  <template x-for="id in getSectionAgentIds('legal')" :key="id">
-                    <div class="desk-card bg-hq-surface border border-hq-border hover:border-emerald-500/30" @click="openAgentConfig(id)">
-                      <div class="flex items-center justify-between mb-1.5">
-                        <div class="agent-avatar bg-emerald-500/20 text-emerald-500 text-[8px]" x-text="getAgentInitials(id)"></div>
-                        <div class="status-light" :class="getAgentStatusLight(id)"></div>
-                      </div>
-                      <div class="text-[13px] font-medium text-hq-text truncate" x-text="getAgentName(id)"></div>
-                      <div class="text-[11px] text-hq-muted truncate" x-show="agentRoles[id]" x-text="agentRoles[id]"></div>
-                      <div x-show="agentModels[id]" class="text-[10px] text-hq-cyan/80 font-mono truncate" x-text="getModelDisplayName(agentModels[id]) + (agentReasonings[id] ? ' (' + agentReasonings[id] + ')' : '')"></div>
-                    </div>
-                  </template>
-                </div>
-              </div>
-              <!-- 마케팅·고객처 CMO (pink) -->
-              <div class="bg-orange-500/[0.04] border border-orange-500/15 rounded-xl p-3">
-                <div class="flex items-center gap-2 mb-3 px-2 py-1.5 rounded-md bg-orange-500/[0.08] border-l-2 border-l-orange-500">
-                  <span class="text-sm">📣</span>
-                  <span class="text-xs font-bold text-orange-500">마케팅·고객처 (CMO)</span>
-                </div>
-                <div class="grid grid-cols-2 gap-2">
-                  <template x-for="id in getSectionAgentIds('marketing')" :key="id">
-                    <div class="desk-card bg-hq-surface border border-hq-border hover:border-orange-500/30" @click="openAgentConfig(id)">
-                      <div class="flex items-center justify-between mb-1.5">
-                        <div class="agent-avatar bg-orange-500/20 text-orange-500 text-[8px]" x-text="getAgentInitials(id)"></div>
-                        <div class="status-light" :class="getAgentStatusLight(id)"></div>
-                      </div>
-                      <div class="text-[13px] font-medium text-hq-text truncate" x-text="getAgentName(id)"></div>
-                      <div class="text-[11px] text-hq-muted truncate" x-show="agentRoles[id]" x-text="agentRoles[id]"></div>
-                      <div x-show="agentModels[id]" class="text-[10px] text-hq-cyan/80 font-mono truncate" x-text="getModelDisplayName(agentModels[id]) + (agentReasonings[id] ? ' (' + agentReasonings[id] + ')' : '')"></div>
-                    </div>
-                  </template>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- 금융분석처 CIO (rose) -->
-          <div class="office-room glass border border-red-500/20 bg-red-500/[0.04]">
-            <div class="flex items-center gap-3 mb-3 px-3 py-2.5 rounded-lg glass border-l-[3px] border-l-red-500 border border-red-500/10">
-              <span class="text-lg">📡</span>
-              <span class="text-sm font-bold text-red-400 uppercase tracking-wider font-mono">FINANCE OPS</span>
-              <span class="text-[10px] text-hq-muted ml-auto">5명</span>
-            </div>
-            <div class="grid grid-cols-5 gap-3">
-              <template x-for="id in getSectionAgentIds('finance')" :key="id">
-                <div class="desk-card glass border border-hq-border hover:border-red-500/30" @click="openAgentConfig(id)">
-                  <div class="flex items-center justify-between mb-2">
-                    <div class="agent-avatar bg-red-500/20 text-red-400 text-[8px]" x-text="getAgentInitials(id)"></div>
-                    <div class="status-light" :class="getAgentStatusLight(id)"></div>
-                  </div>
-                  <div class="text-[13px] font-medium text-hq-text truncate" x-text="getAgentName(id)"></div>
-                  <div class="text-[11px] text-hq-muted truncate" x-show="agentRoles[id]" x-text="agentRoles[id]"></div>
-                  <div x-show="agentModels[id]" class="text-[10px] text-hq-cyan/80 font-mono truncate" x-text="getModelDisplayName(agentModels[id]) + (agentReasonings[id] ? ' (' + agentReasonings[id] + ')' : '')"></div>
-                </div>
-              </template>
-            </div>
-          </div>
-
-          <!-- 출판기록처 CPO (teal) -->
-          <div class="office-room glass border border-fuchsia-500/20 bg-fuchsia-500/[0.04]">
-            <div class="flex items-center gap-3 mb-3 px-3 py-2.5 rounded-lg glass border-l-[3px] border-l-fuchsia-500 border border-fuchsia-500/10">
-              <span class="text-lg">📚</span>
-              <span class="text-sm font-bold text-fuchsia-500 uppercase tracking-wider font-mono">PUBLISHING OPS</span>
-              <span class="text-[10px] text-hq-muted ml-auto">4명</span>
-            </div>
-            <div class="grid grid-cols-4 gap-3">
-              <template x-for="id in getSectionAgentIds('publishing')" :key="id">
-                <div class="desk-card glass border border-hq-border hover:border-fuchsia-500/30" @click="openAgentConfig(id)">
-                  <div class="flex items-center justify-between mb-2">
-                    <div class="agent-avatar bg-fuchsia-500/20 text-fuchsia-500 text-[8px]" x-text="getAgentInitials(id)"></div>
-                    <div class="status-light" :class="getAgentStatusLight(id)"></div>
-                  </div>
-                  <div class="text-[13px] font-medium text-hq-text truncate" x-text="getAgentName(id)"></div>
-                  <div class="text-[11px] text-hq-muted truncate" x-show="agentRoles[id]" x-text="agentRoles[id]"></div>
-                  <div x-show="agentModels[id]" class="text-[10px] text-hq-cyan/80 font-mono truncate" x-text="getModelDisplayName(agentModels[id]) + (agentReasonings[id] ? ' (' + agentReasonings[id] + ')' : '')"></div>
+                  <div class="text-[12px] font-semibold text-hq-text truncate" x-text="getAgentName(id)"></div>
+                  <div x-show="agentModels[id]" class="text-[9px] text-hq-cyan/70 font-mono truncate mt-0.5" x-text="getModelDisplayName(agentModels[id])"></div>
                 </div>
               </template>
             </div>
