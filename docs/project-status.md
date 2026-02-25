@@ -9,18 +9,8 @@
 
 - **날짜**: 2026-02-25
 - **버전**: `4.00.000` 🎉 (메이저 버전 업 — 대개편)
-- **작업 브랜치**: claude/credit-fallback → **아직 커밋/배포 안 됨!**
+- **빌드**: #574 ✅ 배포 완료
 - **서버**: https://corthex-hq.com
-
-## 🔴 미완료 — 커밋/배포 대기 중!
-
-v4 대개편 코드 변경됐으나 **git commit + push 아직 안 됨.**
-다음 세션에서 바로 커밋부터:
-```bash
-git add -A
-git commit -m "feat: CORTHEX v4 대개편 — 6팀장 체제 + 전문가 지식 흡수 [완료]"
-git push origin HEAD
-```
 
 ## 🔴 Bash 도구 이슈 — Claude 업데이트마다 발생
 
@@ -113,8 +103,8 @@ NVDA 1주 @ $189.115 — KIS 실계좌 체결 완료
 |------|-----|
 | 저장소 | https://github.com/kodonghui/CORTHEX_HQ |
 | 서버 | Oracle Cloud ARM 24GB (corthex-hq.com) |
-| 버전 | 3.02.031 |
-| 에이전트 | 29명 (5개 부서) |
+| 버전 | 4.00.000 |
+| 에이전트 | 7명 (6팀장 체제) |
 | 도구 | 89개 (tools.yaml 기준) |
 | DB | SQLite (/home/ubuntu/corthex.db) |
 | GitHub Secrets | 50+ 전부 등록 완료 |

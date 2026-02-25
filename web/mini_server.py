@@ -7137,27 +7137,40 @@ async def _save_to_notion(agent_id: str, title: str, content: str,
     agent_name = _AGENT_NAMES.get(agent_id, _SPECIALIST_NAMES.get(agent_id, agent_id))
     now_str = datetime.now(KST).strftime("%Y-%m-%d")
 
-    # 노션 페이지 프로퍼티 구성 (select 타입 — 노션 DB 헤더와 일치)
+    # 노션 페이지 프로퍼티 구성 — 두 DB 스키마가 다름
+    # 비서실 DB: Name, 담당자(select), 카테고리(select), 상태(select), 날짜(date), 내용(rich_text)
+    # 에이전트 산출물 DB: Name, 에이전트(select), 보고유형(select), 부서(select), 상태(select), 날짜(date)
     properties: dict = {
         "Name": {"title": [{"text": {"content": title[:100]}}]},
     }
-    # 양쪽 DB 모두 "담당자" select (2/25 전수검사: 산출물 DB에 "에이전트" 속성 없음)
-    if agent_name:
-        properties["담당자"] = {"select": {"name": agent_name}}
-    # "부서", "태그" 속성은 실제 노션 DB에 없으므로 제거 (2/25 전수검사 확인)
-    # 카테고리: 양쪽 DB 모두 존재. 산출물=report_type, 비서실="보고서"
     if db_target == "secretary":
+        # 비서실 DB: 담당자 + 카테고리 + 내용
+        if agent_name:
+            properties["담당자"] = {"select": {"name": agent_name}}
         properties["카테고리"] = {"select": {"name": "보고서"}}
-    elif report_type:
-        properties["카테고리"] = {"select": {"name": report_type}}
+        if content:
+            properties["내용"] = {"rich_text": [{"text": {"content": content[:2000]}}]}
+    else:
+        # 에이전트 산출물 DB: 에이전트 + 보고유형 + 부서
+        if agent_name:
+            properties["에이전트"] = {"select": {"name": agent_name}}
+        if report_type:
+            properties["보고유형"] = {"select": {"name": report_type}}
+        # 부서 매핑: division → 노션 부서 select 옵션
+        _div_map = {
+            "secretary": "비서실",
+            "leet_master.tech": "LEET MASTER",
+            "leet_master.strategy": "LEET MASTER",
+            "leet_master.legal": "LEET MASTER",
+            "leet_master.marketing": "LEET MASTER",
+            "finance.investment": "투자분석",
+            "publishing": "출판기록",
+        }
+        notion_div = _div_map.get(division, "")
+        if notion_div:
+            properties["부서"] = {"select": {"name": notion_div}}
     properties["상태"] = {"select": {"name": "완료"}}
-    # 양쪽 DB 모두 "날짜" (2/25 전수검사: 산출물 DB에 "Date" 속성 없음, "날짜"만 존재)
     properties["날짜"] = {"date": {"start": now_str}}
-    # 내용 속성 — 양쪽 DB 모두 존재 (rich_text, 최대 2000자)
-    if content:
-        properties["내용"] = {"rich_text": [{"text": {"content": content[:2000]}}]}
-
-    # (태그/부서 속성은 실제 노션 DB에 없으므로 제거 — 2/25 전수검사)
 
     # 본문 → 노션 블록 (최대 2000자, 노션 블록 크기 제한)
     children = []
