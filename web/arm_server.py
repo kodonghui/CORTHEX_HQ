@@ -8109,7 +8109,7 @@ async def _chief_qa_review(report_content: str, team_leader_name: str) -> tuple[
     qa_prompt = f"""당신은 비서실장입니다. {team_leader_name}의 보고서를 검수하세요.
 
 ## 보고서
-{report_content[:3000]}
+{report_content[:8000]}
 
 ## 검수 기준 (5항목, 각 통과/미달)
 1. **결론 존재**: 매수/매도/관망 시그널이 명확한가?
@@ -8118,8 +8118,8 @@ async def _chief_qa_review(report_content: str, team_leader_name: str) -> tuple[
 4. **형식 준수**: [시그널] 형식으로 종목별 결과가 있는가?
 5. **논리 일관성**: 분석과 결론이 모순되지 않는가?
 
-## 응답 형식 (반드시 이 형식만)
-판정: 승인 또는 반려
+## 응답 형식 (반드시 첫 줄에 이 형식만)
+판정: PASS 또는 FAIL
 사유: [1줄 요약]"""
 
     try:
@@ -8134,12 +8134,19 @@ async def _chief_qa_review(report_content: str, team_leader_name: str) -> tuple[
         )
         qa_text = result.get("content", "")
 
-        # 파싱: "판정: 승인" or "판정: 반려"
-        passed = "승인" in qa_text and "반려" not in qa_text.split("판정")[-1].split("\n")[0] if "판정" in qa_text else "승인" in qa_text
+        # 파싱: "판정: PASS" or "판정: FAIL" (영어 키워드로 오판 방지)
+        qa_upper = qa_text.upper()
+        if "PASS" in qa_upper and "FAIL" not in qa_upper:
+            passed = True
+        elif "FAIL" in qa_upper:
+            passed = False
+        else:
+            # 폴백: 한국어 키워드
+            passed = "승인" in qa_text and "반려" not in qa_text[:200]
         reason = ""
         for line in qa_text.split("\n"):
-            if "사유" in line:
-                reason = line.split(":", 1)[-1].strip() if ":" in line else line
+            if "사유" in line and ":" in line:
+                reason = line.split(":", 1)[-1].strip()
                 break
         if not reason:
             reason = "승인" if passed else "기준 미달"
