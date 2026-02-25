@@ -676,6 +676,286 @@ class QualityGate:
         return weighted_sum / total_weight
 
     # ─────────────────────────────────────────
+    # 사유 특정 재검수 (반려 항목만 재평가)
+    # ─────────────────────────────────────────
+
+    @staticmethod
+    def get_failed_item_ids(review: "HybridReviewResult") -> list[str]:
+        """반려된 항목 ID 추출 — 체크리스트 불통과 + 점수 1점 항목.
+
+        Returns: ["D1", "Q3", "Q4"] 형태의 ID 리스트.
+        """
+        failed: list[str] = []
+        for cl in review.checklist_results:
+            if not cl.passed:
+                failed.append(cl.id)
+        for sc in review.score_results:
+            if sc.score <= 1:
+                failed.append(sc.id)
+        return failed
+
+    async def targeted_hybrid_review(
+        self,
+        result_data: Any,
+        task_description: str,
+        model_router: "ModelRouter",
+        previous_review: "HybridReviewResult",
+        failed_ids: list[str] | None = None,
+        reviewer_id: str = "",
+        reviewer_model: str = "",
+        division: str = "",
+        target_agent_id: str = "",
+    ) -> "HybridReviewResult":
+        """사유 특정 재검수: 반려 항목만 LLM 재평가, 나머지는 이전 점수 유지.
+
+        비유: '수학만 다시 풀어라' → 수학만 채점, 국영사과는 이전 점수 유지.
+        """
+        text = str(result_data or "")
+
+        # 1. 규칙 기반 사전 필터 (기본 검증은 여전히 필요)
+        pre_check = self.rule_based_check(result_data, task_description)
+        if not pre_check.passed:
+            return HybridReviewResult(
+                passed=False,
+                weighted_average=0.0,
+                feedback=pre_check.rejection_reason,
+                rejection_reasons=pre_check.issues,
+                reviewer_id=reviewer_id,
+                target_agent_id=target_agent_id,
+                review_model="rule_based",
+            )
+
+        # 2. 반려 항목 ID 결정
+        if not failed_ids:
+            failed_ids = self.get_failed_item_ids(previous_review)
+        if not failed_ids:
+            # 반려 항목 없음 → 이전 결과 그대로 반환 (이미 합격)
+            return previous_review
+
+        # 3. 반려 항목만 추출
+        all_checklist = self._build_checklist_items(division)
+        all_scoring = self._build_scoring_items(division)
+        failed_checklist = [c for c in all_checklist if c["id"] in failed_ids]
+        failed_scoring = [s for s in all_scoring if s["id"] in failed_ids]
+
+        if not failed_checklist and not failed_scoring:
+            return previous_review
+
+        # 4. 반려 항목만 포함하는 프롬프트 생성
+        prompt = self._build_targeted_prompt(
+            task_description, text[:3000],
+            failed_checklist, failed_scoring,
+            failed_ids, division,
+        )
+
+        # 5. LLM 호출
+        model_to_use = reviewer_model or "claude-sonnet-4-6"
+        try:
+            response = await model_router.complete(
+                model_name=model_to_use,
+                messages=[
+                    {"role": "system", "content": (
+                        "당신은 보고서 재검수관입니다. "
+                        "이전 검수에서 불합격된 특정 항목만 재평가합니다. "
+                        "나열된 항목만 평가하세요. 나열되지 않은 항목은 평가하지 마세요. "
+                        "반드시 요청된 JSON 형식으로만 응답하세요. "
+                        "보고서에 도구(dart_api, kr_stock 등)로 가져온 데이터가 포함된 경우, "
+                        "해당 수치는 실시간 API의 정확한 데이터이므로 '확인 불가'로 감점하지 마세요."
+                    )},
+                    {"role": "user", "content": prompt},
+                ],
+                temperature=0.0,
+                agent_id=reviewer_id or "quality_gate",
+            )
+
+            # 6. 반려 항목 파싱
+            new_partial = self._parse_hybrid_response(
+                response.content, failed_checklist, failed_scoring,
+                reviewer_id, target_agent_id, model_to_use,
+                original_text=text,
+            )
+
+            # 7. 이전 합격 결과와 머지
+            merged = self._merge_reviews(previous_review, new_partial, failed_ids)
+
+            logger.info(
+                "[QA] ★사유 특정 재검수: %s → %s | 반려항목=%s | 점수 %.1f→%.1f | %s",
+                reviewer_id, target_agent_id, ",".join(failed_ids),
+                previous_review.weighted_average, merged.weighted_average,
+                "합격" if merged.passed else "불합격",
+            )
+            return merged
+
+        except Exception as e:
+            logger.warning("[QA] 사유 특정 재검수 LLM 실패 (%s→%s): %s", reviewer_id, target_agent_id, e)
+            return HybridReviewResult(
+                passed=True,
+                weighted_average=3.0,
+                feedback=f"재검수 LLM 실패 ({e}). 자동 통과.",
+                reviewer_id=reviewer_id,
+                target_agent_id=target_agent_id,
+                review_model=model_to_use,
+            )
+
+    def _build_targeted_prompt(
+        self,
+        task_description: str,
+        text: str,
+        failed_checklist: list[dict],
+        failed_scoring: list[dict],
+        failed_ids: list[str],
+        division: str = "",
+    ) -> str:
+        """사유 특정 재검수용 프롬프트 — 반려 항목만 포함."""
+
+        # 체크리스트 파트 (반려 항목만)
+        cl_lines = []
+        for item in failed_checklist:
+            req_tag = "[필수]" if item.get("required") else "[선택]"
+            cl_lines.append(f"  - {item['id']}: {req_tag} {item['label']}")
+        checklist_text = "\n".join(cl_lines) if cl_lines else "(해당 없음)"
+
+        # 점수 파트 (반려 항목만)
+        sc_lines = []
+        for item in failed_scoring:
+            criteria = item.get("criteria", {})
+            c_desc = ", ".join(f"{k}점={v}" for k, v in sorted(criteria.items()))
+            critical_tag = " ★치명적" if item.get("critical") else ""
+            sc_lines.append(
+                f"  - {item['id']}: {item['label']}{critical_tag} (가중치 {item.get('weight', 33)}%)\n"
+                f"    판정 기준: {c_desc}"
+            )
+        scoring_text = "\n".join(sc_lines) if sc_lines else "(해당 없음)"
+
+        # JSON 예시
+        cl_ids = [item["id"] for item in failed_checklist]
+        sc_ids = [item["id"] for item in failed_scoring]
+        cl_example = ", ".join(f'"{cid}": true' for cid in cl_ids) if cl_ids else ""
+        sc_example = ", ".join(f'"{sid}": 3' for sid in sc_ids) if sc_ids else ""
+
+        # 도구 신뢰 규칙
+        has_tools = "사용한 도구" in text
+        tool_trust = ""
+        if has_tools:
+            tool_trust = (
+                "\n## ⚠️ 도구 데이터 신뢰 규칙\n"
+                "이 전문가는 실시간 API 도구를 사용하여 데이터를 가져왔습니다.\n"
+                "- 도구 수치는 정확한 것으로 간주하세요.\n"
+                "- 데이터 자체가 아닌, 분석 논리와 완결성을 평가하세요.\n"
+            )
+
+        parts = [
+            f"## 재검수 대상 항목\n"
+            f"이전 검수에서 불합격된 항목: **{', '.join(failed_ids)}**\n"
+            f"⚠️ 아래 나열된 항목만 재평가하세요. 다른 항목은 이미 통과되었습니다.\n\n"
+            f"## 업무 지시\n{task_description}\n\n"
+            f"## 제출된 보고서 (재작업 후)\n{text}\n"
+            f"{tool_trust}\n"
+        ]
+
+        if cl_lines:
+            parts.append(f"## 재평가 체크리스트 (통과=true, 불통과=false)\n{checklist_text}\n\n")
+        if sc_lines:
+            parts.append(f"## 재평가 점수 항목 (1/3/5 중 선택)\n{scoring_text}\n\n")
+
+        # JSON 형식
+        json_parts = []
+        if cl_example:
+            json_parts.append(f'  "checklist": {{{cl_example}}}')
+        if sc_example:
+            json_parts.append(f'  "scores": {{{sc_example}}}')
+        if cl_ids:
+            cl_fb = ", ".join(f'"{cid}": "불통과 시 사유"' for cid in cl_ids)
+            json_parts.append(f'  "checklist_feedback": {{{cl_fb}}}')
+        if sc_ids:
+            sc_fb = ", ".join(f'"{sid}": "3점 이하 시 감점 사유"' for sid in sc_ids)
+            json_parts.append(f'  "score_feedback": {{{sc_fb}}}')
+        json_parts.append('  "feedback": "재검수 종합 피드백"')
+
+        parts.append(
+            "## 응답 형식\n"
+            "반드시 아래 JSON 형식으로만 답하세요. JSON 외 텍스트는 쓰지 마세요.\n"
+            "```json\n{\n" + ",\n".join(json_parts) + "\n}\n```"
+        )
+
+        return "\n".join(parts)
+
+    def _merge_reviews(
+        self,
+        original: "HybridReviewResult",
+        new_partial: "HybridReviewResult",
+        failed_ids: list[str],
+    ) -> "HybridReviewResult":
+        """이전 합격 결과 + 재검수 결과 머지.
+
+        반려 항목 → 새 점수, 통과 항목 → 이전 점수 유지.
+        """
+        # 체크리스트 머지
+        new_cl_map = {c.id: c for c in new_partial.checklist_results}
+        merged_cl: list[ChecklistItem] = []
+        for cl in original.checklist_results:
+            if cl.id in failed_ids and cl.id in new_cl_map:
+                merged_cl.append(new_cl_map[cl.id])
+            else:
+                merged_cl.append(cl)
+
+        # 점수 머지
+        new_sc_map = {s.id: s for s in new_partial.score_results}
+        merged_sc: list[ScoreItem] = []
+        for sc in original.score_results:
+            if sc.id in failed_ids and sc.id in new_sc_map:
+                merged_sc.append(new_sc_map[sc.id])
+            else:
+                merged_sc.append(sc)
+
+        # 가중 평균 재계산
+        weighted_average = self._calc_weighted_average(merged_sc)
+
+        # 치명적 항목 체크
+        critical_cap = self._pass_criteria.get("critical_cap", 2.0)
+        critical_failed = [s for s in merged_sc if s.critical and s.score == 1]
+        if critical_failed:
+            weighted_average = min(weighted_average, critical_cap)
+
+        # 합격 판정
+        rejection_reasons: list[str] = []
+        all_required_pass = self._pass_criteria.get("all_required_pass", True)
+        if all_required_pass:
+            for cl in merged_cl:
+                if cl.required and not cl.passed:
+                    reason = f"필수항목 불통과: [{cl.id}] {cl.label}"
+                    if cl.feedback:
+                        reason += f" — {cl.feedback}"
+                    rejection_reasons.append(reason)
+
+        min_avg = self._pass_criteria.get("min_average_score", 3.0)
+        if weighted_average < min_avg:
+            low_items = [s for s in merged_sc if s.score <= 1 and s.feedback]
+            if low_items:
+                details = "; ".join(f"[{s.id}] {s.feedback}" for s in low_items)
+                rejection_reasons.append(f"가중 평균 {weighted_average:.1f} < 기준 {min_avg} — {details}")
+            else:
+                rejection_reasons.append(f"가중 평균 {weighted_average:.1f} < 기준 {min_avg}")
+
+        for s in critical_failed:
+            reason = f"★치명적 [{s.id}] {s.label} 1점"
+            if s.feedback:
+                reason += f": {s.feedback}"
+            rejection_reasons.append(reason)
+
+        return HybridReviewResult(
+            passed=len(rejection_reasons) == 0,
+            checklist_results=merged_cl,
+            score_results=merged_sc,
+            weighted_average=weighted_average,
+            feedback=new_partial.feedback or original.feedback,
+            rejection_reasons=rejection_reasons,
+            reviewer_id=new_partial.reviewer_id or original.reviewer_id,
+            target_agent_id=new_partial.target_agent_id or original.target_agent_id,
+            review_model=new_partial.review_model or original.review_model,
+        )
+
+    # ─────────────────────────────────────────
     # 레거시 LLM 검수 (호환용)
     # ─────────────────────────────────────────
 
