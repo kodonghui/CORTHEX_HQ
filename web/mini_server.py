@@ -8243,7 +8243,7 @@ async def _delegate_to_specialists(manager_id: str, text: str) -> list[dict]:
     return processed
 
 
-async def _manager_with_delegation(manager_id: str, text: str) -> dict:
+async def _manager_with_delegation(manager_id: str, text: str, conversation_id: str | None = None) -> dict:
     """처장이 전문가에게 위임 → 결과 종합(검수) → 보고서 작성.
 
     흐름: 처장 분석 시작 → 전문가 병렬 호출 → 처장이 결과 종합 + 검수 → 보고서 반환
@@ -8255,7 +8255,7 @@ async def _manager_with_delegation(manager_id: str, text: str) -> dict:
 
     # 전문가가 없으면 처장이 직접 처리
     if not specialists:
-        return await _call_agent(manager_id, text)
+        return await _call_agent(manager_id, text, conversation_id=conversation_id)
 
     # ── 처장 독자 분석 함수 (CEO 아이디어: 처장 = 5번째 분석가) ──
     # 전문가와 병렬로 처장도 독자적으로 도구를 사용하여 분석 수행.
@@ -8271,7 +8271,7 @@ async def _manager_with_delegation(manager_id: str, text: str) -> dict:
             f"전문가 결과는 무시하세요 — 당신만의 독립적 관점을 제시하세요.\n\n"
             f"## 분석 요청\n{text}\n"
         )
-        self_result = await _call_agent(manager_id, self_prompt)
+        self_result = await _call_agent(manager_id, self_prompt, conversation_id=conversation_id)
         log_done = save_activity_log(manager_id,
             f"[{mgr_name}] ✅ 독자 분석 완료", "info")
         await wm.send_activity_log(log_done)
@@ -8702,7 +8702,7 @@ async def _chief_finalize(original_text: str, manager_results: dict) -> dict:
     return {"content": result.get("content", ""), "routing_level": "finalized", "cost_usd": result.get("cost_usd", 0)}
 
 
-async def _broadcast_to_managers_all(text: str, task_id: str) -> dict:
+async def _broadcast_to_managers_all(text: str, task_id: str, conversation_id: str | None = None) -> dict:
     """Level 4: 기존 방식 — 활성 팀장 병렬 호출 (브로드캐스트)."""
     # dormant 제외한 활성 팀장만
     managers = [m for m in ["cso_manager", "clo_manager", "cmo_manager", "cio_manager", "cpo_manager"]
@@ -8717,8 +8717,8 @@ async def _broadcast_to_managers_all(text: str, task_id: str) -> dict:
     await wm.send_activity_log(log_entry)
 
     # ── 1단계: 6개 처장 + 비서실 보좌관 3명 동시 호출 ──
-    mgr_tasks = [_manager_with_delegation(mgr_id, text) for mgr_id in managers]
-    staff_tasks = [_call_agent(spec_id, text) for spec_id in staff_specialists]
+    mgr_tasks = [_manager_with_delegation(mgr_id, text, conversation_id=conversation_id) for mgr_id in managers]
+    staff_tasks = [_call_agent(spec_id, text, conversation_id=conversation_id) for spec_id in staff_specialists]
     all_results = await asyncio.gather(*(mgr_tasks + staff_tasks), return_exceptions=True)
 
     mgr_results = all_results[:6]
@@ -9050,7 +9050,7 @@ async def _broadcast_to_managers(text: str, task_id: str, target_agent_id: str |
         return await _chief_finalize(text, {manager_id: mgr_result})
 
     else:  # level == 4
-        return await _broadcast_to_managers_all(text, task_id)
+        return await _broadcast_to_managers_all(text, task_id, conversation_id=conversation_id)
 
 
 async def _sequential_collaboration(text: str, task_id: str, agent_order: list[str] | None = None) -> dict:
@@ -9645,7 +9645,7 @@ async def _process_ai_command(text: str, task_id: str, target_agent_id: str | No
     await _broadcast_status("chief_of_staff", "working", 0.1, f"{target_name}에게 위임 중...")
 
     # 처장이 자기 전문가를 호출 → 결과 검수 → 종합 보고서
-    delegation_result = await _manager_with_delegation(target_id, text)
+    delegation_result = await _manager_with_delegation(target_id, text, conversation_id=conversation_id)
     await _broadcast_status("chief_of_staff", "done", 1.0, "위임 완료")
 
     if "error" in delegation_result:
