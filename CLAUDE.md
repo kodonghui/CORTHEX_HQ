@@ -130,7 +130,7 @@
 
 ## 빌드/버전
 - 빌드: `deploy.yml` `run_number` | 확인: `gh run list --workflow=deploy.yml --limit=1`
-- 대표님 보고 시 **"빌드#N"** | 버전: `X.YY.ZZZ` (현재 `3.02.021`)
+- 대표님 보고 시 **"빌드#N"** | 버전: `X.YY.ZZZ` (현재 `4.00.000`)
 
 ## 디버그 URL
 - 버그 시 `/api/debug/xxx` 즉석 생성 → 대표님에게 URL 제공 | 계좌번호 마스킹, API 키 노출 금지
@@ -139,14 +139,35 @@
 - `ai_handler.py` `ask_ai()` → 3개 프로바이더 도구 자동호출 | 스키마: `config/tools.yaml`
 - 🔴 루프 횟수 제한 없음! 로그 `(23회)` = 도구 호출 횟수 표시 (제한 없음)
 
-## ⚠️ 작업 완료 5단계 (전부 안 하면 미완성!)
+---
+# 🚨🚨🚨 작업 완료 5단계 — 전부 안 하면 미완성! 🚨🚨🚨
 
-| ① 업데이트 기록 | ② 프로젝트 현황 | ③ TODO 갱신 | ④ 커밋+배포 `[완료]` | ⑤ 대표님 보고 |
-|---|---|---|---|---|
-| `docs/updates/날짜_요약.md` | `docs/project-status.md` | `docs/todo/날짜.md` | 자동 머지 | `docs/claude-reference.md` 형식 |
+> **이거 안 지키면 미완성이다. 커밋했다고 끝이 아니다. 5단계 전부.**
 
-- 버그 발견 시 전부 기록 (✅/🔴). 심각하면 🚨 즉시 보고
-- 팀 작업 시 팀장 최종 기록 책임 | 전수검사: `docs/inspection-protocol.md`
+## ① docs/updates/날짜_요약.md 작성
+## ② docs/project-status.md 업데이트
+## ③ docs/todo/날짜.md 갱신
+## ④ 커밋 메시지 `[완료]` → 자동 머지 → 배포 확인
+
+```
+gh run list --workflow=deploy.yml --limit=1
+```
+→ **빌드번호(#N) 확인 후 대표님에게 반드시 보고**
+
+## ⑤ 대표님 최종 보고 (이 형식으로!)
+
+```
+✅ 작업 완료 — 빌드#N 배포됨
+바뀐 것:
+- [변경사항 1]
+- [변경사항 2]
+확인 방법: https://corthex-hq.com/[해당경로]
+```
+
+> 버그 발견 시 전부 기록 (✅/🔴). 심각하면 🚨 즉시 보고
+> 팀장 최종 기록 책임 | 전수검사: `docs/inspection-protocol.md`
+
+---
 
 ## 🔴 TODO 관리 — 배포 시 반드시 갱신!
 - 일일: `docs/todo/YYYY-MM-DD.md` | 대형: `날짜_프로젝트명.TODO.md`

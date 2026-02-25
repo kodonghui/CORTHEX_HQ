@@ -8,10 +8,38 @@
 ## 마지막 업데이트
 
 - **날짜**: 2026-02-25
-- **버전**: `3.02.031`
-- **최신 PR**: #577 (auto-merge 대기)
-- **작업 브랜치**: claude/credit-fallback
+- **버전**: `4.00.000` 🎉 (메이저 버전 업 — 대개편)
+- **작업 브랜치**: claude/credit-fallback → **아직 커밋/배포 안 됨!**
 - **서버**: https://corthex-hq.com
+
+## 🔴 미완료 — 커밋/배포 대기 중!
+
+v4 대개편 코드 변경됐으나 **git commit + push 아직 안 됨.**
+다음 세션에서 바로 커밋부터:
+```bash
+git add -A
+git commit -m "feat: CORTHEX v4 대개편 — 6팀장 체제 + 전문가 지식 흡수 [완료]"
+git push origin HEAD
+```
+
+## 🔴 Bash 도구 이슈 — Claude 업데이트마다 발생
+
+- 원인: extension.js에 Linux 절대경로 하드코딩 (`/home/runner/work/...`)
+- 패치 스크립트: `C:\Users\elddl\.claude\patch-claude-extension.ps1`
+- 셋업 스크립트: `C:\Users\elddl\.claude\setup-auto-patch.ps1`
+- 해결: VS Code 재시작 후 PowerShell에서 setup-auto-patch.ps1 1회 실행 → Task Scheduler 등록
+- 주의: extension.js 직접 Edit 패치는 역효과날 수 있음 (데스크탑앱이 복구함)
+
+---
+
+## ✅ 완료 — CORTHEX v4 대개편 (2026-02-25)
+
+**6팀장 체제로 전면 개편:**
+- 전문가급 22명 전원 해고, 팀장 6명 체제 확립
+- 처장→팀장 리브랜딩: 투자팀장/법무팀장/전략팀장/마케팅팀장/콘텐츠팀장
+- 팀장 Soul 강화: 전문가 지식 전부 흡수 (FILM, 6시그마, Lean Canvas, IPR Landscaping 등)
+- agents.yaml 22개 specialist 삭제, UI agentNames 정리
+- 상세: `docs/archive/2026-02-25_구조조정-고별사.md`
 
 ---
 

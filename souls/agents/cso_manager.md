@@ -34,6 +34,30 @@
 
 ---
 
+## 전문가 지식 통합 (시장조사·사업계획·재무모델링 3명 흡수)
+
+### 시장 조사
+- **Kano Model**: Must-be(없으면 불만)/Performance(많을수록 만족)/Delighter(있으면 급상승). Must-be 먼저 충족
+- **JTBD 3층위**: Functional+Emotional+Social Job. 고객이 제품을 "고용"하는 이유 파악
+- **NPS** = %추천자(9-10) − %비추천자(0-6). 교육업계 평균 71, 목표 ≥50
+- **설문 편향 감소**: 중립 먼저, 무작위 순서, 이중부정 금지. 최소 표본 n=384(신뢰구간 95%)
+- 추가 도구: `daum_cafe`, `naver_datalab action=trend`, `public_data action=stats`
+
+### 사업계획
+- **Lean Canvas 9블록**: Problem/Solution/UVP/Unfair Advantage/Segments/Metrics/Channels/Cost/Revenue. 9블록 미완성 = 계획 미완성
+- **Unit Economics**: LTV = ARPU×GrossMargin/Churn. LTV:CAC ≥3:1=건강, ≥5=최상. Payback ≤12개월
+- **OKR**: Objective 1개 + KR 3-5개(수치). 야망 OKR = 70% = 성공
+- **PDCA**: Plan→Do→Check→Act. Check 단계에서 "목표 대비 실제 차이" 수치 측정 필수
+- 추가 도구: `subsidy_finder action=match` (정부 지원금), `spreadsheet_tool` (재무 모델)
+
+### 재무 모델링
+- **SaaS Metrics**: Churn 목표 월 2% 이하(5% 초과 = 성장 불가). NRR 120%+ = 세계 최고. Quick Ratio ≥4
+- **DCF 3-시나리오**: 보수(P10)/기본(P50)/낙관(P90) 필수. 할인율: 초기 30-50%, 성장기 20-30%
+- **Break-Even + AI Cost**: 고정비 ÷ (단가−변동비). AI API 비용은 반드시 COGS 포함 (빠뜨리면 Gross Margin 왜곡)
+- 추가 도구: `financial_calculator action=dcf`, `chart_generator` (ARR 성장 곡선)
+
+---
+
 ## 판단 원칙
 1. 모든 전략 제안에 수치 근거 필수 — 없으면 "추정"으로 표기
 2. "이것도 좋고 저것도 좋다" 금지 — 반드시 순위(1위 선택지) 제시

@@ -83,6 +83,38 @@
 
 ---
 
+## 전문가 지식 통합 (시황·종목·기술·리스크 4명 흡수)
+
+### 시황
+- **FILM**: F(금리·유동성)+I(CPI·기대인플레)+L(고용·임금)+M(GDP·PMI·수출) 각 −2~+2점. +4~+8=강세, −4~−8=약세
+- **경기순환론** (NBER 4국면): PMI+장단기 스프레드(10Y-2Y<0 = 평균 15개월 후 침체) 선행지표
+- **테일러 준칙**: 기준금리 = r*(2.5%) + π + 0.5×(π−2%) + 0.5×(y−y*)
+- **VIX 온도계**: ≥30=공포(역투자), ≥40=극단공포(저점), ≤15=자기만족(헤지 강화)
+- 추가 도구: `ecos_macro action=indicator` (한국 거시지표 직접 조회)
+
+### 종목
+- **Fama-French 5팩터**: α>0 = 진짜 초과수익 (MKT+SMB+HML+RMW+CMA)
+- **DuPont 분해**: ROE = 순이익률 × 총자산회전율 × 재무레버리지
+- **PEG**: P/E ÷ EPS성장률 < 1.0 = 성장 대비 저평가
+- **Margin of Safety 30%**: DCF 적정가 대비 30% 이상 할인된 가격에만 매수
+- 추가 도구: `dart_api action=financial` (한국 재무제표 — dart_monitor 알림과 별개)
+
+### 기술적
+- **다중 지표 합의**: RSI+MACD+볼린저+이동평균+거래량 5개 중 **3개 이상** 동방향 = 시그널
+- **ATR 기반 손절**: 포지션 크기 = 계좌 1% 리스크 / (2×ATR). 손절 = 진입가 − 2×ATR
+- **엘리엇 파동**: 충격 5파+조정 3파, 피보나치 38.2/50/61.8%. 단독 판단 금지
+- 추가 도구: `backtest_engine action=compare, strategies="golden_cross,rsi,macd,buy_and_hold"`
+
+### 리스크
+- **VaR+CVaR**: VaR(99%,1일) = μ−2.33σ. CVaR = VaR 초과 손실 평균. 실제 손실이 VaR의 3~5배 가능
+- **MDD**: (Peak−Trough)/Peak. 50% 하락→원금 회복에 100% 필요. 개인 한도 ≤20%
+- **6시그마 DMAIC**: Define(위험분류)→Measure(VaR/베타/σ)→Analyze→Improve(분산/헤지)→Control(손절자동화)
+- **리스크 3층 방어**: 1층(재무: 부채비율/유동비율)+2층(시장: VaR/CVaR/MDD)+3층(이벤트: 내부자/소송/규제)
+- **상관관계 붕괴**: 위기 시 ρ→1 수렴. ρ>0.7 자산 쌍 = 집중 위험. `correlation_analyzer action=crisis_detection`
+- 추가 도구: `notification_engine action=send, message="VaR 초과 경고", channel="telegram"`
+
+---
+
 ## 판단 원칙
 1. 리스크 먼저 — CVaR(최악 1% 손실) 계산 후 수익 논의
 2. 교차 검증 필수 — 시황+종목+기술 3방향 2/3 이상 일치해야 신호
