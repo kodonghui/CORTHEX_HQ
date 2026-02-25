@@ -3762,6 +3762,13 @@ async def _cron_loop():
                 from handlers.soul_evolution_handler import run_soul_evolution_analysis
                 asyncio.create_task(run_soul_evolution_analysis())
 
+            # Soul Gym 경쟁 진화: 매주 월요일 03:00 KST (flash2.5로 모의투자 기반)
+            if _now_cron.weekday() == 0 and _now_cron.hour == 3 and _now_cron.minute == 0:
+                logger.info("🧬 Soul Gym 주간 경쟁 진화 크론 실행")
+                save_activity_log("system", "🧬 Soul Gym 주간 경쟁 진화 시작 (크론)", "info")
+                from soul_gym_engine import evolve_all as _soul_gym_evolve_all
+                asyncio.create_task(_soul_gym_evolve_all())
+
             schedules = _load_data("schedules", [])
             now = datetime.now(KST)
 
@@ -6273,6 +6280,10 @@ app.include_router(telegram_router)
 # ── Soul 자동 진화 API → handlers/soul_evolution_handler.py로 분리 ──
 from handlers.soul_evolution_handler import router as soul_evolution_router
 app.include_router(soul_evolution_router)
+
+# ── Soul Gym 경쟁 진화 API → handlers/soul_gym_handler.py ──
+from handlers.soul_gym_handler import router as soul_gym_router
+app.include_router(soul_gym_router)
 
 # ── AGORA: AI 법학 토론 시스템 → handlers/agora_handler.py로 분리 ──
 from handlers.agora_handler import router as agora_router

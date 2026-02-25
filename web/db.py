@@ -439,6 +439,29 @@ CREATE TABLE IF NOT EXISTS agora_book_chapters (
     FOREIGN KEY (session_id) REFERENCES agora_sessions(id)
 );
 CREATE INDEX IF NOT EXISTS idx_agora_book_session ON agora_book_chapters(session_id);
+
+-- ============================================================
+-- SOUL GYM: 에이전트 소울 경쟁 진화 시스템
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS soul_gym_rounds (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    agent_id        TEXT NOT NULL,
+    agent_name      TEXT DEFAULT '',
+    round_num       INTEGER DEFAULT 1,
+    soul_before     TEXT DEFAULT '',
+    soul_after      TEXT DEFAULT '',
+    winner          TEXT DEFAULT 'original',
+    score_before    REAL DEFAULT 0,
+    score_after     REAL DEFAULT 0,
+    improvement     REAL DEFAULT 0,
+    cost_usd        REAL DEFAULT 0,
+    variants_json   TEXT DEFAULT '{}',
+    benchmark_json  TEXT DEFAULT '{}',
+    created_at      TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_soul_gym_agent ON soul_gym_rounds(agent_id);
+CREATE INDEX IF NOT EXISTS idx_soul_gym_created ON soul_gym_rounds(created_at);
 """
 
 
@@ -1964,6 +1987,93 @@ def get_top_rejection_reasons(limit: int = 5) -> list[dict]:
     except Exception as e:
         print(f"[DB] top rejection reasons 조회 실패: {e}")
         return []
+    finally:
+        conn.close()
+
+
+# ═══════════════════════════════════════════════════════════════
+# SOUL GYM — 에이전트 소울 경쟁 진화
+# ═══════════════════════════════════════════════════════════════
+
+def save_soul_gym_round(data: dict) -> int:
+    """Soul Gym 진화 라운드 결과를 저장합니다. 반환: row id."""
+    conn = get_connection()
+    try:
+        cur = conn.execute(
+            """INSERT INTO soul_gym_rounds
+               (agent_id, agent_name, round_num, soul_before, soul_after,
+                winner, score_before, score_after, improvement,
+                cost_usd, variants_json, benchmark_json, created_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (
+                data.get("agent_id", ""),
+                data.get("agent_name", ""),
+                data.get("round_num", 1),
+                data.get("soul_before", "")[:500],
+                data.get("soul_after", "")[:500],
+                data.get("winner", "original"),
+                data.get("score_before", 0),
+                data.get("score_after", 0),
+                data.get("improvement", 0),
+                data.get("cost_usd", 0),
+                data.get("variants_json", "{}"),
+                data.get("benchmark_json", "{}"),
+                _now_iso(),
+            ),
+        )
+        conn.commit()
+        return cur.lastrowid or 0
+    except Exception as e:
+        print(f"[DB] soul_gym_round 저장 실패: {e}")
+        return 0
+    finally:
+        conn.close()
+
+
+def get_soul_gym_history(agent_id: str = "", limit: int = 50) -> list[dict]:
+    """Soul Gym 진화 히스토리를 조회합니다."""
+    conn = get_connection()
+    try:
+        query = "SELECT * FROM soul_gym_rounds"
+        params: list = []
+        if agent_id:
+            query += " WHERE agent_id = ?"
+            params.append(agent_id)
+        query += " ORDER BY id DESC LIMIT ?"
+        params.append(limit)
+        rows = conn.execute(query, params).fetchall()
+        cols = [d[0] for d in conn.execute("PRAGMA table_info(soul_gym_rounds)").fetchall()]
+        col_names = [c[1] for c in conn.execute("PRAGMA table_info(soul_gym_rounds)").fetchall()]
+        # 직접 컬럼명 매핑
+        return [
+            {
+                "id": r[0], "agent_id": r[1], "agent_name": r[2],
+                "round_num": r[3], "soul_before": r[4], "soul_after": r[5],
+                "winner": r[6], "score_before": r[7], "score_after": r[8],
+                "improvement": r[9], "cost_usd": r[10],
+                "variants_json": r[11], "benchmark_json": r[12],
+                "created_at": r[13],
+            }
+            for r in rows
+        ]
+    except Exception as e:
+        print(f"[DB] soul_gym_history 조회 실패: {e}")
+        return []
+    finally:
+        conn.close()
+
+
+def get_soul_gym_next_round(agent_id: str) -> int:
+    """해당 에이전트의 다음 라운드 번호를 반환합니다."""
+    conn = get_connection()
+    try:
+        row = conn.execute(
+            "SELECT MAX(round_num) FROM soul_gym_rounds WHERE agent_id = ?",
+            (agent_id,),
+        ).fetchone()
+        return (row[0] or 0) + 1
+    except Exception:
+        return 1
     finally:
         conn.close()
 

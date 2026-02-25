@@ -1758,6 +1758,123 @@
             </template>
           </div>
         </div>
+
+          <!-- Soul Gym 경쟁 진화 섹션 -->
+          <div class="mt-6 glass border border-hq-border rounded-xl p-4"
+               x-data="{
+                 gymStatus: { idle: true, running_all: false, running_agents: [] },
+                 gymHistory: [],
+                 gymLoading: false,
+                 gymMessage: '',
+                 gymConfig: {},
+                 async loadGymStatus() {
+                   try {
+                     const r = await fetch('/api/soul-gym/status');
+                     this.gymStatus = await r.json();
+                   } catch(e) {}
+                 },
+                 async loadGymHistory() {
+                   try {
+                     const r = await fetch('/api/soul-gym/history?limit=20');
+                     const d = await r.json();
+                     this.gymHistory = d.history || [];
+                   } catch(e) {}
+                 },
+                 async loadGymConfig() {
+                   try {
+                     const r = await fetch('/api/soul-gym/config');
+                     this.gymConfig = await r.json();
+                   } catch(e) {}
+                 },
+                 async evolveAll(dryRun) {
+                   this.gymLoading = true;
+                   this.gymMessage = '';
+                   try {
+                     const r = await fetch('/api/soul-gym/evolve-all', {
+                       method: 'POST',
+                       headers: {'Content-Type':'application/json'},
+                       body: JSON.stringify({dry_run: dryRun})
+                     });
+                     const d = await r.json();
+                     this.gymMessage = d.message || (d.success ? '진화 시작됨' : '실패');
+                     if (!dryRun) { setTimeout(() => { this.loadGymHistory(); this.loadGymStatus(); }, 5000); }
+                   } catch(e) { this.gymMessage = '오류: ' + e.message; }
+                   this.gymLoading = false;
+                 },
+                 init() { this.loadGymStatus(); this.loadGymHistory(); this.loadGymConfig(); }
+               }">
+            <div class="flex items-center justify-between mb-3">
+              <div>
+                <h3 class="text-sm font-bold text-hq-text font-mono">SOUL GYM</h3>
+                <p class="text-[10px] text-hq-muted">에이전트 경쟁 진화 (flash2.5 · 모의투자 · 자동 채택 · 매주 월요일 03:00)</p>
+              </div>
+              <div class="flex gap-2">
+                <button @click="evolveAll(true)"
+                        :disabled="gymLoading || gymStatus.running_all"
+                        class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-hq-cyan/20 text-hq-cyan hover:bg-hq-cyan/30 transition disabled:opacity-50">
+                  Dry Run
+                </button>
+                <button @click="evolveAll(false)"
+                        :disabled="gymLoading || gymStatus.running_all"
+                        class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-hq-green/20 text-hq-green hover:bg-hq-green/30 transition disabled:opacity-50">
+                  <span x-show="!gymStatus.running_all">전체 진화</span>
+                  <span x-show="gymStatus.running_all">진화 중...</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- 상태/메시지 -->
+            <div x-show="gymMessage" class="text-xs text-hq-cyan mb-2" x-text="gymMessage"></div>
+            <div x-show="gymStatus.running_all" class="text-xs text-hq-yellow mb-2 animate-pulse">경쟁 진화 진행 중...</div>
+
+            <!-- 설정 요약 -->
+            <div class="flex gap-4 text-[10px] text-hq-muted mb-3 font-mono">
+              <span>모델: <span class="text-hq-accent" x-text="gymConfig.gym_model || '-'"></span></span>
+              <span>임계값: <span class="text-hq-accent" x-text="'+' + (gymConfig.min_improvement || 3) + '점'"></span></span>
+              <span>비용캡: <span class="text-hq-accent" x-text="'$' + (gymConfig.cost_cap_usd || 20)"></span></span>
+            </div>
+
+            <!-- 진화 기록 테이블 -->
+            <template x-if="gymHistory.length > 0">
+              <div class="overflow-x-auto">
+                <table class="w-full text-xs">
+                  <thead>
+                    <tr class="text-hq-muted border-b border-hq-border/30">
+                      <th class="text-left py-1.5 pr-3">에이전트</th>
+                      <th class="text-center py-1.5 px-2">R</th>
+                      <th class="text-center py-1.5 px-2">결과</th>
+                      <th class="text-center py-1.5 px-2">점수</th>
+                      <th class="text-center py-1.5 px-2">변화</th>
+                      <th class="text-center py-1.5 px-2">비용</th>
+                      <th class="text-right py-1.5 pl-2">날짜</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <template x-for="h in gymHistory" :key="h.id">
+                      <tr class="border-b border-hq-border/10 hover:bg-hq-accent/5">
+                        <td class="py-1.5 pr-3 font-semibold text-hq-text" x-text="h.agent_name || h.agent_id"></td>
+                        <td class="text-center py-1.5 px-2 font-mono text-hq-muted" x-text="'R' + h.round_num"></td>
+                        <td class="text-center py-1.5 px-2">
+                          <span x-show="h.winner !== 'original'" class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-hq-green/20 text-hq-green" x-text="h.winner"></span>
+                          <span x-show="h.winner === 'original'" class="px-1.5 py-0.5 rounded text-[10px] bg-hq-muted/10 text-hq-muted">유지</span>
+                        </td>
+                        <td class="text-center py-1.5 px-2 font-mono" x-text="h.score_before.toFixed(0) + '→' + h.score_after.toFixed(0)"></td>
+                        <td class="text-center py-1.5 px-2 font-mono font-bold"
+                            :class="h.improvement > 0 ? 'text-hq-green' : h.improvement < 0 ? 'text-hq-red' : 'text-hq-muted'"
+                            x-text="(h.improvement > 0 ? '+' : '') + h.improvement.toFixed(0)"></td>
+                        <td class="text-center py-1.5 px-2 font-mono text-hq-muted" x-text="'$' + h.cost_usd.toFixed(2)"></td>
+                        <td class="text-right py-1.5 pl-2 text-[10px] text-hq-muted" x-text="h.created_at ? h.created_at.slice(5,16) : ''"></td>
+                      </tr>
+                    </template>
+                  </tbody>
+                </table>
+              </div>
+            </template>
+            <template x-if="gymHistory.length === 0">
+              <div class="text-center py-4 text-hq-muted/60 text-xs">아직 진화 기록이 없습니다. 첫 Dry Run을 실행해보세요.</div>
+            </template>
+          </div>
+        </div>
       </div></template>
 
       <!-- ═══ Tab: 아키텍처 맵 (Architecture Map) ═══ -->

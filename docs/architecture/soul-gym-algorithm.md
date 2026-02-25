@@ -1,219 +1,151 @@
-# Soul Gym — 알고리즘 설계 문서 (개발자용)
+# 🧬 Soul Gym 알고리즘 설계
 
-> 작성: 2026-02-25 | 구현 예정: 2026-02-26
-> 참조 논문: DGM (Sakana AI, arXiv:2505.22954), EvoPrompt (ICLR 2024, arXiv:2309.08532), OPRO (Google DeepMind, arXiv:2309.03409)
-
----
-
-## 1. 핵심 아이디어
-
-CORTHEX의 에이전트 Soul(시스템 프롬프트)을 **텍스트 DNA**로 취급하여,
-진화 알고리즘(Genetic Algorithm + LLM-guided mutation)으로 자동 최적화.
-
-| 개념 | 생물학 | Soul Gym |
-|------|--------|----------|
-| 유전자 | DNA 서열 | Soul 마크다운 텍스트 |
-| 적합도 | 생존/번식률 | QA 품질 점수 (0~100) |
-| 돌연변이 | 무작위 염기 변화 | Haiku가 생성한 Soul 변이 |
-| 선택압 | 자연선택 | 벤치마크 점수 기반 생존 |
-| 아카이브 | 화석 기록 | soul_gym_history 테이블 |
+> VSCode에서 이 파일 열고 **`Ctrl+Shift+V`** 누르면 다이어그램이 크게 보입니다.
 
 ---
 
-## 2. 참조 논문 핵심 정리
+## 1. 전체 흐름 (대표님용)
 
-### 2-1. Darwin Gödel Machine (Sakana AI, 2025)
-- **핵심**: AI가 자기 코드를 수정하고 벤치마크로 검증 → 개선되면 채택
-- **Archive Tree**: 모든 시도된 변이를 트리로 저장. 더 나은 것이 더 높은 확률로 선택됨
-- **성과**: SWE-bench 20% → 50% (80회 반복, $22,000 비용)
-- **CORTHEX 적용**: 코드 대신 Soul 텍스트를 수정. 비용 99% 절감
+```mermaid
+flowchart TD
+    START([🕐 월요일 03:00 KST\n크론 자동 실행\n또는 대표님 수동 실행])
 
-### 2-2. EvoPrompt (ICLR 2024)
-- **핵심**: 프롬프트를 유전자로, LLM을 돌연변이/교차 연산자로 사용
-- **두 가지 연산**: Mutation(1개 부모 변이) + Crossover(2개 부모 교배)
-- **성과**: BIG-Bench Hard에서 인간 설계 프롬프트 대비 25% 향상
-- **CORTHEX 적용**: Soul끼리 crossover (예: CIO 처장 × 가장 우수한 CIO 전문가)
+    START --> SELECT["📊 하위 N명 선별\n지난 2주 QA 점수 평균이\n낮은 팀장부터 순서대로"]
 
-### 2-3. OPRO (Google DeepMind)
-- **핵심**: Meta-prompt에 과거 시도 기록 + 점수를 포함 → LLM이 "이 패턴에서 더 나은 걸 만들어"
-- **핵심 구조**: `(시도1, 점수1), (시도2, 점수2), ... → 새로운 시도 생성`
-- **성과**: GSM8K +8%, BIG-Bench Hard +50%
-- **CORTHEX 적용**: 진화 히스토리를 meta-prompt에 포함하여 누적 학습
+    SELECT --> LOOP_START["🔁 팀장 1명씩 진화 시작\n최대 5명 / 비용 $10 초과 시 중단"]
 
----
+    LOOP_START --> LOAD["📂 현재 소울 로드\n1순위: DB soul_투자팀장\n2순위: souls/agents/cio_manager.md"]
 
-## 3. Soul Gym 알고리즘 (v1)
+    LOAD --> WARN["⚠️ 반복 실수 기록 로드\nmemory_categorized_에이전트\n안에 있는 warnings 카테고리"]
 
-```
-SOUL_GYM_EVOLVE(agent_id):
+    WARN --> GEN["🤖 Haiku가 변이 3개 생성\n\nVariant A — 규칙 추가형\n기존 소울에 새 규칙 1~2줄 추가\n\nVariant B — 표현 강화형\n기존 모호한 규칙을 더 구체적으로\n\nVariant C — 교차형\nA와 B의 장점을 섞어서"]
 
-  1. LOAD_BASELINE
-     soul_current = load_soul(agent_id)  # DB override > YAML
-     score_baseline = avg(last_5_qa_scores(agent_id))
-     warnings = load_warnings(agent_id)
-     history = load_evolution_history(agent_id)  # OPRO 방식
+    GEN --> BENCH["🏋️ 벤치마크 경기\n원본 소울 vs A vs B vs C\n각자 같은 시험지 3문제 풀기\n\n예: 투자팀장\n문제1 - PER 비교분석 + 투자의견\n문제2 - 금리 상승 시나리오 분석\n문제3 - 리스크 헤지 전략"]
 
-  2. GENERATE_VARIANTS (Haiku, $0.03)
-     meta_prompt = build_opro_meta_prompt(soul_current, warnings, history)
-     variant_A = mutate(soul_current, "instruction_add")   # 규칙 추가형
-     variant_B = mutate(soul_current, "structure_improve") # 구조 개선형
-     variant_C = crossover(soul_current, best_peer_soul(agent_id))  # 교차형
+    BENCH --> JUDGE["⚖️ Sonnet이 채점\n각 답변을 0~100점 평가\n\n채점 기준\nBLUF 형식 20점\n전문성 30점\n구체성 30점\n구조 20점"]
 
-  3. BENCHMARK_EVAL (원본 모델, $1.20)
-     For each soul in [soul_current, A, B, C]:
-       responses = []
-       For each q in BENCHMARK_QUESTIONS[agent.division]:  # 3문항
-         response = run_agent(soul=soul, question=q, model=agent.model)
-         score = qa_judge(response, q)  # Sonnet 판정
-         responses.append(score)
-       fitness[soul] = mean(responses)
+    JUDGE --> COMPARE{"🏆 비교\n최고 점수 변이가\n원본보다 높은가?"}
 
-  4. SELECT_WINNER
-     winner = argmax(fitness)
-     improvement = fitness[winner] - fitness[soul_current]
+    COMPARE -->|"아니요\n원본이 최고"| NOCHANGE["✅ 변경 없음\n이번 라운드 원본 유지\nDB에 기록만 남김"]
 
-  5. UPDATE
-     If improvement > MIN_THRESHOLD (기본값: +3점):
-       save_soul(agent_id, winner)    # DB: soul_{agent_id}
-       log_evolution(agent_id, winner, improvement, variants)
-       clear_warnings(agent_id)       # 학습 완료
-       notify_telegram(agent_id, improvement)
-     Else:
-       log_evolution(agent_id, None, 0, variants)  # 개선 없음 기록
+    COMPARE -->|"예\n개선 있음"| TELEGRAM["📱 텔레그램 알림\n대표님에게 전송\n\n🧬 투자팀장 진화 제안\n점수 67 → 81 +14점\n변경 내용 목표가 3시나리오 규칙 추가\n\n✅ 승인  ❌ 거부"]
 
-  6. RETURN
-     {winner_variant, score_delta, cost_usd, archive_entry}
+    TELEGRAM --> APPROVE{"대표님 결정"}
+
+    APPROVE -->|"✅ 승인"| SAVE["💾 DB에 새 소울 저장\nsoul_cio_manager 키에\n업데이트된 내용 덮어쓰기\n\n다음 분석부터 새 소울 적용"]
+
+    APPROVE -->|"❌ 거부"| REJECT["🚫 기존 소울 유지\n거부 이유 기록"]
+
+    SAVE --> RECORD["📝 soul_gym_rounds 테이블에\n결과 저장\n에이전트 라운드 점수변화\n채택 변이 비용 날짜"]
+
+    REJECT --> RECORD
+    NOCHANGE --> RECORD
+
+    RECORD --> NEXT{"다음 팀장\n있는가?"}
+
+    NEXT -->|"예"| LOOP_START
+    NEXT -->|"아니요\n또는 비용 $10 초과"| DONE["🎉 완료\n결과 요약 텔레그램 발송\n웹 UI Soul Gym 탭에서 확인"]
+
+    style START fill:#1a1a2e,color:#e0e0ff,stroke:#4a90e2,stroke-width:2px
+    style DONE fill:#1a2e1a,color:#e0ffe0,stroke:#4ae24a,stroke-width:2px
+    style TELEGRAM fill:#2e1a1a,color:#ffe0e0,stroke:#e24a4a,stroke-width:2px
+    style SAVE fill:#1a2e1a,color:#e0ffe0,stroke:#4ae24a,stroke-width:2px
+    style REJECT fill:#2e1a1a,color:#ffe0e0,stroke:#e24a4a,stroke-width:2px
+    style COMPARE fill:#2e2e1a,color:#ffffe0,stroke:#e2e24a,stroke-width:2px
+    style APPROVE fill:#2e2e1a,color:#ffffe0,stroke:#e2e24a,stroke-width:2px
+    style NOCHANGE fill:#1a2e2e,color:#e0ffff,stroke:#4ae2e2,stroke-width:2px
 ```
 
 ---
 
-## 4. 벤치마크 문항 설계 (`config/soul_gym_benchmarks.yaml`)
+## 2. 변이 3개 어떻게 만드나 (Haiku 프롬프트 구조)
 
-### 설계 원칙
-- 정답이 명확하거나 채점 기준이 명확한 질문
-- 에이전트 실제 업무와 동일한 도메인
-- 3문항 × 30초 응답 = 총 90초
+```mermaid
+flowchart LR
+    INPUT["입력 데이터\n━━━━━━━━━━━━━━━━\n현재 소울 앞 1500자\n최근 warnings 내용\n이전 라운드 기록\n예: Round1 +16점 채택\n예: Round2 -2점 기각"]
 
-### 부서별 문항
+    INPUT --> META["OPRO 메타프롬프트\n━━━━━━━━━━━━━━━━\n과거에 뭐가 효과 있었는지\n역사를 보고 판단해서 변이 생성\n\n이미 효과 없었던 방향은 피함\n이미 효과 있었던 방향은 강화"]
 
-**finance.investment (CIO팀):**
-```yaml
-- id: cio_q1
-  question: "삼성전자(005930) 현재 PER 13배, 업종 평균 15배, 최근 3개월 -12%.
-             BLUF 형식으로 단기/중기/장기 투자의견 + 목표가를 제시하시오."
-  scoring_criteria:
-    - BLUF 형식 준수 (결론 먼저)
-    - PER 비교 분석 포함
-    - 구체적 목표가 제시
-    - 근거 데이터 인용
+    META --> VA["Variant A\n규칙 추가형\n━━━━━━━━━━━━━━━━\n기존 소울 전체 유지\n새 규칙 1~2줄만 추가\n\n예시 추가 내용\n목표가는 단기 중기 장기\n3가지 시나리오로 제시할 것\n수치 인용 시 날짜와\n출처 반드시 명시할 것"]
 
-- id: cio_q2
-  question: "미국 10년 국채 금리 상승이 한국 성장주에 미치는 3가지 메커니즘을 분석하시오."
-  scoring_criteria:
-    - 할인율 효과 설명
-    - 환율 연동 분석
-    - 구체적 종목 예시
+    META --> VB["Variant B\n표현 강화형\n━━━━━━━━━━━━━━━━\n기존 규칙 중\n모호한 표현을 찾아서\n더 구체적으로 수정\n\n예시 변경\n분석하라\n→ PER PBR ROE 3개 모두\n수치로 비교 후 결론 제시"]
 
-- id: cio_q3
-  question: "포트폴리오 내 반도체 30%, IT 20%, 방어주 50% 구성에서
-             시장 급락 시나리오(-15%) 리스크 헤지 전략을 제시하시오."
-  scoring_criteria:
-    - 각 섹터별 영향 분석
-    - 구체적 헤지 방법
-    - 비용/효과 평가
-```
+    META --> VC["Variant C\n교차형\n━━━━━━━━━━━━━━━━\nA의 새 규칙 추가 +\nB의 표현 강화를\n동시에 적용\nEvoPrompt 교차 연산"]
 
-**leet_master.strategy (CSO팀):**
-```yaml
-- id: cso_q1
-  question: "2026년 AI 에이전트 SaaS 시장에서 후발 주자가
-             선발 주자(OpenAI, Anthropic)와 차별화할 수 있는 3가지 전략을 제시하시오."
+    style META fill:#1a1a2e,color:#e0e0ff,stroke:#4a90e2
+    style VA fill:#1a2e2e,color:#e0ffff,stroke:#4ae2e2
+    style VB fill:#2e1a2e,color:#ffe0ff,stroke:#e24ae2
+    style VC fill:#2e2e1a,color:#ffffe0,stroke:#e2e24a
 ```
 
 ---
 
-## 5. 새로운 파일 목록
+## 3. 채점 방식 (LLM-as-Judge)
 
-```
-web/
-├── soul_gym_engine.py          # 핵심 진화 엔진 (신규)
-├── handlers/
-│   └── soul_gym_handler.py     # API 엔드포인트 (기존 파일 있음 → 기능 확장)
-config/
-└── soul_gym_benchmarks.yaml    # 부서별 벤치마크 문항 (신규)
-docs/
-└── architecture/
-    └── soul-gym-algorithm.md   # 이 파일
-```
+```mermaid
+flowchart TD
+    Q["📋 벤치마크 문제 예시\n━━━━━━━━━━━━━━━━━━━━━━━━━\n투자팀장 문제 1번\n\n삼성전자 현재 PER 13배\n반도체 업종 평균 PER 15배\n최근 3개월 주가 -12%\n영업이익 전년 대비 +40%\n\nBLUF 형식으로\n단기 1달 / 중기 3달 / 장기 1년\n투자의견과 목표가를 제시하시오"]
 
-## 6. DB 스키마
+    Q --> RUN4["4개 소울로 각각 실행\n━━━━━━━━━━━━━━━━━━\n원본 소울 → 답변 원본\nVariant A 소울 → 답변 A\nVariant B 소울 → 답변 B\nVariant C 소울 → 답변 C"]
 
-```sql
--- 진화 라운드 기록
-CREATE TABLE soul_gym_rounds (
-    id          INTEGER PRIMARY KEY AUTOINCREMENT,
-    agent_id    TEXT NOT NULL,
-    round_num   INTEGER,
-    soul_before TEXT,                    -- 진화 전 soul 해시 (앞 100자)
-    soul_after  TEXT,                    -- 진화 후 soul 해시
-    winner      TEXT,                    -- 'original'|'A'|'B'|'C'
-    score_before REAL,
-    score_after  REAL,
-    improvement  REAL,
-    cost_usd    REAL,
-    variants_json TEXT,                  -- JSON: {A: soul텍스트, B: ..., scores: {...}}
-    created_at  TEXT
-);
+    RUN4 --> JUDGE_PROMPT["Sonnet 채점\n━━━━━━━━━━━━━━━━━━\nBLUF 형식 20점\n결론이 첫 줄에 있는가\n\n전문성 30점\nPER PBR 수치 정확한가\n금융 논리가 맞는가\n\n구체성 30점\n목표가가 숫자로 있는가\n시나리오 3개 있는가\n\n구조 20점\n가독성 표 항목 구분"]
 
--- 현재 사용 중인 soul 버전 추적
--- (기존 settings 테이블의 soul_{agent_id} 키 사용, 변경 없음)
+    JUDGE_PROMPT --> SCORES["채점 결과\n━━━━━━━━━━━━━━━━━━\n원본   63점\nVariant A   79점 ← 최고\nVariant B   71점\nVariant C   68점"]
+
+    SCORES --> AVG["문제 3개 평균\n━━━━━━━━━━━━━━━━━━\n원본 평균   65점\nVariant A 평균   77점 ← 채택 후보\nVariant B 평균   69점\nVariant C 평균   66점\n\n개선폭 +12점 → 텔레그램 승인 요청"]
+
+    style SCORES fill:#1a2e1a,color:#e0ffe0,stroke:#4ae24a
+    style AVG fill:#1a2e1a,color:#e0ffe0,stroke:#4ae24a
+    style JUDGE_PROMPT fill:#1a1a2e,color:#e0e0ff,stroke:#4a90e2
 ```
 
 ---
 
-## 7. API 설계
+## 4. 기존 시스템과 관계 (충돌 없음)
 
-| Method | Endpoint | 설명 |
-|--------|----------|------|
-| POST | `/api/soul-gym/evolve/{agent_id}` | 1개 에이전트 즉시 진화 |
-| POST | `/api/soul-gym/evolve-all` | 전 에이전트 순차 진화 |
-| GET | `/api/soul-gym/history` | 진화 트리 히스토리 |
-| GET | `/api/soul-gym/status` | 현재 진화 중인 에이전트 상태 |
-| GET | `/api/soul-gym/benchmarks` | 벤치마크 문항 목록 |
+```mermaid
+flowchart LR
+    subgraph OLD["⚡ 기존 Soul Evolution\n일요일 03:00\n건드리지 않음"]
+        W["warnings 쌓임\n실수할 때마다 기록"] --> SE["패턴 분석\n→ 대표님 제안\n→ 승인 시 적용"]
+    end
 
----
+    subgraph NEW["🧬 신규 Soul Gym\n월요일 03:00\n이번에 새로 만드는 것"]
+        QA["QA 점수 낮은 팀장\n자동 선별"] --> SG["경기로 직접 증명\n원본 vs 변이 3개\n→ 최고 점수 채택"]
+    end
 
-## 8. 비용 추정
+    SE --> DB[("DB\nsoul_에이전트ID\n하나의 저장소")]
+    SG --> DB
 
-| 항목 | 모델 | 호출 | 단가 | 소계 |
-|------|------|------|------|------|
-| 변이 생성 (3개) | Haiku | 3회 | $0.01 | $0.03 |
-| 벤치마크 응답 (4 souls × 3 문항) | Sonnet | 12회 | $0.10 | $1.20 |
-| QA 판정 (12회) | Sonnet | 12회 | $0.05 | $0.60 |
-| 진화 방향 분석 | Sonnet | 1회 | $0.10 | $0.10 |
-| **에이전트 1명 총합** | | **28회** | | **~$1.93** |
-| **전체 29명 (주1회)** | | | | **~$56** |
-| **상위 5명만 진화** | | | | **~$10** |
+    DB --> AGENT["에이전트\n다음 분석 시\n최신 소울 사용"]
 
-→ **권장: QA 점수 하위 5명만 주1회 진화. 월 비용 $40.**
+    style OLD fill:#1a1a2e,stroke:#4a90e2,color:#e0e0ff
+    style NEW fill:#1a2e1a,stroke:#4ae24a,color:#e0ffe0
+    style DB fill:#2e1a2e,stroke:#e24ae2,color:#ffe0ff
+```
 
 ---
 
-## 9. 안전장치
+## 5. Phase별 구현 계획
 
-1. **MIN_THRESHOLD = +3점**: 3점 미만 개선은 노이즈로 간주, 미채택
-2. **CEO 알림**: 채택 시 텔레그램으로 "어떤 에이전트가 어떻게 변했는지" 통보
-3. **롤백**: `soul_gym_rounds` 테이블의 `soul_before`로 언제든 복구 가능
-4. **비용 캡**: 1회 실행 비용이 $5 초과 시 중단 (설정 가능)
-5. **Dry-run 모드**: `dry_run=true`로 실제 저장 없이 테스트
+| Phase | 파일 | 작업 | 규모 |
+|-------|------|------|------|
+| **1** | `web/db.py` | `soul_gym_rounds` 테이블 추가 + 함수 2개 | +50줄 |
+| **2** | `config/soul_gym_benchmarks.yaml` | 6부서 × 3문항 벤치마크 (신규) | 새 파일 |
+| **3** | `web/soul_gym_engine.py` | 핵심 진화 엔진 5개 함수 (신규) | ~300줄 |
+| **4** | `web/handlers/soul_gym_handler.py` | API 엔드포인트 5개 (신규) | ~100줄 |
+| **5** | `web/mini_server.py` | 크론 3줄 + include_router 2줄 | +5줄 |
+| **6** | `web/templates/index.html` | 전력분석 탭 Soul Gym 섹션 | +80줄 |
+| **7** | 서버 테스트 | Dry Run → 결과 확인 → 실제 실행 | 검증 |
 
 ---
 
-## 10. 기존 시스템과의 관계
+## 6. 비용 시뮬레이션
 
-| 시스템 | 트리거 | 목적 | 자동화 |
-|--------|--------|------|--------|
-| **기존 `soul_evolution_handler.py`** | 경고(warnings) 누적 | 반복 실수 패턴 수정 제안 → CEO 승인 | 반자동 |
-| **새 `soul_gym_engine.py`** | 주간 자동 + 수동 | 경쟁 테스트로 성능 최고 soul 선택 | 완전 자동 |
-
-두 시스템은 **상호 보완**: Soul Gym이 선택한 winner soul에 기존 evolution이 경고 기반 규칙 추가.
+| 항목 | 모델 | 1명당 비용 |
+|------|------|-----------|
+| 변이 A/B/C 생성 | Haiku | ~$0.15 |
+| 벤치마크 실행 (4소울 × 3문항) | 원본 모델 | ~$3.60 |
+| QA 채점 (12회) | Sonnet | ~$2.40 |
+| **팀장 1명 합계** | | **~$6** |
+| 비용 캡 $10 적용 시 | | **2명만 진화** |
+| 비용 캡 $20 적용 시 | | **3~4명 진화** |
