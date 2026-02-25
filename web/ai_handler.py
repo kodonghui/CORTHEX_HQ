@@ -1316,38 +1316,46 @@ async def ask_ai(
                         logger.error("429 재시도 %d/5 중 다른 에러: %s", retry_i, retry_err[:200])
                         break
                     logger.warning("429 재시도 %d/5 실패 (%s)", retry_i, model)
-            logger.error("429 재시도 5회 모두 실패 (%s/%s)", provider, model)
-            return {"error": f"AI 호출 실패 ({provider}): 요율 제한 5회 재시도 모두 실패 — {err_str[:300]}"}
+            logger.error("429 재시도 5회 모두 실패 (%s/%s) → 다른 프로바이더로 폴백 시도", provider, model)
+            # 429 5회 실패 → 다른 프로바이더로 폴백
+            _fb_429 = _pick_fallback_model(provider, exclude=provider)
+            if _fb_429:
+                _fb_429_provider = _get_provider(_fb_429)
+                logger.warning("429 프로바이더 폴백: %s → %s (%s)", model, _fb_429, _fb_429_provider)
+                try:
+                    return await ask_ai(
+                        user_message, system_prompt, model=_fb_429,
+                        tools=tools, tool_executor=tool_executor,
+                        reasoning_effort=reasoning_effort,
+                        conversation_history=conversation_history,
+                    )
+                except Exception as fb_e:
+                    logger.error("429 폴백도 실패: %s", str(fb_e)[:200])
+            return {"error": f"AI 호출 실패 ({provider}): 요율 제한 5회 재시도 + 폴백 모두 실패 — {err_str[:300]}"}
 
-        # 404 에러 (모델 미지원): 동일 프로바이더 내 폴백 모델로 재시도
+        # 404 에러 (모델 미지원): 동일 프로바이더 내 폴백 → 다른 프로바이더 폴백
         if "404" in err_str or "NotFoundError" in err_type:
-            _FALLBACK_MODELS = {"gpt-5.2-pro": "gpt-5.2", "gpt-5.2": "gpt-5", "gpt-5": "gpt-5-mini"}
+            _FALLBACK_MODELS = {
+                # OpenAI 체인
+                "gpt-5.2-pro": "gpt-5.2", "gpt-5.2": "gpt-5", "gpt-5": "gpt-5-mini",
+                # Anthropic 체인
+                "claude-opus-4-6": "claude-sonnet-4-6", "claude-sonnet-4-6": "claude-haiku-4-5-20251001",
+                # Google 체인
+                "gemini-3.1-pro-preview": "gemini-2.5-pro", "gemini-2.5-pro": "gemini-2.5-flash",
+            }
             fallback = _FALLBACK_MODELS.get(model)
+            if not fallback:
+                # 동일 프로바이더 내 폴백 없으면 다른 프로바이더로
+                fallback = _pick_fallback_model(provider, exclude=provider)
             if fallback:
                 logger.warning("모델 %s 404 에러 → %s로 폴백 재시도", model, fallback)
                 try:
-                    coro = _call_openai(
-                        user_message, system_prompt, fallback,
-                        tools=provider_tools, tool_executor=tool_executor,
+                    return await ask_ai(
+                        user_message, system_prompt, model=fallback,
+                        tools=tools, tool_executor=tool_executor,
                         reasoning_effort=reasoning_effort,
                         conversation_history=conversation_history,
-                        ai_call_timeout=AI_CALL_TIMEOUT,
                     )
-                    result = await coro
-                    elapsed = time.time() - start
-                    input_tokens = result.get("input_tokens", 0)
-                    output_tokens = result.get("output_tokens", 0)
-                    cost = _calc_cost(fallback, input_tokens, output_tokens)
-                    return {
-                        "content": result["content"],
-                        "model": fallback,
-                        "provider": provider,
-                        "input_tokens": input_tokens,
-                        "output_tokens": output_tokens,
-                        "cost_usd": round(cost, 6),
-                        "time_seconds": round(elapsed, 2),
-                        "fallback_from": model,
-                    }
                 except Exception as fallback_e:
                     logger.error("폴백 모델 %s도 실패: %s", fallback, str(fallback_e)[:200])
 
