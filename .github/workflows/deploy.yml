@@ -384,13 +384,14 @@ jobs:
               echo "✅ YouTube Data API (OAuth2) 설정 완료"
             fi
             if [ -n "${NOTION_DB_SECRETARY_VAR}" ] || [ -n "${NOTION_DB_OUTPUT_VAR}" ]; then
-              sed -i '/^NOTION_DB_SECRETARY/d; /^NOTION_DB_OUTPUT/d; /^NOTION_DEFAULT_DB_ID/d' "$ENV_FILE"
+              sed -i '/^NOTION_DB_SECRETARY/d; /^NOTION_DB_OUTPUT/d; /^NOTION_DEFAULT_DB_ID/d; /^NOTION_DB_ARCHIVE/d' "$ENV_FILE"
               echo "NOTION_DB_SECRETARY=${NOTION_DB_SECRETARY_VAR}" >> "$ENV_FILE"
               echo "NOTION_DB_OUTPUT=${NOTION_DB_OUTPUT_VAR}" >> "$ENV_FILE"
+              echo "NOTION_DB_ARCHIVE=31256b49-78dc-81c9-9ad2-e31a076d0d97" >> "$ENV_FILE"
               if [ -n "${NOTION_DB_ID}" ]; then
                 echo "NOTION_DEFAULT_DB_ID=${NOTION_DB_ID}" >> "$ENV_FILE"
               fi
-              echo "✅ Notion DB ID 설정 완료 (비서실 DB / 에이전트 산출물 DB)"
+              echo "✅ Notion DB ID 설정 완료 (비서실/산출물/아카이브)"
             fi
 
             # 5.9단계: Google OAuth + SNS 계정 설정
