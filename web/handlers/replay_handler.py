@@ -14,10 +14,10 @@ logger = logging.getLogger("corthex")
 router = APIRouter(tags=["replay"])
 
 
-# ── mini_server 참조 헬퍼 ──
+# ── arm_server 참조 헬퍼 ──
 def _ms():
-    """mini_server 모듈 참조."""
-    return sys.modules.get("mini_server") or sys.modules.get("web.mini_server")
+    """arm_server 모듈 참조."""
+    return sys.modules.get("arm_server") or sys.modules.get("web.arm_server")
 
 
 def _agent_names() -> dict:

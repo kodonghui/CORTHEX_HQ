@@ -56,7 +56,7 @@ model = config.models['default']
 
 | 단계 | 분리 대상 | 효과 |
 |------|-----------|------|
-| 1 | `mini_server.py` → handler 8개 분리 | 8,500줄 → 평균 500줄/파일 |
+| 1 | `arm_server.py` → handler 8개 분리 | 8,500줄 → 평균 500줄/파일 |
 | 2 | `config/agents.yaml` + `models.yaml` | 모델 변경 시 코드 수정 0건 |
 | 3 | `_loadScript()` 동적 CDN 로드 | 초기 로딩 2.8초 → 1.2초 |
 | 4 | `template x-if` lazy 렌더링 | DOM 노드 8,000 → 3,000 |

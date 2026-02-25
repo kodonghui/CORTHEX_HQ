@@ -1,7 +1,7 @@
 """예약(Schedule) · 워크플로우(Workflow) CRUD API.
 
 비유: 달력/플래너 — 예약 작업과 워크플로우를 만들고 관리하는 곳.
-워크플로우 실행(/run)은 AI 의존성이 있어 mini_server.py에 남아 있습니다.
+워크플로우 실행(/run)은 AI 의존성이 있어 arm_server.py에 남아 있습니다.
 """
 from datetime import datetime, timezone, timedelta
 

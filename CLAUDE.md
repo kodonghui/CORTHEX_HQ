@@ -6,7 +6,7 @@
 - **모든 부서 처장(CIO/CSO/CLO/CMO/CPO)은 전문가와 별개로 독자 분석을 병렬 수행**
 - 구조: [처장 독자분석 + 전문가 N명] 병렬 gather → 전부 합쳐서 종합
 - "종합할 때 도구 써라"(프롬프트 의존) ❌ → "독자분석 따로 돌려"(구조적 강제) ✅
-- 이 구조를 깨뜨리는 코드 변경 절대 금지 | 코드: `_manager_with_delegation()` in mini_server.py
+- 이 구조를 깨뜨리는 코드 변경 절대 금지 | 코드: `_manager_with_delegation()` in arm_server.py
 
 ## 🔴 실시간 분석 모니터링 — 1분마다 보고!
 - "로그 확인해" / "분석 모니터링" → `/api/activity-logs` 1분마다 자동 보고
@@ -184,7 +184,7 @@ gh run list --workflow=deploy.yml --limit=1
 - 리트마스터: https://github.com/kodonghui/leet-master
 
 ## 서버 우선 원칙
-- 기계적 처리(태그, 형식 검증)는 서버 코드(`mini_server.py`). 에이전트는 "생각하는 일"에 집중
+- 기계적 처리(태그, 형식 검증)는 서버 코드(`arm_server.py`). 에이전트는 "생각하는 일"에 집중
 
 ## 🔴 새 기능 구현 — 반드시 최신 레퍼런스 분석 후 착수!
 

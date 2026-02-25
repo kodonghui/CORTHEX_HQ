@@ -8,8 +8,8 @@
 # ───────────────────────────────────────────────────────────────
 # Web Framework (FastAPI 기반 웹 애플리케이션)
 # ───────────────────────────────────────────────────────────────
-fastapi>=0.104.0  # web/app.py, web/mini_server.py, web/ws_manager.py
-uvicorn[standard]>=0.24.0  # web/mini_server.py, run_web.py
+fastapi>=0.104.0  # web/app.py, web/arm_server.py, web/ws_manager.py
+uvicorn[standard]>=0.24.0  # web/arm_server.py, run_web.py
 jinja2>=3.1.0  # FastAPI templates (web/app.py)
 python-multipart>=0.0.6  # FastAPI file uploads
 

@@ -84,7 +84,7 @@ CORTHEX_HQ/
 |   |-- tools/           # 도구 풀 125개+ (투자/법률/마케팅/SNS)
 |   |-- telegram/        # 텔레그램 봇
 |-- web/
-|   |-- mini_server.py   # 운영 서버 (FastAPI)
+|   |-- arm_server.py   # 운영 서버 (FastAPI)
 |   |-- ai_handler.py    # AI 요청 처리 + 도구 자동호출
 |   |-- kis_client.py    # KIS 증권 API 클라이언트
 |   |-- templates/       # CEO 관제실 SPA

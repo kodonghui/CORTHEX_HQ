@@ -64,7 +64,7 @@ CORTHEX HQ는 29명의 AI 에이전트로 구성된 가상 회사다.
    - httpx 또는 aiohttp 사용 (비동기)
    - Notion API 버전: 2022-06-28
 
-2. **`web/mini_server.py`에 노션 API 엔드포인트 추가**
+2. **`web/arm_server.py`에 노션 API 엔드포인트 추가**
    - `POST /api/notion/report` — 에이전트가 보고서를 노션에 제출
      - body: `{ agent_id, title, content, type, status }`
      - 에이전트별 Agent/Division 값은 소울 파일에 정의되어 있음
@@ -86,7 +86,7 @@ CORTHEX HQ는 29명의 AI 에이전트로 구성된 가상 회사다.
 - `souls/agents/chief_of_staff.md` — 비서실장의 노션 보고 규칙 예시 (다른 에이전트도 동일 구조)
 - `docs/TODO-에이전트-설정.md` — 에이전트별 보고 대상 노션 DB 매핑표
 - `config/tools.yaml` — notion_api 도구 설정 (161번 줄)
-- `web/mini_server.py` — 메인 서버 (노션 키 존재 확인: os.getenv("NOTION_API_KEY"))
+- `web/arm_server.py` — 메인 서버 (노션 키 존재 확인: os.getenv("NOTION_API_KEY"))
 - `web/ai_handler.py` — AI 호출 모듈
 
 ### Notion API 사용법 요약
@@ -126,7 +126,7 @@ CORTHEX HQ에는 SNS 매니저 시스템이 이미 구현되어 있다:
 - ✅ 승인 후 CMO가 실제 퍼블리싱 실행 (action=publish)
 - ❌ 하지만 실제로 인스타그램/유튜브에 글이 올라가지는 않음 (API 키 미등록, OAuth 미설정)
 
-### 현재 SNS 관련 엔드포인트 (mini_server.py)
+### 현재 SNS 관련 엔드포인트 (arm_server.py)
 | 경로 | 메서드 | 설명 |
 |------|--------|------|
 | /api/sns/status | GET | SNS 상태 조회 |
@@ -171,7 +171,7 @@ CORTHEX HQ에는 SNS 매니저 시스템이 이미 구현되어 있다:
 - 이 작업은 CEO와의 대화가 필요한 부분이 많음
 
 ### 참고 파일
-- web/mini_server.py — SNS 엔드포인트 (751~803줄)
+- web/arm_server.py — SNS 엔드포인트 (751~803줄)
 - config/tools.yaml — sns_manager 도구 설정 (51번 줄)
 - config/agents.yaml — CMO/콘텐츠 Specialist의 SNS 관련 설정
 

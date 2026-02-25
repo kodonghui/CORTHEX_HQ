@@ -10,13 +10,13 @@
 
 ### 1. 에이전트 간 P2P 협업 (B안 승인)
 - **내용**: 각 에이전트가 필요하면 다른 에이전트를 도구로 직접 호출
-- **구현 위치**: `config/tools.yaml`에 `ask_agent` 도구 추가 + `ai_handler.py` + `mini_server.py`
+- **구현 위치**: `config/tools.yaml`에 `ask_agent` 도구 추가 + `ai_handler.py` + `arm_server.py`
 - **우선순위**: 중간 (설계 논의 중)
 
 ### 2. 내부통신 실시간화 (SSE 방식 — 승인)
 - **내용**: 5초 폴링 → SSE(Server-Sent Events) 즉시 반영으로 교체
 - **구현**: BE에 `EventSourceResponse`, FE에 `EventSource` 구독
-- **수정 파일**: `mini_server.py` + `index.html`
+- **수정 파일**: `arm_server.py` + `index.html`
 
 ### 3. 인터벌 누수 버그 수정 (승인)
 - **위치**: `index.html`의 `toggleDelegationLog()` 함수
@@ -57,7 +57,7 @@
 - **A안**: 부서 탭 + 중요도 드롭다운 (전체/임원급/일반)
 - **B안**: 태그 시스템 (#임원급 #전략실 #긴급 등, 다중 선택)
 - **문서 구조 변경**: `tags: ["임원급", "전략실"]` 배열 추가 필요
-- **수정 파일**: `index.html`, `mini_server.py`
+- **수정 파일**: `index.html`, `arm_server.py`
 
 ### 9. 오타 수정 (승인)
 - "실거래 ▼ ∨" → 중복 화살표 제거

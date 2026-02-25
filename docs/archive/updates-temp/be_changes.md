@@ -31,7 +31,7 @@ claude/autonomous-system-v3
   - 인덱스 4개 추가 (sender, receiver, task_id, created_at)
   - `save_delegation_log()` 함수 추가 — 로그 1건 저장
   - `list_delegation_logs()` 함수 추가 — 최근순 조회, agent 파라미터로 필터 가능
-- **수정 파일 2**: `web/mini_server.py`
+- **수정 파일 2**: `web/arm_server.py`
   - `GET /api/delegation-log` 엔드포인트 추가 — 최근 100개 조회, `?agent=에이전트명`으로 필터
   - `POST /api/delegation-log` 엔드포인트 추가 — body: {sender, receiver, message, task_id?, log_type?}
   - `_delegate_to_specialists()` 함수에 위임 자동 기록 추가:
@@ -39,7 +39,7 @@ claude/autonomous-system-v3
     - 전문가 결과가 처장에게 반환될 때 → `log_type="report"`으로 자동 저장
 
 ### 작업 3: 도구 호출 횟수 기반 WebSocket 진행률 이벤트
-- **수정 파일**: `web/mini_server.py`
+- **수정 파일**: `web/arm_server.py`
 - **수정 위치**: `_call_agent()` 내부의 `_tool_executor()` 클로저
 - **추가 내용**:
   - `_MAX_TOOL_CALLS = 5` 상수 정의 (무한 루프 방지 기준값과 동일)
@@ -54,13 +54,13 @@ claude/autonomous-system-v3
 |------|---------|
 | `src/llm/openai_provider.py` | reasoning 모델 max_completion_tokens 자동 전환 |
 | `web/db.py` | delegation_log 테이블 + CRUD 함수 2개 추가 |
-| `web/mini_server.py` | delegation-log API 2개 + 위임 자동 기록 + tool_calls WebSocket 이벤트 |
+| `web/arm_server.py` | delegation-log API 2개 + 위임 자동 기록 + tool_calls WebSocket 이벤트 |
 | `config/agents.json` | yaml2json.py 재실행으로 재생성 |
 | `config/tools.json` | yaml2json.py 재실행으로 재생성 |
 | `config/quality_rules.json` | yaml2json.py 재실행으로 재생성 |
 
 ### 추가 작업: delegation_log WebSocket broadcast + /api/consult 엔드포인트
-- **수정 파일**: `web/mini_server.py` (4741~4830줄 구간)
+- **수정 파일**: `web/arm_server.py` (4741~4830줄 구간)
 - `POST /api/delegation-log`: 저장 후 `delegation_log_update` WebSocket 이벤트를 모든 connected_clients에 broadcast 추가 (4762~4775줄)
 - `POST /api/consult` 신규 엔드포인트 추가: body {from_agent, to_agent, question, context?} → DB 저장(log_type="consult") + WebSocket broadcast (4783~4830줄)
 - grep 검증: `delegation_log_update` 2곳(4774, 4823줄), `consult_manager_api` 1곳(4783줄) — 명세대로

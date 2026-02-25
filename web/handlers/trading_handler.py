@@ -2,7 +2,7 @@
 
 비유: 재무팀 — 투자 관련 데이터 조회·저장·주문 실행을 담당하는 곳.
 
-추출 제외 (mini_server.py에 남음):
+추출 제외 (arm_server.py에 남음):
   - /api/trading/signals/generate (CIO 분석 파이프라인)
   - /api/trading/bot/toggle (봇 루프 시작/중지)
   - /api/trading/bot/run-now (_run_trading_now_inner)
@@ -66,7 +66,7 @@ router = APIRouter(tags=["trading"])
 # ═══════════════════════════════════════════════════════════════
 
 def _load_data(name: str, default=None):
-    """DB에서 설정 데이터 로드. (mini_server._load_data와 동일)"""
+    """DB에서 설정 데이터 로드. (arm_server._load_data와 동일)"""
     db_val = load_setting(name)
     if db_val is not None:
         return db_val

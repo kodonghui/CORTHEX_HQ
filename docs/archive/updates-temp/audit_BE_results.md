@@ -7,7 +7,7 @@
 2026-02-18
 
 ## 담당 파일
-`web/mini_server.py` (총 7083줄 → 수정 후 7076줄)
+`web/arm_server.py` (총 7083줄 → 수정 후 7076줄)
 
 ---
 
@@ -29,7 +29,7 @@
 
 ### BUG-1: gpt-5.1 허가되지 않은 모델명 (수정 완료)
 
-- **위치**: `mini_server.py` 4666줄, `get_available_models()` 함수 내부
+- **위치**: `arm_server.py` 4666줄, `get_available_models()` 함수 내부
 - **문제**: `gpt-5.1`이 CLAUDE.md 허용 모델 목록에 없는 존재하지 않는 모델명
 - **영향**: 사용자가 모델 선택 화면에서 이 모델을 선택하면 API 오류 발생
 - **수정**: 해당 항목(7줄) 전체 삭제
@@ -53,7 +53,7 @@
 
 ### 1. 금지 모델명 — 0건 확인
 
-아래 금지 모델명이 mini_server.py에 존재하는지 grep 검사:
+아래 금지 모델명이 arm_server.py에 존재하는지 grep 검사:
 
 | 금지 모델명 | 검사 결과 |
 |-----------|---------|
@@ -118,7 +118,7 @@ monthly = get_monthly_cost()
 
 ### 주의-1: /api/operations 와 /api/commander 엔드포인트 없음
 
-- **발견**: `mini_server.py`에 `/api/operations` 또는 `/api/commander` 경로가 **존재하지 않음**
+- **발견**: `arm_server.py`에 `/api/operations` 또는 `/api/commander` 경로가 **존재하지 않음**
 - **grep 결과**: 0건
 - **의미**: 프론트엔드(index.html)의 "작전현황" 탭과 "사령관실" 탭이 이 API를 호출한다면 404 오류 발생
 - **조치 필요**: FE 팀에서 index.html을 확인하여 실제로 이 API를 호출하는 코드가 있는지, 있다면 어떤 데이터가 필요한지 파악 후 BE 구현 필요
@@ -129,7 +129,7 @@ monthly = get_monthly_cost()
 
 | 파일 | 수정 내용 | 줄 |
 |------|---------|---|
-| `web/mini_server.py` | `gpt-5.1` 허가되지 않은 모델 항목 삭제 (7줄 제거) | 4665~4672 |
+| `web/arm_server.py` | `gpt-5.1` 허가되지 않은 모델 항목 삭제 (7줄 제거) | 4665~4672 |
 | `config/models.yaml` | `gpt-5.1` 모델 항목 삭제 (7줄 제거) | 25~31 |
 | `src/tools/token_counter.py` | `_MODEL_ENCODINGS`에서 `gpt-5.1` 매핑 삭제 (1줄 제거) | 28 |
 

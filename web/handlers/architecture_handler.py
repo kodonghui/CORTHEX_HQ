@@ -21,7 +21,7 @@ KST = timezone(timedelta(hours=9))
 @router.get("/hierarchy")
 async def get_hierarchy():
     """에이전트 계층 구조를 반환합니다 (Mermaid 렌더링용)."""
-    from mini_server import AGENTS, _AGENTS_DETAIL
+    from arm_server import AGENTS, _AGENTS_DETAIL
 
     nodes = []
     edges = []
@@ -78,7 +78,7 @@ async def get_cost_by_agent_api(period: str = Query("month")):
 @router.get("/cost-by-division")
 async def get_cost_by_division_api(period: str = Query("month")):
     """부서별 비용을 집계합니다."""
-    from mini_server import AGENTS
+    from arm_server import AGENTS
 
     raw = get_cost_by_agent_raw(period)
     agent_costs = raw.get("agent_costs", {})

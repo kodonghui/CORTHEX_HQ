@@ -1,6 +1,6 @@
 """YAML → JSON 변환 스크립트.
 deploy.yml에서 배포 시 실행하여 agents.yaml, tools.yaml을 JSON으로 변환.
-mini_server.py가 PyYAML 없이도 설정 파일을 읽을 수 있도록 하기 위함.
+arm_server.py가 PyYAML 없이도 설정 파일을 읽을 수 있도록 하기 위함.
 
 사용법: python3 yaml2json.py [config_dir1] [config_dir2] ...
 인자 없이 실행하면 기본 경로 2곳 모두 변환.

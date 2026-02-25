@@ -22,10 +22,10 @@
 
 | # | 내용 | 파일 | 상태 |
 |---|------|------|------|
-| 0-1 | **CIO 보고서 잘림** — 서버 로그에서 원인 확정 (토큰 한도 vs AI 장문). 대표님: "max token 늘리면 되는 일 아냐?" → 로그 먼저 확인 후 판단 | `web/mini_server.py`, `web/ai_handler.py` | ⬜ |
+| 0-1 | **CIO 보고서 잘림** — 서버 로그에서 원인 확정 (토큰 한도 vs AI 장문). 대표님: "max token 늘리면 되는 일 아냐?" → 로그 먼저 확인 후 판단 | `web/arm_server.py`, `web/ai_handler.py` | ⬜ |
 | 0-2 | **Soul Evolution 자동 승인** — 대표님: "귀찮아 버려 알아서하라해" → CEO 승인 단계 제거, 개선안 자동 적용 | `web/handlers/soul_evolution_handler.py` | ⬜ |
-| 0-3 | **Soul Gym 24/7 상시 운영** — 대표님: "24시간 7일 내내 하라니까" → 매주 월요일 크론 → 상시 루프로 변경. 비용: 라운드당 ~$0.012 | `web/mini_server.py`, `web/soul_gym_engine.py` | ⬜ |
-| 0-4 | **conversation_id 전달 버그** — 에이전트 호출 체인에서 conversation_id 누락 → `NameError` | `web/mini_server.py` | ✅ 빌드#594 |
+| 0-3 | **Soul Gym 24/7 상시 운영** — 대표님: "24시간 7일 내내 하라니까" → 매주 월요일 크론 → 상시 루프로 변경. 비용: 라운드당 ~$0.012 | `web/arm_server.py`, `web/soul_gym_engine.py` | ⬜ |
+| 0-4 | **conversation_id 전달 버그** — 에이전트 호출 체인에서 conversation_id 누락 → `NameError` | `web/arm_server.py` | ✅ 빌드#594 |
 
 ### Phase 1 — CIO 반려 원인 분석 + 검수 시스템 점검
 
@@ -69,7 +69,7 @@
 
 | # | 내용 |
 |---|------|
-| 4-1 | **mini_server.py 9,866줄** — 모듈 분리 상태 점검 (리팩토링 14단계 중 Step 1만 완료) |
+| 4-1 | **arm_server.py 9,866줄** — 모듈 분리 상태 점검 (리팩토링 14단계 중 Step 1만 완료) |
 | 4-2 | **handler 27개** 파일 역할 중복/누락 검토 |
 | 4-3 | **17-cutting-edge 전부 검토** — S1(WebGPU), S2(장기기억), A2(MCP), B3(Agent SDK) 각 기술 적용 가능성 재평가 |
 | 4-4 | **AI 프로바이더 폴백** 실제 동작 테스트 — Anthropic 소진 시 Google/OpenAI 전환 검증 |
@@ -82,7 +82,7 @@
 | 5-1 | **NEXUS 재설계** — 왼쪽: Mermaid 시스템 플로우차트 (기능이 어떻게 돌아가는지), 오른쪽: Excalidraw SketchVibe 캔버스 (대표님 손그림 → Claude 정식 다이어그램) | 3D→2D 전환 확정 (`knowhow/14`) |
 | 5-2 | **Soul Gym 전 팀장 확장** — 6팀장 맞춤 벤치마크 (`docs/architecture/soul-gym-benchmarks.md`) |
 | 5-3 | **신기술 도입** — 17번에서 확정된 것들 |
-| 5-4 | **mini_server.py 이름 변경** + 추가 리팩토링 |
+| 5-4 | **arm_server.py 이름 변경** + 추가 리팩토링 |
 
 ---
 

@@ -15,7 +15,7 @@
 ## 모니터링 API 패턴
 
 ```python
-# mini_server.py에 이 엔드포인트들 구현
+# arm_server.py에 이 엔드포인트들 구현
 @app.get("/api/activity-logs")
 @app.get("/api/debug/server-logs")
 @app.get("/api/debug/ai-providers")

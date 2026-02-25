@@ -37,7 +37,7 @@ Oracle Cloud 서버를 사용하면 **회사 컴퓨터가 꺼져 있어도** 언
    - 접속 주소: http://168.107.28.100
 
 5. **경량 미니 백엔드 서버 구축**
-   - `web/mini_server.py` (경량 FastAPI 서버) 제작 및 배포
+   - `web/arm_server.py` (경량 FastAPI 서버) 제작 및 배포
    - Python 가상환경 + FastAPI + uvicorn + websockets 설치
    - systemd 서비스로 자동 실행 설정 (서버 재시작해도 자동으로 켜짐)
    - nginx를 리버스 프록시(중계 서버)로 설정 → 미니 서버와 연결
@@ -45,7 +45,7 @@ Oracle Cloud 서버를 사용하면 **회사 컴퓨터가 꺼져 있어도** 언
    - 29개 에이전트 목록 및 기본 API 제공
 
 ### 새로 만든/수정한 파일
-- `web/mini_server.py` (경량 미니 서버) — Oracle Cloud용 백엔드
+- `web/arm_server.py` (경량 미니 서버) — Oracle Cloud용 백엔드
 - `docs/project-status.md` (프로젝트 현재 상태) — Oracle Cloud 서버 정보 추가
 - `docs/updates/2026-02-14_Oracle-Cloud-서버-구축.md` (이 파일) — 작업 기록
 

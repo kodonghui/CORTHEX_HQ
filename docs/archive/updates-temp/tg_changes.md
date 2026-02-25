@@ -21,7 +21,7 @@ claude/autonomous-system-v3
 ---
 
 ## 수정 파일
-`web/mini_server.py` (단 하나의 파일만 수정)
+`web/arm_server.py` (단 하나의 파일만 수정)
 
 ---
 
@@ -87,5 +87,5 @@ async def _tg_long_command(update_obj, task_text, target_agent_id=None):
 
 ## 현재 상태
 - 5개 기능 모두 구현 완료
-- `web/mini_server.py` 1개 파일만 수정
+- `web/arm_server.py` 1개 파일만 수정
 - 배포 후 텔레그램에서 바로 사용 가능

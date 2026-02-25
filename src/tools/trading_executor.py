@@ -43,8 +43,8 @@ class TradingExecutorTool(BaseTool):
 
         try:
             import importlib
-            ms = importlib.import_module("web.mini_server")
-            from web.mini_server import load_setting, save_setting, KST
+            ms = importlib.import_module("web.arm_server")
+            from web.arm_server import load_setting, save_setting, KST
 
             settings = ms._load_data("trading_settings", ms._default_trading_settings())
 
@@ -76,7 +76,7 @@ class TradingExecutorTool(BaseTool):
         self, ms, action, ticker, qty, price, market, reason, action_ko
     ) -> str:
         """KIS API를 통한 실제 주문."""
-        from web.mini_server import load_setting, save_setting, KST
+        from web.arm_server import load_setting, save_setting, KST
 
         # KIS 가용 여부 확인
         if not ms._KIS_AVAILABLE:
@@ -145,7 +145,7 @@ class TradingExecutorTool(BaseTool):
         self, ms, action, ticker, qty, price, market, reason, action_ko
     ) -> str:
         """가상 포트폴리오(Paper Trading) 업데이트."""
-        from web.mini_server import load_setting, save_setting, KST
+        from web.arm_server import load_setting, save_setting, KST
 
         portfolio = ms._load_data("trading_portfolio", ms._default_portfolio())
         now = datetime.now(KST)
