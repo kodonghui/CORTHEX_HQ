@@ -386,6 +386,7 @@ function corthexApp() {
       'cmo_manager': '마케팅팀장',
       'cio_manager': '투자팀장',
       'cpo_manager': '콘텐츠팀장',
+      'argos': 'ARGOS',
     },
 
     // Agent initials for avatars
@@ -397,6 +398,7 @@ function corthexApp() {
       'cmo_manager': '마케팅',
       'cio_manager': '투자',
       'cpo_manager': '콘텐츠',
+      'argos': '⚙',
     },
 
     // Division mapping for auto-expand
@@ -408,6 +410,7 @@ function corthexApp() {
       'cmo_manager': 'marketing',
       'cio_manager': 'finance',
       'cpo_manager': 'publishing',
+      'argos': 'system',
     },
 
     // Agent color mapping
@@ -4366,6 +4369,7 @@ function corthexApp() {
     // 에이전트 직급 분류
     getAgentTier(agentId) {
       if (!agentId) return 'unknown';
+      if (agentId === 'argos') return 'system';
       const executives = ['chief_of_staff','cto_manager','cso_manager','clo_manager','cmo_manager','cio_manager','cpo_manager'];
       const staffList = ['report_specialist','schedule_specialist','relay_specialist'];
       if (executives.includes(agentId)) return 'executive';
@@ -4376,6 +4380,7 @@ function corthexApp() {
 
     getAgentTierLabel(agentId) {
       const tier = this.getAgentTier(agentId);
+      if (tier === 'system') return 'SYSTEM';
       if (tier === 'executive') return '임원급';
       if (tier === 'staff') return '보좌관급';
       return '전문가급';
