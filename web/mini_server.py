@@ -5035,7 +5035,7 @@ async def _run_trading_now_inner(selected_tickers: list[str] | None = None):
 ## 활성 전략: {strats_info}{cal_section}
 
 ## 분석 요청
-각 전문가에게 아래 분석을 지시하세요:
+도구(API)를 사용하여 직접 아래 분석을 수행하세요:
 - **시황분석**: {'코스피/코스닥 지수 흐름, 외국인/기관 동향, 금리/환율' if market == 'KR' else 'S&P500/나스닥, 미국 금리/고용지표, 달러 강세'}
 - **종목분석**: 각 종목 재무 건전성, PER/PBR, 최근 실적
 - **기술적분석**: RSI, MACD, 이동평균선, 볼린저밴드
@@ -5049,13 +5049,27 @@ async def _run_trading_now_inner(selected_tickers: list[str] | None = None):
 ※ 주의: 신뢰도는 종목별로 독립적으로 계산, 0~100 숫자 + % 기호로 표기"""
 
     save_activity_log("cio_manager", f"🔍 수동 즉시 분석 시작: {market_label}장 {len(market_watchlist)}개 종목", "info")
-    cio_result = await _manager_with_delegation("cio_manager", prompt)
+    cio_result = await _call_agent("cio_manager", prompt)
     content = cio_result.get("content", "")
     cost = cio_result.get("cost_usd", 0)
 
+    # ── 비서실장 QA: 팀장 보고서 검수 ──
+    qa_passed, qa_reason = await _chief_qa_review(content, "금융분석팀장")
+    save_activity_log("chief_of_staff",
+        f"📋 금융분석팀장 보고서 QA: {'✅ 승인' if qa_passed else '❌ 반려'} — {qa_reason[:80]}",
+        "info" if qa_passed else "warning")
+    await wm.broadcast_comms({
+        "type": "comms",
+        "agent_id": "chief_of_staff",
+        "agent_name": "비서실장",
+        "message": f"금융분석팀장 보고서 QA {'✅ 승인' if qa_passed else '❌ 반려'}: {qa_reason[:100]}",
+        "timestamp": datetime.now(KST).isoformat(),
+        "channel": "cio",
+    })
+
     parsed_signals = _parse_cio_signals(content, market_watchlist)
 
-    # 신호 저장
+    # 신호 저장 (QA 결과 포함)
     signals = _load_data("trading_signals", [])
     new_signal = {
         "id": f"sig_manual_{datetime.now(KST).strftime('%Y%m%d%H%M%S')}",
@@ -5065,10 +5079,12 @@ async def _run_trading_now_inner(selected_tickers: list[str] | None = None):
         "tickers": [w["ticker"] for w in market_watchlist[:10]],
         "parsed_signals": parsed_signals,
         "strategy": "cio_manual_analysis",
-        "analyzed_by": f"CIO 포함 {cio_result.get('specialists_used', 0) + 1}명 (수동 실행)",
+        "analyzed_by": "금융분석팀장 단독 분석 (수동 실행)",
         "cost_usd": cost,
         "auto_bot": False,
         "manual_run": True,
+        "qa_passed": qa_passed,
+        "qa_reason": qa_reason[:200],
     }
     signals.insert(0, new_signal)
     if len(signals) > 200:
@@ -5077,6 +5093,20 @@ async def _run_trading_now_inner(selected_tickers: list[str] | None = None):
 
     # 매매 결정 일지 저장 (P2-1: 수동 분석에서도 decisions 저장)
     _save_decisions(parsed_signals)
+
+    # QA 반려 시 매매 안 함
+    if not qa_passed:
+        save_activity_log("chief_of_staff",
+            f"🚫 QA 반려로 매매 중단: {qa_reason[:100]}", "warning")
+        return {
+            "signals": parsed_signals,
+            "analysis": content[:500],
+            "cost_usd": cost,
+            "qa_passed": False,
+            "qa_reason": qa_reason,
+            "orders": [],
+            "message": f"비서실장 QA 반려: {qa_reason[:100]}"
+        }
 
     # 수동 즉시 실행 → auto_execute 설정 무관하게 항상 주문 진행
     # (CEO가 버튼을 직접 누른 것 = 매매 의사 표시)
@@ -5423,7 +5453,7 @@ async def _trading_bot_loop():
 ## 활성 전략: {strats_info}{cal_section}
 
 ## 분석 요청
-각 전문가에게 아래 분석을 지시하세요:
+도구(API)를 사용하여 직접 아래 분석을 수행하세요:
 - **시황분석**: {'코스피/코스닥 지수 흐름, 외국인/기관 동향, 금리/환율' if market == 'KR' else 'S&P500/나스닥 지수, 미국 금리/고용지표, 달러 강세'}
 - **종목분석**: 각 종목 재무 건전성, PER/PBR, 최근 실적
 - **기술적분석**: RSI, MACD, 이동평균선, 볼린저밴드
@@ -5436,14 +5466,20 @@ async def _trading_bot_loop():
 
 ※ 주의: 신뢰도는 종목별로 독립적으로 계산, 0~100 숫자 + % 기호로 표기"""
 
-            cio_result = await _manager_with_delegation("cio_manager", prompt)
+            cio_result = await _call_agent("cio_manager", prompt)
             content = cio_result.get("content", "")
             cost = cio_result.get("cost_usd", 0)
+
+            # ── 비서실장 QA: 팀장 보고서 검수 ──
+            qa_passed, qa_reason = await _chief_qa_review(content, "금융분석팀장")
+            save_activity_log("chief_of_staff",
+                f"📋 자동분석 QA: {'✅ 승인' if qa_passed else '❌ 반려'} — {qa_reason[:80]}",
+                "info" if qa_passed else "warning")
 
             # 시그널 파싱
             parsed_signals = _parse_cio_signals(content, market_watchlist)
 
-            # 시그널 저장
+            # 시그널 저장 (QA 결과 포함)
             signals = _load_data("trading_signals", [])
             new_signal = {
                 "id": f"sig_{datetime.now(KST).strftime('%Y%m%d%H%M%S')}",
@@ -5453,14 +5489,22 @@ async def _trading_bot_loop():
                 "tickers": [w["ticker"] for w in market_watchlist[:10]],
                 "parsed_signals": parsed_signals,
                 "strategy": "cio_bot_analysis",
-                "analyzed_by": f"CIO 포함 {cio_result.get('specialists_used', 0) + 1}명",
+                "analyzed_by": "금융분석팀장 단독 분석",
                 "cost_usd": cost,
                 "auto_bot": True,
+                "qa_passed": qa_passed,
+                "qa_reason": qa_reason[:200],
             }
             signals.insert(0, new_signal)
             if len(signals) > 200:
                 signals = signals[:200]
             _save_data("trading_signals", signals)
+
+            # QA 반려 시 매매 안 함
+            if not qa_passed:
+                save_activity_log("chief_of_staff",
+                    f"🚫 자동분석 QA 반려 — 매매 중단: {qa_reason[:100]}", "warning")
+                continue
 
             # 매매 결정 일지 저장 (P2-1: 자동봇에서도 decisions 저장)
             _save_decisions(parsed_signals)
@@ -7261,14 +7305,16 @@ _BROADCAST_KEYWORDS = [
 ]
 
 # 처장/비서실장 → 소속 전문가 매핑
+# 2026-02-25: 전문가 전원 동면 → 팀장 단독 분석 체제.
+# 재도입 시점: 팀장 혼자 30분+ & 병렬이 의미 있을 때 (CLAUDE.md 규칙)
 _MANAGER_SPECIALISTS: dict[str, list[str]] = {
-    "chief_of_staff": ["report_specialist", "schedule_specialist", "relay_specialist"],
-    "cto_manager": ["frontend_specialist", "backend_specialist", "infra_specialist", "ai_model_specialist"],
-    "cso_manager": ["market_research_specialist", "business_plan_specialist", "financial_model_specialist"],
-    "clo_manager": ["copyright_specialist", "patent_specialist"],
-    "cmo_manager": ["survey_specialist", "content_specialist", "community_specialist"],
-    "cio_manager": ["market_condition_specialist", "stock_analysis_specialist", "technical_analysis_specialist", "risk_management_specialist"],
-    "cpo_manager": ["chronicle_specialist", "editor_specialist", "archive_specialist"],
+    "chief_of_staff": [],
+    "cto_manager": [],
+    "cso_manager": [],
+    "clo_manager": [],
+    "cmo_manager": [],
+    "cio_manager": [],
+    "cpo_manager": [],
 }
 
 # 매니저 → 부서 매핑 (품질검수 루브릭 조회용)
@@ -8056,6 +8102,59 @@ async def _call_agent(agent_id: str, text: str, conversation_id: str | None = No
     }
 
 
+async def _chief_qa_review(report_content: str, team_leader_name: str) -> tuple[bool, str]:
+    """비서실장이 팀장 보고서를 QA합니다. (승인/반려)
+
+    비유: 비서실장이 팀장 보고서를 읽고 "이거 CEO한테 올려도 되나?" 검수.
+    Returns: (passed: bool, reason: str)
+    """
+    if not report_content or len(report_content.strip()) < 50:
+        return False, "보고서 내용이 너무 짧습니다 (50자 미만)"
+
+    qa_prompt = f"""당신은 비서실장입니다. {team_leader_name}의 보고서를 검수하세요.
+
+## 보고서
+{report_content[:3000]}
+
+## 검수 기준 (5항목, 각 통과/미달)
+1. **결론 존재**: 매수/매도/관망 시그널이 명확한가?
+2. **근거 제시**: 시그널에 데이터 기반 근거가 있는가? (숫자, 지표)
+3. **리스크 언급**: 손절가/최대손실/주의사항이 있는가?
+4. **형식 준수**: [시그널] 형식으로 종목별 결과가 있는가?
+5. **논리 일관성**: 분석과 결론이 모순되지 않는가?
+
+## 응답 형식 (반드시 이 형식만)
+판정: 승인 또는 반려
+사유: [1줄 요약]"""
+
+    try:
+        soul = _load_agent_prompt("chief_of_staff")
+        override = _get_model_override("chief_of_staff")
+        model = select_model(qa_prompt, override=override)
+        result = await ask_ai(
+            qa_prompt,
+            system_prompt=soul,
+            model=model,
+            reasoning_effort=_get_agent_reasoning_effort("chief_of_staff"),
+        )
+        qa_text = result.get("content", "")
+
+        # 파싱: "판정: 승인" or "판정: 반려"
+        passed = "승인" in qa_text and "반려" not in qa_text.split("판정")[-1].split("\n")[0] if "판정" in qa_text else "승인" in qa_text
+        reason = ""
+        for line in qa_text.split("\n"):
+            if "사유" in line:
+                reason = line.split(":", 1)[-1].strip() if ":" in line else line
+                break
+        if not reason:
+            reason = "승인" if passed else "기준 미달"
+
+        return passed, reason
+    except Exception as e:
+        logger.warning("비서실장 QA 실패 (기본 승인): %s", e)
+        return True, f"QA 시스템 오류로 기본 승인: {str(e)[:60]}"
+
+
 async def _delegate_to_specialists(manager_id: str, text: str) -> list[dict]:
     """처장이 소속 전문가들에게 병렬로 위임합니다.
 
@@ -8604,15 +8703,17 @@ async def _chief_finalize(original_text: str, manager_results: dict) -> dict:
 
 
 async def _broadcast_to_managers_all(text: str, task_id: str) -> dict:
-    """Level 4: 기존 방식 — 모든 처장 + 보좌관 병렬 호출 (브로드캐스트)."""
-    managers = ["cto_manager", "cso_manager", "clo_manager", "cmo_manager", "cio_manager", "cpo_manager"]
-    staff_specialists = ["report_specialist", "schedule_specialist", "relay_specialist"]
+    """Level 4: 기존 방식 — 활성 팀장 병렬 호출 (브로드캐스트)."""
+    # dormant 제외한 활성 팀장만
+    managers = [m for m in ["cso_manager", "clo_manager", "cmo_manager", "cio_manager", "cpo_manager"]
+                if m not in _DORMANT_MANAGERS]
+    staff_specialists = []  # 비서실 보좌관도 동면 (전문가 전원 동면 체제)
 
     # 비서실장 상태: 전달 중
-    await _broadcast_status("chief_of_staff", "working", 0.1, "6개 부서 + 비서실 보좌관에게 명령 하달 중...")
+    await _broadcast_status("chief_of_staff", "working", 0.1, f"{len(managers)}개 부서 팀장에게 명령 하달 중...")
 
     # 활동 로그
-    log_entry = save_activity_log("chief_of_staff", f"[비서실장] 6개 처장 + 보좌관 3명에게 명령 전달: {text[:40]}...")
+    log_entry = save_activity_log("chief_of_staff", f"[비서실장] {len(managers)}개 팀장에게 명령 전달: {text[:40]}...")
     await wm.send_activity_log(log_entry)
 
     # ── 1단계: 6개 처장 + 비서실 보좌관 3명 동시 호출 ──
