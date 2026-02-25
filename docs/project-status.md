@@ -111,6 +111,16 @@ NVDA 1주 @ $189.115 — KIS 실계좌 체결 완료
 
 ---
 
+## ✅ 팀장 단독 분석 + QA 게이트 (2026-02-25 저녁)
+
+- 전문가 위임 제거 → `_call_agent()` 직접 호출 (동면 전문가 무한대기 해결)
+- `_chief_qa_review()` — 비서실장 5항목 QA (결론/근거/리스크/형식/논리)
+- 시그널에 qa_passed/qa_reason 추가, QA 반려 시 매매 자동 중단
+- `thinking.type: enabled → adaptive` (Claude API deprecation 대응)
+- Soul Gym 벤치마크 설계: `docs/architecture/soul-gym-benchmarks.md` (6팀장 맞춤)
+
+---
+
 ## 프로젝트 기본 정보
 
 | 항목 | 값 |
