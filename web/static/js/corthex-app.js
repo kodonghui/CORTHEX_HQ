@@ -380,11 +380,11 @@ function corthexApp() {
     // Agent name mapping (v4 — 6팀장 체제)
     agentNames: {
       'chief_of_staff': '비서실장',
-      'cto_manager': 'CTO 기술팀장',
-      'cso_manager': '전략팀장',
+      
+      'cso_manager': '사업기획팀장',
       'clo_manager': '법무팀장',
       'cmo_manager': '마케팅팀장',
-      'cio_manager': '투자팀장',
+      'cio_manager': '금융분석팀장',
       'cpo_manager': '콘텐츠팀장',
       'argos': 'ARGOS',
     },
@@ -392,11 +392,11 @@ function corthexApp() {
     // Agent initials for avatars
     agentInitials: {
       'chief_of_staff': 'CS',
-      'cto_manager': 'CTO',
-      'cso_manager': '전략',
+      
+      'cso_manager': '사업기',
       'clo_manager': '법무',
       'cmo_manager': '마케팅',
-      'cio_manager': '투자',
+      'cio_manager': '금융분',
       'cpo_manager': '콘텐츠',
       'argos': '⚙',
     },
@@ -404,7 +404,7 @@ function corthexApp() {
     // Division mapping for auto-expand
     agentDivision: {
       'chief_of_staff': 'secretary',
-      'cto_manager': 'tech',
+      
       'cso_manager': 'strategy',
       'clo_manager': 'legal',
       'cmo_manager': 'marketing',

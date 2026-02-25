@@ -77,7 +77,7 @@ agents:
   - stakeholder_mapper
 - agent_id: cto_manager
   name: CTO Manager
-  name_ko: 기술개발처장 (CTO)
+  name_ko: 기술개발팀장
   telegram_code: "@기술처장"
   role: manager
   division: leet_master.tech
@@ -149,7 +149,7 @@ agents:
   - ai_model_evaluator
 - agent_id: cso_manager
   name: Strategy Lead
-  name_ko: 전략팀장
+  name_ko: 사업기획팀장
   telegram_code: "@기획처장"
   role: manager
   division: leet_master.strategy
@@ -374,7 +374,7 @@ agents:
   - swot_quantifier
 - agent_id: cio_manager
   name: Investment Lead
-  name_ko: 투자팀장
+  name_ko: 금융분석팀장
   telegram_code: "@투자처장"
   role: manager
   division: finance.investment
