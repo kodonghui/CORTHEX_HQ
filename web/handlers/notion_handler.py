@@ -99,3 +99,84 @@ async def get_notion_db_schema(db: str = Query("output", description="secretary 
         "db_title": db_title,
         "properties": schema,
     }
+
+
+@router.post("/api/debug/notion-archive-migrate")
+async def run_archive_migration():
+    """비서실 + 에이전트 산출물 DB의 모든 페이지를 아카이브 DB로 이전.
+    1회성 관리자 작업용 엔드포인트.
+    """
+    api_key = os.getenv("NOTION_API_KEY", "")
+    if not api_key:
+        return {"error": "NOTION_API_KEY 미설정"}
+
+    db_secretary = os.getenv("NOTION_DB_SECRETARY", "30a56b49-78dc-8153-bac1-dee5d04d6a74")
+    db_output    = os.getenv("NOTION_DB_OUTPUT",    "30a56b49-78dc-81ce-aaca-ef3fc90a6fba")
+    db_archive   = os.getenv("NOTION_DB_ARCHIVE",   "31256b49-78dc-81c9-9ad2-e31a076d0d97")
+    headers = {"Authorization": f"Bearer {api_key}", "Notion-Version": "2022-06-28",
+               "Content-Type": "application/json"}
+
+    def _req(method, url, data=None):
+        body = json.dumps(data).encode() if data else None
+        r = urllib.request.Request(url, data=body, headers=headers, method=method)
+        try:
+            with urllib.request.urlopen(r, timeout=20) as resp:
+                return json.loads(resp.read())
+        except Exception as e:
+            return {"_error": str(e)}
+
+    def _query_all(db_id):
+        pages, cursor = [], None
+        for _ in range(20):  # 최대 2000개
+            body = {"page_size": 100}
+            if cursor: body["start_cursor"] = cursor
+            d = _req("POST", f"https://api.notion.com/v1/databases/{db_id}/query", body)
+            if "_error" in d or "results" not in d: break
+            pages.extend(d["results"])
+            if not d.get("has_more"): break
+            cursor = d.get("next_cursor")
+        return pages
+
+    def _extract(page, title_key="Name"):
+        props = page.get("properties", {})
+        t = props.get(title_key, {}).get("title", [])
+        title = t[0]["plain_text"] if t else "(no title)"
+        rt = props.get("내용", {}).get("rich_text", [])
+        content = rt[0]["plain_text"] if rt else ""
+        sel_date = props.get("날짜", {}).get("date")
+        date = sel_date["start"] if sel_date else ""
+        author = ""
+        for k in ("담당자", "에이전트"):
+            s = props.get(k, {}).get("select")
+            if s: author = s["name"]; break
+        return title, content, date, author
+
+    def _archive(title, content, date, author, source_label):
+        p = {"제목": {"title": [{"text": {"content": title[:100]}}]},
+             "카테고리": {"select": {"name": source_label}}}
+        if date: p["날짜"] = {"date": {"start": date}}
+        if content: p["내용"] = {"rich_text": [{"text": {"content": content[:1900]}}]}
+        if author: p["작성자"] = {"select": {"name": author[:100]}}
+        r = _req("POST", "https://api.notion.com/v1/pages",
+                 {"parent": {"database_id": db_archive}, "properties": p})
+        return "_error" not in r
+
+    def _trash(pid):
+        _req("PATCH", f"https://api.notion.com/v1/pages/{pid}", {"archived": True})
+
+    results = {}
+    for db_id, label in [(db_secretary, "비서실"), (db_output, "에이전트산출물")]:
+        pages = await asyncio.to_thread(_query_all, db_id)
+        ok = fail = 0
+        for pg in pages:
+            title, content, date, author = await asyncio.to_thread(_extract, pg)
+            moved = await asyncio.to_thread(_archive, title, content, date, author, label)
+            if moved:
+                await asyncio.to_thread(_trash, pg["id"])
+                ok += 1
+            else:
+                fail += 1
+        results[label] = {"total": len(pages), "ok": ok, "fail": fail}
+        logger.info(f"[아카이브 이전] {label}: {ok}/{len(pages)}")
+
+    return {"status": "완료", "results": results}

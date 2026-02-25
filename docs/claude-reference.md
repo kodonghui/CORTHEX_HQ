@@ -151,7 +151,15 @@ GET https://corthex-hq.com/api/debug/server-logs?lines=50&service=nginx-access  
 ## 노션 연동 상세
 
 - API 버전: `2022-06-28` (2025 버전 금지 — DB ID 달라짐)
-- 비서실 DB: `30a56b49-78dc-8153-bac1-dee5d04d6a74`
-- 에이전트 산출물 DB: `30a56b49-78dc-81ce-aaca-ef3fc90a6fba`
-- 배포 로그 DB: `30e56b49-78dc-819d-b666-e50aec6a04aa`
-- Integration: CORTHEX_HQ (corthex.hq 워크스페이스)
+- Integration 이름: **CORTHEX_HQ** (KoDongHui 워크스페이스)
+- API Key: GitHub Secrets `NOTION_API_KEY` (같은 토큰이 MCP에도 사용됨)
+
+| DB | 용도 | ID |
+|-----|------|-----|
+| 비서실 | 비서실장→CEO 보고서만 | `30a56b49-78dc-8153-bac1-dee5d04d6a74` |
+| 에이전트 산출물 | 팀장 6명 작업물 | `30a56b49-78dc-81ce-aaca-ef3fc90a6fba` |
+| 아카이브 | v3 데이터·구버전 이관 | `31256b49-78dc-81c9-9ad2-e31a076d0d97` |
+| 배포 로그 | CI/CD 빌드 기록 | `30e56b49-78dc-819d-b666-e50aec6a04aa` |
+
+- 아카이브 이전 API: `POST /api/debug/notion-archive-migrate` (1회성)
+- MCP 설정: `.mcp.json` (NOTION_API_KEY 환경변수 사용)
