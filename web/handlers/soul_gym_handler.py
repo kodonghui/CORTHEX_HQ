@@ -20,11 +20,12 @@ router = APIRouter(tags=["soul-gym"])
 # 진화 진행 상태 (in-memory)
 _running: dict[str, bool] = {}
 _running_all: bool = False
+_single_results: dict[str, dict] = {}  # 개별 진화 결과 저장
 
 
 @router.post("/api/soul-gym/evolve/{agent_id}")
 async def evolve_single(agent_id: str, request: Request):
-    """특정 에이전트 1명의 소울 진화를 실행합니다."""
+    """특정 에이전트 1명의 소울 진화를 백그라운드로 실행합니다."""
     global _running
     body = await request.json() if request.headers.get("content-type") == "application/json" else {}
     dry_run = body.get("dry_run", False)
@@ -32,16 +33,22 @@ async def evolve_single(agent_id: str, request: Request):
     if _running.get(agent_id):
         return {"success": False, "message": f"{agent_id} 이미 진화 중입니다."}
 
+    async def _bg():
+        try:
+            from soul_gym_engine import evolve_agent
+            result = await evolve_agent(agent_id, dry_run=dry_run)
+            _single_results[agent_id] = {"success": True, **result}
+            logger.info("Soul Gym %s 진화 완료: %s", agent_id, result.get("status"))
+        except Exception as e:
+            logger.error("Soul Gym 진화 실패 (%s): %s", agent_id, e, exc_info=True)
+            _single_results[agent_id] = {"success": False, "message": str(e)[:200]}
+        finally:
+            _running[agent_id] = False
+
     _running[agent_id] = True
-    try:
-        from soul_gym_engine import evolve_agent
-        result = await evolve_agent(agent_id, dry_run=dry_run)
-        return {"success": True, **result}
-    except Exception as e:
-        logger.error("Soul Gym 진화 실패 (%s): %s", agent_id, e, exc_info=True)
-        return {"success": False, "message": str(e)[:200]}
-    finally:
-        _running[agent_id] = False
+    _single_results.pop(agent_id, None)
+    asyncio.create_task(_bg())
+    return {"success": True, "message": f"{agent_id} 진화를 시작합니다. /api/soul-gym/status에서 진행 상태를 확인하세요."}
 
 
 @router.post("/api/soul-gym/evolve-all")
@@ -86,6 +93,7 @@ async def get_status():
         "running_all": _running_all,
         "running_agents": running_agents,
         "idle": not _running_all and not running_agents,
+        "results": _single_results,
     }
 
 
