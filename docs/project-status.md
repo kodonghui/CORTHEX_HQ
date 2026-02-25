@@ -9,15 +9,19 @@
 
 - **날짜**: 2026-02-25
 - **버전**: `4.00.000` 🎉 (메이저 버전 업 — 대개편)
-- **빌드**: #574 ✅ 배포 완료
+- **빌드**: #575 ✅ 배포 완료
 - **서버**: https://corthex-hq.com
 
-## 🔴 Bash 도구 이슈 — Claude 업데이트마다 발생
+## ✅ 완료 — 노션 DB 매핑 수정 (2026-02-25, 빌드#575)
 
-- 원인: extension.js에 Linux 절대경로 하드코딩 (`/home/runner/work/...`)
-- 패치 스크립트: `C:\Users\elddl\.claude\patch-claude-extension.ps1`
-- 셋업 스크립트: `C:\Users\elddl\.claude\setup-auto-patch.ps1`
-- 해결: VS Code 재시작 후 PowerShell에서 setup-auto-patch.ps1 1회 실행 → Task Scheduler 등록
+- 비서실장만 비서실 DB, 팀장 6명→에이전트 산출물 DB 분리
+- 에이전트 산출물 DB 컬럼명 수정: 에이전트/보고유형/부서
+- 상세: `docs/updates/2026-02-25_v4대개편-노션수정.md`
+
+## ⬜ Bash 도구 이슈 메모 (2.1.55 현재는 괜찮음)
+
+- 패치 스크립트 위치: `C:\Users\elddl\.claude\patch-claude-extension.ps1`
+- 업데이트 후 재발 시: PowerShell 관리자로 setup-auto-patch.ps1 실행
 - 주의: extension.js 직접 Edit 패치는 역효과날 수 있음 (데스크탑앱이 복구함)
 
 ---
