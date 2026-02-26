@@ -1156,11 +1156,28 @@ function corthexApp() {
     },
 
     // E-1: 피드백 모드 — 피그마급 핀 시스템
+    // 클릭 위치의 DOM 요소 정보 추출
+    _getElementInfo(x, y) {
+      const el = document.elementFromPoint(x, y);
+      if (!el) return { tag: 'unknown', text: '' };
+      // 가장 가까운 의미 있는 부모 찾기 (섹션/카드/버튼)
+      const meaningful = el.closest('[x-show], [x-data], .glass, .bg-hq-panel, .bg-hq-surface, button, h1, h2, h3, p, td, th, label') || el;
+      const info = {
+        tag: meaningful.tagName.toLowerCase(),
+        classes: (meaningful.className || '').toString().slice(0, 120),
+        text: (meaningful.textContent || '').trim().slice(0, 80),
+        id: meaningful.id || '',
+      };
+      // x-show 조건 (어떤 탭/상태에서 보이는지)
+      const xShow = meaningful.getAttribute('x-show') || meaningful.closest('[x-show]')?.getAttribute('x-show') || '';
+      if (xShow) info.xShow = xShow.slice(0, 100);
+      return info;
+    },
     feedbackPlacePin(e) {
       if (!this.feedbackMode) return;
       // 기존 핀 입력 중이면 취소
       if (this.feedbackNewPin) { this.feedbackNewPin = null; this.feedbackPinText = ''; return; }
-      this.feedbackNewPin = { x: e.clientX, y: e.clientY };
+      this.feedbackNewPin = { x: e.clientX, y: e.clientY, element: this._getElementInfo(e.clientX, e.clientY) };
       this.feedbackPinText = '';
       this.$nextTick(() => {
         const inp = document.getElementById('feedbackPinInput');
@@ -1177,6 +1194,7 @@ function corthexApp() {
         comment: this.feedbackPinText.trim(),
         url: window.location.href,
         screen: { w: window.innerWidth, h: window.innerHeight },
+        element: this.feedbackNewPin.element,
       };
       try {
         const res = await fetch('/api/feedback/ui', {
