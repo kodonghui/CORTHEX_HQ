@@ -452,6 +452,12 @@ jobs:
             echo "📋 등록된 API 키 수: $(grep -c '_KEY\|_ID\|_PASS\|_HOST\|_PORT\|_USER\|_TOKEN' "$ENV_FILE" || echo 0)개"
 
             # 6단계: 서버 재시작
+            # 6.5단계: Claude Code 업데이트 체크 크론 등록 (매일 00:00 UTC = 09:00 KST)
+            chmod +x /home/ubuntu/CORTHEX_HQ/scripts/check_claude_code_update.sh
+            (crontab -l 2>/dev/null | grep -v "check_claude_code_update" ; echo "0 0 * * * /home/ubuntu/CORTHEX_HQ/scripts/check_claude_code_update.sh >> /home/ubuntu/logs/claude_update_check.log 2>&1") | crontab -
+            mkdir -p /home/ubuntu/logs
+            echo "✅ Claude Code 업데이트 체크 크론 등록 완료 (매일 09:00 KST)"
+
             echo "🔁 서버 재시작 중..."
             # corthex.service가 올바른 경로로 arm_server.py를 실행하도록 강제 설정
             echo "♻️ corthex.service ExecStart 복원 중..."
