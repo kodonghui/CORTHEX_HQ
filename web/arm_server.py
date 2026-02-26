@@ -5184,6 +5184,124 @@ async def _build_quant_prompt_section(market_watchlist: list, market: str = "KR"
         return f"\n\n## 📐 정량지표 (계산 실패: {str(e)[:60]})\n"
 
 
+async def _build_argos_context_section(market_watchlist: list, market: str = "KR") -> str:
+    """ARGOS DB에서 수집된 데이터를 꺼내 팀장 프롬프트에 직접 주입.
+
+    서버가 심부름(데이터 수집)을 완료 → 팀장은 해석만.
+    DB에 데이터 없으면 해당 섹션 생략 (팀장이 판단하도록).
+    """
+    conn = get_connection()
+    sections = []
+
+    # ① 종목별 최근 주가 (최근 10거래일)
+    price_rows_all = []
+    for w in market_watchlist:
+        ticker = w["ticker"]
+        try:
+            rows = conn.execute(
+                """SELECT trade_date, close_price, change_pct, volume
+                   FROM argos_price_history
+                   WHERE ticker=?
+                   ORDER BY trade_date DESC LIMIT 10""",
+                (ticker,)
+            ).fetchall()
+            if rows:
+                price_rows_all.append((w["name"], ticker, rows))
+        except Exception:
+            pass
+
+    if price_rows_all:
+        lines = ["\n\n## 📈 최근 주가 (ARGOS 수집 — 서버 제공)"]
+        for name, ticker, rows in price_rows_all:
+            latest = rows[0]
+            unit = "원" if market == "KR" else "USD"
+            lines.append(f"\n### {name} ({ticker})")
+            lines.append(f"  현재가: {latest[1]:,.0f}{unit}  전일대비: {(latest[2] or 0):+.2f}%")
+            lines.append("  | 날짜 | 종가 | 등락률 | 거래량 |")
+            lines.append("  |------|------|--------|--------|")
+            for r in rows:
+                lines.append(f"  | {r[0]} | {r[1]:,.0f} | {(r[2] or 0):+.2f}% | {(r[3] or 0):,.0f} |")
+        sections.append("\n".join(lines))
+
+    # ② 매크로 지표 (KOSPI, USD_KRW 등)
+    try:
+        macro_rows = conn.execute(
+            """SELECT indicator, trade_date, value
+               FROM argos_macro_data
+               ORDER BY indicator, trade_date DESC"""
+        ).fetchall()
+        if macro_rows:
+            macro_dict: dict = {}
+            for r in macro_rows:
+                if r[0] not in macro_dict:
+                    macro_dict[r[0]] = (r[1], r[2])
+            lines = ["\n\n## 🌐 매크로 지표 (ARGOS 수집 — 서버 제공)"]
+            for indicator, (dt, val) in macro_dict.items():
+                lines.append(f"  {indicator}: {val:,.2f} ({dt})")
+            sections.append("\n".join(lines))
+    except Exception:
+        pass
+
+    # ③ 최신 공시 (DART — ticker 기준)
+    dart_found = []
+    for w in market_watchlist:
+        ticker = w["ticker"]
+        try:
+            rows = conn.execute(
+                """SELECT corp_name, report_nm, rcept_dt
+                   FROM argos_dart_filings
+                   WHERE ticker=?
+                   ORDER BY rcept_dt DESC LIMIT 5""",
+                (ticker,)
+            ).fetchall()
+            if rows:
+                dart_found.append((w["name"], ticker, rows))
+        except Exception:
+            pass
+
+    if dart_found:
+        lines = ["\n\n## 📋 최신 공시 (ARGOS 수집 — 서버 제공)"]
+        for name, ticker, rows in dart_found:
+            lines.append(f"\n### {name} ({ticker})")
+            for r in rows:
+                lines.append(f"  [{r[2]}] {r[1]}")
+        sections.append("\n".join(lines))
+
+    # ④ 뉴스 캐시 (종목명 키워드)
+    news_found = []
+    for w in market_watchlist:
+        keyword = w["name"]
+        try:
+            rows = conn.execute(
+                """SELECT title, description, pub_date
+                   FROM argos_news_cache
+                   WHERE keyword=?
+                   ORDER BY pub_date DESC LIMIT 5""",
+                (keyword,)
+            ).fetchall()
+            if rows:
+                news_found.append((keyword, rows))
+        except Exception:
+            pass
+
+    if news_found:
+        lines = ["\n\n## 📰 최신 뉴스 (ARGOS 수집 — 서버 제공)"]
+        for keyword, rows in news_found:
+            lines.append(f"\n### {keyword}")
+            for r in rows:
+                title = (r[0] or "")[:60]
+                desc = (r[1] or "")[:80]
+                lines.append(f"  [{r[2][:10] if r[2] else ''}] {title}")
+                if desc:
+                    lines.append(f"    → {desc}")
+        sections.append("\n".join(lines))
+
+    if not sections:
+        return "\n\n## 📡 ARGOS 수집 데이터 없음 (수집 중이거나 관심종목 미등록)"
+
+    return "".join(sections)
+
+
 # ── [PRICE TRIGGERS] 목표가/손절/익절 자동 주문 ──
 
 def _register_position_triggers(
@@ -5403,6 +5521,10 @@ async def generate_trading_signals():
     save_activity_log("cio_manager", "📐 정량지표 사전계산 시작 (자동매매)...", "info")
     quant_section_auto = await _build_quant_prompt_section(watchlist, _auto_market)
 
+    # ARGOS DB 수집 데이터 주입 (자동매매)
+    save_activity_log("cio_manager", "📡 ARGOS 수집 데이터 로딩 (자동매매)...", "info")
+    argos_section_auto = await _build_argos_context_section(watchlist, _auto_market)
+
     # CIO에게 보내는 분석 명령
     prompt = f"""[자동매매 시스템] 관심종목 종합 분석을 요청합니다.
 
@@ -5418,13 +5540,13 @@ async def generate_trading_signals():
 {f'- 미국 주식: {len(us_tickers)}개' if us_tickers else ''}
 
 ## 활성 매매 전략
-{strats_info or '기본 전략 (RSI/MACD 기반)'}{quant_section_auto}
+{strats_info or '기본 전략 (RSI/MACD 기반)'}{quant_section_auto}{argos_section_auto}
 
-## 분석 요청사항
-각 전문가에게 아래 분석을 지시하세요:
-- **시황분석**: 현재 시장 분위기, 금리/환율 동향, 업종별 흐름
-- **종목분석**: 각 관심종목의 재무 건전성, PER/PBR, 실적 전망
-- **기술적분석**: 위 정량지표 수치를 기반으로 추가 검증 (최신 뉴스/실적으로 보완)
+## 분석 요청사항 (추가 데이터 수집 불필요 — 위 서버 제공 데이터만 활용)
+아래 분석을 수행하세요:
+- **시황분석**: 위 매크로 지표/뉴스를 기반으로 시장 분위기, 금리/환율 동향, 업종별 흐름 해석
+- **종목분석**: 위 공시/뉴스/주가 데이터를 기반으로 재무 건전성, PER/PBR, 실적 전망 해석
+- **기술적분석**: 위 정량지표(RSI/MACD 등)와 최근 주가 흐름을 종합하여 방향성 판단
 - **리스크관리**: 포지션 크기 적정성, 손절가, 전체 포트폴리오 리스크
 
 ## 최종 산출물 (반드시 아래 형식 그대로 — 예시처럼 정확히)
@@ -6003,6 +6125,10 @@ async def _run_trading_now_inner(selected_tickers: list[str] | None = None):
     save_activity_log("cio_manager", "📐 정량지표 사전계산 시작...", "info")
     quant_section = await _build_quant_prompt_section(market_watchlist, market)
 
+    # ARGOS DB 수집 데이터 주입 (주가/매크로/공시/뉴스 — 서버가 직접 제공)
+    save_activity_log("cio_manager", "📡 ARGOS 수집 데이터 로딩...", "info")
+    argos_section = await _build_argos_context_section(market_watchlist, market)
+
     tickers_info = ", ".join([f"{w['name']}({w['ticker']})" for w in market_watchlist])
     strategies = _load_data("trading_strategies", [])
     active_strats = [s for s in strategies if s.get("active")]
@@ -6014,13 +6140,13 @@ async def _run_trading_now_inner(selected_tickers: list[str] | None = None):
 ## 분석 대상 ({len(market_watchlist)}개 종목)
 {tickers_info}
 
-## 활성 전략: {strats_info}{cal_section}{quant_section}
+## 활성 전략: {strats_info}{cal_section}{quant_section}{argos_section}
 
-## 분석 요청
-도구(API)를 사용하여 직접 아래 분석을 수행하세요:
-- **시황분석**: {'코스피/코스닥 지수 흐름, 외국인/기관 동향, 금리/환율' if market == 'KR' else 'S&P500/나스닥, 미국 금리/고용지표, 달러 강세'}
-- **종목분석**: 각 종목 재무 건전성, PER/PBR, 최근 실적
-- **기술적분석**: 위 정량지표 수치를 기반으로 추가 검증 (최신 뉴스/실적으로 보완)
+## 분석 요청 (추가 데이터 수집 불필요 — 위 서버 제공 데이터만 활용)
+아래 분석을 수행하세요:
+- **시황분석**: 위 매크로 지표/뉴스를 기반으로 {'코스피/코스닥 흐름, 외국인/기관 동향, 금리/환율' if market == 'KR' else 'S&P500/나스닥, 미국 금리/고용지표, 달러 강세'} 해석
+- **종목분석**: 위 공시/뉴스/주가 데이터를 기반으로 재무 건전성, PER/PBR, 실적 방향 해석
+- **기술적분석**: 위 정량지표(RSI/MACD 등)와 주가 흐름을 종합하여 방향성 판단
 - **리스크관리**: 손절가, 적정 포지션 크기, 전체 포트폴리오 리스크
 
 ## 최종 산출물 (반드시 아래 형식 그대로 — 예시처럼 정확히)
