@@ -220,12 +220,12 @@
         <button @click="viewMode = 'dashboard'; loadDashboard(); if(dashboardRefreshTimer){clearInterval(dashboardRefreshTimer);} dashboardRefreshTimer = setInterval(() => loadDashboard(), 30000)"
                 :class="viewMode === 'dashboard' ? 'bg-hq-accent/20 text-hq-accent' : 'text-hq-muted hover:text-hq-text'"
                 class="px-3 py-1 text-xs font-semibold border-r border-hq-border transition-colors">대시보드</button>
-        <button @click="openNexus()"
-                :class="nexusOpen ? 'bg-[#e879f9]/20 text-[#e879f9]' : 'text-hq-muted hover:text-[#e879f9]'"
-                class="px-3 py-1 text-xs font-semibold border-r border-hq-border transition-colors tracking-wider">NEXUS</button>
         <button @click="switchTab('agora'); viewMode='chat'"
                 :class="activeTab === 'agora' ? 'bg-hq-accent/20 text-hq-accent' : 'text-hq-muted hover:text-hq-accent'"
-                class="px-3 py-1 text-xs font-semibold rounded-r-lg transition-colors tracking-wider">AGORA</button>
+                class="px-3 py-1 text-xs font-semibold border-r border-hq-border transition-colors tracking-wider">AGORA</button>
+        <button @click="openNexus()"
+                :class="nexusOpen ? 'bg-[#e879f9]/20 text-[#e879f9]' : 'text-hq-muted hover:text-[#e879f9]'"
+                class="px-3 py-1 text-xs font-semibold rounded-r-lg transition-colors tracking-wider">NEXUS</button>
       </div>
 
       <!-- Dark/Light Toggle -->

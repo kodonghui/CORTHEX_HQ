@@ -4400,13 +4400,13 @@ function corthexApp() {
 
     // ── #12: Tab grouping helpers ──
     getPrimaryTabs() {
-      // 메인 탭 순서: 작전현황 / 사령관실 / 통신로그 / 전략실 / 작전일지
-      const order = ['home', 'command', 'activityLog', 'trading', 'history'];
+      // 메인 탭 순서: 작전현황 / 사령관실 / 전략실 / 통신로그 / 작전일지 / 기밀문서
+      const order = ['home', 'command', 'trading', 'activityLog', 'history', 'archive'];
       return order.map(id => this.tabs.find(t => t.id === id)).filter(Boolean);
     },
     getSecondaryTabs() {
-      // 더보기: 전력분석 / 기밀문서 / 자동화 / 크론기지 / 정보국 / 통신국 (조직도·NEXUS → 헤더로 이동)
-      const order = ['performance', 'archive', 'workflow', 'schedule', 'knowledge', 'sns'];
+      // 더보기: 전력분석 / 자동화 / 크론기지 / 통신국 / 정보국
+      const order = ['performance', 'workflow', 'schedule', 'sns', 'knowledge'];
       return order.map(id => this.tabs.find(t => t.id === id)).filter(Boolean);
     },
 
