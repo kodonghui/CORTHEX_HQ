@@ -349,10 +349,7 @@ function corthexApp() {
 
     // ── NEXUS (3D / Canvas) ──
     flowchart: {
-      mode: '3d',         // '3d' | 'canvas' | 'mermaid'
-      // ── 3D 시스템 맵 ──
-      graph3dLoaded: false,
-      graph3dInstance: null,
+      mode: 'split',      // 'split' | 'mermaid' | 'canvas'
       // ── Mermaid 시스템 플로우 ──
       mermaidLoading: false,
       mermaidRendered: false,
@@ -4706,7 +4703,6 @@ function corthexApp() {
         if (e.key === 'Escape') {
           if (this.nexusOpen) {
             this.nexusOpen = false;
-            if (this.flowchart.graph3dLabelsAnimId) { cancelAnimationFrame(this.flowchart.graph3dLabelsAnimId); this.flowchart.graph3dLabelsAnimId = 0; }
             return;
           }
           if (this.viewMode === 'agora') { this.viewMode = 'chat'; if (this.agora.sseSource) { this.agora.sseSource.close(); this.agora.sseSource = null; } return; }
@@ -4954,9 +4950,14 @@ function corthexApp() {
     // ── NEXUS: 풀스크린 오버레이 열기 ──
     openNexus() {
       this.nexusOpen = true;
-      setTimeout(() => {
-        if (this.flowchart.mode === '3d' && !this.flowchart.graph3dLoaded) this.initNexus3D();
-        if (this.flowchart.mode === 'canvas' && !this.flowchart.canvasLoaded) this.initNexusCanvas();
+      setTimeout(async () => {
+        if (this.flowchart.mode === 'split' || this.flowchart.mode === 'mermaid') {
+          if (!this.flowchart.mermaidRendered) await this.generateMermaidSystemFlow();
+        }
+        if (this.flowchart.mode === 'split' || this.flowchart.mode === 'canvas') {
+          if (!this.flowchart.canvasLoaded) await this.initNexusCanvas();
+          await this.loadCanvasList();
+        }
       }, 200);
     },
 
@@ -5106,10 +5107,9 @@ function corthexApp() {
     async onNexusModeChange(mode) {
       this.flowchart.mode = mode;
       await this.$nextTick();
-      if (mode === '3d' && !this.flowchart.graph3dLoaded) await this.initNexus3D();
-      if (mode === 'mermaid' && !this.flowchart.mermaidRendered) await this.generateMermaidSystemFlow();
-      if (mode === 'canvas' && !this.flowchart.canvasLoaded) await this.initNexusCanvas();
-      if (mode === 'canvas') await this.loadCanvasList();
+      if ((mode === 'split' || mode === 'mermaid') && !this.flowchart.mermaidRendered) await this.generateMermaidSystemFlow();
+      if ((mode === 'split' || mode === 'canvas') && !this.flowchart.canvasLoaded) await this.initNexusCanvas();
+      if (mode === 'split' || mode === 'canvas') await this.loadCanvasList();
     },
 
     // ── NEXUS Mermaid: 시스템 플로우차트 생성 ──
@@ -5230,8 +5230,8 @@ function corthexApp() {
       }
     },
 
-    // ── NEXUS 3D: 시스템 전체 그래프 데이터 빌드 ──
-    _buildSystemGraphData(agentNodes, agentEdges) {
+    // ── NEXUS 3D: 제거됨 (2D 전환) ── 시스템 그래프 데이터는 Mermaid로 대체
+    _buildSystemGraphData_REMOVED(agentNodes, agentEdges) {
       const CAT = {
         core:    { color: '#e879f9', label: 'CORTHEX' },
         tab:     { color: '#60a5fa', label: 'UI 탭' },
@@ -5323,8 +5323,8 @@ function corthexApp() {
       return { nodes, links, CAT };
     },
 
-    // ── NEXUS 3D: 초기화 (방사형 계층 + 라벨 오버레이 + 화살표) ──
-    async initNexus3D() {
+    // ── NEXUS 3D: 제거됨 (2D 전환) ──
+    async initNexus3D_REMOVED() {
       try {
         await _loadScript(_CDN.forcegraph3d);
         const r = await fetch('/api/architecture/hierarchy');

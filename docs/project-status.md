@@ -7,10 +7,17 @@
 
 ## 마지막 업데이트
 
-- **날짜**: 2026-02-26
+- **날짜**: 2026-02-27
 - **버전**: `4.00.000`
-- **빌드**: #623+ → 세션4 모바일 최적화 진행 중
+- **빌드**: 배포 대기
 - **서버**: https://corthex-hq.com
+
+## 2026-02-27 — 버그 수정 + Phase 5 일괄 구현
+- ✅ **R-3: 전력분석 데이터 누락** — update_task()에 agent_id 추가 (6곳)
+- ✅ **R-5: 레이스컨디션** — ARGOS/Soul Gym bool→asyncio.Lock + state.py bg_lock/batch_lock
+- ✅ **5-1: NEXUS 2D 분할뷰** — 3D 제거, Mermaid+Canvas 분할 레이아웃
+- ✅ **5-2: Soul Gym 6팀장 확장** — benchmarks.yaml + 엔진 전면 개편 (팀장별 맞춤 벤치마크 3문항)
+- ⬜ **4-3: arm_server.py 리팩토링** — 계획 수립 완료, 실행 보류 (대형 작업)
 
 ## 2026-02-26 추가 완료 (세션 5 — Phase 6 Final)
 - ✅ **R-2: 작전일지 제목 요약** — `_extract_title_summary()` 마크다운 헤더/첫 문장 추출
