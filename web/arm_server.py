@@ -4869,7 +4869,7 @@ def _build_calibration_prompt_section(settings: dict | None = None) -> str:
 async def _compute_quant_score(ticker: str, market: str = "KR", lookback: int = 60) -> dict:
     """RSI(14)/MACD(12,26,9)/볼린저밴드(20,2σ)/거래량/이동평균으로 정량 신뢰도 계산.
 
-    LLM이 신뢰도를 직접 찍는 대신, 이 함수 계산값을 기준으로 ±15%p 조정만 허용.
+    LLM이 신뢰도를 직접 찍는 대신, 이 함수 계산값을 기준으로 ±20%p 조정만 허용.
     반환: {ticker, direction, quant_confidence(0-99), components, summary, error}
     """
     _err = {
@@ -4917,14 +4917,17 @@ async def _compute_quant_score(ticker: str, market: str = "KR", lookback: int = 
             return 100.0 if al == 0 else 100 - 100/(1 + ag/al)
 
         rsi = _rsi(closes)
-        if   rsi < 30: rsi_s, rsi_sig = 85, f"과매도({rsi:.1f})"
-        elif rsi < 40: rsi_s, rsi_sig = 70, f"매수우호({rsi:.1f})"
-        elif rsi < 50: rsi_s, rsi_sig = 55, f"중립하단({rsi:.1f})"
-        elif rsi < 60: rsi_s, rsi_sig = 45, f"중립상단({rsi:.1f})"
-        elif rsi < 70: rsi_s, rsi_sig = 30, f"매도우호({rsi:.1f})"
-        else:          rsi_s, rsi_sig = 15, f"과매수({rsi:.1f})"
 
-        # ── MACD(12, 26, 9) ──
+        # ── RSI → 방향 투표 (방향과 신뢰도 분리) ──
+        if   rsi < 30: rsi_dir, rsi_str, rsi_sig = "buy",  0.8, f"과매도({rsi:.1f})"
+        elif rsi < 40: rsi_dir, rsi_str, rsi_sig = "buy",  0.5, f"매수우호({rsi:.1f})"
+        elif rsi < 45: rsi_dir, rsi_str, rsi_sig = "neutral", 0.2, f"중립({rsi:.1f})"
+        elif rsi < 55: rsi_dir, rsi_str, rsi_sig = "neutral", 0.1, f"중립({rsi:.1f})"
+        elif rsi < 60: rsi_dir, rsi_str, rsi_sig = "neutral", 0.2, f"중립({rsi:.1f})"
+        elif rsi < 70: rsi_dir, rsi_str, rsi_sig = "sell", 0.5, f"매도우호({rsi:.1f})"
+        else:          rsi_dir, rsi_str, rsi_sig = "sell", 0.8, f"과매수({rsi:.1f})"
+
+        # ── MACD(12, 26, 9) → 방향 투표 ──
         def _ema(prices, p):
             if len(prices) < p:
                 return [prices[-1]]
@@ -4934,7 +4937,7 @@ async def _compute_quant_score(ticker: str, market: str = "KR", lookback: int = 
                 vals.append(x * k + vals[-1] * (1 - k))
             return vals
 
-        macd_s, macd_sig = 50, "데이터부족"
+        macd_dir, macd_str, macd_sig = "neutral", 0.1, "데이터부족"
         if n >= 27:
             e12 = _ema(closes, 12)
             e26 = _ema(closes, 26)
@@ -4946,72 +4949,111 @@ async def _compute_quant_score(ticker: str, market: str = "KR", lookback: int = 
                     mv, sv = macd_line[-1], sig_line[-1]
                     mv2 = macd_line[-2] if len(macd_line) >= 2 else mv
                     sv2 = sig_line[-2] if len(sig_line) >= 2 else sv
-                    if   mv2 < sv2 and mv > sv:           macd_s, macd_sig = 80, "골든크로스↑"
-                    elif mv2 > sv2 and mv < sv:           macd_s, macd_sig = 20, "데드크로스↓"
-                    elif mv > sv and (mv-sv) > (mv2-sv2): macd_s, macd_sig = 68, "MACD>시그널상승"
-                    elif mv > sv:                         macd_s, macd_sig = 55, "MACD>시그널"
-                    elif mv < sv and (mv-sv) < (mv2-sv2): macd_s, macd_sig = 32, "MACD<시그널하락"
-                    else:                                 macd_s, macd_sig = 45, "MACD<시그널"
+                    if   mv2 < sv2 and mv > sv:           macd_dir, macd_str, macd_sig = "buy",  0.9, "골든크로스↑"
+                    elif mv2 > sv2 and mv < sv:           macd_dir, macd_str, macd_sig = "sell", 0.9, "데드크로스↓"
+                    elif mv > sv and (mv-sv) > (mv2-sv2): macd_dir, macd_str, macd_sig = "buy",  0.6, "MACD>시그널상승"
+                    elif mv > sv:                         macd_dir, macd_str, macd_sig = "buy",  0.3, "MACD>시그널"
+                    elif mv < sv and (mv-sv) < (mv2-sv2): macd_dir, macd_str, macd_sig = "sell", 0.6, "MACD<시그널하락"
+                    else:                                 macd_dir, macd_str, macd_sig = "sell", 0.3, "MACD<시그널"
 
-        # ── 볼린저밴드(20, 2σ) ──
-        bb_s, bb_sig, pct_b = 50, "데이터부족", 0.5
+        # ── 볼린저밴드(20, 2σ) → 방향 투표 ──
+        bb_dir, bb_str, bb_sig, pct_b = "neutral", 0.1, "데이터부족", 0.5
         if n >= 20:
             sma = sum(closes[-20:]) / 20
             std = (sum((c - sma)**2 for c in closes[-20:]) / 20) ** 0.5
             bw = 4 * std
             if bw > 0:
                 pct_b = (closes[-1] - (sma - 2*std)) / bw
-                if   pct_b <= 0.10: bb_s, bb_sig = 90, f"하단돌파(%B={pct_b:.2f})"
-                elif pct_b <= 0.25: bb_s, bb_sig = 75, f"하단근접(%B={pct_b:.2f})"
-                elif pct_b <= 0.45: bb_s, bb_sig = 60, f"중하단(%B={pct_b:.2f})"
-                elif pct_b <= 0.55: bb_s, bb_sig = 50, f"중간(%B={pct_b:.2f})"
-                elif pct_b <= 0.75: bb_s, bb_sig = 40, f"중상단(%B={pct_b:.2f})"
-                elif pct_b <= 0.90: bb_s, bb_sig = 25, f"상단근접(%B={pct_b:.2f})"
-                else:               bb_s, bb_sig = 10, f"상단돌파(%B={pct_b:.2f})"
+                if   pct_b <= 0.10: bb_dir, bb_str, bb_sig = "buy",  0.9, f"하단돌파(%B={pct_b:.2f})"
+                elif pct_b <= 0.25: bb_dir, bb_str, bb_sig = "buy",  0.6, f"하단근접(%B={pct_b:.2f})"
+                elif pct_b <= 0.40: bb_dir, bb_str, bb_sig = "buy",  0.2, f"중하단(%B={pct_b:.2f})"
+                elif pct_b <= 0.60: bb_dir, bb_str, bb_sig = "neutral", 0.1, f"중간(%B={pct_b:.2f})"
+                elif pct_b <= 0.75: bb_dir, bb_str, bb_sig = "sell", 0.2, f"중상단(%B={pct_b:.2f})"
+                elif pct_b <= 0.90: bb_dir, bb_str, bb_sig = "sell", 0.6, f"상단근접(%B={pct_b:.2f})"
+                else:               bb_dir, bb_str, bb_sig = "sell", 0.9, f"상단돌파(%B={pct_b:.2f})"
 
-        # ── 거래량 보정 ──
-        vol_mult, vol_sig = 1.0, "보통"
+        # ── 거래량 (방향 아닌 확신 보정용) ──
+        vol_adj, vol_sig = 0, "보통"
+        vol_ratio = 1.0
         if n >= 20 and len(volumes) >= 20:
             avg_v = sum(volumes[-20:-1]) / 19
             if avg_v > 0:
-                vr = volumes[-1] / avg_v
-                if   vr >= 2.0: vol_mult, vol_sig = 1.15, f"급증({vr:.1f}x)"
-                elif vr >= 1.5: vol_mult, vol_sig = 1.08, f"증가({vr:.1f}x)"
-                elif vr < 0.8:  vol_mult, vol_sig = 0.93, f"감소({vr:.1f}x)"
-                else:           vol_sig = f"보통({vr:.1f}x)"
+                vol_ratio = volumes[-1] / avg_v
+                if   vol_ratio >= 2.0: vol_adj, vol_sig = 8,  f"급증({vol_ratio:.1f}x)"
+                elif vol_ratio >= 1.5: vol_adj, vol_sig = 5,  f"증가({vol_ratio:.1f}x)"
+                elif vol_ratio < 0.8:  vol_adj, vol_sig = -5, f"감소({vol_ratio:.1f}x)"
+                else:                  vol_sig = f"보통({vol_ratio:.1f}x)"
 
-        # ── 이동평균 추세 ──
+        # ── 이동평균 추세 → 방향 투표 ──
         ma5  = round(sum(closes[-5:]) /5)  if n >= 5  else 0
         ma20 = round(sum(closes[-20:])/20) if n >= 20 else 0
         ma60 = round(sum(closes[-60:])/60) if n >= 60 else 0
         if ma5 and ma20 and ma60:
-            if   ma5 > ma20 > ma60: tr_s, tr_sig = 80, "상승정렬(5>20>60)"
-            elif ma5 > ma20:        tr_s, tr_sig = 62, "단기반등"
-            elif ma5 < ma20 < ma60: tr_s, tr_sig = 20, "하락정렬(5<20<60)"
-            else:                   tr_s, tr_sig = 45, "혼조세"
+            if   ma5 > ma20 > ma60: tr_dir, tr_str, tr_sig = "buy",  0.8, "상승정렬(5>20>60)"
+            elif ma5 > ma20:        tr_dir, tr_str, tr_sig = "buy",  0.4, "단기반등"
+            elif ma5 < ma20 < ma60: tr_dir, tr_str, tr_sig = "sell", 0.8, "하락정렬(5<20<60)"
+            else:                   tr_dir, tr_str, tr_sig = "neutral", 0.2, "혼조세"
         elif ma5 and ma20:
-            tr_s, tr_sig = (65, "단기상승") if ma5 > ma20 else (35, "단기하락")
+            if ma5 > ma20: tr_dir, tr_str, tr_sig = "buy",  0.4, "단기상승"
+            else:          tr_dir, tr_str, tr_sig = "sell", 0.4, "단기하락"
         else:
-            tr_s, tr_sig = 50, "데이터부족"
+            tr_dir, tr_str, tr_sig = "neutral", 0.1, "데이터부족"
 
-        # ── 종합 점수 ──
-        base  = rsi_s*0.30 + macd_s*0.25 + bb_s*0.20 + tr_s*0.25
-        qconf = int(max(1, min(99, base * vol_mult)))
-        direction = "buy" if qconf >= 60 else ("sell" if qconf <= 40 else "neutral")
+        # ── 종합: 방향 = 다수결, 신뢰도 = 합의율 ──
+        votes = [
+            ("RSI",  rsi_dir,  rsi_str),
+            ("MACD", macd_dir, macd_str),
+            ("BB",   bb_dir,   bb_str),
+            ("MA",   tr_dir,   tr_str),
+        ]
+        buy_votes  = [(nm, st) for nm, d, st in votes if d == "buy"]
+        sell_votes = [(nm, st) for nm, d, st in votes if d == "sell"]
+        n_votes = len(votes)
+
+        if len(buy_votes) > len(sell_votes):
+            direction = "buy"
+            winner_count = len(buy_votes)
+            winner_avg_str = sum(s for _, s in buy_votes) / len(buy_votes)
+        elif len(sell_votes) > len(buy_votes):
+            direction = "sell"
+            winner_count = len(sell_votes)
+            winner_avg_str = sum(s for _, s in sell_votes) / len(sell_votes)
+        else:
+            direction = "neutral"
+            winner_count = 0
+            winner_avg_str = 0.3
+
+        # 합의율 → 기본 신뢰도 (30~90% 범위)
+        if direction == "neutral":
+            base_conf = 50
+        else:
+            consensus = winner_count / n_votes  # 0.25~1.0
+            base_conf = 35 + consensus * 55     # 1/4→49, 2/4→63, 3/4→76, 4/4→90
+            # 강도 보정: 같은 3/4라도 신호 강도가 다름
+            strength_adj = (winner_avg_str - 0.5) * 10  # -5 ~ +4
+            base_conf += strength_adj
+
+        qconf = int(max(30, min(95, base_conf + vol_adj)))
         dir_kr = {"buy": "매수", "sell": "매도", "neutral": "관망"}[direction]
+        vote_detail = " / ".join(
+            f"{nm}→{'매수' if d == 'buy' else '매도' if d == 'sell' else '중립'}"
+            for nm, d, _ in votes
+        )
         summary = (
             f"RSI {rsi:.0f} / MACD {macd_sig} / BB {bb_sig} / 거래량 {vol_sig}"
+            f" → 투표 [{vote_detail}] = {winner_count}/{n_votes} 합의"
             f" → 정량신뢰도 {qconf}%({dir_kr})"
         )
         return {
             "ticker": ticker, "direction": direction, "quant_confidence": qconf,
             "components": {
-                "rsi":       {"value": round(rsi, 1), "score": rsi_s, "signal": rsi_sig},
-                "macd":      {"score": macd_s, "signal": macd_sig},
-                "bollinger": {"pct_b": round(pct_b, 2), "score": bb_s, "signal": bb_sig},
-                "volume":    {"multiplier": vol_mult, "signal": vol_sig},
-                "trend":     {"ma5": ma5, "ma20": ma20, "ma60": ma60, "score": tr_s, "signal": tr_sig},
+                "rsi":       {"value": round(rsi, 1), "direction": rsi_dir, "strength": rsi_str, "signal": rsi_sig},
+                "macd":      {"direction": macd_dir, "strength": macd_str, "signal": macd_sig},
+                "bollinger": {"pct_b": round(pct_b, 2), "direction": bb_dir, "strength": bb_str, "signal": bb_sig},
+                "volume":    {"ratio": round(vol_ratio, 1), "adj": vol_adj, "signal": vol_sig},
+                "trend":     {"ma5": ma5, "ma20": ma20, "ma60": ma60, "direction": tr_dir, "strength": tr_str, "signal": tr_sig},
             },
+            "votes": {"buy": len(buy_votes), "sell": len(sell_votes), "neutral": n_votes - len(buy_votes) - len(sell_votes)},
             "summary": summary, "error": None,
         }
     except Exception as e:
@@ -5029,11 +5071,13 @@ async def _build_quant_prompt_section(market_watchlist: list, market: str = "KR"
         for w, r in zip(market_watchlist, results):
             if isinstance(r, Exception) or (isinstance(r, dict) and r.get("error")):
                 rows.append(
-                    f"| {w['name']}({w['ticker']}) | 조회실패 | — | — | — | — | **50% 판단불가** |"
+                    f"| {w['name']}({w['ticker']}) | 조회실패 | — | — | — | — | — | **50% 판단불가** |"
                 )
                 continue
             c = r["components"]
             d_kr = {"buy": "매수", "sell": "매도", "neutral": "관망"}[r["direction"]]
+            v = r.get("votes", {})
+            vote_str = f"매수{v.get('buy',0)}:매도{v.get('sell',0)}:중립{v.get('neutral',0)}"
             rows.append(
                 f"| {w['name']}({w['ticker']}) "
                 f"| {c['rsi']['signal']} "
@@ -5041,15 +5085,17 @@ async def _build_quant_prompt_section(market_watchlist: list, market: str = "KR"
                 f"| {c['bollinger']['signal']} "
                 f"| {c['volume']['signal']} "
                 f"| {c['trend']['signal']} "
+                f"| {vote_str} "
                 f"| **{r['quant_confidence']}% {d_kr}** |"
             )
         return (
-            "\n\n## 📐 정량지표 사전분석 (서버 자동계산)\n"
-            "| 종목 | RSI(14) | MACD | 볼린저밴드 | 거래량 | 추세(MA) | 정량기준신뢰도 |\n"
-            "|------|---------|------|-----------|--------|---------|----------------|\n"
+            "\n\n## 📐 정량지표 사전분석 (서버 자동계산 — 지표 합의 방식)\n"
+            "| 종목 | RSI(14) | MACD | 볼린저밴드 | 거래량 | 추세(MA) | 지표투표 | 합의신뢰도 |\n"
+            "|------|---------|------|-----------|--------|---------|---------|------------|\n"
             + "\n".join(rows)
-            + "\n\n⚠️ 신뢰도는 위 정량기준값에서 **±15%p 범위 내**에서만 조정하세요."
-            " 이탈 시 이유를 명시하세요."
+            + "\n\n⚠️ 위 합의신뢰도는 4개 기술지표의 방향 합의율입니다."
+            " 뉴스/실적/수급/매크로 등 정성분석을 반영하여 **±20%p 범위 내**에서 조정하세요."
+            " 근거를 반드시 명시하세요."
         )
     except Exception as e:
         return f"\n\n## 📐 정량지표 (계산 실패: {str(e)[:60]})\n"
@@ -5303,7 +5349,7 @@ async def generate_trading_signals():
 [시그널] 카카오 (035720) | 매도 | 신뢰도 61% | 비중 0% | 목표가 42000 | PER 과대평가, 금리 민감 섹터 약세
 [시그널] LG에너지솔루션 (373220) | 관망 | 신뢰도 45% | 비중 5% | 목표가 0 | 혼조세, 방향성 불명확
 
-※ 신뢰도는 정량기준값 ±15%p 범위 내에서 결정. 반드시 0~100 숫자 + % 기호.
+※ 신뢰도는 정량기준값 ±20%p 범위 내에서 결정. 반드시 0~100 숫자 + % 기호.
 ※ 비중: 포트폴리오 내 해당 종목 비중(%). 매도 종목은 0%. 전 종목 비중 합계 ≤ {100 - _cash_reserve}%.
 ※ 목표가: 매수 종목은 목표 매도가, 매도 종목은 목표 재진입가, 관망은 0. 반드시 숫자만 (쉼표 없이)."""
 
@@ -5900,7 +5946,7 @@ async def _run_trading_now_inner(selected_tickers: list[str] | None = None):
 [시그널] LG에너지솔루션 (373220) | 관망 | 신뢰도 45% | 비중 0% | 목표가 390000 | 혼조세, 이 가격 도달 시 진입 검토
 
 ※ 주의:
-- 신뢰도는 위 정량기준값 ±15%p 범위 내에서 결정. 종목별로 독립적으로, 0~100 숫자 + % 기호로 표기
+- 신뢰도는 위 정량기준값 ±20%p 범위 내에서 결정. 종목별로 독립적으로, 0~100 숫자 + % 기호로 표기
 - 목표가(권장 매수 진입가): 매수/관망 종목은 반드시 입력. 현재가보다 낮은 목표 진입가 설정. 미국 주식은 USD 단위. 매도 종목은 0
 - 목표가 도달 시 서버가 자동으로 매수 실행 — 신중하게 설정할 것"""
 
@@ -8456,7 +8502,7 @@ async def argos_macro(days: int = 30):
 @app.get("/api/argos/confidence/{ticker}")
 async def argos_confidence(ticker: str):
     """Phase 6-7: 서버 계산 신뢰도 — Quant + Calibration + Bayesian + ELO.
-    AI는 이 값을 받아 뉴스 맥락으로 ±15%p 조정만 하면 됨.
+    AI는 이 값을 받아 뉴스 맥락으로 ±20%p 조정만 하면 됨.
     """
     try:
         conn = get_connection()
@@ -8559,7 +8605,7 @@ async def argos_confidence(ticker: str):
                 "bayesian_adj": bayesian_adj,
                 "elo_adj": elo_adj,
             },
-            "ai_instruction": f"서버 계산 신뢰도 {server_conf}%. 뉴스/맥락 분석 후 ±15%p 범위 내에서 조정 (이탈 시 이유 명시).",
+            "ai_instruction": f"서버 계산 신뢰도 {server_conf}%. 뉴스/맥락 분석 후 ±20%p 범위 내에서 조정 (이탈 시 이유 명시).",
             "price_bars_used": len(price_rows),
             "source": "ARGOS 서버 계산 (AI 호출 없음)"
         }
