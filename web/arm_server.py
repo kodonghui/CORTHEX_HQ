@@ -3784,6 +3784,9 @@ async def _cron_loop():
                     # 백그라운드에서 명령 실행
                     asyncio.create_task(_run_scheduled_command(command, schedule.get("name", "")))
 
+            # 가격 트리거 체크 (1분마다 — 손절/익절/목표매수 자동 실행)
+            asyncio.create_task(_check_price_triggers())
+
         except Exception as e:
             logger.error("크론 루프 에러: %s", e)
 
@@ -4384,6 +4387,375 @@ def _build_calibration_prompt_section(settings: dict | None = None) -> str:
     return "\n".join(parts) if parts else ""
 
 
+# ── [QUANT SCORE] 정량 신뢰도 계산 (RSI/MACD/볼린저밴드/거래량/이동평균) ──
+
+async def _compute_quant_score(ticker: str, market: str = "KR", lookback: int = 60) -> dict:
+    """RSI(14)/MACD(12,26,9)/볼린저밴드(20,2σ)/거래량/이동평균으로 정량 신뢰도 계산.
+
+    LLM이 신뢰도를 직접 찍는 대신, 이 함수 계산값을 기준으로 ±15%p 조정만 허용.
+    반환: {ticker, direction, quant_confidence(0-99), components, summary, error}
+    """
+    _err = {
+        "ticker": ticker, "direction": "neutral", "quant_confidence": 50,
+        "components": {}, "summary": "정량 데이터 없음 — AI 판단 사용", "error": None,
+    }
+    try:
+        closes: list = []
+        volumes: list = []
+
+        if market == "KR":
+            try:
+                from pykrx import stock as _pykrx
+                _today = datetime.now(KST).strftime("%Y%m%d")
+                _start = (datetime.now(KST) - timedelta(days=lookback + 30)).strftime("%Y%m%d")
+                df = await asyncio.to_thread(_pykrx.get_market_ohlcv_by_date, _start, _today, ticker)
+                if df is None or df.empty or len(df) < 20:
+                    return {**_err, "error": f"pykrx 데이터 부족 ({0 if df is None else len(df)}일)"}
+                closes = df["종가"].astype(float).tolist()
+                volumes = df["거래량"].astype(float).tolist()
+            except Exception as e:
+                return {**_err, "error": f"pykrx: {str(e)[:60]}"}
+        else:
+            try:
+                import yfinance as yf
+                _t = yf.Ticker(ticker)
+                hist = await asyncio.to_thread(lambda: _t.history(period="3mo"))
+                if hist is None or hist.empty or len(hist) < 20:
+                    return {**_err, "error": "yfinance 데이터 부족"}
+                closes = hist["Close"].astype(float).tolist()
+                volumes = hist["Volume"].astype(float).tolist()
+            except Exception as e:
+                return {**_err, "error": f"yfinance: {str(e)[:60]}"}
+
+        n = len(closes)
+
+        # ── RSI(14) ──
+        def _rsi(prices, p=14):
+            if len(prices) < p + 1:
+                return 50.0
+            d = [prices[i] - prices[i-1] for i in range(1, len(prices))]
+            g = [max(x, 0.0) for x in d[-p:]]
+            l = [abs(min(x, 0.0)) for x in d[-p:]]
+            ag, al = sum(g)/p, sum(l)/p
+            return 100.0 if al == 0 else 100 - 100/(1 + ag/al)
+
+        rsi = _rsi(closes)
+        if   rsi < 30: rsi_s, rsi_sig = 85, f"과매도({rsi:.1f})"
+        elif rsi < 40: rsi_s, rsi_sig = 70, f"매수우호({rsi:.1f})"
+        elif rsi < 50: rsi_s, rsi_sig = 55, f"중립하단({rsi:.1f})"
+        elif rsi < 60: rsi_s, rsi_sig = 45, f"중립상단({rsi:.1f})"
+        elif rsi < 70: rsi_s, rsi_sig = 30, f"매도우호({rsi:.1f})"
+        else:          rsi_s, rsi_sig = 15, f"과매수({rsi:.1f})"
+
+        # ── MACD(12, 26, 9) ──
+        def _ema(prices, p):
+            if len(prices) < p:
+                return [prices[-1]]
+            k = 2 / (p + 1)
+            vals = [sum(prices[:p]) / p]
+            for x in prices[p:]:
+                vals.append(x * k + vals[-1] * (1 - k))
+            return vals
+
+        macd_s, macd_sig = 50, "데이터부족"
+        if n >= 27:
+            e12 = _ema(closes, 12)
+            e26 = _ema(closes, 26)
+            ml = min(len(e12), len(e26))
+            macd_line = [e12[i] - e26[i] for i in range(-ml, 0)]
+            if len(macd_line) >= 9:
+                sig_line = _ema(macd_line, 9)
+                if sig_line:
+                    mv, sv = macd_line[-1], sig_line[-1]
+                    mv2 = macd_line[-2] if len(macd_line) >= 2 else mv
+                    sv2 = sig_line[-2] if len(sig_line) >= 2 else sv
+                    if   mv2 < sv2 and mv > sv:           macd_s, macd_sig = 80, "골든크로스↑"
+                    elif mv2 > sv2 and mv < sv:           macd_s, macd_sig = 20, "데드크로스↓"
+                    elif mv > sv and (mv-sv) > (mv2-sv2): macd_s, macd_sig = 68, "MACD>시그널상승"
+                    elif mv > sv:                         macd_s, macd_sig = 55, "MACD>시그널"
+                    elif mv < sv and (mv-sv) < (mv2-sv2): macd_s, macd_sig = 32, "MACD<시그널하락"
+                    else:                                 macd_s, macd_sig = 45, "MACD<시그널"
+
+        # ── 볼린저밴드(20, 2σ) ──
+        bb_s, bb_sig, pct_b = 50, "데이터부족", 0.5
+        if n >= 20:
+            sma = sum(closes[-20:]) / 20
+            std = (sum((c - sma)**2 for c in closes[-20:]) / 20) ** 0.5
+            bw = 4 * std
+            if bw > 0:
+                pct_b = (closes[-1] - (sma - 2*std)) / bw
+                if   pct_b <= 0.10: bb_s, bb_sig = 90, f"하단돌파(%B={pct_b:.2f})"
+                elif pct_b <= 0.25: bb_s, bb_sig = 75, f"하단근접(%B={pct_b:.2f})"
+                elif pct_b <= 0.45: bb_s, bb_sig = 60, f"중하단(%B={pct_b:.2f})"
+                elif pct_b <= 0.55: bb_s, bb_sig = 50, f"중간(%B={pct_b:.2f})"
+                elif pct_b <= 0.75: bb_s, bb_sig = 40, f"중상단(%B={pct_b:.2f})"
+                elif pct_b <= 0.90: bb_s, bb_sig = 25, f"상단근접(%B={pct_b:.2f})"
+                else:               bb_s, bb_sig = 10, f"상단돌파(%B={pct_b:.2f})"
+
+        # ── 거래량 보정 ──
+        vol_mult, vol_sig = 1.0, "보통"
+        if n >= 20 and len(volumes) >= 20:
+            avg_v = sum(volumes[-20:-1]) / 19
+            if avg_v > 0:
+                vr = volumes[-1] / avg_v
+                if   vr >= 2.0: vol_mult, vol_sig = 1.15, f"급증({vr:.1f}x)"
+                elif vr >= 1.5: vol_mult, vol_sig = 1.08, f"증가({vr:.1f}x)"
+                elif vr < 0.8:  vol_mult, vol_sig = 0.93, f"감소({vr:.1f}x)"
+                else:           vol_sig = f"보통({vr:.1f}x)"
+
+        # ── 이동평균 추세 ──
+        ma5  = round(sum(closes[-5:]) /5)  if n >= 5  else 0
+        ma20 = round(sum(closes[-20:])/20) if n >= 20 else 0
+        ma60 = round(sum(closes[-60:])/60) if n >= 60 else 0
+        if ma5 and ma20 and ma60:
+            if   ma5 > ma20 > ma60: tr_s, tr_sig = 80, "상승정렬(5>20>60)"
+            elif ma5 > ma20:        tr_s, tr_sig = 62, "단기반등"
+            elif ma5 < ma20 < ma60: tr_s, tr_sig = 20, "하락정렬(5<20<60)"
+            else:                   tr_s, tr_sig = 45, "혼조세"
+        elif ma5 and ma20:
+            tr_s, tr_sig = (65, "단기상승") if ma5 > ma20 else (35, "단기하락")
+        else:
+            tr_s, tr_sig = 50, "데이터부족"
+
+        # ── 종합 점수 ──
+        base  = rsi_s*0.30 + macd_s*0.25 + bb_s*0.20 + tr_s*0.25
+        qconf = int(max(1, min(99, base * vol_mult)))
+        direction = "buy" if qconf >= 60 else ("sell" if qconf <= 40 else "neutral")
+        dir_kr = {"buy": "매수", "sell": "매도", "neutral": "관망"}[direction]
+        summary = (
+            f"RSI {rsi:.0f} / MACD {macd_sig} / BB {bb_sig} / 거래량 {vol_sig}"
+            f" → 정량신뢰도 {qconf}%({dir_kr})"
+        )
+        return {
+            "ticker": ticker, "direction": direction, "quant_confidence": qconf,
+            "components": {
+                "rsi":       {"value": round(rsi, 1), "score": rsi_s, "signal": rsi_sig},
+                "macd":      {"score": macd_s, "signal": macd_sig},
+                "bollinger": {"pct_b": round(pct_b, 2), "score": bb_s, "signal": bb_sig},
+                "volume":    {"multiplier": vol_mult, "signal": vol_sig},
+                "trend":     {"ma5": ma5, "ma20": ma20, "ma60": ma60, "score": tr_s, "signal": tr_sig},
+            },
+            "summary": summary, "error": None,
+        }
+    except Exception as e:
+        return {**_err, "error": f"계산오류: {str(e)[:80]}"}
+
+
+async def _build_quant_prompt_section(market_watchlist: list, market: str = "KR") -> str:
+    """관심종목 전체 정량지표를 병렬 계산 → 프롬프트 삽입용 테이블 반환."""
+    if not market_watchlist:
+        return ""
+    try:
+        tasks = [_compute_quant_score(w["ticker"], market) for w in market_watchlist]
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        rows = []
+        for w, r in zip(market_watchlist, results):
+            if isinstance(r, Exception) or (isinstance(r, dict) and r.get("error")):
+                rows.append(
+                    f"| {w['name']}({w['ticker']}) | 조회실패 | — | — | — | — | **50% 판단불가** |"
+                )
+                continue
+            c = r["components"]
+            d_kr = {"buy": "매수", "sell": "매도", "neutral": "관망"}[r["direction"]]
+            rows.append(
+                f"| {w['name']}({w['ticker']}) "
+                f"| {c['rsi']['signal']} "
+                f"| {c['macd']['signal']} "
+                f"| {c['bollinger']['signal']} "
+                f"| {c['volume']['signal']} "
+                f"| {c['trend']['signal']} "
+                f"| **{r['quant_confidence']}% {d_kr}** |"
+            )
+        return (
+            "\n\n## 📐 정량지표 사전분석 (서버 자동계산)\n"
+            "| 종목 | RSI(14) | MACD | 볼린저밴드 | 거래량 | 추세(MA) | 정량기준신뢰도 |\n"
+            "|------|---------|------|-----------|--------|---------|----------------|\n"
+            + "\n".join(rows)
+            + "\n\n⚠️ 신뢰도는 위 정량기준값에서 **±15%p 범위 내**에서만 조정하세요."
+            " 이탈 시 이유를 명시하세요."
+        )
+    except Exception as e:
+        return f"\n\n## 📐 정량지표 (계산 실패: {str(e)[:60]})\n"
+
+
+# ── [PRICE TRIGGERS] 목표가/손절/익절 자동 주문 ──
+
+def _register_position_triggers(
+    ticker: str, name: str, buy_price: float, qty: int,
+    market: str, settings: dict, source_id: str = "",
+) -> None:
+    """매수 체결 후 자동 손절/익절 트리거 등록."""
+    if buy_price <= 0 or qty <= 0:
+        return
+    sl_pct = settings.get("default_stop_loss_pct", -5)
+    tp_pct = settings.get("default_take_profit_pct", 10)
+    stop_price = round(buy_price * (1 + sl_pct / 100))
+    take_price = round(buy_price * (1 + tp_pct / 100))
+    now_str = datetime.now(KST).isoformat()
+    base_id = f"{ticker}_{datetime.now(KST).strftime('%Y%m%d%H%M%S')}"
+    new_triggers = [
+        {
+            "id": f"sl_{base_id}", "ticker": ticker, "name": name,
+            "type": "stop_loss", "trigger_price": stop_price, "qty": qty,
+            "market": market, "active": True, "created_at": now_str,
+            "source": "auto_buy", "source_id": source_id,
+            "note": f"매수가 {buy_price:,.0f} × {1+sl_pct/100:.2f} = {stop_price:,.0f} 손절",
+        },
+        {
+            "id": f"tp_{base_id}", "ticker": ticker, "name": name,
+            "type": "take_profit", "trigger_price": take_price, "qty": qty,
+            "market": market, "active": True, "created_at": now_str,
+            "source": "auto_buy", "source_id": source_id,
+            "note": f"매수가 {buy_price:,.0f} × {1+tp_pct/100:.2f} = {take_price:,.0f} 익절",
+        },
+    ]
+    triggers = _load_data("price_triggers", [])
+    triggers = new_triggers + triggers
+    if len(triggers) > 500:
+        triggers = triggers[:500]
+    _save_data("price_triggers", triggers)
+    save_activity_log(
+        "cio_manager",
+        f"🎯 트리거 등록: {name} 손절 {stop_price:,.0f} / 익절 {take_price:,.0f} ({sl_pct}%/{tp_pct}%)",
+        "info",
+    )
+
+
+async def _check_price_triggers() -> None:
+    """1분마다 가격 모니터링 → 목표가 도달 시 자동 주문 실행."""
+    triggers = _load_data("price_triggers", [])
+    active = [t for t in triggers if t.get("active", True)]
+    if not active:
+        return
+
+    settings = _load_data("trading_settings", _default_trading_settings())
+    enable_mock = settings.get("enable_mock", False)
+    use_kis = _KIS_AVAILABLE and _kis_configured()
+    use_mock_kis = (not use_kis) and enable_mock and _KIS_AVAILABLE and _kis_mock_configured()
+
+    async with _price_cache_lock:
+        prices_snapshot = dict(_price_cache)
+
+    triggered_ids: set = set()
+    for t in active:
+        ticker = t["ticker"]
+        if ticker not in prices_snapshot:
+            continue
+        current_price = prices_snapshot[ticker]["price"]
+        tp_val = t["trigger_price"]
+        ttype  = t["type"]
+
+        if   ttype == "stop_loss"   and current_price <= tp_val: pass
+        elif ttype == "take_profit" and current_price >= tp_val: pass
+        elif ttype == "buy_limit"   and current_price <= tp_val: pass
+        else: continue
+
+        action    = "buy" if ttype == "buy_limit" else "sell"
+        action_kr = "매수" if action == "buy" else "매도"
+        type_kr   = {"stop_loss": "🔴 손절", "take_profit": "✅ 익절", "buy_limit": "🎯 목표매수"}[ttype]
+        name      = t.get("name", ticker)
+        qty       = t.get("qty", 1)
+        market    = t.get("market", "KR")
+        is_us     = market == "US"
+
+        save_activity_log(
+            "cio_manager",
+            f"{type_kr} 발동: {name}({ticker}) 현재가 {current_price:,.0f} / 목표 {tp_val:,.0f} → {action_kr} {qty}주",
+            "info",
+        )
+        try:
+            order_result = {"success": False, "message": "미실행", "order_no": ""}
+            if use_kis:
+                order_result = await (
+                    _kis_us_order(ticker, action, qty, price=current_price) if is_us
+                    else _kis_order(ticker, action, qty, price=0)
+                )
+            elif use_mock_kis:
+                order_result = await (
+                    _kis_mock_us_order(ticker, action, qty, price=current_price) if is_us
+                    else _kis_mock_order(ticker, action, qty, price=0)
+                )
+            else:
+                portfolio = _load_data("trading_portfolio", _default_portfolio())
+                if action == "sell":
+                    holding = next((h for h in portfolio["holdings"] if h["ticker"] == ticker), None)
+                    if holding and holding["qty"] >= qty:
+                        sell_qty = min(qty, holding["qty"])
+                        holding["qty"] -= sell_qty
+                        if holding["qty"] == 0:
+                            portfolio["holdings"] = [h for h in portfolio["holdings"] if h["ticker"] != ticker]
+                        portfolio["cash"] += sell_qty * current_price
+                        portfolio["updated_at"] = datetime.now(KST).isoformat()
+                        _save_data("trading_portfolio", portfolio)
+                        order_result = {"success": True, "order_no": "virtual"}
+                elif action == "buy" and portfolio.get("cash", 0) >= current_price * qty:
+                    holding = next((h for h in portfolio["holdings"] if h["ticker"] == ticker), None)
+                    if holding:
+                        old_total = holding["avg_price"] * holding["qty"]
+                        holding["qty"] += qty
+                        holding["avg_price"] = int((old_total + current_price * qty) / holding["qty"])
+                        holding["current_price"] = int(current_price)
+                    else:
+                        portfolio["holdings"].append({
+                            "ticker": ticker, "name": name, "qty": qty,
+                            "avg_price": int(current_price), "current_price": int(current_price),
+                            "market": market,
+                        })
+                    portfolio["cash"] -= current_price * qty
+                    portfolio["updated_at"] = datetime.now(KST).isoformat()
+                    _save_data("trading_portfolio", portfolio)
+                    order_result = {"success": True, "order_no": "virtual"}
+
+            if order_result["success"]:
+                triggered_ids.add(t["id"])
+                mode = "실거래" if use_kis else ("모의투자" if use_mock_kis else "가상")
+                history = _load_data("trading_history", [])
+                history.insert(0, {
+                    "id": f"trigger_{datetime.now(KST).strftime('%Y%m%d%H%M%S')}_{ticker}",
+                    "date": datetime.now(KST).isoformat(),
+                    "ticker": ticker, "name": name, "action": action,
+                    "qty": qty, "price": current_price, "total": qty * current_price, "pnl": 0,
+                    "strategy": f"{type_kr} 자동실행 ({mode})",
+                    "status": "executed", "market": market,
+                    "order_no": order_result.get("order_no", ""),
+                })
+                _save_data("trading_history", history)
+                save_activity_log(
+                    "cio_manager",
+                    f"✅ {type_kr} 자동{action_kr} 완료: {name} {qty}주 @ {current_price:,.0f} ({mode})",
+                    "info",
+                )
+                if action == "buy":
+                    _register_position_triggers(ticker, name, current_price, qty, market, settings,
+                                                source_id=t["id"])
+                # 반대쪽 트리거 비활성화 (손절 발동 → 익절 제거, 익절 발동 → 손절 제거)
+                pair_prefix = "tp_" if ttype == "stop_loss" else ("sl_" if ttype == "take_profit" else "")
+                base_key = t["id"].split("_", 1)[1] if "_" in t["id"] else ""
+                if pair_prefix and base_key:
+                    for other in triggers:
+                        if other.get("active") and other["id"] == f"{pair_prefix}{base_key}":
+                            other["active"] = False
+            else:
+                save_activity_log(
+                    "cio_manager",
+                    f"❌ {type_kr} 주문 실패: {name} — {order_result.get('message','원인 불명')[:80]}",
+                    "error",
+                )
+        except Exception as ex:
+            save_activity_log(
+                "cio_manager",
+                f"❌ {type_kr} 트리거 오류: {name} — {str(ex)[:80]}",
+                "error",
+            )
+
+    if triggered_ids:
+        for t in triggers:
+            if t["id"] in triggered_ids:
+                t["active"] = False
+                t["triggered_at"] = datetime.now(KST).isoformat()
+        _save_data("price_triggers", triggers)
+
+
 # ── 트레이딩 CRUD 엔드포인트 → handlers/trading_handler.py로 분리 ──
 # summary, portfolio, strategies, watchlist, prices, chart, order,
 # history, signals, decisions (CRUD) 등은 trading_handler.py에서 제공
@@ -4420,6 +4792,11 @@ async def generate_trading_signals():
     _max_pos = _profile_info["max_position_pct"]["max"]
     _cash_reserve = _profile_info["cash_reserve"]["default"]
 
+    # 정량지표 사전분석 (병렬 계산)
+    _auto_market = "US" if (len(us_tickers) > len(kr_tickers)) else "KR"
+    save_activity_log("cio_manager", "📐 정량지표 사전계산 시작 (자동매매)...", "info")
+    quant_section_auto = await _build_quant_prompt_section(watchlist, _auto_market)
+
     # CIO에게 보내는 분석 명령
     prompt = f"""[자동매매 시스템] 관심종목 종합 분석을 요청합니다.
 
@@ -4435,13 +4812,13 @@ async def generate_trading_signals():
 {f'- 미국 주식: {len(us_tickers)}개' if us_tickers else ''}
 
 ## 활성 매매 전략
-{strats_info or '기본 전략 (RSI/MACD 기반)'}
+{strats_info or '기본 전략 (RSI/MACD 기반)'}{quant_section_auto}
 
 ## 분석 요청사항
 각 전문가에게 아래 분석을 지시하세요:
 - **시황분석**: 현재 시장 분위기, 금리/환율 동향, 업종별 흐름
 - **종목분석**: 각 관심종목의 재무 건전성, PER/PBR, 실적 전망
-- **기술적분석**: 각 관심종목의 RSI, MACD, 이동평균선, 볼린저밴드 지표 확인
+- **기술적분석**: 위 정량지표 수치를 기반으로 추가 검증 (최신 뉴스/실적으로 보완)
 - **리스크관리**: 포지션 크기 적정성, 손절가, 전체 포트폴리오 리스크
 
 ## 최종 산출물 (반드시 아래 형식 그대로 — 예시처럼 정확히)
@@ -4449,7 +4826,7 @@ async def generate_trading_signals():
 [시그널] 카카오 (035720) | 매도 | 신뢰도 61% | 비중 0% | 목표가 42000 | PER 과대평가, 금리 민감 섹터 약세
 [시그널] LG에너지솔루션 (373220) | 관망 | 신뢰도 45% | 비중 5% | 목표가 0 | 혼조세, 방향성 불명확
 
-※ 주의: 신뢰도는 반드시 0~100 사이 숫자 + % 기호. 각 종목마다 독립적으로 계산할 것.
+※ 신뢰도는 정량기준값 ±15%p 범위 내에서 결정. 반드시 0~100 숫자 + % 기호.
 ※ 비중: 포트폴리오 내 해당 종목 비중(%). 매도 종목은 0%. 전 종목 비중 합계 ≤ {100 - _cash_reserve}%.
 ※ 목표가: 매수 종목은 목표 매도가, 매도 종목은 목표 재진입가, 관망은 0. 반드시 숫자만 (쉼표 없이)."""
 
@@ -5016,6 +5393,10 @@ async def _run_trading_now_inner(selected_tickers: list[str] | None = None):
     # 자기학습 보정 섹션 (베이지안 + ELO + 오답패턴 + Platt Scaling 통합)
     cal_section = _build_calibration_prompt_section(settings)
 
+    # 정량지표 사전분석 (RSI/MACD/볼린저/거래량/추세 — 병렬 계산)
+    save_activity_log("cio_manager", "📐 정량지표 사전계산 시작...", "info")
+    quant_section = await _build_quant_prompt_section(market_watchlist, market)
+
     tickers_info = ", ".join([f"{w['name']}({w['ticker']})" for w in market_watchlist])
     strategies = _load_data("trading_strategies", [])
     active_strats = [s for s in strategies if s.get("active")]
@@ -5027,13 +5408,13 @@ async def _run_trading_now_inner(selected_tickers: list[str] | None = None):
 ## 분석 대상 ({len(market_watchlist)}개 종목)
 {tickers_info}
 
-## 활성 전략: {strats_info}{cal_section}
+## 활성 전략: {strats_info}{cal_section}{quant_section}
 
 ## 분석 요청
 도구(API)를 사용하여 직접 아래 분석을 수행하세요:
 - **시황분석**: {'코스피/코스닥 지수 흐름, 외국인/기관 동향, 금리/환율' if market == 'KR' else 'S&P500/나스닥, 미국 금리/고용지표, 달러 강세'}
 - **종목분석**: 각 종목 재무 건전성, PER/PBR, 최근 실적
-- **기술적분석**: RSI, MACD, 이동평균선, 볼린저밴드
+- **기술적분석**: 위 정량지표 수치를 기반으로 추가 검증 (최신 뉴스/실적으로 보완)
 - **리스크관리**: 손절가, 적정 포지션 크기, 전체 포트폴리오 리스크
 
 ## 최종 산출물 (반드시 아래 형식 그대로 — 예시처럼 정확히)
@@ -5041,7 +5422,7 @@ async def _run_trading_now_inner(selected_tickers: list[str] | None = None):
 [시그널] 카카오 (035720) | 매도 | 신뢰도 61% | PER 과대평가, 금리 민감 섹터 약세
 [시그널] LG에너지솔루션 (373220) | 관망 | 신뢰도 45% | 혼조세, 방향성 불명확
 
-※ 주의: 신뢰도는 종목별로 독립적으로 계산, 0~100 숫자 + % 기호로 표기"""
+※ 신뢰도는 위 정량기준값 ±15%p 범위 내에서 결정. 종목별로 독립적으로, 0~100 숫자 + % 기호로 표기"""
 
     save_activity_log("cio_manager", f"🔍 수동 즉시 분석 시작: {market_label}장 {len(market_watchlist)}개 종목", "info")
     cio_result = await _call_agent("cio_manager", prompt)
@@ -5230,8 +5611,9 @@ async def _run_trading_now_inner(selected_tickers: list[str] | None = None):
                             f"✅ [수동/{mode_str}] {action_kr} 성공: {sig.get('name', ticker)} {qty}주 (신뢰도 {effective_conf:.0f}%)",
                             "info")
                         history = _load_data("trading_history", [])
+                        _h_id = f"manual_{datetime.now(KST).strftime('%Y%m%d%H%M%S')}_{ticker}"
                         history.insert(0, {
-                            "id": f"manual_{datetime.now(KST).strftime('%Y%m%d%H%M%S')}_{ticker}",
+                            "id": _h_id,
                             "date": datetime.now(KST).isoformat(),
                             "ticker": ticker, "name": sig.get("name", ticker),
                             "action": sig["action"], "qty": qty, "price": price,
@@ -5241,6 +5623,9 @@ async def _run_trading_now_inner(selected_tickers: list[str] | None = None):
                             "order_no": order_result.get("order_no", ""),
                         })
                         _save_data("trading_history", history)
+                        if sig["action"] == "buy":
+                            _register_position_triggers(ticker, sig.get("name", ticker), price, qty,
+                                                        "US" if is_us else "KR", settings, source_id=_h_id)
                     else:
                         save_activity_log("cio_manager",
                             f"❌ [수동/{mode_str}] 주문 실패: {sig.get('name', ticker)} — {order_result.get('message', '원인 불명')}", "error")
@@ -5259,8 +5644,9 @@ async def _run_trading_now_inner(selected_tickers: list[str] | None = None):
                         save_activity_log("cio_manager",
                             f"✅ [수동/모의투자] {action_kr} 성공: {sig.get('name', ticker)} {qty}주 (신뢰도 {effective_conf:.0f}%)", "info")
                         history = _load_data("trading_history", [])
+                        _h_id2 = f"mock_{datetime.now(KST).strftime('%Y%m%d%H%M%S')}_{ticker}"
                         history.insert(0, {
-                            "id": f"mock_{datetime.now(KST).strftime('%Y%m%d%H%M%S')}_{ticker}",
+                            "id": _h_id2,
                             "date": datetime.now(KST).isoformat(),
                             "ticker": ticker, "name": sig.get("name", ticker),
                             "action": sig["action"], "qty": qty, "price": price,
@@ -5270,6 +5656,9 @@ async def _run_trading_now_inner(selected_tickers: list[str] | None = None):
                             "order_no": order_result.get("order_no", ""),
                         })
                         _save_data("trading_history", history)
+                        if sig["action"] == "buy":
+                            _register_position_triggers(ticker, sig.get("name", ticker), price, qty,
+                                                        "US" if is_us else "KR", settings, source_id=_h_id2)
                     else:
                         save_activity_log("cio_manager",
                             f"❌ [수동/모의투자] 주문 실패: {sig.get('name', ticker)} — {order_result.get('message', '원인 불명')}", "error")
@@ -5295,8 +5684,9 @@ async def _run_trading_now_inner(selected_tickers: list[str] | None = None):
                         _save_data("trading_portfolio", portfolio)
                         orders_triggered += 1
                         history = _load_data("trading_history", [])
+                        _h_id3 = f"manual_{datetime.now(KST).strftime('%Y%m%d%H%M%S')}_{ticker}"
                         history.insert(0, {
-                            "id": f"manual_{datetime.now(KST).strftime('%Y%m%d%H%M%S')}_{ticker}",
+                            "id": _h_id3,
                             "date": datetime.now(KST).isoformat(),
                             "ticker": ticker, "name": sig.get("name", ticker),
                             "action": "buy", "qty": qty, "price": price,
@@ -5307,6 +5697,8 @@ async def _run_trading_now_inner(selected_tickers: list[str] | None = None):
                         _save_data("trading_history", history)
                         save_activity_log("cio_manager",
                             f"[수동/가상] 매수: {sig.get('name', ticker)} {qty}주 x {price:,.0f}원 (신뢰도 {effective_conf:.0f}%)", "info")
+                        _register_position_triggers(ticker, sig.get("name", ticker), price, qty,
+                                                    sig.get("market", market), settings, source_id=_h_id3)
                     elif sig["action"] == "sell":
                         holding = next((h for h in portfolio["holdings"] if h["ticker"] == ticker), None)
                         if holding and holding["qty"] > 0:
@@ -5654,8 +6046,9 @@ async def _trading_bot_loop():
                                             f"[{mode_str}] {action_kr} 주문 완료: {sig.get('name', ticker)} {qty}주 (주문번호: {order_result['order_no']})"
                                 save_activity_log("cio_manager", order_msg, "info")
                                 history = _load_data("trading_history", [])
+                                _auto_h_id = f"kis_{datetime.now(KST).strftime('%Y%m%d%H%M%S')}_{ticker}"
                                 history.insert(0, {
-                                    "id": f"kis_{datetime.now(KST).strftime('%Y%m%d%H%M%S')}_{ticker}",
+                                    "id": _auto_h_id,
                                     "date": datetime.now(KST).isoformat(),
                                     "ticker": ticker, "name": sig.get("name", ticker),
                                     "action": sig["action"], "qty": qty, "price": price,
@@ -5666,6 +6059,9 @@ async def _trading_bot_loop():
                                     "currency": "USD" if is_us else "KRW",
                                 })
                                 _save_data("trading_history", history)
+                                if sig["action"] == "buy":
+                                    _register_position_triggers(ticker, sig.get("name", ticker), price, qty,
+                                                                "US" if is_us else "KR", settings, source_id=_auto_h_id)
                             else:
                                 order_msg = f"[{mode_str}] 주문 실패: {sig.get('name', ticker)} — {order_result['message']}"
                                 save_activity_log("cio_manager", order_msg, "warning")
@@ -5686,8 +6082,9 @@ async def _trading_bot_loop():
                                             (f" ${price:.2f}" if is_us else f" (주문번호: {order_result['order_no']})")
                                 save_activity_log("cio_manager", order_msg, "info")
                                 history = _load_data("trading_history", [])
+                                _auto_mock_id = f"mock_{datetime.now(KST).strftime('%Y%m%d%H%M%S')}_{ticker}"
                                 history.insert(0, {
-                                    "id": f"mock_{datetime.now(KST).strftime('%Y%m%d%H%M%S')}_{ticker}",
+                                    "id": _auto_mock_id,
                                     "date": datetime.now(KST).isoformat(),
                                     "ticker": ticker, "name": sig.get("name", ticker),
                                     "action": sig["action"], "qty": qty, "price": price,
@@ -5698,6 +6095,9 @@ async def _trading_bot_loop():
                                     "currency": "USD" if is_us else "KRW",
                                 })
                                 _save_data("trading_history", history)
+                                if sig["action"] == "buy":
+                                    _register_position_triggers(ticker, sig.get("name", ticker), price, qty,
+                                                                "US" if is_us else "KR", settings, source_id=_auto_mock_id)
                             else:
                                 order_msg = f"[모의투자] 주문 실패: {sig.get('name', ticker)} — {order_result['message']}"
                                 save_activity_log("cio_manager", order_msg, "warning")
