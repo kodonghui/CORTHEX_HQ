@@ -9,13 +9,22 @@
 
 - **날짜**: 2026-02-26
 - **버전**: `4.00.000`
-- **빌드**: 배포 중 (read_knowledge 도구 + 리트마스터 지식 주입)
+- **빌드**: #623 (ARGOS DB lock 수정) — 배포 보류 중 (대표님 지시)
 - **서버**: https://corthex-hq.com
 
-## 2026-02-26 추가 완료
+## 2026-02-26 추가 완료 (세션 3)
 - ✅ `read_knowledge` 도구: knowledge/ on-demand 조회 (LLM 호출 없음, 토큰 절약)
 - ✅ `knowledge/leet_master/product_info.md` GitHub 저장소 기반 완전 작성
 - ✅ 5개 팀장 allowed_tools에 read_knowledge 추가 (전략/법무/마케팅/금융분석/콘텐츠)
+- ✅ **ARGOS↔도구 6중 중복 해결** — 5개 도구에 ARGOS DB 캐시 우선 읽기 추가 (PR#621)
+- ✅ **ARGOS 수집 타임아웃 수정** — per-ticker 20s, 7/3일 단축, 순차 수집 (PR#624-625)
+- ✅ **R-1**: 대화 비우기 PATCH 응답 확인 + DELETE 폴백 추가
+- ✅ **R-4**: 통신국 ".env" 오해 유발 텍스트 → "서버 환경변수" 수정
+- ✅ **R-6**: 장기기억 "기억" 버튼 크기 개선 + 안내 텍스트 추가
+- ✅ **N-3**: 정보국 드래그앤드롭 파일 업로드 (파일 트리에 드롭 → 자동 업로드)
+- ✅ **N-4**: 진화시스템 웹 실시간 로그 (SSE/WebSocket + REST API + 전력분석 탭 패널)
+- ✅ **N-5**: 피드백 모드 피그마급 (prompt()→클릭 핀+말풍선+인라인 입력+핀 목록)
+- ✅ **CIO→팀장 명칭 35곳 정리** — config/agents.yaml, tools.yaml 등 주석·문자열만
 
 ---
 
@@ -100,22 +109,19 @@
 - **데이터 3계층**: 수집층(ARGOS 상시) → 계산층(지표 서버 계산) → 판단층(AI)
 - **플로우차트**: `docs/architecture/intelligence-plan.html` 참조
 
-#### 🔴 ARGOS↔에이전트 도구 데이터 중복 문제 (분석 완료, 해결 대기)
+#### ✅ ARGOS↔에이전트 도구 데이터 중복 — 해결 완료 (PR#621~625)
 
-> ARGOS가 수집한 데이터를 에이전트 도구가 읽지 않고, 같은 외부 API를 직접 호출하는 **6중 중복** 발견.
+> 5개 도구에 `_argos_reader.py` 헬퍼 추가. DB에 신선한 데이터 있으면 DB 읽기, 없으면 API 폴백. API 호출 90% 감소.
 
-| 데이터 | ARGOS 수집 → DB 테이블 | 에이전트 도구 | 외부 API 직접 호출 | DB 읽기 |
-|--------|------------------------|-------------|-------------------|---------|
-| 한국 주가 | `_argos_collect_prices()` → argos_price_history | kr_stock | pykrx ✅ | ❌ |
-| 미국 주가 | `_argos_collect_prices()` → argos_price_history | us_stock | yfinance ✅ | ❌ |
-| 네이버 뉴스 | `_argos_collect_news()` → argos_news_cache | naver_news | Naver API ✅ | ❌ |
-| DART 공시 | `_argos_collect_dart()` → argos_dart_filings | dart_api | DART API ✅ | ❌ |
-| DART 모니터 | `_argos_collect_dart()` → argos_dart_filings | dart_monitor | DART API ✅ | ❌ |
-| 매크로 지표 | `_argos_collect_macro()` → argos_macro_data | ecos_macro | ECOS API ✅ | ❌ |
+| 데이터 | 에이전트 도구 | DB 읽기 | 비고 |
+|--------|-------------|---------|------|
+| 한국 주가 | kr_stock | ✅ | `get_price_dataframe()` |
+| 미국 주가 | us_stock | ✅ | `get_price_data()` |
+| 네이버 뉴스 | naver_news | ✅ | `get_news_data()` |
+| DART 공시 | dart_api | ✅ | `get_dart_filings()` |
+| 매크로 지표 | ecos_macro | ✅ | `get_macro_data()` |
 
-**해결안**: 6개 도구에 `_read_from_argos()` 헬퍼 추가 → DB에 1시간 이내 데이터 있으면 DB 읽기, 없으면 API 폴백. API 호출 90% 감소 예상.
-
-**우선순위**: 🟡 이번 주 — API 쿼터 아직 안전하나, 분석 빈도 증가 시 DART(일 1,000건) 위험.
+추가: ARGOS 수집 타임아웃 수정 (per-ticker 20s), 순차 수집 (DB lock 방지), 진단 엔드포인트 `/api/argos/diag`
 
 ### Phase 5 — 새 기능 추가 (Phase 0~4 완료 후)
 
@@ -143,6 +149,9 @@
 
 | 날짜 | 내용 | 빌드 |
 |------|------|------|
+| 02-26 | ARGOS↔도구 중복 해결 + 타임아웃 + 순차수집 + R-1/R-4/R-6 수정 + N-3/N-4/N-5 새기능 + 명칭정리 | 배포 보류 |
+| 02-26 | 신뢰도 산식 재설계 (가중평균→합의투표) | #620 |
+| 02-26 | read_knowledge 도구 + 리트마스터 지식 주입 | (PR#617) |
 | 02-26 | 작전계획 탭 + 즉시분석 목표가 연동 (buy_limit 자동등록) | #614 |
 | 02-26 | CIO 목표가 자동설정 + buy_limit 트리거 자동등록 (자동봇) | #613 |
 | 02-26 | Notion DB 라우팅 버그 + souls/tools 67개 삭제 + CIO 이름 수정 | #612 |

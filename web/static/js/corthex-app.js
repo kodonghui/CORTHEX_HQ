@@ -44,13 +44,11 @@ function corthexApp() {
     newMsgCount: 0,
     systemStatus: 'idle',
     commandQueue: [],  // D-2: 명령 큐 — 작업 중 추가 명령 대기열
-    // E-1: 피드백 모드 (드래그 사각형)
+    // E-1: 피드백 모드 (피그마급 핀 시스템)
     feedbackMode: false,
-    feedbackComment: '',
-    feedbackClickPos: null,
-    feedbackDragging: false,
-    feedbackDragOrigin: null,
-    feedbackRect: { x: 0, y: 0, w: 0, h: 0 },
+    feedbackPins: [],
+    feedbackNewPin: null,  // { x, y, text }
+    feedbackPinText: '',
     wsConnected: false,
     totalCost: 0,
     totalTokens: 0,
@@ -116,6 +114,7 @@ function corthexApp() {
 
     // ── Soul 자동 진화 ──
     soulEvolution: { proposals: [], loading: false, message: '' },
+    evolutionLogs: [],
 
     // ── 품질 대시보드 ──
     qualityDash: { totalReviews: 0, passRate: 0, avgScore: 0, failed: 0, topRejections: [], loaded: false },
@@ -263,7 +262,7 @@ function corthexApp() {
     activityLogFilter: 'all',
 
     // Knowledge management
-    knowledge: { files: [], loading: false, selectedFile: null, content: '', editMode: false, saving: false, newFileName: '', newFolder: '', showCreateForm: false, uploadFolder: '' },
+    knowledge: { files: [], loading: false, selectedFile: null, content: '', editMode: false, saving: false, newFileName: '', newFolder: '', showCreateForm: false, uploadFolder: '', dragOver: false },
 
     // Archive browser
     archive: { files: [], loading: false, selectedReport: null, content: '', filterDivision: 'all', filterTier: 'all', searchCorrelation: '', selectedFiles: [], selectMode: false },
@@ -789,6 +788,11 @@ function corthexApp() {
           }
           break;
 
+        case 'evolution_log':
+          this.evolutionLogs.unshift(msg.data);
+          if (this.evolutionLogs.length > 100) this.evolutionLogs = this.evolutionLogs.slice(0, 100);
+          break;
+
         case 'batch_chain_progress':
           this.batchProgress.active = msg.data.step !== 'completed' && msg.data.step !== 'failed';
           this.batchProgress.message = msg.data.message || '';
@@ -1148,48 +1152,65 @@ function corthexApp() {
       }
     },
 
-    // E-1: 피드백 모드 — 드래그 사각형 → 영역+탭+코멘트 저장
-    feedbackDragStart(e) {
+    // E-1: 피드백 모드 — 피그마급 핀 시스템
+    feedbackPlacePin(e) {
       if (!this.feedbackMode) return;
-      e.preventDefault();
-      this.feedbackDragging = true;
-      this.feedbackDragOrigin = { x: e.clientX, y: e.clientY };
-      this.feedbackRect = { x: e.clientX, y: e.clientY, w: 0, h: 0 };
+      // 기존 핀 입력 중이면 취소
+      if (this.feedbackNewPin) { this.feedbackNewPin = null; this.feedbackPinText = ''; return; }
+      this.feedbackNewPin = { x: e.clientX, y: e.clientY };
+      this.feedbackPinText = '';
+      this.$nextTick(() => {
+        const inp = document.getElementById('feedbackPinInput');
+        if (inp) inp.focus();
+      });
     },
-    feedbackDragMove(e) {
-      if (!this.feedbackDragging || !this.feedbackDragOrigin) return;
-      const ox = this.feedbackDragOrigin.x, oy = this.feedbackDragOrigin.y;
-      this.feedbackRect = {
-        x: Math.min(ox, e.clientX),
-        y: Math.min(oy, e.clientY),
-        w: Math.abs(e.clientX - ox),
-        h: Math.abs(e.clientY - oy),
+    async submitFeedbackPin() {
+      if (!this.feedbackNewPin || !this.feedbackPinText.trim()) return;
+      const pin = {
+        x: this.feedbackNewPin.x,
+        y: this.feedbackNewPin.y,
+        tab: this.activeTab,
+        viewMode: this.viewMode,
+        comment: this.feedbackPinText.trim(),
+        url: window.location.href,
+        screen: { w: window.innerWidth, h: window.innerHeight },
       };
-    },
-    feedbackDragEnd(e) {
-      if (!this.feedbackDragging) return;
-      this.feedbackDragging = false;
-      const r = this.feedbackRect;
-      // 너무 작으면 (5px 미만) 무시
-      if (r.w < 5 && r.h < 5) { this.feedbackRect = { x:0,y:0,w:0,h:0 }; return; }
-      const comment = prompt('선택한 영역에 대한 피드백을 입력하세요:');
-      if (comment !== null && comment.trim()) {
-        fetch('/api/feedback/ui', {
+      try {
+        const res = await fetch('/api/feedback/ui', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            x: r.x, y: r.y, w: r.w, h: r.h,
-            tab: this.activeTab,
-            viewMode: this.viewMode,
-            comment: comment.trim(),
-            url: window.location.href,
-            screen: { w: window.innerWidth, h: window.innerHeight },
-          }),
-        }).then(res => res.json()).then(d => {
-          if (d.success) this.showToast(`피드백 저장됨 (총 ${d.total}건)`, 'success');
+          body: JSON.stringify(pin),
         });
-      }
-      this.feedbackRect = { x:0,y:0,w:0,h:0 };
+        const d = await res.json();
+        if (d.success) {
+          this.feedbackPins.push({ ...pin, id: d.id || Date.now(), timestamp: new Date().toISOString() });
+          this.showToast(`피드백 핀 저장됨 (총 ${d.total}건)`, 'success');
+        }
+      } catch {}
+      this.feedbackNewPin = null;
+      this.feedbackPinText = '';
+    },
+    removeFeedbackPin(idx) {
+      this.feedbackPins.splice(idx, 1);
+    },
+    clearAllFeedbackPins() {
+      this.feedbackPins = [];
+      this.showToast('모든 핀이 삭제되었습니다.', 'success');
+    },
+    async loadFeedbackPins() {
+      try {
+        const res = await fetch('/api/feedback/ui');
+        if (res.ok) {
+          const data = await res.json();
+          this.feedbackPins = (data.feedbacks || []).slice(-20).map(f => ({
+            x: f.x || 0, y: f.y || 0,
+            comment: f.comment || '',
+            tab: f.tab || '',
+            timestamp: f.created_at || '',
+            id: f.id || Date.now(),
+          }));
+        }
+      } catch {}
     },
 
     sendPreset(text) {
@@ -1994,7 +2015,7 @@ function corthexApp() {
         }
       }
       if (tabId === 'performance' && !this.performance.loaded) this.loadPerformance();
-      if (tabId === 'performance') { this.loadSoulEvolutionProposals(); if (!this.qualityDash.loaded) this.loadQualityDashboard(); }
+      if (tabId === 'performance') { this.loadSoulEvolutionProposals(); this.loadEvolutionLogs(); if (!this.qualityDash.loaded) this.loadQualityDashboard(); }
       if (tabId === 'history') this.loadTaskHistory();
       if (tabId === 'schedule') this.loadSchedules();
       if (tabId === 'workflow') this.loadWorkflows();
@@ -2200,6 +2221,20 @@ function corthexApp() {
         const data = await fetch('/api/soul-evolution/proposals').then(r => r.json());
         this.soulEvolution.proposals = data.proposals || [];
       } catch (e) { console.error('Soul evolution load failed:', e); }
+    },
+
+    async loadEvolutionLogs() {
+      try {
+        const data = await fetch('/api/evolution/logs?limit=50').then(r => r.json());
+        if (data.logs && data.logs.length > 0) {
+          this.evolutionLogs = data.logs.map(l => ({
+            message: l.message,
+            level: l.level || 'info',
+            time: l.timestamp ? new Date(typeof l.timestamp === 'number' ? l.timestamp * 1000 : l.timestamp).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }) : '',
+            timestamp: l.timestamp,
+          }));
+        }
+      } catch (e) { console.error('Evolution logs load failed:', e); }
     },
 
     // ── 품질 대시보드 ──
@@ -3257,6 +3292,41 @@ function corthexApp() {
       event.target.value = '';
       await this.loadKnowledge();
       this.showToast(`${uploaded}개 파일 업로드 완료`, 'success');
+    },
+
+    // ── 드래그앤드롭 파일 업로드 ──
+    async handleKnowledgeDrop(event) {
+      const files = event.dataTransfer?.files;
+      if (!files || files.length === 0) return;
+      const allowed = ['.md', '.txt', '.yaml', '.json', '.csv'];
+      let uploaded = 0;
+      for (const file of files) {
+        const ext = '.' + file.name.split('.').pop().toLowerCase();
+        if (!allowed.includes(ext)) {
+          this.showToast(`${file.name}: 지원하지 않는 형식입니다 (${allowed.join(', ')})`, 'error');
+          continue;
+        }
+        await new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onload = async (e) => {
+            const content = e.target.result;
+            const folder = this.knowledge.uploadFolder?.trim() || 'shared';
+            try {
+              const res = await fetch('/api/knowledge', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ folder, filename: file.name, content }),
+              });
+              const data = await res.json();
+              if (data.success) uploaded++;
+            } catch {}
+            resolve();
+          };
+          reader.readAsText(file, 'utf-8');
+        });
+      }
+      await this.loadKnowledge();
+      if (uploaded > 0) this.showToast(`${uploaded}개 파일 드롭 업로드 완료`, 'success');
     },
 
     // ── Archive Browser ──
@@ -4472,12 +4542,16 @@ function corthexApp() {
       this.showConfirm({ title: '대화 비우기', message: '현재 대화를 비우고 새 대화를 시작하시겠습니까?', confirmText: '비우기', onConfirm: async () => {
       try {
         if (this.currentConversationId) {
-          // 세션 보관 처리 (삭제 대신 비활성화)
-          await fetch(`/api/conversation/sessions/${this.currentConversationId}`, {
+          // 세션 보관 처리 (삭제 대신 비활성화) → 실패 시 DELETE 폴백
+          const patchRes = await fetch(`/api/conversation/sessions/${this.currentConversationId}`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ is_active: 0 }),
           });
+          if (!patchRes.ok) {
+            // PATCH 실패 시 완전 삭제로 폴백
+            await fetch(`/api/conversation/sessions/${this.currentConversationId}`, { method: 'DELETE' });
+          }
         } else {
           // 레거시: 전체 삭제
           await fetch('/api/conversation', { method: 'DELETE' });
