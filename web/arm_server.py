@@ -3857,6 +3857,7 @@ async def _argos_collect_prices() -> int:
                                      int(row.get("거래량", 0)), change_pct, now_str)
                                 )
                                 ticker_saved += 1
+                            conn.commit()  # 종목별 즉시 커밋 → DB 잠금 최소화
                             saved += ticker_saved
                             _argos_logger.info("PRICE KR %s: %d행 저장 (%d일)", ticker, ticker_saved, fetch_days)
                         except asyncio.TimeoutError:
@@ -3903,6 +3904,7 @@ async def _argos_collect_prices() -> int:
                                 )
                                 ticker_saved += 1
                                 prev_close_val = close
+                            conn.commit()  # 종목별 즉시 커밋 → DB 잠금 최소화
                             saved += ticker_saved
                             _argos_logger.info("PRICE US %s: %d행 저장 (%s)", ticker, ticker_saved, period)
                         except asyncio.TimeoutError:
@@ -3975,10 +3977,10 @@ async def _argos_collect_news() -> int:
                         (keyword, title, desc, link, pub_date, "naver", now_str)
                     )
                     saved += 1
+                conn.commit()  # 키워드별 즉시 커밋 → DB 잠금 최소화
             except Exception as e:
                 _argos_logger.debug("뉴스 수집 실패 (%s): %s", keyword, e)
 
-        conn.commit()
         cutoff = (datetime.now(KST) - timedelta(days=30)).isoformat()
         conn.execute("DELETE FROM argos_news_cache WHERE pub_date < ?", (cutoff,))
         conn.commit()
@@ -4036,10 +4038,10 @@ async def _argos_collect_dart() -> int:
                          item.get("rcept_dt",""), now_str)
                     )
                     saved += 1
+                conn.commit()  # 종목별 즉시 커밋 → DB 잠금 최소화
             except Exception as e:
                 _argos_logger.debug("DART 수집 실패 (%s): %s", ticker, e)
 
-        conn.commit()
         cutoff = (datetime.now(KST) - timedelta(days=90)).strftime("%Y%m%d")
         conn.execute("DELETE FROM argos_dart_filings WHERE rcept_dt < ?", (cutoff,))
         conn.commit()
@@ -4075,6 +4077,7 @@ async def _argos_collect_macro() -> int:
                     ("USD_KRW", today_iso, round(rate, 2), "yfinance", now_str)
                 )
                 saved += 1
+                conn.commit()  # 즉시 커밋
                 _argos_logger.info("MACRO USD/KRW: %.2f", rate)
         except asyncio.TimeoutError:
             _argos_logger.warning("USD/KRW: %d초 타임아웃", MACRO_TIMEOUT)
@@ -4101,6 +4104,7 @@ async def _argos_collect_macro() -> int:
                             "INSERT OR IGNORE INTO argos_macro_data(indicator,trade_date,value,source,collected_at) VALUES(?,?,?,?,?)",
                             (label, trade_date, round(close, 2), "pykrx", now_str)
                         )
+                        conn.commit()  # 즉시 커밋
                         saved += 1
                         _argos_logger.info("MACRO %s: %.2f", label, close)
                 except asyncio.TimeoutError:
@@ -4123,6 +4127,7 @@ async def _argos_collect_macro() -> int:
                     "INSERT OR IGNORE INTO argos_macro_data(indicator,trade_date,value,source,collected_at) VALUES(?,?,?,?,?)",
                     ("VIX", today_iso, round(vix, 2), "yfinance", now_str)
                 )
+                conn.commit()  # 즉시 커밋
                 saved += 1
                 _argos_logger.info("MACRO VIX: %.2f", vix)
         except asyncio.TimeoutError:
@@ -4130,7 +4135,7 @@ async def _argos_collect_macro() -> int:
         except Exception as e:
             _argos_logger.debug("VIX 수집 실패: %s", e)
 
-        conn.commit()
+
         cutoff = (datetime.now(KST) - timedelta(days=365)).strftime("%Y-%m-%d")
         conn.execute("DELETE FROM argos_macro_data WHERE trade_date < ?", (cutoff,))
         conn.commit()
