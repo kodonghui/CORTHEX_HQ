@@ -197,6 +197,8 @@ class ToolPool:
             "dc_lawschool_crawler": "src.tools.dc_lawschool_crawler.DcLawschoolCrawlerTool",
             "orbi_crawler": "src.tools.orbi_crawler.OrbiCrawlerTool",
             "lawschool_community": "src.tools.lawschool_community.LawschoolCommunityTool",
+            # ─── 정보국 on-demand 조회 ───
+            "read_knowledge": "src.tools.read_knowledge.ReadKnowledgeTool",
             # ─── Skill 도구 89개 삭제됨 ───
             # 전부 SkillTool 단일 클래스로 LLM 호출만 하는 프롬프트 래퍼였음
             # 에이전트가 직접 할 수 있는 것을 "도구"로 포장한 것이므로 제거

@@ -9,8 +9,13 @@
 
 - **날짜**: 2026-02-26
 - **버전**: `4.00.000`
-- **빌드**: #609 (Phase 6 ARGOS + 정보국 배포됨)
+- **빌드**: 배포 중 (read_knowledge 도구 + 리트마스터 지식 주입)
 - **서버**: https://corthex-hq.com
+
+## 2026-02-26 추가 완료
+- ✅ `read_knowledge` 도구: knowledge/ on-demand 조회 (LLM 호출 없음, 토큰 절약)
+- ✅ `knowledge/leet_master/product_info.md` GitHub 저장소 기반 완전 작성
+- ✅ 5개 팀장 allowed_tools에 read_knowledge 추가 (전략/법무/마케팅/금융분석/콘텐츠)
 
 ---
 

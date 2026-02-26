@@ -112,6 +112,7 @@ agents:
   - lawschool_community
   - dc_lawschool_crawler
   - orbi_crawler
+  - read_knowledge
 - agent_id: clo_manager
   name: Legal Lead
   name_ko: 법무팀장
@@ -147,6 +148,7 @@ agents:
   - privacy_auditor
   - risk_communicator
   - risk_matrix
+  - read_knowledge
 - agent_id: cmo_manager
   name: Marketing Lead
   name_ko: 마케팅팀장
@@ -195,6 +197,7 @@ agents:
   - pricing_optimizer
   - customer_cohort_analyzer
   - swot_quantifier
+  - read_knowledge
 - agent_id: cio_manager
   name: Investment Lead
   name_ko: 금융분석팀장
@@ -368,6 +371,7 @@ agents:
   - sentiment_nlp
   - portfolio_optimizer_v2
   - correlation_analyzer
+  - read_knowledge
 - agent_id: cpo_manager
   name: Content Lead
   name_ko: 콘텐츠팀장
@@ -395,3 +399,4 @@ agents:
   - document_summarizer
   - terms_generator
   - communication_optimizer
+  - read_knowledge
