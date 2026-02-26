@@ -200,6 +200,31 @@ class DartApiTool(BaseTool):
 
         page_count = int(kwargs.get("count", 10))
 
+        # ① ARGOS DB 공시 캐시 우선 (ticker 기반)
+        if company:
+            try:
+                from src.tools._argos_reader import get_dart_filings
+                # corp_code 대신 ticker로 ARGOS 조회 시도
+                ticker = kwargs.get("ticker", "")
+                if not ticker and corp_code:
+                    # corp_code → stock_code 매핑은 불가하므로 company명으로 시도
+                    pass
+                if ticker:
+                    cached = get_dart_filings(ticker, days=90)
+                    if cached and len(cached) >= 3:
+                        lines = [f"### 최신 공시 목록 ({company}) [ARGOS 캐시]"]
+                        for i, item in enumerate(cached, 1):
+                            lines.append(
+                                f"  [{i}] {item.get('report_nm', '')}\n"
+                                f"      기업: {item.get('corp_name', '')} | "
+                                f"날짜: {item.get('rcept_dt', '')}"
+                            )
+                        logger.info("[ARGOS] '%s' DART 공시 %d건 캐시 사용", company, len(cached))
+                        return "\n".join(lines)
+            except Exception as e:
+                logger.debug("ARGOS dart fallback: %s", e)
+
+        # ② DART API 폴백
         params: dict[str, Any] = {
             "crtfc_key": api_key,
             "page_count": page_count,

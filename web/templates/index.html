@@ -252,47 +252,7 @@
   </header>
   <div class="h-[2px] bg-gradient-to-r from-hq-cyan via-hq-accent to-hq-purple shrink-0"></div>
 
-  <!-- ═══ ARGOS 상단 상태바 (Phase 6-8) — 항상 보임 ═══ -->
-  <div class="flex items-center gap-3 px-4 py-1 bg-hq-bg/80 border-b border-hq-border/50 shrink-0 text-[10px] font-mono overflow-x-auto"
-       style="min-height:24px">
-    <!-- 데이터 수집 -->
-    <button @click="switchTab('intelligence'); viewMode='chat'"
-            class="flex items-center gap-1 hover:opacity-80 transition whitespace-nowrap"
-            :class="intelligence.statusBar.data_ok ? 'text-hq-green' : 'text-hq-muted'">
-      <span>📡</span>
-      <span x-text="intelligence.statusBar.data_ok ? '데이터 ✅' : '데이터 —'"></span>
-      <span class="text-hq-muted/60" x-text="intelligence.statusBar.data_last ? _fmtArgosTime(intelligence.statusBar.data_last) : ''"></span>
-    </button>
-    <span class="text-hq-border/60">|</span>
-    <!-- AI 분석 -->
-    <span class="flex items-center gap-1 whitespace-nowrap"
-          :class="intelligence.statusBar.ai_ok ? 'text-hq-accent/80' : 'text-hq-muted'">
-      <span>🤖</span>
-      <span x-text="intelligence.statusBar.ai_ok ? 'AI ✅' : 'AI —'"></span>
-      <span class="text-hq-muted/60" x-text="intelligence.statusBar.ai_last ? _fmtArgosTime(intelligence.statusBar.ai_last) : ''"></span>
-    </span>
-    <span class="text-hq-border/60">|</span>
-    <!-- 트리거 -->
-    <button @click="switchTab('intelligence'); viewMode='chat'"
-            class="flex items-center gap-1 hover:opacity-80 transition whitespace-nowrap"
-            :class="intelligence.statusBar.trigger_count > 0 ? 'text-hq-yellow' : 'text-hq-muted'">
-      <span>🎯</span>
-      <span x-text="'트리거 ' + (intelligence.statusBar.trigger_count || 0) + '건'"></span>
-    </button>
-    <span class="text-hq-border/60">|</span>
-    <!-- 오늘 비용 -->
-    <span class="flex items-center gap-1 text-hq-muted/80 whitespace-nowrap">
-      <span>💸</span>
-      <span x-text="'$' + (intelligence.statusBar.today_cost_usd || 0).toFixed(3)"></span>
-    </span>
-    <!-- 에러 -->
-    <template x-if="intelligence.statusBar.has_error">
-      <button @click="switchTab('intelligence'); viewMode='chat'"
-              class="flex items-center gap-1 text-hq-red animate-pulse whitespace-nowrap hover:opacity-80 ml-1">
-        <span>🚨</span><span>에러</span>
-      </button>
-    </template>
-  </div>
+  <!-- ARGOS 상단 상태바 삭제됨 (2026-02-26) -->
 
   <!-- ═══ Toast Notifications ═══ -->
   <div class="fixed top-16 right-4 z-50 space-y-2 max-w-sm" style="pointer-events:none;">
@@ -3022,14 +2982,14 @@
         </div>
       </div></template>
 
-      <!-- ═══ ARGOS 정보국 탭 (Phase 6-8) ═══ -->
+      <!-- ═══ ARGOS 탭 (Phase 6-8) ═══ -->
       <template x-if="viewMode === 'chat' && activeTab === 'intelligence'">
         <div class="flex-1 overflow-y-auto scrollbar-thin p-4 bg-grid">
           <div class="max-w-5xl mx-auto space-y-4">
             <!-- 헤더 -->
             <div class="flex items-center justify-between">
               <div>
-                <h2 class="text-base font-bold text-hq-text">📡 ARGOS 정보국</h2>
+                <h2 class="text-base font-bold text-hq-text">📡 ARGOS</h2>
                 <p class="text-[11px] text-hq-muted">데이터 수집 레이어 · AI 활동 · 비용 추적 · 에러 모니터링</p>
               </div>
               <button @click="loadIntelligence()"
@@ -5284,7 +5244,7 @@
         <!-- 피드백 모드 ON 표시 -->
         <div x-show="feedbackMode" x-transition
              class="bg-hq-yellow/90 text-black text-xs font-bold px-3 py-1.5 rounded-lg shadow-lg">
-          피드백 모드 ON — 화면 아무 곳이나 클릭
+          피드백 모드 ON — 영역을 드래그하세요
         </div>
         <button @click="feedbackMode = !feedbackMode"
                 class="w-12 h-12 rounded-full shadow-lg flex items-center justify-center text-lg transition-all"
@@ -5295,9 +5255,17 @@
           </svg>
         </button>
       </div>
-      <!-- E-1: 피드백 모드 클릭 캡처 오버레이 -->
-      <div x-show="feedbackMode" @click="handleFeedbackClick($event)"
-           class="fixed inset-0 z-40 cursor-crosshair" style="background: rgba(234, 179, 8, 0.05);"></div>
+      <!-- E-1: 피드백 모드 드래그 캡처 오버레이 -->
+      <div x-show="feedbackMode"
+           @mousedown="feedbackDragStart($event)"
+           @mousemove="feedbackDragMove($event)"
+           @mouseup="feedbackDragEnd($event)"
+           class="fixed inset-0 z-40 cursor-crosshair" style="background: rgba(234, 179, 8, 0.05);">
+        <!-- 드래그 사각형 표시 -->
+        <div x-show="feedbackDragging"
+             class="absolute border-2 border-hq-yellow bg-hq-yellow/10 rounded pointer-events-none"
+             :style="`left:${feedbackRect.x}px;top:${feedbackRect.y}px;width:${feedbackRect.w}px;height:${feedbackRect.h}px`"></div>
+      </div>
 
       <!-- ═══ Mobile Bottom Navigation (모바일 하단 네비) ═══ -->
       <nav class="mobile-bottom-nav safe-bottom" x-cloak>
@@ -5382,7 +5350,7 @@
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
             <span>정보국</span>
           </div>
-          <!-- ARGOS 정보국 -->
+          <!-- ARGOS -->
           <div class="mobile-more-sheet-item" :class="activeTab === 'intelligence' ? 'active' : ''"
                @click="viewMode = 'chat'; switchTab('intelligence'); mobileMoreOpen = false">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2V9M9 21H5a2 2 0 01-2-2V9m0 0h18"/></svg>

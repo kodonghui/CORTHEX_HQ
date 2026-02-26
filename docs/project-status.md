@@ -82,7 +82,8 @@
 | # | 내용 | 빌드 |
 |---|------|------|
 | 6-0 | **실거래 버그 3종**: calibration_factor NameError(핵심), use_mock_kis 누락, QA 재분석 로직 추가 | #22426154426 |
-| 6-1 | **정량 신뢰도(Quant Score)**: RSI/MACD/볼린저/거래량/추세 → 서버 수식 계산 → AI는 ±15%p 조정만 | #22426738142 |
+| 6-1 | **정량 신뢰도(Quant Score)**: RSI/MACD/볼린저/거래량/추세 → 서버 수식 계산 → AI는 ±20%p 조정만 | #22426738142 |
+| 6-10 | **신뢰도 산식 전면 재설계**: 방향/신뢰도 분리 (가중평균→합의투표), ±15%p→±20%p 확대, 구조적 42-52%→3/4합의시 76% | #620 |
 | 6-2 | **가격 트리거 자동매매**: 매수 체결 시 손절(-5%)/익절(+10%) 자동 등록, 1분마다 가격 모니터링 → 발동 시 자동 주문 | #22426738142 |
 | 6-3 | **도구 전수검사**: 131개 도구 3분류 완료 (`docs/architecture/tool-server-flow.md/.html`) | — |
 | 6-4 | **CLAUDE.md 다이어그램 규칙**: .md + .html 뷰어 반드시 함께 생성 | — |
@@ -98,6 +99,23 @@
 - **AI 우위 33개**: 해석/판단/생성만. 배치 처리로 호출 최소화
 - **데이터 3계층**: 수집층(ARGOS 상시) → 계산층(지표 서버 계산) → 판단층(AI)
 - **플로우차트**: `docs/architecture/intelligence-plan.html` 참조
+
+#### 🔴 ARGOS↔에이전트 도구 데이터 중복 문제 (분석 완료, 해결 대기)
+
+> ARGOS가 수집한 데이터를 에이전트 도구가 읽지 않고, 같은 외부 API를 직접 호출하는 **6중 중복** 발견.
+
+| 데이터 | ARGOS 수집 → DB 테이블 | 에이전트 도구 | 외부 API 직접 호출 | DB 읽기 |
+|--------|------------------------|-------------|-------------------|---------|
+| 한국 주가 | `_argos_collect_prices()` → argos_price_history | kr_stock | pykrx ✅ | ❌ |
+| 미국 주가 | `_argos_collect_prices()` → argos_price_history | us_stock | yfinance ✅ | ❌ |
+| 네이버 뉴스 | `_argos_collect_news()` → argos_news_cache | naver_news | Naver API ✅ | ❌ |
+| DART 공시 | `_argos_collect_dart()` → argos_dart_filings | dart_api | DART API ✅ | ❌ |
+| DART 모니터 | `_argos_collect_dart()` → argos_dart_filings | dart_monitor | DART API ✅ | ❌ |
+| 매크로 지표 | `_argos_collect_macro()` → argos_macro_data | ecos_macro | ECOS API ✅ | ❌ |
+
+**해결안**: 6개 도구에 `_read_from_argos()` 헬퍼 추가 → DB에 1시간 이내 데이터 있으면 DB 읽기, 없으면 API 폴백. API 호출 90% 감소 예상.
+
+**우선순위**: 🟡 이번 주 — API 쿼터 아직 안전하나, 분석 빈도 증가 시 DART(일 1,000건) 위험.
 
 ### Phase 5 — 새 기능 추가 (Phase 0~4 완료 후)
 

@@ -55,6 +55,40 @@ class NaverNewsTool(BaseTool):
         if not query:
             return "검색어(query)를 입력해주세요."
 
+        # ① ARGOS DB 뉴스 캐시 우선
+        try:
+            from src.tools._argos_reader import get_news_data
+            cached = get_news_data(query, days=7)
+            if cached and len(cached) >= 3:
+                results = []
+                for i, item in enumerate(cached, 1):
+                    results.append(
+                        f"[{i}] {item['title']}\n"
+                        f"    요약: {item.get('description', '')}\n"
+                        f"    날짜: {item.get('pub_date', '')[:16]}\n"
+                        f"    출처: {item.get('source', '')}"
+                    )
+                search_text = (
+                    f"검색어: '{query}' | {len(cached)}건 (ARGOS 캐시)\n\n"
+                    + "\n\n".join(results)
+                )
+                analysis = await self._llm_call(
+                    system_prompt=(
+                        "당신은 뉴스 분석 전문가입니다.\n"
+                        "뉴스 검색 결과를 분석하여 다음을 정리하세요:\n"
+                        "1. 핵심 뉴스 3개 선정 및 요약 (각 2~3줄)\n"
+                        "2. 전체적인 뉴스 흐름/트렌드\n"
+                        "3. 시장·사업에 미치는 영향 분석\n"
+                        "4. 주의해야 할 리스크 요인\n"
+                        "출처(언론사)를 명시하세요. 한국어로 답변하세요."
+                    ),
+                    user_prompt=search_text,
+                )
+                logger.info("[ARGOS] '%s' 뉴스 %d건 캐시 사용", query, len(cached))
+                return f"## 네이버 뉴스 검색 결과\n\n{search_text}\n\n---\n\n## 분석\n\n{analysis}"
+        except Exception as e:
+            logger.debug("ARGOS news fallback: %s", e)
+
         if not os.getenv("NAVER_CLIENT_ID"):
             return (
                 "NAVER_CLIENT_ID가 설정되지 않았습니다.\n"
