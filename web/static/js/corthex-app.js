@@ -349,10 +349,13 @@ function corthexApp() {
 
     // ── NEXUS (3D / Canvas) ──
     flowchart: {
-      mode: '3d',         // '3d' | 'canvas'
+      mode: '3d',         // '3d' | 'canvas' | 'mermaid'
       // ── 3D 시스템 맵 ──
       graph3dLoaded: false,
       graph3dInstance: null,
+      // ── Mermaid 시스템 플로우 ──
+      mermaidLoading: false,
+      mermaidRendered: false,
       // ── 비주얼 캔버스 ──
       canvasLoaded: false,
       canvasEditor: null,
@@ -2514,6 +2517,25 @@ function corthexApp() {
       } catch (e) { console.error('Task detail load failed:', e); }
     },
 
+    async requestRewrite(taskId, sectionsStr, feedback) {
+      const sections = (sectionsStr || '').split(',').map(s => parseInt(s.trim())).filter(n => !isNaN(n));
+      if (!sections.length) { this.showToast('섹션 번호를 입력해주세요', 'error'); return; }
+      try {
+        const res = await fetch(`/api/tasks/${taskId}/rewrite`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ rejected_sections: sections, feedback: feedback || '' }),
+        }).then(r => r.json());
+        if (res.success) {
+          const task = this.taskHistory.items.find(t => t.task_id === taskId);
+          if (task) { task.rejected_sections = sections; task._rewriteOpen = false; }
+          this.showToast(`재작성 요청됨 → #${res.new_task_id} v${res.version}`, 'success');
+        } else {
+          this.showToast(res.error || '재작성 실패', 'error');
+        }
+      } catch (e) { this.showToast('재작성 요청 실패', 'error'); }
+    },
+
     async toggleBookmark(taskId) {
       try {
         const res = await fetch(`/api/tasks/${taskId}/bookmark`, { method: 'POST' }).then(r => r.json());
@@ -4669,6 +4691,7 @@ function corthexApp() {
             if (this.flowchart.graph3dLabelsAnimId) { cancelAnimationFrame(this.flowchart.graph3dLabelsAnimId); this.flowchart.graph3dLabelsAnimId = 0; }
             return;
           }
+          if (this.viewMode === 'agora') { this.viewMode = 'chat'; if (this.agora.sseSource) { this.agora.sseSource.close(); this.agora.sseSource = null; } return; }
           if (this.agoraOpen) { this.agoraOpen = false; if (this.agora.sseSource) { this.agora.sseSource.close(); this.agora.sseSource = null; } return; }
           if (this.showAgentConfig) { this.showAgentConfig = false; return; }
           if (this.showQualitySettings) { this.showQualitySettings = false; return; }
@@ -5066,8 +5089,127 @@ function corthexApp() {
       this.flowchart.mode = mode;
       await this.$nextTick();
       if (mode === '3d' && !this.flowchart.graph3dLoaded) await this.initNexus3D();
+      if (mode === 'mermaid' && !this.flowchart.mermaidRendered) await this.generateMermaidSystemFlow();
       if (mode === 'canvas' && !this.flowchart.canvasLoaded) await this.initNexusCanvas();
       if (mode === 'canvas') await this.loadCanvasList();
+    },
+
+    // ── NEXUS Mermaid: 시스템 플로우차트 생성 ──
+    async generateMermaidSystemFlow() {
+      this.flowchart.mermaidLoading = true;
+      try {
+        // mermaid CDN 로드
+        if (!window.mermaid) {
+          const src = this._CDN?.mermaid || 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js';
+          await new Promise((resolve, reject) => {
+            const s = document.createElement('script');
+            s.src = src; s.onload = resolve; s.onerror = reject;
+            document.head.appendChild(s);
+          });
+          mermaid.initialize({ startOnLoad: false, theme: 'dark', themeVariables: {
+            primaryColor: '#1e1b4b', primaryTextColor: '#e2e8f0',
+            primaryBorderColor: '#6366f1', lineColor: '#6366f1',
+            secondaryColor: '#0f172a', tertiaryColor: '#0c1220',
+            fontFamily: 'Pretendard, sans-serif', fontSize: '12px'
+          }});
+        }
+        // 에이전트 데이터 로드
+        let agents = this.agents || [];
+        if (!agents.length) {
+          try { agents = await fetch('/api/agents').then(r => r.json()); } catch {}
+        }
+        // 플로우차트 코드 생성
+        const lines = ['flowchart TD'];
+        // 스타일 정의
+        lines.push('  classDef ceo fill:#e879f9,stroke:#c084fc,color:#000,stroke-width:2px');
+        lines.push('  classDef server fill:#3b82f6,stroke:#60a5fa,color:#fff,stroke-width:2px');
+        lines.push('  classDef agent fill:#8b5cf6,stroke:#a78bfa,color:#fff,stroke-width:1px');
+        lines.push('  classDef tool fill:#10b981,stroke:#34d399,color:#fff,stroke-width:1px');
+        lines.push('  classDef output fill:#f59e0b,stroke:#fbbf24,color:#000,stroke-width:2px');
+        lines.push('');
+        // CEO 입력
+        lines.push('  CEO[/"CEO 명령 입력"/]:::ceo');
+        lines.push('  WS["WebSocket 서버<br/>arm_server.py"]:::server');
+        lines.push('  AI["AI 핸들러<br/>ai_handler.py"]:::server');
+        lines.push('  TOOL["도구 실행 엔진<br/>tool_pool.py"]:::server');
+        lines.push('  DB[("SQLite DB<br/>corthex.db")]:::server');
+        lines.push('  UI["웹 대시보드<br/>index.html"]:::output');
+        lines.push('');
+        // 핵심 흐름
+        lines.push('  CEO -->|"명령 전송"| WS');
+        lines.push('  WS -->|"작업 생성"| DB');
+        lines.push('  WS -->|"AI 요청"| AI');
+        lines.push('  AI -->|"도구 호출"| TOOL');
+        lines.push('  TOOL -->|"결과 저장"| DB');
+        lines.push('  AI -->|"응답 전송"| WS');
+        lines.push('  WS -->|"실시간 브로드캐스트"| UI');
+        lines.push('  DB -->|"데이터 조회"| UI');
+        lines.push('');
+        // 에이전트 서브그래프 (부서별 그룹)
+        const depts = {};
+        agents.forEach(a => {
+          const d = a.division || a.department || '기타';
+          if (!depts[d]) depts[d] = [];
+          depts[d].push(a);
+        });
+        Object.entries(depts).forEach(([dept, ags], i) => {
+          const deptId = 'dept_' + i;
+          lines.push(`  subgraph ${deptId}["${dept}"]`);
+          ags.forEach(a => {
+            const aid = 'ag_' + (a.agent_id || a.id || a.name).replace(/[^a-zA-Z0-9_]/g, '_');
+            const name = a.name_ko || a.name || a.agent_id;
+            lines.push(`    ${aid}["${name}"]:::agent`);
+          });
+          lines.push('  end');
+          lines.push(`  AI --> ${deptId}`);
+        });
+        lines.push('');
+        // 도구 카테고리 서브그래프
+        const toolCats = [
+          { id: 'tc_api', label: 'API 연동 도구 (62)', color: 'tool' },
+          { id: 'tc_llm', label: 'LLM 분석 도구 (52)', color: 'tool' },
+          { id: 'tc_local', label: '로컬 처리 도구 (18)', color: 'tool' },
+        ];
+        lines.push('  subgraph tools["도구함 (132개)"]');
+        toolCats.forEach(tc => {
+          lines.push(`    ${tc.id}["${tc.label}"]:::tool`);
+        });
+        lines.push('  end');
+        lines.push('  TOOL --> tools');
+        lines.push('');
+        // 외부 서비스
+        lines.push('  subgraph ext["외부 서비스"]');
+        lines.push('    EXT_AI["AI API<br/>Claude/GPT/Gemini"]');
+        lines.push('    EXT_FIN["금융 데이터<br/>KIS/pykrx/yfinance"]');
+        lines.push('    EXT_SNS["SNS 플랫폼<br/>텔레그램/유튜브/블로그"]');
+        lines.push('    EXT_GOV["공공 데이터<br/>DART/ECOS/법령"]');
+        lines.push('  end');
+        lines.push('  tc_api --> ext');
+        lines.push('  AI --> EXT_AI');
+
+        const code = lines.join('\n');
+        // 렌더링
+        const container = document.getElementById('nexus-mermaid');
+        if (container) {
+          container.innerHTML = '';
+          const { svg } = await mermaid.render('nexus-mermaid-svg', code);
+          container.innerHTML = svg;
+          // SVG에 zoom/pan 기능 추가
+          const svgEl = container.querySelector('svg');
+          if (svgEl) {
+            svgEl.style.maxWidth = '100%';
+            svgEl.style.height = 'auto';
+            svgEl.style.cursor = 'grab';
+          }
+        }
+        this.flowchart.mermaidRendered = true;
+      } catch (e) {
+        console.error('[NEXUS] Mermaid error:', e);
+        const container = document.getElementById('nexus-mermaid');
+        if (container) container.innerHTML = `<div class="text-red-400 text-sm p-4">플로우차트 생성 실패: ${e.message}</div>`;
+      } finally {
+        this.flowchart.mermaidLoading = false;
+      }
     },
 
     // ── NEXUS 3D: 시스템 전체 그래프 데이터 빌드 ──
