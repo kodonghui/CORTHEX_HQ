@@ -627,9 +627,15 @@ async def _call_anthropic(
     if tools:
         kwargs["tools"] = tools
 
-    # extended thinking 사용 시 폴백 처리
+    # extended thinking 사용 시 스트리밍 필수 (Anthropic API 요구사항)
+    async def _do_create(kw):
+        if "thinking" in kw:
+            async with _anthropic_client.messages.stream(**kw) as stream:
+                return await stream.get_final_message()
+        return await _anthropic_client.messages.create(**kw)
+
     try:
-        resp = await asyncio.wait_for(_anthropic_client.messages.create(**kwargs), timeout=ai_call_timeout)
+        resp = await asyncio.wait_for(_do_create(kwargs), timeout=ai_call_timeout)
     except asyncio.TimeoutError:
         raise  # 상위 ask_ai()에서 처리
     except Exception as e:
@@ -692,7 +698,7 @@ async def _call_anthropic(
 
             # 다시 AI 호출 (도구 결과를 포함하여 재호출 — 개별 타임아웃 적용)
             kwargs["messages"] = messages
-            resp = await asyncio.wait_for(_anthropic_client.messages.create(**kwargs), timeout=ai_call_timeout)
+            resp = await asyncio.wait_for(_do_create(kwargs), timeout=ai_call_timeout)
             total_input_tokens += resp.usage.input_tokens
             total_output_tokens += resp.usage.output_tokens
 
