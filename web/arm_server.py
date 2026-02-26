@@ -8722,6 +8722,67 @@ async def argos_collect_now(req: Request):
     return {"ok": True, "triggered": results}
 
 
+@app.get("/api/debug/argos-diag")
+async def argos_diagnostic():
+    """ARGOS 수집 문제 진단 — 각 단계별 성공/실패 리포트."""
+    diag = {}
+    # 1) DB 연결
+    try:
+        conn = get_connection()
+        diag["db"] = "OK"
+        conn.close()
+    except Exception as e:
+        diag["db"] = f"FAIL: {e}"
+        return {"ok": False, "diag": diag}
+
+    # 2) watchlist
+    wl = _load_data("trading_watchlist", [])
+    diag["watchlist"] = f"{len(wl)}종목"
+    kr = [w for w in wl if w.get("market", "KR") == "KR"]
+    us = [w for w in wl if w.get("market") == "US"]
+    diag["kr_tickers"] = [w["ticker"] for w in kr]
+    diag["us_tickers"] = [w["ticker"] for w in us]
+
+    # 3) pykrx 테스트 (삼성전자 1일)
+    try:
+        from pykrx import stock as _pk
+        today = datetime.now(KST).strftime("%Y%m%d")
+        start = (datetime.now(KST) - timedelta(days=7)).strftime("%Y%m%d")
+        df = await asyncio.to_thread(_pk.get_market_ohlcv_by_date, start, today, "005930")
+        diag["pykrx"] = f"OK ({len(df)}행)" if df is not None and not df.empty else "EMPTY"
+    except Exception as e:
+        diag["pykrx"] = f"FAIL: {e}"
+
+    # 4) yfinance 테스트 (NVDA)
+    try:
+        import yfinance as yf
+        t = yf.Ticker("NVDA")
+        h = await asyncio.to_thread(lambda: t.history(period="5d"))
+        diag["yfinance"] = f"OK ({len(h)}행)" if h is not None and not h.empty else "EMPTY"
+    except Exception as e:
+        diag["yfinance"] = f"FAIL: {e}"
+
+    # 5) ARGOS 테이블 레코드 수
+    try:
+        conn = get_connection()
+        diag["price_rows"] = conn.execute("SELECT COUNT(*) FROM argos_price_history").fetchone()[0]
+        diag["news_rows"] = conn.execute("SELECT COUNT(*) FROM argos_news_cache").fetchone()[0]
+        diag["macro_rows"] = conn.execute("SELECT COUNT(*) FROM argos_macro_data").fetchone()[0]
+        diag["status_rows"] = conn.execute("SELECT COUNT(*) FROM argos_collection_status").fetchone()[0]
+        conn.close()
+    except Exception as e:
+        diag["db_check"] = f"FAIL: {e}"
+
+    # 6) 매크로 수동 테스트
+    try:
+        n = await _argos_collect_macro()
+        diag["macro_test"] = f"OK ({n}건 수집)"
+    except Exception as e:
+        diag["macro_test"] = f"FAIL: {e}"
+
+    return {"ok": True, "diag": diag}
+
+
 # ══════════════════════════════════════════════════════════════════
 
 
