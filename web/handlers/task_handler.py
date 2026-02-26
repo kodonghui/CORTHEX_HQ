@@ -1,7 +1,8 @@
-"""작업(Task) CRUD API — 작업 목록 조회·북마크·삭제·태그·읽음 처리.
+"""작업(Task) CRUD API — 작업 목록 조회·북마크·삭제·태그·읽음·재작성 처리.
 
 비유: 인사팀 — 에이전트에게 내려진 작업 지시를 관리하는 곳.
 """
+import json
 import logging
 
 from fastapi import APIRouter, Request
@@ -10,6 +11,7 @@ from fastapi.responses import JSONResponse
 from db import (
     list_tasks,
     get_task as db_get_task,
+    create_task,
     update_task,
     toggle_bookmark as db_toggle_bookmark,
     delete_task as db_delete_task,
@@ -127,3 +129,45 @@ async def bulk_task_action(request: Request):
         return {"success": True, "action": "tag", "affected": len(task_ids)}
     else:
         return {"success": False, "error": f"알 수 없는 액션: {action}"}
+
+
+@router.post("/{task_id}/rewrite")
+async def rewrite_task(task_id: str, request: Request):
+    """QA 반려 시 특정 섹션 재작성 요청. 같은 parent에 새 버전으로 task 생성."""
+    original = db_get_task(task_id)
+    if not original:
+        return {"success": False, "error": "원본 작업을 찾을 수 없습니다"}
+
+    body = await request.json()
+    sections = body.get("rejected_sections", [])
+    feedback = body.get("feedback", "")
+
+    # 원본에 반려 섹션 기록
+    update_task(task_id, rejected_sections=json.dumps(sections))
+
+    # 새 task 생성 (재작성 버전)
+    section_str = ", ".join(str(s) for s in sections)
+    rewrite_cmd = f"[재작성 v{original.get('version', 1) + 1}] 섹션 {section_str}: {original['command']}"
+    if feedback:
+        rewrite_cmd += f" (피드백: {feedback})"
+
+    new_task = create_task(
+        command=rewrite_cmd,
+        source=original.get("source", "websocket"),
+        agent_id=original.get("agent_id"),
+    )
+    # 새 task에 parent 연결 + 버전 증가
+    update_task(
+        new_task["task_id"],
+        parent_task_id=task_id,
+        version=original.get("version", 1) + 1,
+    )
+
+    logger.info(f"[REWRITE] {task_id} → {new_task['task_id']} (섹션: {sections})")
+    return {
+        "success": True,
+        "original_task_id": task_id,
+        "new_task_id": new_task["task_id"],
+        "version": original.get("version", 1) + 1,
+        "rejected_sections": sections,
+    }

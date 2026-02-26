@@ -584,6 +584,18 @@ def init_db() -> None:
                 conn.commit()
             except sqlite3.OperationalError:
                 pass
+        # N-9: tasks 테이블에 보고서 재작성 관련 컬럼 추가
+        _task_rewrite_migrate = [
+            ("version", "INTEGER NOT NULL DEFAULT 1"),
+            ("parent_task_id", "TEXT DEFAULT NULL"),
+            ("rejected_sections", "TEXT DEFAULT NULL"),
+        ]
+        for col_name, col_def in _task_rewrite_migrate:
+            try:
+                conn.execute(f"ALTER TABLE tasks ADD COLUMN {col_name} {col_def}")
+                conn.commit()
+            except sqlite3.OperationalError:
+                pass
         print(f"[DB] 초기화 완료: {DB_PATH}")
     except Exception as e:
         print(f"[DB] 초기화 실패: {e}")
@@ -614,10 +626,19 @@ def _row_to_task(row: sqlite3.Row) -> dict:
     tags_raw = ""
     is_read = 0
     archived = 0
+    version = 1
+    parent_task_id = None
+    rejected_sections = None
     try:
         tags_raw = row["tags"]
         is_read = row["is_read"]
         archived = row["archived"]
+    except (IndexError, KeyError):
+        pass
+    try:
+        version = row["version"] or 1
+        parent_task_id = row["parent_task_id"]
+        rejected_sections = row["rejected_sections"]
     except (IndexError, KeyError):
         pass
     try:
@@ -640,6 +661,9 @@ def _row_to_task(row: sqlite3.Row) -> dict:
         "tags": tags,
         "is_read": bool(is_read),
         "archived": bool(archived),
+        "version": version,
+        "parent_task_id": parent_task_id,
+        "rejected_sections": json.loads(rejected_sections) if rejected_sections else None,
     }
 
 
@@ -724,6 +748,7 @@ def update_task(task_id: str, **kwargs) -> None:
         "status", "started_at", "completed_at", "result_data",
         "result_summary", "success", "cost_usd", "tokens_used",
         "time_seconds", "bookmarked", "correlation_id", "agent_id",
+        "version", "parent_task_id", "rejected_sections",
     }
     filtered = {k: v for k, v in kwargs.items() if k in allowed}
     if not filtered:

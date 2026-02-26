@@ -2514,6 +2514,25 @@ function corthexApp() {
       } catch (e) { console.error('Task detail load failed:', e); }
     },
 
+    async requestRewrite(taskId, sectionsStr, feedback) {
+      const sections = (sectionsStr || '').split(',').map(s => parseInt(s.trim())).filter(n => !isNaN(n));
+      if (!sections.length) { this.showToast('섹션 번호를 입력해주세요', 'error'); return; }
+      try {
+        const res = await fetch(`/api/tasks/${taskId}/rewrite`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ rejected_sections: sections, feedback: feedback || '' }),
+        }).then(r => r.json());
+        if (res.success) {
+          const task = this.taskHistory.items.find(t => t.task_id === taskId);
+          if (task) { task.rejected_sections = sections; task._rewriteOpen = false; }
+          this.showToast(`재작성 요청됨 → #${res.new_task_id} v${res.version}`, 'success');
+        } else {
+          this.showToast(res.error || '재작성 실패', 'error');
+        }
+      } catch (e) { this.showToast('재작성 요청 실패', 'error'); }
+    },
+
     async toggleBookmark(taskId) {
       try {
         const res = await fetch(`/api/tasks/${taskId}/bookmark`, { method: 'POST' }).then(r => r.json());
