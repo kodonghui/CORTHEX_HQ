@@ -250,7 +250,7 @@ function corthexApp() {
     activityLogFilter: 'all',
 
     // Knowledge management
-    knowledge: { files: [], loading: false, selectedFile: null, content: '', editMode: false, saving: false, newFileName: '', newFolder: '', showCreateForm: false },
+    knowledge: { files: [], loading: false, selectedFile: null, content: '', editMode: false, saving: false, newFileName: '', newFolder: '', showCreateForm: false, uploadFolder: '' },
 
     // Archive browser
     archive: { files: [], loading: false, selectedReport: null, content: '', filterDivision: 'all', filterTier: 'all', searchCorrelation: '', selectedFiles: [], selectMode: false },
@@ -3138,6 +3138,38 @@ function corthexApp() {
           this.showToast('파일이 생성되었습니다.', 'success');
         } else { this.showToast(data.error || '생성 실패', 'error'); }
       } catch { this.showToast('파일 생성에 실패했습니다.', 'error'); }
+    },
+
+    // E-3: 정보국 파일 업로드
+    async uploadKnowledgeFile(event) {
+      const files = event.target.files;
+      if (!files || files.length === 0) return;
+      let uploaded = 0;
+      for (const file of files) {
+        await new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onload = async (e) => {
+            const content = e.target.result;
+            const filename = file.name;
+            // 폴더명: 파일명 앞 prefix 없으면 'shared'
+            const folder = this.knowledge.uploadFolder?.trim() || 'shared';
+            try {
+              const res = await fetch('/api/knowledge', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ folder, filename, content }),
+              });
+              const data = await res.json();
+              if (data.success) uploaded++;
+            } catch {}
+            resolve();
+          };
+          reader.readAsText(file, 'utf-8');
+        });
+      }
+      event.target.value = '';
+      await this.loadKnowledge();
+      this.showToast(`${uploaded}개 파일 업로드 완료`, 'success');
     },
 
     // ── Archive Browser ──

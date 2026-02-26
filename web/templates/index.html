@@ -2990,12 +2990,26 @@
         <div class="w-64 border-r border-hq-border overflow-y-auto scrollbar-thin p-4 bg-hq-surface shrink-0">
           <div class="flex items-center justify-between mb-3">
             <h3 class="text-xs font-bold text-hq-text uppercase tracking-wider">참고 자료</h3>
-            <button @click="knowledge.showCreateForm = !knowledge.showCreateForm" class="text-hq-accent text-xs hover:text-hq-accent/80">+ 새 파일</button>
+            <div class="flex items-center gap-1.5">
+              <!-- E-3: 파일 업로드 -->
+              <button @click="$refs.knowledgeUploadInput.click()" class="text-hq-green text-xs hover:text-hq-green/80 flex items-center gap-0.5" title="로컬 파일 업로드">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"/></svg>
+                업로드
+              </button>
+              <input type="file" x-ref="knowledgeUploadInput" @change="uploadKnowledgeFile($event)" accept=".md,.txt,.yaml,.json,.csv" multiple class="hidden">
+              <span class="text-hq-border">|</span>
+              <button @click="knowledge.showCreateForm = !knowledge.showCreateForm" class="text-hq-accent text-xs hover:text-hq-accent/80">+ 새 파일</button>
+            </div>
           </div>
+          <!-- E-3: 업로드 시 폴더 지정 (showCreateForm 없을 때도 표시) -->
           <div x-show="knowledge.showCreateForm" x-transition class="mb-3 space-y-1">
             <input x-model="knowledge.newFolder" placeholder="폴더명" class="w-full bg-hq-bg border border-hq-border rounded-lg px-2 py-1 text-xs text-hq-text">
             <input x-model="knowledge.newFileName" placeholder="파일명" class="w-full bg-hq-bg border border-hq-border rounded-lg px-2 py-1 text-xs text-hq-text">
             <button @click="createKnowledgeFile()" class="bg-hq-accent text-white rounded-lg px-2 py-1 text-xs w-full">생성</button>
+          </div>
+          <!-- 업로드 폴더 지정 -->
+          <div class="mb-2">
+            <input x-model="knowledge.uploadFolder" placeholder="업로드 폴더 (기본: shared)" class="w-full bg-hq-bg border border-hq-border/50 rounded-lg px-2 py-1 text-xs text-hq-muted focus:text-hq-text focus:border-hq-accent/50 transition">
           </div>
           <template x-if="knowledge.loading">
             <div class="text-xs text-hq-muted text-center py-4">로딩 중...</div>
