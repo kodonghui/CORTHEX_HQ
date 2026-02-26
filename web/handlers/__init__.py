@@ -20,7 +20,7 @@
   - agent_handler:        /api/agents/*, /api/budget, /api/model-mode, /api/available-models (에이전트·예산·모델)
   - telegram_handler:     /api/telegram-status, /api/debug/telegram-test (텔레그램 진단)
   - tools_handler:        /api/tools/*, /api/tools/status, /api/tools/health (도구 실행·상태)
-  - consult_handler:      /api/consult (처장 간 협의)
+  - consult_handler:      /api/consult (팀장 간 협의)
   - replay_handler:       /api/replay/* (배치 체인 리플레이)
   - calendar_handler:     /api/google-calendar/* (Google Calendar OAuth)
   - soul_evolution_handler: /api/soul-evolution/* (Soul 자동 진화 — 반려학습 분석+제안+승인)

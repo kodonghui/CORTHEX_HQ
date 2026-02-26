@@ -4373,14 +4373,14 @@ def _register_default_schedules():
         {
             "id": "default_cio_morning",
             "name": "CIO 일일 시장 분석",
-            "command": "@투자처장 오늘 한국 주식시장 주요 동향과 섹터별 분석을 보고해주세요. 주요 이슈와 투자 관점 포함.",
+            "command": "@금융분석팀장 오늘 한국 주식시장 주요 동향과 섹터별 분석을 보고해주세요. 주요 이슈와 투자 관점 포함.",
             "cron": "30 8 * * 1-5",  # 평일 08:30
             "enabled": True,
         },
         {
             "id": "default_cio_weekly",
             "name": "CIO 주간 시장 리뷰",
-            "command": "@투자처장 이번 주 시장 총평과 다음 주 전망을 종합 보고서로 작성해주세요.",
+            "command": "@금융분석팀장 이번 주 시장 총평과 다음 주 전망을 종합 보고서로 작성해주세요.",
             "cron": "0 18 * * 5",  # 금요일 18:00
             "enabled": True,
         },
@@ -11371,6 +11371,40 @@ def _init_tool_pool():
 # ── 도구 실행/상태/건강 → handlers/tools_handler.py로 분리 ──
 
 
+# ── 진화 로그 실시간 브로드캐스트 + REST API ──
+
+async def _broadcast_evolution_log(message: str, level: str = "info"):
+    """진화 시스템 로그를 WebSocket으로 실시간 브로드캐스트."""
+    from datetime import datetime, timezone, timedelta
+    _KST = timezone(timedelta(hours=9))
+    now = datetime.now(_KST)
+    await wm.broadcast("evolution_log", {
+        "message": message,
+        "level": level,
+        "time": now.strftime("%H:%M:%S"),
+        "timestamp": now.isoformat(),
+    })
+
+
+@app.get("/api/evolution/logs")
+async def api_evolution_logs(limit: int = 50):
+    """최근 진화 시스템 로그 조회 (activity_logs에서 Soul Gym / Soul Evolution 필터)."""
+    try:
+        conn = get_connection()
+        rows = conn.execute(
+            """SELECT agent_id, message, level, timestamp
+               FROM activity_logs
+               WHERE (message LIKE '%Soul Gym%' OR message LIKE '%Soul Evolution%' OR message LIKE '%진화%')
+               ORDER BY id DESC LIMIT ?""",
+            (limit,),
+        ).fetchall()
+        conn.close()
+        logs = [{"agent_id": r[0], "message": r[1], "level": r[2], "timestamp": r[3]} for r in rows]
+        return {"logs": logs}
+    except Exception as e:
+        return {"logs": [], "error": str(e)}
+
+
 # ── Soul Gym 24/7 상시 루프 ──
 
 _soul_gym_running = False  # 중복 실행 방지 플래그
@@ -11398,14 +11432,20 @@ async def _soul_gym_loop():
     while True:
         try:
             round_num += 1
-            logger.info("🧬 Soul Gym 라운드 #%d 시작", round_num)
-            save_activity_log("system", f"🧬 Soul Gym 라운드 #{round_num} 시작", "info")
+            _evo_msg = f"🧬 Soul Gym 라운드 #{round_num} 시작"
+            logger.info(_evo_msg)
+            save_activity_log("system", _evo_msg, "info")
+            await _broadcast_evolution_log(_evo_msg, "info")
             result = await _evolve_all()
+            _evo_msg = f"🧬 Soul Gym 라운드 #{round_num} 완료 — {result.get('status', '')}"
             logger.info("🧬 Soul Gym 라운드 #%d 완료: %s", round_num, result.get("status", "unknown"))
-            save_activity_log("system", f"🧬 Soul Gym 라운드 #{round_num} 완료 — {result.get('status', '')}", "info")
+            save_activity_log("system", _evo_msg, "info")
+            await _broadcast_evolution_log(_evo_msg, "info")
         except Exception as e:
-            logger.error("🧬 Soul Gym 라운드 #%d 에러: %s", round_num, e)
-            save_activity_log("system", f"🧬 Soul Gym 라운드 #{round_num} 에러: {e}", "error")
+            _evo_msg = f"🧬 Soul Gym 라운드 #{round_num} 에러: {e}"
+            logger.error(_evo_msg)
+            save_activity_log("system", _evo_msg, "error")
+            await _broadcast_evolution_log(_evo_msg, "error")
 
         await asyncio.sleep(INTERVAL_SECONDS)
 

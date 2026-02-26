@@ -988,7 +988,7 @@ tools:
     required:
     - action
 # 삭제됨: macro_regime (외부 데이터 없이 LLM만 사용)
-# ─── CMO 마케팅·고객처 교수급 도구 ───
+# ─── 마케팅팀 교수급 도구 ───
 - tool_id: funnel_analyzer
   name: Funnel Analyzer
   name_ko: AARRR 퍼널 분석기
@@ -2767,7 +2767,7 @@ tools:
         description: "사용 맥락 (도메인, 사용자 규모, 보안 요구)"
     required: [action]
 
-# ─── CSO 사업기획처 교수급 (5개) ───
+# ─── 전략팀 교수급 (5개) ───
 
 - tool_id: market_sizer
   name: Market Sizer
@@ -2877,7 +2877,7 @@ tools:
         description: "사업 맥락"
     required: [action]
 
-# ─── CPO 출판기록처 교수급 (3개) ───
+# ─── 콘텐츠팀 교수급 (3개) ───
 
 - tool_id: document_summarizer
   name: Document Summarizer
@@ -3046,7 +3046,7 @@ tools:
         description: "프로젝트/이슈 맥락"
     required: [action]
 
-# ─── CLO 법무IP처 교수급 (4개) ───
+# ─── 법무팀 교수급 (4개) ───
 
 - tool_id: compliance_checker
   name: Compliance Checker
@@ -3132,7 +3132,7 @@ tools:
         description: "조직/프로젝트 맥락"
     required: [action]
 
-# ─── CSO/CMO 공용 교수급 (3개) ───
+# ─── 전략/마케팅팀 공용 교수급 (3개) ───
 
 - tool_id: pricing_optimizer
   name: Pricing Optimizer
@@ -3369,7 +3369,7 @@ tools:
         description: "이어붙일 클립 파일 경로 리스트 (action=concat 시)"
     required: [action]
 
-# ─── CIO 미국 주식 전문 도구 10종 ───
+# ─── 금융분석팀 미국 주식 전문 도구 10종 ───
 
 - tool_id: sec_edgar
   name: SEC EDGAR Filings

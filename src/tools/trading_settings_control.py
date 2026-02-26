@@ -1,7 +1,7 @@
 """
 자동매매 설정 제어 Tool (Trading Settings Control).
 
-CIO가 자동매매 설정값을 조회하거나 변경할 수 있는 도구입니다.
+금융분석팀장이 자동매매 설정값을 조회하거나 변경할 수 있는 도구입니다.
 CEO 투자 성향별 안전 범위 내에서만 변경 가능합니다.
 
 사용 방법:
@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 
 class TradingSettingsControlTool(BaseTool):
-    """CIO가 자동매매 설정을 조회/변경하는 도구."""
+    """금융분석팀장이 자동매매 설정을 조회/변경하는 도구."""
 
     async def execute(self, **kwargs: Any) -> str:
         action = kwargs.get("action", "get_settings")
@@ -101,7 +101,7 @@ class TradingSettingsControlTool(BaseTool):
             history = load_setting("trading_settings_history", [])
             history.append({
                 "changed_at": datetime.now(KST).isoformat(),
-                "changed_by": "CIO",
+                "changed_by": "금융분석팀장",
                 "action": "도구를 통한 설정 변경",
                 "detail": reason,
                 "applied": applied,
@@ -110,7 +110,7 @@ class TradingSettingsControlTool(BaseTool):
             if len(history) > 100:
                 history = history[-100:]
             save_setting("trading_settings_history", history)
-            save_activity_log("cio_manager", f"⚙️ CIO 설정 변경: {', '.join(f'{k}={v}' for k, v in applied.items())} | {reason}", "info")
+            save_activity_log("cio_manager", f"⚙️ 금융분석팀장 설정 변경: {', '.join(f'{k}={v}' for k, v in applied.items())} | {reason}", "info")
 
             result = f"✅ 설정 변경 완료 ({reason})\n\n"
             if applied:

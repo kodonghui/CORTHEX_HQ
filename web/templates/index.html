@@ -1509,6 +1509,10 @@
           </div>
 
           <!-- Agent Performance Table -->
+          <div class="flex items-center gap-2 mb-2 px-1">
+            <svg class="w-4 h-4 text-hq-purple" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25"/></svg>
+            <span class="text-xs text-hq-muted">각 팀장의 <span class="text-hq-purple font-semibold">기억</span> 버튼을 클릭하면 장기기억을 관리할 수 있습니다</span>
+          </div>
           <div class="glass border border-hq-border rounded-xl overflow-x-auto">
             <table class="w-full text-sm min-w-[600px]">
               <thead>
@@ -1546,7 +1550,10 @@
                     </td>
                     <td class="px-4 py-2.5 text-center">
                       <button @click="openMemoryModal(a.agent_id, a.name_ko)"
-                              class="text-[10px] px-2 py-1 rounded border border-hq-purple/30 text-hq-purple hover:bg-hq-purple/10 transition">기억</button>
+                              class="text-xs px-3 py-1.5 rounded-lg border border-hq-purple/40 text-hq-purple hover:bg-hq-purple/20 transition font-semibold flex items-center gap-1">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25"/></svg>
+                        기억
+                      </button>
                     </td>
                   </tr>
                 </template>
@@ -1770,6 +1777,35 @@
               <div class="text-center py-4 text-hq-muted/60 text-xs">아직 진화 기록이 없습니다. 첫 Dry Run을 실행해보세요.</div>
             </template>
           </div>
+
+          <!-- 진화 실시간 로그 (N-4) -->
+          <div class="mt-6 glass border border-hq-border rounded-xl p-4">
+            <div class="flex items-center justify-between mb-3">
+              <div>
+                <h3 class="text-sm font-bold text-hq-text font-mono">EVOLUTION LOG</h3>
+                <p class="text-[10px] text-hq-muted">진화 시스템 실시간 로그 — 텔레그램 알림 대신 웹에서 확인</p>
+              </div>
+              <button @click="loadEvolutionLogs()" class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-hq-green/20 text-hq-green hover:bg-hq-green/30 transition">새로고침</button>
+            </div>
+            <div class="bg-hq-bg rounded-lg border border-hq-border/50 max-h-60 overflow-y-auto scrollbar-thin">
+              <template x-if="evolutionLogs.length > 0">
+                <div class="divide-y divide-hq-border/30">
+                  <template x-for="(log, idx) in evolutionLogs" :key="idx">
+                    <div class="px-3 py-2 flex items-start gap-2 text-xs hover:bg-hq-surface/30 transition">
+                      <span class="font-mono text-hq-muted/70 shrink-0 w-12" x-text="log.time"></span>
+                      <span class="w-1.5 h-1.5 rounded-full mt-1.5 shrink-0"
+                            :class="log.level === 'error' ? 'bg-hq-red' : log.level === 'warning' ? 'bg-hq-yellow' : 'bg-hq-green'"></span>
+                      <span class="text-hq-text/90 leading-relaxed" x-text="log.message"></span>
+                    </div>
+                  </template>
+                </div>
+              </template>
+              <template x-if="evolutionLogs.length === 0">
+                <div class="text-center py-6 text-hq-muted/60 text-xs">아직 진화 로그가 없습니다. Soul Gym이 실행되면 여기에 실시간으로 표시됩니다.</div>
+              </template>
+            </div>
+          </div>
+
         </div>
       </div></template>
 
@@ -3128,8 +3164,21 @@
            x-transition:enter-start="opacity-0 translate-y-2"
            x-transition:enter-end="opacity-100 translate-y-0"
            class="flex-1 overflow-hidden flex bg-grid">
-        <!-- Left: File Tree -->
-        <div class="w-64 border-r border-hq-border overflow-y-auto scrollbar-thin p-4 bg-hq-surface shrink-0">
+        <!-- Left: File Tree (드래그앤드롭 지원) -->
+        <div class="w-64 border-r border-hq-border overflow-y-auto scrollbar-thin p-4 bg-hq-surface shrink-0 relative"
+             @dragover.prevent="knowledge.dragOver = true"
+             @dragenter.prevent="knowledge.dragOver = true"
+             @dragleave.prevent="knowledge.dragOver = false"
+             @drop.prevent="knowledge.dragOver = false; handleKnowledgeDrop($event)">
+          <!-- 드래그앤드롭 오버레이 -->
+          <div x-show="knowledge.dragOver" x-transition.opacity
+               class="absolute inset-0 z-10 bg-hq-accent/10 border-2 border-dashed border-hq-accent rounded-xl flex items-center justify-center">
+            <div class="text-center">
+              <svg class="w-8 h-8 text-hq-accent mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"/></svg>
+              <div class="text-xs font-bold text-hq-accent">파일을 여기에 놓으세요</div>
+              <div class="text-[10px] text-hq-muted mt-1">.md, .txt, .yaml, .json, .csv</div>
+            </div>
+          </div>
           <div class="flex items-center justify-between mb-3">
             <h3 class="text-xs font-bold text-hq-text uppercase tracking-wider">참고 자료</h3>
             <div class="flex items-center gap-1.5">
@@ -3422,7 +3471,7 @@
           <!-- SNS Tab 1: Connection Status -->
           <div x-show="sns.tab === 'status' && !sns.loading">
             <div class="bg-hq-surface border border-hq-border/50 rounded-lg px-4 py-3 mb-4 text-xs text-hq-muted">
-              SNS 플랫폼을 연결하려면 각 플랫폼의 API 키가 필요합니다. GitHub Secrets에 해당 키를 등록하면 서버 <code class="bg-hq-bg px-1 rounded text-hq-cyan">.env</code>에 자동 반영됩니다.
+              SNS 플랫폼을 연결하려면 각 플랫폼의 API 키가 필요합니다. GitHub Secrets에 해당 키를 등록하면 배포 시 서버 환경변수에 자동 반영됩니다.
             </div>
             <!-- D-3: 연결 요약 -->
             <div class="flex gap-3 mb-4">
@@ -5239,14 +5288,30 @@
         </div>
       </div></template>
 
-      <!-- E-1: 피드백 모드 플로팅 버튼 -->
+      <!-- E-1: 피드백 모드 — 피그마급 핀 시스템 -->
       <div class="fixed bottom-20 md:bottom-6 right-6 z-50 flex flex-col items-end gap-2">
-        <!-- 피드백 모드 ON 표시 -->
-        <div x-show="feedbackMode" x-transition
-             class="bg-hq-yellow/90 text-black text-xs font-bold px-3 py-1.5 rounded-lg shadow-lg">
-          피드백 모드 ON — 영역을 드래그하세요
+        <!-- 피드백 모드 ON 패널 -->
+        <div x-show="feedbackMode" x-transition class="bg-hq-bg/95 backdrop-blur border border-hq-yellow/40 rounded-xl shadow-xl p-3 w-56">
+          <div class="text-xs font-bold text-hq-yellow mb-2 flex items-center gap-1.5">
+            <span class="w-2 h-2 rounded-full bg-hq-yellow animate-pulse"></span>
+            피드백 모드 ON
+          </div>
+          <p class="text-[10px] text-hq-muted mb-2">화면을 클릭하면 핀이 생성됩니다</p>
+          <div class="text-[10px] text-hq-muted mb-1.5" x-text="'핀 ' + feedbackPins.length + '개'"></div>
+          <!-- 핀 목록 (최근 5개) -->
+          <div class="max-h-24 overflow-y-auto scrollbar-thin space-y-1 mb-2">
+            <template x-for="(pin, idx) in feedbackPins.slice(-5)" :key="idx">
+              <div class="flex items-center gap-1 bg-hq-surface rounded px-2 py-1">
+                <span class="text-hq-yellow font-bold text-[10px]" x-text="'#' + (idx + 1)"></span>
+                <span class="text-[10px] text-hq-text truncate flex-1" x-text="pin.comment"></span>
+                <button @click="removeFeedbackPin(idx)" class="text-hq-red/60 hover:text-hq-red text-[10px]">&times;</button>
+              </div>
+            </template>
+          </div>
+          <button x-show="feedbackPins.length > 0" @click="clearAllFeedbackPins()"
+                  class="w-full text-[10px] py-1 rounded bg-hq-red/10 text-hq-red hover:bg-hq-red/20 transition mb-1">전체 삭제</button>
         </div>
-        <button @click="feedbackMode = !feedbackMode"
+        <button @click="feedbackMode = !feedbackMode; if(feedbackMode) loadFeedbackPins()"
                 class="w-12 h-12 rounded-full shadow-lg flex items-center justify-center text-lg transition-all"
                 :class="feedbackMode ? 'bg-hq-yellow text-black scale-110 ring-4 ring-hq-yellow/30' : 'bg-hq-panel border border-hq-border text-hq-muted hover:text-hq-yellow hover:border-hq-yellow/30'"
                 title="피드백 모드">
@@ -5255,16 +5320,36 @@
           </svg>
         </button>
       </div>
-      <!-- E-1: 피드백 모드 드래그 캡처 오버레이 -->
+      <!-- E-1: 피드백 클릭 캡처 오버레이 + 핀 표시 -->
       <div x-show="feedbackMode"
-           @mousedown="feedbackDragStart($event)"
-           @mousemove="feedbackDragMove($event)"
-           @mouseup="feedbackDragEnd($event)"
-           class="fixed inset-0 z-40 cursor-crosshair" style="background: rgba(234, 179, 8, 0.05);">
-        <!-- 드래그 사각형 표시 -->
-        <div x-show="feedbackDragging"
-             class="absolute border-2 border-hq-yellow bg-hq-yellow/10 rounded pointer-events-none"
-             :style="`left:${feedbackRect.x}px;top:${feedbackRect.y}px;width:${feedbackRect.w}px;height:${feedbackRect.h}px`"></div>
+           @click="feedbackPlacePin($event)"
+           class="fixed inset-0 z-40 cursor-crosshair" style="background: rgba(234, 179, 8, 0.03);">
+        <!-- 기존 핀 표시 -->
+        <template x-for="(pin, idx) in feedbackPins" :key="pin.id || idx">
+          <div class="absolute z-41" :style="`left:${pin.x - 8}px;top:${pin.y - 8}px`">
+            <div class="w-6 h-6 rounded-full bg-hq-yellow text-black text-[10px] font-bold flex items-center justify-center shadow-lg cursor-pointer hover:scale-110 transition"
+                 :title="pin.comment" x-text="idx + 1"></div>
+          </div>
+        </template>
+        <!-- 새 핀 입력 폼 -->
+        <div x-show="feedbackNewPin" x-transition @click.stop
+             class="absolute z-42" :style="feedbackNewPin ? `left:${feedbackNewPin.x}px;top:${feedbackNewPin.y + 16}px` : ''">
+          <div class="bg-hq-bg border border-hq-yellow/40 rounded-xl shadow-2xl p-3 w-64">
+            <div class="flex items-center gap-2 mb-2">
+              <div class="w-5 h-5 rounded-full bg-hq-yellow text-black text-[10px] font-bold flex items-center justify-center" x-text="feedbackPins.length + 1"></div>
+              <span class="text-xs font-bold text-hq-yellow">새 피드백</span>
+            </div>
+            <textarea id="feedbackPinInput" x-model="feedbackPinText"
+                      @keydown.enter.meta="submitFeedbackPin()" @keydown.enter.ctrl="submitFeedbackPin()"
+                      @keydown.escape="feedbackNewPin = null; feedbackPinText = ''"
+                      placeholder="피드백을 입력하세요... (Ctrl+Enter 전송)"
+                      class="w-full bg-hq-surface border border-hq-border rounded-lg px-3 py-2 text-xs text-hq-text resize-none h-16 focus:border-hq-yellow/50 outline-none"></textarea>
+            <div class="flex gap-2 mt-2">
+              <button @click="submitFeedbackPin()" class="flex-1 py-1.5 text-xs font-semibold rounded-lg bg-hq-yellow/20 text-hq-yellow hover:bg-hq-yellow/30 transition">저장</button>
+              <button @click="feedbackNewPin = null; feedbackPinText = ''" class="py-1.5 px-3 text-xs rounded-lg bg-hq-muted/10 text-hq-muted hover:bg-hq-muted/20 transition">취소</button>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- ═══ Mobile Bottom Navigation (모바일 하단 네비) ═══ -->

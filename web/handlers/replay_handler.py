@@ -65,7 +65,7 @@ async def get_replay(correlation_id: str):
             "cost_usd": classify.get("cost_usd", 0),
         })
 
-    # 2단계: 처장 지시서
+    # 2단계: 팀장 지시서
     delegation = chain.get("results", {}).get("delegation")
     if delegation:
         if delegation.get("mode") == "broadcast":
@@ -77,7 +77,7 @@ async def get_replay(correlation_id: str):
                     spec_instructions.append(f"**{s_name}**: {instruction}")
                 steps.append({
                     "step": "delegation",
-                    "step_label": "2단계: 처장 지시서",
+                    "step_label": "2단계: 팀장 지시서",
                     "agent": mgr_id,
                     "agent_name": mgr_name,
                     "result": "\n".join(spec_instructions) if spec_instructions else "지시서 없음",
@@ -92,7 +92,7 @@ async def get_replay(correlation_id: str):
                 spec_instructions.append(f"**{s_name}**: {instruction}")
             steps.append({
                 "step": "delegation",
-                "step_label": "2단계: 처장 지시서",
+                "step_label": "2단계: 팀장 지시서",
                 "agent": deleg_agent,
                 "agent_name": deleg_name,
                 "result": "\n".join(spec_instructions) if spec_instructions else "지시서 없음",

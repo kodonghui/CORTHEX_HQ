@@ -27,13 +27,13 @@ _MAX_LEN = 4000
 DIVISION_NAMES: dict[str, str] = {
     "secretary": "비서실",
     "leet_master": "LEET Master 본부",
-    "leet_master.tech": "기술개발처",
-    "leet_master.strategy": "사업기획처",
-    "leet_master.legal": "법무처",
-    "leet_master.marketing": "마케팅처",
-    "finance": "투자분석 본부",
-    "finance.investment": "투자분석처",
-    "publishing": "출판/기록 본부",
+    "leet_master.tech": "기술개발팀",
+    "leet_master.strategy": "전략팀",
+    "leet_master.legal": "법무팀",
+    "leet_master.marketing": "마케팅팀",
+    "finance": "금융분석 본부",
+    "finance.investment": "금융분석팀",
+    "publishing": "콘텐츠 본부",
 }
 
 _ROLE_ICONS: dict[str, str] = {
@@ -344,7 +344,7 @@ _AVAILABLE_MODELS = [
     ("claude-sonnet-4-6", "Claude Sonnet 4.6", "기본 (대부분 에이전트)"),
     ("claude-opus-4-6", "Claude Opus 4.6", "최고급 (CLO, CSO)"),
     ("claude-haiku-4-5-20251001", "Claude Haiku 4.5", "경량 Anthropic"),
-    ("gpt-5.2-pro", "GPT-5.2 Pro", "CIO (투자분석처장)"),
+    ("gpt-5.2-pro", "GPT-5.2 Pro", "CIO (금융분석팀장)"),
     ("gpt-5.2", "GPT-5.2", "투자 분석가들"),
     ("gpt-5", "GPT-5", "일반 OpenAI"),
     ("gpt-5-mini", "GPT-5 Mini", "경량 OpenAI"),
