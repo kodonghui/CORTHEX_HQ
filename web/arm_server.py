@@ -23,7 +23,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from ws_manager import wm  # WebSocket/SSE 브로드캐스트 매니저
 from state import app_state  # 전역 상태 관리 (관리사무소)
 from db import (
-    init_db, save_message, create_task, get_task as db_get_task,
+    init_db, get_connection, save_message, create_task, get_task as db_get_task,
     update_task, list_tasks, toggle_bookmark as db_toggle_bookmark,
     get_dashboard_stats, save_activity_log, list_activity_logs,
     save_archive, list_archives, get_archive as db_get_archive, delete_archive as db_delete_archive,

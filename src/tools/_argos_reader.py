@@ -25,10 +25,16 @@ _STALENESS = {
 def _get_conn():
     """서버 DB 커넥션을 가져옵니다. 서버 외부에서는 None."""
     try:
-        from web.db import get_connection
+        # 서버 프로세스 내: web/ 디렉토리가 sys.path에 포함
+        from db import get_connection
         return get_connection()
     except Exception:
-        return None
+        try:
+            # 폴백: 프로젝트 루트에서 실행 시
+            from web.db import get_connection
+            return get_connection()
+        except Exception:
+            return None
 
 
 def _is_fresh(data_type: str) -> bool:
