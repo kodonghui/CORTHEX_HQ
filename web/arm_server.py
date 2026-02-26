@@ -512,34 +512,11 @@ MODEL_MAX_TOKENS_MAP: dict[str, int] = {
 # ── 에이전트 목록 (agents.yaml에서 동적 로드) ──
 _AGENTS_FALLBACK = [
     {"agent_id": "chief_of_staff", "name_ko": "비서실장", "role": "manager", "division": "secretary", "status": "idle", "model_name": "claude-sonnet-4-6"},
-    {"agent_id": "report_specialist", "name_ko": "정보 보좌관", "role": "specialist", "division": "secretary", "status": "idle", "model_name": "gemini-3.1-pro-preview"},
-    {"agent_id": "schedule_specialist", "name_ko": "일정 보좌관", "role": "specialist", "division": "secretary", "status": "idle", "model_name": "gemini-2.5-flash"},
-    {"agent_id": "relay_specialist", "name_ko": "검수 보좌관", "role": "specialist", "division": "secretary", "status": "idle", "model_name": "claude-sonnet-4-6"},
-    {"agent_id": "cto_manager", "name_ko": "기술개발팀장", "role": "manager", "division": "leet_master.tech", "status": "idle", "model_name": "gemini-2.5-flash"},
-    {"agent_id": "frontend_specialist", "name_ko": "프론트엔드 Specialist", "role": "specialist", "division": "leet_master.tech", "status": "idle", "model_name": "gemini-2.5-flash"},
-    {"agent_id": "backend_specialist", "name_ko": "백엔드/API Specialist", "role": "specialist", "division": "leet_master.tech", "status": "idle", "model_name": "gemini-2.5-flash"},
-    {"agent_id": "infra_specialist", "name_ko": "DB/인프라 Specialist", "role": "specialist", "division": "leet_master.tech", "status": "idle", "model_name": "gemini-2.5-flash"},
-    {"agent_id": "ai_model_specialist", "name_ko": "AI 모델 Specialist", "role": "specialist", "division": "leet_master.tech", "status": "idle", "model_name": "gemini-2.5-flash"},
-    {"agent_id": "cso_manager", "name_ko": "전략팀장", "role": "manager", "division": "leet_master.strategy", "status": "idle", "model_name": "gemini-3.1-pro-preview"},
-    {"agent_id": "market_research_specialist", "name_ko": "시장조사 Specialist", "role": "specialist", "division": "leet_master.strategy", "status": "idle", "model_name": "gemini-3.1-pro-preview"},
-    {"agent_id": "business_plan_specialist", "name_ko": "사업계획서 Specialist", "role": "specialist", "division": "leet_master.strategy", "status": "idle", "model_name": "gemini-3.1-pro-preview"},
-    {"agent_id": "financial_model_specialist", "name_ko": "재무모델링 Specialist", "role": "specialist", "division": "leet_master.strategy", "status": "idle", "model_name": "gpt-5.2"},
+    {"agent_id": "cso_manager", "name_ko": "전략팀장", "role": "manager", "division": "leet_master.strategy", "status": "idle", "model_name": "claude-sonnet-4-6"},
     {"agent_id": "clo_manager", "name_ko": "법무팀장", "role": "manager", "division": "leet_master.legal", "status": "idle", "model_name": "claude-sonnet-4-6"},
-    {"agent_id": "copyright_specialist", "name_ko": "저작권 Specialist", "role": "specialist", "division": "leet_master.legal", "status": "idle", "model_name": "claude-sonnet-4-6"},
-    {"agent_id": "patent_specialist", "name_ko": "특허/약관 Specialist", "role": "specialist", "division": "leet_master.legal", "status": "idle", "model_name": "claude-sonnet-4-6"},
-    {"agent_id": "cmo_manager", "name_ko": "마케팅팀장", "role": "manager", "division": "leet_master.marketing", "status": "idle", "model_name": "gemini-3.1-pro-preview"},
-    {"agent_id": "survey_specialist", "name_ko": "설문/리서치 Specialist", "role": "specialist", "division": "leet_master.marketing", "status": "idle", "model_name": "gemini-3.1-pro-preview"},
-    {"agent_id": "content_specialist", "name_ko": "콘텐츠 Specialist", "role": "specialist", "division": "leet_master.marketing", "status": "idle", "model_name": "gemini-3.1-pro-preview"},
-    {"agent_id": "community_specialist", "name_ko": "커뮤니티 Specialist", "role": "specialist", "division": "leet_master.marketing", "status": "idle", "model_name": "gemini-3.1-pro-preview"},
-    {"agent_id": "cio_manager", "name_ko": "투자팀장", "role": "manager", "division": "finance.investment", "status": "idle", "model_name": "gpt-5.2"},
-    {"agent_id": "market_condition_specialist", "name_ko": "시황분석 Specialist", "role": "specialist", "division": "finance.investment", "status": "idle", "model_name": "claude-sonnet-4-6"},
-    {"agent_id": "stock_analysis_specialist", "name_ko": "종목분석 Specialist", "role": "specialist", "division": "finance.investment", "status": "idle", "model_name": "claude-sonnet-4-6"},
-    {"agent_id": "technical_analysis_specialist", "name_ko": "기술적분석 Specialist", "role": "specialist", "division": "finance.investment", "status": "idle", "model_name": "claude-sonnet-4-6"},
-    {"agent_id": "risk_management_specialist", "name_ko": "리스크관리 Specialist", "role": "specialist", "division": "finance.investment", "status": "idle", "model_name": "claude-sonnet-4-6"},
+    {"agent_id": "cmo_manager", "name_ko": "마케팅팀장", "role": "manager", "division": "leet_master.marketing", "status": "idle", "model_name": "claude-sonnet-4-6"},
+    {"agent_id": "cio_manager", "name_ko": "금융분석팀장", "role": "manager", "division": "finance.investment", "status": "idle", "model_name": "claude-opus-4-6"},
     {"agent_id": "cpo_manager", "name_ko": "콘텐츠팀장", "role": "manager", "division": "publishing", "status": "idle", "model_name": "claude-sonnet-4-6"},
-    {"agent_id": "chronicle_specialist", "name_ko": "회사연대기 Specialist", "role": "specialist", "division": "publishing", "status": "idle", "model_name": "claude-sonnet-4-6"},
-    {"agent_id": "editor_specialist", "name_ko": "콘텐츠편집 Specialist", "role": "specialist", "division": "publishing", "status": "idle", "model_name": "claude-sonnet-4-6"},
-    {"agent_id": "archive_specialist", "name_ko": "아카이브 Specialist", "role": "specialist", "division": "publishing", "status": "idle", "model_name": "gemini-2.5-flash"},
 ]
 
 
@@ -8390,11 +8367,6 @@ async def _stop_telegram_bot() -> None:
 
 # 부서별 키워드 라우팅 테이블
 _ROUTING_KEYWORDS: dict[str, list[str]] = {
-    "cto_manager": [
-        "코드", "버그", "프론트", "백엔드", "API", "서버", "배포",
-        "웹사이트", "홈페이지", "디자인", "UI", "UX", "데이터베이스",
-        "개발", "프로그래밍", "깃허브", "github", "리팩토링",
-    ],
     "cso_manager": [
         "시장", "경쟁사", "사업계획", "매출", "예측", "전략",
         "비즈니스", "BM", "수익", "사업", "기획", "성장",
@@ -8423,7 +8395,6 @@ _ROUTING_KEYWORDS: dict[str, list[str]] = {
 # 에이전트 ID → 한국어 이름 매핑
 _AGENT_NAMES: dict[str, str] = {
     "chief_of_staff": "비서실장",
-    "cto_manager": "기술개발팀장",
     "cso_manager": "전략팀장",
     "clo_manager": "법무팀장",
     "cmo_manager": "마케팅팀장",
@@ -9063,7 +9034,6 @@ _BROADCAST_KEYWORDS = [
 # 재도입 시점: 팀장 혼자 30분+ & 병렬이 의미 있을 때 (CLAUDE.md 규칙)
 _MANAGER_SPECIALISTS: dict[str, list[str]] = {
     "chief_of_staff": [],
-    "cto_manager": [],
     "cso_manager": [],
     "clo_manager": [],
     "cmo_manager": [],
@@ -9079,10 +9049,9 @@ _MANAGER_DIVISION: dict[str, str] = {
     "cmo_manager": "leet_master.marketing",
     "cio_manager": "finance.investment",
     "cpo_manager": "publishing",
-    "cto_manager": "leet_master.tech",
 }
 # 동면 부서 (품질검수 제외)
-_DORMANT_MANAGERS: set[str] = {"cto_manager"}
+_DORMANT_MANAGERS: set[str] = set()
 
 # app_state.quality_gate → app_state.quality_gate 직접 사용
 
@@ -9548,37 +9517,8 @@ async def _handle_specialist_rework(chain: dict, failed_specs: list[dict], attem
 
 # B안: 전문가별 역할 prefix — 팀장이 위임할 때 CEO 원문을 그대로 전달하지 않고,
 # 각 전문가의 역할에 맞는 지시를 앞에 붙여서 보냄
-_SPECIALIST_ROLE_PREFIX: dict[str, str] = {
-    # ── 비서실 ──
-    "report_specialist": "당신은 정보 보좌관입니다. 다음 요청에서 관련 정보를 조사하고 보고서를 작성하세요: ",
-    "schedule_specialist": "당신은 일정 보좌관입니다. 다음 요청에서 일정/스케줄 관련 사항을 처리하세요: ",
-    "relay_specialist": "당신은 검수 보좌관입니다. 다음 요청의 결과물을 검수하고 품질을 확인하세요: ",
-    # ── CTO 기술개발처 ──
-    "frontend_specialist": "당신은 프론트엔드 전문가입니다. 다음 요청에서 UI/UX 및 프론트엔드 관련 사항을 분석하세요: ",
-    "backend_specialist": "당신은 백엔드 전문가입니다. 다음 요청에서 서버/API/데이터베이스 관련 사항을 분석하세요: ",
-    "infra_specialist": "당신은 인프라 전문가입니다. 다음 요청에서 서버 인프라/배포/DevOps 관련 사항을 분석하세요: ",
-    "ai_model_specialist": "당신은 AI 모델 전문가입니다. 다음 요청에서 AI/ML 모델 관련 사항을 분석하세요: ",
-    # ── CSO 사업기획처 ──
-    "market_research_specialist": "당신은 시장 조사 전문가입니다. 다음 요청에서 시장 규모/트렌드/경쟁사를 분석하세요: ",
-    "business_plan_specialist": "당신은 사업 계획 전문가입니다. 다음 요청에서 사업 모델/수익 구조/전략을 수립하세요: ",
-    "financial_model_specialist": "당신은 재무 모델링 전문가입니다. 다음 요청에서 재무 예측/손익 분석을 수행하세요: ",
-    # ── CLO 법무처 ──
-    "copyright_specialist": "당신은 저작권 전문가입니다. 다음 요청에서 저작권/라이선스 관련 법률 사항을 분석하세요: ",
-    "patent_specialist": "당신은 특허 전문가입니다. 다음 요청에서 특허/지식재산권 관련 사항을 분석하세요: ",
-    # ── CMO 마케팅·고객처 ──
-    "survey_specialist": "당신은 시장 분석 담당입니다. 다음 요청에서 타겟 고객/시장 데이터를 조사하세요: ",
-    "content_specialist": "당신은 콘텐츠 제작 담당입니다. 이미지/영상/글을 만들어 SNS에 등록하세요: ",
-    "community_specialist": "당신은 커뮤니티 전략 담당입니다. 배포 전략/해시태그/최적 시간대를 분석하세요: ",
-    # ── CIO 투자분석처 ──
-    "market_condition_specialist": "당신은 시장 상황 분석가입니다. 다음 요청에서 현재 시장 환경/거시경제를 분석하세요: ",
-    "stock_analysis_specialist": "당신은 종목 분석 전문가입니다. 다음 요청에서 개별 종목의 펀더멘탈을 분석하세요: ",
-    "technical_analysis_specialist": "당신은 기술적 분석 전문가입니다. 다음 요청에서 차트/기술적 지표를 분석하세요: ",
-    "risk_management_specialist": "당신은 리스크 관리 전문가입니다. 다음 요청에서 위험 요소/리스크를 평가하세요: ",
-    # ── CPO 출판처 ──
-    "chronicle_specialist": "당신은 연대기 전문가입니다. 다음 요청에서 기록/연대기를 정리하세요: ",
-    "editor_specialist": "당신은 콘텐츠 편집 전문가입니다. 다음 요청에서 글을 교정/편집하세요: ",
-    "archive_specialist": "당신은 아카이브 전문가입니다. 다음 요청에서 자료를 분류/보관하세요: ",
-}
+# 전문가 전원 제거 (2026-02-26). 재도입 시 여기에 추가.
+_SPECIALIST_ROLE_PREFIX: dict[str, str] = {}
 
 # 전문가 ID → 한국어 이름 (AGENTS 리스트에서 자동 구축)
 _SPECIALIST_NAMES: dict[str, str] = {}
