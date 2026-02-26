@@ -175,6 +175,7 @@ gh run list --workflow=deploy.yml --limit=1
 - **`docs/todo/YYYY-MM-DD.md`** ← 오늘 완료한 것만 기록 (⬜ 남기기 금지)
 - 대형 작업: `날짜_프로젝트명.TODO.md` | 상태: ⬜ 대기 / 🔄 진행중 / ✅ 완료 / 🔴 블로킹
 - 🔴 **맥락 필수!**: 왜 필요한지 + 어떤 상황 + 구체적 현상까지 기록. 한 줄짜리 금지
+- 🔴 **수시 업데이트**: 작업 중 완료 항목 발견 즉시 BACKLOG.md 체크. 배포 시만 갱신 금지
 
 ## 에이전트 소울
 - 로드: ①`config/agents.yaml` system_prompt → ②`souls/agents/*.md` 폴백 | 웹 수정 불가
