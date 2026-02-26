@@ -3778,108 +3778,145 @@ def _argos_update_status(data_type: str, error: str = "", count_delta: int = 0) 
         _argos_logger.debug("상태 기록 실패: %s", e)
 
 
+_argos_price_running = False  # 동시 실행 방지 플래그
+
 async def _argos_collect_prices() -> int:
     """관심종목 주가를 pykrx/yfinance로 수집해 DB에 누적합니다 (90일 보존).
+    타임아웃: 종목당 20초. 동시 실행 방지 플래그.
     Returns: 저장된 행 수
     """
-    watchlist = _load_data("trading_watchlist", [])
-    if not watchlist:
+    global _argos_price_running
+    if _argos_price_running:
+        _argos_logger.debug("ARGOS 주가 수집 이미 진행 중 — 스킵")
         return 0
 
-    conn = get_connection()
-    saved = 0
-    now_str = datetime.now(KST).isoformat()
-    today = datetime.now(KST).strftime("%Y%m%d")
-    today_iso = datetime.now(KST).strftime("%Y-%m-%d")
-    start = (datetime.now(KST) - timedelta(days=90)).strftime("%Y%m%d")
-
-    kr_tickers = [w for w in watchlist if w.get("market", "KR") == "KR"]
-    us_tickers = [w for w in watchlist if w.get("market") == "US"]
-
+    _argos_price_running = True
     try:
-        # ── 한국 주식 (pykrx) ──
-        if kr_tickers:
-            try:
-                from pykrx import stock as pykrx_stock
-                for w in kr_tickers:
-                    ticker = w["ticker"]
-                    try:
-                        df = await asyncio.to_thread(
-                            pykrx_stock.get_market_ohlcv_by_date, start, today, ticker
-                        )
-                        if df is None or df.empty:
-                            continue
-                        for dt_idx, row in df.iterrows():
-                            trade_date = str(dt_idx)[:10]  # YYYY-MM-DD
-                            close = float(row.get("종가", 0))
-                            if close <= 0:
-                                continue
-                            prev_rows = df[df.index < dt_idx]
-                            prev_close = float(prev_rows.iloc[-1]["종가"]) if not prev_rows.empty else close
-                            change_pct = round((close - prev_close) / prev_close * 100, 2) if prev_close else 0
-                            conn.execute(
-                                """INSERT OR IGNORE INTO argos_price_history
-                                   (ticker, market, trade_date, open_price, high_price, low_price,
-                                    close_price, volume, change_pct, collected_at)
-                                   VALUES(?,?,?,?,?,?,?,?,?,?)""",
-                                (ticker, "KR", trade_date,
-                                 float(row.get("시가", close)), float(row.get("고가", close)),
-                                 float(row.get("저가", close)), close,
-                                 int(row.get("거래량", 0)), change_pct, now_str)
+        watchlist = _load_data("trading_watchlist", [])
+        if not watchlist:
+            return 0
+
+        conn = get_connection()
+        saved = 0
+        now_str = datetime.now(KST).isoformat()
+        today = datetime.now(KST).strftime("%Y%m%d")
+        # 첫 수집은 7일만 (빠르게), DB에 데이터 있으면 3일만 보충
+        try:
+            existing = conn.execute("SELECT COUNT(*) FROM argos_price_history").fetchone()[0]
+        except Exception:
+            existing = 0
+        fetch_days = 7 if existing == 0 else 3
+        start = (datetime.now(KST) - timedelta(days=fetch_days)).strftime("%Y%m%d")
+
+        kr_tickers = [w for w in watchlist if w.get("market", "KR") == "KR"]
+        us_tickers = [w for w in watchlist if w.get("market") == "US"]
+        PER_TICKER_TIMEOUT = 20  # 초
+
+        try:
+            # ── 한국 주식 (pykrx) ──
+            if kr_tickers:
+                try:
+                    from pykrx import stock as pykrx_stock
+                    for w in kr_tickers:
+                        ticker = w["ticker"]
+                        try:
+                            df = await asyncio.wait_for(
+                                asyncio.to_thread(
+                                    pykrx_stock.get_market_ohlcv_by_date, start, today, ticker
+                                ),
+                                timeout=PER_TICKER_TIMEOUT,
                             )
-                            saved += 1
-                        _argos_logger.debug("PRICE KR %s: %d행 저장", ticker, saved)
-                    except Exception as e:
-                        _argos_logger.debug("KR 주가 파싱 실패 (%s): %s", ticker, e)
-            except ImportError:
-                _argos_logger.debug("pykrx 미설치 — 국내 주가 수집 불가")
-
-        # ── 미국 주식 (yfinance) ──
-        if us_tickers:
-            try:
-                import yfinance as yf
-                for w in us_tickers:
-                    ticker = w["ticker"]
-                    try:
-                        t_obj = yf.Ticker(ticker)
-                        hist = await asyncio.to_thread(lambda t=t_obj: t.history(period="90d"))
-                        if hist is None or hist.empty:
-                            continue
-                        prev_close_val = None
-                        for dt_idx, row in hist.iterrows():
-                            trade_date = str(dt_idx)[:10]
-                            close = round(float(row["Close"]), 4)
-                            if close <= 0:
+                            if df is None or df.empty:
+                                _argos_logger.debug("PRICE KR %s: 데이터 없음", ticker)
                                 continue
-                            chg = round((close - prev_close_val) / prev_close_val * 100, 2) if prev_close_val else 0
-                            conn.execute(
-                                """INSERT OR IGNORE INTO argos_price_history
-                                   (ticker, market, trade_date, open_price, high_price, low_price,
-                                    close_price, volume, change_pct, collected_at)
-                                   VALUES(?,?,?,?,?,?,?,?,?,?)""",
-                                (ticker, "US", trade_date,
-                                 round(float(row.get("Open", close)), 4),
-                                 round(float(row.get("High", close)), 4),
-                                 round(float(row.get("Low", close)), 4),
-                                 close, int(row.get("Volume", 0)), chg, now_str)
+                            ticker_saved = 0
+                            for dt_idx, row in df.iterrows():
+                                trade_date = str(dt_idx)[:10]
+                                close = float(row.get("종가", 0))
+                                if close <= 0:
+                                    continue
+                                prev_rows = df[df.index < dt_idx]
+                                prev_close = float(prev_rows.iloc[-1]["종가"]) if not prev_rows.empty else close
+                                change_pct = round((close - prev_close) / prev_close * 100, 2) if prev_close else 0
+                                conn.execute(
+                                    """INSERT OR IGNORE INTO argos_price_history
+                                       (ticker, market, trade_date, open_price, high_price, low_price,
+                                        close_price, volume, change_pct, collected_at)
+                                       VALUES(?,?,?,?,?,?,?,?,?,?)""",
+                                    (ticker, "KR", trade_date,
+                                     float(row.get("시가", close)), float(row.get("고가", close)),
+                                     float(row.get("저가", close)), close,
+                                     int(row.get("거래량", 0)), change_pct, now_str)
+                                )
+                                ticker_saved += 1
+                            saved += ticker_saved
+                            _argos_logger.info("PRICE KR %s: %d행 저장 (%d일)", ticker, ticker_saved, fetch_days)
+                        except asyncio.TimeoutError:
+                            _argos_logger.warning("KR %s: %d초 타임아웃 — 스킵", ticker, PER_TICKER_TIMEOUT)
+                        except Exception as e:
+                            _argos_logger.debug("KR 주가 파싱 실패 (%s): %s", ticker, e)
+                except ImportError:
+                    _argos_logger.debug("pykrx 미설치 — 국내 주가 수집 불가")
+
+            # ── 미국 주식 (yfinance) ──
+            if us_tickers:
+                try:
+                    import yfinance as yf
+                    period = "7d" if existing == 0 else "3d"
+                    for w in us_tickers:
+                        ticker = w["ticker"]
+                        try:
+                            t_obj = yf.Ticker(ticker)
+                            hist = await asyncio.wait_for(
+                                asyncio.to_thread(lambda t=t_obj, p=period: t.history(period=p)),
+                                timeout=PER_TICKER_TIMEOUT,
                             )
-                            saved += 1
-                            prev_close_val = close
-                    except Exception as e:
-                        _argos_logger.debug("US 주가 파싱 실패 (%s): %s", ticker, e)
-            except ImportError:
-                _argos_logger.debug("yfinance 미설치 — 해외 주가 수집 불가")
+                            if hist is None or hist.empty:
+                                _argos_logger.debug("PRICE US %s: 데이터 없음", ticker)
+                                continue
+                            ticker_saved = 0
+                            prev_close_val = None
+                            for dt_idx, row in hist.iterrows():
+                                trade_date = str(dt_idx)[:10]
+                                close = round(float(row["Close"]), 4)
+                                if close <= 0:
+                                    continue
+                                chg = round((close - prev_close_val) / prev_close_val * 100, 2) if prev_close_val else 0
+                                conn.execute(
+                                    """INSERT OR IGNORE INTO argos_price_history
+                                       (ticker, market, trade_date, open_price, high_price, low_price,
+                                        close_price, volume, change_pct, collected_at)
+                                       VALUES(?,?,?,?,?,?,?,?,?,?)""",
+                                    (ticker, "US", trade_date,
+                                     round(float(row.get("Open", close)), 4),
+                                     round(float(row.get("High", close)), 4),
+                                     round(float(row.get("Low", close)), 4),
+                                     close, int(row.get("Volume", 0)), chg, now_str)
+                                )
+                                ticker_saved += 1
+                                prev_close_val = close
+                            saved += ticker_saved
+                            _argos_logger.info("PRICE US %s: %d행 저장 (%s)", ticker, ticker_saved, period)
+                        except asyncio.TimeoutError:
+                            _argos_logger.warning("US %s: %d초 타임아웃 — 스킵", ticker, PER_TICKER_TIMEOUT)
+                        except Exception as e:
+                            _argos_logger.debug("US 주가 파싱 실패 (%s): %s", ticker, e)
+                except ImportError:
+                    _argos_logger.debug("yfinance 미설치 — 해외 주가 수집 불가")
 
-        conn.commit()
+            conn.commit()
 
-        # 90일 초과 데이터 정리
-        cutoff = (datetime.now(KST) - timedelta(days=90)).strftime("%Y-%m-%d")
-        conn.execute("DELETE FROM argos_price_history WHERE trade_date < ?", (cutoff,))
-        conn.commit()
+            # 90일 초과 데이터 정리
+            cutoff = (datetime.now(KST) - timedelta(days=90)).strftime("%Y-%m-%d")
+            conn.execute("DELETE FROM argos_price_history WHERE trade_date < ?", (cutoff,))
+            conn.commit()
+        finally:
+            conn.close()
+
+        _argos_logger.info("ARGOS 주가 수집 완료: %d행 (fetch_days=%d)", saved, fetch_days)
+        return saved
     finally:
-        conn.close()
-
-    return saved
+        _argos_price_running = False
 
 
 async def _argos_collect_news() -> int:
@@ -4006,8 +4043,10 @@ async def _argos_collect_dart() -> int:
 
 async def _argos_collect_macro() -> int:
     """KOSPI/KOSDAQ/환율 등 매크로 지표를 수집합니다.
+    타임아웃: 항목당 15초.
     Returns: 저장된 행 수
     """
+    MACRO_TIMEOUT = 15  # 초
     conn = get_connection()
     saved = 0
     now_str = datetime.now(KST).isoformat()
@@ -4021,13 +4060,16 @@ async def _argos_collect_macro() -> int:
                 t = yf.Ticker("USDKRW=X")
                 h = t.history(period="5d")
                 return float(h.iloc[-1]["Close"]) if h is not None and not h.empty else None
-            rate = await asyncio.to_thread(_fetch_fx)
+            rate = await asyncio.wait_for(asyncio.to_thread(_fetch_fx), timeout=MACRO_TIMEOUT)
             if rate:
                 conn.execute(
                     "INSERT OR IGNORE INTO argos_macro_data(indicator,trade_date,value,source,collected_at) VALUES(?,?,?,?,?)",
                     ("USD_KRW", today_iso, round(rate, 2), "yfinance", now_str)
                 )
                 saved += 1
+                _argos_logger.info("MACRO USD/KRW: %.2f", rate)
+        except asyncio.TimeoutError:
+            _argos_logger.warning("USD/KRW: %d초 타임아웃", MACRO_TIMEOUT)
         except Exception as e:
             _argos_logger.debug("USD/KRW 수집 실패: %s", e)
 
@@ -4038,8 +4080,11 @@ async def _argos_collect_macro() -> int:
             start = (datetime.now(KST) - timedelta(days=7)).strftime("%Y%m%d")
             for ticker, label in [("1001", "KOSPI"), ("2001", "KOSDAQ")]:
                 try:
-                    df = await asyncio.to_thread(
-                        pykrx_stock.get_index_ohlcv_by_date, start, today, ticker
+                    df = await asyncio.wait_for(
+                        asyncio.to_thread(
+                            pykrx_stock.get_index_ohlcv_by_date, start, today, ticker
+                        ),
+                        timeout=MACRO_TIMEOUT,
                     )
                     if df is not None and not df.empty:
                         close = float(df.iloc[-1]["종가"])
@@ -4049,6 +4094,9 @@ async def _argos_collect_macro() -> int:
                             (label, trade_date, round(close, 2), "pykrx", now_str)
                         )
                         saved += 1
+                        _argos_logger.info("MACRO %s: %.2f", label, close)
+                except asyncio.TimeoutError:
+                    _argos_logger.warning("%s: %d초 타임아웃", label, MACRO_TIMEOUT)
                 except Exception as e:
                     _argos_logger.debug("%s 수집 실패: %s", label, e)
         except ImportError:
@@ -4061,13 +4109,16 @@ async def _argos_collect_macro() -> int:
                 t = yf.Ticker("^VIX")
                 h = t.history(period="5d")
                 return float(h.iloc[-1]["Close"]) if h is not None and not h.empty else None
-            vix = await asyncio.to_thread(_fetch_vix)
+            vix = await asyncio.wait_for(asyncio.to_thread(_fetch_vix), timeout=MACRO_TIMEOUT)
             if vix:
                 conn.execute(
                     "INSERT OR IGNORE INTO argos_macro_data(indicator,trade_date,value,source,collected_at) VALUES(?,?,?,?,?)",
                     ("VIX", today_iso, round(vix, 2), "yfinance", now_str)
                 )
                 saved += 1
+                _argos_logger.info("MACRO VIX: %.2f", vix)
+        except asyncio.TimeoutError:
+            _argos_logger.warning("VIX: %d초 타임아웃", MACRO_TIMEOUT)
         except Exception as e:
             _argos_logger.debug("VIX 수집 실패: %s", e)
 
@@ -4078,48 +4129,61 @@ async def _argos_collect_macro() -> int:
     finally:
         conn.close()
 
+    _argos_logger.info("ARGOS 매크로 수집 완료: %d건", saved)
     return saved
 
 
 async def _argos_collect_prices_safe():
-    """주가 수집 — 예외 안전 래퍼."""
+    """주가 수집 — 예외 안전 래퍼. 전체 3분 타임아웃."""
     try:
-        n = await _argos_collect_prices()
+        n = await asyncio.wait_for(_argos_collect_prices(), timeout=180)
         if n > 0:
             _argos_update_status("price", count_delta=n)
+    except asyncio.TimeoutError:
+        _argos_update_status("price", error="전체 3분 타임아웃")
+        _argos_logger.error("ARGOS 주가 수집: 전체 3분 타임아웃")
     except Exception as e:
         _argos_update_status("price", error=str(e)[:200])
         _argos_logger.error("ARGOS 주가 수집 실패: %s", e)
 
 
 async def _argos_collect_news_safe():
-    """뉴스 수집 — 예외 안전 래퍼."""
+    """뉴스 수집 — 예외 안전 래퍼. 전체 2분 타임아웃."""
     try:
-        n = await _argos_collect_news()
+        n = await asyncio.wait_for(_argos_collect_news(), timeout=120)
         _argos_update_status("news", count_delta=n)
         _argos_logger.info("ARGOS 뉴스 수집 완료: %d건", n)
+    except asyncio.TimeoutError:
+        _argos_update_status("news", error="전체 2분 타임아웃")
+        _argos_logger.error("ARGOS 뉴스 수집: 전체 2분 타임아웃")
     except Exception as e:
         _argos_update_status("news", error=str(e)[:200])
         _argos_logger.error("ARGOS 뉴스 수집 실패: %s", e)
 
 
 async def _argos_collect_dart_safe():
-    """DART 수집 — 예외 안전 래퍼."""
+    """DART 수집 — 예외 안전 래퍼. 전체 2분 타임아웃."""
     try:
-        n = await _argos_collect_dart()
+        n = await asyncio.wait_for(_argos_collect_dart(), timeout=120)
         _argos_update_status("dart", count_delta=n)
         _argos_logger.info("ARGOS DART 수집 완료: %d건", n)
+    except asyncio.TimeoutError:
+        _argos_update_status("dart", error="전체 2분 타임아웃")
+        _argos_logger.error("ARGOS DART 수집: 전체 2분 타임아웃")
     except Exception as e:
         _argos_update_status("dart", error=str(e)[:200])
         _argos_logger.error("ARGOS DART 수집 실패: %s", e)
 
 
 async def _argos_collect_macro_safe():
-    """매크로 수집 — 예외 안전 래퍼."""
+    """매크로 수집 — 예외 안전 래퍼. 전체 2분 타임아웃."""
     try:
-        n = await _argos_collect_macro()
+        n = await asyncio.wait_for(_argos_collect_macro(), timeout=120)
         _argos_update_status("macro", count_delta=n)
         _argos_logger.info("ARGOS 매크로 수집 완료: %d건", n)
+    except asyncio.TimeoutError:
+        _argos_update_status("macro", error="전체 2분 타임아웃")
+        _argos_logger.error("ARGOS 매크로 수집: 전체 2분 타임아웃")
     except Exception as e:
         _argos_update_status("macro", error=str(e)[:200])
         _argos_logger.error("ARGOS 매크로 수집 실패: %s", e)
@@ -8724,7 +8788,8 @@ async def argos_collect_now(req: Request):
 
 @app.get("/api/debug/argos-diag")
 async def argos_diagnostic():
-    """ARGOS 수집 문제 진단 — 각 단계별 성공/실패 리포트."""
+    """ARGOS 수집 문제 진단 — 각 단계별 성공/실패 리포트. 항목당 15초 타임아웃."""
+    DIAG_TIMEOUT = 15
     diag = {}
     # 1) DB 연결
     try:
@@ -8743,13 +8808,18 @@ async def argos_diagnostic():
     diag["kr_tickers"] = [w["ticker"] for w in kr]
     diag["us_tickers"] = [w["ticker"] for w in us]
 
-    # 3) pykrx 테스트 (삼성전자 1일)
+    # 3) pykrx 테스트 (삼성전자 3일)
     try:
         from pykrx import stock as _pk
         today = datetime.now(KST).strftime("%Y%m%d")
-        start = (datetime.now(KST) - timedelta(days=7)).strftime("%Y%m%d")
-        df = await asyncio.to_thread(_pk.get_market_ohlcv_by_date, start, today, "005930")
+        start = (datetime.now(KST) - timedelta(days=3)).strftime("%Y%m%d")
+        df = await asyncio.wait_for(
+            asyncio.to_thread(_pk.get_market_ohlcv_by_date, start, today, "005930"),
+            timeout=DIAG_TIMEOUT,
+        )
         diag["pykrx"] = f"OK ({len(df)}행)" if df is not None and not df.empty else "EMPTY"
+    except asyncio.TimeoutError:
+        diag["pykrx"] = f"TIMEOUT ({DIAG_TIMEOUT}s)"
     except Exception as e:
         diag["pykrx"] = f"FAIL: {e}"
 
@@ -8757,8 +8827,13 @@ async def argos_diagnostic():
     try:
         import yfinance as yf
         t = yf.Ticker("NVDA")
-        h = await asyncio.to_thread(lambda: t.history(period="5d"))
+        h = await asyncio.wait_for(
+            asyncio.to_thread(lambda: t.history(period="3d")),
+            timeout=DIAG_TIMEOUT,
+        )
         diag["yfinance"] = f"OK ({len(h)}행)" if h is not None and not h.empty else "EMPTY"
+    except asyncio.TimeoutError:
+        diag["yfinance"] = f"TIMEOUT ({DIAG_TIMEOUT}s)"
     except Exception as e:
         diag["yfinance"] = f"FAIL: {e}"
 
@@ -8767,16 +8842,19 @@ async def argos_diagnostic():
         conn = get_connection()
         diag["price_rows"] = conn.execute("SELECT COUNT(*) FROM argos_price_history").fetchone()[0]
         diag["news_rows"] = conn.execute("SELECT COUNT(*) FROM argos_news_cache").fetchone()[0]
+        diag["dart_rows"] = conn.execute("SELECT COUNT(*) FROM argos_dart_filings").fetchone()[0]
         diag["macro_rows"] = conn.execute("SELECT COUNT(*) FROM argos_macro_data").fetchone()[0]
         diag["status_rows"] = conn.execute("SELECT COUNT(*) FROM argos_collection_status").fetchone()[0]
         conn.close()
     except Exception as e:
         diag["db_check"] = f"FAIL: {e}"
 
-    # 6) 매크로 수동 테스트
+    # 6) 매크로 수동 테스트 (타임아웃 있음)
     try:
-        n = await _argos_collect_macro()
+        n = await asyncio.wait_for(_argos_collect_macro(), timeout=60)
         diag["macro_test"] = f"OK ({n}건 수집)"
+    except asyncio.TimeoutError:
+        diag["macro_test"] = "TIMEOUT (60s)"
     except Exception as e:
         diag["macro_test"] = f"FAIL: {e}"
 
