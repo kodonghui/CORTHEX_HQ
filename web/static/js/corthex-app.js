@@ -3613,7 +3613,7 @@ function corthexApp() {
             const w = this.trading.watchlist.find(x => x.ticker === t);
             return w ? w.name : t;
           }).join(', ');
-          this.showToast(`${names} 분석 시작! 활동로그에서 진행 확인`, 'success');
+          this.showToast(`${names} 분석 시작! 교신로그에서 진행 확인`, 'success');
         } else {
           this.showToast(data.message || '분석 실패', 'error');
           this.trading.analyzingSelected = false;
