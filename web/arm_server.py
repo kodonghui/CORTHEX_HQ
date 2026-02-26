@@ -5089,25 +5089,51 @@ async def _run_trading_now_inner(selected_tickers: list[str] | None = None):
     # 매매 결정 일지 저장 (P2-1: 수동 분석에서도 decisions 저장)
     _save_decisions(parsed_signals)
 
-    # QA 반려 시 매매 안 함
+    # QA 반려 시 1회 재분석
     if not qa_passed:
         save_activity_log("chief_of_staff",
-            f"🚫 QA 반려로 매매 중단: {qa_reason[:100]}", "warning")
-        return {
-            "signals": parsed_signals,
-            "analysis": content[:500],
-            "cost_usd": cost,
-            "qa_passed": False,
-            "qa_reason": qa_reason,
-            "orders": [],
-            "message": f"비서실장 QA 반려: {qa_reason[:100]}"
-        }
+            f"🔄 QA 반려 → 재분석 요청: {qa_reason[:100]}", "warning")
+        retry_prompt = (
+            f"{prompt}\n\n"
+            f"## ⚠️ 비서실장 재검토 요청\n"
+            f"이전 보고서가 반려되었습니다. 반려 사유: {qa_reason[:200]}\n"
+            f"위 사유를 반드시 해결하여 다시 분석하세요. 신뢰도 근거를 구체적 수치로 보완하세요."
+        )
+        content2, cost2 = await ask_ai(
+            agent_id="cio_manager", prompt=retry_prompt,
+            use_tools=True, tools=cio_tools,
+        )
+        cost += cost2
+        qa_passed2, qa_reason2 = await _qa_check_cio_report(content2, market_watchlist)
+        save_activity_log("chief_of_staff",
+            f"📋 재분석 QA: {'✅ 승인' if qa_passed2 else '❌ 최종 반려'} — {qa_reason2[:100]}", "info" if qa_passed2 else "warning")
+        if qa_passed2:
+            content = content2
+            parsed_signals = _parse_cio_signals(content, market_watchlist)
+            _save_decisions(parsed_signals)
+        else:
+            return {
+                "signals": parsed_signals,
+                "analysis": content2[:500],
+                "cost_usd": cost,
+                "qa_passed": False,
+                "qa_reason": qa_reason2,
+                "orders": [],
+                "message": f"비서실장 QA 최종 반려 (재분석 후): {qa_reason2[:100]}"
+            }
 
     # 수동 즉시 실행 → auto_execute 설정 무관하게 항상 주문 진행
     # (CEO가 버튼을 직접 누른 것 = 매매 의사 표시)
     min_confidence = settings.get("min_confidence", 65)
     order_size = settings.get("order_size", 0)  # 0 = CIO 비중 자율, >0 = 고정 금액
     orders_triggered = 0
+
+    # 자기보정 계수 계산 (Platt Scaling) — 미정의 시 NameError 방지
+    calibration = _compute_calibration_factor(settings.get("calibration_lookback", 20))
+    calibration_factor = calibration.get("factor", 1.0)
+    if calibration.get("win_rate") is not None:
+        save_activity_log("cio_manager",
+            f"📊 자기보정 적용: factor={calibration_factor} ({calibration.get('note', '')})", "info")
     if True:  # 수동 실행은 항상 매매 진행 (auto_execute 체크 제거)
         # 수동 실행: KIS가 연결되어 있으면 실제 주문 (paper_trading 설정 무시)
         # CEO가 "즉시 분석·매매결정" 버튼을 누른 것 = 매매 의사 명시적 표시
