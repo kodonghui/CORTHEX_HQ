@@ -801,9 +801,9 @@ function corthexApp() {
             if (this._tradingRunPoll) { clearInterval(this._tradingRunPoll); this._tradingRunPoll = null; }
             const d = msg.data || {};
             if (d.success) {
-              this.showToast(`CIO 분석 완료! 시그널 ${d.signals_count||0}건 · 주문 ${d.orders_triggered||0}건 → 시그널탭 확인`, d.orders_triggered > 0 ? 'success' : 'info');
+              this.showToast(`금융분석팀장 분석 완료! 시그널 ${d.signals_count||0}건 · 주문 ${d.orders_triggered||0}건 → 시그널탭 확인`, d.orders_triggered > 0 ? 'success' : 'info');
             } else {
-              this.showToast('CIO 분석 완료 (결과 확인 필요)', 'info');
+              this.showToast('금융분석팀장 분석 완료 (결과 확인 필요)', 'info');
             }
             this.trading.tab = 'signals';
             this.loadTradingSummary();
@@ -1327,10 +1327,10 @@ function corthexApp() {
       const defaults = [
         { name: '기술 스택 제안', command: 'LEET MASTER 서비스의 기술 스택을 제안해줘', category: '전략', color: 'hq-cyan', desc: '전략팀장이 최적의 아키텍처를 설계합니다' },
         { name: '주가 분석', command: '삼성전자 주가를 분석해줘', category: '분석', color: 'hq-purple', desc: '투자팀장이 분석합니다' },
-        { name: '이용약관 작성', command: '서비스 이용약관 초안을 만들어줘', category: '법무', color: 'hq-green', desc: 'CLO + 법무팀이 법적 문서를 작성합니다' },
-        { name: '마케팅 전략', command: '마케팅 콘텐츠 전략을 수립해줘', category: '마케팅', color: 'hq-yellow', desc: 'CMO + 마케팅팀이 전략을 수립합니다' },
-        { name: '사업계획서', command: '스타트업 사업계획서 초안을 작성해줘', category: '전략', color: 'hq-cyan', desc: 'CSO + 사업기획팀이 사업계획을 수립합니다' },
-        { name: '특허 분석', command: '우리 서비스의 특허 가능성을 분석해줘', category: '법무', color: 'hq-green', desc: 'CLO + 법무팀이 특허 가능성을 분석합니다' },
+        { name: '이용약관 작성', command: '서비스 이용약관 초안을 만들어줘', category: '법무', color: 'hq-green', desc: '법무팀장이 법적 문서를 작성합니다' },
+        { name: '마케팅 전략', command: '마케팅 콘텐츠 전략을 수립해줘', category: '마케팅', color: 'hq-yellow', desc: '마케팅팀장이 전략을 수립합니다' },
+        { name: '사업계획서', command: '스타트업 사업계획서 초안을 작성해줘', category: '전략', color: 'hq-cyan', desc: '사업기획팀장이 사업계획을 수립합니다' },
+        { name: '특허 분석', command: '우리 서비스의 특허 가능성을 분석해줘', category: '법무', color: 'hq-green', desc: '법무팀장이 특허 가능성을 분석합니다' },
         ...this.backendPresets.map(p => ({
           name: p.name, command: p.command, category: '전체', color: 'hq-accent',
           desc: p.command.length > 40 ? p.command.substring(0, 40) + '...' : p.command,
@@ -3954,7 +3954,7 @@ function corthexApp() {
     getCioShortName(agentIdOrName) {
       if (!agentIdOrName) return '';
       const id = agentIdOrName.toLowerCase();
-      if (id.includes('cio_manager') || id.includes('투자팀장')) return 'CIO';
+      if (id.includes('cio_manager') || id.includes('투자팀장') || id.includes('금융분석팀장')) return '금융분석팀장';
       if (id.includes('market_condition') || id.includes('시황분석')) return '시황분석';
       if (id.includes('stock_analysis') || id.includes('종목분석')) return '종목분석';
       if (id.includes('technical_analysis') || id.includes('기술적분석') || id.includes('기술분석')) return '기술분석';
@@ -4014,9 +4014,9 @@ function corthexApp() {
         if (!resp.ok) throw new Error(`서버 오류 (${resp.status})`);
         const res = await resp.json();
         if (res.already_running) {
-          this.showToast('CIO 분석이 이미 진행 중입니다', 'info');
+          this.showToast('금융분석팀장 분석이 이미 진행 중입니다', 'info');
         } else if (res.background) {
-          this.showToast('CIO 분석 시작! 활동 로그에서 실시간 확인하세요', 'success');
+          this.showToast('금융분석팀장 분석 시작! 활동 로그에서 실시간 확인하세요', 'success');
           // 백그라운드 완료 대기 (폴링)
           this._tradingRunPoll = setInterval(async () => {
             try {
@@ -4066,7 +4066,7 @@ function corthexApp() {
         const res = await fetch('/api/trading/bot/toggle', {method:'POST'}).then(r => r.json());
         if (res.success) {
           this.trading.botActive = res.bot_active;
-          this.showToast(res.bot_active ? 'CIO 자동매매 가동!' : 'CIO 자동매매 중지', res.bot_active ? 'success' : 'info');
+          this.showToast(res.bot_active ? '금융분석팀장 자동매매 가동!' : '금융분석팀장 자동매매 중지', res.bot_active ? 'success' : 'info');
         }
       } catch { this.showToast('봇 토글 실패', 'error'); }
     },
@@ -4080,10 +4080,10 @@ function corthexApp() {
           const ps = res.parsed_signals || [];
           const buy = ps.filter(s => s.action === 'buy').length;
           const sell = ps.filter(s => s.action === 'sell').length;
-          this.showToast(`CIO 분석 완료! 매수 ${buy}건, 매도 ${sell}건`, 'success');
+          this.showToast(`금융분석팀장 분석 완료! 매수 ${buy}건, 매도 ${sell}건`, 'success');
           await this.loadTradingSummary();
         } else { this.showToast(res.error || '분석 실패', 'error'); }
-      } catch { this.showToast('CIO 분석 요청 오류', 'error'); }
+      } catch { this.showToast('금융분석팀장 분석 요청 오류', 'error'); }
       finally { this.trading.loadingSignals = false; }
     },
 

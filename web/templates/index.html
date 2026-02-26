@@ -784,20 +784,20 @@
                     <div class="text-sm font-medium text-hq-text group-hover:text-hq-accent">📊 시장분석</div>
                     <div class="text-[11px] text-hq-muted mt-1">@사업기획팀장 시장분석 시작</div>
                   </button>
-                  <button @click="switchTab('command'); $nextTick(() => { inputText = '@CSO 보안 스캔 시작'; sendMessage(); })"
+                  <button @click="switchTab('command'); $nextTick(() => { inputText = '@사업기획팀장 보안 스캔 시작'; sendMessage(); })"
                           class="text-left p-4 glass border border-hq-border rounded-xl hover-glow transition group">
                     <div class="text-sm font-medium text-hq-text group-hover:text-hq-accent">🛡️ 보안 스캔</div>
-                    <div class="text-[11px] text-hq-muted mt-1">@CSO 보안 스캔 시작</div>
+                    <div class="text-[11px] text-hq-muted mt-1">@사업기획팀장 보안 스캔 시작</div>
                   </button>
-                  <button @click="switchTab('command'); $nextTick(() => { inputText = '@CMO 마케팅 전략 분석'; sendMessage(); })"
+                  <button @click="switchTab('command'); $nextTick(() => { inputText = '@마케팅팀장 마케팅 전략 분석'; sendMessage(); })"
                           class="text-left p-4 glass border border-hq-border rounded-xl hover-glow transition group">
                     <div class="text-sm font-medium text-hq-text group-hover:text-hq-accent">📈 마케팅 분석</div>
-                    <div class="text-[11px] text-hq-muted mt-1">@CMO 마케팅 전략 분석</div>
+                    <div class="text-[11px] text-hq-muted mt-1">@마케팅팀장 마케팅 전략 분석</div>
                   </button>
-                  <button @click="switchTab('command'); $nextTick(() => { inputText = '@CFO 예산 현황 정리'; sendMessage(); })"
+                  <button @click="switchTab('command'); $nextTick(() => { inputText = '@금융분석팀장 예산 현황 정리'; sendMessage(); })"
                           class="text-left p-4 glass border border-hq-border rounded-xl hover-glow transition group">
                     <div class="text-sm font-medium text-hq-text group-hover:text-hq-accent">💰 예산 현황</div>
-                    <div class="text-[11px] text-hq-muted mt-1">@CFO 예산 현황 정리</div>
+                    <div class="text-[11px] text-hq-muted mt-1">@금융분석팀장 예산 현황 정리</div>
                   </button>
                 </div>
               </template>
@@ -2005,7 +2005,7 @@
               </div>
               <!-- 역할 설명 -->
               <div class="flex-1 text-[11px] text-hq-muted/80 space-y-1 pt-1">
-                <div class="flex items-center gap-1.5"><span class="text-zinc-500">▸</span> 크론 스케줄 실행 (CIO 분석 · Soul Evolution)</div>
+                <div class="flex items-center gap-1.5"><span class="text-zinc-500">▸</span> 크론 스케줄 실행 (금융분석팀장 분석 · Soul Evolution)</div>
                 <div class="flex items-center gap-1.5"><span class="text-zinc-500">▸</span> 노션 자동 저장 (비서실 · 에이전트 산출물)</div>
                 <div class="flex items-center gap-1.5"><span class="text-zinc-500">▸</span> KIS API 매매 실행 · 포트폴리오 추적</div>
                 <div class="flex items-center gap-1.5"><span class="text-zinc-500">▸</span> 텔레그램 알림 발송</div>
@@ -3602,7 +3602,7 @@
 
           <!-- 서브 탭 -->
           <div class="flex gap-2 mb-4 md:mb-6 overflow-x-auto scrollbar-thin pb-1 -mx-1 px-1">
-            <template x-for="tab in [{id:'dashboard',l:'대시보드'},{id:'actlog',l:'교신로그'},{id:'shadow',l:'실거래/모의 비교'},{id:'portfolio',l:'포트폴리오'},{id:'watchlist',l:'관심종목'},{id:'history',l:'거래내역'},{id:'signals',l:'시그널'},{id:'performance',l:'CIO 성과'}]" :key="tab.id">
+            <template x-for="tab in [{id:'dashboard',l:'대시보드'},{id:'actlog',l:'교신로그'},{id:'shadow',l:'실거래/모의 비교'},{id:'portfolio',l:'포트폴리오'},{id:'watchlist',l:'관심종목'},{id:'history',l:'거래내역'},{id:'signals',l:'시그널'},{id:'performance',l:'금융분석팀장 성과'}]" :key="tab.id">
               <button @click="trading.tab = tab.id" :class="trading.tab === tab.id ? 'bg-hq-accent/20 text-hq-accent border-hq-accent/30' : 'text-hq-muted border-transparent hover:text-hq-text'" class="px-3 py-1.5 text-xs font-semibold rounded-lg border transition whitespace-nowrap shrink-0" x-text="tab.l"></button>
             </template>
           </div>
@@ -3621,7 +3621,7 @@
                 <div class="w-3 h-3 rounded-full" :class="trading.botActive ? 'bg-hq-green animate-pulse' : 'bg-hq-muted/30'"></div>
                 <div>
                   <span class="text-sm font-bold" :class="trading.botActive ? 'text-hq-green' : 'text-hq-muted'"
-                        x-text="trading.botActive ? 'CIO 자동매매 : 가동 중' : 'CIO 자동매매 : 대기'"></span>
+                        x-text="trading.botActive ? '금융분석팀장 자동매매 : 가동 중' : '금융분석팀장 자동매매 : 대기'"></span>
                   <p class="text-[10px] text-hq-muted"
                      x-text="trading.botActive ? `투자팀장이 하루 2회 관심종목 분석 중 (09:10 한국장 · ${trading.schedule?.us_time || '23:40'} 미국장 ${trading.schedule?.us_tz || ''})` : '자동매매가 꺼져 있습니다. 설정에서 켜세요.'"></p>
                 </div>
@@ -3939,7 +3939,7 @@
               <div class="flex items-center gap-3 md:gap-4">
                 <h3 class="text-sm font-bold text-hq-text flex items-center gap-2">
                   <span class="w-2 h-2 rounded-full" :class="trading.runningNow ? 'bg-hq-yellow animate-pulse' : 'bg-hq-accent'"></span>
-                  CIO팀 통신로그
+                  금융분석팀 통신로그
                 </h3>
                 <span x-show="trading.runningNow" class="text-[10px] text-hq-yellow animate-pulse font-semibold">● LIVE</span>
                 <!-- 4탭 -->
@@ -3982,7 +3982,7 @@
             <!-- 빈 상태 -->
             <template x-if="!trading.activityLog.loading && getFilteredCioLogs().length === 0">
               <div class="glass border border-hq-border rounded-xl p-8 text-center">
-                <p class="text-hq-muted/50 text-xs">아직 CIO팀 활동 기록이 없습니다</p>
+                <p class="text-hq-muted/50 text-xs">아직 금융분석팀 활동 기록이 없습니다</p>
                 <p class="text-hq-muted/30 text-[10px] mt-1">"즉시 분석" 실행 시 실시간으로 기록됩니다</p>
               </div>
             </template>
@@ -4434,7 +4434,7 @@
                       :disabled="trading.analyzingSelected"
                       class="ml-auto bg-hq-accent text-white rounded-lg px-4 py-1.5 text-xs font-bold hover:bg-hq-accent/80 transition disabled:opacity-50">
                 <span x-show="!trading.analyzingSelected">🔍 선택 종목 분석 및 자동매매</span>
-                <span x-show="trading.analyzingSelected">⏳ CIO 분석 진행 중...</span>
+                <span x-show="trading.analyzingSelected">⏳ 금융분석팀장 분석 진행 중...</span>
               </button>
               <button @click="trading.selectedWatchlist = []" class="text-hq-muted hover:text-hq-text text-xs transition">선택 해제</button>
             </div>
@@ -4639,7 +4639,7 @@
                        class="flex items-center gap-3 p-2.5 cursor-pointer hover:bg-hq-surface/50">
                     <svg :class="expandedGroup === g.time ? 'rotate-90' : ''" class="w-3 h-3 transition-transform text-hq-muted flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
                     <span class="text-[10px] text-hq-muted font-mono" x-text="g.time.replace('T',' ')"></span>
-                    <span class="text-xs text-hq-text font-medium" x-text="'CIO 분석 (' + g.items.length + '종목)'"></span>
+                    <span class="text-xs text-hq-text font-medium" x-text="'금융분석팀장 분석 (' + g.items.length + '종목)'"></span>
                     <div class="flex-1 flex items-center justify-end gap-1.5">
                       <template x-for="d in g.items.slice(0,5)" :key="d.id">
                         <span class="text-[10px] px-1.5 py-0.5 rounded-full border"
@@ -4735,7 +4735,7 @@
               <div x-show="loading" class="text-center py-8 text-hq-muted text-sm">로딩 중...</div>
               <div x-show="!loading && predictions.length === 0" class="text-center py-8 text-hq-muted text-sm">
                 아직 예측 데이터 없음<br>
-                <span class="text-xs">CIO가 분석을 실행하면 자동으로 기록됩니다</span>
+                <span class="text-xs">금융분석팀장이 분석을 실행하면 자동으로 기록됩니다</span>
               </div>
 
               <div x-show="!loading && predictions.length > 0" class="overflow-x-auto">
@@ -5265,7 +5265,7 @@
         <!-- CIO 최근 시그널 (있으면 표시) -->
         <template x-if="trading.signals && trading.signals.filter(s => s.ticker === trading.chartTicker).length > 0">
           <div class="mt-4 bg-hq-surface rounded-xl p-3 border border-hq-border/50">
-            <div class="text-[10px] text-hq-muted font-bold mb-2">CIO 최근 시그널</div>
+            <div class="text-[10px] text-hq-muted font-bold mb-2">금융분석팀 최근 시그널</div>
             <template x-for="sig in trading.signals.filter(s => s.ticker === trading.chartTicker).slice(0,2)" :key="sig.ticker + sig.action">
               <div class="flex items-center gap-2 mb-1.5 last:mb-0">
                 <span class="text-[10px] px-1.5 py-0.5 rounded font-bold"
@@ -5336,12 +5336,12 @@
             <div class="text-xs font-bold">공격적</div>
           </button>
         </div>
-        <p class="text-[9px] text-hq-muted mt-2 text-center">CIO가 이 성향에 맞춰 안전 범위 내에서 자율적으로 설정을 조정합니다</p>
+        <p class="text-[9px] text-hq-muted mt-2 text-center">금융분석팀장이 이 성향에 맞춰 안전 범위 내에서 자율적으로 설정을 조정합니다</p>
       </div>
 
       <!-- 현재 설정값 (읽기 전용) -->
       <div class="mb-4">
-        <p class="text-[10px] font-bold text-hq-muted mb-2">현재 설정 (CIO 자율 관리)</p>
+        <p class="text-[10px] font-bold text-hq-muted mb-2">현재 설정 (금융분석팀장 자율 관리)</p>
         <div class="grid grid-cols-3 gap-2">
           <div class="bg-hq-bg rounded-lg p-2.5 text-center border border-hq-border/50">
             <div class="text-[9px] text-hq-muted">종목당 최대</div>
@@ -5353,7 +5353,7 @@
           </div>
           <div class="bg-hq-bg rounded-lg p-2.5 text-center border border-hq-border/50">
             <div class="text-[9px] text-hq-muted">주문 금액</div>
-            <div class="text-sm font-bold text-hq-text font-mono" x-text="(trading.settings.order_size || 0) === 0 ? 'CIO 자율' : (trading.settings.order_size||0).toLocaleString()"></div>
+            <div class="text-sm font-bold text-hq-text font-mono" x-text="(trading.settings.order_size || 0) === 0 ? '금융분석팀장 자율' : (trading.settings.order_size||0).toLocaleString()"></div>
           </div>
           <div class="bg-hq-bg rounded-lg p-2.5 text-center border border-hq-border/50">
             <div class="text-[9px] text-hq-muted">손절</div>
@@ -5412,7 +5412,7 @@
         <div class="pt-2 border-t border-hq-border/50">
           <label class="flex items-center gap-2 text-xs text-hq-text cursor-pointer">
             <input type="checkbox" x-model="trading.settings.auto_execute" class="rounded">
-            <span class="text-hq-yellow font-bold">CIO 자동실행</span>
+            <span class="text-hq-yellow font-bold">금융분석팀장 자동실행</span>
             <span class="text-[9px] text-hq-muted">(신뢰도 이상 시 자동 매수/매도)</span>
           </label>
         </div>
@@ -5441,7 +5441,7 @@
           <template x-for="h in [...changeHistory].reverse().slice(0,10)" :key="h.changed_at">
             <div class="bg-hq-bg rounded-lg px-3 py-2 text-[9px] border border-hq-border/30">
               <div class="flex items-center justify-between">
-                <span class="font-bold" :class="h.changed_by === 'CIO' ? 'text-hq-cyan' : 'text-hq-yellow'" x-text="h.changed_by"></span>
+                <span class="font-bold" :class="h.changed_by === '금융분석팀장' ? 'text-hq-cyan' : 'text-hq-yellow'" x-text="h.changed_by"></span>
                 <span class="text-hq-muted font-mono" x-text="h.changed_at ? h.changed_at.slice(5,16).replace('T',' ') : ''"></span>
               </div>
               <div class="text-hq-text mt-0.5" x-text="h.detail || h.action"></div>
@@ -5833,9 +5833,9 @@
           </div>
           <p class="text-xs text-hq-muted/70 mb-2">각 매니저가 자기 모델로 직접 검수합니다. 별도 설정 불필요.</p>
           <div class="text-xs text-hq-muted/50 space-y-1">
-            <div>비서실장: Claude Sonnet 4.6 | CSO: Claude Sonnet 4.6</div>
-            <div>CLO: Claude Sonnet 4.6 | CMO: Claude Sonnet 4.6</div>
-            <div>CIO: GPT-5.2 | CPO: Claude Sonnet 4.6</div>
+            <div>비서실장: Claude Sonnet 4.6 | 사업기획팀장: Claude Sonnet 4.6</div>
+            <div>법무팀장: Claude Sonnet 4.6 | 마케팅팀장: Claude Sonnet 4.6</div>
+            <div>금융분석팀장: GPT-5.2 | 콘텐츠팀장: Claude Sonnet 4.6</div>
           </div>
         </div>
 
