@@ -426,6 +426,14 @@ async def index():
     return HTMLResponse(content=html_content)
 
 
+@app.get("/sw.js")
+async def service_worker():
+    """PWA Service Worker — root scope 필요."""
+    sw_path = os.path.join(os.path.dirname(__file__), "static", "sw.js")
+    from starlette.responses import FileResponse
+    return FileResponse(sw_path, media_type="application/javascript")
+
+
 @app.get("/deploy-status.json")
 async def deploy_status():
     """배포 상태 JSON (deploy.yml이 /var/www/html/에 생성한 파일 읽기)."""
