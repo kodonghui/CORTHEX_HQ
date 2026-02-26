@@ -6385,11 +6385,14 @@ async def _trading_bot_loop():
 - **리스크관리**: 손절가, 적정 포지션 크기, 전체 포트폴리오 리스크
 
 ## 최종 산출물 (반드시 아래 형식 그대로 — 예시처럼 정확히)
-[시그널] 삼성전자 (005930) | 매수 | 신뢰도 72% | 반도체 수요 회복 + RSI 과매도 구간
-[시그널] 카카오 (035720) | 매도 | 신뢰도 61% | PER 과대평가, 금리 민감 섹터 약세
-[시그널] LG에너지솔루션 (373220) | 관망 | 신뢰도 45% | 혼조세, 방향성 불명확
+[시그널] 삼성전자 (005930) | 매수 | 신뢰도 72% | 비중 15% | 목표가 78000 | 반도체 수요 회복 + RSI 과매도 구간
+[시그널] 카카오 (035720) | 매도 | 신뢰도 61% | 비중 10% | 목표가 0 | PER 과대평가, 금리 민감 섹터 약세
+[시그널] LG에너지솔루션 (373220) | 관망 | 신뢰도 45% | 비중 0% | 목표가 390000 | 혼조세, 이 가격 도달 시 진입 검토
 
-※ 주의: 신뢰도는 종목별로 독립적으로 계산, 0~100 숫자 + % 기호로 표기"""
+※ 주의:
+- 신뢰도는 종목별로 독립적으로 계산, 0~100 숫자 + % 기호로 표기
+- 목표가(권장 매수 진입가): 매수/관망 종목은 반드시 입력. 현재가보다 낮은 목표 진입가 설정. 미국 주식은 USD 단위. 매도 종목은 0
+- 목표가 도달 시 서버가 자동으로 매수 실행 — 신중하게 설정할 것"""
 
             cio_result = await _call_agent("cio_manager", prompt)
             content = cio_result.get("content", "")
@@ -6648,6 +6651,55 @@ async def _trading_bot_loop():
                                         "info")
                     except Exception as order_err:
                         logger.error("[TRADING BOT] 자동주문 오류 (%s): %s", ticker, order_err)
+
+                # ── CIO 목표가 기반 buy_limit 트리거 자동 등록 ──
+                # 매수/관망 시그널에 목표가가 있으면, 가격 도달 시 서버가 자동 매수 실행
+                _today_str = datetime.now(KST).strftime("%Y%m%d")
+                for sig in parsed_signals:
+                    target_price = sig.get("target_price", 0)
+                    if target_price <= 0:
+                        continue
+                    if sig["action"] not in ("buy", "hold"):
+                        continue
+                    _bl_ticker = sig["ticker"]
+                    _bl_name = sig.get("name", _bl_ticker)
+                    _bl_market = sig.get("market", market)
+                    _bl_is_us = _bl_market.upper() in ("US", "USA", "OVERSEAS") or (
+                        _bl_ticker.isalpha() and len(_bl_ticker) <= 5
+                    )
+                    # 오늘 이미 등록된 같은 종목의 buy_limit은 갱신(제거 후 재등록)
+                    _all_triggers = _load_data("price_triggers", [])
+                    _all_triggers = [
+                        t for t in _all_triggers
+                        if not (
+                            t.get("type") == "buy_limit"
+                            and t.get("ticker") == _bl_ticker
+                            and t.get("created_at", "").startswith(_today_str)
+                        )
+                    ]
+                    # 수량: 비중 기반 계산
+                    _bl_weight = _get_signal_weight(sig, sig.get("confidence", 50))
+                    _bl_amt = int(account_balance * _bl_weight) if account_balance > 0 else 500_000
+                    _bl_fx = _get_fx_rate()
+                    _bl_qty = max(1, int(_bl_amt / (target_price * _bl_fx))) if _bl_is_us else max(1, int(_bl_amt / target_price))
+                    _bl_trigger = {
+                        "id": f"bl_{_bl_ticker}_{datetime.now(KST).strftime('%Y%m%d%H%M%S')}",
+                        "ticker": _bl_ticker, "name": _bl_name,
+                        "type": "buy_limit", "trigger_price": target_price, "qty": _bl_qty,
+                        "market": _bl_market, "active": True,
+                        "created_at": datetime.now(KST).isoformat(),
+                        "source": "cio_auto", "source_id": new_signal["id"],
+                        "note": f"CIO 목표매수: {target_price:,.0f} ({sig.get('confidence', 0)}% 신뢰도) — {sig.get('reason', '')[:60]}",
+                    }
+                    _all_triggers.insert(0, _bl_trigger)
+                    if len(_all_triggers) > 500:
+                        _all_triggers = _all_triggers[:500]
+                    _save_data("price_triggers", _all_triggers)
+                    save_activity_log(
+                        "cio_manager",
+                        f"🎯 목표매수 자동등록: {_bl_name}({_bl_ticker}) 목표가 {target_price:,.0f} × {_bl_qty}주",
+                        "info",
+                    )
 
             buy_count = len([s for s in parsed_signals if s.get("action") == "buy"])
             sell_count = len([s for s in parsed_signals if s.get("action") == "sell"])
