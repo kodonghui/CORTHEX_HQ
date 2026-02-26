@@ -75,3 +75,52 @@ async def send_feedback(request: Request):
     feedback["total"] = feedback.get("good", 0) + feedback.get("bad", 0)
     _save_data("feedback", feedback)
     return {"success": True, **feedback}
+
+
+# ── E-1: UI 피드백 모드 ──
+
+@router.get("/ui")
+async def get_ui_feedback():
+    """UI 피드백 목록 조회."""
+    import json
+    raw = load_setting("ui_feedback_items", "[]")
+    items = json.loads(raw) if isinstance(raw, str) else raw
+    return {"success": True, "items": items}
+
+
+@router.post("/ui")
+async def add_ui_feedback(request: Request):
+    """UI 피드백 추가 — 클릭 좌표 + 현재 탭 + 코멘트."""
+    import json
+    from datetime import datetime, timezone, timedelta
+    KST = timezone(timedelta(hours=9))
+
+    body = await request.json()
+    raw = load_setting("ui_feedback_items", "[]")
+    items = json.loads(raw) if isinstance(raw, str) else raw
+
+    item = {
+        "id": int(datetime.now(KST).timestamp() * 1000),
+        "x": body.get("x", 0),
+        "y": body.get("y", 0),
+        "tab": body.get("tab", ""),
+        "viewMode": body.get("viewMode", ""),
+        "comment": body.get("comment", ""),
+        "url": body.get("url", ""),
+        "date": datetime.now(KST).strftime("%Y-%m-%d %H:%M"),
+    }
+    items.append(item)
+    _save_data("ui_feedback_items", json.dumps(items, ensure_ascii=False))
+    logger.info(f"[UI피드백] {item['tab']}/{item['viewMode']} ({item['x']},{item['y']}): {item['comment']}")
+    return {"success": True, "item": item, "total": len(items)}
+
+
+@router.delete("/ui/{item_id}")
+async def delete_ui_feedback(item_id: int):
+    """UI 피드백 삭제."""
+    import json
+    raw = load_setting("ui_feedback_items", "[]")
+    items = json.loads(raw) if isinstance(raw, str) else raw
+    items = [i for i in items if i.get("id") != item_id]
+    _save_data("ui_feedback_items", json.dumps(items, ensure_ascii=False))
+    return {"success": True}

@@ -197,7 +197,7 @@ agents:
   - swot_quantifier
 - agent_id: cio_manager
   name: Investment Lead
-  name_ko: 투자팀장
+  name_ko: 금융분석팀장
   telegram_code: '@투자처장'
   role: manager
   division: finance.investment
