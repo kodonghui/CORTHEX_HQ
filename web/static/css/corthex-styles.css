@@ -647,7 +647,7 @@ html:not(.dark) .glow-accent { box-shadow: 0 0 20px rgb(var(--hq-accent) / 0.15)
   .delegation-panel { height: auto !important; max-height: 300px !important; }
 }
 
-/* ═══ Small Mobile (<480px) ═══ */
+/* ═══ Small Mobile (<480px) — iPhone 14 (390×844) 최적화 ═══ */
 @media (max-width: 479px) {
   /* Further reduce padding */
   header { gap: 0.25rem !important; }
@@ -664,6 +664,37 @@ html:not(.dark) .glow-accent { box-shadow: 0 0 20px rgb(var(--hq-accent) / 0.15)
   /* Bottom nav font even smaller */
   .mobile-bottom-nav-item { font-size: 9px; }
   .mobile-bottom-nav-item svg { width: 20px; height: 20px; }
+
+  /* ── iPhone 14 전용 (390px 뷰포트) ── */
+
+  /* 사무실 고정 너비 카드 → 유동 */
+  .desk-card { width: 100% !important; min-width: 0 !important; }
+
+  /* 명령 입력 영역 패딩 축소 */
+  .chat-input-bar { padding: 0.5rem 0.75rem !important; }
+
+  /* 헤더 패딩 더 축소 */
+  header { padding-left: 0.5rem !important; padding-right: 0.5rem !important; }
+
+  /* 보관함 2단 레이아웃 → 1단 (모바일) */
+  .archive-layout { flex-direction: column !important; }
+  .archive-layout > div { width: 100% !important; min-width: 0 !important; }
+
+  /* 모달 최대 너비 조정 */
+  .agent-config-modal { width: calc(100% - 0.5rem) !important; }
+
+  /* 탭 내 패딩 축소 */
+  .tab-content-padded { padding: 0.75rem !important; }
+
+  /* 3열 통계 카드: 패딩 축소 + 폰트 조정 */
+  .grid.grid-cols-3 > div { padding: 0.5rem !important; }
+  .grid.grid-cols-3 .text-2xl { font-size: 1.125rem !important; }
+
+  /* 전력분석/거래 테이블: 스크롤 가능 힌트 */
+  .overflow-x-auto { -webkit-overflow-scrolling: touch; }
+
+  /* 작전계획 카드 그리드: 1열 */
+  .op-plan-grid { grid-template-columns: 1fr !important; }
 }
 
 /* ═══ Tablet (768-1023px) ═══ */
