@@ -3630,3 +3630,23 @@ tools:
         description: 수집 게시글 수 (기본값 20)
     required:
     - action
+
+- tool_id: read_knowledge
+  name: Read Knowledge
+  name_ko: 정보국 조회
+  description: knowledge/ 폴더의 지식 파일을 on-demand로 읽는 도구. 리트마스터 제품정보, 투자 정책, 출판 가이드, 전사 규칙, 시스템 플로우차트 조회 가능
+  parameters:
+    type: object
+    properties:
+      division:
+        type: string
+        enum:
+        - leet_master
+        - finance
+        - publishing
+        - shared
+        - flowcharts
+        description: 조회할 부서/카테고리. 없으면 전체 목록 반환
+      file:
+        type: string
+        description: '파일명 (확장자 제외, 예: product_info). division만 주면 파일 목록 반환'
