@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CORTHEX 도구 전수검사 — 서버 vs AI 최적 실행 전략</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+  :root { --bg: #0f1117; --surface: #1a1d27; --border: #2d3148; --text: #e8eaf6; --accent: #7c83ff; --green: #4caf72; --red: #f56565; --yellow: #f6c90e; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Pretendard', 'Apple SD Gothic Neo', sans-serif; padding: 24px; }
+  h1 { font-size: 26px; font-weight: 700; border-bottom: 2px solid var(--accent); padding-bottom: 12px; margin-bottom: 8px; color: #fff; }
+  .subtitle { color: #9399c4; font-size: 13px; margin-bottom: 32px; }
+  .summary { display: flex; gap: 12px; margin-bottom: 40px; flex-wrap: wrap; }
+  .badge { padding: 10px 20px; border-radius: 8px; font-size: 14px; font-weight: 600; }
+  .badge.green { background: #1b3a2a; border: 1px solid #4caf72; color: #4caf72; }
+  .badge.blue  { background: #1a2540; border: 1px solid #7c83ff; color: #7c83ff; }
+  .badge.orange{ background: #3a2410; border: 1px solid #f6a623; color: #f6a623; }
+  .section { margin-bottom: 60px; }
+  .section-title { font-size: 20px; font-weight: 700; color: var(--accent); margin-bottom: 6px; padding-left: 12px; border-left: 4px solid var(--accent); }
+  .section-desc { font-size: 13px; color: #9399c4; margin-bottom: 20px; padding-left: 16px; }
+  .diagram-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 24px; margin-bottom: 24px; overflow: auto; }
+  .diagram-title { font-size: 15px; font-weight: 600; color: #fff; margin-bottom: 16px; }
+  .mermaid { min-width: 600px; }
+  .savings-table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 13px; }
+  .savings-table th { background: #1a2540; color: var(--accent); padding: 10px 14px; text-align: left; border: 1px solid var(--border); }
+  .savings-table td { padding: 10px 14px; border: 1px solid var(--border); }
+  .savings-table tr:nth-child(even) td { background: #161924; }
+  .star3 { color: #f6c90e; }
+  .star2 { color: #9399c4; }
+  .tip { background: #1a2540; border-left: 4px solid var(--accent); padding: 12px 16px; border-radius: 0 8px 8px 0; font-size: 13px; color: #c5c8f0; margin: 16px 0; }
+  .compare { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+  .compare-bad  { background: #2a1010; border: 1px solid var(--red);   border-radius: 8px; padding: 16px; }
+  .compare-good { background: #0f2a18; border: 1px solid var(--green); border-radius: 8px; padding: 16px; }
+  .compare h3 { font-size: 13px; font-weight: 700; margin-bottom: 12px; }
+  .compare h3.bad  { color: var(--red); }
+  .compare h3.good { color: var(--green); }
+  .flow-step { font-size: 12px; padding: 6px 10px; background: #0f1117; border-radius: 4px; margin: 4px 0; border-left: 3px solid #444; }
+  .flow-step.waste { border-left-color: var(--red); }
+  .flow-step.ok    { border-left-color: var(--green); }
+  @media (max-width: 768px) { .compare { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+
+<h1>CORTHEX 도구 전수검사 — 서버 vs AI 최적 실행 전략</h1>
+<p class="subtitle">작성일: 2026-02-26 | 분석 범위: config/tools.yaml 전체 131개 도구 | 브라우저에서 Ctrl+스크롤로 확대 가능</p>
+
+<div class="summary">
+  <div class="badge green">✅ 서버 우위 47개 — AI 호출 불필요</div>
+  <div class="badge blue">🔄 서버+AI 51개 — 역할 분리 필요</div>
+  <div class="badge orange">🤖 AI 우위 33개 — 신중하게 호출</div>
+</div>
+
+<!-- ── 핵심 문제 ── -->
+<div class="section">
+  <div class="section-title">🚨 핵심 문제 — 지금 이 순간 낭비 현장</div>
+  <div class="section-desc">technical_analyzer 도구가 1회 분석마다 7번 연속 호출됨. RSI, MACD, 볼린저밴드 각각 도구로 호출. 서버가 직접 계산하면 0번.</div>
+
+  <div class="compare">
+    <div class="compare-bad">
+      <h3 class="bad">❌ 현재 흐름 (낭비)</h3>
+      <div class="flow-step waste">팀장: 삼성전자 분석해줘</div>
+      <div class="flow-step waste">AI → kr_stock 도구 호출 (1회)</div>
+      <div class="flow-step waste">AI → dart_api 도구 호출 (2회)</div>
+      <div class="flow-step waste">AI → naver_news 도구 호출 (3회)</div>
+      <div class="flow-step waste">AI → technical_analyzer 호출 (4회)</div>
+      <div class="flow-step waste">AI → technical_analyzer 호출 (5회)</div>
+      <div class="flow-step waste">AI → technical_analyzer 호출 (6회)</div>
+      <div class="flow-step waste">AI → technical_analyzer 호출 (7회)</div>
+      <div class="flow-step waste">AI: 드디어 판단...</div>
+      <div style="margin-top:10px; font-size:12px; color:#f56565">⏱ 3~5분 | 💸 토큰 ~20,000 | AI가 심부름+생각 둘 다</div>
+    </div>
+    <div class="compare-good">
+      <h3 class="good">✅ 목표 흐름</h3>
+      <div class="flow-step ok">팀장: 삼성전자 분석해줘</div>
+      <div class="flow-step ok">서버: pykrx 직접 → 주가+OHLCV 60일</div>
+      <div class="flow-step ok">서버: RSI/MACD/BB/거래량 계산 (수식)</div>
+      <div class="flow-step ok">서버: DART API 직접 → 재무제표</div>
+      <div class="flow-step ok">서버: Naver API 직접 → 뉴스 5건</div>
+      <div class="flow-step ok">AI: 패키지 받아서 판단만 (1회)</div>
+      <div class="flow-step ok">결과 반환</div>
+      <div style="margin-top:10px; font-size:12px; color:#4caf72">⏱ 30초 | 💸 토큰 ~3,000 | AI는 생각만</div>
+    </div>
+  </div>
+
+  <div class="diagram-card">
+    <div class="diagram-title">전체 구조 비교 플로우차트</div>
+    <div class="mermaid">
+flowchart TD
+    subgraph NOW["❌ 현재 (낭비)"]
+        A1[팀장 분석 시작] --> B1[AI: kr_stock 호출]
+        B1 --> C1[AI: dart_api 호출]
+        C1 --> D1[AI: naver_news 호출]
+        D1 --> E1[AI: technical_analyzer 호출 1]
+        E1 --> F1[AI: technical_analyzer 호출 2]
+        F1 --> G1[...7번 반복...]
+        G1 --> H1[AI: 드디어 판단]
+        H1 --> I1[결과]
+    end
+    subgraph GOAL["✅ 목표"]
+        A2[팀장 분석 시작] --> B2[서버: 데이터 병렬 수집\n주가+재무+뉴스+기술지표\n0.5초]
+        B2 --> C2[서버: 정량 계산\nRSI+MACD+BB+DCF+VaR\n0.1초]
+        C2 --> D2[AI: 패키지 받아서 판단만\n뉴스해석+매매결정]
+        D2 --> E2[결과]
+    end
+    style NOW fill:#2a1010
+    style GOAL fill:#0f2a18
+    </div>
+  </div>
+</div>
+
+<!-- ── 서버 우위 ── -->
+<div class="section">
+  <div class="section-title">1. 서버 우위 도구 (47개) — AI 완전 제거 가능</div>
+  <div class="section-desc">이 도구들이 호출될 때마다 AI 토큰 낭비. 서버가 pykrx/yfinance/API 직접 호출하면 됨.</div>
+
+  <div class="diagram-card">
+    <div class="diagram-title">투자 데이터 그룹 (23개) — pykrx + yfinance + 수식</div>
+    <div class="mermaid">
+flowchart LR
+    REQ[팀장 분석 요청] --> SERVER
+    SERVER[서버 직접 실행\n병렬 처리] --> K1[pykrx\nkr_stock\n한국 주가]
+    SERVER --> K2[pykrx\ntechnical_analyzer\nRSI/MACD/BB]
+    SERVER --> K3[pykrx\nstock_screener\n조건 필터]
+    SERVER --> K4[pykrx\nsector_rotator\n섹터 분석]
+    SERVER --> K5[DART API\ndart_api\n재무제표]
+    SERVER --> K6[DART API\ninsider_tracker\n내부자거래]
+    SERVER --> K7[yfinance\nus_stock\n미국 주가]
+    SERVER --> K8[수학 공식\ndcf_valuator\nDCF 기업가치]
+    SERVER --> K9[scipy\nportfolio_optimizer\nMVO 최적화]
+    SERVER --> K10[수학 공식\nrisk_calculator\nVaR/MDD]
+    SERVER --> K11[scipy\nbacktest_engine\n백테스트]
+    SERVER --> K12[Fed API\nmacro_fed_tracker\n금리/GDP]
+    K1 & K2 & K3 & K4 --> PACK[📦 데이터 패키지]
+    K5 & K6 & K7 & K8 --> PACK
+    K9 & K10 & K11 & K12 --> PACK
+    PACK --> AI[AI: 판단만\n매수/매도/신뢰도]
+    AI --> OUT[결과]
+    style SERVER fill:#0f2a18
+    style AI fill:#1a2540
+    style PACK fill:#2a2a10
+    </div>
+  </div>
+
+  <div class="diagram-card">
+    <div class="diagram-title">운영/자동화 그룹 (10개) — AI 완전 불필요</div>
+    <div class="mermaid">
+flowchart TD
+    REQ2[시스템/비서실장 요청] --> SRV2[서버 단독 실행\nAI 없이 바로 처리]
+    SRV2 --> O1[Notion API\nnotion_api]
+    SRV2 --> O2[Google Calendar\ncalendar_tool]
+    SRV2 --> O3[SMTP\nemail_sender]
+    SRV2 --> O4[Telegram Bot\nnotification_engine]
+    SRV2 --> O5[APScheduler\nschedule_tool]
+    SRV2 --> O6[SerpAPI\nreal_web_search]
+    SRV2 --> O7[KIS API\ntrading_executor]
+    SRV2 --> O8[DB\ntrading_settings_control]
+    SRV2 --> O9[DB diff\ncompetitor_monitor]
+    SRV2 --> O10[DB\ndecision_tracker]
+    O1 & O2 & O3 & O4 & O5 --> OUT2[즉시 실행 완료]
+    O6 & O7 & O8 & O9 & O10 --> OUT2
+    style SRV2 fill:#0f2a18
+    </div>
+  </div>
+
+  <div class="diagram-card">
+    <div class="diagram-title">개발/분석 도구 그룹 (12개) — Python 라이브러리 직접</div>
+    <div class="mermaid">
+flowchart LR
+    REQ3[개발팀장 요청] --> SRV3[서버 단독]
+    SRV3 --> D1[GitHub API\ngithub_tool]
+    SRV3 --> D2[bandit+ruff\ncode_quality]
+    SRV3 --> D3[pip-audit\nsecurity_scanner]
+    SRV3 --> D4[HTTP 체크\nuptime_monitor]
+    SRV3 --> D5[성능 측정\napi_benchmark]
+    SRV3 --> D6[로그 I/O\nlog_analyzer]
+    SRV3 --> D7[tiktoken\ntoken_counter]
+    SRV3 --> D8[pandas\nspreadsheet_tool]
+    SRV3 --> D9[matplotlib\nchart_generator]
+    SRV3 --> D10[PyPDF\npdf_parser]
+    SRV3 --> D11[pandoc\ndoc_converter]
+    SRV3 --> D12[ffmpeg\nvideo_editor]
+    D1 & D2 & D3 & D4 & D5 & D6 --> OUT3[즉시 결과]
+    D7 & D8 & D9 & D10 & D11 & D12 --> OUT3
+    style SRV3 fill:#0f2a18
+    </div>
+  </div>
+
+  <div class="diagram-card">
+    <div class="diagram-title">마케팅 수치 계산 그룹 (10개) — 통계/경제학 공식</div>
+    <div class="mermaid">
+flowchart LR
+    REQ4[마케팅팀장 요청] --> SRV4[서버 수치 계산]
+    SRV4 --> M1[scipy.stats\nab_test_engine]
+    SRV4 --> M2[lifetimes\ncustomer_ltv_model]
+    SRV4 --> M3[pandas\nrfm_segmentation]
+    SRV4 --> M4[분위수\nfunnel_analyzer]
+    SRV4 --> M5[Shapley\nmarketing_attribution]
+    SRV4 --> M6[Cox PH\nchurn_risk_scorer]
+    SRV4 --> M7[cohort\ncohort_retention]
+    SRV4 --> M8[Bass 모델\nviral_coefficient]
+    SRV4 --> M9[PSM\npricing_sensitivity]
+    SRV4 --> M10[재무\nfinancial_calculator]
+    M1 & M2 & M3 & M4 & M5 --> PACK4[📦 수치 결과]
+    M6 & M7 & M8 & M9 & M10 --> PACK4
+    PACK4 --> AI4[AI: 전략 수립만]
+    AI4 --> OUT4[결과]
+    style SRV4 fill:#0f2a18
+    style AI4 fill:#1a2540
+    </div>
+  </div>
+</div>
+
+<!-- ── 서버+AI ── -->
+<div class="section">
+  <div class="section-title">2. 서버+AI 도구 (51개) — 역할 분리 필요</div>
+  <div class="section-desc">서버가 데이터 수집 → AI가 해석. 지금은 AI가 수집+해석 모두 하고 있음.</div>
+
+  <div class="diagram-card">
+    <div class="diagram-title">뉴스/감성 분석 그룹</div>
+    <div class="mermaid">
+flowchart LR
+    REQ5[팀장: 뉴스 분석] --> SPLIT5{역할 분리}
+    SPLIT5 --> SRV5[서버 담당]
+    SPLIT5 --> AI5[AI 담당]
+    SRV5 --> N1[Naver API\nnaver_news\n원문 수집]
+    SRV5 --> N2[감정사전\nsentiment_scorer\n점수 계산]
+    SRV5 --> N3[뉴스 API\nsentiment_nlp\nFear&Greed]
+    N1 & N2 & N3 --> PACK5[📦 뉴스+점수 패키지]
+    PACK5 --> AI5
+    AI5 --> I1[맥락 해석]
+    AI5 --> I2[투자 시사점]
+    I1 & I2 --> OUT5[분석 결과]
+    style SRV5 fill:#0f2a18
+    style AI5 fill:#1a2540
+    style PACK5 fill:#2a2a10
+    </div>
+  </div>
+
+  <div class="diagram-card">
+    <div class="diagram-title">법무 데이터+해석 그룹</div>
+    <div class="mermaid">
+flowchart LR
+    REQ6[법무팀장: 법령 분석] --> SPLIT6{역할 분리}
+    SPLIT6 --> SRV6[서버 담당]
+    SPLIT6 --> AI6[AI 담당]
+    SRV6 --> L1[국가법령 API\nlaw_search]
+    SRV6 --> L2[KIPRIS API\nkipris]
+    SRV6 --> L3[판례 DB\nprecedent_analyzer]
+    SRV6 --> L4[법령 변경감지\nlaw_change_monitor]
+    SRV6 --> L5[규제 뉴스\nregulation_radar]
+    L1 & L2 & L3 & L4 & L5 --> PACK6[📦 법무 데이터]
+    PACK6 --> AI6
+    AI6 --> LI1[법적 해석+위험 평가]
+    AI6 --> LI2[전략 수립]
+    LI1 & LI2 --> OUT6[법무 결과]
+    style SRV6 fill:#0f2a18
+    style AI6 fill:#1a2540
+    </div>
+  </div>
+
+  <div class="diagram-card">
+    <div class="diagram-title">커뮤니티/리뷰 크롤링 그룹</div>
+    <div class="mermaid">
+flowchart TD
+    REQ7[콘텐츠팀장: 커뮤니티 분석] --> SPLIT7{역할 분리}
+    SPLIT7 --> SRV7[서버: 크롤링]
+    SPLIT7 --> AI7[AI: 분석]
+    SRV7 --> C1[웹 크롤링\ndaum_cafe]
+    SRV7 --> C2[멀티채널\nleet_survey]
+    SRV7 --> C3[DC갤\ndc_lawschool]
+    SRV7 --> C4[오르비\norbi_crawler]
+    SRV7 --> C5[통합\nlawschool_community]
+    SRV7 --> C6[앱스토어\napp_review_scraper]
+    C1 & C2 & C3 & C4 & C5 & C6 --> PACK7[📦 원문+메타정보]
+    PACK7 --> AI7
+    AI7 --> CI1[트렌드 해석]
+    AI7 --> CI2[감정/의견 분석]
+    CI1 & CI2 --> OUT7[커뮤니티 분석 결과]
+    style SRV7 fill:#0f2a18
+    style AI7 fill:#1a2540
+    </div>
+  </div>
+
+  <div class="diagram-card">
+    <div class="diagram-title">경쟁사/채널 분석 그룹</div>
+    <div class="mermaid">
+flowchart LR
+    REQ8[마케팅팀장] --> SPLIT8{역할 분리}
+    SPLIT8 --> SRV8[서버: 수집]
+    SPLIT8 --> AI8[AI: 전략]
+    SRV8 --> MC1[SNS API\nsns_manager]
+    SRV8 --> MC2[크롤링\ncompetitor_sns_monitor]
+    SRV8 --> MC3[YouTube API\nyoutube_analyzer]
+    SRV8 --> MC4[정부 포털\nsubsidy_finder]
+    MC1 & MC2 & MC3 & MC4 --> PACK8[📦 마케팅 데이터]
+    PACK8 --> AI8
+    AI8 --> MI1[전략 분석]
+    AI8 --> MI2[경쟁 우위 평가]
+    MI1 & MI2 --> OUT8[마케팅 전략]
+    style SRV8 fill:#0f2a18
+    style AI8 fill:#1a2540
+    </div>
+  </div>
+
+  <div class="diagram-card">
+    <div class="diagram-title">콘텐츠 품질 점수+개선안 그룹</div>
+    <div class="mermaid">
+flowchart LR
+    REQ9[콘텐츠팀장] --> SPLIT9{역할 분리}
+    SPLIT9 --> SRV9[서버: 점수 계산]
+    SPLIT9 --> AI9[AI: 개선안]
+    SRV9 --> CO1[Flesch-Kincaid\ncontent_quality_scorer]
+    SRV9 --> CO2[이메일 8규칙\nemail_optimizer]
+    SRV9 --> CO3[SEO 14항목\nseo_analyzer]
+    SRV9 --> CO4[Cialdini\ncommunication_optimizer]
+    CO1 & CO2 & CO3 & CO4 --> PACK9[📦 점수+약점 목록]
+    PACK9 --> AI9
+    AI9 --> COI1[개선안 작성]
+    AI9 --> COI2[A/B 대안 생성]
+    COI1 & COI2 --> OUT9[콘텐츠 개선안]
+    style SRV9 fill:#0f2a18
+    style AI9 fill:#1a2540
+    </div>
+  </div>
+</div>
+
+<!-- ── AI 우위 ── -->
+<div class="section">
+  <div class="section-title">3. AI 우위 도구 (33개) — AI만 가능, 배치로 효율화</div>
+  <div class="section-desc">이 도구들은 AI의 해석/판단/생성 능력이 반드시 필요. 단 배치 처리로 호출 횟수 줄여야 함.</div>
+
+  <div class="diagram-card">
+    <div class="diagram-title">AI 전용 도구 전체 맵</div>
+    <div class="mermaid">
+flowchart TD
+    REQ10[팀장 요청] --> BATCH[배치 처리\n관련 도구 1번 호출에 묶기]
+
+    BATCH --> LAW[법무 해석]
+    BATCH --> TECH[기술 판단]
+    BATCH --> BIZ[사업 판단]
+    BATCH --> MEDIA[미디어 생성]
+
+    LAW --> L1[contract_reviewer\n계약서 위험 조항]
+    LAW --> L2[nda_analyzer\nNDA 리스크]
+    LAW --> L3[license_scanner\n라이선스 해석]
+    LAW --> L4[dispute_simulator\n분쟁 시뮬레이션]
+    LAW --> L5[compliance_checker\nGDPR/개보법]
+
+    TECH --> T1[architecture_evaluator\n아키텍처 평가]
+    TECH --> T2[performance_profiler\n병목 탐지]
+    TECH --> T3[tech_debt_analyzer\n기술부채]
+    TECH --> T4[system_design_advisor\n시스템 설계]
+
+    BIZ --> B1[market_sizer\n시장규모 추정]
+    BIZ --> B2[business_model_scorer\n비즈니스 평가]
+    BIZ --> B3[competitive_mapper\n경쟁 전략]
+
+    MEDIA --> M1[image_generator\nDALL-E]
+    MEDIA --> M2[gemini_image_generator\nGemini]
+    MEDIA --> M3[gemini_video_generator\nVeo 영상]
+    MEDIA --> M4[tts_generator\nTTS 음성]
+    MEDIA --> M5[lipsync_video_generator\n립싱크]
+
+    L1 & L2 & L3 & L4 & L5 --> OUT10[결과]
+    T1 & T2 & T3 & T4 --> OUT10
+    B1 & B2 & B3 --> OUT10
+    M1 & M2 & M3 & M4 & M5 --> OUT10
+
+    style BATCH fill:#2a2a10
+    style LAW fill:#1a2540
+    style TECH fill:#1a2540
+    style BIZ fill:#1a2540
+    style MEDIA fill:#2a1540
+    </div>
+  </div>
+</div>
+
+<!-- ── CIO 시퀀스 ── -->
+<div class="section">
+  <div class="section-title">4. CIO 분석 시퀀스 다이어그램 (현재 vs 목표)</div>
+  <div class="section-desc">가장 낭비가 심한 투자분석 플로우 개선 전후 비교</div>
+
+  <div class="diagram-card">
+    <div class="diagram-title">현재 vs 최적화 후 시퀀스</div>
+    <div class="mermaid">
+sequenceDiagram
+    participant 팀장
+    participant 서버
+    participant AI
+    participant 도구
+
+    Note over 팀장,도구: ❌ 현재 (낭비)
+    팀장->>AI: 삼성전자 분석해줘
+    AI->>도구: kr_stock 호출 (1회)
+    도구-->>AI: 현재가
+    AI->>도구: technical_analyzer (2회)
+    도구-->>AI: RSI
+    AI->>도구: technical_analyzer (3회)
+    도구-->>AI: MACD
+    AI->>도구: technical_analyzer (4~7회)
+    도구-->>AI: 나머지 지표들
+    AI->>도구: dart_api (8회)
+    도구-->>AI: 재무제표
+    AI->>도구: naver_news (9회)
+    도구-->>AI: 뉴스
+    AI-->>팀장: 분석 결과 (3~5분)
+
+    Note over 팀장,도구: ✅ 목표 (최적화)
+    팀장->>서버: 삼성전자 분석 요청
+    서버->>서버: pykrx 직접 호출
+    서버->>서버: RSI/MACD/BB 계산 (수식)
+    서버->>서버: DART API 직접 호출
+    서버->>서버: Naver News API 직접
+    서버->>AI: 패키지 전달 한번에
+    AI-->>서버: 판단 결과
+    서버-->>팀장: 분석 결과 (30초)
+    </div>
+  </div>
+</div>
+
+<!-- ── 우선순위 ── -->
+<div class="section">
+  <div class="section-title">5. 구현 우선순위 & 절감 효과</div>
+
+  <table class="savings-table">
+    <tr>
+      <th>우선순위</th>
+      <th>도구</th>
+      <th>현재 낭비</th>
+      <th>개선 방법</th>
+      <th>절감 효과</th>
+    </tr>
+    <tr>
+      <td><span class="star3">⭐⭐⭐</span></td>
+      <td>technical_analyzer</td>
+      <td>1분석당 7회 호출</td>
+      <td>서버 직접 계산 (이미 구현됨!)</td>
+      <td>토큰 70% ↓</td>
+    </tr>
+    <tr>
+      <td><span class="star3">⭐⭐⭐</span></td>
+      <td>kr_stock</td>
+      <td>매번 AI 경유</td>
+      <td>pykrx 직접 (이미 가능)</td>
+      <td>토큰 100% ↓</td>
+    </tr>
+    <tr>
+      <td><span class="star3">⭐⭐⭐</span></td>
+      <td>dart_api</td>
+      <td>AI가 API 호출</td>
+      <td>DART API 서버 직접</td>
+      <td>토큰 100% ↓</td>
+    </tr>
+    <tr>
+      <td><span class="star3">⭐⭐⭐</span></td>
+      <td>naver_news</td>
+      <td>AI가 검색</td>
+      <td>Naver API 서버 직접</td>
+      <td>토큰 100% ↓</td>
+    </tr>
+    <tr>
+      <td><span class="star2">⭐⭐</span></td>
+      <td>ecos_macro</td>
+      <td>AI가 API 호출</td>
+      <td>ECOS API 서버 직접</td>
+      <td>토큰 100% ↓</td>
+    </tr>
+    <tr>
+      <td><span class="star2">⭐⭐</span></td>
+      <td>dcf_valuator</td>
+      <td>AI가 수식 계산</td>
+      <td>numpy 서버 직접</td>
+      <td>토큰 100% ↓</td>
+    </tr>
+    <tr>
+      <td><span class="star2">⭐⭐</span></td>
+      <td>portfolio_optimizer</td>
+      <td>AI가 MVO 계산</td>
+      <td>scipy 서버 직접</td>
+      <td>토큰 100% ↓</td>
+    </tr>
+    <tr>
+      <td><span class="star2">⭐⭐</span></td>
+      <td>notification_engine</td>
+      <td>AI 경유 발송</td>
+      <td>Telegram API 직접</td>
+      <td>토큰 100% ↓</td>
+    </tr>
+  </table>
+
+  <div class="diagram-card" style="margin-top:24px">
+    <div class="diagram-title">구현 단계별 로드맵</div>
+    <div class="mermaid">
+gantt
+    title 도구 서버화 로드맵
+    dateFormat YYYY-MM-DD
+    section Phase 1 완료
+        technical_analyzer 서버화        :done, 2026-02-26, 1d
+        quant_score 프롬프트 주입         :done, 2026-02-26, 1d
+    section Phase 2 단기
+        DART API 서버 직접 호출           :2026-02-27, 3d
+        Naver News API 서버 직접          :2026-02-27, 2d
+        ECOS 경제지표 서버 직접            :2026-03-01, 2d
+        데이터 패키지 빌더                 :2026-03-02, 3d
+    section Phase 3 중기
+        DCF/포트폴리오 계산 서버화          :2026-03-08, 5d
+        감정사전 서버 계산                 :2026-03-08, 3d
+        컨텍스트 패키저 전종목             :2026-03-10, 5d
+    section Phase 4 장기
+        도구별 캐싱 TTL 1시간             :2026-03-20, 7d
+        모델 티어링 Haiku→Sonnet→Opus    :2026-03-25, 5d
+    </div>
+  </div>
+</div>
+
+<!-- ── 비용 ── -->
+<div class="section">
+  <div class="section-title">6. 비용 시뮬레이션</div>
+  <table class="savings-table">
+    <tr>
+      <th>시나리오</th>
+      <th>AI 호출/분석</th>
+      <th>토큰</th>
+      <th>월 비용 (100회 분석)</th>
+    </tr>
+    <tr>
+      <td>현재 (낭비)</td>
+      <td>15~25회</td>
+      <td>~20,000</td>
+      <td style="color:#f56565">~$50~100</td>
+    </tr>
+    <tr>
+      <td>Phase 2 완료 후</td>
+      <td>5~8회</td>
+      <td>~8,000</td>
+      <td style="color:#f6c90e">~$20~40</td>
+    </tr>
+    <tr>
+      <td>Phase 4 완료 후</td>
+      <td>2~3회</td>
+      <td>~3,000</td>
+      <td style="color:#4caf72">~$5~15</td>
+    </tr>
+  </table>
+</div>
+
+<script>
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: 'dark',
+    themeVariables: {
+      primaryColor: '#1a2540',
+      primaryTextColor: '#e8eaf6',
+      primaryBorderColor: '#7c83ff',
+      lineColor: '#7c83ff',
+      secondaryColor: '#0f2a18',
+      tertiaryColor: '#2a2a10',
+      background: '#0f1117',
+      mainBkg: '#1a1d27',
+      nodeBorder: '#2d3148',
+    },
+    flowchart: { curve: 'basis', useMaxWidth: false },
+    sequence: { useMaxWidth: false },
+    gantt: { useMaxWidth: false }
+  });
+</script>
+</body>
+</html>
