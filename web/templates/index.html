@@ -2997,64 +2997,84 @@
             <span class="text-hq-muted/60" x-text="_commsSSE ? '교신 SSE 연결됨' : '교신 SSE 대기'"></span>
           </div>
 
-          <!-- ── 활동 로그 서브탭 ── -->
-          <div x-show="commsLogSubTab === 'activity'" class="space-y-1">
-            <template x-for="(log, i) in activityLogs.filter(l => activityLogFilter === 'all' || l.agent_id === activityLogFilter).slice().reverse()" :key="i">
-              <div class="flex items-center gap-3 bg-hq-surface border border-hq-border/30 rounded-lg px-4 py-2.5 hover:bg-hq-surface/80 transition">
-                <div class="shrink-0 text-right" style="min-width:72px;">
-                  <div class="text-[10px] font-mono text-hq-muted/60 leading-tight" x-text="log.timeDate || log.time?.split(' ')[0] || ''"></div>
-                  <div class="text-[13px] font-mono font-semibold text-hq-muted leading-tight" x-text="log.timeClock || log.time?.split(' ')[1] || log.time || ''"></div>
+          <!-- ── 활동 로그 서브탭 (타임라인) ── -->
+          <div x-show="commsLogSubTab === 'activity'" class="relative pl-6">
+            <!-- 타임라인 세로선 -->
+            <div class="absolute left-[11px] top-2 bottom-2 w-px bg-gradient-to-b from-hq-accent/30 via-hq-border/20 to-transparent"></div>
+            <div class="space-y-1">
+              <template x-for="(log, i) in activityLogs.filter(l => activityLogFilter === 'all' || l.agent_id === activityLogFilter).slice().reverse()" :key="i">
+                <div class="relative group">
+                  <!-- 타임라인 도트 -->
+                  <div class="absolute -left-[17px] top-3 w-2.5 h-2.5 rounded-full border-2 border-hq-bg ring-1 ring-hq-border/20 group-hover:ring-hq-accent/40 transition"
+                       :class="getAgentAvatarClass(log.agent_id) || 'bg-hq-accent'"></div>
+                  <!-- 카드 -->
+                  <div class="ml-2 bg-hq-panel/30 border border-hq-border/15 rounded-xl px-4 py-2.5 hover:bg-hq-panel/50 hover:border-hq-border/30 transition group-hover:shadow-sm">
+                    <div class="flex items-center gap-3">
+                      <span class="text-[10px] font-mono text-hq-muted/50 shrink-0 w-12 text-right" x-text="log.timeClock || log.time?.split(' ')[1] || log.time || ''"></span>
+                      <span class="w-6 h-6 rounded-md flex items-center justify-center text-[9px] font-bold shrink-0"
+                            :class="getAgentAvatarClass(log.agent_id)" x-text="getAgentInitials(log.agent_id)"></span>
+                      <span class="text-xs font-medium shrink-0 w-20 truncate" :class="getAgentColor(log.agent_id) || 'text-hq-cyan/80'" x-text="getAgentName(log.agent_id)"></span>
+                      <span class="text-sm text-hq-text/80 flex-1 line-clamp-2" x-text="log.action"></span>
+                    </div>
+                  </div>
                 </div>
-                <span class="w-7 h-7 rounded-md flex items-center justify-center text-[10px] font-bold shrink-0"
-                      :class="getAgentAvatarClass(log.agent_id)" x-text="getAgentInitials(log.agent_id)"></span>
-                <span class="text-sm font-medium shrink-0 w-24 truncate" :class="getAgentColor(log.agent_id) || 'text-hq-cyan/80'" x-text="getAgentName(log.agent_id)"></span>
-                <span class="text-sm text-hq-text/90 flex-1" x-text="log.action"></span>
-              </div>
-            </template>
+              </template>
+            </div>
             <template x-if="activityLogs.length === 0">
-              <div class="text-center text-hq-muted/80 py-12">아직 활동 로그가 없습니다. 에이전트에 작업을 지시하면 여기에 표시됩니다.</div>
+              <div class="text-center text-hq-muted/80 py-12 -ml-6">아직 활동 로그가 없습니다. 에이전트에 작업을 지시하면 여기에 표시됩니다.</div>
             </template>
           </div>
 
-          <!-- ── 검수 로그 서브탭 ── -->
-          <div x-show="commsLogSubTab === 'qa'" class="space-y-1">
-            <template x-for="(log, i) in qaLogs.slice().reverse()" :key="i">
-              <div class="flex items-center gap-3 bg-hq-surface border rounded-lg px-4 py-2.5 hover:bg-hq-surface/80 transition"
-                   :class="log.level === 'qa_pass' ? 'border-hq-green/30' : 'border-hq-red/30'">
-                <div class="shrink-0 text-right" style="min-width:72px;">
-                  <div class="text-[10px] font-mono text-hq-muted/60 leading-tight" x-text="log.timeDate || log.time?.split(' ')[0] || ''"></div>
-                  <div class="text-[13px] font-mono font-semibold text-hq-muted leading-tight" x-text="log.timeClock || log.time?.split(' ')[1] || log.time || ''"></div>
+          <!-- ── 검수 로그 서브탭 (타임라인) ── -->
+          <div x-show="commsLogSubTab === 'qa'" class="relative pl-6">
+            <div class="absolute left-[11px] top-2 bottom-2 w-px bg-gradient-to-b from-hq-green/30 via-hq-border/20 to-transparent"></div>
+            <div class="space-y-1">
+              <template x-for="(log, i) in qaLogs.slice().reverse()" :key="i">
+                <div class="relative group">
+                  <div class="absolute -left-[17px] top-3 w-2.5 h-2.5 rounded-full border-2 border-hq-bg"
+                       :class="log.level === 'qa_pass' ? 'bg-hq-green ring-1 ring-hq-green/30' : 'bg-hq-red ring-1 ring-hq-red/30'"></div>
+                  <div class="ml-2 bg-hq-panel/30 border rounded-xl px-4 py-2.5 hover:bg-hq-panel/50 transition"
+                       :class="log.level === 'qa_pass' ? 'border-hq-green/15' : 'border-hq-red/15'">
+                    <div class="flex items-center gap-3">
+                      <span class="text-[10px] font-mono text-hq-muted/50 shrink-0 w-12 text-right" x-text="log.timeClock || log.time?.split(' ')[1] || log.time || ''"></span>
+                      <span class="w-6 h-6 rounded-md flex items-center justify-center text-xs font-bold shrink-0"
+                            :class="log.level === 'qa_pass' ? 'bg-hq-green/20 text-hq-green' : 'bg-hq-red/20 text-hq-red'"
+                            x-text="log.level === 'qa_pass' ? '✅' : '❌'"></span>
+                      <span class="text-xs font-medium shrink-0 w-20 truncate" :class="getAgentColor(log.agent_id) || 'text-hq-cyan/80'" x-text="getAgentName(log.agent_id)"></span>
+                      <span class="text-sm text-hq-text/80 flex-1 line-clamp-2" x-text="log.action"></span>
+                    </div>
+                  </div>
                 </div>
-                <span class="w-7 h-7 rounded-md flex items-center justify-center text-xs font-bold shrink-0"
-                      :class="log.level === 'qa_pass' ? 'bg-hq-green/20 text-hq-green' : 'bg-hq-red/20 text-hq-red'"
-                      x-text="log.level === 'qa_pass' ? '✅' : '❌'"></span>
-                <span class="text-sm font-medium shrink-0 w-24 truncate" :class="getAgentColor(log.agent_id) || 'text-hq-cyan/80'" x-text="getAgentName(log.agent_id)"></span>
-                <span class="text-sm text-hq-text/90 flex-1" x-text="log.action"></span>
-              </div>
-            </template>
+              </template>
+            </div>
             <template x-if="qaLogs.length === 0">
-              <div class="text-center text-hq-muted/80 py-12">
+              <div class="text-center text-hq-muted/80 py-12 -ml-6">
                 <div class="text-sm mb-1">아직 검수 로그가 없습니다</div>
                 <div class="text-[11px] text-hq-muted/50">에이전트 작업 시 품질검수 결과가 실시간으로 표시됩니다</div>
               </div>
             </template>
           </div>
 
-          <!-- ── 도구 로그 서브탭 ── -->
-          <div x-show="commsLogSubTab === 'tools'" class="space-y-1">
-            <template x-for="(log, i) in toolLogs.slice().reverse()" :key="i">
-              <div class="flex items-center gap-3 bg-hq-surface border border-hq-border/30 rounded-lg px-4 py-2.5 hover:bg-hq-surface/80 transition">
-                <div class="shrink-0 text-right" style="min-width:72px;">
-                  <div class="text-[10px] font-mono text-hq-muted/60 leading-tight" x-text="log.timeDate || log.time?.split(' ')[0] || ''"></div>
-                  <div class="text-[13px] font-mono font-semibold text-hq-muted leading-tight" x-text="log.timeClock || log.time?.split(' ')[1] || log.time || ''"></div>
+          <!-- ── 도구 로그 서브탭 (타임라인) ── -->
+          <div x-show="commsLogSubTab === 'tools'" class="relative pl-6">
+            <div class="absolute left-[11px] top-2 bottom-2 w-px bg-gradient-to-b from-hq-orange/30 via-hq-border/20 to-transparent"></div>
+            <div class="space-y-1">
+              <template x-for="(log, i) in toolLogs.slice().reverse()" :key="i">
+                <div class="relative group">
+                  <div class="absolute -left-[17px] top-3 w-2.5 h-2.5 rounded-full border-2 border-hq-bg bg-hq-orange ring-1 ring-hq-orange/30"></div>
+                  <div class="ml-2 bg-hq-panel/30 border border-hq-border/15 rounded-xl px-4 py-2.5 hover:bg-hq-panel/50 transition">
+                    <div class="flex items-center gap-3">
+                      <span class="text-[10px] font-mono text-hq-muted/50 shrink-0 w-12 text-right" x-text="log.timeClock || log.time?.split(' ')[1] || log.time || ''"></span>
+                      <span class="w-6 h-6 rounded-md flex items-center justify-center text-xs font-bold shrink-0 bg-hq-orange/20 text-hq-orange">🔧</span>
+                      <span class="text-xs font-medium shrink-0 w-20 truncate" :class="getAgentColor(log.agent_id) || 'text-hq-cyan/80'" x-text="getAgentName(log.agent_id)"></span>
+                      <span class="text-sm text-hq-text/80 flex-1 line-clamp-2" x-text="log.action"></span>
+                    </div>
+                  </div>
                 </div>
-                <span class="w-7 h-7 rounded-md flex items-center justify-center text-xs font-bold shrink-0 bg-hq-orange/20 text-hq-orange">🔧</span>
-                <span class="text-sm font-medium shrink-0 w-24 truncate" :class="getAgentColor(log.agent_id) || 'text-hq-cyan/80'" x-text="getAgentName(log.agent_id)"></span>
-                <span class="text-sm text-hq-text/90 flex-1" x-text="log.action"></span>
-              </div>
-            </template>
+              </template>
+            </div>
             <template x-if="toolLogs.length === 0">
-              <div class="text-center text-hq-muted/80 py-12">
+              <div class="text-center text-hq-muted/80 py-12 -ml-6">
                 <div class="text-sm mb-1">아직 도구 사용 로그가 없습니다</div>
                 <div class="text-[11px] text-hq-muted/50">에이전트가 API를 호출하면 실시간으로 표시됩니다</div>
               </div>
@@ -4224,54 +4244,69 @@
             </template>
 
             <!-- 로그 타임라인 -->
-            <div x-show="!trading.activityLog.loading && getFilteredCioLogs().length > 0" class="space-y-1">
-              <template x-for="log in getFilteredCioLogs()" :key="log.id">
-                <div class="glass border border-hq-border/50 rounded-lg px-3 py-2.5 hover:border-hq-accent/20 transition group">
-                  <div class="flex items-start gap-2">
-                    <!-- 아이콘 -->
-                    <span class="text-sm mt-0.5 shrink-0 w-5 text-center" x-text="getCioLogIcon(log)"></span>
+            <div x-show="!trading.activityLog.loading && getFilteredCioLogs().length > 0" class="relative pl-6">
+              <!-- 타임라인 세로선 -->
+              <div class="absolute left-[11px] top-2 bottom-2 w-px bg-gradient-to-b from-hq-cyan/30 via-hq-border/20 to-transparent"></div>
+              <template x-for="(log, i) in getFilteredCioLogs()" :key="log.id">
+                <div class="relative mb-2">
+                  <!-- 타임라인 도트 -->
+                  <div class="absolute left-[-21px] top-3 w-2.5 h-2.5 rounded-full border-2 border-hq-bg z-10"
+                       :class="{
+                         'bg-hq-yellow': log.type === 'delegation',
+                         'bg-hq-green': log.type === 'report',
+                         'bg-hq-cyan': log.type === 'activity',
+                         'bg-hq-orange': log.level === 'tool',
+                         'bg-hq-accent': !['delegation','report','activity'].includes(log.type) && log.level !== 'tool'
+                       }"></div>
+                  <div class="bg-hq-panel/40 border border-hq-border/15 rounded-xl px-4 py-3 hover:border-hq-accent/20 transition group">
+                    <div class="flex items-start gap-2">
+                      <!-- 아이콘 -->
+                      <span class="text-sm mt-0.5 shrink-0 w-5 text-center" x-text="getCioLogIcon(log)"></span>
 
-                    <!-- 본문 -->
-                    <div class="flex-1 min-w-0">
-                      <!-- 발신/수신 -->
-                      <div class="flex items-center gap-1.5 mb-0.5">
-                        <span class="text-xs font-bold shrink-0" :class="getCioLogColor(log)"
-                              x-text="getCioShortName(log.sender)"></span>
-                        <template x-if="log.receiver">
-                          <span class="flex items-center gap-1">
-                            <span class="text-[10px] text-hq-muted/40" x-text="log.type === 'report' ? '→' : '⇢'"></span>
-                            <span class="text-[11px] text-hq-muted/60 shrink-0"
-                                  x-text="getCioShortName(log.receiver)"></span>
-                          </span>
-                        </template>
-                        <span class="text-[10px] text-hq-muted/40 ml-auto shrink-0" x-text="formatLogTime(log.time)"></span>
-                      </div>
-
-                      <!-- 메시지 (2줄까지) -->
-                      <p class="text-xs text-hq-muted leading-relaxed line-clamp-2 group-hover:line-clamp-none transition-all"
-                         x-text="stripMarkdownPreview(log.message)"></p>
-
-                      <!-- 도구 사용 태그 -->
-                      <template x-if="log.tools && log.tools.length > 0">
-                        <div class="flex flex-wrap gap-1 mt-1.5">
-                          <template x-for="tool in log.tools" :key="tool">
-                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-hq-accent/10 border border-hq-accent/20 text-[11px] text-hq-accent font-mono">
-                              <span class="text-[10px]">🔧</span>
-                              <span x-text="tool"></span>
+                      <!-- 본문 -->
+                      <div class="flex-1 min-w-0">
+                        <!-- 발신/수신 -->
+                        <div class="flex items-center gap-1.5 mb-0.5">
+                          <span class="text-xs font-bold shrink-0" :class="getCioLogColor(log)"
+                                x-text="getCioShortName(log.sender)"></span>
+                          <template x-if="log.receiver">
+                            <span class="flex items-center gap-1">
+                              <span class="text-[10px] text-hq-muted/40" x-text="log.type === 'report' ? '→' : '⇢'"></span>
+                              <span class="text-[11px] text-hq-muted/60 shrink-0"
+                                    x-text="getCioShortName(log.receiver)"></span>
                             </span>
                           </template>
+                          <span class="text-[10px] text-hq-muted/40 ml-auto shrink-0" x-text="formatLogTime(log.time)"></span>
                         </div>
-                      </template>
-                    </div>
 
-                    <!-- 타입 뱃지 -->
-                    <span class="text-[10px] px-1.5 py-0.5 rounded-full shrink-0 mt-0.5"
-                          :class="{
-                            'bg-hq-yellow/10 text-hq-yellow': log.type === 'delegation',
-                            'bg-hq-green/10 text-hq-green': log.type === 'report',
-                            'bg-hq-accent/10 text-hq-accent': log.type === 'activity',
-                          }"
-                          x-text="log.type === 'delegation' ? '위임' : log.type === 'report' ? '보고' : '활동'"></span>
+                        <!-- 메시지 (접이식) -->
+                        <p class="text-xs text-hq-muted leading-relaxed cursor-pointer"
+                           :class="log._expanded ? '' : 'line-clamp-2'"
+                           @click="log._expanded = !log._expanded"
+                           x-text="stripMarkdownPreview(log.message)"></p>
+
+                        <!-- 도구 사용 태그 -->
+                        <template x-if="log.tools && log.tools.length > 0">
+                          <div class="flex flex-wrap gap-1 mt-1.5">
+                            <template x-for="tool in log.tools" :key="tool">
+                              <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-hq-accent/10 border border-hq-accent/20 text-[11px] text-hq-accent font-mono">
+                                <span class="text-[10px]">🔧</span>
+                                <span x-text="tool"></span>
+                              </span>
+                            </template>
+                          </div>
+                        </template>
+                      </div>
+
+                      <!-- 타입 뱃지 -->
+                      <span class="text-[10px] px-1.5 py-0.5 rounded-full shrink-0 mt-0.5"
+                            :class="{
+                              'bg-hq-yellow/10 text-hq-yellow': log.type === 'delegation',
+                              'bg-hq-green/10 text-hq-green': log.type === 'report',
+                              'bg-hq-accent/10 text-hq-accent': log.type === 'activity',
+                            }"
+                            x-text="log.type === 'delegation' ? '위임' : log.type === 'report' ? '보고' : '활동'"></span>
+                    </div>
                   </div>
                 </div>
               </template>
