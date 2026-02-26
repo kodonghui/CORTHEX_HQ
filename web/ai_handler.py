@@ -627,12 +627,11 @@ async def _call_anthropic(
     if tools:
         kwargs["tools"] = tools
 
-    # extended thinking 사용 시 스트리밍 필수 (Anthropic API 요구사항)
+    # Anthropic API: 장시간 호출(extended thinking, 대형 컨텍스트)에 스트리밍 필수
+    # 안전하게 모든 Anthropic 호출을 스트리밍으로 처리
     async def _do_create(kw):
-        if "thinking" in kw:
-            async with _anthropic_client.messages.stream(**kw) as stream:
-                return await stream.get_final_message()
-        return await _anthropic_client.messages.create(**kw)
+        async with _anthropic_client.messages.stream(**kw) as stream:
+            return await stream.get_final_message()
 
     try:
         resp = await asyncio.wait_for(_do_create(kwargs), timeout=ai_call_timeout)
@@ -643,7 +642,7 @@ async def _call_anthropic(
             logger.warning("extended thinking 미지원 — 폴백으로 재시도: %s", e)
             kwargs.pop("thinking", None)
             kwargs["temperature"] = 1.0
-            resp = await asyncio.wait_for(_anthropic_client.messages.create(**kwargs), timeout=ai_call_timeout)
+            resp = await asyncio.wait_for(_do_create(kwargs), timeout=ai_call_timeout)
         else:
             raise
 
