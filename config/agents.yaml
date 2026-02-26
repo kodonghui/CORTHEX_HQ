@@ -333,11 +333,6 @@ agents:
   - 포트폴리오 관리
   superior_id: chief_of_staff
   allowed_tools:
-  - kr_stock
-  - us_stock
-  - dart_api
-  - naver_news
-  - ecos_macro
   - dart_monitor
   - stock_screener
   - backtest_engine
