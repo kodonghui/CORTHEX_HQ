@@ -4773,17 +4773,17 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
           <span>사령관실</span>
         </div>
-        <!-- 통신로그 -->
-        <div class="mobile-bottom-nav-item" :class="viewMode === 'chat' && activeTab === 'activityLog' ? 'active' : ''"
-             @click="viewMode = 'chat'; switchTab('activityLog'); mobileMoreOpen = false">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
-          <span>통신로그</span>
-        </div>
         <!-- 전략실 -->
         <div class="mobile-bottom-nav-item" :class="viewMode === 'chat' && activeTab === 'trading' ? 'active' : ''"
              @click="viewMode = 'chat'; switchTab('trading'); mobileMoreOpen = false">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>
           <span>전략실</span>
+        </div>
+        <!-- 통신로그 -->
+        <div class="mobile-bottom-nav-item" :class="viewMode === 'chat' && activeTab === 'activityLog' ? 'active' : ''"
+             @click="viewMode = 'chat'; switchTab('activityLog'); mobileMoreOpen = false">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+          <span>통신로그</span>
         </div>
         <!-- 더보기 -->
         <div class="mobile-bottom-nav-item" :class="mobileMoreOpen ? 'active' : ''"
@@ -4800,11 +4800,11 @@
       <div class="mobile-more-sheet" :class="mobileMoreOpen ? 'open' : ''" x-cloak>
         <div class="mobile-more-sheet-handle"></div>
         <div class="mobile-more-sheet-grid">
-          <!-- 조직도 -->
-          <div class="mobile-more-sheet-item" :class="activeTab === 'archmap' ? 'active' : ''"
-               @click="viewMode = 'chat'; switchTab('archmap'); mobileMoreOpen = false">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
-            <span>조직도</span>
+          <!-- 대시보드 -->
+          <div class="mobile-more-sheet-item" :class="viewMode === 'dashboard' ? 'active' : ''"
+               @click="viewMode = 'dashboard'; mobileMoreOpen = false">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z"/></svg>
+            <span>대시보드</span>
           </div>
           <!-- 작전일지 -->
           <div class="mobile-more-sheet-item" :class="activeTab === 'history' ? 'active' : ''"
