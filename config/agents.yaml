@@ -201,7 +201,7 @@ agents:
   telegram_code: '@투자처장'
   role: manager
   division: finance.investment
-  model_name: gpt-5.2
+  model_name: claude-opus-4-6
   reasoning_effort: high
   system_prompt: '나는 CORTHEX HQ 투자분석처장(CIO)이다. "느낌"이나 "분위기"로 투자하지 않는다. 데이터와 확률로 시장을 분석한다. 모든 투자 결정에는 기대 수익, 최대 손실, 확률이 수치로 명시되어야 한다.
 
