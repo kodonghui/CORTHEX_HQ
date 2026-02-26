@@ -1252,7 +1252,7 @@
           <div class="max-w-4xl mx-auto relative">
             <!-- 슬래시 명령어 팝업 -->
             <div x-show="showSlashDropdown" x-transition
-                 class="absolute bottom-full mb-2 left-0 w-96 bg-[rgb(var(--hq-surface))] border border-hq-border rounded-xl overflow-hidden shadow-2xl z-[999]">
+                 class="absolute bottom-full mb-2 left-0 w-full max-w-96 bg-[rgb(var(--hq-surface))] border border-hq-border rounded-xl overflow-hidden shadow-2xl z-[999]">
               <div class="px-4 py-2 border-b border-hq-border/30">
                 <span class="text-xs text-hq-muted font-semibold tracking-wide">명령어</span>
               </div>
@@ -1324,27 +1324,27 @@
                 📌 직접 전달: <span x-text="targetAgentId"></span>에게 바로 전송
               </p>
             </div>
-            <div class="flex items-end gap-3">
+            <!-- 배치 진행 상태 배너 (모바일에서 상단 표시) -->
+            <div x-show="batchProgress.active" x-transition
+                 class="px-3 py-1.5 mb-1.5 rounded-lg bg-hq-yellow/10 border border-hq-yellow/30 text-xs flex items-center gap-2">
+              <span class="w-1.5 h-1.5 rounded-full bg-hq-yellow animate-pulse shrink-0"></span>
+              <span class="text-hq-yellow font-medium shrink-0" x-text="batchProgress.step"></span>
+              <span class="text-hq-muted truncate flex-1 min-w-0" x-text="batchProgress.message"></span>
+              <span class="font-mono text-hq-muted shrink-0" x-text="batchProgress.elapsed"></span>
+            </div>
+            <div class="flex items-end gap-2 sm:gap-3">
               <!-- Batch/실시간 세그먼트 토글 -->
               <div class="flex rounded-xl border border-hq-border/40 overflow-hidden shrink-0 self-stretch">
                 <button @click="useBatch = false"
-                        class="text-xs px-3 py-2 transition-all"
+                        class="text-xs px-2 sm:px-3 py-2 transition-all"
                         :class="!useBatch
                           ? 'bg-hq-accent/15 text-hq-accent'
-                          : 'text-hq-muted/60 hover:text-hq-muted'">⚡ 실시간</button>
+                          : 'text-hq-muted/60 hover:text-hq-muted'">⚡<span class="hidden sm:inline"> 실시간</span></button>
                 <button @click="useBatch = true"
-                        class="text-xs px-3 py-2 transition-all"
+                        class="text-xs px-2 sm:px-3 py-2 transition-all"
                         :class="useBatch
                           ? 'bg-hq-purple/15 text-hq-purple'
-                          : 'text-hq-muted/60 hover:text-hq-muted'">📦 Batch</button>
-              </div>
-              <!-- 배치 진행 상태 배너 -->
-              <div x-show="batchProgress.active" x-transition
-                   class="px-3 py-1.5 rounded-lg bg-hq-yellow/10 border border-hq-yellow/30 text-xs flex items-center gap-2 shrink-0">
-                <span class="w-1.5 h-1.5 rounded-full bg-hq-yellow animate-pulse shrink-0"></span>
-                <span class="text-hq-yellow font-medium" x-text="batchProgress.step"></span>
-                <span class="text-hq-muted truncate max-w-[200px]" x-text="batchProgress.message"></span>
-                <span class="font-mono text-hq-muted shrink-0" x-text="batchProgress.elapsed"></span>
+                          : 'text-hq-muted/60 hover:text-hq-muted'">📦<span class="hidden sm:inline"> Batch</span></button>
               </div>
               <div class="flex-1 relative">
                 <textarea x-model="inputText" x-ref="inputArea"
@@ -1989,7 +1989,7 @@
               <span class="text-sm font-bold text-hq-accent uppercase tracking-wider font-mono">COMMAND CENTER</span>
             </div>
             <div class="flex gap-3">
-              <div class="desk-card glass border border-hq-accent/30 w-[160px] cursor-pointer" @click="showCeoProfile = true">
+              <div class="desk-card glass border border-hq-accent/30 w-full sm:w-[160px] cursor-pointer" @click="showCeoProfile = true">
                 <div class="flex items-center justify-between mb-2">
                   <div class="agent-avatar bg-gradient-to-br from-hq-accent to-hq-purple text-white text-[10px]">CEO</div>
                   <div class="status-light status-light-working"></div>
@@ -2007,7 +2007,7 @@
               <span class="text-xs font-bold text-hq-purple uppercase tracking-wider font-mono">CORTHEX STAFF — 팀장 6명</span>
               <span class="text-[10px] text-hq-muted ml-auto">v4.0</span>
             </div>
-            <div class="grid grid-cols-3 gap-3">
+            <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
               <template x-for="id in ['chief_of_staff','cio_manager','cso_manager','clo_manager','cmo_manager','cpo_manager']" :key="id">
                 <div class="desk-card glass border border-hq-border hover:border-hq-purple/40 cursor-pointer p-3" @click="openAgentConfig(id)">
                   <div class="flex items-center justify-between mb-2">
@@ -2032,7 +2032,7 @@
             </div>
             <div class="flex gap-3 items-start">
               <!-- ARGOS 카드 -->
-              <div class="desk-card glass border border-zinc-500/40 hover:border-zinc-400/60 w-[160px]">
+              <div class="desk-card glass border border-zinc-500/40 hover:border-zinc-400/60 w-full sm:w-[160px]">
                 <div class="flex items-center justify-between mb-2">
                   <div class="agent-avatar bg-zinc-700 text-zinc-300 text-[13px]">⚙</div>
                   <div class="status-light status-light-working"></div>
@@ -3277,10 +3277,10 @@
             </div>
           </div>
 
-          <!-- 2단 레이아웃 -->
-          <div class="flex gap-4 flex-1 min-h-0">
-            <!-- 왼쪽: 카드 목록 (1/3) -->
-            <div class="w-1/3 min-w-[280px] overflow-y-auto scrollbar-thin pr-1 flex flex-col">
+          <!-- 2단 레이아웃 (모바일: 1단) -->
+          <div class="flex gap-4 flex-1 min-h-0 archive-layout">
+            <!-- 왼쪽: 카드 목록 (1/3, 모바일: 전체) -->
+            <div class="w-1/3 sm:min-w-[280px] overflow-y-auto scrollbar-thin pr-1 flex flex-col">
               <!-- 부서 필터 (sticky) -->
               <div class="flex flex-wrap gap-1.5 mb-2 sticky top-0 z-10 pb-1" style="background: rgb(var(--hq-bg));">
                 <button @click="archive.filterDivision = 'all'; loadArchive()"
@@ -4933,7 +4933,7 @@
 
             <div x-show="!planLoading && plan && plan.signals && plan.signals.length > 0">
               <!-- 요약 스탯 -->
-              <div class="grid grid-cols-4 gap-2 mb-5">
+              <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-5">
                 <div class="glass border border-hq-green/25 rounded-xl p-3 text-center">
                   <div class="text-2xl font-black text-hq-green" x-text="plan.signals.filter(s=>s.action==='buy').length"></div>
                   <div class="text-[10px] text-hq-muted mt-0.5">매수</div>
@@ -6479,23 +6479,23 @@
           <button @click="showAgentConfig = false" class="text-hq-muted hover:text-hq-text text-xl">&times;</button>
         </div>
 
-        <!-- Tabs -->
-        <div class="flex gap-1 mb-5 bg-hq-bg rounded-xl p-1">
+        <!-- Tabs (모바일: 가로 스크롤) -->
+        <div class="flex gap-1 mb-5 bg-hq-bg rounded-xl p-1 overflow-x-auto scrollbar-thin">
           <button @click="agentConfigTab = 'info'"
                   :class="agentConfigTab === 'info' ? 'bg-hq-accent/20 text-hq-accent' : 'text-hq-muted hover:text-hq-text'"
-                  class="flex-1 px-3 py-2 text-xs font-semibold rounded-lg transition-colors">기본 정보</button>
+                  class="flex-1 px-2 sm:px-3 py-2 text-[11px] sm:text-xs font-semibold rounded-lg transition-colors whitespace-nowrap shrink-0">기본 정보</button>
           <button @click="agentConfigTab = 'model'"
                   :class="agentConfigTab === 'model' ? 'bg-hq-accent/20 text-hq-accent' : 'text-hq-muted hover:text-hq-text'"
-                  class="flex-1 px-3 py-2 text-xs font-semibold rounded-lg transition-colors">모델 설정</button>
+                  class="flex-1 px-2 sm:px-3 py-2 text-[11px] sm:text-xs font-semibold rounded-lg transition-colors whitespace-nowrap shrink-0">모델</button>
           <button @click="agentConfigTab = 'reasoning'"
                   :class="agentConfigTab === 'reasoning' ? 'bg-hq-accent/20 text-hq-accent' : 'text-hq-muted hover:text-hq-text'"
-                  class="flex-1 px-3 py-2 text-xs font-semibold rounded-lg transition-colors">추론 정도</button>
+                  class="flex-1 px-2 sm:px-3 py-2 text-[11px] sm:text-xs font-semibold rounded-lg transition-colors whitespace-nowrap shrink-0">추론</button>
           <button @click="agentConfigTab = 'soul'"
                   :class="agentConfigTab === 'soul' ? 'bg-hq-accent/20 text-hq-accent' : 'text-hq-muted hover:text-hq-text'"
-                  class="flex-1 px-3 py-2 text-xs font-semibold rounded-lg transition-colors">소울</button>
+                  class="flex-1 px-2 sm:px-3 py-2 text-[11px] sm:text-xs font-semibold rounded-lg transition-colors whitespace-nowrap shrink-0">소울</button>
           <button @click="agentConfigTab = 'skills'"
                   :class="agentConfigTab === 'skills' ? 'bg-hq-accent/20 text-hq-accent' : 'text-hq-muted hover:text-hq-text'"
-                  class="flex-1 px-3 py-2 text-xs font-semibold rounded-lg transition-colors">스킬</button>
+                  class="flex-1 px-2 sm:px-3 py-2 text-[11px] sm:text-xs font-semibold rounded-lg transition-colors whitespace-nowrap shrink-0">스킬</button>
         </div>
 
         <!-- Tab: Info -->
