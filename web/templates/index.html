@@ -376,15 +376,56 @@
               <span class="text-[10px] text-hq-muted/85 transition-transform duration-200" :class="expanded.tools ? 'rotate-90' : ''">&#9654;</span>
             </div>
           </button>
-          <div x-show="expanded.tools" x-collapse class="ml-3 mt-1 pl-8 border-l border-hq-red/20 space-y-0.5 max-h-48 overflow-y-auto scrollbar-thin">
-            <template x-for="t in (toolsList || [])" :key="t.name">
+          <div x-show="expanded.tools" x-collapse class="ml-3 mt-1 pl-8 border-l border-hq-red/20 space-y-0.5 max-h-60 overflow-y-auto scrollbar-thin">
+            <template x-if="!toolsList || toolsList.length === 0">
+              <div class="text-[10px] text-hq-muted/80 px-2 py-2">서버 연결 후 표시됩니다</div>
+            </template>
+            <!-- API 연동 -->
+            <div class="text-[9px] font-bold text-hq-green/60 uppercase mt-1 mb-0.5 px-2" x-show="(toolsList||[]).filter(t=>t.category==='api').length">
+              API 연동 <span class="font-mono" x-text="(toolsList||[]).filter(t=>t.category==='api').length"></span>
+            </div>
+            <template x-for="t in (toolsList||[]).filter(t=>t.category==='api')" :key="t.name">
+              <div @click="showToolDetail(t)" class="flex items-center gap-2 px-2 py-1 rounded-md hover:bg-hq-green/10 transition-colors cursor-pointer">
+                <span class="w-1.5 h-1.5 rounded-full bg-hq-green/40"></span>
+                <span class="text-xs text-hq-text/90" x-text="t.name_ko || t.name"></span>
+              </div>
+            </template>
+            <!-- LLM 분석 -->
+            <div class="text-[9px] font-bold text-hq-cyan/60 uppercase mt-2 mb-0.5 px-2" x-show="(toolsList||[]).filter(t=>t.category==='llm').length">
+              LLM 분석 <span class="font-mono" x-text="(toolsList||[]).filter(t=>t.category==='llm').length"></span>
+            </div>
+            <template x-for="t in (toolsList||[]).filter(t=>t.category==='llm')" :key="t.name">
+              <div @click="showToolDetail(t)" class="flex items-center gap-2 px-2 py-1 rounded-md hover:bg-hq-cyan/10 transition-colors cursor-pointer">
+                <span class="w-1.5 h-1.5 rounded-full bg-hq-cyan/40"></span>
+                <span class="text-xs text-hq-text/90" x-text="t.name_ko || t.name"></span>
+              </div>
+            </template>
+            <!-- 로컬 처리 -->
+            <div class="text-[9px] font-bold text-hq-accent/60 uppercase mt-2 mb-0.5 px-2" x-show="(toolsList||[]).filter(t=>t.category==='local').length">
+              로컬 처리 <span class="font-mono" x-text="(toolsList||[]).filter(t=>t.category==='local').length"></span>
+            </div>
+            <template x-for="t in (toolsList||[]).filter(t=>t.category==='local')" :key="t.name">
+              <div @click="showToolDetail(t)" class="flex items-center gap-2 px-2 py-1 rounded-md hover:bg-hq-accent/10 transition-colors cursor-pointer">
+                <span class="w-1.5 h-1.5 rounded-full bg-hq-accent/40"></span>
+                <span class="text-xs text-hq-text/90" x-text="t.name_ko || t.name"></span>
+              </div>
+            </template>
+            <!-- 개발중 (stub) -->
+            <div class="text-[9px] font-bold text-hq-muted/40 uppercase mt-2 mb-0.5 px-2" x-show="(toolsList||[]).filter(t=>t.category==='stub').length">
+              개발중 <span class="font-mono" x-text="(toolsList||[]).filter(t=>t.category==='stub').length"></span>
+            </div>
+            <template x-for="t in (toolsList||[]).filter(t=>t.category==='stub')" :key="t.name">
+              <div @click="showToolDetail(t)" class="flex items-center gap-2 px-2 py-1 rounded-md hover:bg-hq-muted/10 transition-colors cursor-pointer">
+                <span class="w-1.5 h-1.5 rounded-full bg-hq-muted/30"></span>
+                <span class="text-xs text-hq-muted/60" x-text="t.name_ko || t.name"></span>
+              </div>
+            </template>
+            <!-- 미분류 (category 없는 도구) -->
+            <template x-for="t in (toolsList||[]).filter(t=>!t.category)" :key="t.name">
               <div @click="showToolDetail(t)" class="flex items-center gap-2 px-2 py-1 rounded-md hover:bg-hq-red/10 transition-colors cursor-pointer">
                 <span class="w-1.5 h-1.5 rounded-full bg-hq-red/40"></span>
                 <span class="text-xs text-hq-text/90" x-text="t.name_ko || t.name"></span>
               </div>
-            </template>
-            <template x-if="!toolsList || toolsList.length === 0">
-              <div class="text-[10px] text-hq-muted/80 px-2 py-2">서버 연결 후 표시됩니다</div>
             </template>
           </div>
         </div>
