@@ -209,12 +209,14 @@ gh run list --workflow=deploy.yml --limit=1
 
 > 상세 레퍼런스 목록: `docs/ux-references.md` (누적 업데이트)
 
-## 🔴 알고리즘/다이어그램 설명 — 표준 작업 방식!
-- **"알고리즘 보여줘" / "다이어그램 그려줘"** → 반드시 2벌 생성:
-  1. **개발자용**: 코드 상세 알고리즘 (`docs/architecture/` 폴더에 `.md`)
-  2. **대표님용**: mermaid 플로우차트 다이어그램 (비유 + 비개발자 언어)
-- 대표님에게 **"VSCode에서 `Ctrl+Shift+V` 누르시면 그림으로 보입니다"** 안내 필수
-- **모든 대형 작업은 이 방식**: 알고리즘 설계 → 플로우차트 → 대표님 승인 → 구현
+## 🚨🚨🚨 다이어그램 — HTML 뷰어 필수! mermaid .md만 주면 미완성! 🚨🚨🚨
+- **다이어그램/플로우차트 생성 시 반드시 3벌**:
+  1. **`.md` 파일** — mermaid 코드 포함 (`docs/architecture/이름.md`)
+  2. **`.html` 파일** — 브라우저에서 바로 열리는 뷰어 (`docs/architecture/이름.html`) ← **필수!**
+  3. **대표님에게**: "브라우저(크롬)에서 html 파일 열면 Ctrl+스크롤로 확대됩니다"
+- **html 없으면 미완성**: .md만 주면 VSCode 프리뷰에서 다이어그램이 너무 작아 읽을 수 없음
+- **html 규칙**: mermaid.js CDN + dark 테마 + `useMaxWidth: false` + 섹션별 카드 레이아웃
+- 참고 예시: `docs/architecture/tool-server-flow.html`
 - 아키텍처 문서: `docs/architecture/` | 설계 결정 참조: `docs/ceo-ideas.md`
 
 ## 워크플로우 예측 (대표님 발명)
