@@ -1231,6 +1231,79 @@ async def set_portfolio_initial(request: Request):
         return {"success": False, "error": str(e)}
 
 
+# ── D-4: 입출금 기록 (토스형) ──
+
+@router.get("/api/trading/portfolio/transactions")
+async def get_portfolio_transactions():
+    """입출금/환전 기록 조회"""
+    try:
+        import json
+        raw = load_setting("portfolio_transactions", "[]")
+        txns = json.loads(raw) if isinstance(raw, str) else raw
+        return {"success": True, "transactions": txns}
+    except Exception as e:
+        return {"success": True, "transactions": [], "error": str(e)}
+
+
+@router.post("/api/trading/portfolio/transactions")
+async def add_portfolio_transaction(request: Request):
+    """입출금/환전 기록 추가.
+
+    body: {type: 'deposit'|'withdraw'|'exchange', amount: number, currency: 'KRW'|'USD', memo: str}
+    """
+    try:
+        import json
+        body = await request.json()
+        txn_type = body.get("type", "deposit")  # deposit, withdraw, exchange
+        amount = float(body.get("amount", 0))
+        currency = body.get("currency", "KRW")
+        memo = body.get("memo", "")
+
+        if amount <= 0:
+            return {"success": False, "error": "금액은 0보다 커야 합니다"}
+
+        raw = load_setting("portfolio_transactions", "[]")
+        txns = json.loads(raw) if isinstance(raw, str) else raw
+
+        from datetime import datetime, timezone, timedelta
+        KST = timezone(timedelta(hours=9))
+        txn = {
+            "id": int(datetime.now(KST).timestamp() * 1000),
+            "type": txn_type,
+            "amount": amount,
+            "currency": currency,
+            "memo": memo,
+            "date": datetime.now(KST).strftime("%Y-%m-%d %H:%M"),
+        }
+        txns.append(txn)
+        save_setting("portfolio_transactions", json.dumps(txns, ensure_ascii=False))
+
+        # 총 입금액 자동 재계산
+        total_deposit = sum(t["amount"] for t in txns if t["type"] == "deposit" and t["currency"] == "KRW")
+        total_withdraw = sum(t["amount"] for t in txns if t["type"] == "withdraw" and t["currency"] == "KRW")
+        save_setting("portfolio_total_deposit", total_deposit - total_withdraw)
+
+        from web.handlers.trading_handler import save_activity_log
+        save_activity_log("system", f"💰 {txn_type}: {amount:,.0f} {currency} ({memo})", "info")
+        return {"success": True, "transaction": txn}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+@router.delete("/api/trading/portfolio/transactions/{txn_id}")
+async def delete_portfolio_transaction(txn_id: int):
+    """입출금 기록 삭제"""
+    try:
+        import json
+        raw = load_setting("portfolio_transactions", "[]")
+        txns = json.loads(raw) if isinstance(raw, str) else raw
+        txns = [t for t in txns if t.get("id") != txn_id]
+        save_setting("portfolio_transactions", json.dumps(txns, ensure_ascii=False))
+        return {"success": True}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
 @router.get("/api/trading/mock/holdings")
 async def get_mock_trading_holdings():
     """모의투자 보유종목 조회"""

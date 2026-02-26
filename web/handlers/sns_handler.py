@@ -33,12 +33,29 @@ _SNS_ENV_MAP = {
 
 @router.get("/api/sns/status")
 async def get_sns_status():
-    """SNS 플랫폼 연결 상태 — 환경변수에 API 키가 있으면 connected: True."""
+    """SNS 플랫폼 연결 상태 — 환경변수 + OAuth 토큰 만료 정보."""
     result = {}
     for p in _SNS_PLATFORMS:
         env_key = _SNS_ENV_MAP.get(p, "")
         has_key = bool(os.getenv(env_key, ""))
-        result[p] = {"connected": has_key, "username": os.getenv(f"{p.upper()}_USERNAME", "")}
+        info = {
+            "connected": has_key,
+            "username": os.getenv(f"{p.upper()}_USERNAME", ""),
+            "env_key": env_key,  # D-3: 어떤 환경변수가 필요한지 표시
+        }
+        # D-3: OAuth 토큰 만료 시간 확인
+        try:
+            from oauth_manager import OAuthManager
+            oauth = OAuthManager()
+            token = oauth.get_token(p)
+            if token:
+                info["token_valid"] = not token.is_expired
+                info["token_expires_at"] = token.expires_at if hasattr(token, "expires_at") else None
+            else:
+                info["token_valid"] = None  # 토큰 없음
+        except Exception:
+            info["token_valid"] = None
+        result[p] = info
     return result
 
 
@@ -48,7 +65,15 @@ async def get_sns_oauth_status():
     result = {}
     for p in _SNS_PLATFORMS:
         env_key = _SNS_ENV_MAP.get(p, "")
-        result[p] = {"authenticated": bool(os.getenv(env_key, ""))}
+        has_key = bool(os.getenv(env_key, ""))
+        info = {"authenticated": has_key, "env_key": env_key}
+        try:
+            from oauth_manager import OAuthManager
+            oauth = OAuthManager()
+            info["has_token"] = oauth.has_valid_token(p)
+        except Exception:
+            info["has_token"] = False
+        result[p] = info
     return result
 
 

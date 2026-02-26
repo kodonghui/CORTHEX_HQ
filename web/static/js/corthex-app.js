@@ -43,6 +43,11 @@ function corthexApp() {
     showScrollBtn: false,
     newMsgCount: 0,
     systemStatus: 'idle',
+    commandQueue: [],  // D-2: 명령 큐 — 작업 중 추가 명령 대기열
+    // E-1: 피드백 모드
+    feedbackMode: false,
+    feedbackComment: '',
+    feedbackClickPos: null,
     wsConnected: false,
     totalCost: 0,
     totalTokens: 0,
@@ -922,6 +927,8 @@ function corthexApp() {
           // Refresh dashboard/history/feedback if currently viewing
           if (this.activeTab === 'home') { this.loadDashboard(); this.loadFeedbackStats(); }
           if (this.activeTab === 'history') this.loadTaskHistory();
+          // D-2: 큐에 대기 중인 명령 처리
+          this._processCommandQueue();
           break;
 
         case 'error':
@@ -932,7 +939,11 @@ function corthexApp() {
           this.currentTaskId = null;
           this.errorAlert = { visible: true, message: msg.data.message || '오류가 발생했습니다', severity: 'error' };
           this.showToast(msg.data.message || '오류가 발생했습니다.', 'error');
-          setTimeout(() => { this.systemStatus = 'idle'; }, 3000);
+          setTimeout(() => {
+            this.systemStatus = 'idle';
+            // D-2: 에러 후에도 큐 처리
+            this._processCommandQueue();
+          }, 3000);
           setTimeout(() => { this.errorAlert.visible = false; }, 10000);
           break;
 
@@ -1005,7 +1016,22 @@ function corthexApp() {
     // ── Input Experience ──
     async sendMessage() {
       const text = this.inputText.trim();
-      if (!text || this.systemStatus === 'working') return;
+      if (!text) return;
+
+      // D-2: 작업 중이면 큐에 추가 (비블로킹)
+      if (this.systemStatus === 'working') {
+        this.commandQueue.push({
+          text,
+          targetAgentId: this.targetAgentId || null,
+          timestamp: new Date().toISOString(),
+        });
+        this.messages.push({ type: 'queued', text, position: this.commandQueue.length, timestamp: new Date().toISOString() });
+        this.inputText = '';
+        if (this.$refs.inputArea) this.$refs.inputArea.style.height = 'auto';
+        this.showToast(`명령 대기열에 추가됨 (${this.commandQueue.length}번째)`, 'info');
+        this.$nextTick(() => this.scrollToBottom());
+        return;
+      }
 
       this.commandHistory.push(text);
       if (this.commandHistory.length > 50) this.commandHistory.shift();
@@ -1068,6 +1094,69 @@ function corthexApp() {
 
       this.$nextTick(() => this.scrollToBottom());
       setTimeout(() => this.scrollToBottom(), 150);
+    },
+
+    // D-2: 명령 큐에서 다음 명령 자동 실행
+    _processCommandQueue() {
+      if (this.commandQueue.length === 0 || this.systemStatus === 'working') return;
+      const next = this.commandQueue.shift();
+      // 대기 중이던 메시지를 user 타입으로 전환
+      const queuedMsg = this.messages.find(m => m.type === 'queued' && m.text === next.text);
+      if (queuedMsg) {
+        queuedMsg.type = 'user';
+        delete queuedMsg.position;
+      }
+      this.showToast(`대기열 명령 실행 중... (남은 ${this.commandQueue.length}건)`, 'info');
+      // 큐에서 꺼낸 명령을 실제 전송
+      this.activeAgents = {};
+      this.agentToolCallCount = {};
+      if (next.targetAgentId) this.targetAgentId = next.targetAgentId;
+      if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+        this.ws.send(JSON.stringify({
+          type: 'command',
+          text: next.text,
+          batch: this.useBatch,
+          target_agent_id: next.targetAgentId,
+          conversation_id: this.currentConversationId,
+        }));
+      }
+    },
+
+    // D-2: 큐에서 명령 제거
+    removeFromQueue(index) {
+      const removed = this.commandQueue.splice(index, 1);
+      if (removed.length) {
+        // 메시지에서도 제거
+        const idx = this.messages.findIndex(m => m.type === 'queued' && m.text === removed[0].text);
+        if (idx !== -1) this.messages.splice(idx, 1);
+        this.showToast('대기열에서 제거됨', 'info');
+      }
+    },
+
+    // E-1: 피드백 모드 — 화면 클릭 → 좌표+탭+코멘트 저장
+    handleFeedbackClick(e) {
+      if (!this.feedbackMode) return;
+      e.preventDefault();
+      e.stopPropagation();
+      this.feedbackClickPos = { x: e.clientX, y: e.clientY };
+      // 코멘트 입력 프롬프트
+      const comment = prompt('이 위치에 대한 피드백을 입력하세요:');
+      if (comment !== null && comment.trim()) {
+        fetch('/api/feedback/ui', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            x: e.clientX, y: e.clientY,
+            tab: this.activeTab,
+            viewMode: this.viewMode,
+            comment: comment.trim(),
+            url: window.location.href,
+          }),
+        }).then(r => r.json()).then(d => {
+          if (d.success) this.showToast(`피드백 저장됨 (총 ${d.total}건)`, 'success');
+        });
+      }
+      this.feedbackClickPos = null;
     },
 
     sendPreset(text) {
@@ -4445,6 +4534,29 @@ function corthexApp() {
     getArchiveAuthor(agentId) {
       if (!agentId) return '알 수 없음';
       return this.agentNames[agentId] || agentId;
+    },
+
+    // 기밀문서: 파일명 → 깨끗한 제목 (에이전트 접두사, 타임스탬프 제거)
+    cleanArchiveTitle(filename) {
+      if (!filename) return '';
+      let t = filename;
+      t = t.replace(/\.md$/, '');
+      t = t.replace(/^(chief_of_staff|cio_manager|cso_manager|clo_manager|cmo_manager|cpo_manager|cto_manager|argos)_/i, '');
+      t = t.replace(/^\d{4}-\d{2}-\d{2}[-_]?/, '');
+      t = t.replace(/_\d{8}_\d{6}$/, '');
+      t = t.replace(/_\d{8}T\d{6}$/, '');
+      t = t.replace(/^[_\s]+|[_\s]+$/g, '');
+      return t || filename;
+    },
+
+    // 기밀문서: created_at → "2026.02.26" 형태
+    formatArchiveDateFull(dateStr) {
+      if (!dateStr) return '';
+      try {
+        const d = new Date(dateStr);
+        if (isNaN(d.getTime())) return dateStr;
+        return `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}`;
+      } catch { return dateStr; }
     },
 
     // 기밀문서 카드용: created_at → "2/16 오후 4:36" 형태
