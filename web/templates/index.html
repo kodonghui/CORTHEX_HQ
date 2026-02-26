@@ -1309,7 +1309,7 @@
           <div class="max-w-4xl mx-auto relative">
             <!-- 슬래시 명령어 팝업 -->
             <div x-show="showSlashDropdown" x-transition
-                 class="absolute bottom-full mb-2 left-0 w-full max-w-96 bg-[rgb(var(--hq-surface))] border border-hq-border rounded-xl overflow-hidden shadow-2xl z-[999]">
+                 class="absolute bottom-full mb-2 left-0 w-full max-w-[calc(100%-1rem)] sm:max-w-96 bg-[rgb(var(--hq-surface))] border border-hq-border rounded-xl overflow-hidden shadow-2xl z-[999]">
               <div class="px-4 py-2 border-b border-hq-border/30">
                 <span class="text-xs text-hq-muted font-semibold tracking-wide">명령어</span>
               </div>
@@ -1330,7 +1330,7 @@
             </div>
             <!-- @mention dropdown -->
             <div x-show="showMentionDropdown" x-transition
-                 class="absolute bottom-full mb-2 left-0 w-72 rounded-xl overflow-hidden shadow-2xl z-50"
+                 class="absolute bottom-full mb-2 left-0 w-full max-w-72 rounded-xl overflow-hidden shadow-2xl z-50"
                  :style="darkMode
                    ? 'background:#0d1117; border:1px solid #374158; box-shadow:0 8px 32px rgba(0,0,0,0.6);'
                    : 'background:#ffffff; border:1px solid #d1d5db; box-shadow:0 8px 32px rgba(0,0,0,0.12);'">
@@ -2341,7 +2341,7 @@
                 <h3 class="text-sm font-bold text-hq-text mb-4 flex items-center gap-2">
                   <span class="text-hq-green">&#10003;</span> 품질 검수
                 </h3>
-                <div class="grid grid-cols-4 gap-3">
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
                   <div class="text-center">
                     <div class="text-2xl font-bold" :class="(quality.pass_rate || 0) >= 80 ? 'text-hq-green' : 'text-hq-yellow'" x-text="(quality.pass_rate || 0).toFixed(0) + '%'"></div>
                     <div class="text-[10px] text-hq-muted">합격률</div>
@@ -2376,7 +2376,7 @@
                 </div>
 
                 <!-- 배포 상태 카드 (정렬 통일) -->
-                <div class="grid grid-cols-3 gap-3 mb-4">
+                <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-4">
                   <div class="bg-hq-panel rounded-lg p-3 min-h-[76px] flex flex-col items-center justify-center">
                     <div class="text-[10px] text-hq-muted mb-1.5 flex items-center gap-1">
                       <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 2h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 8.172V3L8 2z"/></svg>
@@ -3580,7 +3580,7 @@
               SNS 플랫폼을 연결하려면 각 플랫폼의 API 키가 필요합니다. GitHub Secrets에 해당 키를 등록하면 배포 시 서버 환경변수에 자동 반영됩니다.
             </div>
             <!-- D-3: 연결 요약 -->
-            <div class="flex gap-3 mb-4">
+            <div class="flex flex-col sm:flex-row gap-3 mb-4">
               <div class="bg-hq-green/10 border border-hq-green/20 rounded-lg px-3 py-2 text-center flex-1">
                 <div class="text-lg font-bold text-hq-green" x-text="Object.values(sns.status || {}).filter(s => s.connected).length"></div>
                 <div class="text-[10px] text-hq-green/70">연결됨</div>
@@ -4355,7 +4355,7 @@
 
             <!-- 통계 요약 -->
             <div x-show="!trading.activityLog.loading && trading.activityLog.logs.length > 0" class="mt-4 glass border border-hq-border rounded-xl p-3">
-              <div class="grid grid-cols-5 gap-2 text-center">
+              <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 text-center">
                 <div>
                   <p class="text-lg font-bold text-hq-text" x-text="trading.activityLog.logs.length"></p>
                   <p class="text-[9px] text-hq-muted">전체</p>
@@ -5184,7 +5184,7 @@
                x-init="load()">
 
             <!-- 성과 요약 카드 (1행: 총예측/검증/전체 승률 / 2행: 최근20/매수/매도 승률) -->
-            <div class="grid grid-cols-3 gap-3 mb-4">
+            <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-4">
               <div class="glass border border-hq-border rounded-xl p-4 text-center">
                 <p class="text-[10px] text-hq-muted mb-1">전체 예측</p>
                 <p class="text-2xl font-bold text-hq-text" x-text="perfData ? (perfData.total || 0) : '-'"></p>
@@ -5198,7 +5198,7 @@
                 <p class="text-2xl font-bold text-hq-green" x-text="perfData && perfData.overall_accuracy !== null ? perfData.overall_accuracy + '%' : '-'"></p>
               </div>
             </div>
-            <div class="grid grid-cols-3 gap-3 mb-6">
+            <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-6">
               <div class="glass border border-hq-cyan/30 rounded-xl p-4 text-center">
                 <p class="text-[10px] text-hq-muted mb-1">최근 20건</p>
                 <p class="text-2xl font-bold text-hq-cyan" x-text="perfData && perfData.recent_20_accuracy !== null ? perfData.recent_20_accuracy + '%' : '-'"></p>
@@ -5789,7 +5789,7 @@
           </div>
         </div>
         <!-- 가격 요약 -->
-        <div class="grid grid-cols-4 gap-2 mt-3">
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-3">
           <div class="bg-hq-surface rounded-lg p-2.5 text-center">
             <div class="text-[9px] text-hq-muted">시작가</div>
             <div class="text-xs font-bold text-hq-text font-mono" x-text="trading.chartData.length > 0 ? trading.chartData[0].close.toLocaleString() : '-'"></div>
@@ -5887,7 +5887,7 @@
       <!-- 현재 설정값 (읽기 전용) -->
       <div class="mb-4">
         <p class="text-[10px] font-bold text-hq-muted mb-2">현재 설정 (금융분석팀장 자율 관리)</p>
-        <div class="grid grid-cols-3 gap-2">
+        <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
           <div class="bg-hq-bg rounded-lg p-2.5 text-center border border-hq-border/50">
             <div class="text-[9px] text-hq-muted">종목당 최대</div>
             <div class="text-sm font-bold text-hq-text font-mono" x-text="(trading.settings.max_position_pct || 20) + '%'"></div>
@@ -7320,7 +7320,7 @@
       <div class="flex-1 flex overflow-hidden">
 
         <!-- ▌좌측: 쟁점 트리 ▌ -->
-        <div class="w-60 shrink-0 border-r border-hq-border overflow-y-auto bg-hq-bg/50">
+        <div class="hidden sm:block w-60 shrink-0 border-r border-hq-border overflow-y-auto bg-hq-bg/50">
           <div class="p-3">
             <h3 class="text-[10px] font-semibold text-hq-muted/50 uppercase tracking-widest mb-3">쟁점 트리</h3>
             <div class="space-y-0.5">
@@ -7396,7 +7396,7 @@
         </div>
 
         <!-- ▌우측: 논문 DIFF / 대화록 ▌ -->
-        <div class="w-80 shrink-0 border-l border-hq-border flex flex-col overflow-hidden">
+        <div class="hidden md:flex w-80 shrink-0 border-l border-hq-border flex-col overflow-hidden">
           <!-- 탭 바 -->
           <div class="shrink-0 flex border-b border-hq-border">
             <button @click="agora.rightTab = 'diff'"
