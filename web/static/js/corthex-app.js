@@ -44,10 +44,13 @@ function corthexApp() {
     newMsgCount: 0,
     systemStatus: 'idle',
     commandQueue: [],  // D-2: 명령 큐 — 작업 중 추가 명령 대기열
-    // E-1: 피드백 모드
+    // E-1: 피드백 모드 (드래그 사각형)
     feedbackMode: false,
     feedbackComment: '',
     feedbackClickPos: null,
+    feedbackDragging: false,
+    feedbackDragOrigin: null,
+    feedbackRect: { x: 0, y: 0, w: 0, h: 0 },
     wsConnected: false,
     totalCost: 0,
     totalTokens: 0,
@@ -1145,30 +1148,48 @@ function corthexApp() {
       }
     },
 
-    // E-1: 피드백 모드 — 화면 클릭 → 좌표+탭+코멘트 저장
-    handleFeedbackClick(e) {
+    // E-1: 피드백 모드 — 드래그 사각형 → 영역+탭+코멘트 저장
+    feedbackDragStart(e) {
       if (!this.feedbackMode) return;
       e.preventDefault();
-      e.stopPropagation();
-      this.feedbackClickPos = { x: e.clientX, y: e.clientY };
-      // 코멘트 입력 프롬프트
-      const comment = prompt('이 위치에 대한 피드백을 입력하세요:');
+      this.feedbackDragging = true;
+      this.feedbackDragOrigin = { x: e.clientX, y: e.clientY };
+      this.feedbackRect = { x: e.clientX, y: e.clientY, w: 0, h: 0 };
+    },
+    feedbackDragMove(e) {
+      if (!this.feedbackDragging || !this.feedbackDragOrigin) return;
+      const ox = this.feedbackDragOrigin.x, oy = this.feedbackDragOrigin.y;
+      this.feedbackRect = {
+        x: Math.min(ox, e.clientX),
+        y: Math.min(oy, e.clientY),
+        w: Math.abs(e.clientX - ox),
+        h: Math.abs(e.clientY - oy),
+      };
+    },
+    feedbackDragEnd(e) {
+      if (!this.feedbackDragging) return;
+      this.feedbackDragging = false;
+      const r = this.feedbackRect;
+      // 너무 작으면 (5px 미만) 무시
+      if (r.w < 5 && r.h < 5) { this.feedbackRect = { x:0,y:0,w:0,h:0 }; return; }
+      const comment = prompt('선택한 영역에 대한 피드백을 입력하세요:');
       if (comment !== null && comment.trim()) {
         fetch('/api/feedback/ui', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            x: e.clientX, y: e.clientY,
+            x: r.x, y: r.y, w: r.w, h: r.h,
             tab: this.activeTab,
             viewMode: this.viewMode,
             comment: comment.trim(),
             url: window.location.href,
+            screen: { w: window.innerWidth, h: window.innerHeight },
           }),
-        }).then(r => r.json()).then(d => {
+        }).then(res => res.json()).then(d => {
           if (d.success) this.showToast(`피드백 저장됨 (총 ${d.total}건)`, 'success');
         });
       }
-      this.feedbackClickPos = null;
+      this.feedbackRect = { x:0,y:0,w:0,h:0 };
     },
 
     sendPreset(text) {

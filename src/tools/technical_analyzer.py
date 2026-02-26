@@ -98,22 +98,40 @@ class TechnicalAnalyzerTool(BaseTool):
     # ── 공통: OHLCV 데이터 로드 ─────────────
 
     async def _load_ohlcv(self, kwargs: dict) -> tuple:
-        """종목의 OHLCV 데이터를 로드합니다. (ticker, name, DataFrame) 반환."""
-        stock = _import_pykrx()
-        if stock is None:
-            return None, None, "pykrx 라이브러리가 필요합니다.\n터미널에서: pip install pykrx"
-
+        """종목의 OHLCV 데이터를 로드합니다. (ticker, name, DataFrame) 반환.
+        ARGOS DB 우선 → pykrx 폴백."""
         ticker = kwargs.get("ticker", "")
         name = kwargs.get("name", "")
         if not ticker and not name:
             return None, None, "종목코드(ticker) 또는 종목명(name)을 입력해주세요. 예: name='삼성전자'"
 
+        stock = _import_pykrx()
+
+        # 종목명만 있으면 ticker 변환 (pykrx 필요)
         if name and not ticker:
+            if stock is None:
+                return None, None, "pykrx 라이브러리가 필요합니다.\n터미널에서: pip install pykrx"
             ticker = await self._resolve_ticker(stock, name)
             if not ticker:
                 return None, None, f"'{name}' 종목을 찾을 수 없습니다."
 
         days = int(kwargs.get("days", 200))  # 기본 200일 (장기 지표용)
+
+        # ① ARGOS DB 우선 (서버 수집 캐시)
+        try:
+            from src.tools._argos_reader import get_price_dataframe
+            argos_df = get_price_dataframe(ticker, days)
+            if argos_df is not None and len(argos_df) >= 20:
+                stock_name = name or (await self._get_stock_name(stock, ticker) if stock else ticker)
+                logger.info("[ARGOS] %s OHLCV %d일 캐시 사용", ticker, len(argos_df))
+                return ticker, stock_name, argos_df
+        except Exception as e:
+            logger.debug("ARGOS OHLCV fallback: %s", e)
+
+        # ② pykrx 폴백
+        if stock is None:
+            return None, None, "pykrx 라이브러리가 필요합니다.\n터미널에서: pip install pykrx"
+
         end = datetime.now().strftime("%Y%m%d")
         start = (datetime.now() - timedelta(days=days)).strftime("%Y%m%d")
 

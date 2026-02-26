@@ -86,17 +86,30 @@ class KrStockTool(BaseTool):
                 return f"'{name}' 종목을 찾을 수 없습니다. 종목명을 확인해주세요."
 
         days = int(kwargs.get("days", 30))
-        end = datetime.now().strftime("%Y%m%d")
-        start = (datetime.now() - timedelta(days=days)).strftime("%Y%m%d")
 
+        # ① ARGOS DB 우선 (서버 수집 캐시)
+        df = None
         try:
-            df = await asyncio.to_thread(
-                stock.get_market_ohlcv_by_date, start, end, ticker
-            )
-        except Exception as e:
-            return f"주가 데이터 조회 실패: {e}"
+            from src.tools._argos_reader import get_price_dataframe
+            argos_df = get_price_dataframe(ticker, days)
+            if argos_df is not None and len(argos_df) > 0:
+                df = argos_df
+                logger.info("[ARGOS] %s price %d일 캐시 사용", ticker, len(df))
+        except Exception:
+            pass
 
-        if df.empty:
+        # ② pykrx 폴백
+        if df is None:
+            end = datetime.now().strftime("%Y%m%d")
+            start = (datetime.now() - timedelta(days=days)).strftime("%Y%m%d")
+            try:
+                df = await asyncio.to_thread(
+                    stock.get_market_ohlcv_by_date, start, end, ticker
+                )
+            except Exception as e:
+                return f"주가 데이터 조회 실패: {e}"
+
+        if df is None or (hasattr(df, 'empty') and df.empty):
             return f"종목코드 {ticker}의 데이터가 없습니다. 종목코드를 확인해주세요."
 
         # 종목명 가져오기
@@ -158,14 +171,28 @@ class KrStockTool(BaseTool):
         fromdate = kwargs.get("fromdate", (datetime.now() - timedelta(days=90)).strftime("%Y%m%d"))
         todate = kwargs.get("todate", datetime.now().strftime("%Y%m%d"))
 
+        # ① ARGOS DB 우선
+        df = None
         try:
-            df = await asyncio.to_thread(
-                stock.get_market_ohlcv_by_date, fromdate, todate, ticker
-            )
-        except Exception as e:
-            return f"OHLCV 데이터 조회 실패: {e}"
+            from src.tools._argos_reader import get_price_dataframe
+            _days = (datetime.strptime(todate, "%Y%m%d") - datetime.strptime(fromdate, "%Y%m%d")).days + 30
+            argos_df = get_price_dataframe(ticker, _days)
+            if argos_df is not None and len(argos_df) > 0:
+                df = argos_df
+                logger.info("[ARGOS] %s ohlcv 캐시 사용 (%d일)", ticker, len(df))
+        except Exception:
+            pass
 
-        if df.empty:
+        # ② pykrx 폴백
+        if df is None:
+            try:
+                df = await asyncio.to_thread(
+                    stock.get_market_ohlcv_by_date, fromdate, todate, ticker
+                )
+            except Exception as e:
+                return f"OHLCV 데이터 조회 실패: {e}"
+
+        if df is None or (hasattr(df, 'empty') and df.empty):
             return f"종목코드 {ticker}의 데이터가 없습니다."
 
         stock_name = await self._get_stock_name(stock, ticker)
@@ -202,17 +229,30 @@ class KrStockTool(BaseTool):
                 return f"'{name}' 종목을 찾을 수 없습니다."
 
         days = int(kwargs.get("days", 120))
-        end = datetime.now().strftime("%Y%m%d")
-        start = (datetime.now() - timedelta(days=days)).strftime("%Y%m%d")
 
+        # ① ARGOS DB 우선
+        df = None
         try:
-            df = await asyncio.to_thread(
-                stock.get_market_ohlcv_by_date, start, end, ticker
-            )
-        except Exception as e:
-            return f"데이터 조회 실패: {e}"
+            from src.tools._argos_reader import get_price_dataframe
+            argos_df = get_price_dataframe(ticker, days)
+            if argos_df is not None and len(argos_df) >= 20:
+                df = argos_df
+                logger.info("[ARGOS] %s indicators %d일 캐시 사용", ticker, len(df))
+        except Exception:
+            pass
 
-        if df.empty or len(df) < 20:
+        # ② pykrx 폴백
+        if df is None:
+            end = datetime.now().strftime("%Y%m%d")
+            start = (datetime.now() - timedelta(days=days)).strftime("%Y%m%d")
+            try:
+                df = await asyncio.to_thread(
+                    stock.get_market_ohlcv_by_date, start, end, ticker
+                )
+            except Exception as e:
+                return f"데이터 조회 실패: {e}"
+
+        if df is None or (hasattr(df, 'empty') and df.empty) or len(df) < 20:
             return f"종목코드 {ticker}의 데이터가 부족합니다 (최소 20일 필요)."
 
         stock_name = await self._get_stock_name(stock, ticker)

@@ -82,8 +82,25 @@ class EcosMacroTool(BaseTool):
         end_date = datetime.now()
         start_date = end_date - timedelta(days=months * 31)
 
+        # ① ARGOS DB 매크로 캐시 우선 시도
+        argos_macro = None
+        try:
+            from src.tools._argos_reader import get_macro_data
+            argos_macro = get_macro_data()
+        except Exception:
+            pass
+
         results = []
         for name, info in selected.items():
+            # ARGOS에 해당 지표가 있으면 캐시 사용
+            if argos_macro and name in argos_macro:
+                entries = argos_macro[name][-12:]  # 최근 12개
+                lines = [f"  {e['date']}: {e['value']}" for e in entries]
+                results.append(f"### {name}\n" + "\n".join(lines))
+                logger.info("[ARGOS] 매크로 '%s' 캐시 사용 (%d건)", name, len(entries))
+                continue
+
+            # ② ECOS API 폴백
             data = await self._fetch_stat(
                 api_key, info["code"], info["cycle"],
                 start_date, end_date, info["item"],
