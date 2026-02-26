@@ -213,7 +213,11 @@ gh run list --workflow=deploy.yml --limit=1
 - **다이어그램/플로우차트 생성 시 반드시 3벌**:
   1. **`.md` 파일** — mermaid 코드 포함 (`docs/architecture/이름.md`)
   2. **`.html` 파일** — 브라우저에서 바로 열리는 뷰어 (`docs/architecture/이름.html`) ← **필수!**
-  3. **대표님에게**: "브라우저(크롬)에서 html 파일 열면 Ctrl+스크롤로 확대됩니다"
+  3. **대표님에게 반드시 이 형식으로 안내** (더블클릭 아님! 크롬 주소창에 붙여넣기):
+     ```
+     크롬 주소창에 붙여넣고 엔터:
+     C:\Users\elddl\Desktop\PJ0_CORTHEX\CORTHEX_HQ\CORTHEX_HQ\docs\architecture\파일명.html
+     ```
 - **html 없으면 미완성**: .md만 주면 VSCode 프리뷰에서 다이어그램이 너무 작아 읽을 수 없음
 - **html 규칙**: mermaid.js CDN + dark 테마 + `useMaxWidth: false` + 섹션별 카드 레이아웃
 - 참고 예시: `docs/architecture/tool-server-flow.html`
