@@ -5111,8 +5111,10 @@ async def _run_trading_now_inner(selected_tickers: list[str] | None = None):
     if True:  # 수동 실행은 항상 매매 진행 (auto_execute 체크 제거)
         # 수동 실행: KIS가 연결되어 있으면 실제 주문 (paper_trading 설정 무시)
         # CEO가 "즉시 분석·매매결정" 버튼을 누른 것 = 매매 의사 명시적 표시
+        enable_mock = settings.get("enable_mock", False)
         use_kis = _KIS_AVAILABLE and _kis_configured()
-        paper_mode = not use_kis  # KIS 사용 불가할 때만 가상 모드
+        use_mock_kis = (not use_kis) and enable_mock and _KIS_AVAILABLE and _kis_mock_configured()
+        paper_mode = not use_kis and not use_mock_kis  # 둘 다 불가할 때만 가상 모드
 
         # CIO 비중 기반 매수(B안): order_size=0이면 잔고×비중으로 자동 산출
         account_balance = 0
@@ -5120,6 +5122,9 @@ async def _run_trading_now_inner(selected_tickers: list[str] | None = None):
             try:
                 if use_kis:
                     _bal = await _kis_balance()
+                    account_balance = _bal.get("cash", 0) if _bal.get("success") else 0
+                elif use_mock_kis:
+                    _bal = await _kis_mock_balance()
                     account_balance = _bal.get("cash", 0) if _bal.get("success") else 0
                 else:
                     _port = _load_data("trading_portfolio", _default_portfolio())
@@ -5132,8 +5137,9 @@ async def _run_trading_now_inner(selected_tickers: list[str] | None = None):
             save_activity_log("cio_manager",
                 f"CIO 비중 모드: 계좌잔고 {account_balance:,.0f}원 기준 자동 주수 산출", "info")
 
+        mode_label = ("실거래" if not KIS_IS_MOCK else "모의투자") if use_kis else ("모의투자" if use_mock_kis else "가상")
         save_activity_log("cio_manager",
-            f"📋 매매 실행 시작: 시그널 {len(parsed_signals)}건, 최소신뢰도 {min_confidence}%, order_size={order_size}, KIS={use_kis}", "info")
+            f"📋 매매 실행 시작: 시그널 {len(parsed_signals)}건, 최소신뢰도 {min_confidence}%, order_size={order_size}, KIS={use_kis}, MOCK={use_mock_kis}, 모드={mode_label}", "info")
 
         for sig in parsed_signals:
             if sig["action"] not in ("buy", "sell"):
@@ -5212,6 +5218,35 @@ async def _run_trading_now_inner(selected_tickers: list[str] | None = None):
                     else:
                         save_activity_log("cio_manager",
                             f"❌ [수동/{mode_str}] 주문 실패: {sig.get('name', ticker)} — {order_result.get('message', '원인 불명')}", "error")
+                elif use_mock_kis:
+                    # ── KIS 모의투자 계좌로 실제 주문 ──
+                    save_activity_log("cio_manager",
+                        f"  🚀 KIS 모의투자 주문 전송: {action_kr} {ticker} {qty}주 @ {'$'+str(round(price,2)) if is_us else str(price)+'원'}", "info")
+                    if is_us:
+                        order_result = await _kis_mock_us_order(ticker, sig["action"], qty, price=price)
+                    else:
+                        order_result = await _kis_mock_order(ticker, sig["action"], qty, price=0)
+                    save_activity_log("cio_manager",
+                        f"  📨 KIS 모의투자 응답: success={order_result.get('success')}, msg={order_result.get('message', '')[:100]}", "info")
+                    if order_result["success"]:
+                        orders_triggered += 1
+                        save_activity_log("cio_manager",
+                            f"✅ [수동/모의투자] {action_kr} 성공: {sig.get('name', ticker)} {qty}주 (신뢰도 {effective_conf:.0f}%)", "info")
+                        history = _load_data("trading_history", [])
+                        history.insert(0, {
+                            "id": f"mock_{datetime.now(KST).strftime('%Y%m%d%H%M%S')}_{ticker}",
+                            "date": datetime.now(KST).isoformat(),
+                            "ticker": ticker, "name": sig.get("name", ticker),
+                            "action": sig["action"], "qty": qty, "price": price,
+                            "total": qty * price, "pnl": 0,
+                            "strategy": f"CIO 수동분석 (모의투자, 신뢰도 {sig['confidence']}%)",
+                            "status": "mock_executed", "market": "US" if is_us else "KR",
+                            "order_no": order_result.get("order_no", ""),
+                        })
+                        _save_data("trading_history", history)
+                    else:
+                        save_activity_log("cio_manager",
+                            f"❌ [수동/모의투자] 주문 실패: {sig.get('name', ticker)} — {order_result.get('message', '원인 불명')}", "error")
                 else:
                     # 가상 포트폴리오 (paper trading)
                     portfolio = _load_data("trading_portfolio", _default_portfolio())
