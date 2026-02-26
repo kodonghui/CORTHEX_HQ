@@ -134,7 +134,8 @@ function corthexApp() {
     // Dark/Light mode
     darkMode: true,
 
-    // ── Universal Delete Confirm (범용 삭제 확인) ──
+    // ── Universal Confirm Modal (범용 확인 모달) ──
+    confirmModal: { show: false, title: '', message: '', detail: '', confirmText: '확인', isDanger: true, onConfirm: null },
     confirmDelete: { type: null, id: null, name: null },
 
     // Toast/Notification
@@ -464,6 +465,18 @@ function corthexApp() {
     _commandLoaded: false,
     _activityLogLoaded: false,
     _mermaidInited: false,
+
+    // ── 범용 확인 모달 ──
+    showConfirm({ title = '확인', message = '', detail = '', confirmText = '확인', isDanger = true, onConfirm = null } = {}) {
+      this.confirmModal = { show: true, title, message, detail, confirmText, isDanger, onConfirm };
+    },
+    closeConfirm() {
+      this.confirmModal = { show: false, title: '', message: '', detail: '', confirmText: '확인', isDanger: true, onConfirm: null };
+    },
+    executeConfirm() {
+      if (this.confirmModal.onConfirm) this.confirmModal.onConfirm();
+      this.closeConfirm();
+    },
 
     init() {
       // ── Stage 1: 즉시 필요 (모든 화면 공통) ──
@@ -1223,7 +1236,7 @@ function corthexApp() {
 
     getFilteredPresets() {
       const defaults = [
-        { name: '기술 스택 제안', command: 'LEET MASTER 서비스의 기술 스택을 제안해줘', category: '전략', color: 'hq-cyan', desc: 'CTO + 기술팀이 최적의 아키텍처를 설계합니다' },
+        { name: '기술 스택 제안', command: 'LEET MASTER 서비스의 기술 스택을 제안해줘', category: '전략', color: 'hq-cyan', desc: '전략팀장이 최적의 아키텍처를 설계합니다' },
         { name: '주가 분석', command: '삼성전자 주가를 분석해줘', category: '분석', color: 'hq-purple', desc: '투자팀장이 분석합니다' },
         { name: '이용약관 작성', command: '서비스 이용약관 초안을 만들어줘', category: '법무', color: 'hq-green', desc: 'CLO + 법무팀이 법적 문서를 작성합니다' },
         { name: '마케팅 전략', command: '마케팅 콘텐츠 전략을 수립해줘', category: '마케팅', color: 'hq-yellow', desc: 'CMO + 마케팅팀이 전략을 수립합니다' },
@@ -2270,7 +2283,7 @@ function corthexApp() {
     _getSampleTaskHistory() {
       const now = Date.now();
       return [
-        { task_id: 'sample_1', command: '@CTO 이번 주 기술 현황 리포트 작성해줘', status: 'completed', created_at: new Date(now - 3600000).toISOString(), summary: '기술 현황 리포트 완료 — 서버 가동률 99.7%, 응답 시간 평균 120ms', time_seconds: 12.4, cost: 0.0156, bookmarked: true, correlation_id: null },
+        { task_id: 'sample_1', command: '@전략팀장 이번 주 사업 현황 리포트 작성해줘', status: 'completed', created_at: new Date(now - 3600000).toISOString(), summary: '사업 현황 리포트 완료 — 핵심 지표 3개 정리', time_seconds: 12.4, cost: 0.0156, bookmarked: true, correlation_id: null },
         { task_id: 'sample_2', command: '전 부서 일일 업무 현황 보고', status: 'completed', created_at: new Date(now - 7200000).toISOString(), summary: '29개 에이전트의 일일 업무 현황을 종합했습니다', time_seconds: 28.7, cost: 0.0423, bookmarked: false, correlation_id: 'corr_sample_1' },
         { task_id: 'sample_3', command: '@CMO 경쟁사 마케팅 전략 분석', status: 'completed', created_at: new Date(now - 14400000).toISOString(), summary: '주요 경쟁사 3곳의 마케팅 전략을 비교 분석했습니다', time_seconds: 45.2, cost: 0.0687, bookmarked: false, correlation_id: null },
         { task_id: 'sample_4', command: '@CFO 이번 달 예산 집행 현황 정리', status: 'failed', created_at: new Date(now - 21600000).toISOString(), summary: '예산 데이터 소스 접근 실패 — API 키 만료', time_seconds: 3.1, cost: 0.0012, bookmarked: false, correlation_id: null },
@@ -2299,12 +2312,13 @@ function corthexApp() {
     },
 
     async deleteTask(taskId) {
-      if (!confirm('이 작업 기록을 삭제하시겠습니까?')) return;
+      this.showConfirm({ title: '작업 기록 삭제', message: '이 작업 기록을 삭제하시겠습니까?', confirmText: '삭제하기', onConfirm: async () => {
       try {
         await fetch(`/api/tasks/${taskId}`, { method: 'DELETE' });
         this.taskHistory.items = this.taskHistory.items.filter(t => t.task_id !== taskId);
         this.showToast('작업 기록 삭제됨', 'success');
       } catch (e) { this.showToast('삭제 실패', 'error'); }
+      }});
     },
 
     toggleTaskSelect(taskId) {
@@ -2364,7 +2378,7 @@ function corthexApp() {
 
     async bulkDelete() {
       const count = this.taskHistory.selectedIds.length;
-      if (!confirm(`${count}개 작업을 영구 삭제합니다. 되돌릴 수 없습니다. 계속할까요?`)) return;
+      this.showConfirm({ title: '작업 일괄 삭제', message: `${count}개 작업을 영구 삭제합니다.`, confirmText: '삭제하기', onConfirm: async () => {
       try {
         await fetch('/api/tasks/bulk', {
           method: 'POST',
@@ -2375,6 +2389,7 @@ function corthexApp() {
         this.taskHistory.selectedIds = [];
         this.loadTaskHistory();
       } catch (e) { this.showToast('삭제 실패: ' + e.message, 'error'); }
+      }});
     },
 
     async bulkBookmark() {
@@ -2800,10 +2815,11 @@ function corthexApp() {
           fetch('/api/tools').then(r => r.ok ? r.json() : []),
         ]);
         // 대시보드 통계 카드용 배열 저장
-        this.agentsList = Array.isArray(agents) ? agents : [];
+        // dormant 에이전트 제외 (UI 비노출)
+        this.agentsList = Array.isArray(agents) ? agents.filter(a => !a.dormant) : [];
         this.toolsList = Array.isArray(tools) ? tools : [];
-        if (Array.isArray(agents) && agents.length > 0) {
-          agents.forEach(a => {
+        if (this.agentsList.length > 0) {
+          this.agentsList.forEach(a => {
             this.agentNames[a.agent_id] = a.name_ko || a.agent_id;
             const nameKo = a.name_ko || a.agent_id;
             this.agentInitials[a.agent_id] = nameKo.length >= 2 ? nameKo.substring(0, 2) : nameKo.toUpperCase();
@@ -3102,7 +3118,7 @@ function corthexApp() {
 
     downloadArchiveZip() {
       const div = this.archive.filterDivision !== 'all' ? this.archive.filterDivision : null;
-      const tier = this.archive.filterTier !== 'all' ? this.archive.filterTier : null;
+      const tier = null;  // tier 필터 제거됨
       const params = new URLSearchParams();
       if (div) params.set('division', div);
       if (tier) params.set('tier', tier);
@@ -3115,7 +3131,7 @@ function corthexApp() {
 
     async deleteArchiveReport(file) {
       if (!file || !file.division || !file.filename) return;
-      if (!confirm(`이 보고서를 삭제하시겠습니까?\n${file.filename}`)) return;
+      this.showConfirm({ title: '보고서 삭제', message: '이 보고서를 삭제하시겠습니까?', detail: file.filename, confirmText: '삭제하기', onConfirm: async () => {
       try {
         const res = await fetch(`/api/archive/${encodeURIComponent(file.division)}/${encodeURIComponent(file.filename)}`, { method: 'DELETE' });
         const data = await res.json();
@@ -3130,6 +3146,7 @@ function corthexApp() {
           this.showToast(data.error || '삭제 실패', 'error');
         }
       } catch { this.showToast('삭제 중 오류가 발생했습니다.', 'error'); }
+      }});
     },
 
     async downloadSelectedAsZip() {
@@ -3144,13 +3161,15 @@ function corthexApp() {
     },
     async deleteSelectedFiles() {
       if (!this.archive.selectedFiles.length) return;
-      if (!confirm(`${this.archive.selectedFiles.length}개 파일을 삭제하시겠습니까?`)) return;
+      const cnt = this.archive.selectedFiles.length;
+      this.showConfirm({ title: '파일 일괄 삭제', message: `${cnt}개 파일을 삭제하시겠습니까?`, confirmText: '삭제하기', onConfirm: async () => {
       for (const file of this.archive.selectedFiles) {
         await fetch(`/api/archive/${encodeURIComponent(file.division)}/${encodeURIComponent(file.filename)}`, { method: 'DELETE' });
       }
       this.archive.selectedFiles = [];
       await this.loadArchive();
       this.showToast(`삭제 완료`, 'success');
+      }});
     },
 
     async deleteAllArchives() {
@@ -3286,7 +3305,8 @@ function corthexApp() {
     },
     async deleteSelectedMedia() {
       if (!this.sns.selectedMedia.length) return;
-      if (!confirm(`${this.sns.selectedMedia.length}개 파일을 삭제하시겠습니까?`)) return;
+      const cnt = this.sns.selectedMedia.length;
+      this.showConfirm({ title: '미디어 삭제', message: `${cnt}개 파일을 삭제하시겠습니까?`, confirmText: '삭제하기', onConfirm: async () => {
       try {
         const res = await fetch('/api/media/delete-batch', {
           method: 'POST', headers: {'Content-Type': 'application/json'},
@@ -3300,6 +3320,7 @@ function corthexApp() {
           await this.loadMediaGallery();
         } else { this.showToast('삭제 실패', 'error'); }
       } catch { this.showToast('삭제 중 오류', 'error'); }
+      }});
     },
     async deleteAllMedia(type) {
       try {
@@ -3388,7 +3409,7 @@ function corthexApp() {
 
     // ── Trading (자동매매 시스템) 함수 ──
     async deleteSignal(signalId) {
-      if (!confirm('이 시그널을 삭제하시겠습니까?')) return;
+      this.showConfirm({ title: '시그널 삭제', message: '이 시그널을 삭제하시겠습니까?', confirmText: '삭제하기', onConfirm: async () => {
       try {
         const resp = await fetch(`/api/trading/signals/${signalId}`, { method: 'DELETE' });
         const data = await resp.json();
@@ -3402,6 +3423,7 @@ function corthexApp() {
         console.error('Signal delete error:', e);
         this.showToast('시그널 삭제 중 오류가 발생했습니다.', 'error');
       }
+      }});
     },
 
     async loadTradingSummary(isRefresh = false) {
@@ -3443,7 +3465,7 @@ function corthexApp() {
       if (!f.ticker || !f.qty || !f.price) { this.showToast('종목코드, 수량, 가격을 입력하세요', 'error'); return; }
       const isReal = (this.trading.summary.settings||{}).paper_trading === false;
       const ko = f.action === 'buy' ? '매수' : '매도';
-      if (isReal && !confirm(`[실거래] ${f.name||f.ticker} ${f.qty}주 ${ko} — 실제 증권 계좌에서 실행됩니다. 계속하시겠습니까?`)) return;
+      const _doOrder = async () => {
       try {
         const res = await fetch('/api/trading/order', {
           method: 'POST', headers: {'Content-Type':'application/json'},
@@ -3457,6 +3479,10 @@ function corthexApp() {
           await this.loadTradingSummary();
         } else { this.showToast(res.error || '주문 실패', 'error'); }
       } catch { this.showToast('주문 실행 오류', 'error'); }
+      };
+      if (isReal) {
+        this.showConfirm({ title: '실거래 주문 확인', message: `${f.name||f.ticker} ${f.qty}주 ${ko}`, detail: '실제 증권 계좌에서 실행됩니다', isDanger: false, confirmText: `${ko} 실행`, onConfirm: _doOrder });
+      } else { await _doOrder(); }
     },
 
     async addTradingStrategy() {
@@ -3545,6 +3571,26 @@ function corthexApp() {
         this.trading.selectedWatchlist.splice(idx, 1);
       } else {
         this.trading.selectedWatchlist.push(ticker);
+      }
+    },
+
+    // 시장별 전체선택/해제
+    selectAllWatchlist(market) {
+      const filtered = this.trading.watchlist.filter(w =>
+        market === 'all' ? true :
+        market === 'KR' ? (!w.market || w.market === 'KR') :
+        w.market === market
+      );
+      const tickers = filtered.map(w => w.ticker);
+      const allSelected = tickers.every(t => this.trading.selectedWatchlist.includes(t));
+      if (allSelected) {
+        // 전체 해제
+        this.trading.selectedWatchlist = this.trading.selectedWatchlist.filter(t => !tickers.includes(t));
+      } else {
+        // 전체 선택 (중복 방지)
+        const existing = new Set(this.trading.selectedWatchlist);
+        tickers.forEach(t => existing.add(t));
+        this.trading.selectedWatchlist = [...existing];
       }
     },
 
@@ -3921,7 +3967,7 @@ function corthexApp() {
     },
 
     async resetTradingPortfolio() {
-      if (!confirm('모의투자를 초기화하시겠습니까? 모든 보유종목과 거래 내역이 삭제됩니다.')) return;
+      this.showConfirm({ title: '모의투자 초기화', message: '모든 보유종목과 거래 내역이 삭제됩니다.', confirmText: '초기화', onConfirm: async () => {
       try {
         const res = await fetch('/api/trading/portfolio/reset', {
           method:'POST', headers:{'Content-Type':'application/json'},
@@ -3932,6 +3978,7 @@ function corthexApp() {
           await this.loadTradingSummary();
         }
       } catch { this.showToast('초기화 실패', 'error'); }
+      }});
     },
 
     async saveTradingSettings() {
@@ -4053,7 +4100,7 @@ function corthexApp() {
     },
 
     async restoreAgentDefaults() {
-      if (!confirm('저장된 기본값으로 전체 에이전트 모델을 복원합니다.\n계속할까요?')) return;
+      this.showConfirm({ title: '모델 기본값 복원', message: '저장된 기본값으로 전체 에이전트 모델을 복원합니다.', isDanger: false, confirmText: '복원하기', onConfirm: async () => {
       try {
         const res = await fetch('/api/agents/restore-defaults', { method: 'POST' }).then(r => r.json());
         if (res.success) {
@@ -4064,13 +4111,14 @@ function corthexApp() {
           this.showToast(res.error || '복원 실패', 'error');
         }
       } catch { this.showToast('복원 실패', 'error'); }
+      }});
     },
 
     async applyBulkModel() {
       if (!this.bulkModelSelection) return;
       const displayName = this.getModelDisplayName(this.bulkModelSelection);
       const label = this.bulkReasoningSelection ? `${displayName} (${this.bulkReasoningSelection})` : displayName;
-      if (!confirm(`29명 전체 에이전트의 모델을 "${label}"(으)로 변경합니다.\n\n정말 진행할까요?`)) return;
+      this.showConfirm({ title: 'AI 모델 일괄 변경', message: `전체 에이전트의 모델을 변경합니다.`, detail: label, isDanger: false, confirmText: '변경하기', onConfirm: async () => {
       this.bulkModelSaving = true;
       try {
         const res = await fetch('/api/agents/bulk-model', {
@@ -4105,6 +4153,7 @@ function corthexApp() {
       } finally {
         this.bulkModelSaving = false;
       }
+      }});
     },
 
     // ── #13: Activity Log Persistence ──
@@ -4212,7 +4261,7 @@ function corthexApp() {
     // ── 대화 비우기 ──
     async clearConversation() {
       if (this.messages.length === 0) return;
-      if (!confirm('현재 대화를 비우고 새 대화를 시작하시겠습니까?')) return;
+      this.showConfirm({ title: '대화 비우기', message: '현재 대화를 비우고 새 대화를 시작하시겠습니까?', confirmText: '비우기', onConfirm: async () => {
       try {
         if (this.currentConversationId) {
           // 세션 보관 처리 (삭제 대신 비활성화)
@@ -4225,16 +4274,20 @@ function corthexApp() {
           // 레거시: 전체 삭제
           await fetch('/api/conversation', { method: 'DELETE' });
         }
+        // 대화목록에서도 즉시 제거
+        if (this.currentConversationId) {
+          this.conversationList = this.conversationList.filter(c => c.conversation_id !== this.currentConversationId);
+        }
         this.messages = [];
         this.currentConversationId = null;
         this.conversationTurnCount = 0;
         this.activeAgents = {};
         this.systemStatus = 'idle';
-        this.showToast('대화가 비워졌습니다. 새 대화를 시작하세요.', 'success');
-        this.loadConversationList();
+        this.showToast('대화가 삭제되었습니다. 새 대화를 시작하세요.', 'success');
       } catch (e) {
         this.showToast('대화 삭제에 실패했습니다.', 'error');
       }
+      }});
     },
 
     // ── 멀티턴 대화 세션 관리 ──
@@ -4293,18 +4346,24 @@ function corthexApp() {
     },
 
     async deleteConversationSession(conversationId) {
-      if (!confirm('이 대화를 삭제하시겠습니까?')) return;
-      try {
-        await fetch(`/api/conversation/sessions/${conversationId}`, { method: 'DELETE' });
-        this.conversationList = this.conversationList.filter(c => c.conversation_id !== conversationId);
-        if (this.currentConversationId === conversationId) {
-          this.currentConversationId = null;
-          this.messages = [];
-          this.conversationTurnCount = 0;
+      this.showConfirm({
+        title: '대화 삭제',
+        message: '이 대화를 삭제하시겠습니까?',
+        confirmText: '삭제',
+        onConfirm: async () => {
+          try {
+            await fetch(`/api/conversation/sessions/${conversationId}`, { method: 'DELETE' });
+            this.conversationList = this.conversationList.filter(c => c.conversation_id !== conversationId);
+            if (this.currentConversationId === conversationId) {
+              this.currentConversationId = null;
+              this.messages = [];
+              this.conversationTurnCount = 0;
+            }
+          } catch (e) {
+            console.warn('대화 삭제 실패:', e);
+          }
         }
-      } catch (e) {
-        console.warn('대화 삭제 실패:', e);
-      }
+      });
     },
 
     // ── #16: Keyboard Shortcuts ──
@@ -4356,12 +4415,12 @@ function corthexApp() {
       const labels = {
         'default': '기본 (전체 공통)',
         'secretary': '비서실',
-        'leet_master.tech': '기술개발팀 (CTO)',
-        'leet_master.strategy': '전략기획팀 (CSO)',
-        'leet_master.legal': '법무팀 (CLO)',
-        'leet_master.marketing': '마케팅팀 (CMO)',
-        'finance.investment': '금융분석팀 (CIO)',
-        'publishing': '콘텐츠팀 (CPO)',
+        'leet_master.tech': '기술개발팀',
+        'leet_master.strategy': '전략기획팀',
+        'leet_master.legal': '법무팀',
+        'leet_master.marketing': '마케팅팀',
+        'finance.investment': '금융분석팀',
+        'publishing': '콘텐츠팀',
       };
       return labels[division] || division;
     },
@@ -4370,7 +4429,7 @@ function corthexApp() {
     getAgentTier(agentId) {
       if (!agentId) return 'unknown';
       if (agentId === 'argos') return 'system';
-      const managers = ['chief_of_staff','cto_manager','cso_manager','clo_manager','cmo_manager','cio_manager','cpo_manager'];
+      const managers = ['chief_of_staff','cso_manager','clo_manager','cmo_manager','cio_manager','cpo_manager'];
       if (managers.includes(agentId)) return 'manager';
       return 'other';
     },
