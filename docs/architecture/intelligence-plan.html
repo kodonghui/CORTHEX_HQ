@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>CORTHEX 매매엔진 혁신 + 정보국 — 최종 계획</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+  :root{--bg:#0f1117;--sur:#1a1d27;--bdr:#2d3148;--txt:#e8eaf6;--acc:#7c83ff;--grn:#4caf72;--red:#f56565;--yel:#f6c90e;--orn:#f6a623}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--txt);font-family:'Apple SD Gothic Neo',sans-serif;padding:28px}
+  h1{font-size:24px;font-weight:700;color:#fff;border-bottom:2px solid var(--acc);padding-bottom:12px;margin-bottom:6px}
+  .sub{color:#9399c4;font-size:13px;margin-bottom:36px}
+  .section{margin-bottom:56px}
+  .sec-title{font-size:19px;font-weight:700;color:var(--acc);border-left:4px solid var(--acc);padding-left:12px;margin-bottom:6px}
+  .sec-desc{font-size:13px;color:#9399c4;padding-left:16px;margin-bottom:20px}
+  .card{background:var(--sur);border:1px solid var(--bdr);border-radius:12px;padding:24px;margin-bottom:20px;overflow:auto}
+  .card-title{font-size:14px;font-weight:600;color:#fff;margin-bottom:16px}
+  .mermaid{min-width:700px}
+  .chips{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:28px}
+  .chip{padding:8px 16px;border-radius:20px;font-size:13px;font-weight:600}
+  .chip.done{background:#0f2a18;border:1px solid var(--grn);color:var(--grn)}
+  .chip.todo{background:#1a2540;border:1px solid var(--acc);color:var(--acc)}
+  .chip.key{background:#2a1a10;border:1px solid var(--orn);color:var(--orn)}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th{background:#1a2540;color:var(--acc);padding:10px 14px;text-align:left;border:1px solid var(--bdr)}
+  td{padding:10px 14px;border:1px solid var(--bdr)}
+  tr:nth-child(even) td{background:#161924}
+  .done-badge{color:var(--grn)}
+  .todo-badge{color:var(--acc)}
+</style>
+</head>
+<body>
+
+<h1>CORTHEX 매매엔진 혁신 + 정보국 — 최종 계획</h1>
+<p class="sub">2026-02-26 대표님 승인 | Ctrl+스크롤로 확대</p>
+
+<div class="chips">
+  <span class="chip done">✅ 실거래 버그 3종 완료</span>
+  <span class="chip done">✅ 정량신뢰도(Quant Score) 완료</span>
+  <span class="chip done">✅ 가격 트리거 자동매매 완료</span>
+  <span class="chip done">✅ 도구 전수검사 131개 완료</span>
+  <span class="chip todo">⬜ ARGOS 수집 레이어</span>
+  <span class="chip todo">⬜ 도구 서버화 Phase 2</span>
+  <span class="chip todo">⬜ 정보국 탭 + 상태바</span>
+  <span class="chip key">🔑 AI 토큰 70% 절감 목표</span>
+</div>
+
+<!-- 1. 전체 시스템 아키텍처 -->
+<div class="section">
+  <div class="sec-title">1. 전체 시스템 아키텍처 (목표)</div>
+  <div class="sec-desc">서버가 심부름, AI는 생각만. 3계층 분리.</div>
+  <div class="card">
+    <div class="mermaid">
+flowchart TD
+    subgraph LAYER1["🔄 계층 1: ARGOS 상시 수집 (서버, AI 없음)"]
+        direction LR
+        L1A[pykrx\n주가/지수\n1분 갱신]
+        L1B[Naver API\n뉴스\n30분 갱신]
+        L1C[DART API\n공시\n1시간 갱신]
+        L1D[ECOS API\n경제지표\n1일 갱신]
+        L1E[환율\n1시간 갱신]
+    end
+
+    subgraph LAYER2["⚙️ 계층 2: 서버 계산 (수식, AI 없음)"]
+        direction LR
+        L2A[RSI/MACD\n볼린저밴드\n이동평균]
+        L2B[Quant Score\n0~99점]
+        L2C[Calibration\nFactor]
+        L2D[Bayesian\n버킷 보정]
+        L2E[ELO\n가중치]
+    end
+
+    subgraph LAYER3["🤖 계층 3: AI 판단 (1회 호출)"]
+        L3A[뉴스 맥락 해석]
+        L3B[신뢰도 ±15%p 조정]
+        L3C[매수/매도/관망 결정]
+    end
+
+    subgraph LAYER4["🎯 계층 4: 실행 + 모니터링"]
+        L4A[시그널 생성]
+        L4B[비서실장 QA]
+        L4C[매매 실행\nKIS/모의/가상]
+        L4D[트리거 등록\n손절/익절]
+        L4E[1분마다\n트리거 체크]
+    end
+
+    subgraph LAYER5["📡 정보국 (모니터링)"]
+        L5A[상단 상태바\n항상 보임]
+        L5B[정보국 탭\n상세 확인용]
+    end
+
+    LAYER1 --> DB[(DB 누적\n90일)]
+    DB --> LAYER2
+    LAYER2 --> LAYER3
+    LAYER3 --> LAYER4
+    LAYER4 --> LAYER5
+    LAYER4 --> RL[7일 후\n강화학습]
+    RL --> LAYER2
+
+    style LAYER1 fill:#0a1a0a
+    style LAYER2 fill:#0a0a1a
+    style LAYER3 fill:#1a0a1a
+    style LAYER4 fill:#1a1a0a
+    style LAYER5 fill:#0a1a1a
+    </div>
+  </div>
+</div>
+
+<!-- 2. 신뢰도 파이프라인 -->
+<div class="section">
+  <div class="sec-title">2. 신뢰도 계산 파이프라인</div>
+  <div class="sec-desc">80%는 서버 수식. AI는 뉴스/맥락 보고 ±15%p 조정만.</div>
+  <div class="card">
+    <div class="mermaid">
+flowchart LR
+    START[분석 시작] --> Q1
+
+    subgraph SERVER["서버 계산 (AI 없음)"]
+        Q1[RSI/MACD/BB\n거래량/추세\n→ Quant Score]
+        Q2[실제승률 ÷\n예측신뢰도\n→ Calibration Factor]
+        Q3[구간별 실적\n→ Bayesian 보정]
+        Q4[전문가 적중률\n→ ELO 가중치]
+        Q5[Q1×Q2×Q3×Q4\n= 서버 기준 신뢰도\n예: 62%]
+        Q1 --> Q5
+        Q2 --> Q5
+        Q3 --> Q5
+        Q4 --> Q5
+    end
+
+    subgraph AI_ADJ["AI 조정 (1회 호출)"]
+        A1[뉴스 호재/악재 판단]
+        A2[매크로 환경 해석]
+        A3[±15%p 범위 내 조정\n이탈 시 이유 명시]
+        A1 & A2 --> A3
+    end
+
+    Q5 --> AI_ADJ
+    A3 --> FINAL[최종 신뢰도\n예: 65%\n=매매 판단 기준]
+    FINAL --> TRADE{effective_conf\n≥ min_confidence\n55%?}
+    TRADE -->|YES| BUY[매수/매도 실행]
+    TRADE -->|NO| SKIP[건너뜀]
+
+    style SERVER fill:#0a0a1a
+    style AI_ADJ fill:#1a0a1a
+    </div>
+  </div>
+</div>
+
+<!-- 3. 현재 vs 목표 비용 -->
+<div class="section">
+  <div class="sec-title">3. 현재 vs 목표 — AI 호출 횟수 비교</div>
+  <div class="sec-desc">1회 분석 기준. 목표: 도구 호출 15~25회 → 2~3회.</div>
+  <div class="card">
+    <div class="mermaid">
+flowchart TD
+    subgraph NOW["❌ 현재 (낭비)"]
+        direction LR
+        N1[팀장 분석 시작]-->N2[kr_stock 호출]-->N3[technical_analyzer×7]-->N4[dart_api]-->N5[naver_news]-->N6[AI 판단]-->N7[결과\n3~5분\n토큰 20000]
+    end
+
+    subgraph GOAL["✅ 목표 (Phase 2 완료 후)"]
+        direction LR
+        G1[팀장 분석 시작]-->G2[DB에서 주가+지표\n꺼냄 0초]-->G3[DART 직접 호출\n0.2초]-->G4[뉴스 캐시\n꺼냄 0초]-->G5[AI 판단\n패키지 한번에]-->G6[결과\n30초\n토큰 3000]
+    end
+
+    style NOW fill:#2a0a0a
+    style GOAL fill:#0a2a0a
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">비용 시뮬레이션 (월 100회 분석 기준)</div>
+    <table>
+      <tr><th>단계</th><th>AI 호출/분석</th><th>토큰</th><th>월 비용</th><th>소요시간</th></tr>
+      <tr><td>현재</td><td>15~25회</td><td>~20,000</td><td class="done-badge" style="color:#f56565">$50~100</td><td>3~5분</td></tr>
+      <tr><td>Phase 6-1,2 완료 후 (지금)</td><td>5~8회</td><td>~10,000</td><td style="color:var(--yel)">$25~50</td><td>1~2분</td></tr>
+      <tr><td>Phase 6-5,6 완료 후</td><td>5~8회</td><td>~8,000</td><td style="color:var(--yel)">$20~40</td><td>45초</td></tr>
+      <tr><td>Phase 6 전체 완료</td><td>2~3회</td><td>~3,000</td><td style="color:var(--grn)">$5~15</td><td>20초</td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- 4. ARGOS 수집 레이어 -->
+<div class="section">
+  <div class="sec-title">4. ARGOS 데이터 수집 레이어 (6-5)</div>
+  <div class="sec-desc">분석 시점에 API 호출 0회. 미리 쌓아놓은 DB에서 꺼냄.</div>
+  <div class="card">
+    <div class="mermaid">
+flowchart TD
+    subgraph CRON["_cron_loop() — 1분마다 실행"]
+        C1{경과 시간?}
+        C1 -->|1분| PRICE[관심종목 주가\n+ 지수\npykrx/yfinance]
+        C1 -->|30분| NEWS[뉴스 헤드라인\nNaver API]
+        C1 -->|1시간| DART[DART 공시\n+ 환율]
+        C1 -->|1일| MACRO[경제지표\nECOS API]
+        C1 -->|항상| TRIGGER[가격 트리거\n체크 ← 이미 구현]
+    end
+
+    PRICE --> DB1[(price_history\n테이블\n90일 누적)]
+    NEWS  --> DB2[(news_cache\n테이블\n30일)]
+    DART  --> DB3[(dart_filings\n테이블\n90일)]
+    MACRO --> DB4[(macro_data\n테이블\n1년)]
+
+    DB1 -->|분석 요청 시| CALC[서버: 지표 계산\nRSI/MACD/BB\n0초]
+    DB2 -->|분석 요청 시| AI[AI: 판단만\n1회 호출]
+    DB3 -->|분석 요청 시| AI
+    DB4 -->|분석 요청 시| AI
+    CALC --> AI
+
+    style CRON fill:#0a0a1a
+    style DB1 fill:#1a2a10
+    style DB2 fill:#1a2a10
+    style DB3 fill:#1a2a10
+    style DB4 fill:#1a2a10
+    </div>
+  </div>
+</div>
+
+<!-- 5. 강화학습 파이프라인 -->
+<div class="section">
+  <div class="sec-title">5. 강화학습 파이프라인 (6-9)</div>
+  <div class="sec-desc">서버가 숫자 업데이트. AI는 "왜 틀렸나" 해석만 주기적으로.</div>
+  <div class="card">
+    <div class="mermaid">
+flowchart LR
+    TRADE[매매 실행] --> RECORD[trading_history\nDB 저장]
+    RECORD --> WAIT[7일 대기\ncorrect_7d 확정]
+    WAIT --> VERIFY{결과 검증}
+    VERIFY -->|맞음 ✅| WIN[pnl > 0]
+    VERIFY -->|틀림 ❌| LOSE[pnl < 0]
+
+    WIN & LOSE --> SERVER_RL
+
+    subgraph SERVER_RL["서버 자동 업데이트 (수식)"]
+        R1[Platt Scaling\n실제승률 재계산]
+        R2[ELO 점수\n업데이트]
+        R3[Bayesian 버킷\n갱신]
+        R4[Calibration Factor\n재계산]
+    end
+
+    SERVER_RL --> NEXT[다음 분석 시\n자동 반영]
+
+    WIN & LOSE --> MONTHLY{월 1회\n패턴 분석}
+    MONTHLY --> AI_PATTERN[AI에게\n최근 오답 패턴 분석 요청\n공통점 찾기]
+    AI_PATTERN --> ERROR_PATTERN[(error_patterns\n테이블 저장)]
+    ERROR_PATTERN --> PROMPT[다음 분석 프롬프트\n⚠️ 주의 패턴 주입]
+
+    style SERVER_RL fill:#0a0a1a
+    </div>
+  </div>
+</div>
+
+<!-- 6. 정보국 UI -->
+<div class="section">
+  <div class="sec-title">6. 정보국 탭 + 상단 상태바 (6-8)</div>
+  <div class="sec-desc">상태바는 어느 탭에서나 항상 보임. 정보국 탭은 상세 확인용.</div>
+  <div class="card">
+    <div class="mermaid">
+flowchart TD
+    subgraph STATUSBAR["상단 고정 상태바 (항상 보임)"]
+        direction LR
+        S1[📡 데이터\n✅ 14:32]
+        S2[🤖 AI 분석\n✅ 14:03]
+        S3[🎯 트리거\n3건 활성]
+        S4[💸 오늘\n$0.43]
+        S5[🚨 에러\n없음 ✅]
+    end
+
+    subgraph TAB["정보국 탭 (클릭 시 상세)"]
+        direction TB
+        T1["🖥️ 시스템 상태\n수집 레이어별 마지막 업데이트 시각\n삼성전자 ✅ 14:32 | SK하이닉스 ✅ 14:32\n코스피 ✅ 14:32 | 환율 ✅ 13:00"]
+        T2["🎯 활성 트리거\n손절/익절 목록 + 현재가 vs 목표가\n🟡 삼성전자 손절 71,000 (현재 72,100)\n✅ SK하이닉스 익절 발동 → 매도 완료"]
+        T3["🤖 AI 활동 요약 (교신로그 통합)\n마지막 분석 14:03 신호 3건 $0.12\n비서실장 QA 승인 14:03\n마지막 Soul Gym 09:00 $0.008"]
+        T4["💸 비용 추적\n오늘 $0.43 | 이번주 $2.17 | 이번달 $8.44\n팀장별 비용 바 차트"]
+        T5["🚨 에러 로그\n최근 24시간 에러 없음 ✅\n(에러 있으면 빨간색으로 표시)"]
+    end
+
+    STATUSBAR -.->|클릭 → 정보국 탭| TAB
+
+    style STATUSBAR fill:#0a1a2a
+    style TAB fill:#0a0a1a
+    </div>
+  </div>
+</div>
+
+<!-- 7. 구현 로드맵 -->
+<div class="section">
+  <div class="sec-title">7. 구현 로드맵</div>
+  <div class="card">
+    <div class="mermaid">
+gantt
+    title Phase 6 구현 로드맵
+    dateFormat YYYY-MM-DD
+    section 완료
+        실거래 버그 3종 수정           :done, 2026-02-26, 1d
+        정량신뢰도 Quant Score         :done, 2026-02-26, 1d
+        가격 트리거 자동매매           :done, 2026-02-26, 1d
+        도구 전수검사 131개            :done, 2026-02-26, 1d
+    section 단기 (1~2주)
+        ARGOS 수집 레이어 6-5          :a1, 2026-02-27, 4d
+        DART+Naver 서버화 6-6          :a2, 2026-02-27, 3d
+        신뢰도 완전 서버화 6-7         :a3, 2026-03-02, 3d
+    section 중기 (2~3주)
+        정보국 탭+상태바 6-8           :b1, 2026-03-05, 5d
+        강화학습 파이프라인 정비 6-9   :b2, 2026-03-08, 3d
+    section 장기 (1달)
+        캐싱 + 모델 티어링             :c1, 2026-03-15, 7d
+        전체 비용 대시보드             :c2, 2026-03-22, 5d
+    </div>
+  </div>
+</div>
+
+<script>
+mermaid.initialize({
+  startOnLoad:true, theme:'dark',
+  themeVariables:{
+    primaryColor:'#1a2540', primaryTextColor:'#e8eaf6',
+    primaryBorderColor:'#7c83ff', lineColor:'#7c83ff',
+    secondaryColor:'#0f2a18', tertiaryColor:'#2a2a10',
+    background:'#0f1117', mainBkg:'#1a1d27', nodeBorder:'#2d3148'
+  },
+  flowchart:{curve:'basis', useMaxWidth:false},
+  gantt:{useMaxWidth:false}
+});
+</script>
+</body>
+</html>
