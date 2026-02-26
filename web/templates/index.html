@@ -3784,7 +3784,7 @@
 
           <!-- 서브 탭 -->
           <div class="flex gap-2 mb-4 md:mb-6 overflow-x-auto scrollbar-thin pb-1 -mx-1 px-1">
-            <template x-for="tab in [{id:'dashboard',l:'대시보드'},{id:'actlog',l:'교신로그'},{id:'shadow',l:'실거래/모의 비교'},{id:'portfolio',l:'포트폴리오'},{id:'watchlist',l:'관심종목'},{id:'history',l:'거래내역'},{id:'signals',l:'시그널'},{id:'performance',l:'금융분석팀장 성과'}]" :key="tab.id">
+            <template x-for="tab in [{id:'dashboard',l:'대시보드'},{id:'actlog',l:'교신로그'},{id:'shadow',l:'실거래/모의 비교'},{id:'portfolio',l:'포트폴리오'},{id:'watchlist',l:'관심종목'},{id:'history',l:'거래내역'},{id:'signals',l:'시그널'},{id:'plan',l:'작전계획'},{id:'performance',l:'금융분석팀장 성과'}]" :key="tab.id">
               <button @click="trading.tab = tab.id" :class="trading.tab === tab.id ? 'bg-hq-accent/20 text-hq-accent border-hq-accent/30' : 'text-hq-muted border-transparent hover:text-hq-text'" class="px-3 py-1.5 text-xs font-semibold rounded-lg border transition whitespace-nowrap shrink-0" x-text="tab.l"></button>
             </template>
           </div>
@@ -4852,6 +4852,108 @@
                   </div>
                 </div>
               </template>
+            </div>
+          </div>
+
+          <!-- ▸ 서브탭: 작전계획 -->
+          <div x-show="trading.tab === 'plan' && !trading.loading"
+               x-data="{
+                 plan: null, triggers: [], planLoading: false,
+                 async load() {
+                   this.planLoading = true;
+                   try {
+                     const [pr, tr] = await Promise.all([
+                       fetch('/api/trading/plan').then(r=>r.json()),
+                       fetch('/api/trading/triggers').then(r=>r.ok?r.json():{triggers:[]}).catch(()=>({triggers:[]}))
+                     ]);
+                     this.plan = pr;
+                     this.triggers = (tr.triggers||[]).filter(t => t.type==='buy_limit' && t.active);
+                   } finally { this.planLoading = false; }
+                 },
+                 fmtPrice(p, mkt) { return mkt==='US' ? '$'+Number(p).toFixed(2) : Number(p).toLocaleString()+'원'; },
+                 actionLabel(a) { return a==='buy'?'매수':a==='sell'?'매도':a==='hold'?'관망':a; },
+                 actionClass(a) {
+                   if(a==='buy'||a==='매수') return 'text-hq-green border-hq-green/30 bg-hq-green/10';
+                   if(a==='sell'||a==='매도') return 'text-hq-red border-hq-red/30 bg-hq-red/10';
+                   return 'text-hq-muted border-hq-muted/30 bg-hq-surface';
+                 }
+               }">
+            <div x-effect="if(trading.tab==='plan') load()"></div>
+            <div class="flex items-center justify-between mb-3">
+              <div>
+                <h3 class="text-sm font-bold text-hq-text">금융팀장 작전계획</h3>
+                <p class="text-[10px] text-hq-muted mt-0.5" x-show="plan && plan.date"
+                   x-text="'분석: ' + (plan?.date||'').slice(0,16).replace('T',' ')"></p>
+              </div>
+              <button @click="load()" class="text-[10px] text-hq-muted hover:text-hq-accent transition-colors px-2 py-1 rounded border border-hq-border hover:border-hq-accent/30">새로고침</button>
+            </div>
+
+            <div x-show="planLoading" class="text-xs text-hq-muted text-center py-8">로딩 중...</div>
+
+            <div x-show="!planLoading && (!plan || !plan.signals || plan.signals.length===0)"
+                 class="glass border border-hq-border rounded-xl p-6 text-center">
+              <p class="text-xs text-hq-muted">아직 작전계획이 없습니다.</p>
+              <p class="text-[10px] text-hq-muted/60 mt-1">즉시분석 또는 자동 분석(하루 2회) 후 표시됩니다.</p>
+            </div>
+
+            <div x-show="!planLoading && plan && plan.signals && plan.signals.length > 0">
+              <!-- 요약 배지 -->
+              <div class="flex flex-wrap gap-2 mb-3">
+                <span class="text-[10px] px-2 py-1 rounded-lg bg-hq-green/10 border border-hq-green/20 text-hq-green"
+                      x-text="'매수 ' + plan.signals.filter(s=>s.action==='buy').length + '종목'"></span>
+                <span class="text-[10px] px-2 py-1 rounded-lg bg-hq-red/10 border border-hq-red/20 text-hq-red"
+                      x-text="'매도 ' + plan.signals.filter(s=>s.action==='sell').length + '종목'"></span>
+                <span class="text-[10px] px-2 py-1 rounded-lg bg-hq-surface border border-hq-border text-hq-muted"
+                      x-text="'관망 ' + plan.signals.filter(s=>s.action==='hold').length + '종목'"></span>
+                <span x-show="triggers.length > 0"
+                      class="text-[10px] px-2 py-1 rounded-lg bg-hq-accent/10 border border-hq-accent/20 text-hq-accent"
+                      x-text="'🎯 목표매수 ' + triggers.length + '개 대기'"></span>
+              </div>
+
+              <!-- 종목별 카드 -->
+              <template x-for="sig in plan.signals" :key="sig.ticker">
+                <div class="glass border border-hq-border rounded-xl p-3 mb-2">
+                  <div class="flex items-center gap-2 mb-2">
+                    <span class="text-[10px] font-bold px-2 py-0.5 rounded-full border" :class="actionClass(sig.action)"
+                          x-text="actionLabel(sig.action)"></span>
+                    <span class="text-sm font-bold text-hq-text" x-text="sig.name||sig.ticker"></span>
+                    <span class="text-[10px] font-mono text-hq-muted" x-text="'('+sig.ticker+')'"></span>
+                    <span class="ml-auto text-xs font-mono text-hq-accent" x-text="'신뢰도 '+(sig.confidence||0)+'%'"></span>
+                  </div>
+                  <div class="flex flex-wrap gap-4 mb-1.5 pl-1">
+                    <div x-show="sig.target_price > 0" class="text-[10px]">
+                      <span class="text-hq-muted">목표 진입가</span>
+                      <span class="ml-1 font-mono font-bold text-hq-accent"
+                            x-text="fmtPrice(sig.target_price, sig.market)"></span>
+                    </div>
+                    <div x-show="sig.weight > 0" class="text-[10px]">
+                      <span class="text-hq-muted">비중</span>
+                      <span class="ml-1 font-mono text-hq-text" x-text="(sig.weight||0)+'%'"></span>
+                    </div>
+                    <div x-show="sig.target_price > 0" class="text-[10px]">
+                      <span x-show="sig.trigger_active" class="text-hq-accent">🎯 모니터링 중</span>
+                      <span x-show="!sig.trigger_active" class="text-hq-muted/50">트리거 미등록</span>
+                    </div>
+                  </div>
+                  <div x-show="sig.reason" class="text-[11px] text-hq-muted/80 leading-relaxed pl-1"
+                       x-text="sig.reason"></div>
+                </div>
+              </template>
+
+              <!-- 활성 목표매수 트리거 목록 -->
+              <div x-show="triggers.length > 0" class="mt-4">
+                <h4 class="text-xs font-bold text-hq-text mb-2">🎯 목표매수 대기 중</h4>
+                <template x-for="t in triggers" :key="t.id">
+                  <div class="glass border border-hq-accent/20 rounded-xl p-2.5 mb-1.5 flex items-center gap-3">
+                    <span class="text-[10px] font-bold text-hq-accent px-1.5 py-0.5 rounded bg-hq-accent/10">매수 대기</span>
+                    <span class="text-xs font-medium text-hq-text" x-text="t.name||t.ticker"></span>
+                    <span class="text-[10px] font-mono text-hq-muted ml-auto">목표가
+                      <span class="text-hq-accent" x-text="fmtPrice(t.trigger_price, t.market)"></span>
+                    </span>
+                    <span class="text-[10px] text-hq-muted" x-text="(t.qty||1)+'주'"></span>
+                  </div>
+                </template>
+              </div>
             </div>
           </div>
 
