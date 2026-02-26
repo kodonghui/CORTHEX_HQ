@@ -4133,6 +4133,41 @@ async def _argos_collect_macro() -> int:
     return saved
 
 
+_argos_seq_running = False  # 순차 수집 중복 실행 방지
+
+async def _argos_sequential_collect(now_ts: float):
+    """ARGOS 수집을 순차 실행합니다 (DB lock 방지).
+    동시에 여러 수집이 DB를 잡지 않도록 하나씩 순서대로.
+    """
+    global _argos_seq_running
+    global _ARGOS_LAST_NEWS, _ARGOS_LAST_DART, _ARGOS_LAST_MACRO
+    if _argos_seq_running:
+        return
+    _argos_seq_running = True
+    try:
+        # 1) 주가 — 매 사이클
+        await _argos_collect_prices_safe()
+
+        # 2) 뉴스 — 30분마다
+        if now_ts - _ARGOS_LAST_NEWS > _ARGOS_NEWS_INTERVAL:
+            _ARGOS_LAST_NEWS = now_ts
+            await _argos_collect_news_safe()
+
+        # 3) DART — 1시간마다
+        if now_ts - _ARGOS_LAST_DART > _ARGOS_DART_INTERVAL:
+            _ARGOS_LAST_DART = now_ts
+            await _argos_collect_dart_safe()
+
+        # 4) 매크로 — 1일마다
+        if now_ts - _ARGOS_LAST_MACRO > _ARGOS_MACRO_INTERVAL:
+            _ARGOS_LAST_MACRO = now_ts
+            await _argos_collect_macro_safe()
+    except Exception as e:
+        _argos_logger.error("ARGOS 순차 수집 오류: %s", e)
+    finally:
+        _argos_seq_running = False
+
+
 async def _argos_collect_prices_safe():
     """주가 수집 — 예외 안전 래퍼. 전체 3분 타임아웃."""
     try:
@@ -4279,26 +4314,10 @@ async def _cron_loop():
             # Soul Gym 24/7 상시 진화 — _soul_gym_loop()로 이관 (서버 시작 시 자동 실행)
 
             # ── ARGOS: 자동 데이터 수집 레이어 (Phase 6-5) ──
+            # DB lock 방지: 순차 실행 (하나 끝나면 다음 실행)
             _now_ts = time.time()
-
-            # 주가: 1분마다 (관심종목 있을 때만)
             global _ARGOS_LAST_PRICE, _ARGOS_LAST_NEWS, _ARGOS_LAST_DART, _ARGOS_LAST_MACRO, _ARGOS_LAST_MONTHLY_RL
-            asyncio.create_task(_argos_collect_prices_safe())
-
-            # 뉴스: 30분마다
-            if _now_ts - _ARGOS_LAST_NEWS > _ARGOS_NEWS_INTERVAL:
-                _ARGOS_LAST_NEWS = _now_ts
-                asyncio.create_task(_argos_collect_news_safe())
-
-            # DART 공시: 1시간마다
-            if _now_ts - _ARGOS_LAST_DART > _ARGOS_DART_INTERVAL:
-                _ARGOS_LAST_DART = _now_ts
-                asyncio.create_task(_argos_collect_dart_safe())
-
-            # 매크로: 1일마다
-            if _now_ts - _ARGOS_LAST_MACRO > _ARGOS_MACRO_INTERVAL:
-                _ARGOS_LAST_MACRO = _now_ts
-                asyncio.create_task(_argos_collect_macro_safe())
+            asyncio.create_task(_argos_sequential_collect(_now_ts))
 
             # 월간 강화학습 패턴 분석 (Phase 6-9)
             if _now_ts - _ARGOS_LAST_MONTHLY_RL > _ARGOS_MONTHLY_INTERVAL:
