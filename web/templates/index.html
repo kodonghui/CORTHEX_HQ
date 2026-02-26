@@ -7134,6 +7134,12 @@
             <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
             3D 시스템 맵
           </button>
+          <button @click="onNexusModeChange('mermaid')"
+                  :class="flowchart.mode==='mermaid' ? 'bg-cyan-500/20 text-cyan-400' : 'text-white/40 hover:text-white/70'"
+                  class="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+            시스템 플로우
+          </button>
           <button @click="onNexusModeChange('canvas')"
                   :class="flowchart.mode==='canvas' ? 'bg-yellow-500/20 text-yellow-400' : 'text-white/40 hover:text-white/70'"
                   class="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition">
@@ -7195,6 +7201,40 @@
           </div>
           <div class="flex items-center gap-4 text-xs text-white/30">
             <span>→ 화살표: 데이터 흐름</span><span>● 입자: 실시간 통신</span><span class="text-white/15">|</span><span>드래그: 회전</span><span>휠: 줌</span><span>에이전트 클릭 → 사령관실</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Mermaid 시스템 플로우 ── -->
+      <div x-show="flowchart.mode === 'mermaid'" class="flex-1 flex flex-col overflow-hidden" x-cloak>
+        <!-- 로딩 -->
+        <template x-if="flowchart.mermaidLoading">
+          <div class="flex-1 flex items-center justify-center">
+            <div class="flex flex-col items-center gap-4 text-center px-8">
+              <div class="w-14 h-14 border-2 border-cyan-500/30 border-t-cyan-400 rounded-full animate-spin"></div>
+              <p class="text-sm text-white/50">시스템 플로우차트 생성 중...</p>
+            </div>
+          </div>
+        </template>
+        <!-- Mermaid SVG 영역 -->
+        <div x-show="!flowchart.mermaidLoading" class="flex-1 overflow-auto p-6 bg-[#0c1220]">
+          <div id="nexus-mermaid" class="flex justify-center items-start min-h-full"></div>
+        </div>
+        <!-- 하단 범례 -->
+        <div class="shrink-0 flex items-center justify-between px-5 py-2.5 bg-[#0a0f1a]/90 border-t border-white/10">
+          <div class="flex items-center gap-3 flex-wrap">
+            <template x-for="cat in [
+              {c:'#e879f9',l:'CEO/입력'},{c:'#60a5fa',l:'서버'},{c:'#a78bfa',l:'에이전트'},
+              {c:'#34d399',l:'도구'},{c:'#fbbf24',l:'UI/출력'}
+            ]" :key="cat.l">
+              <div class="flex items-center gap-1.5">
+                <span class="w-2.5 h-2.5 rounded-sm" :style="`background:${cat.c}`"></span>
+                <span class="text-xs text-white/50" x-text="cat.l"></span>
+              </div>
+            </template>
+          </div>
+          <div class="flex items-center gap-3">
+            <button @click="generateMermaidSystemFlow()" class="px-3 py-1.5 rounded-lg text-xs bg-cyan-500/20 text-cyan-400 hover:bg-cyan-500/30 transition font-semibold">새로고침</button>
           </div>
         </div>
       </div>
