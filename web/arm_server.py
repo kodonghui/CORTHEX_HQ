@@ -112,6 +112,36 @@ def _log(msg: str) -> None:
     sys.stderr.flush()
 
 
+_RE_MD_HEADER = re.compile(r'^#{1,3}\s+(.+)', re.MULTILINE)
+_RE_SENTENCE_END = re.compile(r'[.!?。]\s')
+
+def _extract_title_summary(content: str) -> str:
+    """AI 응답 content에서 작전일지 제목으로 쓸 1줄 요약을 추출한다.
+    우선순위: ① 마크다운 헤더(#~###) ② 첫 문장(50자) ③ 앞 80자 잘라내기
+    """
+    if not content:
+        return ""
+    text = content.strip()
+    # ① 마크다운 헤더 추출
+    m = _RE_MD_HEADER.search(text)
+    if m:
+        title = m.group(1).strip().rstrip('#').strip()
+        if len(title) > 80:
+            title = title[:77] + "..."
+        return title
+    # ② 첫 문장 추출 (마침표/느낌표/물음표 기준)
+    first_line = text.split('\n')[0].strip()
+    # 이모지/특수문자로 시작하면 스킵하고 본문 찾기
+    if first_line:
+        m2 = _RE_SENTENCE_END.search(first_line)
+        if m2 and m2.end() <= 80:
+            return first_line[:m2.end()].strip()
+        if len(first_line) <= 80:
+            return first_line
+    # ③ 앞 80자 잘라내기
+    return text[:77].rstrip() + "..." if len(text) > 80 else text
+
+
 def _load_env_file() -> None:
     """환경변수 파일을 직접 읽어서 os.environ에 설정."""
     env_paths = [
@@ -704,7 +734,7 @@ async def websocket_endpoint(ws: WebSocket):
                                                 success=0)
                                 else:
                                     update_task(task_id, status="completed",
-                                                result_summary=(debate_result.get("content", "") or "")[:200],
+                                                result_summary=_extract_title_summary(debate_result.get("content", "") or ""),
                                                 success=1,
                                                 cost_usd=debate_result.get("total_cost_usd", debate_result.get("cost_usd", 0)))
                                 if "error" in debate_result:
@@ -837,7 +867,7 @@ async def _run_agent_bg(cmd_text: str, task_id: str, target_agent_id: str | None
             _bg_results[task_id] = _result_data
             await wm.broadcast("result", _result_data)
             update_task(task_id, status="completed",
-                        result_summary=(result.get("content", "") or "")[:200],
+                        result_summary=_extract_title_summary(result.get("content", "") or ""),
                         success=1,
                         time_seconds=result.get("time_seconds", 0),
                         cost_usd=result.get("total_cost_usd", result.get("cost_usd", 0)))
@@ -7976,7 +8006,7 @@ async def _start_telegram_bot() -> None:
                                     success=0)
                     else:
                         update_task(tid, status="completed",
-                                    result_summary=(content or "")[:200],
+                                    result_summary=_extract_title_summary(content or ""),
                                     success=1, cost_usd=cost)
                     if len(content) > 3900:
                         content = content[:3900] + "\n\n... (결과가 잘렸습니다. 웹에서 전체 확인)"
@@ -8158,7 +8188,7 @@ async def _start_telegram_bot() -> None:
                     # 담당자 표시: 팀장 이름 또는 비서실장
                     footer_who = delegation if delegation else "비서실장"
                     update_task(task["task_id"], status="completed",
-                                result_summary=(content or "")[:200],
+                                result_summary=_extract_title_summary(content or ""),
                                 success=1, cost_usd=cost,
                                 time_seconds=result.get("time_seconds", 0))
                     await update.message.reply_text(
