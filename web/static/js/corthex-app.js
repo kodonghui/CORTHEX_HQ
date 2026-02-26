@@ -78,6 +78,7 @@ function corthexApp() {
       { id: 'workflow', label: '자동화', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z"/></svg>' },
       { id: 'activityLog', label: '통신로그', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>' },
       { id: 'knowledge', label: '정보국', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>' },
+      { id: 'intelligence', label: 'ARGOS', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2V9M9 21H5a2 2 0 01-2-2V9m0 0h18"/></svg>' },
       { id: 'archive', label: '기밀문서', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8"/></svg>' },
       { id: 'sns', label: '통신국', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z"/></svg>' },
       { id: 'archmap', label: '조직도', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>' },
@@ -85,6 +86,15 @@ function corthexApp() {
       { id: 'flowchart', label: 'NEXUS', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="6" r="2"/><circle cx="18" cy="6" r="2"/><circle cx="6" cy="18" r="2"/><circle cx="18" cy="18" r="2"/><circle cx="12" cy="12" r="2.5"/><path stroke-linecap="round" d="M8 6h8M6 8v8M18 8v8M8 18h8M9 10.5l2 1M15 10.5l-2 1M9 13.5l2-1M15 13.5l-2-1"/></svg>' },
       { id: 'agora', label: 'AGORA', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3"/></svg>' },
     ],
+
+    // ── ARGOS 정보국 ──
+    intelligence: {
+      loaded: false, loading: false,
+      statusBar: { data_ok: false, data_last: '', ai_ok: false, ai_last: '', trigger_count: 0, today_cost_usd: 0, has_error: false },
+      argos: {}, triggers: [], activity: [], errors: [],
+      costs: { today_usd: 0, week_usd: 0, per_agent: [] },
+      collectingNow: false,
+    },
 
     // ── Dashboard (홈) ──
     dashboard: { todayTasks: 0, todayCompleted: 0, todayFailed: 0, runningCount: 0, totalCost: 0, totalTokens: 0, agentCount: 0, recentCompleted: [], systemHealth: 'ok', loaded: false },
@@ -504,6 +514,8 @@ function corthexApp() {
 
       // ── Stage 2: 기본 탭(홈) 데이터 ──
       this.loadDashboard();
+      // ARGOS 상태바: 초기 로드 (상단 상태바 표시용)
+      setTimeout(() => this.loadIntelligence(), 2000);
 
       // ── Stage 3: 나머지는 switchTab()에서 lazy load ──
       // loadFeedbackStats → loadDashboard 안에 포함
@@ -1970,6 +1982,7 @@ function corthexApp() {
       if (tabId === 'archmap' && !this.archMap.loaded) this.loadArchMap();
       if (tabId === 'sns') this.loadSNS();
       if (tabId === 'agora') { this._connectAgoraSSE(); this._loadAgoraStatus(); }
+      if (tabId === 'intelligence') this.loadIntelligence();
       if (tabId === 'trading') {
         this.loadTradingSummary();
         this._connectCommsSSE(); // SSE 통합: CIO 로그도 여기서 처리
@@ -1988,6 +2001,59 @@ function corthexApp() {
         clearInterval(this.trading.priceRefreshInterval);
       }
       // NEXUS는 openNexus()에서 독립적으로 초기화 (풀스크린 오버레이)
+    },
+
+    // ── ARGOS 정보국 ──
+
+    async loadIntelligence() {
+      if (this.intelligence.loading) return;
+      this.intelligence.loading = true;
+      try {
+        const data = await fetch('/api/intelligence/status').then(r => r.ok ? r.json() : {});
+        if (data.ok) {
+          this.intelligence.statusBar = data.status_bar || this.intelligence.statusBar;
+          this.intelligence.argos = data.argos || {};
+          this.intelligence.triggers = data.triggers || [];
+          this.intelligence.activity = data.activity || [];
+          this.intelligence.errors = data.errors || [];
+          this.intelligence.costs = data.costs || this.intelligence.costs;
+          this.intelligence.loaded = true;
+        }
+      } catch (e) {
+        console.warn('[ARGOS] 정보국 로드 실패:', e);
+      } finally {
+        this.intelligence.loading = false;
+      }
+    },
+
+    async argosCollectNow(type = 'all') {
+      this.intelligence.collectingNow = true;
+      try {
+        await fetch('/api/argos/collect/now', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ type }),
+        });
+        this.showToast('ARGOS 수집 트리거됨', 'success');
+        setTimeout(() => this.loadIntelligence(), 3000);
+      } catch (e) {
+        this.showToast('수집 요청 실패', 'error');
+      } finally {
+        this.intelligence.collectingNow = false;
+      }
+    },
+
+    _fmtArgosTime(iso) {
+      if (!iso) return '미수집';
+      try {
+        const d = new Date(iso);
+        const now = new Date();
+        const diff = Math.floor((now - d) / 60000);
+        if (diff < 2) return '방금';
+        if (diff < 60) return diff + '분 전';
+        if (diff < 1440) return Math.floor(diff / 60) + '시간 전';
+        return Math.floor(diff / 1440) + '일 전';
+      } catch { return iso.slice(11, 16); }
     },
 
     // ── Command Tab: 최근 작업 로드 (새로고침 후에도 표시) ──
@@ -4526,8 +4592,8 @@ function corthexApp() {
       return order.map(id => this.tabs.find(t => t.id === id)).filter(Boolean);
     },
     getSecondaryTabs() {
-      // 더보기: 전력분석 / 자동화 / 크론기지 / 통신국 / 정보국
-      const order = ['performance', 'workflow', 'schedule', 'sns', 'knowledge'];
+      // 더보기: 전력분석 / 자동화 / 크론기지 / 통신국 / 정보국 / ARGOS
+      const order = ['performance', 'workflow', 'schedule', 'sns', 'knowledge', 'intelligence'];
       return order.map(id => this.tabs.find(t => t.id === id)).filter(Boolean);
     },
 

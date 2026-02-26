@@ -3738,6 +3738,456 @@ def _get_fx_rate() -> float:
     return 1450.0
 
 
+# ══════════════════════════════════════════════════════════════════
+# ARGOS — 자동 데이터 수집 레이어 (Phase 6-5)
+# 서버가 심부름(데이터 수집), AI는 생각(판단)만
+# ══════════════════════════════════════════════════════════════════
+
+_ARGOS_LAST_PRICE = 0.0    # 마지막 주가 수집 시각
+_ARGOS_LAST_NEWS  = 0.0    # 마지막 뉴스 수집 시각 (30분)
+_ARGOS_LAST_DART  = 0.0    # 마지막 DART 수집 시각 (1시간)
+_ARGOS_LAST_MACRO = 0.0    # 마지막 매크로 수집 시각 (1일)
+_ARGOS_LAST_MONTHLY_RL = 0.0  # 마지막 월간 RL 분석 시각
+
+_ARGOS_NEWS_INTERVAL  = 1800   # 30분
+_ARGOS_DART_INTERVAL  = 3600   # 1시간
+_ARGOS_MACRO_INTERVAL = 86400  # 1일
+_ARGOS_MONTHLY_INTERVAL = 2592000  # 30일
+
+_argos_logger = logging.getLogger("corthex.argos")
+
+
+def _argos_update_status(data_type: str, error: str = "", count_delta: int = 0) -> None:
+    """ARGOS 수집 상태를 DB에 기록합니다."""
+    try:
+        conn = get_connection()
+        now = datetime.now(KST).isoformat()
+        conn.execute(
+            """INSERT INTO argos_collection_status(data_type, last_collected, last_error, total_count, updated_at)
+               VALUES(?, ?, ?, ?, ?)
+               ON CONFLICT(data_type) DO UPDATE SET
+                 last_collected = CASE WHEN excluded.last_error='' THEN excluded.last_collected ELSE last_collected END,
+                 last_error = excluded.last_error,
+                 total_count = total_count + excluded.total_count,
+                 updated_at = excluded.updated_at""",
+            (data_type, now if not error else "", error, count_delta, now)
+        )
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        _argos_logger.debug("상태 기록 실패: %s", e)
+
+
+async def _argos_collect_prices() -> int:
+    """관심종목 주가를 pykrx/yfinance로 수집해 DB에 누적합니다 (90일 보존).
+    Returns: 저장된 행 수
+    """
+    watchlist = _load_data("trading_watchlist", [])
+    if not watchlist:
+        return 0
+
+    conn = get_connection()
+    saved = 0
+    now_str = datetime.now(KST).isoformat()
+    today = datetime.now(KST).strftime("%Y%m%d")
+    today_iso = datetime.now(KST).strftime("%Y-%m-%d")
+    start = (datetime.now(KST) - timedelta(days=90)).strftime("%Y%m%d")
+
+    kr_tickers = [w for w in watchlist if w.get("market", "KR") == "KR"]
+    us_tickers = [w for w in watchlist if w.get("market") == "US"]
+
+    try:
+        # ── 한국 주식 (pykrx) ──
+        if kr_tickers:
+            try:
+                from pykrx import stock as pykrx_stock
+                for w in kr_tickers:
+                    ticker = w["ticker"]
+                    try:
+                        df = await asyncio.to_thread(
+                            pykrx_stock.get_market_ohlcv_by_date, start, today, ticker
+                        )
+                        if df is None or df.empty:
+                            continue
+                        for dt_idx, row in df.iterrows():
+                            trade_date = str(dt_idx)[:10]  # YYYY-MM-DD
+                            close = float(row.get("종가", 0))
+                            if close <= 0:
+                                continue
+                            prev_rows = df[df.index < dt_idx]
+                            prev_close = float(prev_rows.iloc[-1]["종가"]) if not prev_rows.empty else close
+                            change_pct = round((close - prev_close) / prev_close * 100, 2) if prev_close else 0
+                            conn.execute(
+                                """INSERT OR IGNORE INTO argos_price_history
+                                   (ticker, market, trade_date, open_price, high_price, low_price,
+                                    close_price, volume, change_pct, collected_at)
+                                   VALUES(?,?,?,?,?,?,?,?,?,?)""",
+                                (ticker, "KR", trade_date,
+                                 float(row.get("시가", close)), float(row.get("고가", close)),
+                                 float(row.get("저가", close)), close,
+                                 int(row.get("거래량", 0)), change_pct, now_str)
+                            )
+                            saved += 1
+                        _argos_logger.debug("PRICE KR %s: %d행 저장", ticker, saved)
+                    except Exception as e:
+                        _argos_logger.debug("KR 주가 파싱 실패 (%s): %s", ticker, e)
+            except ImportError:
+                _argos_logger.debug("pykrx 미설치 — 국내 주가 수집 불가")
+
+        # ── 미국 주식 (yfinance) ──
+        if us_tickers:
+            try:
+                import yfinance as yf
+                for w in us_tickers:
+                    ticker = w["ticker"]
+                    try:
+                        t_obj = yf.Ticker(ticker)
+                        hist = await asyncio.to_thread(lambda t=t_obj: t.history(period="90d"))
+                        if hist is None or hist.empty:
+                            continue
+                        prev_close_val = None
+                        for dt_idx, row in hist.iterrows():
+                            trade_date = str(dt_idx)[:10]
+                            close = round(float(row["Close"]), 4)
+                            if close <= 0:
+                                continue
+                            chg = round((close - prev_close_val) / prev_close_val * 100, 2) if prev_close_val else 0
+                            conn.execute(
+                                """INSERT OR IGNORE INTO argos_price_history
+                                   (ticker, market, trade_date, open_price, high_price, low_price,
+                                    close_price, volume, change_pct, collected_at)
+                                   VALUES(?,?,?,?,?,?,?,?,?,?)""",
+                                (ticker, "US", trade_date,
+                                 round(float(row.get("Open", close)), 4),
+                                 round(float(row.get("High", close)), 4),
+                                 round(float(row.get("Low", close)), 4),
+                                 close, int(row.get("Volume", 0)), chg, now_str)
+                            )
+                            saved += 1
+                            prev_close_val = close
+                    except Exception as e:
+                        _argos_logger.debug("US 주가 파싱 실패 (%s): %s", ticker, e)
+            except ImportError:
+                _argos_logger.debug("yfinance 미설치 — 해외 주가 수집 불가")
+
+        conn.commit()
+
+        # 90일 초과 데이터 정리
+        cutoff = (datetime.now(KST) - timedelta(days=90)).strftime("%Y-%m-%d")
+        conn.execute("DELETE FROM argos_price_history WHERE trade_date < ?", (cutoff,))
+        conn.commit()
+    finally:
+        conn.close()
+
+    return saved
+
+
+async def _argos_collect_news() -> int:
+    """네이버 뉴스 API로 관심종목 뉴스를 수집해 DB에 저장합니다 (30일 보존).
+    Returns: 저장된 행 수
+    """
+    naver_id = os.getenv("NAVER_CLIENT_ID", "")
+    naver_secret = os.getenv("NAVER_CLIENT_SECRET", "")
+    if not naver_id or not naver_secret:
+        _argos_logger.debug("NAVER_CLIENT_ID/SECRET 미설정 — 뉴스 수집 불가")
+        return 0
+
+    watchlist = _load_data("trading_watchlist", [])
+    if not watchlist:
+        return 0
+
+    import urllib.request
+    import urllib.parse
+    conn = get_connection()
+    saved = 0
+    now_str = datetime.now(KST).isoformat()
+
+    try:
+        for w in watchlist[:10]:  # 과부하 방지: 최대 10종목
+            keyword = w.get("name") or w.get("ticker", "")
+            if not keyword:
+                continue
+            try:
+                encoded = urllib.parse.quote(keyword)
+                url = f"https://openapi.naver.com/v1/search/news.json?query={encoded}&display=20&sort=date"
+                req = urllib.request.Request(url, headers={
+                    "X-Naver-Client-Id": naver_id,
+                    "X-Naver-Client-Secret": naver_secret,
+                })
+                def _fetch(r=req):
+                    with urllib.request.urlopen(r, timeout=5) as resp:
+                        return json.loads(resp.read().decode("utf-8"))
+                data = await asyncio.to_thread(_fetch)
+                for item in data.get("items", []):
+                    title = re.sub(r"<[^>]+>", "", item.get("title", ""))
+                    desc = re.sub(r"<[^>]+>", "", item.get("description", ""))
+                    pub_date = item.get("pubDate", now_str)
+                    link = item.get("link", "")
+                    conn.execute(
+                        """INSERT OR IGNORE INTO argos_news_cache
+                           (keyword, title, description, link, pub_date, source, collected_at)
+                           VALUES(?,?,?,?,?,?,?)""",
+                        (keyword, title, desc, link, pub_date, "naver", now_str)
+                    )
+                    saved += 1
+            except Exception as e:
+                _argos_logger.debug("뉴스 수집 실패 (%s): %s", keyword, e)
+
+        conn.commit()
+        cutoff = (datetime.now(KST) - timedelta(days=30)).isoformat()
+        conn.execute("DELETE FROM argos_news_cache WHERE pub_date < ?", (cutoff,))
+        conn.commit()
+    finally:
+        conn.close()
+
+    return saved
+
+
+async def _argos_collect_dart() -> int:
+    """DART 공시를 수집해 DB에 저장합니다 (90일 보존).
+    Returns: 저장된 행 수
+    """
+    dart_key = os.getenv("DART_API_KEY", "")
+    if not dart_key:
+        _argos_logger.debug("DART_API_KEY 미설정 — DART 수집 불가")
+        return 0
+
+    watchlist = _load_data("trading_watchlist", [])
+    kr_tickers = [w for w in watchlist if w.get("market", "KR") == "KR"]
+    if not kr_tickers:
+        return 0
+
+    import urllib.request
+    import urllib.parse
+    conn = get_connection()
+    saved = 0
+    now_str = datetime.now(KST).isoformat()
+    bgn_de = (datetime.now(KST) - timedelta(days=90)).strftime("%Y%m%d")
+
+    try:
+        for w in kr_tickers[:10]:  # 과부하 방지
+            ticker = w["ticker"]
+            try:
+                params = urllib.parse.urlencode({
+                    "crtfc_key": dart_key,
+                    "stock_code": ticker,
+                    "bgn_de": bgn_de,
+                    "sort": "date",
+                    "sort_mth": "desc",
+                    "page_count": 20,
+                })
+                url = f"https://opendart.fss.or.kr/api/list.json?{params}"
+                def _fetch(u=url):
+                    with urllib.request.urlopen(u, timeout=8) as resp:
+                        return json.loads(resp.read().decode("utf-8"))
+                data = await asyncio.to_thread(_fetch)
+                for item in data.get("list", []):
+                    conn.execute(
+                        """INSERT OR IGNORE INTO argos_dart_filings
+                           (ticker, corp_name, report_nm, rcept_no, flr_nm, rcept_dt, collected_at)
+                           VALUES(?,?,?,?,?,?,?)""",
+                        (ticker, item.get("corp_name",""), item.get("report_nm",""),
+                         item.get("rcept_no",""), item.get("flr_nm",""),
+                         item.get("rcept_dt",""), now_str)
+                    )
+                    saved += 1
+            except Exception as e:
+                _argos_logger.debug("DART 수집 실패 (%s): %s", ticker, e)
+
+        conn.commit()
+        cutoff = (datetime.now(KST) - timedelta(days=90)).strftime("%Y%m%d")
+        conn.execute("DELETE FROM argos_dart_filings WHERE rcept_dt < ?", (cutoff,))
+        conn.commit()
+    finally:
+        conn.close()
+
+    return saved
+
+
+async def _argos_collect_macro() -> int:
+    """KOSPI/KOSDAQ/환율 등 매크로 지표를 수집합니다.
+    Returns: 저장된 행 수
+    """
+    conn = get_connection()
+    saved = 0
+    now_str = datetime.now(KST).isoformat()
+    today_iso = datetime.now(KST).strftime("%Y-%m-%d")
+
+    try:
+        # USD/KRW — yfinance
+        try:
+            import yfinance as yf
+            def _fetch_fx():
+                t = yf.Ticker("USDKRW=X")
+                h = t.history(period="5d")
+                return float(h.iloc[-1]["Close"]) if h is not None and not h.empty else None
+            rate = await asyncio.to_thread(_fetch_fx)
+            if rate:
+                conn.execute(
+                    "INSERT OR IGNORE INTO argos_macro_data(indicator,trade_date,value,source,collected_at) VALUES(?,?,?,?,?)",
+                    ("USD_KRW", today_iso, round(rate, 2), "yfinance", now_str)
+                )
+                saved += 1
+        except Exception as e:
+            _argos_logger.debug("USD/KRW 수집 실패: %s", e)
+
+        # KOSPI / KOSDAQ — pykrx
+        try:
+            from pykrx import stock as pykrx_stock
+            today = datetime.now(KST).strftime("%Y%m%d")
+            start = (datetime.now(KST) - timedelta(days=7)).strftime("%Y%m%d")
+            for ticker, label in [("1001", "KOSPI"), ("2001", "KOSDAQ")]:
+                try:
+                    df = await asyncio.to_thread(
+                        pykrx_stock.get_index_ohlcv_by_date, start, today, ticker
+                    )
+                    if df is not None and not df.empty:
+                        close = float(df.iloc[-1]["종가"])
+                        trade_date = str(df.index[-1])[:10]
+                        conn.execute(
+                            "INSERT OR IGNORE INTO argos_macro_data(indicator,trade_date,value,source,collected_at) VALUES(?,?,?,?,?)",
+                            (label, trade_date, round(close, 2), "pykrx", now_str)
+                        )
+                        saved += 1
+                except Exception as e:
+                    _argos_logger.debug("%s 수집 실패: %s", label, e)
+        except ImportError:
+            pass
+
+        # VIX — yfinance
+        try:
+            import yfinance as yf
+            def _fetch_vix():
+                t = yf.Ticker("^VIX")
+                h = t.history(period="5d")
+                return float(h.iloc[-1]["Close"]) if h is not None and not h.empty else None
+            vix = await asyncio.to_thread(_fetch_vix)
+            if vix:
+                conn.execute(
+                    "INSERT OR IGNORE INTO argos_macro_data(indicator,trade_date,value,source,collected_at) VALUES(?,?,?,?,?)",
+                    ("VIX", today_iso, round(vix, 2), "yfinance", now_str)
+                )
+                saved += 1
+        except Exception as e:
+            _argos_logger.debug("VIX 수집 실패: %s", e)
+
+        conn.commit()
+        cutoff = (datetime.now(KST) - timedelta(days=365)).strftime("%Y-%m-%d")
+        conn.execute("DELETE FROM argos_macro_data WHERE trade_date < ?", (cutoff,))
+        conn.commit()
+    finally:
+        conn.close()
+
+    return saved
+
+
+async def _argos_collect_prices_safe():
+    """주가 수집 — 예외 안전 래퍼."""
+    try:
+        n = await _argos_collect_prices()
+        if n > 0:
+            _argos_update_status("price", count_delta=n)
+    except Exception as e:
+        _argos_update_status("price", error=str(e)[:200])
+        _argos_logger.error("ARGOS 주가 수집 실패: %s", e)
+
+
+async def _argos_collect_news_safe():
+    """뉴스 수집 — 예외 안전 래퍼."""
+    try:
+        n = await _argos_collect_news()
+        _argos_update_status("news", count_delta=n)
+        _argos_logger.info("ARGOS 뉴스 수집 완료: %d건", n)
+    except Exception as e:
+        _argos_update_status("news", error=str(e)[:200])
+        _argos_logger.error("ARGOS 뉴스 수집 실패: %s", e)
+
+
+async def _argos_collect_dart_safe():
+    """DART 수집 — 예외 안전 래퍼."""
+    try:
+        n = await _argos_collect_dart()
+        _argos_update_status("dart", count_delta=n)
+        _argos_logger.info("ARGOS DART 수집 완료: %d건", n)
+    except Exception as e:
+        _argos_update_status("dart", error=str(e)[:200])
+        _argos_logger.error("ARGOS DART 수집 실패: %s", e)
+
+
+async def _argos_collect_macro_safe():
+    """매크로 수집 — 예외 안전 래퍼."""
+    try:
+        n = await _argos_collect_macro()
+        _argos_update_status("macro", count_delta=n)
+        _argos_logger.info("ARGOS 매크로 수집 완료: %d건", n)
+    except Exception as e:
+        _argos_update_status("macro", error=str(e)[:200])
+        _argos_logger.error("ARGOS 매크로 수집 실패: %s", e)
+
+
+async def _argos_monthly_rl_analysis():
+    """월 1회: AI에게 최근 오답 패턴 분석 요청 → error_patterns 테이블 업데이트.
+    Phase 6-9 강화학습 파이프라인.
+    """
+    _argos_logger.info("📊 월간 강화학습 패턴 분석 시작")
+    save_activity_log("system", "📊 월간 강화학습 패턴 분석 시작 (크론)", "info")
+    try:
+        conn = get_connection()
+        # 최근 30일 내 틀린 예측 집계
+        rows = conn.execute(
+            """SELECT ticker, direction, confidence, return_pct_7d, analyzed_at
+               FROM cio_predictions
+               WHERE correct_7d = 0
+                 AND analyzed_at >= datetime('now', '-30 days')
+               ORDER BY analyzed_at DESC
+               LIMIT 30"""
+        ).fetchall()
+        conn.close()
+
+        if not rows:
+            _argos_logger.info("최근 30일 오답 없음 — 패턴 분석 스킵")
+            return
+
+        wrong_list = [
+            f"- {r[0]} ({r[1]}, 신뢰도 {r[2]}%) → 실제수익 {r[3]}% ({r[4][:10]})"
+            for r in rows
+        ]
+        prompt = (
+            "다음은 최근 30일간 틀린 매매 예측 목록입니다:\n"
+            + "\n".join(wrong_list)
+            + "\n\n공통 패턴을 분석해주세요: "
+            "① 어떤 종목/방향에서 많이 틀렸나? "
+            "② 높은 신뢰도인데 틀린 케이스 원인? "
+            "③ 다음 분석 시 주의사항 3가지를 간결하게 요약하세요."
+        )
+
+        from ai_handler import ask_ai
+        result = await ask_ai(
+            agent_id="secretary",
+            messages=[{"role": "user", "content": prompt}],
+            model=None,  # config/models.yaml에서 자동 선택
+            task_id=f"rl_monthly_{datetime.now(KST).strftime('%Y%m')}",
+        )
+
+        analysis_text = result.get("content", "")
+        if analysis_text:
+            conn = get_connection()
+            conn.execute(
+                """INSERT INTO error_patterns
+                   (pattern_type, description, ticker_filter, direction_filter,
+                    confidence_threshold, active, created_at, updated_at)
+                   VALUES(?,?,?,?,?,?,?,?)""",
+                ("monthly_rl", analysis_text[:2000], "", "", 0.0, 1,
+                 datetime.now(KST).isoformat(), datetime.now(KST).isoformat())
+            )
+            conn.commit()
+            conn.close()
+            save_activity_log("system", f"📊 월간 RL 패턴 분석 완료 ({len(rows)}건 분석)", "success")
+            _argos_logger.info("월간 RL 패턴 분석 완료: %d건", len(rows))
+    except Exception as e:
+        _argos_logger.error("월간 RL 패턴 분석 실패: %s", e)
+
+
 async def _cron_loop():
     """1분마다 예약된 작업을 확인하고 실행합니다."""
     logger = logging.getLogger("corthex.cron")
@@ -3763,6 +4213,33 @@ async def _cron_loop():
                 asyncio.create_task(run_soul_evolution_analysis())
 
             # Soul Gym 24/7 상시 진화 — _soul_gym_loop()로 이관 (서버 시작 시 자동 실행)
+
+            # ── ARGOS: 자동 데이터 수집 레이어 (Phase 6-5) ──
+            _now_ts = time.time()
+
+            # 주가: 1분마다 (관심종목 있을 때만)
+            global _ARGOS_LAST_PRICE, _ARGOS_LAST_NEWS, _ARGOS_LAST_DART, _ARGOS_LAST_MACRO, _ARGOS_LAST_MONTHLY_RL
+            asyncio.create_task(_argos_collect_prices_safe())
+
+            # 뉴스: 30분마다
+            if _now_ts - _ARGOS_LAST_NEWS > _ARGOS_NEWS_INTERVAL:
+                _ARGOS_LAST_NEWS = _now_ts
+                asyncio.create_task(_argos_collect_news_safe())
+
+            # DART 공시: 1시간마다
+            if _now_ts - _ARGOS_LAST_DART > _ARGOS_DART_INTERVAL:
+                _ARGOS_LAST_DART = _now_ts
+                asyncio.create_task(_argos_collect_dart_safe())
+
+            # 매크로: 1일마다
+            if _now_ts - _ARGOS_LAST_MACRO > _ARGOS_MACRO_INTERVAL:
+                _ARGOS_LAST_MACRO = _now_ts
+                asyncio.create_task(_argos_collect_macro_safe())
+
+            # 월간 강화학습 패턴 분석 (Phase 6-9)
+            if _now_ts - _ARGOS_LAST_MONTHLY_RL > _ARGOS_MONTHLY_INTERVAL:
+                _ARGOS_LAST_MONTHLY_RL = _now_ts
+                asyncio.create_task(_argos_monthly_rl_analysis())
 
             schedules = _load_data("schedules", [])
             now = datetime.now(KST)
@@ -7752,6 +8229,356 @@ async def _save_to_notion(agent_id: str, title: str, content: str,
 # ── 노션(Notion) 로그 API → handlers/notion_handler.py로 분리 ──
 from handlers.notion_handler import router as notion_router
 app.include_router(notion_router)
+
+
+# ══════════════════════════════════════════════════════════════════
+# ARGOS API — DB 캐시 서빙 (Phase 6-6) + 신뢰도 서버 계산 (Phase 6-7)
+# + 정보국 상태 API (Phase 6-8)
+# ══════════════════════════════════════════════════════════════════
+
+@app.get("/api/argos/status")
+async def argos_status():
+    """ARGOS 수집 레이어 현황 — 수집 시각, 오류, 총 건수."""
+    try:
+        conn = get_connection()
+        rows = conn.execute(
+            "SELECT data_type, last_collected, last_error, total_count, updated_at "
+            "FROM argos_collection_status"
+        ).fetchall()
+        # 주가 레코드 수
+        price_cnt = conn.execute("SELECT COUNT(*) FROM argos_price_history").fetchone()[0]
+        news_cnt  = conn.execute("SELECT COUNT(*) FROM argos_news_cache").fetchone()[0]
+        dart_cnt  = conn.execute("SELECT COUNT(*) FROM argos_dart_filings").fetchone()[0]
+        macro_cnt = conn.execute("SELECT COUNT(*) FROM argos_macro_data").fetchone()[0]
+        conn.close()
+
+        status_map = {r[0]: {
+            "last_collected": r[1], "last_error": r[2],
+            "total_count": r[3], "updated_at": r[4]
+        } for r in rows}
+
+        return {"ok": True, "status": status_map, "db_counts": {
+            "price": price_cnt, "news": news_cnt,
+            "dart": dart_cnt, "macro": macro_cnt
+        }}
+    except Exception as e:
+        return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
+
+
+@app.get("/api/argos/price/{ticker}")
+async def argos_price(ticker: str, days: int = 30):
+    """ARGOS DB에서 주가 이력 서빙 — AI 도구 호출 불필요."""
+    try:
+        conn = get_connection()
+        cutoff = (datetime.now(KST) - timedelta(days=min(days, 90))).strftime("%Y-%m-%d")
+        rows = conn.execute(
+            """SELECT trade_date, open_price, high_price, low_price, close_price, volume, change_pct
+               FROM argos_price_history
+               WHERE ticker=? AND trade_date >= ?
+               ORDER BY trade_date DESC LIMIT 90""",
+            (ticker.upper(), cutoff)
+        ).fetchall()
+        conn.close()
+        data = [{"date": r[0], "open": r[1], "high": r[2], "low": r[3],
+                 "close": r[4], "volume": r[5], "change_pct": r[6]} for r in rows]
+        return {"ok": True, "ticker": ticker, "count": len(data), "prices": data,
+                "source": "ARGOS DB (서버 캐시)"}
+    except Exception as e:
+        return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
+
+
+@app.get("/api/argos/news/{keyword}")
+async def argos_news(keyword: str, days: int = 7):
+    """ARGOS DB에서 뉴스 캐시 서빙."""
+    try:
+        conn = get_connection()
+        cutoff = (datetime.now(KST) - timedelta(days=min(days, 30))).isoformat()
+        rows = conn.execute(
+            """SELECT title, description, link, pub_date, source
+               FROM argos_news_cache
+               WHERE keyword=? AND pub_date >= ?
+               ORDER BY pub_date DESC LIMIT 50""",
+            (keyword, cutoff)
+        ).fetchall()
+        conn.close()
+        data = [{"title": r[0], "desc": r[1], "link": r[2],
+                 "pub_date": r[3], "source": r[4]} for r in rows]
+        return {"ok": True, "keyword": keyword, "count": len(data), "news": data,
+                "source": "ARGOS DB (서버 캐시)"}
+    except Exception as e:
+        return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
+
+
+@app.get("/api/argos/dart/{ticker}")
+async def argos_dart(ticker: str, days: int = 90):
+    """ARGOS DB에서 DART 공시 서빙."""
+    try:
+        conn = get_connection()
+        cutoff = (datetime.now(KST) - timedelta(days=min(days, 90))).strftime("%Y%m%d")
+        rows = conn.execute(
+            """SELECT corp_name, report_nm, rcept_no, flr_nm, rcept_dt
+               FROM argos_dart_filings
+               WHERE ticker=? AND rcept_dt >= ?
+               ORDER BY rcept_dt DESC LIMIT 50""",
+            (ticker.upper(), cutoff)
+        ).fetchall()
+        conn.close()
+        data = [{"corp_name": r[0], "report_nm": r[1], "rcept_no": r[2],
+                 "flr_nm": r[3], "rcept_dt": r[4]} for r in rows]
+        return {"ok": True, "ticker": ticker, "count": len(data), "filings": data,
+                "source": "ARGOS DB (서버 캐시)"}
+    except Exception as e:
+        return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
+
+
+@app.get("/api/argos/macro")
+async def argos_macro(days: int = 30):
+    """ARGOS DB에서 매크로 지표 서빙."""
+    try:
+        conn = get_connection()
+        cutoff = (datetime.now(KST) - timedelta(days=min(days, 365))).strftime("%Y-%m-%d")
+        rows = conn.execute(
+            """SELECT indicator, trade_date, value, source
+               FROM argos_macro_data
+               WHERE trade_date >= ?
+               ORDER BY indicator, trade_date DESC""",
+            (cutoff,)
+        ).fetchall()
+        conn.close()
+        # indicator별 그룹핑
+        from collections import defaultdict
+        grouped = defaultdict(list)
+        for r in rows:
+            grouped[r[0]].append({"date": r[1], "value": r[2], "source": r[3]})
+        return {"ok": True, "macro": dict(grouped), "source": "ARGOS DB (서버 캐시)"}
+    except Exception as e:
+        return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
+
+
+@app.get("/api/argos/confidence/{ticker}")
+async def argos_confidence(ticker: str):
+    """Phase 6-7: 서버 계산 신뢰도 — Quant + Calibration + Bayesian + ELO.
+    AI는 이 값을 받아 뉴스 맥락으로 ±15%p 조정만 하면 됨.
+    """
+    try:
+        conn = get_connection()
+
+        # ① 최근 주가 데이터 (90일)
+        price_rows = conn.execute(
+            """SELECT close_price, volume, change_pct FROM argos_price_history
+               WHERE ticker=? ORDER BY trade_date DESC LIMIT 90""",
+            (ticker.upper(),)
+        ).fetchall()
+
+        quant_score = None
+        if len(price_rows) >= 14:
+            closes = [r[0] for r in reversed(price_rows)]
+            volumes = [r[1] for r in reversed(price_rows)]
+
+            # RSI(14)
+            gains, losses = [], []
+            for i in range(1, len(closes)):
+                d = closes[i] - closes[i-1]
+                (gains if d > 0 else losses).append(abs(d))
+            avg_gain = sum(gains[-14:]) / 14 if gains else 0.001
+            avg_loss = sum(losses[-14:]) / 14 if losses else 0.001
+            rs = avg_gain / avg_loss
+            rsi = 100 - (100 / (1 + rs))
+
+            # 20일 MA
+            ma20 = sum(closes[-20:]) / min(20, len(closes))
+            cur = closes[-1]
+            above_ma = cur > ma20
+
+            # 볼린저밴드
+            if len(closes) >= 20:
+                std20 = (sum((x - ma20)**2 for x in closes[-20:]) / 20) ** 0.5
+                bb_upper = ma20 + 2 * std20
+                bb_lower = ma20 - 2 * std20
+                bb_pos = (cur - bb_lower) / (bb_upper - bb_lower) * 100 if bb_upper != bb_lower else 50
+            else:
+                bb_pos = 50
+
+            # 거래량 비율 (최근 5일 / 이전 20일 평균)
+            if len(volumes) >= 25:
+                vol_ratio = sum(volumes[-5:]) / 5 / (sum(volumes[-25:-5]) / 20 + 0.001)
+            else:
+                vol_ratio = 1.0
+
+            # Quant Score 계산 (0~99)
+            rsi_score = max(0, min(100, (rsi - 30) / 40 * 100)) if rsi < 70 else max(0, (90 - rsi) * 3)
+            ma_score = 60 if above_ma else 30
+            bb_score = max(0, min(100, 100 - abs(bb_pos - 50) * 2))
+            vol_score = min(100, vol_ratio * 50)
+            trend_score = max(0, min(100, 50 + (cur - closes[-10]) / closes[-10] * 100)) if len(closes) >= 10 else 50
+            quant_score = round((rsi_score * 0.25 + ma_score * 0.25 + bb_score * 0.2 + vol_score * 0.15 + trend_score * 0.15))
+
+        # ② Calibration Factor
+        calibration = _compute_calibration_factor(20)
+        cal_factor = calibration.get("factor", 1.0)
+
+        # ③ Bayesian 버킷 보정
+        bayesian_adj = 0
+        try:
+            buckets = conn.execute(
+                """SELECT bucket_label, actual_win_rate, sample_count
+                   FROM confidence_calibration ORDER BY created_at DESC LIMIT 10"""
+            ).fetchall()
+            if buckets and quant_score is not None:
+                qs_norm = quant_score  # 0~99
+                best = min(buckets, key=lambda b: abs(float(b[0].split("_")[0] if "_" in str(b[0]) else b[0]) - qs_norm), default=None)
+                if best and best[2] >= 5:
+                    actual_wr = float(best[1]) * 100  # 실제 승률(%)
+                    bayesian_adj = round(actual_wr - 50, 1)  # 50% 기준 편차
+        except Exception:
+            pass
+
+        # ④ ELO 가중치 (금융분석팀장 평균 ELO → 신뢰도 가중)
+        elo_adj = 0
+        try:
+            from db import get_analyst_elo
+            elos = [get_analyst_elo(aid)["elo_rating"] for aid in ["cio_manager"]]
+            avg_elo = sum(elos) / len(elos)
+            # ELO 1500 기준: 100점 차이 = ±3%p
+            elo_adj = round((avg_elo - 1500) / 100 * 3, 1)
+        except Exception:
+            pass
+
+        conn.close()
+
+        # 최종 서버 신뢰도
+        base_conf = quant_score if quant_score is not None else 50
+        server_conf = round(base_conf * cal_factor + bayesian_adj + elo_adj)
+        server_conf = max(10, min(95, server_conf))
+
+        return {
+            "ok": True,
+            "ticker": ticker,
+            "server_confidence": server_conf,
+            "components": {
+                "quant_score": quant_score,
+                "calibration_factor": round(cal_factor, 3),
+                "bayesian_adj": bayesian_adj,
+                "elo_adj": elo_adj,
+            },
+            "ai_instruction": f"서버 계산 신뢰도 {server_conf}%. 뉴스/맥락 분석 후 ±15%p 범위 내에서 조정 (이탈 시 이유 명시).",
+            "price_bars_used": len(price_rows),
+            "source": "ARGOS 서버 계산 (AI 호출 없음)"
+        }
+    except Exception as e:
+        return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
+
+
+@app.get("/api/intelligence/status")
+async def intelligence_status():
+    """정보국 통합 상태 — 상단 상태바 + 정보국 탭 데이터 소스 (Phase 6-8)."""
+    try:
+        conn = get_connection()
+        now_kst = datetime.now(KST)
+
+        # ARGOS 수집 상태
+        argos_rows = conn.execute(
+            "SELECT data_type, last_collected, last_error FROM argos_collection_status"
+        ).fetchall()
+        argos_map = {r[0]: {"last": r[1], "error": r[2]} for r in argos_rows}
+
+        # 활성 가격 트리거
+        triggers = _load_data("price_triggers", [])
+        active_triggers = [t for t in triggers if t.get("active", True)]
+
+        # 오늘 AI 비용
+        today_str = now_kst.strftime("%Y-%m-%d")
+        cost_rows = conn.execute(
+            """SELECT COALESCE(SUM(cost_usd), 0) FROM agent_calls
+               WHERE created_at >= ?""",
+            (today_str,)
+        ).fetchone()
+        today_cost = round(float(cost_rows[0] or 0), 4)
+
+        week_ago = (now_kst - timedelta(days=7)).strftime("%Y-%m-%d")
+        week_rows = conn.execute(
+            "SELECT COALESCE(SUM(cost_usd), 0) FROM agent_calls WHERE created_at >= ?",
+            (week_ago,)
+        ).fetchone()
+        week_cost = round(float(week_rows[0] or 0), 4)
+
+        # 최근 AI 활동 (교신로그 통합)
+        recent_logs = conn.execute(
+            """SELECT agent_id, message, level, timestamp FROM activity_logs
+               ORDER BY timestamp DESC LIMIT 20"""
+        ).fetchall()
+        activity = [{"agent": r[0], "msg": r[1][:100], "level": r[2], "ts": r[3]} for r in recent_logs]
+
+        # 최근 에러 (24시간)
+        yesterday = (now_kst - timedelta(hours=24)).isoformat()
+        error_logs = conn.execute(
+            """SELECT agent_id, message, timestamp FROM activity_logs
+               WHERE level='error' AND timestamp >= ?
+               ORDER BY timestamp DESC LIMIT 10""",
+            (yesterday,)
+        ).fetchall()
+        errors = [{"agent": r[0], "msg": r[1][:150], "ts": r[2]} for r in error_logs]
+
+        # 팀장별 비용 (오늘)
+        agent_costs = conn.execute(
+            """SELECT agent_id, COALESCE(SUM(cost_usd), 0) as cost
+               FROM agent_calls WHERE created_at >= ?
+               GROUP BY agent_id ORDER BY cost DESC""",
+            (today_str,)
+        ).fetchall()
+        per_agent = [{"agent": r[0], "cost": round(float(r[1]), 4)} for r in agent_costs]
+
+        conn.close()
+
+        # 데이터 수집 상태 판정
+        price_ok = bool(argos_map.get("price", {}).get("last"))
+        news_ok  = bool(argos_map.get("news", {}).get("last"))
+        has_error = bool(errors)
+
+        return {
+            "ok": True,
+            "timestamp": now_kst.isoformat(),
+            "status_bar": {
+                "data_ok": price_ok,
+                "data_last": argos_map.get("price", {}).get("last", ""),
+                "ai_ok": len(activity) > 0,
+                "ai_last": activity[0]["ts"] if activity else "",
+                "trigger_count": len(active_triggers),
+                "today_cost_usd": today_cost,
+                "has_error": has_error,
+            },
+            "argos": argos_map,
+            "triggers": active_triggers[:20],
+            "activity": activity,
+            "errors": errors,
+            "costs": {
+                "today_usd": today_cost,
+                "week_usd": week_cost,
+                "per_agent": per_agent,
+            },
+        }
+    except Exception as e:
+        return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
+
+
+@app.post("/api/argos/collect/now")
+async def argos_collect_now(req: Request):
+    """수동으로 ARGOS 수집을 즉시 트리거합니다."""
+    body = await req.json() if req.headers.get("content-type", "").startswith("application/json") else {}
+    data_type = body.get("type", "all")
+    results = {}
+    if data_type in ("all", "price"):
+        results["price"] = await _argos_collect_prices_safe() or "실행됨"
+    if data_type in ("all", "news"):
+        results["news"] = await _argos_collect_news_safe() or "실행됨"
+    if data_type in ("all", "dart"):
+        results["dart"] = await _argos_collect_dart_safe() or "실행됨"
+    if data_type in ("all", "macro"):
+        results["macro"] = await _argos_collect_macro_safe() or "실행됨"
+    return {"ok": True, "triggered": results}
+
+
+# ══════════════════════════════════════════════════════════════════
 
 
 # 브로드캐스트 키워드 (모든 부서에 동시 전달하는 명령)
