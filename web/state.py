@@ -48,11 +48,13 @@ class AppState:
         self.bg_tasks: dict[str, asyncio.Task] = {}       # task_id → asyncio.Task
         self.bg_results: dict[str, dict] = {}             # task_id → 완료된 결과 캐시
         self.bg_current_task_id: str | None = None        # 현재 실행 중인 task_id
+        self.bg_lock: asyncio.Lock = asyncio.Lock()       # bg_tasks/bg_results 동시 접근 방지
 
         # ── 배치 처리 ──
         self.batch_queue: list[dict] = []     # 배치 대기열 (로컬 순차/병렬)
         self.batch_running: bool = False      # 배치 실행 중 플래그
         self.batch_api_queue: list[dict] = [] # Batch API 대기열 (프로바이더 배치)
+        self.batch_lock: asyncio.Lock = asyncio.Lock()    # batch_queue 동시 접근 방지
         self.batch_poller_task: asyncio.Task | None = None  # 배치 폴러 루프 태스크
 
         # ── 크론 스케줄러 ──

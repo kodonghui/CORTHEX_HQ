@@ -847,11 +847,12 @@ async def _run_agent_bg(cmd_text: str, task_id: str, target_agent_id: str | None
                         result_summary=_extract_title_summary(result.get("content", "") or ""),
                         success=1,
                         time_seconds=result.get("time_seconds", 0),
-                        cost_usd=result.get("total_cost_usd", result.get("cost_usd", 0)))
+                        cost_usd=result.get("total_cost_usd", result.get("cost_usd", 0)),
+                        agent_id=result.get("agent_id", "chief_of_staff"))
             await _forward_web_response_to_telegram(cmd_text, _result_data)
     except Exception as e:
         _log(f"[BG-AGENT] 백그라운드 에이전트 오류: {e}")
-        update_task(task_id, status="failed", result_summary=str(e)[:200], success=0)
+        update_task(task_id, status="failed", result_summary=str(e)[:200], success=0, agent_id="chief_of_staff")
         _bg_results[task_id] = {"content": f"❌ 에이전트 오류: {e}", "sender_id": "chief_of_staff", "task_id": task_id, "_completed_at": time.time()}
         await wm.broadcast("result", _bg_results[task_id])
     finally:
@@ -1213,6 +1214,9 @@ async def _run_batch_item(item: dict):
 
         item["status"] = "completed"
         item["result"] = result.get("content", "")[:200] if isinstance(result, dict) else str(result)[:200]
+        # R-3: 전력분석 데이터용 agent_id 기록
+        agent_id = result.get("agent_id", "chief_of_staff") if isinstance(result, dict) else "chief_of_staff"
+        update_task(task["task_id"], agent_id=agent_id)
     except Exception as e:
         item["status"] = "failed"
         item["result"] = str(e)[:200]
@@ -4153,39 +4157,36 @@ async def _argos_collect_macro() -> int:
     return saved
 
 
-_argos_seq_running = False  # 순차 수집 중복 실행 방지
+_argos_seq_lock = asyncio.Lock()  # 순차 수집 중복 실행 방지 (Lock 기반)
 
 async def _argos_sequential_collect(now_ts: float):
     """ARGOS 수집을 순차 실행합니다 (DB lock 방지).
     동시에 여러 수집이 DB를 잡지 않도록 하나씩 순서대로.
     """
-    global _argos_seq_running
     global _ARGOS_LAST_NEWS, _ARGOS_LAST_DART, _ARGOS_LAST_MACRO
-    if _argos_seq_running:
+    if _argos_seq_lock.locked():
         return
-    _argos_seq_running = True
-    try:
-        # 1) 주가 — 매 사이클
-        await _argos_collect_prices_safe()
+    async with _argos_seq_lock:
+        try:
+            # 1) 주가 — 매 사이클
+            await _argos_collect_prices_safe()
 
-        # 2) 뉴스 — 30분마다
-        if now_ts - _ARGOS_LAST_NEWS > _ARGOS_NEWS_INTERVAL:
-            _ARGOS_LAST_NEWS = now_ts
-            await _argos_collect_news_safe()
+            # 2) 뉴스 — 30분마다
+            if now_ts - _ARGOS_LAST_NEWS > _ARGOS_NEWS_INTERVAL:
+                _ARGOS_LAST_NEWS = now_ts
+                await _argos_collect_news_safe()
 
-        # 3) DART — 1시간마다
-        if now_ts - _ARGOS_LAST_DART > _ARGOS_DART_INTERVAL:
-            _ARGOS_LAST_DART = now_ts
-            await _argos_collect_dart_safe()
+            # 3) DART — 1시간마다
+            if now_ts - _ARGOS_LAST_DART > _ARGOS_DART_INTERVAL:
+                _ARGOS_LAST_DART = now_ts
+                await _argos_collect_dart_safe()
 
-        # 4) 매크로 — 1일마다
-        if now_ts - _ARGOS_LAST_MACRO > _ARGOS_MACRO_INTERVAL:
-            _ARGOS_LAST_MACRO = now_ts
-            await _argos_collect_macro_safe()
-    except Exception as e:
-        _argos_logger.error("ARGOS 순차 수집 오류: %s", e)
-    finally:
-        _argos_seq_running = False
+            # 4) 매크로 — 1일마다
+            if now_ts - _ARGOS_LAST_MACRO > _ARGOS_MACRO_INTERVAL:
+                _ARGOS_LAST_MACRO = now_ts
+                await _argos_collect_macro_safe()
+        except Exception as e:
+            _argos_logger.error("ARGOS 순차 수집 오류: %s", e)
 
 
 async def _argos_collect_prices_safe():
@@ -4449,6 +4450,8 @@ async def _run_scheduled_command(command: str, schedule_name: str):
 
         task = create_task(actual_command, source="cron")
         result = await _process_ai_command(actual_command, task["task_id"], target_agent_id=target_agent_id)
+        # R-3: 전력분석 데이터용 agent_id 기록
+        update_task(task["task_id"], agent_id=result.get("agent_id", target_agent_id or "chief_of_staff"))
         save_activity_log("system", f"✅ 예약 완료: {schedule_name}", "info")
 
         # 크론 결과를 텔레그램 CEO에게 발송
@@ -4534,6 +4537,9 @@ async def _run_workflow_steps(wf_id: str, wf_name: str, steps: list):
         try:
             task = create_task(command, source="workflow")
             result = await _process_ai_command(command, task["task_id"])
+            # R-3: 전력분석 데이터용 agent_id 기록
+            wf_agent = result.get("agent_id", "chief_of_staff") if isinstance(result, dict) else "chief_of_staff"
+            update_task(task["task_id"], agent_id=wf_agent)
             content = result.get("content", "") if isinstance(result, dict) else str(result)
             prev_result = content[:500]
             results.append({"step": step_name, "status": "completed", "result": content[:200]})
@@ -7977,14 +7983,15 @@ async def _start_telegram_bot() -> None:
                     result = await _process_ai_command(t, tid, target_agent_id=target_agent_id)
                     content = result.get("content", result.get("error", "결과 없음"))
                     cost = result.get("cost_usd", result.get("total_cost_usd", 0))
+                    tg_agent_id = result.get("agent_id", "chief_of_staff")
                     if "error" in result:
                         update_task(tid, status="failed",
                                     result_summary=str(result.get("error", ""))[:200],
-                                    success=0)
+                                    success=0, agent_id=tg_agent_id)
                     else:
                         update_task(tid, status="completed",
                                     result_summary=_extract_title_summary(content or ""),
-                                    success=1, cost_usd=cost)
+                                    success=1, cost_usd=cost, agent_id=tg_agent_id)
                     if len(content) > 3900:
                         content = content[:3900] + "\n\n... (결과가 잘렸습니다. 웹에서 전체 확인)"
                     await app_state.telegram_app.bot.send_message(
@@ -8148,10 +8155,11 @@ async def _start_telegram_bot() -> None:
 
                 result = await _process_ai_command(text, task["task_id"], target_agent_id=tg_target_agent_id)
 
+                tg_rt_agent_id = result.get("agent_id", "chief_of_staff")
                 if "error" in result:
                     update_task(task["task_id"], status="failed",
                                 result_summary=str(result.get("error", ""))[:200],
-                                success=0)
+                                success=0, agent_id=tg_rt_agent_id)
                     await update.message.reply_text(f"❌ {result['error']}")
                 else:
                     content = result.get("content", "")
@@ -8167,7 +8175,8 @@ async def _start_telegram_bot() -> None:
                     update_task(task["task_id"], status="completed",
                                 result_summary=_extract_title_summary(content or ""),
                                 success=1, cost_usd=cost,
-                                time_seconds=result.get("time_seconds", 0))
+                                time_seconds=result.get("time_seconds", 0),
+                                agent_id=tg_rt_agent_id)
                     await update.message.reply_text(
                         f"{content}\n\n"
                         f"─────\n"
@@ -11516,47 +11525,45 @@ async def api_evolution_logs(limit: int = 50):
 
 # ── Soul Gym 24/7 상시 루프 ──
 
-_soul_gym_running = False  # 중복 실행 방지 플래그
+_soul_gym_lock = asyncio.Lock()  # 중복 실행 방지 Lock
 
 async def _soul_gym_loop():
     """Soul Gym 상시 진화 루프 — 한 라운드 끝나면 5분 쉬고 다음 라운드.
 
     비유: 24시간 운영 헬스장. 선수가 운동 끝나면 5분 쉬고 다시 시작.
     """
-    global _soul_gym_running
-    if _soul_gym_running:
+    if _soul_gym_lock.locked():
         logger.warning("[SOUL GYM] 이미 루프 실행 중 — 중복 방지")
         return
-    _soul_gym_running = True
-    INTERVAL_SECONDS = 300  # 라운드 간 대기 (5분)
+    async with _soul_gym_lock:
+        INTERVAL_SECONDS = 1800  # 라운드 간 대기 (30분, 6팀장 순차 실행 고려)
 
-    try:
-        from soul_gym_engine import evolve_all as _evolve_all
-    except ImportError:
-        logger.error("[SOUL GYM] soul_gym_engine 임포트 실패")
-        _soul_gym_running = False
-        return
-
-    round_num = 0
-    while True:
         try:
-            round_num += 1
-            _evo_msg = f"🧬 Soul Gym 라운드 #{round_num} 시작"
-            logger.info(_evo_msg)
-            save_activity_log("system", _evo_msg, "info")
-            await _broadcast_evolution_log(_evo_msg, "info")
-            result = await _evolve_all()
-            _evo_msg = f"🧬 Soul Gym 라운드 #{round_num} 완료 — {result.get('status', '')}"
-            logger.info("🧬 Soul Gym 라운드 #%d 완료: %s", round_num, result.get("status", "unknown"))
-            save_activity_log("system", _evo_msg, "info")
-            await _broadcast_evolution_log(_evo_msg, "info")
-        except Exception as e:
-            _evo_msg = f"🧬 Soul Gym 라운드 #{round_num} 에러: {e}"
-            logger.error(_evo_msg)
-            save_activity_log("system", _evo_msg, "error")
-            await _broadcast_evolution_log(_evo_msg, "error")
+            from soul_gym_engine import evolve_all as _evolve_all
+        except ImportError:
+            logger.error("[SOUL GYM] soul_gym_engine 임포트 실패")
+            return
 
-        await asyncio.sleep(INTERVAL_SECONDS)
+        round_num = 0
+        while True:
+            try:
+                round_num += 1
+                _evo_msg = f"🧬 Soul Gym 라운드 #{round_num} 시작"
+                logger.info(_evo_msg)
+                save_activity_log("system", _evo_msg, "info")
+                await _broadcast_evolution_log(_evo_msg, "info")
+                result = await _evolve_all()
+                _evo_msg = f"🧬 Soul Gym 라운드 #{round_num} 완료 — {result.get('status', '')}"
+                logger.info("🧬 Soul Gym 라운드 #%d 완료: %s", round_num, result.get("status", "unknown"))
+                save_activity_log("system", _evo_msg, "info")
+                await _broadcast_evolution_log(_evo_msg, "info")
+            except Exception as e:
+                _evo_msg = f"🧬 Soul Gym 라운드 #{round_num} 에러: {e}"
+                logger.error(_evo_msg)
+                save_activity_log("system", _evo_msg, "error")
+                await _broadcast_evolution_log(_evo_msg, "error")
+
+            await asyncio.sleep(INTERVAL_SECONDS)
 
 
 @app.on_event("startup")
