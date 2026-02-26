@@ -5895,11 +5895,14 @@ async def _run_trading_now_inner(selected_tickers: list[str] | None = None):
 - **리스크관리**: 손절가, 적정 포지션 크기, 전체 포트폴리오 리스크
 
 ## 최종 산출물 (반드시 아래 형식 그대로 — 예시처럼 정확히)
-[시그널] 삼성전자 (005930) | 매수 | 신뢰도 72% | 반도체 수요 회복 + RSI 과매도 구간
-[시그널] 카카오 (035720) | 매도 | 신뢰도 61% | PER 과대평가, 금리 민감 섹터 약세
-[시그널] LG에너지솔루션 (373220) | 관망 | 신뢰도 45% | 혼조세, 방향성 불명확
+[시그널] 삼성전자 (005930) | 매수 | 신뢰도 72% | 비중 15% | 목표가 78000 | 반도체 수요 회복 + RSI 과매도 구간
+[시그널] 카카오 (035720) | 매도 | 신뢰도 61% | 비중 10% | 목표가 0 | PER 과대평가, 금리 민감 섹터 약세
+[시그널] LG에너지솔루션 (373220) | 관망 | 신뢰도 45% | 비중 0% | 목표가 390000 | 혼조세, 이 가격 도달 시 진입 검토
 
-※ 신뢰도는 위 정량기준값 ±15%p 범위 내에서 결정. 종목별로 독립적으로, 0~100 숫자 + % 기호로 표기"""
+※ 주의:
+- 신뢰도는 위 정량기준값 ±15%p 범위 내에서 결정. 종목별로 독립적으로, 0~100 숫자 + % 기호로 표기
+- 목표가(권장 매수 진입가): 매수/관망 종목은 반드시 입력. 현재가보다 낮은 목표 진입가 설정. 미국 주식은 USD 단위. 매도 종목은 0
+- 목표가 도달 시 서버가 자동으로 매수 실행 — 신중하게 설정할 것"""
 
     save_activity_log("cio_manager", f"🔍 수동 즉시 분석 시작: {market_label}장 {len(market_watchlist)}개 종목", "info")
     cio_result = await _call_agent("cio_manager", prompt)
@@ -6208,6 +6211,49 @@ async def _run_trading_now_inner(selected_tickers: list[str] | None = None):
                 _tb = traceback.format_exc()
                 logger.error("[수동 분석] 자동주문 오류 (%s): %s\n%s", ticker, order_err, _tb)
                 save_activity_log("cio_manager", f"❌ [수동] 주문 오류: {ticker} — {order_err}", "error")
+
+    # ── CIO 목표가 기반 buy_limit 트리거 자동 등록 (수동 즉시분석) ──
+    _today_str2 = datetime.now(KST).strftime("%Y%m%d")
+    for sig in parsed_signals:
+        _tp = sig.get("target_price", 0)
+        if _tp <= 0 or sig["action"] not in ("buy", "hold"):
+            continue
+        _bl2_ticker = sig["ticker"]
+        _bl2_name = sig.get("name", _bl2_ticker)
+        _bl2_market = sig.get("market", market)
+        _bl2_is_us = _bl2_market.upper() in ("US", "USA", "OVERSEAS") or (
+            _bl2_ticker.isalpha() and len(_bl2_ticker) <= 5
+        )
+        _all2 = _load_data("price_triggers", [])
+        _all2 = [
+            t for t in _all2
+            if not (
+                t.get("type") == "buy_limit"
+                and t.get("ticker") == _bl2_ticker
+                and t.get("created_at", "").startswith(_today_str2)
+            )
+        ]
+        _w2 = _get_signal_weight(sig, sig.get("confidence", 50))
+        _amt2 = int(account_balance * _w2) if account_balance > 0 else 500_000
+        _fx2 = _get_fx_rate()
+        _qty2 = max(1, int(_amt2 / (_tp * _fx2))) if _bl2_is_us else max(1, int(_amt2 / _tp))
+        _all2.insert(0, {
+            "id": f"bl_{_bl2_ticker}_{datetime.now(KST).strftime('%Y%m%d%H%M%S')}",
+            "ticker": _bl2_ticker, "name": _bl2_name,
+            "type": "buy_limit", "trigger_price": _tp, "qty": _qty2,
+            "market": _bl2_market, "active": True,
+            "created_at": datetime.now(KST).isoformat(),
+            "source": "cio_manual", "source_id": new_signal["id"],
+            "note": f"CIO 목표매수: {_tp:,.0f} ({sig.get('confidence', 0)}% 신뢰도) — {sig.get('reason', '')[:60]}",
+        })
+        if len(_all2) > 500:
+            _all2 = _all2[:500]
+        _save_data("price_triggers", _all2)
+        save_activity_log(
+            "cio_manager",
+            f"🎯 목표매수 자동등록: {_bl2_name}({_bl2_ticker}) 목표가 {_tp:,.0f} × {_qty2}주",
+            "info",
+        )
 
     save_activity_log("cio_manager",
         f"✅ 수동 분석 완료: {len(parsed_signals)}개 시그널 (주문 {orders_triggered}건, 비용 ${cost:.4f})", "info")

@@ -933,6 +933,40 @@ async def get_trading_history():
     return _load_data("trading_history", [])
 
 
+@router.get("/api/trading/plan")
+async def get_trading_plan():
+    """금융팀장 최신 작전계획 — 최근 분석 시그널 + 목표가 + 트리거 상태."""
+    signals = _load_data("trading_signals", [])
+    triggers = _load_data("price_triggers", [])
+    active_limits = {
+        t["ticker"]: t
+        for t in reversed(triggers)
+        if t.get("type") == "buy_limit" and t.get("active", True)
+    }
+    if not signals:
+        return {"signals": [], "date": None, "market": None}
+    latest = signals[0]
+    parsed = latest.get("parsed_signals", [])
+    for sig in parsed:
+        t = active_limits.get(sig.get("ticker", ""))
+        sig["trigger_active"] = bool(t)
+    return {
+        "signals": parsed,
+        "date": latest.get("date"),
+        "market": latest.get("market"),
+        "analyzed_by": latest.get("analyzed_by"),
+        "qa_passed": latest.get("qa_passed"),
+        "cost_usd": latest.get("cost_usd"),
+    }
+
+
+@router.get("/api/trading/triggers")
+async def get_price_triggers():
+    """가격 트리거 목록 (buy_limit / stop_loss / take_profit)."""
+    triggers = _load_data("price_triggers", [])
+    return {"triggers": triggers}
+
+
 @router.get("/api/trading/signals")
 async def get_trading_signals():
     """매매 시그널 목록."""
