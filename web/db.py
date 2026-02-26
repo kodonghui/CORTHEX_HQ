@@ -462,6 +462,76 @@ CREATE TABLE IF NOT EXISTS soul_gym_rounds (
 );
 CREATE INDEX IF NOT EXISTS idx_soul_gym_agent ON soul_gym_rounds(agent_id);
 CREATE INDEX IF NOT EXISTS idx_soul_gym_created ON soul_gym_rounds(created_at);
+
+-- ============================================================
+-- ARGOS: 자동 데이터 수집 레이어 (6-5)
+-- 분석 시점 API 호출 0회 — 미리 쌓아놓은 DB에서 꺼냄
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS argos_price_history (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    ticker          TEXT NOT NULL,
+    market          TEXT NOT NULL DEFAULT 'KR',  -- KR | US
+    trade_date      TEXT NOT NULL,               -- YYYY-MM-DD
+    open_price      REAL,
+    high_price      REAL,
+    low_price       REAL,
+    close_price     REAL NOT NULL,
+    volume          INTEGER,
+    change_pct      REAL,                        -- 전일 대비 변동률(%)
+    collected_at    TEXT NOT NULL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_argos_price_uq ON argos_price_history(ticker, trade_date);
+CREATE INDEX IF NOT EXISTS idx_argos_price_ticker ON argos_price_history(ticker);
+CREATE INDEX IF NOT EXISTS idx_argos_price_date ON argos_price_history(trade_date);
+
+CREATE TABLE IF NOT EXISTS argos_news_cache (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    keyword         TEXT NOT NULL,               -- 종목코드 or 검색어
+    title           TEXT NOT NULL,
+    description     TEXT DEFAULT '',
+    link            TEXT DEFAULT '',
+    pub_date        TEXT NOT NULL,               -- ISO8601
+    source          TEXT DEFAULT 'naver',
+    sentiment       TEXT DEFAULT '',             -- positive | negative | neutral
+    collected_at    TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_argos_news_keyword ON argos_news_cache(keyword);
+CREATE INDEX IF NOT EXISTS idx_argos_news_pub ON argos_news_cache(pub_date);
+
+CREATE TABLE IF NOT EXISTS argos_dart_filings (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    ticker          TEXT NOT NULL,
+    corp_name       TEXT DEFAULT '',
+    report_nm       TEXT NOT NULL,               -- 공시 제목
+    rcept_no        TEXT UNIQUE,                 -- 접수번호
+    flr_nm          TEXT DEFAULT '',             -- 공시인
+    rcept_dt        TEXT NOT NULL,               -- 접수일 YYYYMMDD
+    remark          TEXT DEFAULT '',
+    collected_at    TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_argos_dart_ticker ON argos_dart_filings(ticker);
+CREATE INDEX IF NOT EXISTS idx_argos_dart_dt ON argos_dart_filings(rcept_dt);
+
+CREATE TABLE IF NOT EXISTS argos_macro_data (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    indicator       TEXT NOT NULL,               -- USD_KRW | KOSPI | KOSDAQ | VIX | ...
+    trade_date      TEXT NOT NULL,               -- YYYY-MM-DD
+    value           REAL NOT NULL,
+    source          TEXT DEFAULT '',
+    collected_at    TEXT NOT NULL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_argos_macro_uq ON argos_macro_data(indicator, trade_date);
+CREATE INDEX IF NOT EXISTS idx_argos_macro_indicator ON argos_macro_data(indicator);
+
+CREATE TABLE IF NOT EXISTS argos_collection_status (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    data_type       TEXT NOT NULL UNIQUE,        -- price | news | dart | macro
+    last_collected  TEXT DEFAULT '',             -- ISO8601
+    last_error      TEXT DEFAULT '',
+    total_count     INTEGER DEFAULT 0,
+    updated_at      TEXT NOT NULL
+);
 """
 
 
