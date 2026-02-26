@@ -2605,7 +2605,7 @@ function corthexApp() {
         const m = task.command.match(/@(\S+)/);
         if (m) {
           const k = m[1].toLowerCase();
-          const map = {'cto':'cto_manager','cso':'cso_manager','clo':'clo_manager','cmo':'cmo_manager','cio':'cio_manager','cpo':'cpo_manager','비서실장':'chief_of_staff'};
+          const map = {'cso':'cso_manager','clo':'clo_manager','cmo':'cmo_manager','cio':'cio_manager','cpo':'cpo_manager','비서실장':'chief_of_staff'};
           agentId = map[k] || null;
         }
       }
@@ -4775,7 +4775,7 @@ function corthexApp() {
       if (!filename) return '';
       let t = filename;
       t = t.replace(/\.md$/, '');
-      t = t.replace(/^(chief_of_staff|cio_manager|cso_manager|clo_manager|cmo_manager|cpo_manager|cto_manager|argos)_/i, '');
+      t = t.replace(/^(chief_of_staff|cio_manager|cso_manager|clo_manager|cmo_manager|cpo_manager|argos)_/i, '');
       t = t.replace(/^\d{4}-\d{2}-\d{2}[-_]?/, '');
       t = t.replace(/_\d{8}_\d{6}$/, '');
       t = t.replace(/_\d{8}T\d{6}$/, '');

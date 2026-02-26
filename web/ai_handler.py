@@ -203,7 +203,6 @@ _CLASSIFY_PROMPT = """당신은 업무 분류 전문가입니다.
 CEO의 명령을 읽고 어느 부서가 처리해야 하는지 판단하세요.
 
 ## 부서 목록
-- cto_manager: 기술개발 (코드, 웹사이트, API, 서버, 배포, 프론트엔드, 백엔드, 버그, UI, 디자인, 데이터베이스)
 - cso_manager: 사업기획 (시장조사, 사업계획, 매출 예측, 비즈니스모델, 수익, 경쟁사)
 - clo_manager: 법무IP (저작권, 특허, 상표, 약관, 계약, 법률, 소송)
 - cmo_manager: 마케팅고객 (마케팅, 광고, SNS, 인스타그램, 유튜브, 콘텐츠, 브랜딩, 설문)
@@ -543,7 +542,7 @@ async def classify_task(text: str) -> dict:
     """CEO 명령을 분류하여 적합한 에이전트 ID를 반환합니다.
 
     가장 저렴한 사용 가능 모델로 분류를 수행합니다.
-    반환: {"agent_id": "cto_manager", "reason": "...", "cost_usd": 0.001}
+    반환: {"agent_id": "cso_manager", "reason": "...", "cost_usd": 0.001}
     """
     if not is_ai_ready():
         return {"agent_id": "chief_of_staff", "reason": "AI 미연결", "cost_usd": 0}

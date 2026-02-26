@@ -24,28 +24,8 @@ _agent_info: dict[str, dict] = {}
 _save_collaboration_log_callback: Any | None = None
 
 # AI가 흔히 지어내는 가짜 이름 → 실제 에이전트 ID 매핑
-_AGENT_ALIAS: dict[str, str] = {
-    # CIO 소속 전문가 — AI가 자주 줄여서 씀
-    "risk_manager": "risk_management_specialist",
-    "risk_analyst": "risk_management_specialist",
-    "risk_specialist": "risk_management_specialist",
-    "fundamental_analyst": "stock_analysis_specialist",
-    "stock_analyst": "stock_analysis_specialist",
-    "equity_analyst": "stock_analysis_specialist",
-    "macro_analyst": "market_condition_specialist",
-    "market_analyst": "market_condition_specialist",
-    "market_specialist": "market_condition_specialist",
-    "technical_analyst": "technical_analysis_specialist",
-    "chart_analyst": "technical_analysis_specialist",
-    # 기타 부서 — AI가 줄여 쓸 수 있는 패턴
-    "frontend_developer": "frontend_specialist",
-    "backend_developer": "backend_specialist",
-    "patent_lawyer": "patent_specialist",
-    "copyright_lawyer": "copyright_specialist",
-    "market_researcher": "market_research_specialist",
-    "content_creator": "content_specialist",
-    "community_manager": "community_specialist",
-}
+# 2026-02-26: 전문가 전원 제거 — 팀장 6명 단독 체제
+_AGENT_ALIAS: dict[str, str] = {}
 
 
 def register_collaboration_log_callback(callback) -> None:
