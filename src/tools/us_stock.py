@@ -118,6 +118,30 @@ class UsStockTool(BaseTool):
                 + "\n".join(f"- {cat}: {', '.join(syms)}" for cat, syms in POPULAR.items())
             )
 
+        # ① ARGOS DB 우선 (서버 수집 캐시)
+        try:
+            from src.tools._argos_reader import get_price_data
+            argos = get_price_data(symbol, days=5)
+            if argos and len(argos) >= 1:
+                cur = argos[-1]
+                prev = argos[-2] if len(argos) >= 2 else cur
+                chg = (cur["close"] or 0) - (prev["close"] or 0)
+                chg_pct = (chg / prev["close"] * 100) if prev["close"] else 0
+                arrow = "▲" if chg >= 0 else "▼"
+                lines = [
+                    f"## {symbol} (ARGOS 캐시)\n",
+                    f"| 항목 | 값 |",
+                    f"|------|------|",
+                    f"| 현재가 | ${cur['close']:,.2f} |",
+                    f"| 전일 대비 | {arrow} ${abs(chg):,.2f} ({chg_pct:+.2f}%) |",
+                    f"| 시가/고가/저가 | ${cur['open']:,.2f} / ${cur['high']:,.2f} / ${cur['low']:,.2f} |",
+                    f"| 거래량 | {(cur['volume'] or 0):,.0f} |",
+                ]
+                logger.info("[ARGOS] %s quote 캐시 사용", symbol)
+                return "\n".join(lines)
+        except Exception:
+            pass
+
         try:
             t = yf.Ticker(symbol)
             info = t.info or {}
@@ -292,6 +316,35 @@ class UsStockTool(BaseTool):
         period = kw.get("period", "3mo")
         interval = kw.get("interval", "1d")
 
+        # ① ARGOS DB 우선
+        try:
+            from src.tools._argos_reader import get_price_data
+            _days_map = {"1mo": 30, "3mo": 90, "6mo": 180, "1y": 365}
+            _days = _days_map.get(str(period), 90)
+            argos = get_price_data(symbol, days=_days)
+            if argos and len(argos) >= 5:
+                total_ret = ((argos[-1]["close"] - argos[0]["close"]) / argos[0]["close"]) * 100 if argos[0]["close"] else 0
+                high_max = max(r["high"] for r in argos if r["high"])
+                low_min = min(r["low"] for r in argos if r["low"])
+                avg_vol = sum(r["volume"] or 0 for r in argos) / len(argos)
+                lines = [
+                    f"## {symbol} OHLCV — {period} / {interval} (ARGOS 캐시)\n",
+                    f"**기간 수익률:** {total_ret:+.2f}%  ",
+                    f"**기간 최고:** ${high_max:,.2f} | **최저:** ${low_min:,.2f}  ",
+                    f"**평균 거래량:** {avg_vol:,.0f}\n",
+                    "| 날짜 | 시가 | 고가 | 저가 | 종가 | 거래량 |",
+                    "|------|------|------|------|------|--------|",
+                ]
+                for r in argos[-20:]:
+                    lines.append(
+                        f"| {r['date']} | ${r['open']:,.2f} | ${r['high']:,.2f} | "
+                        f"${r['low']:,.2f} | ${r['close']:,.2f} | {(r['volume'] or 0):,.0f} |"
+                    )
+                logger.info("[ARGOS] %s ohlcv %d일 캐시 사용", symbol, len(argos))
+                return "\n".join(lines)
+        except Exception:
+            pass
+
         try:
             t = yf.Ticker(symbol)
             hist = t.history(period=period, interval=interval)
@@ -341,6 +394,84 @@ class UsStockTool(BaseTool):
             return "symbol 파라미터가 필요합니다."
 
         days = int(kw.get("days", 120))
+
+        # ① ARGOS DB 우선
+        try:
+            from src.tools._argos_reader import get_price_dataframe
+            argos_df = get_price_dataframe(symbol, days)
+            if argos_df is not None and len(argos_df) >= 20:
+                # kr_stock과 동일한 컬럼명(시가/고가/저가/종가/거래량) → 영문으로 매핑
+                import pandas as pd
+                hist = argos_df.rename(columns={
+                    "시가": "Open", "고가": "High", "저가": "Low",
+                    "종가": "Close", "거래량": "Volume",
+                })
+                logger.info("[ARGOS] %s indicators %d일 캐시 사용", symbol, len(hist))
+                # 아래 기존 계산 로직으로 진입 (hist 변수 재사용)
+                name = symbol
+                close = hist["Close"]
+                high = hist["High"]
+                low = hist["Low"]
+                volume = hist["Volume"]
+                ma5 = close.rolling(5).mean()
+                ma20 = close.rolling(20).mean()
+                ma60 = close.rolling(60).mean() if len(close) >= 60 else None
+                delta = close.diff()
+                gain = delta.where(delta > 0, 0).rolling(14).mean()
+                loss = (-delta.where(delta < 0, 0)).rolling(14).mean()
+                rs = gain / loss
+                rsi = 100 - (100 / (1 + rs))
+                ema12 = close.ewm(span=12).mean()
+                ema26 = close.ewm(span=26).mean()
+                macd_line = ema12 - ema26
+                signal_line = macd_line.ewm(span=9).mean()
+                bb_mid = close.rolling(20).mean()
+                bb_std = close.rolling(20).std()
+                bb_upper = bb_mid + 2 * bb_std
+                bb_lower = bb_mid - 2 * bb_std
+                cur_price = close.iloc[-1]
+                cur_rsi = rsi.iloc[-1]
+                cur_macd = macd_line.iloc[-1]
+                cur_signal = signal_line.iloc[-1]
+                cur_bb_upper = bb_upper.iloc[-1]
+                cur_bb_lower = bb_lower.iloc[-1]
+                cur_ma5 = ma5.iloc[-1]
+                cur_ma20 = ma20.iloc[-1]
+                cur_ma60 = ma60.iloc[-1] if ma60 is not None and len(ma60.dropna()) > 0 else None
+                vol_avg20 = volume.rolling(20).mean().iloc[-1]
+                vol_ratio = volume.iloc[-1] / vol_avg20 if vol_avg20 > 0 else 0
+                rsi_signal = "과매수 (매도 주의)" if cur_rsi >= 70 else "과매도 (매수 기회)" if cur_rsi <= 30 else "중립"
+                macd_signal_str = "매수 시그널 (골든크로스)" if cur_macd > cur_signal else "매도 시그널 (데드크로스)"
+                bb_pos = ((cur_price - cur_bb_lower) / (cur_bb_upper - cur_bb_lower)) * 100 if (cur_bb_upper - cur_bb_lower) > 0 else 50
+                indicator_lines = [
+                    f"## {name} ({symbol}) 기술적 지표 (ARGOS 캐시)\n",
+                    "| 지표 | 값 | 판정 |", "|------|------|------|",
+                    f"| 현재가 | ${cur_price:,.2f} | - |",
+                    f"| RSI (14) | {cur_rsi:.1f} | {rsi_signal} |",
+                    f"| MACD | {cur_macd:.2f} | {macd_signal_str} |",
+                    f"| MACD 시그널 | {cur_signal:.2f} | - |",
+                    f"| 볼린저 상단 | ${cur_bb_upper:,.2f} | - |",
+                    f"| 볼린저 하단 | ${cur_bb_lower:,.2f} | - |",
+                    f"| BB 위치 | {bb_pos:.0f}% | {'상단 근접' if bb_pos > 80 else '하단 근접' if bb_pos < 20 else '중간'} |",
+                    f"| MA5 | ${cur_ma5:,.2f} | {'위' if cur_price > cur_ma5 else '아래'} |",
+                    f"| MA20 | ${cur_ma20:,.2f} | {'위' if cur_price > cur_ma20 else '아래'} |",
+                ]
+                if cur_ma60 is not None:
+                    indicator_lines.append(f"| MA60 | ${cur_ma60:,.2f} | {'위' if cur_price > cur_ma60 else '아래'} |")
+                indicator_lines.append(f"| 거래량 비율 | {vol_ratio:.2f}x | {'급증' if vol_ratio > 2 else '보통' if vol_ratio > 0.5 else '급감'} |")
+                data_summary = "\n".join(indicator_lines)
+                analysis = await self._llm_call(
+                    system_prompt=(
+                        "당신은 미국 주식 기술적분석 전문가입니다. "
+                        "주어진 기술적 지표를 종합 분석하여 단기(1주) 방향성과 "
+                        "주요 지지/저항 수준을 한국어로 제시하세요. 간결하게 5줄 이내."
+                    ),
+                    user_prompt=data_summary,
+                )
+                indicator_lines.append(f"\n---\n### AI 분석\n{analysis}")
+                return "\n".join(indicator_lines)
+        except Exception:
+            pass
 
         try:
             t = yf.Ticker(symbol)
