@@ -4669,6 +4669,7 @@ function corthexApp() {
             if (this.flowchart.graph3dLabelsAnimId) { cancelAnimationFrame(this.flowchart.graph3dLabelsAnimId); this.flowchart.graph3dLabelsAnimId = 0; }
             return;
           }
+          if (this.viewMode === 'agora') { this.viewMode = 'chat'; if (this.agora.sseSource) { this.agora.sseSource.close(); this.agora.sseSource = null; } return; }
           if (this.agoraOpen) { this.agoraOpen = false; if (this.agora.sseSource) { this.agora.sseSource.close(); this.agora.sseSource = null; } return; }
           if (this.showAgentConfig) { this.showAgentConfig = false; return; }
           if (this.showQualitySettings) { this.showQualitySettings = false; return; }
