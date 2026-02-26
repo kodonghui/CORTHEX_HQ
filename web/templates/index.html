@@ -35,6 +35,13 @@
       }
     }
   </script>
+  <!-- PWA -->
+  <link rel="manifest" href="/static/manifest.json">
+  <meta name="theme-color" content="#0a0a0f">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="CORTHEX HQ">
+  <link rel="apple-touch-icon" href="/static/images/corthex-logo-256.png">
   <link rel="stylesheet" href="/static/css/corthex-styles.css?v=BUILD_NUMBER_PLACEHOLDER">
   <script defer src="/static/js/corthex-app.js?v=BUILD_NUMBER_PLACEHOLDER"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/@alpinejs/collapse@3.x.x/dist/cdn.min.js"></script>
@@ -1989,7 +1996,7 @@
               <span class="text-sm font-bold text-hq-accent uppercase tracking-wider font-mono">COMMAND CENTER</span>
             </div>
             <div class="flex gap-3">
-              <div class="desk-card glass border border-hq-accent/30 w-full sm:w-[160px] cursor-pointer" @click="showCeoProfile = true">
+              <div class="desk-card glass border border-hq-accent/30 w-48 sm:w-[160px] cursor-pointer" @click="showCeoProfile = true">
                 <div class="flex items-center justify-between mb-2">
                   <div class="agent-avatar bg-gradient-to-br from-hq-accent to-hq-purple text-white text-[10px]">CEO</div>
                   <div class="status-light status-light-working"></div>
@@ -2030,9 +2037,9 @@
               <span class="text-sm font-bold text-zinc-400 uppercase tracking-wider font-mono">ARGOS — 서버 실행 시스템</span>
               <span class="text-[10px] text-hq-muted ml-auto font-mono">24H / 100 EYES</span>
             </div>
-            <div class="flex gap-3 items-start">
+            <div class="flex flex-col sm:flex-row gap-3 items-start">
               <!-- ARGOS 카드 -->
-              <div class="desk-card glass border border-zinc-500/40 hover:border-zinc-400/60 w-full sm:w-[160px]">
+              <div class="desk-card glass border border-zinc-500/40 hover:border-zinc-400/60 w-full sm:w-[160px] shrink-0">
                 <div class="flex items-center justify-between mb-2">
                   <div class="agent-avatar bg-zinc-700 text-zinc-300 text-[13px]">⚙</div>
                   <div class="status-light status-light-working"></div>
@@ -3684,7 +3691,7 @@
                   <button x-show="sns.mediaSelectMode" @click="toggleSelectAllMedia('images')"
                     class="text-[10px] text-hq-accent hover:underline">전체 선택</button>
                 </div>
-                <div class="grid grid-cols-3 gap-3">
+                <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
                   <template x-for="img in sns.mediaImages" :key="img.filename">
                     <div class="glass border rounded-xl overflow-hidden group cursor-pointer relative"
                          :class="(sns.selectedMedia || []).find(m => m.filename === img.filename) ? 'border-hq-accent' : 'border-hq-border'"
@@ -7396,5 +7403,11 @@
   </template>
 
 
+  <!-- PWA Service Worker 등록 -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js').catch(() => {});
+    }
+  </script>
 </body>
 </html>
