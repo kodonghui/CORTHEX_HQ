@@ -1083,7 +1083,7 @@ async def _call_openai_responses(
     }
 
 
-# ── spawn_agent 도구 스키마 (arm_server.py가 처장에게 제공) ──
+# ── spawn_agent 도구 스키마 (arm_server.py가 팀장에게 제공) ──
 SPAWN_AGENT_TOOL_SCHEMA = {
     "name": "spawn_agent",
     "description": "소속 전문가 에이전트를 호출하여 특정 분석/작업을 수행합니다.",

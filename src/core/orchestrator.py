@@ -4,7 +4,7 @@ CEO Orchestrator: routes all CEO commands through the Chief of Staff.
 Flow:
 1. CEO types a command in CLI
 2. Orchestrator sends it to the Chief of Staff (비서실장)
-3. 비서실장 → 처장(Manager) → Specialist/Worker → 처장 → 비서실장
+3. 비서실장 → 팀장(Manager) → Specialist/Worker → 팀장 → 비서실장
 4. 비서실장이 최종 TaskResult를 CEO에게 반환
 5. reports/ 디렉토리에 보고서 저장
 6. GitHub 자동 푸시

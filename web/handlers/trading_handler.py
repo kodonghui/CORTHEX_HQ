@@ -3,11 +3,11 @@
 비유: 재무팀 — 투자 관련 데이터 조회·저장·주문 실행을 담당하는 곳.
 
 추출 제외 (arm_server.py에 남음):
-  - /api/trading/signals/generate (CIO 분석 파이프라인)
+  - /api/trading/signals/generate (금융분석팀장 분석 파이프라인)
   - /api/trading/bot/toggle (봇 루프 시작/중지)
   - /api/trading/bot/run-now (_run_trading_now_inner)
   - /api/trading/kis/debug, debug-us (깊은 KIS 내부 디버깅)
-  - /api/trading/cio/debug, debug-tools (CIO 디버깅)
+  - /api/trading/cio/debug, debug-tools (금융분석팀장 디버깅)
 """
 import asyncio
 import json
@@ -88,7 +88,7 @@ def _default_portfolio() -> dict:
     }
 
 
-# ── 투자 성향 시스템 (CEO B안 승인: 성향 + CIO 자율) ──
+# ── 투자 성향 시스템 (CEO B안 승인: 성향 + 금융분석팀장 자율) ──
 
 RISK_PROFILES = {
     "aggressive": {
@@ -1080,13 +1080,13 @@ async def set_risk_profile(request: Request):
 
 @router.post("/api/trading/settings/cio-update")
 async def cio_update_trading_settings(request: Request):
-    """CIO가 도구를 통해 자동매매 설정을 변경합니다 (안전 범위 내에서만).
+    """금융분석팀장이 도구를 통해 자동매매 설정을 변경합니다 (안전 범위 내에서만).
 
     body: {changes: {key: value, ...}, reason: str}
     """
     body = await request.json()
     changes = body.get("changes", {})
-    reason = body.get("reason", "CIO 자율 판단")
+    reason = body.get("reason", "금융분석팀장 자율 판단")
     if not changes:
         return {"success": False, "error": "변경할 항목이 없습니다"}
 
@@ -1114,7 +1114,7 @@ async def cio_update_trading_settings(request: Request):
     history = load_setting("trading_settings_history", [])
     history.append({
         "changed_at": datetime.now(KST).isoformat(),
-        "changed_by": "CIO",
+        "changed_by": "금융분석팀장",
         "action": "설정 자율 변경",
         "detail": reason,
         "applied": applied,
@@ -1123,7 +1123,7 @@ async def cio_update_trading_settings(request: Request):
     if len(history) > 100:
         history = history[-100:]
     save_setting("trading_settings_history", history)
-    save_activity_log("cio_manager", f"⚙️ CIO 설정 변경: {', '.join(f'{k}={v}' for k, v in applied.items())} | {reason}", "info")
+    save_activity_log("cio_manager", f"⚙️ 금융분석팀장 설정 변경: {', '.join(f'{k}={v}' for k, v in applied.items())} | {reason}", "info")
 
     return {"success": True, "applied": applied, "rejected": rejected, "settings": settings}
 
@@ -1378,29 +1378,29 @@ async def reset_trading_portfolio(request: Request):
     return {"success": True, "portfolio": portfolio}
 
 
-# ── CIO 예측 히스토리 ──
+# ── 금융분석팀장 예측 히스토리 ──
 
 @router.get("/api/cio/predictions")
 async def get_cio_predictions(limit: int = 20, unverified_only: bool = False):
-    """CIO 예측 히스토리 조회"""
+    """금융분석팀장 예측 히스토리 조회"""
     try:
         from db import load_cio_predictions
         predictions = load_cio_predictions(limit=limit, unverified_only=unverified_only)
         return {"predictions": predictions}
     except Exception as e:
-        logger.error("[CIO] 예측 조회 실패: %s", e)
+        logger.error("[금융분석팀장] 예측 조회 실패: %s", e)
         return {"predictions": [], "error": str(e)}
 
 
 @router.get("/api/cio/performance-summary")
 async def get_cio_performance_summary():
-    """CIO 예측 성과 요약"""
+    """금융분석팀장 예측 성과 요약"""
     try:
         from db import get_cio_performance_summary as _perf
         summary = _perf()
         return summary
     except Exception as e:
-        logger.error("[CIO] 성과 조회 실패: %s", e)
+        logger.error("[금융분석팀장] 성과 조회 실패: %s", e)
         return {"total_predictions": 0, "accuracy_3d": 0, "accuracy_7d": 0, "pending_count": 0}
 
 
@@ -1425,7 +1425,7 @@ async def cio_confidence_dashboard():
             "error_patterns": get_active_error_patterns(),
         }
     except Exception as e:
-        logger.error("[CIO] 신뢰도 대시보드 조회 실패: %s", e)
+        logger.error("[금융분석팀장] 신뢰도 대시보드 조회 실패: %s", e)
         return {"error": str(e)}
 
 
@@ -1437,7 +1437,7 @@ async def cio_analyst_elos():
         elos = get_all_analyst_elos()
         return {"analysts": sorted(elos, key=lambda x: x.get("elo_rating", 1500), reverse=True)}
     except Exception as e:
-        logger.error("[CIO] ELO 조회 실패: %s", e)
+        logger.error("[금융분석팀장] ELO 조회 실패: %s", e)
         return {"analysts": [], "error": str(e)}
 
 
@@ -1449,7 +1449,7 @@ async def cio_calibration():
         buckets = get_all_calibration_buckets()
         return {"buckets": buckets}
     except Exception as e:
-        logger.error("[CIO] 칼리브레이션 조회 실패: %s", e)
+        logger.error("[금융분석팀장] 칼리브레이션 조회 실패: %s", e)
         return {"buckets": [], "error": str(e)}
 
 
@@ -1461,7 +1461,7 @@ async def cio_tool_effectiveness():
         tools = get_tool_effectiveness_all()
         return {"tools": sorted(tools, key=lambda x: x.get("eff_score", 0.5), reverse=True)}
     except Exception as e:
-        logger.error("[CIO] 도구 효과 조회 실패: %s", e)
+        logger.error("[금융분석팀장] 도구 효과 조회 실패: %s", e)
         return {"tools": [], "error": str(e)}
 
 
@@ -1473,7 +1473,7 @@ async def cio_error_patterns():
         patterns = get_active_error_patterns()
         return {"patterns": patterns}
     except Exception as e:
-        logger.error("[CIO] 오답 패턴 조회 실패: %s", e)
+        logger.error("[금융분석팀장] 오답 패턴 조회 실패: %s", e)
         return {"patterns": [], "error": str(e)}
 
 
@@ -1511,5 +1511,5 @@ async def cio_prediction_history(limit: int = 30, offset: int = 0):
 
         return {"predictions": predictions, "total": total, "limit": limit, "offset": offset}
     except Exception as e:
-        logger.error("[CIO] 예측 히스토리 조회 실패: %s", e)
+        logger.error("[금융분석팀장] 예측 히스토리 조회 실패: %s", e)
         return {"predictions": [], "total": 0, "error": str(e)}

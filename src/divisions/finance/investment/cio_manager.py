@@ -1,5 +1,5 @@
 """
-투자분석처장 (CIO Manager)
+금융분석팀장 (CIO Manager)
 
 핵심 로직: 시황/종목/기술적 분석을 병렬 실행한 뒤,
 그 결과를 리스크관리 전문가에게 순차적으로 넘겨 최종 판단을 합성합니다.
@@ -15,7 +15,7 @@ from src.core.message import TaskRequest, TaskResult
 
 class CIOManagerAgent(ManagerAgent):
     """
-    투자분석처장 (CIO).
+    금융분석팀장 (CIO).
 
     Phase 1: 시황분석 + 종목분석 + 기술적분석 → 병렬 실행
     Phase 2: 위 결과 → 리스크관리 전문가 → 순차 실행

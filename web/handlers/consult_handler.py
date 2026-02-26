@@ -1,4 +1,4 @@
-"""처장 간 협의(Consult) API.
+"""팀장 간 협의(Consult) API.
 
 비유: 회의실 — 에이전트 간 협의 요청을 접수하고 기록하는 곳.
 """
@@ -16,7 +16,7 @@ router = APIRouter(tags=["consult"])
 
 @router.post("/api/consult")
 async def consult_manager_api(request: Request):
-    """처장 간 협의 요청. 에이전트가 다른 에이전트에게 의견/도움을 요청합니다.
+    """팀장 간 협의 요청. 에이전트가 다른 에이전트에게 의견/도움을 요청합니다.
 
     body: {from_agent, to_agent, question, context?}
     반환: {success, id, message}

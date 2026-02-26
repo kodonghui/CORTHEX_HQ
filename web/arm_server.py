@@ -4373,14 +4373,14 @@ def _register_default_schedules():
         {
             "id": "default_cio_morning",
             "name": "CIO 일일 시장 분석",
-            "command": "@투자처장 오늘 한국 주식시장 주요 동향과 섹터별 분석을 보고해주세요. 주요 이슈와 투자 관점 포함.",
+            "command": "@금융분석팀장 오늘 한국 주식시장 주요 동향과 섹터별 분석을 보고해주세요. 주요 이슈와 투자 관점 포함.",
             "cron": "30 8 * * 1-5",  # 평일 08:30
             "enabled": True,
         },
         {
             "id": "default_cio_weekly",
             "name": "CIO 주간 시장 리뷰",
-            "command": "@투자처장 이번 주 시장 총평과 다음 주 전망을 종합 보고서로 작성해주세요.",
+            "command": "@금융분석팀장 이번 주 시장 총평과 다음 주 전망을 종합 보고서로 작성해주세요.",
             "cron": "0 18 * * 5",  # 금요일 18:00
             "enabled": True,
         },

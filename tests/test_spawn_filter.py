@@ -4,7 +4,7 @@
   - register_valid_agents(): 에이전트 등록 (dict + str 호환)
   - _resolve_agent_id(): 별칭 → 실제 ID 매핑
   - dormant 에이전트 차단
-  - 같은 부서 직접 스폰 / 다른 부서 처장 리다이렉트
+  - 같은 부서 직접 스폰 / 다른 부서 팀장 리다이렉트
 """
 import sys
 from pathlib import Path
@@ -113,7 +113,7 @@ def test_different_division_info():
 
 
 def test_redirect_target_has_superior():
-    """다른 부서 에이전트가 리다이렉트 대상의 처장(superior)을 가지는지."""
+    """다른 부서 에이전트가 리다이렉트 대상의 팀장(superior)을 가지는지."""
     _setup_test_agents()
     community_info = cap._agent_info["community_specialist"]
     assert community_info["superior_id"] == "cmo_manager"

@@ -311,20 +311,20 @@ class CrossAgentProtocolTool(BaseTool):
                 f"같은 부서의 활성 에이전트를 이용하세요."
             )
 
-        # 2) 다른 부서 → 처장 경유 리다이렉트
+        # 2) 다른 부서 → 팀장 경유 리다이렉트
         caller_div = caller_info.get("division", "")
         target_div = target_info.get("division", "")
         redirected = False
         original_target = resolved_id
 
         if caller_div and target_div and caller_div != target_div:
-            # 대상 에이전트의 처장(superior)을 찾아 리다이렉트
+            # 대상 에이전트의 팀장(superior)을 찾아 리다이렉트
             target_superior = target_info.get("superior_id", "")
             if target_superior and target_superior in _valid_agent_ids:
                 superior_info = _agent_info.get(target_superior, {})
                 if not superior_info.get("dormant"):
                     logger.info(
-                        "부서 간 협업 리다이렉트: %s → %s (원래 대상: %s, 처장 경유)",
+                        "부서 간 협업 리다이렉트: %s → %s (원래 대상: %s, 팀장 경유)",
                         from_agent, target_superior, resolved_id,
                     )
                     resolved_id = target_superior

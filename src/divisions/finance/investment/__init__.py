@@ -1,1 +1,1 @@
-"""투자분석처 (CIO Division)."""
+"""금융분석팀 (CIO Division)."""
