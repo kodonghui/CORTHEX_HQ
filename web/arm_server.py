@@ -4347,7 +4347,6 @@ async def _argos_collect_financial() -> int:
         from pykrx import stock as pykrx_stock
         watchlist = _load_data("trading_watchlist", [])
         kr_tickers = [w for w in watchlist if w.get("market", "KR") == "KR"]
-        _argos_logger.info("FINANCIAL 수집 시작: %d개 KR 종목, 기준날짜=%s", len(kr_tickers), today)
         if not kr_tickers:
             return 0
 
@@ -4359,7 +4358,6 @@ async def _argos_collect_financial() -> int:
                     timeout=20,
                 )
                 if df is not None and not df.empty:
-                    _argos_logger.info("FINANCIAL %s: df cols=%s rows=%d", ticker, list(df.columns)[:6], len(df))
                     row = df.iloc[-1]
                     conn.execute(
                         """INSERT OR IGNORE INTO argos_financial_data
@@ -4377,8 +4375,6 @@ async def _argos_collect_financial() -> int:
                     saved += 1
                     _argos_logger.info("FINANCIAL %s: PER=%.1f PBR=%.2f", ticker,
                                        row.get("PER", 0), row.get("PBR", 0))
-                else:
-                    _argos_logger.warning("FINANCIAL %s: 빈 DataFrame (날짜=%s)", ticker, today)
             except asyncio.TimeoutError:
                 _argos_logger.warning("FINANCIAL %s: 20초 타임아웃", ticker)
             except Exception as e:

@@ -9,8 +9,17 @@
 
 - **날짜**: 2026-02-27
 - **버전**: `4.00.000`
-- **빌드**: 배포 대기
+- **빌드**: #647
 - **서버**: https://corthex-hq.com
+
+## 2026-02-27 — ARGOS C안 구현 (빌드 #642~647)
+- ✅ **금융분석팀장 실시간 도구 10개 제거** — 서버 수집 데이터만 사용 (40분→정상)
+- ✅ **thinking type 버그 수정** — adaptive→enabled (400 에러 해결)
+- ✅ **technical_analyzer divide-by-zero** 수정
+- ✅ **ARGOS 매크로 확장** — S&P500·NASDAQ·미국10년물·한국기준금리 추가 (11건)
+- ✅ **ARGOS 재무지표 수집** — pykrx PER/PBR/EPS/BPS, KR 7개 종목 (7건)
+- ✅ **ARGOS 업종지수 수집** — pykrx 11개 업종, 8건 수집 완료
+- ✅ **collect/now API** — financial·sector 즉시수집 타입 추가
 
 ## 2026-02-27 — 버그 수정 + Phase 5 일괄 구현
 - ✅ **R-3: 전력분석 데이터 누락** — update_task()에 agent_id 추가 (6곳)
