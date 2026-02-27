@@ -19,6 +19,7 @@ const _CDN = {
   forcegraph3d: 'https://unpkg.com/3d-force-graph@1/dist/3d-force-graph.min.js',
   drawflow:     'https://cdn.jsdelivr.net/npm/drawflow/dist/drawflow.min.js',
   drawflowcss:  'https://cdn.jsdelivr.net/npm/drawflow/dist/drawflow.min.css',
+  html2canvas:  'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js',
 };
 function _loadCSS(url) {
   return new Promise(resolve => {
@@ -49,6 +50,10 @@ function corthexApp() {
     feedbackPins: [],
     feedbackNewPin: null,  // { x, y, text }
     feedbackPinText: '',
+    // 드래그 캡처
+    fbDrag: null,       // { startX, startY, curX, curY } — 드래그 중 좌표
+    fbCapture: null,    // { x, y, w, h, dataUrl } — 캡처된 이미지
+    fbCaptureText: '',  // 캡처 코멘트
     wsConnected: false,
     totalCost: 0,
     totalTokens: 0,
@@ -1229,6 +1234,98 @@ function corthexApp() {
           }));
         }
       } catch {}
+    },
+
+    // ── 드래그 영역 캡처 ──
+    fbDragStart(e) {
+      if (!this.feedbackMode || this.feedbackNewPin || this.fbCapture) return;
+      this.fbDrag = { startX: e.clientX, startY: e.clientY, curX: e.clientX, curY: e.clientY };
+    },
+    fbDragMove(e) {
+      if (!this.fbDrag) return;
+      this.fbDrag.curX = e.clientX;
+      this.fbDrag.curY = e.clientY;
+    },
+    fbDragRect() {
+      if (!this.fbDrag) return { x: 0, y: 0, w: 0, h: 0 };
+      const x = Math.min(this.fbDrag.startX, this.fbDrag.curX);
+      const y = Math.min(this.fbDrag.startY, this.fbDrag.curY);
+      const w = Math.abs(this.fbDrag.curX - this.fbDrag.startX);
+      const h = Math.abs(this.fbDrag.curY - this.fbDrag.startY);
+      return { x, y, w, h };
+    },
+    async fbDragEnd(e) {
+      if (!this.fbDrag) return;
+      const rect = this.fbDragRect();
+      this.fbDrag = null;
+      // 너무 작으면 클릭으로 처리 (핀 모드)
+      if (rect.w < 20 || rect.h < 20) {
+        this.feedbackPlacePin(e);
+        return;
+      }
+      // html2canvas로 해당 영역 캡처
+      try {
+        await _loadScript(_CDN.html2canvas);
+        // 오버레이를 잠시 숨기고 캡처
+        const overlay = document.getElementById('fb-overlay');
+        if (overlay) overlay.style.display = 'none';
+        const canvas = await html2canvas(document.body, {
+          x: rect.x + window.scrollX,
+          y: rect.y + window.scrollY,
+          width: rect.w,
+          height: rect.h,
+          useCORS: true,
+          logging: false,
+          scale: 1,
+        });
+        if (overlay) overlay.style.display = '';
+        const dataUrl = canvas.toDataURL('image/png');
+        this.fbCapture = { x: rect.x, y: rect.y, w: rect.w, h: rect.h, dataUrl };
+        this.fbCaptureText = '';
+        this.$nextTick(() => {
+          const inp = document.getElementById('fbCaptureInput');
+          if (inp) inp.focus();
+        });
+      } catch (err) {
+        console.error('캡처 실패:', err);
+        this.showToast('영역 캡처 실패', 'error');
+      }
+    },
+    async fbCaptureSubmit() {
+      if (!this.fbCapture) return;
+      const payload = {
+        x: this.fbCapture.x, y: this.fbCapture.y,
+        w: this.fbCapture.w, h: this.fbCapture.h,
+        tab: this.activeTab, viewMode: this.viewMode,
+        comment: this.fbCaptureText.trim(),
+        image: this.fbCapture.dataUrl,
+        url: window.location.href,
+        screen: { w: window.innerWidth, h: window.innerHeight },
+      };
+      try {
+        const res = await fetch('/api/feedback/capture', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        const d = await res.json();
+        if (d.success) {
+          this.feedbackPins.push({
+            x: this.fbCapture.x + this.fbCapture.w / 2,
+            y: this.fbCapture.y + this.fbCapture.h / 2,
+            comment: '📸 ' + (this.fbCaptureText.trim() || '영역 캡처'),
+            tab: this.activeTab, id: d.id || Date.now(),
+            hasCapture: true, captureFile: d.file,
+          });
+          this.showToast(`영역 캡처 저장됨 (${this.fbCapture.w}×${this.fbCapture.h}px)`, 'success');
+        }
+      } catch { this.showToast('캡처 저장 실패', 'error'); }
+      this.fbCapture = null;
+      this.fbCaptureText = '';
+    },
+    fbCaptureCancel() {
+      this.fbCapture = null;
+      this.fbCaptureText = '';
     },
 
     sendPreset(text) {
