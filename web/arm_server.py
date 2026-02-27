@@ -9252,6 +9252,10 @@ async def argos_collect_now(req: Request):
         results["dart"] = await _argos_collect_dart_safe() or "실행됨"
     if data_type in ("all", "macro"):
         results["macro"] = await _argos_collect_macro_safe() or "실행됨"
+    if data_type in ("all", "financial"):
+        results["financial"] = await _argos_collect_financial_safe() or "실행됨"
+    if data_type in ("all", "sector"):
+        results["sector"] = await _argos_collect_sector_safe() or "실행됨"
     return {"ok": True, "triggered": results}
 
 
