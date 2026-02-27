@@ -179,36 +179,16 @@ async def run_soul_evolution_analysis() -> dict:
         save_setting(_HISTORY_KEY, history)
     save_activity_log("system", f"🧬 Soul 진화 자동 적용 완료: {len(warnings_by_agent)}명 분석 → {len(proposals)}건 적용", "info")
 
-    # 4) 텔레그램 알림
+    # 4) 활동 로그에 상세 기록 (텔레그램 대신 ARGOS 로그)
     if proposals:
-        await _send_telegram_notification(proposals, len(warnings_by_agent))
+        for p in proposals:
+            save_activity_log("soul_evolution", f"🧬 {p['agent_name']} Soul 진화 적용: {p.get('change_summary', '')[:100]}", "info")
 
     return {"status": "completed", "analyzed": len(warnings_by_agent), "proposals": len(proposals)}
 
 
-async def _send_telegram_notification(proposals: list[dict], analyzed_count: int):
-    """대표님에게 텔레그램으로 Soul 진화 제안 알림을 보냅니다."""
-    from state import app_state
-
-    if not app_state.telegram_app:
-        return
-    ceo_id = os.getenv("TELEGRAM_CEO_CHAT_ID", "")
-    if not ceo_id:
-        return
-
-    msg = f"🧬 주간 Soul 진화 제안 도착\n\n"
-    msg += f"분석 대상: {analyzed_count}명\n"
-    msg += f"변경 제안: {len(proposals)}건\n\n"
-    for p in proposals[:5]:
-        msg += f"• {p['agent_name']} ({p['agent_id']})\n"
-    if len(proposals) > 5:
-        msg += f"  ... 외 {len(proposals) - 5}건\n"
-    msg += f"\n웹에서 확인: https://corthex-hq.com\n(에이전트 탭 → Soul 진화)"
-
-    try:
-        await app_state.telegram_app.bot.send_message(chat_id=int(ceo_id), text=msg)
-    except Exception as e:
-        logger.warning("Soul 진화 텔레그램 발송 실패: %s", e)
+## _send_telegram_notification 제거됨 (2026-02-27)
+## 텔레그램 대신 activity_logs(ARGOS)에 상세 기록. run_soul_evolution_analysis()에서 직접 save_activity_log() 호출.
 
 
 # ── API 엔드포인트 ──
@@ -225,7 +205,7 @@ async def trigger_evolution():
     """Soul 진화 분석을 수동으로 즉시 실행합니다."""
     import asyncio
     task = asyncio.create_task(run_soul_evolution_analysis())
-    return {"success": True, "message": "Soul 진화 분석을 시작합니다. 완료 시 텔레그램으로 알림됩니다."}
+    return {"success": True, "message": "Soul 진화 분석을 시작합니다. 완료 시 활동 로그에 기록됩니다."}
 
 
 @router.post("/api/soul-evolution/approve/{proposal_id}")

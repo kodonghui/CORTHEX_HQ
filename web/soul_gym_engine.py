@@ -554,13 +554,17 @@ async def evolve_all(dry_run: bool = False) -> dict:
             logger.error("🧬 %s 진화 실패: %s", aid, e)
             results.append({"agent_id": aid, "status": "error", "message": str(e)[:100]})
 
-    # 텔레그램 알림
+    # 활동 로그에 기록 (텔레그램 대신 ARGOS 로그)
     adopted_count = sum(1 for r in results if r.get("adopted"))
     summary = f"🧬 Soul Gym 완료: {len(results)}명 진화, {adopted_count}명 채택, 비용 ${total_cost:.2f}"
     save_activity_log("system", summary, "info")
 
-    if not dry_run:
-        await _send_telegram_summary(results, total_cost)
+    # 채택/유지 상세 로그
+    for r in results:
+        if r.get("adopted"):
+            save_activity_log("soul_gym", f"✅ {r['agent_name']}: {r['score_before']:.0f}→{r['score_after']:.0f} (+{r['improvement']:.0f}점) [{r['winner']}]", "info")
+        elif r.get("status") != "error":
+            save_activity_log("soul_gym", f"⬜ {r['agent_name']}: {r.get('score_before', 0):.0f}점 (원본 유지)", "info")
 
     return {
         "status": "completed",
@@ -572,30 +576,5 @@ async def evolve_all(dry_run: bool = False) -> dict:
     }
 
 
-async def _send_telegram_summary(results: list[dict], total_cost: float):
-    """진화 결과를 텔레그램으로 대표님에게 전송합니다."""
-    try:
-        from state import app_state
-        if not app_state.telegram_app:
-            return
-        ceo_id = os.getenv("TELEGRAM_CEO_CHAT_ID", "")
-        if not ceo_id:
-            return
-
-        adopted = [r for r in results if r.get("adopted")]
-        retained = [r for r in results if not r.get("adopted") and r.get("status") != "error"]
-
-        msg = f"🧬 Soul Gym 진화 결과\n\n"
-        if adopted:
-            msg += f"✅ 채택 ({len(adopted)}명):\n"
-            for r in adopted:
-                msg += f"  • {r['agent_name']}: {r['score_before']:.0f}→{r['score_after']:.0f} (+{r['improvement']:.0f}점) [{r['winner']}]\n"
-        if retained:
-            msg += f"\n⬜ 원본 유지 ({len(retained)}명):\n"
-            for r in retained:
-                msg += f"  • {r['agent_name']}: {r.get('score_before', 0):.0f}점\n"
-        msg += f"\n💰 총 비용: ${total_cost:.2f}"
-
-        await app_state.telegram_app.bot.send_message(chat_id=int(ceo_id), text=msg)
-    except Exception as e:
-        logger.warning("Soul Gym 텔레그램 발송 실패: %s", e)
+## _send_telegram_summary 제거됨 (2026-02-27)
+## 텔레그램 대신 activity_logs(ARGOS)에 상세 기록. evolve_all()에서 직접 save_activity_log() 호출.
