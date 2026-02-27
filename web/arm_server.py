@@ -58,12 +58,8 @@ except ImportError:
 
 # 품질검수 엔진
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
-try:
-    from src.core.quality_gate import QualityGate, HybridReviewResult
-    from src.llm.base import LLMResponse
-    _QUALITY_GATE_AVAILABLE = True
-except ImportError:
-    _QUALITY_GATE_AVAILABLE = False
+# 품질검수(QualityGate) 제거됨 (2026-02-27 CEO 지시)
+_QUALITY_GATE_AVAILABLE = False
 
 try:
     from kis_client import (
@@ -2820,18 +2816,7 @@ async def _advance_batch_chain(chain_id: str):
                 else:
                     await _broadcast_chain_status(chain, "⚠️ 전문가 배치 결과 없음 — 팀장 직접 처리로 전환")
 
-            # ── 품질검수 HOOK: 전문가 결과 검수 ──
-            if spec_count > 0 and app_state.quality_gate:
-                target_id_qa = chain.get("target_id", "chief_of_staff")
-                if target_id_qa not in _DORMANT_MANAGERS:
-                    await _broadcast_chain_status(chain, "🔍 전문가 보고서 품질검수 시작...")
-                    failed_specs = await _quality_review_specialists(chain)
-                    if failed_specs:
-                        _save_chain(chain)
-                        await _handle_specialist_rework(chain, failed_specs)
-                        _save_chain(chain)
-                    qa_msg = f"✅ 품질검수 완료 (합격 {spec_count - len(failed_specs)}/{spec_count}명)"
-                    await _broadcast_chain_status(chain, qa_msg)
+            # ── 품질검수 제거됨 (2026-02-27) ──
 
             # 종합 단계로 진행 — 팀장 초록불 켜기
             target_id = chain.get("target_id", "chief_of_staff")
@@ -2918,37 +2903,7 @@ async def _advance_batch_chain(chain_id: str):
                 await _synthesis_realtime_fallback(chain)
                 return
 
-            # ── 품질검수 HOOK #2: 종합보고서 검수 (경고 뱃지만, 재작업 없음) ──
-            if app_state.quality_gate and synth_count > 0:
-                target_id_qa2 = chain.get("target_id", "chief_of_staff")
-                if target_id_qa2 not in _DORMANT_MANAGERS:
-                    division = _MANAGER_DIVISION.get(target_id_qa2, "default")
-                    reviewer_model = _get_model_override(target_id_qa2) or "claude-sonnet-4-6"
-                    task_desc = chain.get("original_command", "")[:500]
-                    for agent_id, synth_data in chain["results"]["synthesis"].items():
-                        try:
-                            review = await app_state.quality_gate.hybrid_review(
-                                result_data=synth_data.get("content", ""),
-                                task_description=task_desc,
-                                model_router=_qa_router,
-                                reviewer_id=target_id_qa2,
-                                reviewer_model=reviewer_model,
-                                division=division,
-                                target_agent_id=agent_id,
-                            )
-                            app_state.quality_gate.record_review(review, target_id_qa2, agent_id, task_desc)
-                            if not review.passed:
-                                synth_data["quality_warning"] = (
-                                    " / ".join(review.rejection_reasons)[:200]
-                                    if review.rejection_reasons else "품질 기준 미달"
-                                )
-                                _log(f"[QA] ⚠️ 종합보고서 불합격: {agent_id} (점수={review.weighted_average:.1f})")
-                            else:
-                                synth_data["quality_score"] = round(review.weighted_average, 1)
-                                _log(f"[QA] ✅ 종합보고서 합격: {agent_id} (점수={review.weighted_average:.1f})")
-                        except Exception as e:
-                            _log(f"[QA] 종합보고서 검수 오류 ({agent_id}): {e}")
-                    _save_chain(chain)
+            # ── 품질검수 제거됨 (2026-02-27) ──
 
             # 팀장 초록불 끄기
             target_id = chain.get("target_id", "chief_of_staff")
@@ -6577,23 +6532,10 @@ async def _run_trading_now_inner(selected_tickers: list[str] | None = None, *, a
     if step2_section:
         content += step2_section
 
-    # ── 비서실장 QA: 팀장 보고서 검수 ──
-    qa_passed, qa_reason = await _chief_qa_review(content, "금융분석팀장")
-    save_activity_log("chief_of_staff",
-        f"📋 금융분석팀장 보고서 QA: {'✅ 승인' if qa_passed else '❌ 반려'} — {qa_reason[:80]}",
-        "info" if qa_passed else "warning")
-    await _broadcast_comms({
-        "type": "comms",
-        "agent_id": "chief_of_staff",
-        "agent_name": "비서실장",
-        "message": f"금융분석팀장 보고서 QA {'✅ 승인' if qa_passed else '❌ 반려'}: {qa_reason[:100]}",
-        "timestamp": datetime.now(KST).isoformat(),
-        "channel": "cio",
-    })
-
+    # ── QA 검수 제거됨 (2026-02-27) — 분석 완료 즉시 매매 실행 ──
     parsed_signals = _parse_cio_signals(content, market_watchlist)
 
-    # 신호 저장 (QA 결과 포함)
+    # 신호 저장
     signals = _load_data("trading_signals", [])
     new_signal = {
         "id": f"sig_manual_{datetime.now(KST).strftime('%Y%m%d%H%M%S')}",
@@ -6607,49 +6549,13 @@ async def _run_trading_now_inner(selected_tickers: list[str] | None = None, *, a
         "cost_usd": cost,
         "auto_bot": auto_bot,
         "manual_run": not auto_bot,
-        "qa_passed": qa_passed,
-        "qa_reason": qa_reason[:200],
     }
     signals.insert(0, new_signal)
     if len(signals) > 200:
         signals = signals[:200]
     _save_data("trading_signals", signals)
 
-    # 매매 결정 일지 저장 (P2-1: 수동 분석에서도 decisions 저장)
     _save_decisions(parsed_signals)
-
-    # QA 반려 시 1회 재분석
-    if not qa_passed:
-        save_activity_log("chief_of_staff",
-            f"🔄 QA 반려 → 재분석 요청: {qa_reason[:100]}", "warning")
-        retry_prompt = (
-            f"{prompt}\n\n"
-            f"## ⚠️ 비서실장 재검토 요청\n"
-            f"이전 보고서가 반려되었습니다. 반려 사유: {qa_reason[:200]}\n"
-            f"위 사유를 반드시 해결하여 다시 분석하세요. 신뢰도 근거를 구체적 수치로 보완하세요."
-        )
-        content2, cost2 = await ask_ai(
-            agent_id="cio_manager", prompt=retry_prompt,
-            use_tools=True, tools=cio_tools,
-        )
-        cost += cost2
-        qa_passed2, qa_reason2 = await _qa_check_cio_report(content2, market_watchlist)
-        save_activity_log("chief_of_staff",
-            f"📋 재분석 QA: {'✅ 승인' if qa_passed2 else '❌ 최종 반려'} — {qa_reason2[:100]}", "info" if qa_passed2 else "warning")
-        if qa_passed2:
-            content = content2
-            parsed_signals = _parse_cio_signals(content, market_watchlist)
-            _save_decisions(parsed_signals)
-        else:
-            return {
-                "signals": parsed_signals,
-                "analysis": content2[:500],
-                "cost_usd": cost,
-                "qa_passed": False,
-                "qa_reason": qa_reason2,
-                "orders": [],
-                "message": f"비서실장 QA 최종 반려 (재분석 후): {qa_reason2[:100]}"
-            }
 
     # 매매 실행: 수동=항상 실행 / 자동봇=auto_execute 설정 체크
     min_confidence = settings.get("min_confidence", 65)
@@ -10114,8 +10020,8 @@ async def _manager_with_delegation(manager_id: str, text: str, conversation_id: 
             except Exception as _ae_p8s:
                 logger.debug("Phase8 전문가 기밀문서 저장 실패: %s", _ae_p8s)
 
-    # ── 품질검수 (Quality Gate) ── 전문가 결과를 팀장이 종합하기 전에 검수
-    if app_state.quality_gate and _QUALITY_GATE_AVAILABLE and spec_results:
+    # ── 품질검수 제거됨 (2026-02-27) ──
+    if False:  # 품질검수 비활성화
         await _broadcast_status(manager_id, "working", 0.45, "전문가 결과 품질검수 중...")
 
         # 품질검수용 pseudo-chain 구성
@@ -10236,12 +10142,7 @@ async def _manager_with_delegation(manager_id: str, text: str, conversation_id: 
         if "error" in r:
             spec_parts.append(f"[{name}] 오류: {r['error'][:80]}")
         else:
-            quality_note = ""
-            if r.get("rework_attempt"):
-                quality_note = f"\n⚠️ 재작업 {r['rework_attempt']}회 후 결과"
-            if r.get("quality_warning"):
-                quality_note = f"\n⚠️ 품질 경고: {r['quality_warning'][:60]}"
-            spec_parts.append(f"[{name}]{quality_note}\n{r.get('content', '응답 없음')}")
+            spec_parts.append(f"[{name}]\n{r.get('content', '응답 없음')}")
             spec_cost += r.get("cost_usd", 0)
             spec_time = max(spec_time, r.get("time_seconds", 0))
 
@@ -11666,8 +11567,7 @@ async def on_startup():
     _log("[CRON] 크론 실행 엔진 시작 ✅")
     # 기본 스케줄 자동 등록 (없으면 생성)
     _register_default_schedules()
-    # 품질검수 게이트 초기화
-    _init_quality_gate()
+    # 품질검수 제거됨 (2026-02-27)
     # 도구 실행 엔진 초기화 (비동기 아닌 동기 — 첫 요청 시 lazy 로드도 지원)
     _init_tool_pool()
     # cross_agent_protocol 실시간 콜백 등록

@@ -79,7 +79,7 @@ class AppState:
 
         # ── 외부 서비스 인스턴스 (서버 시작 시 초기화) ──
         self.telegram_app: Any = None             # telegram.ext.Application
-        self.quality_gate: Any = None             # QualityGate 인스턴스
+        self.quality_gate: Any = None             # 제거됨 (2026-02-27) — 호환성 유지용
         self.tool_pool: Any = None                # ToolPool 인스턴스 (None=미초기화, False=실패)
 
         # ── 캐시된 프롬프트 ──
