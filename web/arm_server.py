@@ -6462,10 +6462,11 @@ async def stop_trading_now():
     return {"success": False, "message": "진행 중인 분석이 없습니다."}
 
 
-async def _run_trading_now_inner(selected_tickers: list[str] | None = None):
+async def _run_trading_now_inner(selected_tickers: list[str] | None = None, *, auto_bot: bool = False):
     """run_trading_now의 실제 로직 (에러 핸들링은 호출자가 담당).
 
     selected_tickers: 지정 시 해당 종목만 분석. None이면 전체 관심종목.
+    auto_bot: True면 자동매매 봇에서 호출 (auto_execute 설정 체크, 시그널에 auto_bot 마킹).
     """
     settings = _load_data("trading_settings", _default_trading_settings())
     watchlist = _load_data("trading_watchlist", [])
@@ -6601,11 +6602,11 @@ async def _run_trading_now_inner(selected_tickers: list[str] | None = None):
         "analysis": content,
         "tickers": [w["ticker"] for w in market_watchlist[:10]],
         "parsed_signals": parsed_signals,
-        "strategy": "cio_manual_analysis",
-        "analyzed_by": "금융분석팀장 단독 분석 (수동 실행)",
+        "strategy": "cio_bot_analysis" if auto_bot else "cio_manual_analysis",
+        "analyzed_by": "금융분석팀장 단독 분석 (자동봇)" if auto_bot else "금융분석팀장 단독 분석 (수동 실행)",
         "cost_usd": cost,
-        "auto_bot": False,
-        "manual_run": True,
+        "auto_bot": auto_bot,
+        "manual_run": not auto_bot,
         "qa_passed": qa_passed,
         "qa_reason": qa_reason[:200],
     }
@@ -6650,11 +6651,11 @@ async def _run_trading_now_inner(selected_tickers: list[str] | None = None):
                 "message": f"비서실장 QA 최종 반려 (재분석 후): {qa_reason2[:100]}"
             }
 
-    # 수동 즉시 실행 → auto_execute 설정 무관하게 항상 주문 진행
-    # (CEO가 버튼을 직접 누른 것 = 매매 의사 표시)
+    # 매매 실행: 수동=항상 실행 / 자동봇=auto_execute 설정 체크
     min_confidence = settings.get("min_confidence", 65)
     order_size = settings.get("order_size", 0)  # 0 = CIO 비중 자율, >0 = 고정 금액
     orders_triggered = 0
+    account_balance = 0  # buy_limit 트리거에서도 사용 — should_execute 밖에서 참조
 
     # 자기보정 계수 계산 (Platt Scaling) — 미정의 시 NameError 방지
     calibration = _compute_calibration_factor(settings.get("calibration_lookback", 20))
@@ -6662,7 +6663,17 @@ async def _run_trading_now_inner(selected_tickers: list[str] | None = None):
     if calibration.get("win_rate") is not None:
         save_activity_log("cio_manager",
             f"📊 자기보정 적용: factor={calibration_factor} ({calibration.get('note', '')})", "info")
-    if True:  # 수동 실행은 항상 매매 진행 (auto_execute 체크 제거)
+
+    # 자동봇 모드: auto_execute 꺼져있으면 매매 건너뜀
+    should_execute = True
+    if auto_bot:
+        auto_execute = settings.get("auto_execute", False)
+        if not auto_execute:
+            save_activity_log("cio_manager",
+                "🚫 자동봇 분석 완료 — auto_execute=OFF이므로 매매 건너뜀", "info")
+            should_execute = False
+
+    if should_execute:
         # 수동 실행: KIS가 연결되어 있으면 실제 주문 (paper_trading 설정 무시)
         # CEO가 "즉시 분석·매매결정" 버튼을 누른 것 = 매매 의사 명시적 표시
         enable_mock = settings.get("enable_mock", False)
@@ -6910,7 +6921,7 @@ async def _run_trading_now_inner(selected_tickers: list[str] | None = None):
             "type": "buy_limit", "trigger_price": _tp, "qty": _qty2,
             "market": _bl2_market, "active": True,
             "created_at": datetime.now(KST).isoformat(),
-            "source": "cio_manual", "source_id": new_signal["id"],
+            "source": "cio_auto" if auto_bot else "cio_manual", "source_id": new_signal["id"],
             "note": f"CIO 목표매수: {_tp:,.0f} ({sig.get('confidence', 0)}% 신뢰도) — {sig.get('reason', '')[:60]}",
         })
         if len(_all2) > 500:
@@ -6922,8 +6933,9 @@ async def _run_trading_now_inner(selected_tickers: list[str] | None = None):
             "info",
         )
 
+    _mode_log = "자동봇" if auto_bot else "수동"
     save_activity_log("cio_manager",
-        f"✅ 수동 분석 완료: {len(parsed_signals)}개 시그널 (주문 {orders_triggered}건, 비용 ${cost:.4f})", "info")
+        f"✅ {_mode_log} 분석 완료: {len(parsed_signals)}개 시그널 (주문 {orders_triggered}건, 비용 ${cost:.4f})", "info")
 
     return {
         "success": True,
@@ -7069,354 +7081,25 @@ async def _trading_bot_loop():
                 continue
 
             market_name = "한국" if market == "KR" else "미국"
-            logger.info("[TRADING BOT] %s장 오픈 — %d개 종목 CIO 분석 시작", market_name, len(market_watchlist))
+            logger.info("[TRADING BOT] %s장 오픈 — %d개 종목 분석 시작", market_name, len(market_watchlist))
             save_activity_log("cio_manager",
-                f"🤖 자동매매 봇: {market_name}장 {len(market_watchlist)}개 종목 CIO 분석 시작",
+                f"🤖 자동매매 봇: {market_name}장 {len(market_watchlist)}개 종목 분석+매매 시작",
                 "info")
 
-            # CIO + 전문가 팀에게 분석 위임
-            tickers_info = ", ".join([f"{w['name']}({w['ticker']})" for w in market_watchlist])
-            strategies = _load_data("trading_strategies", [])
-            active = [s for s in strategies if s.get("active")]
-            strats_info = ", ".join([s["name"] for s in active[:5]]) or "기본 전략"
-
-            # 자기학습 보정 섹션 (베이지안 + ELO + 오답패턴 + Platt Scaling 통합)
-            cal_section = _build_calibration_prompt_section(settings)
-
-            prompt = f"""[자동매매 봇 — {market_name}장 정기 분석]
-
-## 분석 대상 ({len(market_watchlist)}개 종목)
-{tickers_info}
-
-## 활성 전략: {strats_info}{cal_section}
-
-## 분석 요청
-도구(API)를 사용하여 직접 아래 분석을 수행하세요:
-- **시황분석**: {'코스피/코스닥 지수 흐름, 외국인/기관 동향, 금리/환율' if market == 'KR' else 'S&P500/나스닥 지수, 미국 금리/고용지표, 달러 강세'}
-- **종목분석**: 각 종목 재무 건전성, PER/PBR, 최근 실적
-- **기술적분석**: RSI, MACD, 이동평균선, 볼린저밴드
-- **리스크관리**: 손절가, 적정 포지션 크기, 전체 포트폴리오 리스크
-
-## 최종 산출물 (반드시 아래 형식 그대로 — 예시처럼 정확히)
-[시그널] 삼성전자 (005930) | 매수 | 신뢰도 72% | 비중 15% | 목표가 78000 | 반도체 수요 회복 + RSI 과매도 구간
-[시그널] 카카오 (035720) | 매도 | 신뢰도 61% | 비중 10% | 목표가 0 | PER 과대평가, 금리 민감 섹터 약세
-[시그널] LG에너지솔루션 (373220) | 관망 | 신뢰도 45% | 비중 0% | 목표가 390000 | 혼조세, 이 가격 도달 시 진입 검토
-
-※ 주의:
-- 신뢰도는 종목별로 독립적으로 계산, 0~100 숫자 + % 기호로 표기
-- 목표가(권장 매수 진입가): 매수/관망 종목은 반드시 입력. 현재가보다 낮은 목표 진입가 설정. 미국 주식은 USD 단위. 매도 종목은 0
-- 목표가 도달 시 서버가 자동으로 매수 실행 — 신중하게 설정할 것"""
-
-            cio_result = await _call_agent("cio_manager", prompt)
-            content = cio_result.get("content", "")
-            cost = cio_result.get("cost_usd", 0)
-
-            # ── 비서실장 QA: 팀장 보고서 검수 ──
-            qa_passed, qa_reason = await _chief_qa_review(content, "금융분석팀장")
-            save_activity_log("chief_of_staff",
-                f"📋 자동분석 QA: {'✅ 승인' if qa_passed else '❌ 반려'} — {qa_reason[:80]}",
-                "info" if qa_passed else "warning")
-
-            # 시그널 파싱
-            parsed_signals = _parse_cio_signals(content, market_watchlist)
-
-            # 시그널 저장 (QA 결과 포함)
-            signals = _load_data("trading_signals", [])
-            new_signal = {
-                "id": f"sig_{datetime.now(KST).strftime('%Y%m%d%H%M%S')}",
-                "date": datetime.now(KST).isoformat(),
-                "market": market,
-                "analysis": content,
-                "tickers": [w["ticker"] for w in market_watchlist[:10]],
-                "parsed_signals": parsed_signals,
-                "strategy": "cio_bot_analysis",
-                "analyzed_by": "금융분석팀장 단독 분석",
-                "cost_usd": cost,
-                "auto_bot": True,
-                "qa_passed": qa_passed,
-                "qa_reason": qa_reason[:200],
-            }
-            signals.insert(0, new_signal)
-            if len(signals) > 200:
-                signals = signals[:200]
-            _save_data("trading_signals", signals)
-
-            # QA 반려 시 매매 안 함
-            if not qa_passed:
-                save_activity_log("chief_of_staff",
-                    f"🚫 자동분석 QA 반려 — 매매 중단: {qa_reason[:100]}", "warning")
-                continue
-
-            # 매매 결정 일지 저장 (P2-1: 자동봇에서도 decisions 저장)
-            _save_decisions(parsed_signals)
-
-            # 자동 주문 실행 (auto_execute=True + 신뢰도 충족 시)
-            auto_execute = settings.get("auto_execute", False)
-            min_confidence = settings.get("min_confidence", 70)
-            order_size = settings.get("order_size", 0)  # 0 = CIO 비중 자율
-
-            if auto_execute:
-                enable_real = settings.get("enable_real", True)
-                enable_mock = settings.get("enable_mock", False)
-                paper_mode = settings.get("paper_trading", True)
-                use_kis = enable_real and _KIS_AVAILABLE and not paper_mode and _kis_configured()
-                use_mock_kis = (not use_kis) and enable_mock and _KIS_AVAILABLE and _kis_mock_configured()
-
-                # CIO 비중 기반 매수(B안): order_size=0이면 잔고×비중으로 자동 산출
-                account_balance = 0
-                if order_size == 0:
-                    try:
-                        if use_kis:
-                            _bal = await _kis_balance()
-                            account_balance = _bal.get("cash", 0) if _bal.get("success") else 0
-                        elif use_mock_kis:
-                            _bal = await _kis_mock_balance()
-                            account_balance = _bal.get("cash", 0) if _bal.get("success") else 0
-                        else:
-                            _port = _load_data("trading_portfolio", _default_portfolio())
-                            account_balance = _port.get("cash", 0)
-                    except Exception as e:
-                        logger.debug("봇 잔고 조회 실패: %s", e)
-                    if account_balance <= 0:
-                        account_balance = 1_000_000
-                        save_activity_log("cio_manager", "CIO 비중 모드: 잔고 조회 실패, 기본 100만원 사용", "warning")
-
-                for sig in parsed_signals:
-                    if sig["action"] not in ("buy", "sell"):
-                        continue
-                    # 자기보정 적용: 유효 신뢰도 = raw × calibration_factor
-                    # factor < 1 (AI 과신) → 유효 신뢰도 하락 → 더 엄격한 필터
-                    effective_conf = sig.get("confidence", 0) * calibration_factor
-                    if effective_conf < min_confidence:
-                        continue
-
-                    ticker = sig["ticker"]
-                    # 한국/미국 시장 자동 판별: ticker가 영문이면 US, 숫자면 KR
-                    sig_market = sig.get("market", market)
-                    is_us = sig_market.upper() in ("US", "USA", "OVERSEAS") or (ticker.isalpha() and len(ticker) <= 5)
-
-                    try:
-                        if is_us:
-                            # ── 미국주식 현재가 조회 + 지정가 주문 ──
-                            if _KIS_AVAILABLE and _kis_configured():
-                                us_price_data = await _kis_us_price(ticker)
-                                price = us_price_data.get("price", 0) if us_price_data.get("success") else 0
-                            else:
-                                target_w = next((w for w in market_watchlist if w.get("ticker", "").upper() == ticker.upper()), None)
-                                price = float(target_w.get("target_price", 0)) if target_w else 0
-                            if price <= 0:
-                                save_activity_log("cio_manager", f"[US] {ticker} 현재가 조회 실패 — 주문 건너뜀", "warning")
-                                continue
-                            # 미국주식: order_size(원) ÷ (가격×환율) = 주수
-                            _fx = _get_fx_rate()
-                            _order_amt = order_size if order_size > 0 else int(account_balance * _get_signal_weight(sig, effective_conf))
-                            qty = max(1, int(_order_amt / (price * _fx)))
-                        else:
-                            # ── 한국주식 현재가 조회 ──
-                            if _KIS_AVAILABLE and _kis_configured():
-                                price = await _kis_price(ticker)
-                            else:
-                                target_w = next((w for w in market_watchlist if w["ticker"] == ticker), None)
-                                price = target_w.get("target_price", 0) if target_w else 0
-                            if price <= 0:
-                                price = 50000  # 가격 미설정 시 기본값
-                            _order_amt = order_size if order_size > 0 else int(account_balance * _get_signal_weight(sig, effective_conf))
-                            qty = max(1, int(_order_amt / price))
-
-                        if use_kis:
-                            mode_str = "실거래" if not KIS_IS_MOCK else "모의투자(KIS)"
-                            action_kr = "매수" if sig["action"] == "buy" else "매도"
-
-                            if is_us:
-                                order_result = await _kis_us_order(ticker, sig["action"], qty, price=price)
-                                order_total = qty * price
-                            else:
-                                order_result = await _kis_order(ticker, sig["action"], qty, price=0)
-                                order_total = qty * price
-
-                            if order_result["success"]:
-                                order_msg = f"[{mode_str}] {action_kr} 주문 완료: {sig.get('name', ticker)} {qty}주 ${price:.2f}" if is_us else \
-                                            f"[{mode_str}] {action_kr} 주문 완료: {sig.get('name', ticker)} {qty}주 (주문번호: {order_result['order_no']})"
-                                save_activity_log("cio_manager", order_msg, "info")
-                                history = _load_data("trading_history", [])
-                                _auto_h_id = f"kis_{datetime.now(KST).strftime('%Y%m%d%H%M%S')}_{ticker}"
-                                history.insert(0, {
-                                    "id": _auto_h_id,
-                                    "date": datetime.now(KST).isoformat(),
-                                    "ticker": ticker, "name": sig.get("name", ticker),
-                                    "action": sig["action"], "qty": qty, "price": price,
-                                    "total": order_total, "pnl": 0,
-                                    "strategy": f"CIO 자동매매 ({mode_str}, 신뢰도 {sig['confidence']}%)",
-                                    "status": "executed", "market": "US" if is_us else "KR",
-                                    "order_no": order_result["order_no"],
-                                    "currency": "USD" if is_us else "KRW",
-                                })
-                                _save_data("trading_history", history)
-                                if sig["action"] == "buy":
-                                    _register_position_triggers(ticker, sig.get("name", ticker), price, qty,
-                                                                "US" if is_us else "KR", settings, source_id=_auto_h_id)
-                            else:
-                                order_msg = f"[{mode_str}] 주문 실패: {sig.get('name', ticker)} — {order_result['message']}"
-                                save_activity_log("cio_manager", order_msg, "warning")
-
-                        elif use_mock_kis:
-                            # ── KIS 모의투자 계좌로 실제 주문 ──
-                            action_kr = "매수" if sig["action"] == "buy" else "매도"
-
-                            if is_us:
-                                order_result = await _kis_mock_us_order(ticker, sig["action"], qty, price=price)
-                                order_total = qty * price
-                            else:
-                                order_result = await _kis_mock_order(ticker, sig["action"], qty, price=0)
-                                order_total = qty * price
-
-                            if order_result["success"]:
-                                order_msg = f"[모의투자] {action_kr} 주문 완료: {sig.get('name', ticker)} {qty}주" + \
-                                            (f" ${price:.2f}" if is_us else f" (주문번호: {order_result['order_no']})")
-                                save_activity_log("cio_manager", order_msg, "info")
-                                history = _load_data("trading_history", [])
-                                _auto_mock_id = f"mock_{datetime.now(KST).strftime('%Y%m%d%H%M%S')}_{ticker}"
-                                history.insert(0, {
-                                    "id": _auto_mock_id,
-                                    "date": datetime.now(KST).isoformat(),
-                                    "ticker": ticker, "name": sig.get("name", ticker),
-                                    "action": sig["action"], "qty": qty, "price": price,
-                                    "total": order_total, "pnl": 0,
-                                    "strategy": f"CIO 자동매매 (모의투자, 신뢰도 {sig['confidence']}%)",
-                                    "status": "mock_executed", "market": "US" if is_us else "KR",
-                                    "order_no": order_result["order_no"],
-                                    "currency": "USD" if is_us else "KRW",
-                                })
-                                _save_data("trading_history", history)
-                                if sig["action"] == "buy":
-                                    _register_position_triggers(ticker, sig.get("name", ticker), price, qty,
-                                                                "US" if is_us else "KR", settings, source_id=_auto_mock_id)
-                            else:
-                                order_msg = f"[모의투자] 주문 실패: {sig.get('name', ticker)} — {order_result['message']}"
-                                save_activity_log("cio_manager", order_msg, "warning")
-
-                        else:
-                            # 가상 포트폴리오 업데이트 (paper_trading 모드)
-                            portfolio = _load_data("trading_portfolio", _default_portfolio())
-                            if sig["action"] == "buy" and portfolio["cash"] >= price * qty:
-                                holding = next((h for h in portfolio["holdings"] if h["ticker"] == ticker), None)
-                                total_amount = qty * price
-                                if holding:
-                                    old_total = holding["avg_price"] * holding["qty"]
-                                    new_total = old_total + total_amount
-                                    holding["qty"] += qty
-                                    holding["avg_price"] = int(new_total / holding["qty"])
-                                    holding["current_price"] = price
-                                else:
-                                    portfolio["holdings"].append({
-                                        "ticker": ticker, "name": sig.get("name", ticker),
-                                        "qty": qty, "avg_price": price, "current_price": price,
-                                        "market": sig.get("market", market),
-                                    })
-                                portfolio["cash"] -= total_amount
-                                portfolio["updated_at"] = datetime.now(KST).isoformat()
-                                _save_data("trading_portfolio", portfolio)
-
-                                history = _load_data("trading_history", [])
-                                history.insert(0, {
-                                    "id": f"auto_{datetime.now(KST).strftime('%Y%m%d%H%M%S')}_{ticker}",
-                                    "date": datetime.now(KST).isoformat(),
-                                    "ticker": ticker, "name": sig.get("name", ticker),
-                                    "action": "buy", "qty": qty, "price": price,
-                                    "total": total_amount, "pnl": 0,
-                                    "strategy": f"CIO 자동매매 (가상, 신뢰도 {sig['confidence']}%)",
-                                    "status": "executed", "market": sig.get("market", market),
-                                })
-                                _save_data("trading_history", history)
-
-                                save_activity_log("cio_manager",
-                                    f"[가상] 매수: {sig.get('name', ticker)} {qty}주 x {price:,.0f}원 (신뢰도 {sig['confidence']}%)",
-                                    "info")
-
-                            elif sig["action"] == "sell":
-                                holding = next((h for h in portfolio["holdings"] if h["ticker"] == ticker), None)
-                                if holding and holding["qty"] > 0:
-                                    sell_qty = min(qty, holding["qty"])
-                                    total_amount = sell_qty * price
-                                    pnl = (price - holding["avg_price"]) * sell_qty
-                                    holding["qty"] -= sell_qty
-                                    if holding["qty"] == 0:
-                                        portfolio["holdings"] = [h for h in portfolio["holdings"] if h["ticker"] != ticker]
-                                    portfolio["cash"] += total_amount
-                                    portfolio["updated_at"] = datetime.now(KST).isoformat()
-                                    _save_data("trading_portfolio", portfolio)
-
-                                    history = _load_data("trading_history", [])
-                                    history.insert(0, {
-                                        "id": f"auto_{datetime.now(KST).strftime('%Y%m%d%H%M%S')}_{ticker}",
-                                        "date": datetime.now(KST).isoformat(),
-                                        "ticker": ticker, "name": sig.get("name", ticker),
-                                        "action": "sell", "qty": sell_qty, "price": price,
-                                        "total": total_amount, "pnl": pnl,
-                                        "strategy": f"CIO 자동매매 (가상, 신뢰도 {sig['confidence']}%)",
-                                        "status": "executed", "market": sig.get("market", market),
-                                    })
-                                    _save_data("trading_history", history)
-
-                                    pnl_str = f"{'+'if pnl>=0 else ''}{pnl:,.0f}원"
-                                    save_activity_log("cio_manager",
-                                        f"[가상] 매도: {sig.get('name', ticker)} {sell_qty}주 x {price:,.0f}원 (손익 {pnl_str})",
-                                        "info")
-                    except Exception as order_err:
-                        logger.error("[TRADING BOT] 자동주문 오류 (%s): %s", ticker, order_err)
-
-                # ── CIO 목표가 기반 buy_limit 트리거 자동 등록 ──
-                # 매수/관망 시그널에 목표가가 있으면, 가격 도달 시 서버가 자동 매수 실행
-                _today_str = datetime.now(KST).strftime("%Y%m%d")
-                for sig in parsed_signals:
-                    target_price = sig.get("target_price", 0)
-                    if target_price <= 0:
-                        continue
-                    if sig["action"] not in ("buy", "hold"):
-                        continue
-                    _bl_ticker = sig["ticker"]
-                    _bl_name = sig.get("name", _bl_ticker)
-                    _bl_market = sig.get("market", market)
-                    _bl_is_us = _bl_market.upper() in ("US", "USA", "OVERSEAS") or (
-                        _bl_ticker.isalpha() and len(_bl_ticker) <= 5
-                    )
-                    # 오늘 이미 등록된 같은 종목의 buy_limit은 갱신(제거 후 재등록)
-                    _all_triggers = _load_data("price_triggers", [])
-                    _all_triggers = [
-                        t for t in _all_triggers
-                        if not (
-                            t.get("type") == "buy_limit"
-                            and t.get("ticker") == _bl_ticker
-                            and t.get("created_at", "").startswith(_today_str)
-                        )
-                    ]
-                    # 수량: 비중 기반 계산
-                    _bl_weight = _get_signal_weight(sig, sig.get("confidence", 50))
-                    _bl_amt = int(account_balance * _bl_weight) if account_balance > 0 else 500_000
-                    _bl_fx = _get_fx_rate()
-                    _bl_qty = max(1, int(_bl_amt / (target_price * _bl_fx))) if _bl_is_us else max(1, int(_bl_amt / target_price))
-                    _bl_trigger = {
-                        "id": f"bl_{_bl_ticker}_{datetime.now(KST).strftime('%Y%m%d%H%M%S')}",
-                        "ticker": _bl_ticker, "name": _bl_name,
-                        "type": "buy_limit", "trigger_price": target_price, "qty": _bl_qty,
-                        "market": _bl_market, "active": True,
-                        "created_at": datetime.now(KST).isoformat(),
-                        "source": "cio_auto", "source_id": new_signal["id"],
-                        "note": f"CIO 목표매수: {target_price:,.0f} ({sig.get('confidence', 0)}% 신뢰도) — {sig.get('reason', '')[:60]}",
-                    }
-                    _all_triggers.insert(0, _bl_trigger)
-                    if len(_all_triggers) > 500:
-                        _all_triggers = _all_triggers[:500]
-                    _save_data("price_triggers", _all_triggers)
-                    save_activity_log(
-                        "cio_manager",
-                        f"🎯 목표매수 자동등록: {_bl_name}({_bl_ticker}) 목표가 {target_price:,.0f} × {_bl_qty}주",
-                        "info",
-                    )
-
-            buy_count = len([s for s in parsed_signals if s.get("action") == "buy"])
-            sell_count = len([s for s in parsed_signals if s.get("action") == "sell"])
-            logger.info("[TRADING BOT] CIO 분석 완료: 매수 %d, 매도 %d (비용 $%.4f)", buy_count, sell_count, cost)
+            # ── 수동 실행과 동일한 로직 사용 (서버 사전계산 + QA + 매매 실행) ──
+            tickers_for_bot = [w["ticker"] for w in market_watchlist]
+            try:
+                result = await _run_trading_now_inner(selected_tickers=tickers_for_bot, auto_bot=True)
+                _sig_count = result.get("signals_count", 0)
+                _orders = result.get("orders_triggered", 0)
+                _cost = result.get("cost_usd", 0)
+                logger.info("[TRADING BOT] 분석 완료: 시그널 %d건, 주문 %d건, 비용 $%.4f", _sig_count, _orders, _cost)
+                save_activity_log("cio_manager",
+                    f"✅ 자동매매 봇 완료: 시그널 {_sig_count}건, 주문 {_orders}건 (비용 ${_cost:.4f})", "info")
+            except Exception as inner_err:
+                logger.error("[TRADING BOT] _run_trading_now_inner 오류: %s", inner_err)
+                save_activity_log("cio_manager",
+                    f"❌ 자동매매 봇 분석 오류: {inner_err}", "error")
 
         except Exception as e:
             logger.error("[TRADING BOT] 에러: %s", e)
