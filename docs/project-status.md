@@ -12,6 +12,19 @@
 - **빌드**: #647
 - **서버**: https://corthex-hq.com
 
+## 2026-02-27 — 도구 전수 심사 + 서버 사전계산 아키텍처 (빌드 #650)
+
+> **핵심**: 141개 도구 코드 전수 분석 → 4분류 → 금융팀장 도구 호출 44회→0회
+
+- ✅ **141개 도구 전수 심사** — Opus 3개 에이전트 병렬 코드 분석 (교수급 48 / 실용급 65 / 오합지졸 1)
+- ✅ **4분류 체계 확립** — 🟢서버실시간(ARGOS) / 🔵서버스폰(pool.invoke) / 🟡AI직접 / ⛔삭제
+- ✅ **쓰레기 도구 4개 삭제** — newsletter_builder, dc_lawschool_crawler, orbi_crawler, rfm_segmentation
+- ✅ **CIO 서버 사전계산 8개** — technical_analyzer→quant_section, dcf_valuator+risk_calculator→dcf_risk_section, correlation_analyzer+portfolio_optimizer_v2→STEP2 강제 실행
+- ✅ **CIO allowed_tools 18개 제거** — ARGOS 대체 10개 + 서버 사전계산 8개 → AI 도구 호출 44회→0회
+- ✅ **도구 분류 마스터 문서** — `docs/architecture/tool-classification.md` 대문짝만하게 작성
+- 📌 **분류 마스터 문서**: `docs/architecture/tool-classification.md`
+- 📌 **심사 상세**: `docs/architecture/tool-audit.md`
+
 ## 2026-02-27 — ARGOS C안 구현 (빌드 #642~647)
 - ✅ **금융분석팀장 실시간 도구 10개 제거** — 서버 수집 데이터만 사용 (40분→정상)
 - ✅ **thinking type 버그 수정** — adaptive→enabled (400 에러 해결)
