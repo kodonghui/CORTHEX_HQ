@@ -6491,6 +6491,43 @@ async def _run_trading_now_inner(selected_tickers: list[str] | None = None):
     content = cio_result.get("content", "")
     cost = cio_result.get("cost_usd", 0)
 
+    # ── STEP2 강제 실행 (서버 보장) — 팀장이 생략해도 서버가 직접 실행 ──
+    step2_section = ""
+    try:
+        pool = _init_tool_pool()
+        if pool:
+            tickers_str = ",".join([w["ticker"] for w in market_watchlist])
+            symbols_str = " ".join([w["ticker"] for w in market_watchlist])
+
+            # 2-A: correlation_analyzer tail_risk
+            _l = save_activity_log("cio_manager", "🎯 [STEP2 서버강제] correlation_analyzer tail_risk 실행 중...", "tool")
+            await wm.send_activity_log(_l)
+            corr_input = {"action": "tail_risk", "symbols": tickers_str if market == "KR" else symbols_str}
+            corr_result = await pool.invoke("correlation_analyzer", caller_id="cio_manager", **corr_input)
+
+            # 2-B: portfolio_optimizer_v2 optimize
+            _l = save_activity_log("cio_manager", "🎯 [STEP2 서버강제] portfolio_optimizer_v2 optimize 실행 중...", "tool")
+            await wm.send_activity_log(_l)
+            port_input = ({"action": "optimize", "tickers": tickers_str, "risk_tolerance": "moderate"}
+                          if market == "KR" else
+                          {"action": "optimize", "symbols": symbols_str, "risk_tolerance": "moderate"})
+            port_result = await pool.invoke("portfolio_optimizer_v2", caller_id="cio_manager", **port_input)
+
+            step2_section = (
+                "\n\n---\n\n## [STEP2 — 포트폴리오 레벨 분석]\n\n"
+                f"### 종목 간 동시 하락 위험 (correlation_analyzer)\n{corr_result}\n\n"
+                f"### 최적 포트폴리오 비중 (portfolio_optimizer_v2)\n{port_result}"
+            )
+            _l = save_activity_log("cio_manager", "✅ [STEP2 서버강제] correlation_analyzer + portfolio_optimizer_v2 완료", "info")
+            await wm.send_activity_log(_l)
+    except Exception as _step2_err:
+        logger.warning("[STEP2 강제실행] 오류: %s", _step2_err)
+        _l = save_activity_log("cio_manager", f"⚠️ [STEP2 서버강제] 오류: {str(_step2_err)[:80]}", "warning")
+        await wm.send_activity_log(_l)
+
+    if step2_section:
+        content += step2_section
+
     # ── 비서실장 QA: 팀장 보고서 검수 ──
     qa_passed, qa_reason = await _chief_qa_review(content, "금융분석팀장")
     save_activity_log("chief_of_staff",
