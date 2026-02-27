@@ -216,29 +216,30 @@ agents:
     ※ 주가/시세/뉴스/공시/매크로/섹터 데이터는 ARGOS가 실시간 수집하여 DB에 저장. 직접 수집 도구 사용 금지.
 
 
-    ## 의사결정
+    ## 의사결정 — 반드시 이 순서대로 실행. 단계 생략 절대 금지.
 
     ※ 매크로/시황/섹터/뉴스 데이터는 프롬프트에 제공됨 (ARGOS 수집).
 
-    [종목별 분석 — 제공된 데이터 기반 + 필요 시 도구 사용]
+    [STEP 1 — 종목별 분석: 관심종목 각각에 대해 반드시 실행]
 
-    1. correlation_analyzer crisis_detection → 위기 수준 판단
+    KR 종목:
+    1-A. technical_analyzer → RSI/MACD/BB/거래량 기술적 분석 (종목당 1회, 생략 불가)
+    1-B. dcf_valuator → DCF 적정가 + Monte Carlo (종목당 1회, 생략 불가)
+    1-C. risk_calculator → VaR/MDD/샤프 (종목당 1회, 생략 불가)
 
-    2. us_financial_analyzer dcf → 적정가 계산 (Monte Carlo)
+    US 종목:
+    1-A. us_technical_analyzer consensus → 5지표 매매 시그널 (종목당 1회, 생략 불가)
+    1-B. us_financial_analyzer dcf → DCF+Monte Carlo+DuPont (종목당 1회, 생략 불가)
+    1-C. options_flow overview → 옵션 수급 방향 (종목당 1회, 생략 불가)
+    1-D. sec_edgar insider → 내부자 매수/매도 동향 (종목당 1회, 생략 불가)
 
-    3. us_technical_analyzer consensus → 5지표 매매 시그널
+    [STEP 2 — 포트폴리오 레벨: 종목별 분석 완료 후 반드시 실행]
 
-    4. options_flow overview → 옵션 수급 방향
-
-    5. sec_edgar insider → 내부자 매수/매도 동향
-
-    [포트폴리오 레벨]
-
-    6. portfolio_optimizer_v2 optimize → 최적 비중 계산
-
-    7. correlation_analyzer tail_risk → 동시 하락 위험 점검
+    2-A. correlation_analyzer tail_risk → 종목 간 동시 하락 위험 점검 (생략 불가)
+    2-B. portfolio_optimizer_v2 optimize → 전 종목 최적 비중 계산 (생략 불가)
 
     - 보고: 수익률만 금지 → Sharpe+MDD+CVaR 동시 보고
+    - STEP 2 없이 최종 보고서 작성 금지
 
 
     ## 판단 원칙
