@@ -4319,8 +4319,16 @@ async def _argos_collect_financial() -> int:
     conn = get_connection()
     saved = 0
     now_str = datetime.now(KST).isoformat()
-    today = datetime.now(KST).strftime("%Y%m%d")
-    today_iso = datetime.now(KST).strftime("%Y-%m-%d")
+    # 장이 마감된 후(15:30 KST)에만 오늘 데이터 가용 → 15:30 이전은 전날 사용
+    now_kst = datetime.now(KST)
+    if now_kst.hour < 16:
+        ref_date = (now_kst - timedelta(days=1)).strftime("%Y%m%d")
+        ref_date_iso = (now_kst - timedelta(days=1)).strftime("%Y-%m-%d")
+    else:
+        ref_date = now_kst.strftime("%Y%m%d")
+        ref_date_iso = now_kst.strftime("%Y-%m-%d")
+    today = ref_date
+    today_iso = ref_date_iso
 
     try:
         conn.execute("""
