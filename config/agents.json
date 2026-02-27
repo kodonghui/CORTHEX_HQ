@@ -75,7 +75,7 @@
         "growth_forecaster",
         "scenario_simulator",
         "pricing_optimizer",
-                "swot_quantifier",
+        "swot_quantifier",
         "lawschool_community",
         "read_knowledge"
       ]
@@ -161,7 +161,7 @@
         "lipsync_video_generator",
         "video_editor",
         "pricing_optimizer",
-                "swot_quantifier",
+        "swot_quantifier",
         "read_knowledge"
       ]
     },

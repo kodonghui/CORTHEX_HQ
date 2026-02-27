@@ -4474,21 +4474,23 @@
       "category": "local",
       "name": "Pricing Optimizer",
       "name_ko": "가격 최적화 도구",
-      "description": "Van Westendorp PSM + Conjoint Analysis + 가격탄력성 기반 최적 가격 도출. 심리적 가격, 번들링, 프리미엄/프리미엄 전략, 경쟁 기반 가격.\n",
+      "description": "Van Westendorp PSM + Gabor-Granger 수용도 + 가격탄력성 + 수익최적화 + 경쟁사 포지셔닝 + 마진 시뮬레이션 + 번들/티어 설계.\n",
       "parameters": {
         "type": "object",
         "properties": {
           "action": {
             "type": "string",
             "enum": [
-              "optimize",
+              "full",
               "psm",
+              "gabor_granger",
               "elasticity",
-              "bundle",
-              "competitive",
-              "full"
+              "optimize",
+              "competitor",
+              "margin",
+              "bundle"
             ],
-            "description": "optimize=종합최적화, psm=PSM분석, elasticity=가격탄력성, bundle=번들링, competitive=경쟁가격, full=전체리포트"
+            "description": "full=종합, psm=PSM분석, gabor_granger=가격수용도, elasticity=탄력성, optimize=수익최적화, competitor=경쟁사, margin=마진시뮬, bundle=티어설계"
           },
           "product": {
             "type": "string",
