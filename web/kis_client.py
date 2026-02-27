@@ -291,7 +291,7 @@ async def place_order(
                     "ORD_QTY": str(qty),
                     "ORD_UNPR": str(price),
                     "SLL_TYPE": "01" if action == "sell" else "",  # 매도시: 01(일반), 매수시: 공란
-                    "EXCG_ID_DVSN_CD": "",  # 빈문자열=KRX기본 (kis-api-reference.md 참조)
+                    "EXCG_ID_DVSN_CD": "KRX",  # 한국거래소 (KIS 공식 샘플 기준, ""은 더 이상 허용 안 됨)
                     "CNDT_PRIC": "",        # 조건부가격(공란=미사용)
                 },
             )
@@ -560,7 +560,7 @@ async def place_mock_order(
                     "ORD_QTY": str(qty),
                     "ORD_UNPR": str(price),
                     "SLL_TYPE": "01" if action == "sell" else "",
-                    "EXCG_ID_DVSN_CD": "",
+                    "EXCG_ID_DVSN_CD": "KRX",  # 한국거래소
                     "CNDT_PRIC": "",
                 },
             )

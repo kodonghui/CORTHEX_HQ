@@ -61,8 +61,31 @@ def _hyp2f1_simple(a: float, b: float, c: float, z: float,
     return result
 
 
+# ─── 산업별 이탈률 벤치마크 (Bessemer, ProfitWell 2024) ───
+CHURN_BENCHMARKS: dict[str, dict] = {
+    "SaaS_B2B_Enterprise": {"monthly": 0.5, "annual": 6, "desc": "B2B 엔터프라이즈 SaaS"},
+    "SaaS_B2B_SMB": {"monthly": 3.0, "annual": 31, "desc": "B2B 중소기업 SaaS"},
+    "SaaS_B2C": {"monthly": 5.0, "annual": 46, "desc": "B2C SaaS"},
+    "Mobile_App": {"monthly": 8.0, "annual": 63, "desc": "모바일 앱"},
+    "E-Commerce": {"monthly": 6.0, "annual": 52, "desc": "이커머스"},
+    "EdTech": {"monthly": 4.0, "annual": 39, "desc": "에드테크"},
+    "FinTech": {"monthly": 2.5, "annual": 26, "desc": "핀테크"},
+    "Streaming": {"monthly": 5.5, "annual": 49, "desc": "스트리밍 서비스"},
+}
+
+# ─── LTV:CAC 등급 (a16z, David Skok) ───
+LTV_CAC_GRADES = {
+    "world_class": {"min": 5.0, "grade": "A+", "desc": "세계 최고 수준"},
+    "excellent": {"min": 4.0, "grade": "A", "desc": "우수"},
+    "healthy": {"min": 3.0, "grade": "B", "desc": "건강 (SaaS 최소 기준)"},
+    "concerning": {"min": 2.0, "grade": "C", "desc": "주의 (개선 필요)"},
+    "danger": {"min": 1.0, "grade": "D", "desc": "위험 (CAC > LTV 가능)"},
+    "critical": {"min": 0, "grade": "F", "desc": "심각 (사업 재검토)"},
+}
+
+
 class CustomerLtvModelTool(BaseTool):
-    """교수급 고객 생애가치 예측 도구 (BG/NBD + Gamma-Gamma)."""
+    """교수급 고객 생애가치 예측 도구 (BG/NBD + Gamma-Gamma + RFM + CAC)."""
 
     # ─── 업종별 벤치마크 데이터 ───
     BENCHMARKS = {
@@ -122,6 +145,8 @@ class CustomerLtvModelTool(BaseTool):
             "cohort": self._cohort,
             "unit_economics": self._unit_economics,
             "discount": self._discount_clv,
+            "rfm": self._rfm_segmentation,
+            "payback": self._cac_payback,
             "full": self._full_analysis,
         }
         handler = dispatch.get(action)
@@ -834,3 +859,136 @@ class CustomerLtvModelTool(BaseTool):
                 "impact": "현재 비율 유지하며 마케팅 예산 증액 가능",
             })
         return levers
+
+    # ═══════════════════════════════════════════════════════
+    #  7. RFM 세분화 (Hughes, 1994)
+    # ═══════════════════════════════════════════════════════
+
+    async def _rfm_segmentation(self, **kwargs) -> dict[str, Any]:
+        """RFM(Recency-Frequency-Monetary) 기반 고객 세분화."""
+        total_customers = int(kwargs.get("total_customers", 0))
+        if total_customers <= 0:
+            return {"error": "RFM 세분화: total_customers(전체 고객수)를 입력하세요."}
+
+        segments = [
+            {"name": "VIP (Champions)", "rfm": "555", "pct": 8,
+             "action": "독점 혜택, 충성도 프로그램"},
+            {"name": "충성 고객 (Loyal)", "rfm": "X4X", "pct": 12,
+             "action": "업셀/크로스셀, 추천 프로그램"},
+            {"name": "잠재 충성 (Potential)", "rfm": "X3X", "pct": 15,
+             "action": "관계 강화, 멤버십 제안"},
+            {"name": "신규 고객 (New)", "rfm": "5X1", "pct": 10,
+             "action": "온보딩 최적화, 첫 구매 경험"},
+            {"name": "관심 필요 (At Risk)", "rfm": "2XX", "pct": 18,
+             "action": "재참여 캠페인, 할인 제공"},
+            {"name": "이탈 위험 (Hibernating)", "rfm": "1XX", "pct": 20,
+             "action": "윈백 캠페인, 설문 조사"},
+            {"name": "이탈 (Lost)", "rfm": "111", "pct": 17,
+             "action": "최종 할인 or 포기 (ROI 낮음)"},
+        ]
+
+        segment_data = []
+        for seg in segments:
+            count = int(total_customers * seg["pct"] / 100)
+            segment_data.append({
+                "name": seg["name"],
+                "rfm_pattern": seg["rfm"],
+                "pct": seg["pct"],
+                "count": count,
+                "recommended_action": seg["action"],
+            })
+
+        result = {
+            "method": "RFM Analysis (Arthur Hughes, 1994)",
+            "total_customers": total_customers,
+            "segments": segment_data,
+            "rfm_axes": {
+                "R (Recency)": "최근성 — 마지막 구매 시점 (1=오래됨, 5=최근)",
+                "F (Frequency)": "빈도 — 구매 횟수 (1=드물게, 5=자주)",
+                "M (Monetary)": "금액 — 소비 금액 (1=적게, 5=많이)",
+            },
+        }
+
+        llm_summary = await self._llm_call(
+            "당신은 고객 세분화 전문 분석가입니다.",
+            f"RFM 세분화 결과입니다 ({total_customers:,}명):\n{result}\n\n"
+            "각 세그먼트별 구체적 마케팅 전략을 제안해주세요."
+        )
+        result["ai_insight"] = llm_summary
+        return result
+
+    # ═══════════════════════════════════════════════════════
+    #  8. CAC 회수 기간 분석
+    # ═══════════════════════════════════════════════════════
+
+    async def _cac_payback(self, **kwargs) -> dict[str, Any]:
+        """CAC(고객 획득 비용) 회수 기간 + LTV:CAC 등급 분석."""
+        cac = float(kwargs.get("cac", 0))
+        arpu = float(kwargs.get("arpu_monthly", 0))
+        gross_margin = float(kwargs.get("gross_margin_pct", 70))
+        monthly_churn = float(kwargs.get("monthly_churn_pct", 5))
+
+        if cac <= 0 or arpu <= 0:
+            return {"error": "CAC 회수 기간: cac(획득 비용), arpu_monthly(월 ARPU)를 입력하세요."}
+
+        gm = gross_margin / 100
+        monthly_contribution = arpu * gm
+        payback_months = cac / monthly_contribution if monthly_contribution > 0 else float("inf")
+
+        # 등급 판정
+        if payback_months <= 6:
+            payback_grade = "최상급 (6개월 이내)"
+        elif payback_months <= 12:
+            payback_grade = "양호 (12개월 이내)"
+        elif payback_months <= 18:
+            payback_grade = "주의 (18개월 이내)"
+        else:
+            payback_grade = "위험 (18개월 초과)"
+
+        # LTV:CAC
+        ltv = arpu * gm / (monthly_churn / 100) if monthly_churn > 0 else 0
+        ltv_cac = ltv / cac if cac > 0 else 0
+
+        ltv_cac_grade = "F (심각)"
+        for _key, data in LTV_CAC_GRADES.items():
+            if ltv_cac >= data["min"]:
+                ltv_cac_grade = f"{data['grade']} ({data['desc']})"
+                break
+
+        # 회수 시뮬레이션 (월별)
+        simulation = []
+        for m in range(1, min(25, int(payback_months * 2) + 1)):
+            cumul = monthly_contribution * m
+            remaining = cac - cumul
+            simulation.append({
+                "month": m,
+                "cumulative_contribution": round(cumul),
+                "cac_remaining": round(max(0, remaining)),
+                "recovered": remaining <= 0,
+            })
+            if remaining <= 0 and m > payback_months:
+                break
+
+        result = {
+            "method": "CAC Payback Analysis (David Skok, a16z)",
+            "inputs": {
+                "cac": round(cac),
+                "arpu_monthly": round(arpu),
+                "gross_margin": f"{gross_margin:.0f}%",
+                "monthly_churn": f"{monthly_churn:.1f}%",
+            },
+            "payback_months": round(payback_months, 1),
+            "payback_grade": payback_grade,
+            "ltv": round(ltv),
+            "ltv_cac_ratio": round(ltv_cac, 1),
+            "ltv_cac_grade": ltv_cac_grade,
+            "monthly_simulation": simulation,
+        }
+
+        llm_summary = await self._llm_call(
+            "당신은 고객 가치 분석 전문가입니다.",
+            f"CAC 회수 분석 결과입니다:\n{result}\n\n"
+            "CAC 회수 기간 단축과 LTV:CAC 개선 전략을 제안해주세요."
+        )
+        result["ai_insight"] = llm_summary
+        return result

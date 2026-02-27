@@ -9,8 +9,53 @@
 
 - **날짜**: 2026-02-27
 - **버전**: `4.00.000`
-- **빌드**: #647
+- **빌드**: #654
 - **서버**: https://corthex-hq.com
+
+---
+
+## 🚨🚨🚨 BACKLOG 전체 소탕 — 진행중 (2026-02-27) 🚨🚨🚨
+
+> **각 Phase 완료 후 반드시 컴팩트(compact) 실행!**
+> **컴팩트 할 때 대표님 부를 것!!!**
+
+### 진행 상황
+
+| Phase | 내용 | 상태 |
+|-------|------|------|
+| **A** | 버그 수정: KIS `EXCG_ID_DVSN_CD` "" → "KRX" | ✅ 완료 |
+| **B** | 실제 검증: Soul Gym Dry Run + 즉시분석 + 작전일지 제목 | ⏭ 배포 후 |
+| **C** | 도구 합병 — pricing (sensitivity 삭제, optimizer에 이식) | ✅ 완료 |
+| **D** | 도구 합병 — 고객분석 (cohort_analyzer 삭제, ltv_model에 이식) | ✅ 완료 |
+| **E** | 문서 정비: project-status + BACKLOG + todo 갱신 | ✅ 완료 |
+| **F** | 커밋 + 배포 + 빌드 보고 | 🔄 진행중 |
+
+### 🔴🔴🔴 PHASE 끝날 때마다 COMPACT + 대표님 호출! 🔴🔴🔴
+
+```
+Phase A 완료 → COMPACT → 대표님 부르기!
+Phase B 완료 → COMPACT → 대표님 부르기!
+Phase C 완료 → COMPACT → 대표님 부르기!
+Phase D 완료 → COMPACT → 대표님 부르기!
+Phase E+F → 마무리 → 최종 보고
+```
+
+### 수정 대상 파일
+
+| 파일 | Phase | 변경 |
+|------|-------|------|
+| `web/kis_client.py` | A | EXCG_ID_DVSN_CD `""` → `"KRX"` (한국거래소) |
+| `src/tools/pricing_optimizer.py` | C | Gabor-Granger + PSM/탄력성 통합 |
+| `src/tools/pricing_sensitivity.py` | C | 삭제 |
+| `src/tools/customer_ltv_model.py` | D | RFM + CAC 이식 |
+| `src/tools/customer_cohort_analyzer.py` | D | 삭제 |
+| `config/tools.yaml` | C,D | 삭제된 도구 제거 |
+| `config/agents.yaml` | C,D | allowed_tools 업데이트 |
+| `docs/project-status.md` | E | 빌드+상태 업데이트 |
+| `docs/todo/BACKLOG.md` | E | 완료 항목 정리 |
+| `docs/todo/2026-02-27.md` | E | 오늘 완료 추가 |
+
+---
 
 ## 2026-02-27 — 도구 전수 심사 + 서버 사전계산 아키텍처 (빌드 #650)
 

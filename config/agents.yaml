@@ -72,7 +72,6 @@ agents:
   - growth_forecaster
   - scenario_simulator
   - pricing_optimizer
-  - customer_cohort_analyzer
   - swot_quantifier
   - lawschool_community
   # dc_lawschool_crawler, orbi_crawler 삭제 — lawschool_community에 완전 통합
@@ -148,7 +147,6 @@ agents:
   - customer_ltv_model
   # rfm_segmentation 삭제 — 파일 미존재, customer_ltv_model segment에 흡수
   - content_quality_scorer
-  - pricing_sensitivity
   - churn_risk_scorer
   - marketing_attribution
   - cohort_retention
@@ -159,7 +157,6 @@ agents:
   - lipsync_video_generator
   - video_editor
   - pricing_optimizer
-  - customer_cohort_analyzer
   - swot_quantifier
   - read_knowledge
 - agent_id: cio_manager
