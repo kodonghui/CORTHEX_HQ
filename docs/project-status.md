@@ -9,7 +9,7 @@
 
 - **날짜**: 2026-02-27
 - **버전**: `4.00.000`
-- **빌드**: #656
+- **빌드**: #658
 - **서버**: https://corthex-hq.com
 
 ---
@@ -21,7 +21,7 @@ KIS 버그 수정 + pricing 도구 합병 + 고객분석 도구 합병 + src/src
 
 ---
 
-## 🔴 arm_server.py 리팩토링 — 4-3 (P1 완료, P2 대기)
+## 🔴 arm_server.py 리팩토링 — 4-3 (P2 완료, P3 대기)
 
 > **비유**: 11,637줄짜리 거대한 공장 1동에 모든 부서가 들어가 있음.
 > 15개 부서를 식별했고, 독립성 높은 것부터 분리하는 계획.
@@ -29,9 +29,10 @@ KIS 버그 수정 + pricing 도구 합병 + 고객분석 도구 합병 + src/src
 
 ### 현재 상태
 
-- **파일**: `web/arm_server.py` — **11,343줄** (P1 후), 50개 API 엔드포인트
+- **파일**: `web/arm_server.py` — **10,828줄** (P2 후), 50개 API 엔드포인트
 - **P1 완료**: `web/config_loader.py` 343줄 분리 (빌드 #656)
-- **등급**: D등급 모놀리스 (God Object) → 분리 시작
+- **P2 완료**: `web/handlers/debug_handler.py` 591줄 분리 (빌드 #658)
+- **등급**: D등급 모놀리스 (God Object) → 분리 진행 중 (809줄 감소)
 - **목표**: **300~400줄** (thin FastAPI main) + 14개 모듈
 
 ### 15개 논리 모듈 식별
@@ -76,7 +77,7 @@ KIS 버그 수정 + pricing 도구 합병 + 고객분석 도구 합병 + src/src
 | Phase | 추출 대상 | 목표 파일 | 예상 줄수 | 난이도 |
 |-------|----------|---------|---------|--------|
 | **P1** | ✅ 유틸+설정+라이프사이클 | `web/config_loader.py` (343줄) | 294줄 감소 | 🟢 완료 |
-| **P2** | 도구+Soul Gym+디버그 | `web/soul_gym.py`, `web/debug_api.py`, `web/tool_mgr.py` | ~700 | 🟢 |
+| **P2** | ✅ 디버그 API (Soul Gym/도구는 이미 분리됨) | `handlers/debug_handler.py` (591줄) | 515줄 감소 | 🟢 완료 |
 | **P3** | WebSocket+대시보드 | `web/ws_handler.py`, `web/dashboard_api.py` | ~300 | 🟢 |
 | **P4** | ARGOS 수집 | `web/argos_collector.py` | ~4,200 | 🟡 |
 | **P5** | 배치 시스템+체인 | `web/batch_system.py` | ~2,500 | 🟡 |
