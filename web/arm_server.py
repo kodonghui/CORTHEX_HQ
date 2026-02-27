@@ -4355,7 +4355,7 @@ async def _argos_collect_financial() -> int:
             ticker = w["ticker"]
             try:
                 df = await asyncio.wait_for(
-                    asyncio.to_thread(pykrx_stock.get_market_fundamental, today, ticker=ticker),
+                    asyncio.to_thread(pykrx_stock.get_market_fundamental, today, today, ticker),
                     timeout=20,
                 )
                 if df is not None and not df.empty:
