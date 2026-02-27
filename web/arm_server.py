@@ -3762,16 +3762,20 @@ def _get_fx_rate() -> float:
 # 서버가 심부름(데이터 수집), AI는 생각(판단)만
 # ══════════════════════════════════════════════════════════════════
 
-_ARGOS_LAST_PRICE = 0.0    # 마지막 주가 수집 시각
-_ARGOS_LAST_NEWS  = 0.0    # 마지막 뉴스 수집 시각 (30분)
-_ARGOS_LAST_DART  = 0.0    # 마지막 DART 수집 시각 (1시간)
-_ARGOS_LAST_MACRO = 0.0    # 마지막 매크로 수집 시각 (1일)
-_ARGOS_LAST_MONTHLY_RL = 0.0  # 마지막 월간 RL 분석 시각
+_ARGOS_LAST_PRICE     = 0.0    # 마지막 주가 수집 시각
+_ARGOS_LAST_NEWS      = 0.0    # 마지막 뉴스 수집 시각 (30분)
+_ARGOS_LAST_DART      = 0.0    # 마지막 DART 수집 시각 (1시간)
+_ARGOS_LAST_MACRO     = 0.0    # 마지막 매크로 수집 시각 (1일)
+_ARGOS_LAST_FINANCIAL = 0.0    # 마지막 재무지표 수집 시각 (1일)
+_ARGOS_LAST_SECTOR    = 0.0    # 마지막 업종지수 수집 시각 (1일)
+_ARGOS_LAST_MONTHLY_RL = 0.0   # 마지막 월간 RL 분석 시각
 
-_ARGOS_NEWS_INTERVAL  = 1800   # 30분
-_ARGOS_DART_INTERVAL  = 3600   # 1시간
-_ARGOS_MACRO_INTERVAL = 86400  # 1일
-_ARGOS_MONTHLY_INTERVAL = 2592000  # 30일
+_ARGOS_NEWS_INTERVAL      = 1800    # 30분
+_ARGOS_DART_INTERVAL      = 3600    # 1시간
+_ARGOS_MACRO_INTERVAL     = 86400   # 1일
+_ARGOS_FINANCIAL_INTERVAL = 86400   # 1일
+_ARGOS_SECTOR_INTERVAL    = 86400   # 1일
+_ARGOS_MONTHLY_INTERVAL   = 2592000 # 30일
 
 _argos_logger = logging.getLogger("corthex.argos")
 
@@ -4147,6 +4151,59 @@ async def _argos_collect_macro() -> int:
             _argos_logger.debug("VIX 수집 실패: %s", e)
 
 
+        # S&P500 / 나스닥 / 미국 10년 국채금리 — yfinance
+        for yf_ticker, label in [("^GSPC", "SP500"), ("^IXIC", "NASDAQ"), ("^TNX", "US10Y")]:
+            try:
+                import yfinance as yf
+                def _fetch_yf(sym=yf_ticker):
+                    t = yf.Ticker(sym)
+                    h = t.history(period="5d")
+                    return float(h.iloc[-1]["Close"]) if h is not None and not h.empty else None
+                val = await asyncio.wait_for(asyncio.to_thread(_fetch_yf), timeout=MACRO_TIMEOUT)
+                if val:
+                    conn.execute(
+                        "INSERT OR IGNORE INTO argos_macro_data(indicator,trade_date,value,source,collected_at) VALUES(?,?,?,?,?)",
+                        (label, today_iso, round(val, 4), "yfinance", now_str)
+                    )
+                    conn.commit()
+                    saved += 1
+                    _argos_logger.info("MACRO %s: %.4f", label, val)
+            except asyncio.TimeoutError:
+                _argos_logger.warning("%s: %d초 타임아웃", label, MACRO_TIMEOUT)
+            except Exception as e:
+                _argos_logger.debug("%s 수집 실패: %s", label, e)
+
+        # 한국 기준금리 — ECOS API
+        try:
+            ecos_key = os.getenv("ECOS_API_KEY", "")
+            if ecos_key:
+                import urllib.request
+                ecos_url = (
+                    f"https://ecos.bok.or.kr/api/StatisticSearch/{ecos_key}/json/kr"
+                    f"/1/5/722Y001/M/{today_iso[:4]}{today_iso[5:7]}/{today_iso[:4]}{today_iso[5:7]}"
+                )
+                def _fetch_ecos(url=ecos_url):
+                    with urllib.request.urlopen(url, timeout=10) as r:
+                        import json as _json
+                        return _json.loads(r.read().decode("utf-8"))
+                ecos_data = await asyncio.wait_for(asyncio.to_thread(_fetch_ecos), timeout=MACRO_TIMEOUT)
+                rows_ecos = ecos_data.get("StatisticSearch", {}).get("row", [])
+                if rows_ecos:
+                    rate = float(rows_ecos[-1].get("DATA_VALUE", 0))
+                    period = rows_ecos[-1].get("TIME", today_iso[:7])
+                    trade_date_ecos = f"{period[:4]}-{period[4:6]}-01"
+                    conn.execute(
+                        "INSERT OR IGNORE INTO argos_macro_data(indicator,trade_date,value,source,collected_at) VALUES(?,?,?,?,?)",
+                        ("KR_RATE", trade_date_ecos, rate, "ecos", now_str)
+                    )
+                    conn.commit()
+                    saved += 1
+                    _argos_logger.info("MACRO KR_RATE: %.2f%%", rate)
+        except asyncio.TimeoutError:
+            _argos_logger.warning("KR_RATE: %d초 타임아웃", MACRO_TIMEOUT)
+        except Exception as e:
+            _argos_logger.debug("KR_RATE 수집 실패: %s", e)
+
         cutoff = (datetime.now(KST) - timedelta(days=365)).strftime("%Y-%m-%d")
         conn.execute("DELETE FROM argos_macro_data WHERE trade_date < ?", (cutoff,))
         conn.commit()
@@ -4163,7 +4220,7 @@ async def _argos_sequential_collect(now_ts: float):
     """ARGOS 수집을 순차 실행합니다 (DB lock 방지).
     동시에 여러 수집이 DB를 잡지 않도록 하나씩 순서대로.
     """
-    global _ARGOS_LAST_NEWS, _ARGOS_LAST_DART, _ARGOS_LAST_MACRO
+    global _ARGOS_LAST_NEWS, _ARGOS_LAST_DART, _ARGOS_LAST_MACRO, _ARGOS_LAST_FINANCIAL, _ARGOS_LAST_SECTOR
     if _argos_seq_lock.locked():
         return
     async with _argos_seq_lock:
@@ -4181,10 +4238,20 @@ async def _argos_sequential_collect(now_ts: float):
                 _ARGOS_LAST_DART = now_ts
                 await _argos_collect_dart_safe()
 
-            # 4) 매크로 — 1일마다
+            # 4) 매크로 — 1일마다 (S&P500/나스닥/국채금리/기준금리 포함)
             if now_ts - _ARGOS_LAST_MACRO > _ARGOS_MACRO_INTERVAL:
                 _ARGOS_LAST_MACRO = now_ts
                 await _argos_collect_macro_safe()
+
+            # 5) 재무지표 — 1일마다 (PER/PBR/EPS/BPS)
+            if now_ts - _ARGOS_LAST_FINANCIAL > _ARGOS_FINANCIAL_INTERVAL:
+                _ARGOS_LAST_FINANCIAL = now_ts
+                await _argos_collect_financial_safe()
+
+            # 6) 업종지수 — 1일마다 (전기전자/화학/금융 등 11개)
+            if now_ts - _ARGOS_LAST_SECTOR > _ARGOS_SECTOR_INTERVAL:
+                _ARGOS_LAST_SECTOR = now_ts
+                await _argos_collect_sector_safe()
         except Exception as e:
             _argos_logger.error("ARGOS 순차 수집 오류: %s", e)
 
@@ -4243,6 +4310,179 @@ async def _argos_collect_macro_safe():
     except Exception as e:
         _argos_update_status("macro", error=str(e)[:200])
         _argos_logger.error("ARGOS 매크로 수집 실패: %s", e)
+
+
+async def _argos_collect_financial() -> int:
+    """pykrx로 관심종목 재무지표(PER/PBR/EPS 등)를 수집해 DB에 저장 (1일 1회).
+    Returns: 저장된 행 수
+    """
+    conn = get_connection()
+    saved = 0
+    now_str = datetime.now(KST).isoformat()
+    today = datetime.now(KST).strftime("%Y%m%d")
+    today_iso = datetime.now(KST).strftime("%Y-%m-%d")
+
+    try:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS argos_financial_data (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                ticker TEXT NOT NULL,
+                trade_date TEXT NOT NULL,
+                per REAL, pbr REAL, eps REAL, dps REAL, bps REAL,
+                source TEXT DEFAULT 'pykrx',
+                collected_at TEXT,
+                UNIQUE(ticker, trade_date)
+            )
+        """)
+        conn.commit()
+
+        from pykrx import stock as pykrx_stock
+        watchlist = _load_data("trading_watchlist", [])
+        kr_tickers = [w for w in watchlist if w.get("market", "KR") == "KR"]
+        if not kr_tickers:
+            return 0
+
+        for w in kr_tickers:
+            ticker = w["ticker"]
+            try:
+                df = await asyncio.wait_for(
+                    asyncio.to_thread(pykrx_stock.get_market_fundamental, today, ticker=ticker),
+                    timeout=20,
+                )
+                if df is not None and not df.empty:
+                    row = df.iloc[-1]
+                    conn.execute(
+                        """INSERT OR IGNORE INTO argos_financial_data
+                           (ticker, trade_date, per, pbr, eps, dps, bps, source, collected_at)
+                           VALUES(?,?,?,?,?,?,?,?,?)""",
+                        (ticker, today_iso,
+                         float(row.get("PER", 0) or 0),
+                         float(row.get("PBR", 0) or 0),
+                         float(row.get("EPS", 0) or 0),
+                         float(row.get("DPS", 0) or 0),
+                         float(row.get("BPS", 0) or 0),
+                         "pykrx", now_str)
+                    )
+                    conn.commit()
+                    saved += 1
+                    _argos_logger.info("FINANCIAL %s: PER=%.1f PBR=%.2f", ticker,
+                                       row.get("PER", 0), row.get("PBR", 0))
+            except asyncio.TimeoutError:
+                _argos_logger.warning("FINANCIAL %s: 20초 타임아웃", ticker)
+            except Exception as e:
+                _argos_logger.debug("FINANCIAL %s 실패: %s", ticker, e)
+
+        cutoff = (datetime.now(KST) - timedelta(days=90)).strftime("%Y-%m-%d")
+        conn.execute("DELETE FROM argos_financial_data WHERE trade_date < ?", (cutoff,))
+        conn.commit()
+    except ImportError:
+        _argos_logger.debug("pykrx 미설치 — 재무지표 수집 불가")
+    finally:
+        conn.close()
+
+    _argos_logger.info("ARGOS 재무지표 수집 완료: %d건", saved)
+    return saved
+
+
+async def _argos_collect_financial_safe():
+    """재무지표 수집 — 예외 안전 래퍼. 전체 3분 타임아웃."""
+    try:
+        n = await asyncio.wait_for(_argos_collect_financial(), timeout=180)
+        _argos_update_status("financial", count_delta=n)
+        _argos_logger.info("ARGOS 재무지표 수집 완료: %d건", n)
+    except asyncio.TimeoutError:
+        _argos_update_status("financial", error="전체 3분 타임아웃")
+        _argos_logger.error("ARGOS 재무지표 수집: 전체 3분 타임아웃")
+    except Exception as e:
+        _argos_update_status("financial", error=str(e)[:200])
+        _argos_logger.error("ARGOS 재무지표 수집 실패: %s", e)
+
+
+async def _argos_collect_sector() -> int:
+    """pykrx로 주요 업종지수를 수집해 DB에 저장 (1일 1회).
+    Returns: 저장된 행 수
+    """
+    SECTOR_CODES = [
+        ("1028", "전기전자"), ("1003", "화학"), ("1004", "의약품"),
+        ("1006", "철강금속"), ("1008", "기계"), ("1022", "유통업"),
+        ("1024", "건설업"), ("1027", "통신업"), ("1029", "금융업"),
+        ("1032", "서비스업"), ("1005", "비금속광물"),
+    ]
+    conn = get_connection()
+    saved = 0
+    now_str = datetime.now(KST).isoformat()
+
+    try:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS argos_sector_data (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                sector_name TEXT NOT NULL,
+                trade_date TEXT NOT NULL,
+                close_val REAL,
+                change_pct REAL,
+                source TEXT DEFAULT 'pykrx',
+                collected_at TEXT,
+                UNIQUE(sector_name, trade_date)
+            )
+        """)
+        conn.commit()
+
+        from pykrx import stock as pykrx_stock
+        today = datetime.now(KST).strftime("%Y%m%d")
+        start = (datetime.now(KST) - timedelta(days=7)).strftime("%Y%m%d")
+
+        for code, name in SECTOR_CODES:
+            try:
+                df = await asyncio.wait_for(
+                    asyncio.to_thread(pykrx_stock.get_index_ohlcv_by_date, start, today, code),
+                    timeout=15,
+                )
+                if df is not None and not df.empty:
+                    close = float(df.iloc[-1]["종가"])
+                    trade_date = str(df.index[-1])[:10]
+                    # 전일 대비 등락률
+                    change_pct = 0.0
+                    if len(df) >= 2:
+                        prev = float(df.iloc[-2]["종가"])
+                        change_pct = (close - prev) / prev * 100 if prev != 0 else 0.0
+                    conn.execute(
+                        """INSERT OR IGNORE INTO argos_sector_data
+                           (sector_name, trade_date, close_val, change_pct, source, collected_at)
+                           VALUES(?,?,?,?,?,?)""",
+                        (name, trade_date, round(close, 2), round(change_pct, 2), "pykrx", now_str)
+                    )
+                    conn.commit()
+                    saved += 1
+                    _argos_logger.info("SECTOR %s: %.2f (%+.2f%%)", name, close, change_pct)
+            except asyncio.TimeoutError:
+                _argos_logger.warning("SECTOR %s: 15초 타임아웃", name)
+            except Exception as e:
+                _argos_logger.debug("SECTOR %s 실패: %s", name, e)
+
+        cutoff = (datetime.now(KST) - timedelta(days=90)).strftime("%Y-%m-%d")
+        conn.execute("DELETE FROM argos_sector_data WHERE trade_date < ?", (cutoff,))
+        conn.commit()
+    except ImportError:
+        _argos_logger.debug("pykrx 미설치 — 업종지수 수집 불가")
+    finally:
+        conn.close()
+
+    _argos_logger.info("ARGOS 업종지수 수집 완료: %d건", saved)
+    return saved
+
+
+async def _argos_collect_sector_safe():
+    """업종지수 수집 — 예외 안전 래퍼. 전체 3분 타임아웃."""
+    try:
+        n = await asyncio.wait_for(_argos_collect_sector(), timeout=180)
+        _argos_update_status("sector", count_delta=n)
+        _argos_logger.info("ARGOS 업종지수 수집 완료: %d건", n)
+    except asyncio.TimeoutError:
+        _argos_update_status("sector", error="전체 3분 타임아웃")
+        _argos_logger.error("ARGOS 업종지수 수집: 전체 3분 타임아웃")
+    except Exception as e:
+        _argos_update_status("sector", error=str(e)[:200])
+        _argos_logger.error("ARGOS 업종지수 수집 실패: %s", e)
 
 
 async def _argos_monthly_rl_analysis():
@@ -5321,6 +5561,59 @@ async def _build_argos_context_section(market_watchlist: list, market: str = "KR
                 if desc:
                     lines.append(f"    → {desc}")
         sections.append("\n".join(lines))
+
+    # ⑤ 재무지표 (PER/PBR/EPS — pykrx 1일 수집)
+    try:
+        conn2 = get_connection()
+        fin_found = []
+        for w in market_watchlist:
+            ticker = w["ticker"]
+            try:
+                row = conn2.execute(
+                    """SELECT trade_date, per, pbr, eps, bps
+                       FROM argos_financial_data
+                       WHERE ticker=?
+                       ORDER BY trade_date DESC LIMIT 1""",
+                    (ticker,)
+                ).fetchone()
+                if row:
+                    fin_found.append((w["name"], ticker, row))
+            except Exception:
+                pass
+        conn2.close()
+        if fin_found:
+            lines = ["\n\n## 💹 재무지표 (ARGOS 수집 — 서버 제공)"]
+            lines.append("  | 종목 | PER | PBR | EPS | BPS | 기준일 |")
+            lines.append("  |------|-----|-----|-----|-----|--------|")
+            for name, ticker, r in fin_found:
+                lines.append(f"  | {name}({ticker}) | {r[1]:.1f} | {r[2]:.2f} | {r[3]:,.0f} | {r[4]:,.0f} | {r[0]} |")
+            sections.append("\n".join(lines))
+    except Exception:
+        pass
+
+    # ⑥ 업종지수 (pykrx 11개 업종 — 1일 수집)
+    try:
+        conn3 = get_connection()
+        sector_rows = conn3.execute(
+            """SELECT s1.sector_name, s1.close_val, s1.change_pct, s1.trade_date
+               FROM argos_sector_data s1
+               INNER JOIN (
+                   SELECT sector_name, MAX(trade_date) AS max_date
+                   FROM argos_sector_data GROUP BY sector_name
+               ) s2 ON s1.sector_name=s2.sector_name AND s1.trade_date=s2.max_date
+               ORDER BY s1.change_pct DESC"""
+        ).fetchall()
+        conn3.close()
+        if sector_rows:
+            lines = ["\n\n## 🏭 업종지수 (ARGOS 수집 — 서버 제공)"]
+            lines.append("  | 업종 | 지수 | 등락률 | 기준일 |")
+            lines.append("  |------|------|--------|--------|")
+            for r in sector_rows:
+                arrow = "▲" if r[2] > 0 else ("▼" if r[2] < 0 else "─")
+                lines.append(f"  | {r[0]} | {r[1]:,.2f} | {arrow}{abs(r[2]):.2f}% | {r[3]} |")
+            sections.append("\n".join(lines))
+    except Exception:
+        pass
 
     if not sections:
         return "\n\n## 📡 ARGOS 수집 데이터 없음 (수집 중이거나 관심종목 미등록)"
@@ -8622,10 +8915,18 @@ async def argos_status():
             "FROM argos_collection_status"
         ).fetchall()
         # 주가 레코드 수
-        price_cnt = conn.execute("SELECT COUNT(*) FROM argos_price_history").fetchone()[0]
-        news_cnt  = conn.execute("SELECT COUNT(*) FROM argos_news_cache").fetchone()[0]
-        dart_cnt  = conn.execute("SELECT COUNT(*) FROM argos_dart_filings").fetchone()[0]
-        macro_cnt = conn.execute("SELECT COUNT(*) FROM argos_macro_data").fetchone()[0]
+        price_cnt     = conn.execute("SELECT COUNT(*) FROM argos_price_history").fetchone()[0]
+        news_cnt      = conn.execute("SELECT COUNT(*) FROM argos_news_cache").fetchone()[0]
+        dart_cnt      = conn.execute("SELECT COUNT(*) FROM argos_dart_filings").fetchone()[0]
+        macro_cnt     = conn.execute("SELECT COUNT(*) FROM argos_macro_data").fetchone()[0]
+        try:
+            financial_cnt = conn.execute("SELECT COUNT(*) FROM argos_financial_data").fetchone()[0]
+        except Exception:
+            financial_cnt = 0
+        try:
+            sector_cnt = conn.execute("SELECT COUNT(*) FROM argos_sector_data").fetchone()[0]
+        except Exception:
+            sector_cnt = 0
         conn.close()
 
         status_map = {r[0]: {
@@ -8634,8 +8935,8 @@ async def argos_status():
         } for r in rows}
 
         return {"ok": True, "status": status_map, "db_counts": {
-            "price": price_cnt, "news": news_cnt,
-            "dart": dart_cnt, "macro": macro_cnt
+            "price": price_cnt, "news": news_cnt, "dart": dart_cnt,
+            "macro": macro_cnt, "financial": financial_cnt, "sector": sector_cnt
         }}
     except Exception as e:
         return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
