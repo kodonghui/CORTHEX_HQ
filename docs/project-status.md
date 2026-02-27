@@ -9,53 +9,121 @@
 
 - **날짜**: 2026-02-27
 - **버전**: `4.00.000`
-- **빌드**: #654
+- **빌드**: #656 (예정)
 - **서버**: https://corthex-hq.com
 
 ---
 
-## 🚨🚨🚨 BACKLOG 전체 소탕 — 진행중 (2026-02-27) 🚨🚨🚨
+## ✅ BACKLOG 전체 소탕 — 완료 (빌드 #655)
 
-> **각 Phase 완료 후 반드시 컴팩트(compact) 실행!**
-> **컴팩트 할 때 대표님 부를 것!!!**
-
-### 진행 상황
-
-| Phase | 내용 | 상태 |
-|-------|------|------|
-| **A** | 버그 수정: KIS `EXCG_ID_DVSN_CD` "" → "KRX" | ✅ 완료 |
-| **B** | 실제 검증: Soul Gym Dry Run + 즉시분석 + 작전일지 제목 | ⏭ 배포 후 |
-| **C** | 도구 합병 — pricing (sensitivity 삭제, optimizer에 이식) | ✅ 완료 |
-| **D** | 도구 합병 — 고객분석 (cohort_analyzer 삭제, ltv_model에 이식) | ✅ 완료 |
-| **E** | 문서 정비: project-status + BACKLOG + todo 갱신 | ✅ 완료 |
-| **F** | 커밋 + 배포 + 빌드 보고 | 🔄 진행중 |
-
-### 🔴🔴🔴 PHASE 끝날 때마다 COMPACT + 대표님 호출! 🔴🔴🔴
-
-```
-Phase A 완료 → COMPACT → 대표님 부르기!
-Phase B 완료 → COMPACT → 대표님 부르기!
-Phase C 완료 → COMPACT → 대표님 부르기!
-Phase D 완료 → COMPACT → 대표님 부르기!
-Phase E+F → 마무리 → 최종 보고
-```
-
-### 수정 대상 파일
-
-| 파일 | Phase | 변경 |
-|------|-------|------|
-| `web/kis_client.py` | A | EXCG_ID_DVSN_CD `""` → `"KRX"` (한국거래소) |
-| `src/tools/pricing_optimizer.py` | C | Gabor-Granger + PSM/탄력성 통합 |
-| `src/tools/pricing_sensitivity.py` | C | 삭제 |
-| `src/tools/customer_ltv_model.py` | D | RFM + CAC 이식 |
-| `src/tools/customer_cohort_analyzer.py` | D | 삭제 |
-| `config/tools.yaml` | C,D | 삭제된 도구 제거 |
-| `config/agents.yaml` | C,D | allowed_tools 업데이트 |
-| `docs/project-status.md` | E | 빌드+상태 업데이트 |
-| `docs/todo/BACKLOG.md` | E | 완료 항목 정리 |
-| `docs/todo/2026-02-27.md` | E | 오늘 완료 추가 |
+KIS 버그 수정 + pricing 도구 합병 + 고객분석 도구 합병 + src/src 중복 정리.
+249파일 변경, 70,240줄 삭제. 상세: `docs/updates/2026-02-27_BACKLOG소탕.md`
 
 ---
+
+## 🔴 arm_server.py 리팩토링 — 4-3 (계획 수립됨)
+
+> **비유**: 11,637줄짜리 거대한 공장 1동에 모든 부서가 들어가 있음.
+> 15개 부서를 식별했고, 독립성 높은 것부터 분리하는 계획.
+> **소네트로 가능** (패턴 명확, 기계적 분리 위주). 오퍼스는 Phase 8(에이전트 라우팅)만 필요.
+
+### 현재 상태
+
+- **파일**: `web/arm_server.py` — **11,637줄**, 182개 함수, 50개 API 엔드포인트
+- **등급**: D등급 모놀리스 (God Object)
+- **목표**: **300~400줄** (thin FastAPI main) + 14개 모듈
+
+### 15개 논리 모듈 식별
+
+| # | 모듈 | 줄수 | 함수 | 결합도 | 추출 난이도 |
+|---|------|------|------|--------|-----------|
+| 1 | 유틸리티+초기화 | 210 | 4 | 없음 | 🟢 쉬움 |
+| 2 | 설정+데이터 로딩 | 1,200 | 13 | yaml,db | 🟢 쉬움 |
+| 3 | WebSocket/SSE | 190 | 5 | ws_manager | 🟢 쉬움 |
+| 4 | Soul Gym | 161 | 3 | ai_handler | 🟢 쉬움 |
+| 5 | 도구 관리 | 194 | 3 | app_state | 🟢 쉬움 |
+| 6 | 대시보드 API | 108 | 5 | 읽기 전용 | 🟢 쉬움 |
+| 7 | 디버그 API | 338 | 11 | 진단용 | 🟢 쉬움 |
+| 8 | ARGOS 수집 | 4,161 | 25 | 외부 API | 🟡 보통 |
+| 9 | 배치 시스템 | 1,235 | 15 | agent callback | 🟡 보통 |
+| 10 | 배치 체인 | 1,218 | 10 | 비동기 상태머신 | 🟡 보통 |
+| 11 | 스케줄링/크론 | 1,836 | 10 | 전 모듈 참조 | 🔴 어려움 |
+| 12 | 트레이딩/CIO | 4,333 | 31 | ARGOS↔순환 | 🔴 어려움 |
+| 13 | 텔레그램 봇 | 4,705 | 7 | 허브 패턴 | 🔴 어려움 |
+| 14 | **에이전트 라우팅** | **1,865** | **25** | **핵심 허브** | 🔴🔴 가장 어려움 |
+| 15 | 라이프사이클 | 85 | 2 | 전체 조율 | 🟡 보통 |
+
+### 핵심 의존성 (순환 참조 3곳)
+
+| 함수 | 호출 횟수 | 영향 범위 |
+|------|---------|---------|
+| `ask_ai()` | 33곳 | 에이전트/배치/트레이딩/Soul Gym 전부 |
+| `save_activity_log()` | 91곳 | 전 모듈 (시스템 로깅) |
+| `update_task()` | 53곳 | 배치/스케줄링/트레이딩/에이전트 |
+| `_call_agent()` | 22곳 | 배치/트레이딩/에이전트 라우팅 |
+
+**순환 참조**:
+- ARGOS ↔ 트레이딩 (가격 수집 ↔ 매매 신호)
+- 크론 ↔ 전 모듈 (크론이 전부 호출, 전부가 크론에 등록)
+- 에이전트 라우팅 ↔ 텔레그램 (에이전트→알림, 텔레그램→에이전트 호출)
+
+### 8단계 추출 계획
+
+> 원칙: **독립적인 것부터, 결합도 높은 것은 나중에**
+> Phase마다 커밋+배포+검증 후 다음 진행
+
+| Phase | 추출 대상 | 목표 파일 | 예상 줄수 | 난이도 |
+|-------|----------|---------|---------|--------|
+| **P1** | ✅ 유틸+설정+라이프사이클 | `web/config_loader.py` (343줄) | 294줄 감소 | 🟢 완료 |
+| **P2** | 도구+Soul Gym+디버그 | `web/soul_gym.py`, `web/debug_api.py`, `web/tool_mgr.py` | ~700 | 🟢 |
+| **P3** | WebSocket+대시보드 | `web/ws_handler.py`, `web/dashboard_api.py` | ~300 | 🟢 |
+| **P4** | ARGOS 수집 | `web/argos_collector.py` | ~4,200 | 🟡 |
+| **P5** | 배치 시스템+체인 | `web/batch_system.py` | ~2,500 | 🟡 |
+| **P6** | 트레이딩/CIO | `web/trading_engine.py` | ~4,300 | 🔴 |
+| **P7** | 스케줄링/크론 | `web/scheduler.py` | ~1,800 | 🔴 |
+| **P8** | **에이전트 라우팅** | `web/agent_router.py` | ~1,900 | 🔴🔴 |
+
+### 아키텍처 패턴
+
+- **Dependency Injection**: `on_startup()`에서 콜백 등록 (하드코딩 import 금지)
+- **이벤트 버스**: 텔레그램은 이벤트 구독 (직접 호출 금지)
+- **팩토리 패턴**: 크론 작업은 레지스트리 등록 방식
+- **순환 해소**: ARGOS↔트레이딩은 데이터를 인자로 전달 (직접 import 금지)
+
+### 최종 목표 구조
+
+```
+web/
+├─ arm_server.py          (300~400줄, thin main + 라우터 마운트만)
+├─ config_loader.py       (설정 로딩, DB 영속, 초기화)
+├─ agent_router.py        (에이전트 라우팅, ask_ai, _call_agent)
+├─ argos_collector.py     (ARGOS 데이터 수집 전체)
+├─ trading_engine.py      (매매 엔진, 시그널, 주문)
+├─ batch_system.py        (배치 시스템 + 배치 체인)
+├─ scheduler.py           (크론 스케줄러)
+├─ soul_gym.py            (Soul Gym 진화)
+├─ ws_handler.py          (WebSocket/SSE)
+├─ dashboard_api.py       (대시보드 API)
+├─ debug_api.py           (디버그 엔드포인트)
+├─ tool_mgr.py            (도구 풀 관리)
+└─ (기존) ai_handler.py, kis_client.py, ...
+```
+
+### ⚠️ 리스크
+
+- 🔴 **에이전트 라우팅** (ask_ai 33곳 호출) — 가장 마지막에, 가장 신중하게
+- 🔴 **ARGOS↔트레이딩 순환** — DI 패턴으로 해소 필요
+- 🟡 **크론 스케줄러** — 전 모듈 의존, 팩토리 패턴 필수
+- 🟢 **P1~P3은 안전** — 독립적, 기계적 분리
+
+---
+
+## 2026-02-27 — BACKLOG 소탕 (빌드 #655)
+
+- ✅ KIS `EXCG_ID_DVSN_CD` "" → "KRX" (한미반도체 주문 실패 해결)
+- ✅ pricing 도구 합병 (sensitivity 612줄 삭제, optimizer에 Gabor-Granger+수익최적화 이식)
+- ✅ 고객분석 도구 합병 (cohort_analyzer 413줄 삭제, ltv_model에 RFM+CAC 이식)
+- ✅ src/src/ 중복 디렉토리 425파일 정리 (70,240줄 삭제)
 
 ## 2026-02-27 — 도구 전수 심사 + 서버 사전계산 아키텍처 (빌드 #650)
 
@@ -157,7 +225,7 @@ Phase E+F → 마무리 → 최종 보고
 - arm_server.py "처장→팀장" **81건** 일괄 치환 (텔레그램코드 보호)
 - 일회성 스크립트 2개 삭제
 
-### Phase 3 — UX/UI 전면 개편 🔄 진행중
+### Phase 3 — UX/UI 전면 개편 ✅ 완료
 
 **목표**: 대표님 32개 개선 항목 전부 구현.
 **상태**: Phase A+B+C+D+E 전체 완료. 기밀문서 전면개편 + 금융분석팀장 이름 통일.
