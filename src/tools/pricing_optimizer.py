@@ -1,23 +1,28 @@
 """
 가격 최적화 도구 (Pricing Optimizer) — 최적 가격을 과학적으로 산출합니다.
 
-Van Westendorp PSM + 가격 탄력성 + 경쟁사 포지셔닝 + 마진 시뮬레이션으로
+Van Westendorp PSM + Gabor-Granger + 가격 탄력성 + 수익 최적화 +
+경쟁사 포지셔닝 + 마진 시뮬레이션으로
 "얼마를 받아야 최적인가"를 정량적으로 결정합니다.
 
 학술 근거:
   - Van Westendorp, "Price Sensitivity Meter" (1976) — 최적 가격 범위 산출
+  - Gabor & Granger (1966) — 직접 가격 수용도 측정
   - Marshall, "Principles of Economics" (1890) — 가격 탄력성 이론
+  - Phillips, "Pricing and Revenue Optimization" (2005) — 수익 최적화 모델
   - Simon & Fassnacht, "Price Management" (2019) — 디지털 시대 가격 전략
   - Patrick Campbell, "SaaS Pricing" (ProfitWell, 2024) — SaaS 가격 벤치마크
   - Madhavan Ramanujam, "Monetizing Innovation" (2016) — 가격 중심 제품 설계
 
 사용 방법:
-  - action="full"      : 전체 가격 분석 종합
-  - action="psm"       : Van Westendorp 가격 민감도 측정
-  - action="elasticity": 가격 탄력성 시뮬레이션
-  - action="competitor": 경쟁사 가격 포지셔닝
-  - action="margin"    : 가격별 마진 시뮬레이션
-  - action="bundle"    : 번들/티어 가격 설계
+  - action="full"           : 전체 가격 분석 종합
+  - action="psm"            : Van Westendorp 가격 민감도 측정
+  - action="gabor_granger"  : Gabor-Granger 가격 수용도
+  - action="elasticity"     : 가격 탄력성 시뮬레이션
+  - action="optimize"       : 수익 최적화 가격 탐색
+  - action="competitor"     : 경쟁사 가격 포지셔닝
+  - action="margin"         : 가격별 마진 시뮬레이션
+  - action="bundle"         : 번들/티어 가격 설계
 
 필요 환경변수: 없음
 필요 라이브러리: 없음 (표준 라이브러리만 사용)
@@ -73,7 +78,9 @@ class PricingOptimizer(BaseTool):
         actions = {
             "full": self._full_analysis,
             "psm": self._psm_analysis,
+            "gabor_granger": self._gabor_granger,
             "elasticity": self._elasticity_sim,
+            "optimize": self._revenue_optimization,
             "competitor": self._competitor_positioning,
             "margin": self._margin_simulation,
             "bundle": self._bundle_design,
@@ -83,14 +90,16 @@ class PricingOptimizer(BaseTool):
             return await handler(kwargs)
         return (
             f"알 수 없는 action: {action}. "
-            "full, psm, elasticity, competitor, margin, bundle 중 하나를 사용하세요."
+            "full, psm, gabor_granger, elasticity, optimize, competitor, margin, bundle 중 하나를 사용하세요."
         )
 
     # ── Full: 종합 ──────────────────────────────────────
 
     async def _full_analysis(self, p: dict) -> str:
         psm = await self._psm_analysis(p)
+        gabor = await self._gabor_granger(p)
         elast = await self._elasticity_sim(p)
+        optimize = await self._revenue_optimization(p)
         margin = await self._margin_simulation(p)
         bundle = await self._bundle_design(p)
 
@@ -100,17 +109,23 @@ class PricingOptimizer(BaseTool):
             "## 1. 가격 민감도 측정 (PSM)",
             psm,
             "",
-            "## 2. 가격 탄력성 시뮬레이션",
+            "## 2. Gabor-Granger 가격 수용도",
+            gabor,
+            "",
+            "## 3. 가격 탄력성 시뮬레이션",
             elast,
             "",
-            "## 3. 가격별 마진 시뮬레이션",
+            "## 4. 수익 최적화",
+            optimize,
+            "",
+            "## 5. 가격별 마진 시뮬레이션",
             margin,
             "",
-            "## 4. 번들/티어 가격 설계",
+            "## 6. 번들/티어 가격 설계",
             bundle,
             "",
             "---",
-            "학술 참고: Van Westendorp (1976), Simon & Fassnacht (2019), ProfitWell (2024)",
+            "학술 참고: Van Westendorp (1976), Gabor & Granger (1966), Phillips (2005), ProfitWell (2024)",
         ]
         return "\n".join(lines)
 
@@ -429,6 +444,201 @@ class PricingOptimizer(BaseTool):
             "| fixed_cost_monthly | 월 고정비 | 3000000 |",
             "| expected_customers | 예상 월 고객 수 | 200 |",
             '| prices | 시뮬레이션할 가격들 (쉼표 구분) | "19900,29900,39900,49900" |',
+        ])
+
+    # ── Gabor-Granger: 가격 수용도 ──────────────────────
+
+    async def _gabor_granger(self, p: dict) -> str:
+        """Gabor-Granger 직접 가격 수용도 분석 (Gabor & Granger, 1966).
+
+        여러 가격점에서 구매 수용률 → 수익 곡선으로 최적 가격 도출.
+        """
+        prices_str = p.get("prices", "")
+        acceptance_str = p.get("acceptance_rates", "")
+        currency = p.get("currency", "원")
+
+        if not prices_str or not acceptance_str:
+            return self._gabor_guide()
+
+        prices = [float(x.strip()) for x in str(prices_str).split(",")]
+        acceptance = [
+            float(x.strip()) / 100 if float(x.strip()) > 1 else float(x.strip())
+            for x in str(acceptance_str).split(",")
+        ]
+
+        if len(prices) != len(acceptance):
+            return "prices와 acceptance_rates의 개수가 일치해야 합니다."
+
+        # Revenue = Price × Acceptance Rate
+        revenues = [p_ * a for p_, a in zip(prices, acceptance)]
+        max_idx = max(range(len(revenues)), key=lambda i: revenues[i])
+        optimal_price = prices[max_idx]
+        optimal_acc = acceptance[max_idx]
+        max_rev = revenues[max_idx]
+
+        # 구간별 탄력성
+        elasticities: list[str] = []
+        for i in range(1, len(prices)):
+            pct_q = (acceptance[i] - acceptance[i - 1]) / acceptance[i - 1] if acceptance[i - 1] else 0
+            pct_p = (prices[i] - prices[i - 1]) / prices[i - 1] if prices[i - 1] else 0
+            if pct_p != 0:
+                e = pct_q / pct_p
+                etype = "탄력적" if abs(e) > 1 else "비탄력적"
+                elasticities.append(
+                    f"| {prices[i-1]:,.0f}→{prices[i]:,.0f} | {e:.2f} | {etype} |"
+                )
+
+        lines = [
+            "### Gabor-Granger 가격 수용도 (1966)",
+            "",
+            "| 가격 | 수용률 | 기대 수익 | 최적? |",
+            "|------|--------|---------|-------|",
+        ]
+        for i, (pr, ac, rv) in enumerate(zip(prices, acceptance, revenues)):
+            marker = " ★" if i == max_idx else ""
+            lines.append(f"| {pr:,.0f}{currency} | {ac*100:.0f}% | {rv:,.0f}{currency} | {marker} |")
+
+        lines.extend([
+            "",
+            f"**최적 가격: {optimal_price:,.0f}{currency}** (수용률 {optimal_acc*100:.0f}%, 기대수익 {max_rev:,.0f}{currency})",
+        ])
+
+        if elasticities:
+            lines.extend([
+                "",
+                "### 구간별 탄력성",
+                "| 가격 구간 | 탄력성 | 유형 |",
+                "|----------|--------|------|",
+            ] + elasticities)
+
+        nearest = min(_PSYCHOLOGICAL_PRICES, key=lambda x: abs(x - optimal_price))
+        lines.extend([
+            "",
+            f"📌 **추천 심리적 가격**: {nearest:,.0f}{currency}",
+        ])
+        return "\n".join(lines)
+
+    def _gabor_guide(self) -> str:
+        return "\n".join([
+            "### Gabor-Granger 분석을 위해 필요한 입력값:",
+            "",
+            "각 가격에 대해 \"이 가격에 구매하시겠습니까?\" 설문 결과를 입력합니다.",
+            "",
+            "| 파라미터 | 설명 | 예시 |",
+            "|---------|------|------|",
+            '| prices | 테스트할 가격들 (쉼표 구분) | "10000,20000,30000,40000,50000" |',
+            '| acceptance_rates | 각 가격의 수용률 % (쉼표 구분) | "95,85,70,50,30" |',
+            "",
+            "💡 5~8개 가격점이 적절합니다. 수용률은 가격이 오를수록 낮아져야 합니다.",
+        ])
+
+    # ── Optimize: 수익 최적화 가격 탐색 ──────────────────
+
+    async def _revenue_optimization(self, p: dict) -> str:
+        """수익/이익 최적화 가격 탐색 (Phillips 2005).
+
+        일정 탄력성 모델(Q = Q0 × (P/P0)^e)로 가격별 수요·수익·이익 시뮬레이션.
+        """
+        base_price = float(p.get("base_price", 0))
+        base_demand = float(p.get("base_demand", 0))
+        variable_cost = float(p.get("variable_cost", 0))
+        fixed_cost = float(p.get("fixed_cost", 0))
+        elasticity = float(p.get("elasticity", -1.5))
+        currency = p.get("currency", "원")
+
+        if base_price <= 0 or base_demand <= 0:
+            return self._optimize_guide()
+
+        # 가격 범위: 기본가의 50%~200%, 20단계
+        steps = 20
+        price_min = base_price * 0.5
+        price_max = base_price * 2.0
+        step_size = (price_max - price_min) / steps
+
+        best_revenue_entry: dict[str, Any] = {}
+        best_profit_entry: dict[str, Any] = {}
+        max_rev = float("-inf")
+        max_prof = float("-inf")
+        bep_price = None
+        table_rows: list[str] = []
+
+        for i in range(steps + 1):
+            price = price_min + step_size * i
+            # 일정 탄력성 모델
+            demand = base_demand * (price / base_price) ** elasticity
+            demand = max(0, demand)
+            revenue = price * demand
+            total_cost = fixed_cost + variable_cost * demand
+            profit = revenue - total_cost
+            margin = profit / revenue if revenue > 0 else 0
+
+            entry = {
+                "price": round(price), "demand": round(demand),
+                "revenue": round(revenue), "profit": round(profit),
+                "margin": round(margin, 3),
+            }
+
+            if revenue > max_rev:
+                max_rev = revenue
+                best_revenue_entry = entry
+            if profit > max_prof:
+                max_prof = profit
+                best_profit_entry = entry
+            if bep_price is None and profit >= 0:
+                bep_price = round(price)
+
+            # 10% 간격으로 테이블에 추가
+            if i % 2 == 0:
+                marker = ""
+                if entry["price"] == best_profit_entry.get("price"):
+                    marker = " ★이익최대"
+                elif entry["price"] == best_revenue_entry.get("price"):
+                    marker = " ★매출최대"
+                table_rows.append(
+                    f"| {price:,.0f} | {demand:,.0f} | {revenue:,.0f} | {profit:,.0f} | {margin*100:.0f}% |{marker}"
+                )
+
+        lines = [
+            f"### 수익 최적화 (Phillips 2005)",
+            f"(기준가 {base_price:,.0f}{currency}, 수요 {base_demand:,.0f}, 탄력성 {elasticity:.1f})",
+            "",
+            "| 가격 | 예상 수요 | 매출 | 이익 | 마진 | 비고 |",
+            "|------|---------|------|------|------|------|",
+        ] + table_rows
+
+        lines.extend([
+            "",
+            f"**매출 최대화 가격**: {best_revenue_entry.get('price', 0):,}{currency} "
+            f"(매출 {best_revenue_entry.get('revenue', 0):,}{currency})",
+            f"**이익 최대화 가격**: {best_profit_entry.get('price', 0):,}{currency} "
+            f"(이익 {best_profit_entry.get('profit', 0):,}{currency})",
+        ])
+        if bep_price:
+            lines.append(f"**손익분기 가격**: {bep_price:,}{currency}")
+
+        # 전략 추천
+        bp = best_profit_entry.get("price", base_price)
+        if bp > base_price * 1.1:
+            rec = f"현재({base_price:,}) 대비 이익최적({bp:,})이 높음 → 가격 인상 권장"
+        elif bp < base_price * 0.9:
+            rec = f"현재({base_price:,}) 대비 이익최적({bp:,})이 낮음 → 가격 인하+볼륨 전략 권장"
+        else:
+            rec = f"현재 가격({base_price:,})이 이익 최적 근처 → 현 가격 유지 권장"
+
+        lines.extend(["", f"📌 **전략**: {rec}"])
+        return "\n".join(lines)
+
+    def _optimize_guide(self) -> str:
+        return "\n".join([
+            "### 수익 최적화를 위해 필요한 입력값:",
+            "",
+            "| 파라미터 | 설명 | 예시 |",
+            "|---------|------|------|",
+            "| base_price | 현재/기준 가격 | 30000 |",
+            "| base_demand | 현재 수요 (월) | 1000 |",
+            "| variable_cost | 변동비 (건당) | 10000 |",
+            "| fixed_cost | 고정비 (월) | 5000000 |",
+            "| elasticity | 가격 탄력성 (음수) | -1.5 |",
         ])
 
     # ── Bundle: 번들/티어 가격 설계 ──────────────────────

@@ -3,7 +3,7 @@
 > **규칙**: 미완료 항목은 전부 여기만. 날짜 파일에 ⬜ 절대 금지.
 > **수시 업데이트**: 완료되면 즉시 ✅ 표시 or 삭제. 새 항목 발견 시 즉시 추가.
 > 🔴 **매 배포 시 반드시 갱신!** — 배포하고 BACKLOG 안 건드리면 미완성!
-> 마지막 업데이트: 2026-02-27 (빌드 #654)
+> 마지막 업데이트: 2026-02-27 (빌드 #655 예정)
 
 ---
 
@@ -18,15 +18,15 @@
 
 ## 🟡 버그 (발견됐지만 미수정)
 
-- ⬜ **한미반도체(042700) KIS 주문 실패** — "거래소ID구분코드은(는) 필수 입력항목입니다" 에러. exchange_code 누락 추정. 2026-02-27 자동매매 중 발견
+- ✅ ~~**한미반도체(042700) KIS 주문 실패**~~ — `EXCG_ID_DVSN_CD` "" → "KRX" 수정 (빌드 #655 예정)
 
 ---
 
 ## 🟡 코드 개선
 
 - ⬜ **4-3: arm_server.py 리팩토링** — 11,649줄 D등급 모놀리스. 배치/ARGOS/트레이딩/텔레그램/에이전트라우팅/디버그API 6모듈 분리. 목표: 3,000~4,000줄. 계획 수립 완료, 실행 보류 (대형 작업)
-- ⬜ **도구 합병: pricing** — pricing_sensitivity(611줄) + pricing_optimizer(512줄) PSM/탄력성 80% 중복. pricing_optimizer에 Gabor-Granger 추가 후 하나로 합병
-- ⬜ **도구 합병: 고객분석** — customer_ltv_model(836줄) + cohort_retention(741줄) + customer_cohort_analyzer(412줄) 부분 중복. analyzer의 RFM/CAC 회수를 다른 둘에 분배 후 삭제
+- ✅ ~~**도구 합병: pricing**~~ — pricing_sensitivity 삭제, Gabor-Granger+수익최적화를 pricing_optimizer에 이식 (빌드 #655 예정)
+- ✅ ~~**도구 합병: 고객분석**~~ — customer_cohort_analyzer 삭제, RFM+CAC 회수를 customer_ltv_model에 이식 (빌드 #655 예정)
 
 ---
 
