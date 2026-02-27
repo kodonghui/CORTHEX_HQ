@@ -189,12 +189,6 @@ agents:
 
     ## 내가 쓰는 도구
 
-    - kr_stock: 주가/시장 데이터
-
-    - naver_news: 기업/시장 뉴스
-
-    - dart_monitor: 공시 실시간 추적
-
     - stock_screener: 종목 비교
 
     - backtest_engine: 전략 검증
@@ -202,8 +196,6 @@ agents:
     - insider_tracker: 내부자 거래
 
     - dividend_calendar: 배당 분석
-
-    - global_market_tool: 글로벌 시장 데이터
 
     - financial_calculator: DCF/NPV/IRR 계산
 
@@ -217,48 +209,34 @@ agents:
 
     - options_flow: Put/Call Ratio+Max Pain+이상거래 감지 — 스마트머니 방향
 
-    - macro_fed_tracker: Taylor Rule+수익률곡선+VIX온도계 — Fed 정책 방향+경기침체 예측
-
-    - sector_rotation: Fidelity 경기사이클 맵+11개 섹터 RS순위+ETF자금흐름 — 어느 섹터에 돈이 흐르는가
-
-    - earnings_ai: 어닝서프라이즈+PEAD드리프트+이익의 질(Sloan) — 실적 발표 전후 전략
-
-    - sentiment_nlp: Fear&Greed+공매도+뉴스감성 — 시장 심리 온도계
-
     - portfolio_optimizer_v2: Markowitz+Risk Parity+Kelly+효율적프론티어 — 최적 포트폴리오 비중
 
     - correlation_analyzer: 자산 상관관계+Tail Dependence+위기감지 대시보드 — 분산 효과+위기 경보
 
+    ※ 주가/시세/뉴스/공시/매크로/섹터 데이터는 ARGOS가 실시간 수집하여 DB에 저장. 직접 수집 도구 사용 금지.
+
 
     ## 의사결정
 
-    [독자 분석 시 — 팀원 분석 전에 직접 수행]
+    ※ 매크로/시황/섹터/뉴스 데이터는 프롬프트에 제공됨 (ARGOS 수집).
 
-    1. macro_fed_tracker full → 매크로 환경 파악 (금리/경기/VIX)
+    [종목별 분석 — 제공된 데이터 기반 + 필요 시 도구 사용]
 
-    2. sector_rotation relative_strength → 강세/약세 섹터 판별
+    1. correlation_analyzer crisis_detection → 위기 수준 판단
 
-    3. correlation_analyzer crisis_detection → 위기 수준 판단
+    2. us_financial_analyzer dcf → 적정가 계산 (Monte Carlo)
 
-    4. sentiment_nlp fear_greed → 시장 심리 (탐욕/공포)
+    3. us_technical_analyzer consensus → 5지표 매매 시그널
 
-    [종목별 분석 — 팀원 분석 병행 또는 독자]
+    4. options_flow overview → 옵션 수급 방향
 
-    5. us_financial_analyzer dcf → 적정가 계산 (Monte Carlo)
-
-    6. us_technical_analyzer consensus → 5지표 매매 시그널
-
-    7. options_flow overview → 옵션 수급 방향
-
-    8. earnings_ai full → 실적 서프라이즈+이익의 질
-
-    9. sec_edgar insider → 내부자 매수/매도 동향
+    5. sec_edgar insider → 내부자 매수/매도 동향
 
     [포트폴리오 레벨]
 
-    10. portfolio_optimizer_v2 optimize → 최적 비중 계산
+    6. portfolio_optimizer_v2 optimize → 최적 비중 계산
 
-    11. correlation_analyzer tail_risk → 동시 하락 위험 점검
+    7. correlation_analyzer tail_risk → 동시 하락 위험 점검
 
     - 보고: 수익률만 금지 → Sharpe+MDD+CVaR 동시 보고
 
@@ -298,12 +276,21 @@ agents:
   - 포트폴리오 관리
   superior_id: chief_of_staff
   allowed_tools:
-  - dart_monitor
+  # ── 수집 도구 제거 (ARGOS가 대신 수집) ──
+  # dart_monitor: DART API 직접 호출 → ARGOS argos_dart 수집으로 대체
+  # sector_rotator: pykrx 400번 호출 → ARGOS price_history 수집으로 대체
+  # sector_rotation: yfinance 직접 호출 → ARGOS price_history 수집으로 대체
+  # global_market_tool: yfinance 직접 호출 → ARGOS price_history 수집으로 대체
+  # macro_fed_tracker: yfinance+FRED 직접 호출 → ARGOS macro 수집으로 대체
+  # macro_regime: ECOS API 직접 호출 → ARGOS macro 수집으로 대체
+  # sentiment_nlp: yfinance+SERPAPI 호출 → ARGOS news 수집으로 대체
+  # sentiment_scorer: 네이버API 직접 호출 → ARGOS news 수집으로 대체
+  # earnings_surprise: pykrx+DART 직접 호출 → ARGOS 수집으로 대체
+  # earnings_ai: yfinance 직접 호출 → ARGOS 수집으로 대체
   - stock_screener
   - backtest_engine
   - insider_tracker
   - dividend_calendar
-  - global_market_tool
   - financial_calculator
   - chart_generator
   - spreadsheet_tool
@@ -314,21 +301,13 @@ agents:
   - dcf_valuator
   - portfolio_optimizer
   - risk_calculator
-  - sector_rotator
-  - sentiment_scorer
   - pair_analyzer
-  - earnings_surprise
-  - macro_regime
   - trading_settings_control
   - trading_executor
   - sec_edgar
   - us_financial_analyzer
   - us_technical_analyzer
   - options_flow
-  - macro_fed_tracker
-  - sector_rotation
-  - earnings_ai
-  - sentiment_nlp
   - portfolio_optimizer_v2
   - correlation_analyzer
   - read_knowledge
