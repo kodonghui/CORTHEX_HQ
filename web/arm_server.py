@@ -5458,6 +5458,50 @@ async def _build_quant_prompt_section(market_watchlist: list, market: str = "KR"
         return f"\n\n## 📐 정량지표 (계산 실패: {str(e)[:60]})\n"
 
 
+async def _build_dcf_risk_prompt_section(market_watchlist: list, market: str = "KR") -> str:
+    """종목별 DCF 가치평가 + 리스크 분석을 서버가 사전 계산하여 프롬프트에 주입.
+
+    pool.invoke()로 Python 계산 도구를 직접 실행합니다 (AI 호출 아님).
+    """
+    pool = _init_tool_pool()
+    if not pool:
+        return ""
+
+    async def _calc_one(w):
+        ticker = w["ticker"]
+        name = w["name"]
+        try:
+            if market == "KR":
+                dcf_r, risk_r = await asyncio.gather(
+                    pool.invoke("dcf_valuator", caller_id="cio_manager", action="all", ticker=ticker),
+                    pool.invoke("risk_calculator", caller_id="cio_manager", action="full", ticker=ticker),
+                )
+            else:
+                dcf_r, risk_r = await asyncio.gather(
+                    pool.invoke("us_financial_analyzer", caller_id="cio_manager", action="dcf", ticker=ticker),
+                    pool.invoke("risk_calculator", caller_id="cio_manager", action="full", ticker=ticker),
+                )
+            # 결과를 종목당 800자로 요약 (프롬프트 토큰 절약)
+            return f"### {name}({ticker})\n**[DCF 가치평가]**\n{str(dcf_r)[:800]}\n**[리스크 분석]**\n{str(risk_r)[:800]}"
+        except Exception as e:
+            return f"### {name}({ticker})\n사전계산 오류: {str(e)[:100]}"
+
+    try:
+        tasks = [_calc_one(w) for w in market_watchlist]
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        valid = [r for r in results if isinstance(r, str)]
+        if not valid:
+            return ""
+        return (
+            "\n\n## 📊 [서버 사전계산] DCF 가치평가 + 리스크 분석\n"
+            "아래 결과는 서버가 Python으로 직접 계산한 것입니다. 이 수치를 기반으로 판단하세요.\n\n"
+            + "\n\n".join(valid)
+        )
+    except Exception as e:
+        logger.warning("[DCF/Risk 사전계산] 오류: %s", e)
+        return ""
+
+
 async def _build_argos_context_section(market_watchlist: list, market: str = "KR") -> str:
     """ARGOS DB에서 수집된 데이터를 꺼내 팀장 프롬프트에 직접 주입.
 
@@ -6456,6 +6500,10 @@ async def _run_trading_now_inner(selected_tickers: list[str] | None = None):
     save_activity_log("cio_manager", "📡 ARGOS 수집 데이터 로딩...", "info")
     argos_section = await _build_argos_context_section(market_watchlist, market)
 
+    # DCF 가치평가 + 리스크 분석 — 서버가 Python으로 사전 계산 (AI 호출 아님)
+    save_activity_log("cio_manager", "📊 DCF/리스크 사전계산 중...", "info")
+    dcf_risk_section = await _build_dcf_risk_prompt_section(market_watchlist, market)
+
     tickers_info = ", ".join([f"{w['name']}({w['ticker']})" for w in market_watchlist])
     strategies = _load_data("trading_strategies", [])
     active_strats = [s for s in strategies if s.get("active")]
@@ -6467,9 +6515,9 @@ async def _run_trading_now_inner(selected_tickers: list[str] | None = None):
 ## 분석 대상 ({len(market_watchlist)}개 종목)
 {tickers_info}
 
-## 활성 전략: {strats_info}{cal_section}{quant_section}{argos_section}
+## 활성 전략: {strats_info}{cal_section}{quant_section}{argos_section}{dcf_risk_section}
 
-## 분석 요청 (추가 데이터 수집 불필요 — 위 서버 제공 데이터만 활용)
+## 분석 요청 (도구 호출 불필요 — 위 서버 제공 데이터만으로 판단)
 아래 분석을 수행하세요:
 - **시황분석**: 위 매크로 지표/뉴스를 기반으로 {'코스피/코스닥 흐름, 외국인/기관 동향, 금리/환율' if market == 'KR' else 'S&P500/나스닥, 미국 금리/고용지표, 달러 강세'} 해석
 - **종목분석**: 위 공시/뉴스/주가 데이터를 기반으로 재무 건전성, PER/PBR, 실적 방향 해석
@@ -6490,6 +6538,43 @@ async def _run_trading_now_inner(selected_tickers: list[str] | None = None):
     cio_result = await _call_agent("cio_manager", prompt)
     content = cio_result.get("content", "")
     cost = cio_result.get("cost_usd", 0)
+
+    # ── STEP2 강제 실행 (서버 보장) — 팀장이 생략해도 서버가 직접 실행 ──
+    step2_section = ""
+    try:
+        pool = _init_tool_pool()
+        if pool:
+            tickers_str = ",".join([w["ticker"] for w in market_watchlist])
+            symbols_str = " ".join([w["ticker"] for w in market_watchlist])
+
+            # 2-A: correlation_analyzer tail_risk
+            _l = save_activity_log("cio_manager", "🎯 [STEP2 서버강제] correlation_analyzer tail_risk 실행 중...", "tool")
+            await wm.send_activity_log(_l)
+            corr_input = {"action": "tail_risk", "symbols": tickers_str if market == "KR" else symbols_str}
+            corr_result = await pool.invoke("correlation_analyzer", caller_id="cio_manager", **corr_input)
+
+            # 2-B: portfolio_optimizer_v2 optimize
+            _l = save_activity_log("cio_manager", "🎯 [STEP2 서버강제] portfolio_optimizer_v2 optimize 실행 중...", "tool")
+            await wm.send_activity_log(_l)
+            port_input = ({"action": "optimize", "tickers": tickers_str, "risk_tolerance": "moderate"}
+                          if market == "KR" else
+                          {"action": "optimize", "symbols": symbols_str, "risk_tolerance": "moderate"})
+            port_result = await pool.invoke("portfolio_optimizer_v2", caller_id="cio_manager", **port_input)
+
+            step2_section = (
+                "\n\n---\n\n## [STEP2 — 포트폴리오 레벨 분석]\n\n"
+                f"### 종목 간 동시 하락 위험 (correlation_analyzer)\n{corr_result}\n\n"
+                f"### 최적 포트폴리오 비중 (portfolio_optimizer_v2)\n{port_result}"
+            )
+            _l = save_activity_log("cio_manager", "✅ [STEP2 서버강제] correlation_analyzer + portfolio_optimizer_v2 완료", "info")
+            await wm.send_activity_log(_l)
+    except Exception as _step2_err:
+        logger.warning("[STEP2 강제실행] 오류: %s", _step2_err)
+        _l = save_activity_log("cio_manager", f"⚠️ [STEP2 서버강제] 오류: {str(_step2_err)[:80]}", "warning")
+        await wm.send_activity_log(_l)
+
+    if step2_section:
+        content += step2_section
 
     # ── 비서실장 QA: 팀장 보고서 검수 ──
     qa_passed, qa_reason = await _chief_qa_review(content, "금융분석팀장")

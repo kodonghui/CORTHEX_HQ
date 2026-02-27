@@ -75,8 +75,7 @@ agents:
   - customer_cohort_analyzer
   - swot_quantifier
   - lawschool_community
-  - dc_lawschool_crawler
-  - orbi_crawler
+  # dc_lawschool_crawler, orbi_crawler 삭제 — lawschool_community에 완전 통합
   - read_knowledge
 - agent_id: clo_manager
   name: Legal Lead
@@ -147,7 +146,7 @@ agents:
   - funnel_analyzer
   - ab_test_engine
   - customer_ltv_model
-  - rfm_segmentation
+  # rfm_segmentation 삭제 — 파일 미존재, customer_ltv_model segment에 흡수
   - content_quality_scorer
   - pricing_sensitivity
   - churn_risk_scorer
@@ -216,30 +215,20 @@ agents:
     ※ 주가/시세/뉴스/공시/매크로/섹터 데이터는 ARGOS가 실시간 수집하여 DB에 저장. 직접 수집 도구 사용 금지.
 
 
-    ## 의사결정 — 반드시 이 순서대로 실행. 단계 생략 절대 금지.
+    ## 의사결정 — 서버가 모든 정량 분석을 사전 제공합니다.
 
-    ※ 매크로/시황/섹터/뉴스 데이터는 프롬프트에 제공됨 (ARGOS 수집).
+    ※ 아래 데이터는 프롬프트에 이미 포함되어 있습니다. 도구 호출 불필요.
+    - 매크로/시황/섹터/뉴스 (ARGOS 수집)
+    - RSI/MACD/볼린저/거래량/추세 (서버 정량지표 사전 계산)
+    - DCF 적정가/PER·PBR 적정가/그레이엄넘버 (서버 DCF 사전 계산)
+    - VaR/MDD/샤프비율/위험등급 (서버 리스크 사전 계산)
+    - 종목 간 상관관계/꼬리위험 (서버 STEP2 자동 실행)
+    - 최적 포트폴리오 비중 (서버 STEP2 자동 실행)
 
-    [STEP 1 — 종목별 분석: 관심종목 각각에 대해 반드시 실행]
-
-    KR 종목:
-    1-A. technical_analyzer → RSI/MACD/BB/거래량 기술적 분석 (종목당 1회, 생략 불가)
-    1-B. dcf_valuator → DCF 적정가 + Monte Carlo (종목당 1회, 생략 불가)
-    1-C. risk_calculator → VaR/MDD/샤프 (종목당 1회, 생략 불가)
-
-    US 종목:
-    1-A. us_technical_analyzer consensus → 5지표 매매 시그널 (종목당 1회, 생략 불가)
-    1-B. us_financial_analyzer dcf → DCF+Monte Carlo+DuPont (종목당 1회, 생략 불가)
-    1-C. options_flow overview → 옵션 수급 방향 (종목당 1회, 생략 불가)
-    1-D. sec_edgar insider → 내부자 매수/매도 동향 (종목당 1회, 생략 불가)
-
-    [STEP 2 — 포트폴리오 레벨: 종목별 분석 완료 후 반드시 실행]
-
-    2-A. correlation_analyzer tail_risk → 종목 간 동시 하락 위험 점검 (생략 불가)
-    2-B. portfolio_optimizer_v2 optimize → 전 종목 최적 비중 계산 (생략 불가)
+    당신은 위 서버 제공 데이터를 읽고 **판단만** 하면 됩니다.
+    추가 도구 호출은 웹 검색/특수 상황에서만 사용하세요.
 
     - 보고: 수익률만 금지 → Sharpe+MDD+CVaR 동시 보고
-    - STEP 2 없이 최종 보고서 작성 금지
 
 
     ## 판단 원칙
@@ -288,6 +277,16 @@ agents:
   # sentiment_scorer: 네이버API 직접 호출 → ARGOS news 수집으로 대체
   # earnings_surprise: pykrx+DART 직접 호출 → ARGOS 수집으로 대체
   # earnings_ai: yfinance 직접 호출 → ARGOS 수집으로 대체
+  # ── 서버 사전 계산 도구 (allowed_tools에서 제거 — 서버가 프롬프트에 주입) ──
+  # technical_analyzer → quant_section 서버 사전 계산으로 대체
+  # dcf_valuator → dcf_risk_section 서버 사전 계산으로 대체
+  # risk_calculator → dcf_risk_section 서버 사전 계산으로 대체
+  # portfolio_optimizer → portfolio_optimizer_v2로 통합
+  # portfolio_optimizer_v2 → STEP2 서버 강제 실행으로 대체
+  # correlation_analyzer → STEP2 서버 강제 실행으로 대체
+  # us_financial_analyzer → dcf_risk_section 서버 사전 계산으로 대체 (US)
+  # us_technical_analyzer → quant_section 서버 사전 계산으로 대체 (US)
+  # ── AI가 직접 호출해야 하는 도구만 남김 ──
   - stock_screener
   - backtest_engine
   - insider_tracker
@@ -298,19 +297,11 @@ agents:
   - real_web_search
   - notification_engine
   - cross_agent_protocol
-  - technical_analyzer
-  - dcf_valuator
-  - portfolio_optimizer
-  - risk_calculator
   - pair_analyzer
   - trading_settings_control
   - trading_executor
   - sec_edgar
-  - us_financial_analyzer
-  - us_technical_analyzer
   - options_flow
-  - portfolio_optimizer_v2
-  - correlation_analyzer
   - read_knowledge
 - agent_id: cpo_manager
   name: Content Lead
@@ -333,7 +324,7 @@ agents:
   - doc_converter
   - report_generator
   - meeting_formatter
-  - newsletter_builder
+  # newsletter_builder 삭제 — 오합지졸 (콘텐츠 전부 LLM 의존, 도구 로직 없음)
   - decision_tracker
   - cross_agent_protocol
   - document_summarizer
