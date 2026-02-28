@@ -366,13 +366,14 @@ function corthexApp() {
       canvasName: '',
       canvasItems: [],
       showCanvasNameModal: false,
-      // ── 스케치바이브 ──
+      // ── 스케치바이브 (Phase 3 — MCP 양방향) ──
       sketchVibeOpen: false,
       sketchDescription: '',
-      sketchResult: null,        // {mermaid, interpretation, diagram_type}
+      sketchResult: null,        // {saved, mermaid?, description?}
       sketchConverting: false,
       sketchError: null,
-      sketchConfirmed: null,     // {name, htmlPath} — 확인 후 구현 안내용
+      sketchConfirmed: null,     // {name, htmlPath}
+      approvalRequest: null,     // string — Claude Code 확인 요청 메시지
     },
 
     // ── AGORA (토론/논쟁 엔진) ──
@@ -5595,7 +5596,11 @@ function corthexApp() {
       try {
         await Promise.all([_loadScript(_CDN.drawflow), _loadCSS(_CDN.drawflowcss)]);
         await this.$nextTick();
-        const el = document.getElementById('nexus-canvas');
+        // 동일 ID가 여러 개일 때 현재 보이는 요소 선택 (split/canvas 모드 공존)
+        const candidates = document.querySelectorAll('#nexus-canvas');
+        let el = null;
+        for (const c of candidates) { if (c.offsetParent !== null) { el = c; break; } }
+        if (!el && candidates.length > 0) el = candidates[0];
         if (!el || typeof Drawflow === 'undefined') throw new Error('캔버스 초기화 실패');
         const editor = new Drawflow(el);
         editor.reroute = true;
@@ -5654,7 +5659,10 @@ function corthexApp() {
       const labels = { agent:'에이전트', system:'시스템', api:'외부 API', decide:'결정 분기', start:'시작', end:'종료', note:'메모' };
       const colors = { agent:'#8b5cf6', system:'#3b82f6', api:'#059669', decide:'#f59e0b', start:'#22c55e', end:'#ef4444', note:'#6b7280' };
       const html = `<div class="nexus-node" style="background:${colors[type]||'#6b7280'};padding:6px 12px;border-radius:8px;color:#fff;font-size:12px;font-family:Pretendard,sans-serif;min-width:80px;text-align:center;cursor:move">${labels[type]||type}</div>`;
-      editor.addNode(type, 1, 1, 200, 200, type, { label: labels[type] }, html);
+      // 캔버스 중앙 근처 + 랜덤 오프셋 (노드 겹침 방지)
+      const cx = 300 + Math.floor(Math.random() * 200);
+      const cy = 200 + Math.floor(Math.random() * 200);
+      editor.addNode(type, 1, 1, cx, cy, type, { label: labels[type] }, html);
     },
 
     // ── NEXUS 캔버스: 저장 ──
@@ -5706,10 +5714,12 @@ function corthexApp() {
       }
     },
 
-    // ══════════════════════════════════════════════ SketchVibe ══
+    // ══════════════════════════════════════════════ SketchVibe (Phase 3) ══
 
-    // ── 스케치 → Mermaid 변환 ──
-    async convertSketchVibe() {
+    _sketchVibeSSE: null,
+
+    // ── 캔버스 저장 (서버 변환 없음 — Claude Code가 MCP로 읽기) ──
+    async saveSketchVibe() {
       if (!this.flowchart.canvasEditor) {
         this.showToast('캔버스가 로드되지 않았습니다', 'error');
         return;
@@ -5718,18 +5728,15 @@ function corthexApp() {
 
       this.flowchart.sketchConverting = true;
       this.flowchart.sketchError = null;
-      this.flowchart.sketchResult = null;
 
       try {
         const canvasJson = this.flowchart.canvasEditor.export();
-
-        // 노드가 있는지 확인
         const nodes = canvasJson?.drawflow?.Home?.data || {};
         if (Object.keys(nodes).length === 0) {
           throw new Error('캔버스에 노드가 없습니다. 팔레트에서 노드를 추가해주세요.');
         }
 
-        const resp = await fetch('/api/sketchvibe/convert', {
+        const resp = await fetch('/api/sketchvibe/save-canvas', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -5739,16 +5746,11 @@ function corthexApp() {
         });
 
         if (!resp.ok) throw new Error(`서버 오류 (${resp.status})`);
-
         const data = await resp.json();
         if (data.error) throw new Error(data.error);
-        if (!data.mermaid) throw new Error('Mermaid 코드가 비어있습니다');
 
-        this.flowchart.sketchResult = data;
-
-        // Mermaid 렌더링
-        await this.$nextTick();
-        await this._renderSketchVibeMermaid(data.mermaid);
+        this.flowchart.sketchResult = { saved: true };
+        this.showToast('저장됨 — VS Code에서 read_canvas 도구를 호출하세요', 'success');
       } catch (e) {
         this.flowchart.sketchError = e.message;
       } finally {
@@ -5756,9 +5758,8 @@ function corthexApp() {
       }
     },
 
-    // ── Mermaid 렌더링 ──
+    // ── Mermaid 렌더링 (SSE 이벤트로 호출됨) ──
     async _renderSketchVibeMermaid(code) {
-      // mermaid CDN 로드 (이미 로드됐으면 스킵)
       if (!window.mermaid) {
         const src = this._CDN?.mermaid || 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js';
         await new Promise((resolve, reject) => {
@@ -5782,7 +5783,6 @@ function corthexApp() {
       if (!el) return;
 
       try {
-        // 고유 ID 생성 (중복 방지)
         const svgId = 'sv-' + Date.now();
         const { svg } = await mermaid.render(svgId, code);
         el.innerHTML = svg;
@@ -5791,10 +5791,54 @@ function corthexApp() {
       }
     },
 
-    // ── "맞아" 확인 → 다이어그램 저장 + 구현 브리지 ──
+    // ── SSE 연결: Claude Code → 브라우저 실시간 업데이트 ──
+    _connectSketchVibeSSE() {
+      if (this._sketchVibeSSE) return;
+      try {
+        this._sketchVibeSSE = new EventSource('/api/sketchvibe/stream');
+
+        this._sketchVibeSSE.addEventListener('sketchvibe', async (e) => {
+          const data = JSON.parse(e.data);
+          if (data.type === 'canvas_update') {
+            // Claude Code가 Mermaid 코드를 보냄 → 렌더링
+            this.flowchart.sketchResult = { mermaid: data.mermaid, description: data.description };
+            this.flowchart.sketchError = null;
+            this.flowchart.sketchConfirmed = null;
+            this.flowchart.approvalRequest = null;
+            await this.$nextTick();
+            await this._renderSketchVibeMermaid(data.mermaid);
+          } else if (data.type === 'approval_request') {
+            // Claude Code가 확인 요청
+            this.flowchart.approvalRequest = data.message;
+          } else if (data.type === 'approved') {
+            this.flowchart.approvalRequest = null;
+          }
+        });
+
+        this._sketchVibeSSE.onerror = () => {
+          this._sketchVibeSSE?.close();
+          this._sketchVibeSSE = null;
+          // 재연결 (3초 후)
+          setTimeout(() => {
+            if (this.flowchart.sketchVibeOpen) this._connectSketchVibeSSE();
+          }, 3000);
+        };
+      } catch (e) {
+        console.error('SketchVibe SSE 연결 실패:', e);
+      }
+    },
+
+    _disconnectSketchVibeSSE() {
+      if (this._sketchVibeSSE) {
+        this._sketchVibeSSE.close();
+        this._sketchVibeSSE = null;
+      }
+    },
+
+    // ── "맞아" 확인 → 다이어그램 저장 ──
     async confirmSketchVibe() {
       const r = this.flowchart.sketchResult;
-      if (!r) return;
+      if (!r || !r.mermaid) return;
 
       const name = prompt('다이어그램 이름을 입력하세요:', '') || '';
       if (!name.trim()) {
@@ -5803,6 +5847,9 @@ function corthexApp() {
       }
 
       try {
+        // 승인 이벤트 전송
+        await fetch('/api/sketchvibe/approve', { method: 'POST' });
+
         const canvasJson = this.flowchart.canvasEditor?.export() || null;
         const resp = await fetch('/api/sketchvibe/save-diagram', {
           method: 'POST',
@@ -5810,20 +5857,17 @@ function corthexApp() {
           body: JSON.stringify({
             mermaid: r.mermaid,
             name: name.trim(),
-            interpretation: r.interpretation,
+            interpretation: r.description || '',
             canvas_json: canvasJson,
-            diagram_type: r.diagram_type || 'flowchart'
           })
         });
 
         const data = await resp.json();
         if (data.error) throw new Error(data.error);
 
-        this.flowchart.sketchConfirmed = {
-          name: name.trim(),
-          htmlPath: data.html_path,
-        };
-        this.showToast(`"${name}" 확인 완료! Claude Code에서 구현 가능`, 'success');
+        this.flowchart.sketchConfirmed = { name: name.trim(), htmlPath: data.html_path };
+        this.flowchart.approvalRequest = null;
+        this.showToast(`"${name}" 확인 완료!`, 'success');
       } catch (e) {
         this.showToast('저장 실패: ' + e.message, 'error');
       }
@@ -5834,6 +5878,7 @@ function corthexApp() {
       this.flowchart.sketchResult = null;
       this.flowchart.sketchError = null;
       this.flowchart.sketchConfirmed = null;
+      this.flowchart.approvalRequest = null;
     },
   };
 }

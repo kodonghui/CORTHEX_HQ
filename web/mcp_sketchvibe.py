@@ -5,10 +5,14 @@ SketchVibe MCP Server — Claude Code가 캔버스/다이어그램에 접근하�
   .mcp.json에 등록 → Claude Code가 자동으로 이 서버를 시작
   수동 테스트: python web/mcp_sketchvibe.py
 
-도구:
+도구 (읽기):
   - read_canvas: 현재 NEXUS 캔버스 스케치 상태 읽기
   - list_confirmed_diagrams: "맞아"로 확인된 다이어그램 목록
   - get_confirmed_diagram: 특정 다이어그램의 Mermaid 코드 + 해석
+
+도구 (쓰기):
+  - update_canvas: Mermaid 코드를 브라우저 캔버스에 실시간 렌더링
+  - request_approval: 대표님에게 확인 요청 알림 전송
 
 의존성: pip install fastmcp httpx
 """
@@ -105,6 +109,53 @@ async def get_confirmed_diagram(name: str) -> str:
         lines.extend(["", f"## 원본 캔버스 (노드 {node_count}개)", "캔버스 JSON 보존됨"])
 
     return "\n".join(lines)
+
+
+# ── MCP 쓰기 도구 ──
+
+
+@mcp.tool
+async def update_canvas(mermaid_code: str, description: str = "") -> str:
+    """Claude Code가 생성/수정한 Mermaid 코드를 NEXUS 캔버스에 실시간 렌더링합니다.
+    브라우저에서 다이어그램이 즉시 표시됩니다.
+
+    Args:
+        mermaid_code: 완성된 Mermaid 다이어그램 코드
+        description: 수정 내용 설명 (선택)
+    """
+    async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
+        resp = await client.post(
+            f"{CORTHEX_URL}/api/sketchvibe/push-event",
+            json={"mermaid_code": mermaid_code, "description": description},
+        )
+        data = resp.json()
+
+    if data.get("status") == "pushed":
+        clients = data.get("sse_clients", 0)
+        if clients > 0:
+            return f"캔버스 업데이트 완료 (브라우저 {clients}개 연결됨)\n미리보기: {CORTHEX_URL}/nexus"
+        return "캔버스 업데이트 저장됨 (현재 브라우저 연결 없음 — NEXUS 캔버스를 열어주세요)"
+    return f"오류: {data}"
+
+
+@mcp.tool
+async def request_approval(message: str = "다이어그램을 확인해주세요") -> str:
+    """대표님에게 다이어그램 확인을 요청합니다.
+    브라우저 NEXUS 캔버스에 알림이 표시됩니다.
+
+    Args:
+        message: 확인 요청 메시지
+    """
+    async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
+        resp = await client.post(
+            f"{CORTHEX_URL}/api/sketchvibe/request-approval",
+            json={"message": message},
+        )
+        data = resp.json()
+
+    if data.get("status") == "waiting":
+        return f"확인 요청 전송 완료: \"{message}\"\n대표님이 NEXUS 캔버스에서 '맞아' 또는 '다시 해줘'를 선택할 때까지 대기합니다."
+    return f"오류: {data}"
 
 
 # ── MCP 리소스 ──

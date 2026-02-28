@@ -7256,7 +7256,7 @@
             </button>
             <button @click="clearNexusCanvas()" class="px-2.5 py-1.5 rounded-lg text-xs bg-white/5 border border-white/10 text-white/40 hover:text-red-400 hover:border-red-400/40 transition">초기화</button>
             <button x-show="flowchart.mode === 'canvas'"
-                    @click="flowchart.sketchVibeOpen = !flowchart.sketchVibeOpen"
+                    @click="flowchart.sketchVibeOpen = !flowchart.sketchVibeOpen; flowchart.sketchVibeOpen ? _connectSketchVibeSSE() : _disconnectSketchVibeSSE()"
                     :class="flowchart.sketchVibeOpen ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : 'bg-white/5 text-white/40 border-white/10 hover:text-emerald-400 hover:border-emerald-500/30'"
                     class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition ml-2">
               <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="M2 2l7.586 7.586"/><circle cx="11" cy="11" r="2"/></svg>
@@ -7441,57 +7441,44 @@
               <span class="text-xs font-bold text-emerald-400 tracking-wider uppercase">SketchVibe</span>
               <span class="text-xs text-white/20">스케치 → 다이어그램</span>
             </div>
-            <button @click="flowchart.sketchVibeOpen = false" class="w-6 h-6 rounded flex items-center justify-center text-white/30 hover:text-white/60 transition">
+            <button @click="flowchart.sketchVibeOpen = false; _disconnectSketchVibeSSE()" class="w-6 h-6 rounded flex items-center justify-center text-white/30 hover:text-white/60 transition">
               <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
             </button>
           </div>
 
-          <!-- 입력 -->
+          <!-- 입력: 설명 + 저장 -->
           <div class="p-3 border-b border-white/10 flex flex-col gap-2">
             <label class="text-xs text-white/50 font-semibold">이 스케치를 설명해주세요</label>
             <textarea x-model="flowchart.sketchDescription"
-                      class="w-full h-24 bg-white/5 border border-white/10 rounded-lg p-2.5 text-xs text-white/80 placeholder:text-white/20 outline-none focus:border-emerald-500/50 resize-none"
+                      class="w-full h-16 bg-white/5 border border-white/10 rounded-lg p-2.5 text-xs text-white/80 placeholder:text-white/20 outline-none focus:border-emerald-500/50 resize-none"
                       placeholder="예: A 서버에서 B DB로 요청 보내고, C 캐시 거쳐 응답하는 구조"></textarea>
-            <button @click="convertSketchVibe()"
+            <button @click="saveSketchVibe()"
                     :disabled="flowchart.sketchConverting"
                     class="w-full py-2 rounded-lg text-xs font-bold transition flex items-center justify-center gap-2"
                     :class="flowchart.sketchConverting ? 'bg-emerald-500/10 text-emerald-500/50 cursor-wait' : 'bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 border border-emerald-500/30'">
               <template x-if="flowchart.sketchConverting">
                 <div class="w-3.5 h-3.5 border-2 border-emerald-500/30 border-t-emerald-400 rounded-full animate-spin"></div>
               </template>
-              <span x-text="flowchart.sketchConverting ? '변환 중...' : '변환하기 ▶'"></span>
+              <svg x-show="!flowchart.sketchConverting" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17,21 17,13 7,13 7,21"/><polyline points="7,3 7,8 15,8"/></svg>
+              <span x-text="flowchart.sketchConverting ? '저장 중...' : '저장하기'"></span>
             </button>
           </div>
 
-          <!-- 결과 -->
+          <!-- 결과 영역 -->
           <div class="flex-1 overflow-y-auto p-3 flex flex-col gap-3 scrollbar-thin">
             <!-- 에러 -->
             <template x-if="flowchart.sketchError">
               <div class="p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-xs text-red-400" x-text="flowchart.sketchError"></div>
             </template>
 
-            <!-- 결과 표시 -->
-            <template x-if="flowchart.sketchResult">
-              <div class="flex flex-col gap-3">
-                <!-- 해석 -->
-                <div class="p-3 rounded-lg bg-emerald-500/5 border border-emerald-500/20">
-                  <span class="text-xs text-emerald-400/80" x-text="flowchart.sketchResult.interpretation"></span>
+            <!-- Claude Code 확인 요청 알림 -->
+            <template x-if="flowchart.approvalRequest">
+              <div class="p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 flex flex-col gap-2.5 animate-pulse">
+                <div class="flex items-center gap-2">
+                  <span class="text-amber-400 text-sm">!</span>
+                  <span class="text-xs font-bold text-amber-400 uppercase tracking-wider">Claude Code 확인 요청</span>
                 </div>
-                <!-- Mermaid 렌더링 -->
-                <div class="rounded-lg bg-[#0c1220] border border-white/10 p-3 overflow-auto" style="max-height:320px">
-                  <div id="sketchvibe-mermaid-result" class="flex justify-center"></div>
-                </div>
-                <!-- 타입 + 비용 -->
-                <div class="flex items-center justify-between">
-                  <div class="flex items-center gap-2">
-                    <span class="text-xs text-white/30">타입:</span>
-                    <span class="px-2 py-0.5 rounded text-xs font-mono"
-                          :class="flowchart.sketchResult.diagram_type === 'flowchart' ? 'bg-cyan-500/20 text-cyan-400' : 'bg-purple-500/20 text-purple-400'"
-                          x-text="flowchart.sketchResult.diagram_type"></span>
-                  </div>
-                  <span class="text-xs text-white/15 font-mono" x-text="'$' + (flowchart.sketchResult.cost_usd || 0).toFixed(4)"></span>
-                </div>
-                <!-- 확인 버튼 -->
+                <p class="text-xs text-white/60" x-text="flowchart.approvalRequest"></p>
                 <div class="flex gap-2">
                   <button @click="confirmSketchVibe()" class="flex-1 py-2.5 rounded-lg text-xs font-bold bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 border border-emerald-500/30 transition">
                     맞아 ✓
@@ -7500,6 +7487,47 @@
                     다시 해줘 ↩
                   </button>
                 </div>
+              </div>
+            </template>
+
+            <!-- Mermaid 실시간 렌더링 (SSE로 Claude Code가 보낸 다이어그램) -->
+            <template x-if="flowchart.sketchResult && flowchart.sketchResult.mermaid">
+              <div class="flex flex-col gap-3">
+                <template x-if="flowchart.sketchResult.description">
+                  <div class="p-3 rounded-lg bg-emerald-500/5 border border-emerald-500/20">
+                    <span class="text-xs text-emerald-400/80" x-text="flowchart.sketchResult.description"></span>
+                  </div>
+                </template>
+                <div class="rounded-lg bg-[#0c1220] border border-white/10 p-3 overflow-auto" style="max-height:400px">
+                  <div id="sketchvibe-mermaid-result" class="flex justify-center"></div>
+                </div>
+                <!-- 승인 요청 없을 때도 수동 확인 가능 -->
+                <template x-if="!flowchart.approvalRequest && !flowchart.sketchConfirmed">
+                  <div class="flex gap-2">
+                    <button @click="confirmSketchVibe()" class="flex-1 py-2.5 rounded-lg text-xs font-bold bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 border border-emerald-500/30 transition">
+                      맞아 ✓
+                    </button>
+                    <button @click="retrySketchVibe()" class="flex-1 py-2.5 rounded-lg text-xs font-bold bg-white/5 text-white/50 hover:text-white/80 border border-white/10 hover:border-white/20 transition">
+                      초기화 ↩
+                    </button>
+                  </div>
+                </template>
+              </div>
+            </template>
+
+            <!-- 저장 완료 메시지 (캔버스 저장 후, Mermaid 수신 전) -->
+            <template x-if="flowchart.sketchResult && flowchart.sketchResult.saved && !flowchart.sketchResult.mermaid">
+              <div class="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex flex-col gap-2">
+                <div class="flex items-center gap-2">
+                  <span class="text-emerald-400 text-sm">✓</span>
+                  <span class="text-xs font-bold text-emerald-400">저장 완료</span>
+                </div>
+                <p class="text-xs text-white/50 leading-relaxed">
+                  VS Code Claude Code에서 <span class="font-mono text-emerald-400/70">read_canvas</span> 도구를 호출하세요.
+                </p>
+                <p class="text-xs text-white/30 leading-relaxed">
+                  Claude Code가 Mermaid로 변환하면 여기에 실시간으로 표시됩니다.
+                </p>
               </div>
             </template>
 
@@ -7522,7 +7550,7 @@
                      class="flex-1 py-2 rounded-lg text-xs text-center font-semibold bg-cyan-500/10 text-cyan-400 hover:bg-cyan-500/20 border border-cyan-500/20 transition">
                     HTML 뷰어 열기
                   </a>
-                  <button @click="flowchart.sketchConfirmed = null; retrySketchVibe()"
+                  <button @click="retrySketchVibe()"
                           class="flex-1 py-2 rounded-lg text-xs font-semibold bg-white/5 text-white/40 hover:text-white/70 border border-white/10 transition">
                     새 다이어그램
                   </button>
@@ -7531,14 +7559,14 @@
             </template>
 
             <!-- 빈 상태 -->
-            <template x-if="!flowchart.sketchResult && !flowchart.sketchError && !flowchart.sketchConverting && !flowchart.sketchConfirmed">
+            <template x-if="!flowchart.sketchResult && !flowchart.sketchError && !flowchart.sketchConverting && !flowchart.sketchConfirmed && !flowchart.approvalRequest">
               <div class="flex-1 flex items-center justify-center min-h-[200px]">
-                <div class="text-center space-y-1">
+                <div class="text-center space-y-1.5">
                   <div class="text-2xl opacity-20 mb-3">🎨</div>
-                  <p class="text-xs text-white/25">캔버스에 노드를 배치하고</p>
-                  <p class="text-xs text-white/25">선으로 연결한 뒤</p>
-                  <p class="text-xs text-white/25">설명을 입력하고</p>
-                  <p class="text-xs text-emerald-500/50 font-semibold mt-1">변환하기를 누르세요</p>
+                  <p class="text-xs text-white/30">1. 캔버스에 노드를 배치하고 선으로 연결</p>
+                  <p class="text-xs text-white/30">2. "저장하기"로 캔버스 저장</p>
+                  <p class="text-xs text-white/30">3. VS Code Claude Code에서 read_canvas 호출</p>
+                  <p class="text-xs text-emerald-500/50 font-semibold mt-2">Claude Code가 변환한 결과가 여기에 표시됩니다</p>
                 </div>
               </div>
             </template>

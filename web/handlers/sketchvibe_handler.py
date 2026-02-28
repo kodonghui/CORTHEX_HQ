@@ -1,9 +1,10 @@
 """
-SketchVibe — 스케치 + 자연어 → Mermaid 다이어그램 변환 (Phase 2)
+SketchVibe — 캔버스 ↔ Claude Code 양방향 MCP 구조 (Phase 3)
 
-캔버스(Drawflow JSON) + 자연어 설명 → Claude → Mermaid 코드
-Phase 2: 정확도 향상 + MCP 서버 + 구현 브리지
+서버는 데이터 저장/전달만 담당. 변환은 Claude Code가 직접 수행.
+MCP → REST API → SSE → 브라우저 실시간 렌더링.
 """
+import asyncio
 import json
 import logging
 import math
@@ -13,11 +14,16 @@ import time
 from typing import Optional
 
 from fastapi import APIRouter
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 logger = logging.getLogger("corthex.sketchvibe")
 
 router = APIRouter(prefix="/api/sketchvibe", tags=["sketchvibe"])
+
+# ── SSE 이벤트 큐 (MCP → 브라우저 브릿지) ──
+
+_sse_clients: list[asyncio.Queue] = []
 
 # ── 노드 타입 → Mermaid 형태 매핑 ──
 
@@ -34,7 +40,7 @@ _MERMAID_SHAPES = {
 
 # ── 요청 모델 ──
 
-class ConvertRequest(BaseModel):
+class SaveCanvasRequest(BaseModel):
     canvas_json: dict
     description: str = ""
 
@@ -45,6 +51,15 @@ class SaveDiagramRequest(BaseModel):
     interpretation: str = ""
     canvas_json: Optional[dict] = None
     diagram_type: str = "flowchart"
+
+
+class UpdateCanvasRequest(BaseModel):
+    mermaid_code: str
+    description: str = ""
+
+
+class ApprovalRequest(BaseModel):
+    message: str = "다이어그램을 확인해주세요"
 
 
 # ── Drawflow JSON 파싱 (Phase 2 강화) ──
@@ -171,194 +186,131 @@ def _parse_drawflow(canvas: dict) -> str:
     return "\n".join(lines)
 
 
-# ── Claude 시스템 프롬프트 ──
+# ── SSE 브로드캐스트 헬퍼 ──
 
-_SYSTEM_PROMPT = """당신은 SketchVibe 변환 엔진입니다.
-
-## 역할
-사용자가 캔버스에 그린 스케치(Drawflow JSON 구조)와 자연어 설명을 동시에 받아서,
-정확한 Mermaid 다이어그램 코드로 변환합니다.
-
-## 출력 규칙
-반드시 아래 JSON 형식으로만 응답하세요. JSON 외 텍스트를 포함하지 마세요.
-
-```json
-{
-  "diagram_type": "flowchart | sequenceDiagram | stateDiagram | classDiagram",
-  "mermaid": "Mermaid 코드 (줄바꿈은 실제 줄바꿈으로)",
-  "interpretation": "한국어 1~2문장 요약"
-}
-```
-
-## 다이어그램 타입 자동 판단
-- **flowchart**: 순서/흐름/프로세스가 있는 것 → `flowchart TD` 또는 `flowchart LR`
-- **sequenceDiagram**: 시간 순서대로 메시지가 오가는 것 → `sequenceDiagram`
-- **stateDiagram**: 상태 전이가 있는 것 → `stateDiagram-v2`
-- **classDiagram**: 클래스/객체 관계가 있는 것 → `classDiagram`
-사용자가 타입을 몰라도 됩니다. 스케치 구조 + 설명에서 자동 판단하세요.
-
-## 노드 타입 → Mermaid 형태 매핑
-입력에 노드 타입과 Mermaid 형태가 표시됩니다. 이를 참고하세요:
-| 노드 타입 | Mermaid 형태 | 의미 |
-|-----------|-------------|------|
-| start | ([시작]) | 프로세스 시작점 |
-| end | ((종료)) | 프로세스 종료점 |
-| decide | {결정} | 조건 분기 (다이아몬드) |
-| agent | [에이전트] | 액터/처리자 |
-| system | [[시스템]] | 내부 서비스/모듈 |
-| api | [/외부 API\\] | 외부 연동 |
-| note | >메모] | 주석/설명 |
-
-## 레이아웃 힌트
-입력에 `레이아웃: LR` 또는 `레이아웃: TD`가 표시됩니다.
-- LR → `flowchart LR` (왼→오른)
-- TD → `flowchart TD` (위→아래)
-
-## 분기 처리
-decide 타입 노드에서 나가는 연결에 `[분기 1]`, `[분기 2]`가 표시되면:
-- 분기 1 → `-->|Yes|` 또는 `-->|조건A|`
-- 분기 2 → `-->|No|` 또는 `-->|조건B|`
-자연어 설명에서 분기 조건을 추론하세요.
-
-## 공간 그룹 → subgraph
-입력에 `공간 그룹`이 표시되면 Mermaid `subgraph`로 감싸세요.
-
-## Mermaid 코드 규칙
-- 노드 이름은 한국어 사용 가능
-- 기본 스타일 (별도 style 정의 불필요)
-- 사용자 스케치 구조를 최대한 유지하되 명확하게 정리
-- subgraph 사용 가능 (그룹이 보이면)
-- 불필요한 노드 추가 금지 — 스케치에 있는 것만 반영
-
-## 예시 1 — 단순 흐름
-
-입력:
-- 노드: 사용자, 서버, DB (레이아웃: LR)
-- 연결: 사용자→서버, 서버→DB
-
-출력:
-```json
-{
-  "diagram_type": "flowchart",
-  "mermaid": "flowchart LR\\n    A[사용자] -->|요청| B[[서버]]\\n    B -->|쿼리| C[(DB)]\\n    C -->|결과| B\\n    B -->|응답| A",
-  "interpretation": "사용자가 서버에 요청하면, 서버가 DB에서 데이터를 가져와 응답하는 흐름입니다."
-}
-```
-
-## 예시 2 — 분기 + subgraph
-
-입력:
-- 노드: 시작, 검증, 성공처리, 실패처리, 종료 (레이아웃: TD)
-- 연결: 시작→검증, 검증→성공처리 [분기 1], 검증→실패처리 [분기 2], 성공처리→종료, 실패처리→종료
-- 그룹: [성공처리, 실패처리]
-
-출력:
-```json
-{
-  "diagram_type": "flowchart",
-  "mermaid": "flowchart TD\\n    A([시작]) --> B{검증}\\n    subgraph 처리\\n        C[성공처리]\\n        D[실패처리]\\n    end\\n    B -->|통과| C\\n    B -->|실패| D\\n    C --> E((종료))\\n    D --> E",
-  "interpretation": "시작 후 검증을 거쳐 통과/실패에 따라 분기 처리한 뒤 종료하는 흐름입니다."
-}
-```"""
-
-
-# ── JSON 추출 ──
-
-def _extract_json(text: str) -> dict | None:
-    """AI 응답에서 JSON 블록 추출"""
-    # 1) ```json ... ``` 블록
-    m = re.search(r"```json\s*(.*?)\s*```", text, re.DOTALL)
-    if m:
+async def _broadcast_sse(event_data: dict) -> int:
+    """모든 SSE 클라이언트에 이벤트 전송. 전송 수 반환."""
+    sent = 0
+    for q in _sse_clients[:]:
         try:
-            return json.loads(m.group(1))
-        except json.JSONDecodeError:
+            await q.put(event_data)
+            sent += 1
+        except Exception:
             pass
-
-    # 2) 중첩 {} 추적
-    depth = 0
-    start = -1
-    for i, ch in enumerate(text):
-        if ch == "{":
-            if depth == 0:
-                start = i
-            depth += 1
-        elif ch == "}":
-            depth -= 1
-            if depth == 0 and start >= 0:
-                try:
-                    return json.loads(text[start : i + 1])
-                except json.JSONDecodeError:
-                    start = -1
-
-    # 3) 전체가 JSON
-    try:
-        return json.loads(text.strip())
-    except json.JSONDecodeError:
-        return None
+    return sent
 
 
 # ── API 엔드포인트 ──
 
-def _get_sketchvibe_model() -> str:
-    """SketchVibe 변환용 모델 조회 (DB 설정 → 기본값)"""
+
+@router.post("/save-canvas")
+async def save_canvas(req: SaveCanvasRequest):
+    """캔버스 JSON을 SQLite에 저장. Claude Code에서 read_canvas로 읽기."""
     try:
-        from db import load_setting
-        return load_setting("sketchvibe_model", "claude-sonnet-4-6")
-    except Exception:
-        return "claude-sonnet-4-6"
-
-
-@router.post("/convert")
-async def convert_sketch(req: ConvertRequest):
-    """캔버스 스케치 + 자연어 → Mermaid 다이어그램 변환"""
-    from ai_handler import ask_ai
-
-    canvas_text = _parse_drawflow(req.canvas_json)
-
-    user_msg = f"""## 캔버스 스케치 구조
-{canvas_text}
-
-## 사용자 설명
-{req.description or '(설명 없음 — 스케치 구조에서 판단해주세요)'}
-
-위 스케치를 Mermaid 다이어그램으로 변환해주세요. JSON으로만 응답."""
-
-    try:
-        result = await ask_ai(
-            user_message=user_msg,
-            system_prompt=_SYSTEM_PROMPT,
-            model=_get_sketchvibe_model(),
-            reasoning_effort="medium",
-        )
-
-        if "error" in result:
-            return {"error": result["error"]}
-
-        content = result.get("content", "")
-        parsed = _extract_json(content)
-
-        if parsed and "mermaid" in parsed:
-            return {
-                "mermaid": parsed["mermaid"],
-                "interpretation": parsed.get("interpretation", ""),
-                "diagram_type": parsed.get("diagram_type", "flowchart"),
-                "model": result.get("model", ""),
-                "cost_usd": result.get("cost_usd", 0),
-            }
-        else:
-            return {
-                "error": "AI 응답에서 Mermaid 코드를 추출할 수 없습니다",
-                "raw": content[:500],
-            }
-
+        from db import save_setting
+        save_setting("sketchvibe:current_canvas", {
+            "canvas_json": req.canvas_json,
+            "description": req.description,
+            "saved_at": time.time(),
+            "parsed": _parse_drawflow(req.canvas_json),
+        })
+        return {
+            "status": "saved",
+            "message": "Claude Code에서 read_canvas 도구를 사용하세요",
+        }
     except Exception as e:
-        logger.error("SketchVibe 변환 실패: %s", e, exc_info=True)
-        return {"error": f"변환 실패: {str(e)}"}
+        logger.error("캔버스 저장 실패: %s", e)
+        return {"error": str(e)}
+
+
+@router.post("/push-event")
+async def push_event(req: UpdateCanvasRequest):
+    """MCP 서버가 호출 — Mermaid 코드를 SSE로 브라우저에 전송."""
+    event = {
+        "type": "canvas_update",
+        "mermaid": req.mermaid_code,
+        "description": req.description,
+        "timestamp": time.time(),
+    }
+    # DB에도 최근 Mermaid 저장 (새로고침 시 복원용)
+    try:
+        from db import save_setting
+        save_setting("sketchvibe:latest_mermaid", event)
+    except Exception:
+        pass
+
+    sent = await _broadcast_sse(event)
+    return {"status": "pushed", "sse_clients": sent}
+
+
+@router.post("/request-approval")
+async def request_approval(req: ApprovalRequest):
+    """MCP 서버가 호출 — 대표님에게 확인 요청 알림 전송."""
+    event = {
+        "type": "approval_request",
+        "message": req.message,
+        "timestamp": time.time(),
+    }
+    sent = await _broadcast_sse(event)
+    return {"status": "waiting", "message": req.message, "sse_clients": sent}
+
+
+@router.post("/approve")
+async def approve_diagram():
+    """브라우저에서 '맞아' 클릭 시 호출 — 승인 이벤트 발행."""
+    event = {
+        "type": "approved",
+        "timestamp": time.time(),
+    }
+    await _broadcast_sse(event)
+    return {"status": "approved"}
+
+
+@router.get("/stream")
+async def sse_stream():
+    """SSE 엔드포인트 — 브라우저가 구독하여 실시간 업데이트 수신."""
+    queue: asyncio.Queue = asyncio.Queue()
+    _sse_clients.append(queue)
+
+    async def event_generator():
+        try:
+            yield f"event: connected\ndata: {json.dumps({'status': 'ok'})}\n\n"
+            while True:
+                try:
+                    msg = await asyncio.wait_for(queue.get(), timeout=30)
+                    yield f"event: sketchvibe\ndata: {json.dumps(msg, ensure_ascii=False)}\n\n"
+                except asyncio.TimeoutError:
+                    yield ": keepalive\n\n"
+        except asyncio.CancelledError:
+            pass
+        finally:
+            if queue in _sse_clients:
+                _sse_clients.remove(queue)
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
 
 @router.get("/canvas")
 async def get_canvas_state():
-    """MCP용 — 최근 저장된 캔버스 상태 반환"""
+    """MCP용 — 최근 저장된 캔버스 상태 반환 (SQLite 우선, 파일 폴백)"""
+    # 1) SQLite에서 조회 (save-canvas로 저장된 것)
+    try:
+        from db import load_setting
+        saved = load_setting("sketchvibe:current_canvas", None)
+        if saved and saved.get("canvas_json"):
+            return {
+                "canvas": saved["canvas_json"],
+                "parsed": saved.get("parsed", _parse_drawflow(saved["canvas_json"])),
+                "description": saved.get("description", ""),
+            }
+    except Exception:
+        pass
+
+    # 2) 파일 폴백 (기존 knowledge/flowcharts에서 조회)
     knowledge_dir = os.path.join(
         os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
         "knowledge", "flowcharts",
