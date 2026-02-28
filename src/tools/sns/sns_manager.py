@@ -71,8 +71,9 @@ logger = logging.getLogger("corthex.sns.manager")
 PUBLISH_ROLES = {"cmo_manager", "chief_of_staff"}
 
 # 서버사이드 플랫폼 허용 목록 — 여기 없는 플랫폼은 submit 자체가 차단됨
-ALLOWED_PLATFORMS = {"tistory", "youtube", "naver_blog", "daum_cafe", "instagram"}
+ALLOWED_PLATFORMS = {"tistory", "naver_blog", "daum_cafe", "instagram"}
 BLOCKED_PLATFORM_MSG = {
+    "youtube": "채널 없음 — CEO 지시 잠금 (2026-02-28)",
     "naver_cafe": "대표님 사용 안 함 (삭제)",
     "linkedin": "사용 안 함 (삭제)",
     "twitter": "사용 안 함",
