@@ -10,7 +10,8 @@ from src.tools.base import BaseTool
 
 logger = logging.getLogger("corthex.tools.audio_transcriber")
 
-OUTPUT_DIR = os.path.join(os.getcwd(), "output", "transcripts")
+# 프로젝트 루트의 output/transcripts/ (os.getcwd() 의존 제거)
+OUTPUT_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "output", "transcripts")
 
 # Whisper API 최대 파일 크기: 25MB
 MAX_FILE_SIZE = 25 * 1024 * 1024

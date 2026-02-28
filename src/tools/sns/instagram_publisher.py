@@ -22,6 +22,9 @@ logger = logging.getLogger("corthex.sns.instagram")
 
 GRAPH_API = "https://graph.instagram.com/v21.0"
 
+# 퍼블릭 URL 기본 도메인 (Cloudflare 프록시)
+_SITE_URL = os.getenv("SITE_URL", "https://corthex-hq.com")
+
 
 class InstagramPublisher(BasePublisher):
     """Instagram Graph API 기반 퍼블리셔.
@@ -71,6 +74,35 @@ class InstagramPublisher(BasePublisher):
             logger.error("[Instagram] User ID 조회 실패: %s", e)
             return ""
 
+    @staticmethod
+    def _resolve_media_url(url: str) -> str:
+        """상대 경로를 Instagram Graph API가 받을 수 있는 절대 URL로 변환.
+
+        /api/media/videos/file.mp4 → https://corthex-hq.com/api/media/videos/file.mp4
+        output/videos/file.mp4    → https://corthex-hq.com/api/media/videos/file.mp4
+        이미 https://...          → 그대로 반환
+
+        nginx가 /api/ 경로만 FastAPI로 프록시하므로 /api/media/ 경로 사용.
+        """
+        if url.startswith(("http://", "https://")):
+            return url
+        # 이미 /api/media/ 경로면 도메인만 붙이기
+        if url.startswith("/api/media/"):
+            return f"{_SITE_URL}{url}"
+        # output/videos/파일명 또는 /output/videos/파일명
+        if "output/videos/" in url:
+            filename = url.split("/")[-1]
+            return f"{_SITE_URL}/api/media/videos/{filename}"
+        if "output/images/" in url:
+            filename = url.split("/")[-1]
+            return f"{_SITE_URL}/api/media/images/{filename}"
+        # 파일명만 온 경우 → 확장자로 판단
+        if url.endswith((".mp4", ".mov", ".avi")):
+            return f"{_SITE_URL}/api/media/videos/{url}"
+        if url.endswith((".jpg", ".jpeg", ".png", ".webp")):
+            return f"{_SITE_URL}/api/media/images/{url}"
+        return f"{_SITE_URL}/{url}"
+
     async def _api_call(
         self, endpoint: str, method: str = "POST", **params: Any
     ) -> dict[str, Any]:
@@ -112,6 +144,9 @@ class InstagramPublisher(BasePublisher):
                 platform="instagram",
                 message="이미지 또는 동영상 URL이 필요합니다 (media_urls).",
             )
+
+        # 상대 경로 → 절대 URL 변환 (Instagram Graph API는 퍼블릭 URL만 허용)
+        media_urls = [self._resolve_media_url(u) for u in media_urls]
 
         is_video = content.extra.get("media_type") == "REELS"
         caption = self._build_caption(content)

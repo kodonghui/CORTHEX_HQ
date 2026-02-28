@@ -24,7 +24,8 @@ from src.tools.base import BaseTool
 
 logger = logging.getLogger("corthex.tools.gemini_image_generator")
 
-OUTPUT_DIR = os.path.join(os.getcwd(), "output", "images")
+# 프로젝트 루트의 output/images/ (os.getcwd() 의존 제거)
+OUTPUT_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "output", "images")
 
 # Gemini API 지원 aspect_ratio 값
 _VALID_ASPECTS = ("1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9", "21:9")

@@ -12,3 +12,10 @@ logs/
 *.bak
 corthex.log
 corthex.db
+output/**/*.mp4
+output/**/*.png
+output/**/*.jpg
+output/**/*.mp3
+output/**/*.wav
+output/**/*.txt
+!output/**/.gitkeep

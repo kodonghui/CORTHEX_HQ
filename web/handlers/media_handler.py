@@ -3,13 +3,15 @@
 비유: 사진관 — 에이전트가 만든 이미지/영상을 보여주고 정리하는 곳.
 """
 import os
+from pathlib import Path
 
 from fastapi import APIRouter, Request
 from fastapi.responses import FileResponse, JSONResponse
 
 router = APIRouter(prefix="/api/media", tags=["media"])
 
-_MEDIA_BASE = os.path.join(os.getcwd(), "output")
+# 프로젝트 루트의 output/ 디렉토리 (os.getcwd() 의존 제거 — 서버 cwd와 무관)
+_MEDIA_BASE = str(Path(__file__).resolve().parent.parent.parent / "output")
 
 
 @router.get("/images/{filename}")
