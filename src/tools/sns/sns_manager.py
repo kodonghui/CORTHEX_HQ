@@ -33,13 +33,12 @@ except ImportError:
     YouTubePublisher = None
     _YOUTUBE_AVAILABLE = False
 
-# Instagram — 비즈니스 계정 전환 전까지 잠금
-# try:
-#     from src.tools.sns.instagram_publisher import InstagramPublisher
-#     _INSTAGRAM_AVAILABLE = True
-# except ImportError:
-InstagramPublisher = None
-_INSTAGRAM_AVAILABLE = False
+try:
+    from src.tools.sns.instagram_publisher import InstagramPublisher
+    _INSTAGRAM_AVAILABLE = True
+except ImportError:
+    InstagramPublisher = None
+    _INSTAGRAM_AVAILABLE = False
 
 # 네이버카페 — 대표님 사용 안 함 (삭제)
 # try:
@@ -72,9 +71,8 @@ logger = logging.getLogger("corthex.sns.manager")
 PUBLISH_ROLES = {"cmo_manager", "chief_of_staff"}
 
 # 서버사이드 플랫폼 허용 목록 — 여기 없는 플랫폼은 submit 자체가 차단됨
-ALLOWED_PLATFORMS = {"tistory", "youtube", "naver_blog", "daum_cafe"}
+ALLOWED_PLATFORMS = {"tistory", "youtube", "naver_blog", "daum_cafe", "instagram"}
 BLOCKED_PLATFORM_MSG = {
-    "instagram": "비즈니스 계정 전환 전까지 잠금",
     "naver_cafe": "대표님 사용 안 함 (삭제)",
     "linkedin": "사용 안 함 (삭제)",
     "twitter": "사용 안 함",
@@ -424,6 +422,18 @@ class SNSManager(BaseTool):
                     "has_refresh": False,
                     "auth_type": "selenium",
                 })
+
+        # Instagram은 환경변수 토큰 기반
+        import os
+        ig_token = os.getenv("INSTAGRAM_ACCESS_TOKEN", "")
+        if "instagram" in self._publishers or ig_token:
+            platform_status.append({
+                "platform": "instagram",
+                "connected": bool(ig_token),
+                "expired": False,
+                "has_refresh": False,
+                "auth_type": "env_token",
+            })
 
         return {
             "platforms": platform_status,
