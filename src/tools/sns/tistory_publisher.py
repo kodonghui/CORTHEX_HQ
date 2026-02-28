@@ -2,10 +2,11 @@
 Tistory 블로그 퍼블리셔 (Selenium 기반).
 
 Tistory Open API는 2024년 2월 폐지되어 Selenium 브라우저 자동화를 사용합니다.
-- 카카오 계정 로그인
+- 카카오 계정 로그인 (쿠키 재사용 지원)
 - 블로그 글 작성 (제목 + 본문 + 태그)
-- 공개/비공개 설정
+- 공개/비공개 설정 (라디오 버튼 기반)
 - 주의: UI 변경 시 셀렉터 업데이트 필요.
+- 검증: 2026-02-28 corthex.tistory.com에서 공개 발행 성공 확인
 """
 from __future__ import annotations
 
@@ -15,6 +16,7 @@ import os
 import time
 from typing import Any
 
+from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import WebDriverWait
@@ -106,17 +108,26 @@ class TistoryPublisher(BasePublisher):
             driver.get(self.write_url)
             random_delay(3.0, 5.0)
 
+            # 2-1. 임시 저장 글 알림 처리
+            try:
+                alert = driver.switch_to.alert
+                logger.info("[Tistory] 임시 저장 글 알림 닫기: %s", alert.text)
+                alert.dismiss()  # '아니오' — 새 글로 작성
+                random_delay(1.0, 2.0)
+            except Exception:
+                pass
+
             wait = WebDriverWait(driver, 20)
 
-            # 3. 제목 입력
+            # 3. 제목 입력 (textarea#post-title-inp)
             try:
                 title_input = wait.until(
                     EC.presence_of_element_located(
                         (By.CSS_SELECTOR,
+                         "textarea#post-title-inp, "
+                         "textarea.textarea_tit, "
                          "input#post-title-inp, "
-                         "input[name='title'], "
-                         "input.tit_post, "
-                         "textarea#title")
+                         "input[name='title']")
                     )
                 )
                 title_input.clear()
@@ -124,7 +135,7 @@ class TistoryPublisher(BasePublisher):
             except TimeoutException:
                 try:
                     title_el = driver.find_element(
-                        By.XPATH, "//input[contains(@placeholder, '제목')]"
+                        By.XPATH, "//textarea[contains(@class, 'textarea_tit')] | //input[contains(@placeholder, '제목')]"
                     )
                     title_el.clear()
                     title_el.send_keys(content.title)
@@ -140,7 +151,7 @@ class TistoryPublisher(BasePublisher):
             # 4. 본문 입력
             body_filled = False
 
-            # 방법 1: 새 에디터 (contenteditable)
+            # 방법 1: TinyMCE iframe (editor-tistory_ifr)
             try:
                 editor_frame = driver.find_element(
                     By.CSS_SELECTOR, "iframe#editor-tistory_ifr, iframe.mce-edit-area"
@@ -165,18 +176,18 @@ class TistoryPublisher(BasePublisher):
                 except Exception:
                     pass
 
-            # 방법 2: 구 에디터 textarea
+            # 방법 2: textarea fallback (editor-tistory)
             if not body_filled:
                 try:
                     textarea = driver.find_element(
-                        By.CSS_SELECTOR, "textarea#content, textarea.textarea_tit"
+                        By.CSS_SELECTOR, "textarea#editor-tistory, textarea#content"
                     )
                     textarea.send_keys(content.body)
                     body_filled = True
                 except Exception:
                     pass
 
-            # 방법 3: contenteditable div (iframe 없는 버전)
+            # 방법 3: contenteditable div
             if not body_filled:
                 try:
                     body_div = driver.find_element(
@@ -198,29 +209,63 @@ class TistoryPublisher(BasePublisher):
             if content.tags:
                 self._set_tags(driver, content.tags)
 
-            # 6. 공개/비공개 설정
-            if content.visibility == "private":
-                self._set_private(driver)
-
-            # 7. 발행 버튼 클릭
+            # 6. "완료" 버튼 → 발행 레이어 열기
             try:
-                publish_btn = wait.until(
+                publish_layer_btn = wait.until(
                     EC.element_to_be_clickable(
-                        (By.CSS_SELECTOR,
-                         "button#publish-layer-btn, "
-                         "button.btn_publish, "
-                         "button.btn-publish, "
-                         "button#save-btn")
+                        (By.CSS_SELECTOR, "button#publish-layer-btn")
                     )
                 )
-                publish_btn.click()
+                publish_layer_btn.click()
             except TimeoutException:
                 try:
                     btn = driver.find_element(
                         By.XPATH,
-                        "//button[contains(text(), '발행') or contains(text(), '완료') or contains(text(), '저장')]"
+                        "//button[contains(text(), '완료') or contains(text(), '발행')]"
                     )
                     btn.click()
+                except Exception as e:
+                    return PublishResult(
+                        success=False,
+                        platform=self.platform,
+                        message=f"완료 버튼을 찾을 수 없습니다: {e}",
+                    )
+
+            random_delay(2.0, 3.0)
+
+            # 7. 공개/비공개 설정 (라디오 버튼)
+            # 기본값이 비공개(open0)이므로 공개(open20)로 전환
+            is_private = content.visibility == "private"
+            target_radio_id = "open0" if is_private else "open20"
+            try:
+                label = driver.find_element(
+                    By.CSS_SELECTOR, f"label[for='{target_radio_id}']"
+                )
+                driver.execute_script(
+                    "arguments[0].scrollIntoView({block: 'center'})", label
+                )
+                random_delay(0.3, 0.5)
+                # ActionChains로 물리적 클릭 (React 상태 변경 위해 필수)
+                ActionChains(driver).move_to_element(label).click().perform()
+                random_delay(0.5, 1.0)
+            except Exception as e:
+                logger.warning("[Tistory] 공개 설정 라디오 클릭 실패: %s", e)
+
+            # 8. 발행 버튼 (publish-btn) 클릭
+            try:
+                publish_btn = WebDriverWait(driver, 5).until(
+                    EC.element_to_be_clickable(
+                        (By.CSS_SELECTOR, "button#publish-btn")
+                    )
+                )
+                driver.execute_script("arguments[0].click()", publish_btn)
+            except TimeoutException:
+                try:
+                    btn = driver.find_element(
+                        By.XPATH,
+                        "//button[contains(text(), '발행') or contains(text(), '저장')]"
+                    )
+                    driver.execute_script("arguments[0].click()", btn)
                 except Exception as e:
                     return PublishResult(
                         success=False,
@@ -228,22 +273,7 @@ class TistoryPublisher(BasePublisher):
                         message=f"발행 버튼을 찾을 수 없습니다: {e}",
                     )
 
-            random_delay(2.0, 3.0)
-
-            # 8. 발행 확인 다이얼로그 (공개 설정 팝업)
-            try:
-                confirm_btn = WebDriverWait(driver, 5).until(
-                    EC.element_to_be_clickable(
-                        (By.CSS_SELECTOR,
-                         "button.btn_ok, "
-                         "button.btn-publish-layer, "
-                         "button#publish-btn")
-                    )
-                )
-                confirm_btn.click()
-                random_delay(3.0, 5.0)
-            except TimeoutException:
-                random_delay(2.0, 3.0)
+            random_delay(5.0, 8.0)
 
             # 9. 결과 확인
             current_url = driver.current_url
@@ -260,27 +290,38 @@ class TistoryPublisher(BasePublisher):
                     message="Tistory 글 발행 완료",
                 )
 
-            # manage 페이지로 돌아왔으면 글 목록에서 최신 글 URL 확인
+            # manage/posts로 리다이렉트된 경우 — 블로그 메인에서 최신 글 확인
             if "manage" in current_url:
                 try:
                     driver.get(f"https://{self.blog_name}.tistory.com/")
                     random_delay(2.0, 3.0)
-                    latest_link = driver.find_element(
-                        By.CSS_SELECTOR, "a.link_post, article a, .post-item a"
-                    )
-                    post_url = latest_link.get_attribute("href") or ""
-                    if post_url:
-                        post_id = post_url.rstrip("/").split("/")[-1]
-                        logger.info("[Tistory] 글 발행 성공 (목록에서 확인): %s", post_url)
-                        return PublishResult(
-                            success=True,
-                            platform=self.platform,
-                            post_id=post_id,
-                            post_url=post_url,
-                            message="Tistory 글 발행 완료",
-                        )
+                    # 제목 텍스트로 최신 글 찾기
+                    links = driver.find_elements(By.CSS_SELECTOR, "a")
+                    for link in links:
+                        if content.title[:10] in (link.text or ""):
+                            post_url = link.get_attribute("href") or ""
+                            if post_url and blog_domain in post_url:
+                                post_id = post_url.rstrip("/").split("/")[-1]
+                                logger.info("[Tistory] 글 발행 성공 (목록 확인): %s", post_url)
+                                return PublishResult(
+                                    success=True,
+                                    platform=self.platform,
+                                    post_id=post_id,
+                                    post_url=post_url,
+                                    message="Tistory 글 발행 완료",
+                                )
                 except Exception:
                     pass
+
+                # 제목 매칭 실패해도 manage/posts로 갔으면 성공으로 간주
+                logger.info("[Tistory] 글 발행 완료 (manage/posts 리다이렉트)")
+                return PublishResult(
+                    success=True,
+                    platform=self.platform,
+                    post_id="",
+                    post_url=f"https://{self.blog_name}.tistory.com/",
+                    message="Tistory 글 발행 완료 (글 URL 확인 필요)",
+                )
 
             return PublishResult(
                 success=False,
@@ -292,7 +333,7 @@ class TistoryPublisher(BasePublisher):
             browser.quit()
 
     def _login(self, browser: SNSBrowserManager) -> bool:
-        """카카오 로그인. 다음 카페 퍼블리셔와 동일한 패턴."""
+        """카카오 로그인. 쿠키 우선, 실패 시 credential 로그인."""
         driver = browser.driver
 
         # 쿠키 먼저 시도
@@ -335,6 +376,14 @@ class TistoryPublisher(BasePublisher):
             )
             login_btn.click()
             random_delay(4.0, 6.0)
+
+            # 카카오톡 인증 대기 (최초 로그인 시)
+            if "accounts.kakao.com" in driver.current_url:
+                logger.warning("[Tistory] 카카오톡 인증 대기 중 (60초)...")
+                for _ in range(12):
+                    time.sleep(5)
+                    if "accounts.kakao.com" not in driver.current_url:
+                        break
 
             # 로그인 확인
             driver.get(f"https://{self.blog_name}.tistory.com/manage")
@@ -380,17 +429,6 @@ class TistoryPublisher(BasePublisher):
                 random_delay(0.2, 0.4)
         except TimeoutException:
             logger.warning("[Tistory] 태그 입력 영역을 찾을 수 없습니다.")
-
-    def _set_private(self, driver: Any) -> None:
-        try:
-            vis_select = driver.find_element(
-                By.CSS_SELECTOR,
-                "select#visibility, select[name='visibility']"
-            )
-            from selenium.webdriver.support.ui import Select
-            Select(vis_select).select_by_value("0")
-        except Exception:
-            logger.warning("[Tistory] 비공개 설정 실패")
 
     async def delete(self, post_id: str) -> bool:
         logger.warning("[Tistory] Selenium 기반 삭제는 현재 미지원입니다.")
