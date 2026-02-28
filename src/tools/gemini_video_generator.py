@@ -18,7 +18,9 @@ from src.tools.base import BaseTool
 
 logger = logging.getLogger("corthex.tools.gemini_video_generator")
 
-OUTPUT_DIR = os.path.join(os.getcwd(), "output", "videos")
+# 프로젝트 루트의 output/videos/ (os.getcwd() 의존 제거)
+OUTPUT_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "output", "videos")
+_SITE_URL = os.getenv("SITE_URL", "https://corthex-hq.com")
 
 
 def _get_genai():
@@ -151,7 +153,11 @@ class GeminiVideoGeneratorTool(BaseTool):
             if not saved_files:
                 return "영상 생성 완료되었으나 파일 저장에 실패했습니다."
 
-            files_md = "\n".join(f"- `/api/media/videos/{f}`" for f in saved_files)
+            files_md = "\n".join(
+                f"- `/api/media/videos/{f}` → `{_SITE_URL}/api/media/videos/{f}`"
+                for f in saved_files
+            )
+            public_urls = [f"{_SITE_URL}/api/media/videos/{f}" for f in saved_files]
             cost_est = float(duration) * 0.25  # 대략적 비용 추정
 
             return (
@@ -162,7 +168,9 @@ class GeminiVideoGeneratorTool(BaseTool):
                 f"| 길이 | {duration}초 |\n"
                 f"| 비율 | {aspect_ratio} |\n"
                 f"| 예상 비용 | ~${cost_est:.2f} |\n\n"
-                f"### 저장된 파일\n{files_md}"
+                f"### 저장된 파일\n{files_md}\n\n"
+                f"### Instagram 릴스 발행용 URL\n"
+                + "\n".join(f"- `{u}`" for u in public_urls)
             )
 
         except Exception as e:

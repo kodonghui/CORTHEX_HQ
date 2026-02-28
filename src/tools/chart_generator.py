@@ -11,7 +11,8 @@ from src.tools.base import BaseTool
 
 logger = logging.getLogger("corthex.tools.chart_generator")
 
-OUTPUT_DIR = os.path.join(os.getcwd(), "output", "charts")
+# 프로젝트 루트의 output/charts/ (os.getcwd() 의존 제거)
+OUTPUT_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "output", "charts")
 
 
 def _get_matplotlib():

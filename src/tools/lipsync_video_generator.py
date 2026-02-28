@@ -19,9 +19,12 @@ from src.tools.base import BaseTool
 
 logger = logging.getLogger("corthex.tools.lipsync_video_generator")
 
-VIDEO_OUTPUT_DIR = os.path.join(os.getcwd(), "output", "videos")
-AUDIO_OUTPUT_DIR = os.path.join(os.getcwd(), "output", "audio")
-IMAGE_ASSET_DIR = os.path.join(os.getcwd(), "assets", "ai-influencer")
+# 프로젝트 루트 기준 절대경로 (os.getcwd() 의존 제거)
+_PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+VIDEO_OUTPUT_DIR = os.path.join(_PROJECT_ROOT, "output", "videos")
+_SITE_URL = os.getenv("SITE_URL", "https://corthex-hq.com")
+AUDIO_OUTPUT_DIR = os.path.join(_PROJECT_ROOT, "output", "audio")
+IMAGE_ASSET_DIR = os.path.join(_PROJECT_ROOT, "assets", "ai-influencer")
 
 # 기본 AI 인플루언서 이미지 (정면 상반신 — 립싱크 최적)
 DEFAULT_IMAGE = "Photorealistic_portrait_of_a_Korean_woman_age_25-1771756616360.png"
@@ -173,6 +176,8 @@ class LipsyncVideoGeneratorTool(BaseTool):
             img_name = os.path.basename(image_path)
             aud_name = os.path.basename(audio_path)
 
+            public_url = f"{_SITE_URL}/api/media/videos/{filename}"
+
             return (
                 f"## 립싱크 영상 생성 완료\n\n"
                 f"| 항목 | 값 |\n|------|----|\n"
@@ -182,7 +187,9 @@ class LipsyncVideoGeneratorTool(BaseTool):
                 f"| 보정 | GFPGAN (얼굴 화질 향상) |\n\n"
                 f"### 저장된 파일\n"
                 f"- `output/videos/{filename}`\n"
-                f"- 서버 경로: `{filepath}`"
+                f"- 퍼블릭 URL: `{public_url}`\n\n"
+                f"### Instagram 릴스 발행용 URL\n"
+                f"- `{public_url}`"
             )
 
         except ImportError:

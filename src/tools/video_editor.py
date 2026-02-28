@@ -19,7 +19,8 @@ from src.tools.base import BaseTool
 
 logger = logging.getLogger("corthex.tools.video_editor")
 
-VIDEO_DIR = os.path.join(os.getcwd(), "output", "videos")
+# 프로젝트 루트의 output/videos/ (os.getcwd() 의존 제거)
+VIDEO_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "output", "videos")
 
 
 class VideoEditorTool(BaseTool):

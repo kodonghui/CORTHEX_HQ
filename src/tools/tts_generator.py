@@ -18,7 +18,8 @@ from src.tools.base import BaseTool
 
 logger = logging.getLogger("corthex.tools.tts_generator")
 
-OUTPUT_DIR = os.path.join(os.getcwd(), "output", "audio")
+# 프로젝트 루트의 output/audio/ (os.getcwd() 의존 제거)
+OUTPUT_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "output", "audio")
 
 # OpenAI TTS 음성 옵션
 VOICE_OPTIONS = {
