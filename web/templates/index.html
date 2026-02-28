@@ -7274,8 +7274,9 @@
               <div class="text-xs text-white/30 py-2 animate-pulse">로딩 중...</div>
             </template>
           </div>
-          <div class="px-3 py-2 border-b border-white/10">
+          <div class="px-3 py-2 border-b border-white/10 flex items-center justify-between">
             <span class="text-xs font-semibold text-white/40 uppercase tracking-wider">저장된 캔버스</span>
+            <button @click="retrySketchVibe()" class="text-[10px] text-white/30 hover:text-emerald-400 transition px-1.5 py-0.5 rounded hover:bg-emerald-500/10" title="새 캔버스">+ 새로</button>
           </div>
           <div class="flex-1 overflow-y-auto scrollbar-thin py-1">
             <template x-if="flowchart.canvasItems.length === 0 && flowchart.confirmedItems.length === 0">
@@ -7291,7 +7292,7 @@
                   <span x-text="item.name"></span>
                 </button>
                 <button @click.stop="deleteConfirmedDiagram(item)"
-                        class="opacity-0 group-hover:opacity-100 px-2 py-1 text-white/20 hover:text-red-400 transition text-xs shrink-0"
+                        class="opacity-0 group-hover:opacity-100 w-6 h-6 flex items-center justify-center text-white/30 hover:text-red-400 hover:bg-red-500/10 rounded transition shrink-0 mr-1"
                         title="삭제">&times;</button>
               </div>
             </template>
@@ -7330,9 +7331,11 @@
                x-transition:leave="transition ease-in duration-200"
                x-transition:leave-start="opacity-100"
                x-transition:leave-end="opacity-0"
-               class="absolute inset-0 overflow-auto bg-[#0a0f1a] z-20 flex flex-col" x-cloak>
+               :class="darkMode ? 'bg-[#0a0f1a]' : 'bg-white'"
+               class="absolute inset-0 overflow-auto z-20 flex flex-col" x-cloak>
             <!-- 상단 바 -->
-            <div class="flex items-center justify-between px-4 py-2.5 border-b border-white/10 shrink-0">
+            <div class="flex items-center justify-between px-4 py-2.5 shrink-0"
+                 :class="darkMode ? 'border-b border-white/10' : 'border-b border-gray-200'"
               <div class="flex items-center gap-2">
                 <span class="text-emerald-400 text-xs font-bold">변환 결과</span>
                 <template x-if="flowchart.sketchResult && flowchart.sketchResult.description">
