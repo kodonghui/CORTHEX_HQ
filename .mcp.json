@@ -6,6 +6,13 @@
       "env": {
         "NOTION_API_TOKEN": "${NOTION_API_KEY}"
       }
+    },
+    "sketchvibe": {
+      "command": "python",
+      "args": ["web/mcp_sketchvibe.py"],
+      "env": {
+        "CORTHEX_URL": "https://corthex-hq.com"
+      }
     }
   }
 }
