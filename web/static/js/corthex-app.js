@@ -365,6 +365,7 @@ function corthexApp() {
       canvasDirty: false,
       canvasName: '',
       canvasItems: [],
+      confirmedItems: [],  // 확인된 다이어그램 (맞아 누른 것)
       showCanvasNameModal: false,
       // ── 스케치바이브 (Phase 3 — MCP 양방향) ──
       sketchVibeOpen: false,
@@ -5627,7 +5628,7 @@ function corthexApp() {
       }
     },
 
-    // ── NEXUS 캔버스: 파일 목록 ──
+    // ── NEXUS 캔버스: 파일 목록 + 확인된 다이어그램 ──
     async loadCanvasList() {
       try {
         const r = await fetch('/api/knowledge');
@@ -5635,6 +5636,29 @@ function corthexApp() {
         const data = await r.json();
         this.flowchart.canvasItems = (data.files || []).filter(f => f.folder === 'flowcharts' && f.name.endsWith('.json'));
       } catch(e) { console.error('loadCanvasList:', e); }
+      // 확인된 다이어그램 목록도 로드
+      try {
+        const r2 = await fetch('/api/sketchvibe/confirmed');
+        if (r2.ok) {
+          const d2 = await r2.json();
+          this.flowchart.confirmedItems = d2.diagrams || [];
+        }
+      } catch(e) { console.error('loadConfirmedList:', e); }
+    },
+
+    // ── 확인된 다이어그램 불러오기 (Mermaid 렌더링) ──
+    async loadConfirmedDiagram(item) {
+      try {
+        const r = await fetch(`/api/sketchvibe/confirmed/${item.safe_name}`);
+        if (!r.ok) throw new Error('불러오기 실패');
+        const data = await r.json();
+        if (data.mermaid) {
+          this.flowchart.sketchResult = { mermaid: data.mermaid, description: data.interpretation || '' };
+          this.flowchart.sketchVibeOpen = true;
+          await this._renderSketchVibeMermaid(data.mermaid);
+          this.showToast(`"${item.name}" 다이어그램 로드`, 'success');
+        }
+      } catch(e) { this.showToast('불러오기 실패: ' + e.message, 'error'); }
     },
 
     // ── NEXUS 캔버스: 팔레트 노드 추가 ──
@@ -5850,9 +5874,11 @@ function corthexApp() {
         const data = await resp.json();
         if (data.error) throw new Error(data.error);
 
-        this.flowchart.sketchConfirmed = { name: name.trim(), htmlPath: data.html_path };
+        this.flowchart.sketchConfirmed = { name: name.trim() };
         this.flowchart.approvalRequest = null;
-        this.showToast(`"${name}" 확인 완료!`, 'success');
+        // 저장된 캔버스 목록 갱신
+        this.loadCanvasList();
+        this.showToast(`"${name}" 확인 완료 — 저장됨`, 'success');
       } catch (e) {
         this.showToast('저장 실패: ' + e.message, 'error');
       }
