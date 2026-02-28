@@ -173,6 +173,12 @@ gh run list --workflow=deploy.yml --limit=1
 > 버그 발견 시 전부 기록 (✅/🔴). 심각하면 🚨 즉시 보고
 > 팀장 최종 기록 책임 | 전수검사: `docs/inspection-protocol.md`
 
+## 🚨🚨🚨 Phase별 대형 작업 = 매 Phase마다 compact 대비! 🚨🚨🚨
+> **리팩토링/대형 플랜처럼 여러 Phase로 나뉜 작업 시:**
+> **1 Phase 끝날 때마다** → ① project-status.md ② BACKLOG.md ③ todo/날짜.md 전부 갱신
+> **그래야 /compact 해도 다음 Phase를 바로 이어갈 수 있다!**
+> compact 안 하고 2~3 Phase 연속 → 컨텍스트 폭발 → 실수 확률 급증
+
 ---
 
 ## 🔴 TODO 관리 — B안 구조 (2026-02-26 확정)
