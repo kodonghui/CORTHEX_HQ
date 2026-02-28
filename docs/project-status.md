@@ -9,8 +9,20 @@
 
 - **날짜**: 2026-02-28
 - **버전**: `4.00.000`
-- **빌드**: #694 (SketchVibe 새 캔버스 + 삭제)
+- **빌드**: #701 (카드뉴스 시리즈 생성기)
 - **서버**: https://corthex-hq.com
+
+---
+
+## 2026-02-28 — 카드뉴스 시리즈 생성기 (빌드 #701)
+
+- ✅ `gemini_image_generator.py` — `card_news_series` action 추가 (~140줄)
+  - `_generate_card_news_series()`: 5~10장 순차 생성, 실패 시 건너뛰기
+  - `_build_card_news_slide_prompt()`: 표지/내용/마무리 타입별 프롬프트 + 시리즈 일관성 지시
+  - `slides_text` 파라미터: 줄바꿈 구분으로 슬라이드별 텍스트 지정
+  - SNS 발행용 `media_urls` 리스트 자동 출력 → sns_manager submit에 바로 사용
+- ✅ `tools.yaml/json` — card_news_series action + slide_count/slides_text 파라미터 문서화
+- 사용법: 마케팅팀장 → `gemini_image_generator(action=card_news_series, topic="...", slide_count=7)` → 이미지 7장 생성 → `sns_manager(action=submit, media_urls=[...])` → 대표님 승인 → Instagram 캐러셀 자동 발행
 
 ---
 
