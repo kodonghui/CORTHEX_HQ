@@ -206,6 +206,7 @@ gh run list --workflow=deploy.yml --limit=1
 - `docs/ceo-ideas.md` — 대표님 아이디어 로그 (**아이디어/버그 발견 시 자동 업데이트**)
 - `docs/monetization.md` — 수익화 | `docs/defining-age.md` — "Defining Age" 패러다임
 - 리트마스터: https://github.com/kodonghui/leet-master
+- `docs/과외/` — 개발 용어 설명 모음 (대표님 학습용) | 개선점: `docs/과외/개선점_정리.md`
 
 ## 서버 우선 원칙
 - 기계적 처리(태그, 형식 검증)는 서버 코드(`arm_server.py`). 에이전트는 "생각하는 일"에 집중
