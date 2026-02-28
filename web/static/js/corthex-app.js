@@ -371,6 +371,7 @@ function corthexApp() {
       sketchResult: null,        // {mermaid, interpretation, diagram_type}
       sketchConverting: false,
       sketchError: null,
+      sketchConfirmed: null,     // {name, htmlPath} — 확인 후 구현 안내용
     },
 
     // ── AGORA (토론/논쟁 엔진) ──
@@ -5752,7 +5753,7 @@ function corthexApp() {
       }
     },
 
-    // ── "맞아" 확인 → 다이어그램 저장 ──
+    // ── "맞아" 확인 → 다이어그램 저장 + 구현 브리지 ──
     async confirmSketchVibe() {
       const r = this.flowchart.sketchResult;
       if (!r) return;
@@ -5764,20 +5765,27 @@ function corthexApp() {
       }
 
       try {
+        const canvasJson = this.flowchart.canvasEditor?.export() || null;
         const resp = await fetch('/api/sketchvibe/save-diagram', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             mermaid: r.mermaid,
             name: name.trim(),
-            interpretation: r.interpretation
+            interpretation: r.interpretation,
+            canvas_json: canvasJson,
+            diagram_type: r.diagram_type || 'flowchart'
           })
         });
 
         const data = await resp.json();
         if (data.error) throw new Error(data.error);
 
-        this.showToast(`"${name}" 저장 완료! (.md + .html)`, 'success');
+        this.flowchart.sketchConfirmed = {
+          name: name.trim(),
+          htmlPath: data.html_path,
+        };
+        this.showToast(`"${name}" 확인 완료! Claude Code에서 구현 가능`, 'success');
       } catch (e) {
         this.showToast('저장 실패: ' + e.message, 'error');
       }
@@ -5787,6 +5795,7 @@ function corthexApp() {
     retrySketchVibe() {
       this.flowchart.sketchResult = null;
       this.flowchart.sketchError = null;
+      this.flowchart.sketchConfirmed = null;
     },
   };
 }
