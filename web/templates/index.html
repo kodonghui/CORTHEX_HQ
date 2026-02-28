@@ -3701,12 +3701,13 @@
                     </div>
                     <!-- 대기 → 승인/거절 버튼 -->
                     <div class="flex items-center gap-2" x-show="item.status === 'pending'">
-                      <button @click="approveSNS(item.request_id)" class="bg-hq-green/20 text-hq-green rounded-lg px-3 py-1 text-xs hover:bg-hq-green/30">승인</button>
+                      <button @click="approveSNS(item.request_id)" class="bg-hq-green/20 text-hq-green rounded-lg px-3 py-1 text-xs hover:bg-hq-green/30 font-bold">승인+발행</button>
                       <button @click="sns.rejectingId = item.request_id" class="bg-hq-red/20 text-hq-red rounded-lg px-3 py-1 text-xs hover:bg-hq-red/30">거절</button>
                     </div>
-                    <!-- 승인됨 → 발행 버튼 -->
+                    <!-- 승인됨 → 자동 발행 진행중 (수동 발행 버튼도 유지) -->
                     <div class="flex items-center gap-2" x-show="item.status === 'approved'">
-                      <button @click="publishSNS(item.request_id)" class="bg-hq-accent/20 text-hq-accent rounded-lg px-3 py-1 text-xs hover:bg-hq-accent/30 font-bold">🚀 발행</button>
+                      <span class="text-hq-accent text-xs animate-pulse">발행 진행중...</span>
+                      <button @click="publishSNS(item.request_id)" class="bg-hq-accent/20 text-hq-accent rounded-lg px-2 py-0.5 text-[10px] hover:bg-hq-accent/30">수동 발행</button>
                     </div>
                     <!-- 발행완료 → 링크 -->
                     <div x-show="item.status === 'published' && item.result?.post_url">

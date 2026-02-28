@@ -254,7 +254,7 @@ async def delete_sns_item(item_id: str):
 
 @router.post("/api/sns/approve/{item_id}")
 async def approve_sns(item_id: str):
-    """CEO가 SNS 발행 요청을 승인."""
+    """CEO가 SNS 발행 요청을 승인 → 자동 발행까지 진행."""
     queue = load_setting("sns_publish_queue", []) or []
     for item in queue:
         if item.get("request_id") == item_id:
@@ -263,8 +263,99 @@ async def approve_sns(item_id: str):
             item["status"] = "approved"
             item["approved_at"] = time.time()
             save_setting("sns_publish_queue", queue)
-            return {"success": True, "status": "approved", "request_id": item_id}
+            # 자동 발행 (백그라운드 — Selenium 느리므로 즉시 응답)
+            asyncio.create_task(_auto_publish_after_approve(item_id))
+            return {
+                "success": True,
+                "status": "approved",
+                "request_id": item_id,
+                "auto_publish": True,
+                "message": "승인 완료. 자동 발행 진행중...",
+            }
     return {"success": False, "error": f"요청 ID를 찾을 수 없음: {item_id}"}
+
+
+async def _auto_publish_after_approve(item_id: str):
+    """승인 직후 자동 발행 (백그라운드 태스크).
+
+    publish_sns()와 동일한 로직이지만, 실패해도 approved 상태 유지.
+    """
+    try:
+        queue = load_setting("sns_publish_queue", []) or []
+        target = None
+        for item in queue:
+            if item.get("request_id") == item_id:
+                target = item
+                break
+        if not target or target.get("status") != "approved":
+            logger.warning("[SNS] 자동 발행 스킵: %s (상태: %s)", item_id, target.get("status") if target else "없음")
+            return
+
+        from src.tools.sns.base_publisher import PostContent
+        from src.tools.sns.oauth_manager import OAuthManager
+        oauth = OAuthManager()
+        platform = target.get("platform", "")
+        content_data = target.get("content", {})
+
+        publisher = _get_publisher(platform, oauth)
+        if not publisher:
+            target["status"] = "failed"
+            target["result"] = {"success": False, "message": f"퍼블리셔 없음: {platform}"}
+            save_setting("sns_publish_queue", queue)
+            logger.error("[SNS] 자동 발행 실패 — 퍼블리셔 없음: %s", platform)
+            return
+
+        content = PostContent(**content_data)
+        result = await publisher.publish(content)
+        target["status"] = "published" if result.success else "failed"
+        target["published_at"] = time.time()
+        target["result"] = {
+            "success": result.success,
+            "post_id": result.post_id,
+            "post_url": result.post_url,
+            "message": result.message,
+        }
+        save_setting("sns_publish_queue", queue)
+        logger.info("[SNS] 자동 발행 %s: %s → %s", "성공" if result.success else "실패", item_id, platform)
+
+    except Exception as e:
+        logger.error("[SNS] 자동 발행 오류: %s — %s", item_id, e, exc_info=True)
+        try:
+            queue = load_setting("sns_publish_queue", []) or []
+            for item in queue:
+                if item.get("request_id") == item_id:
+                    item["status"] = "failed"
+                    item["result"] = {"success": False, "message": str(e)}
+                    save_setting("sns_publish_queue", queue)
+                    break
+        except Exception:
+            pass
+
+
+def _get_publisher(platform: str, oauth):
+    """플랫폼별 퍼블리셔 인스턴스 반환."""
+    try:
+        if platform == "tistory":
+            from src.tools.sns.tistory_publisher import TistoryPublisher
+            return TistoryPublisher(oauth)
+        elif platform == "instagram":
+            from src.tools.sns.instagram_publisher import InstagramPublisher
+            return InstagramPublisher(oauth)
+        elif platform == "daum_cafe":
+            from src.tools.sns.daum_cafe_publisher import DaumCafePublisher
+            return DaumCafePublisher(oauth)
+        elif platform == "youtube":
+            from src.tools.sns.youtube_publisher import YouTubePublisher
+            return YouTubePublisher(oauth)
+        elif platform == "naver_blog":
+            from src.tools.sns.naver_blog_publisher import NaverBlogPublisher
+            return NaverBlogPublisher(oauth)
+        elif platform == "naver_cafe":
+            from src.tools.sns.naver_cafe_publisher import NaverCafePublisher
+            return NaverCafePublisher(oauth)
+    except ImportError as e:
+        logger.error("[SNS] 퍼블리셔 import 실패: %s — %s", platform, e)
+    return None
 
 
 @router.post("/api/sns/reject/{item_id}")
@@ -388,31 +479,12 @@ async def publish_sns(item_id: str):
         return {"success": False, "error": f"승인되지 않은 요청: {target.get('status')}"}
     # SNSManager를 통한 실제 발행
     try:
-        from src.tools.sns.sns_manager import SNSManager, _db_load
         from src.tools.sns.base_publisher import PostContent
         from src.tools.sns.oauth_manager import OAuthManager
         oauth = OAuthManager()
         platform = target.get("platform", "")
         content_data = target.get("content", {})
-        publisher = None
-        if platform == "tistory":
-            from src.tools.sns.tistory_publisher import TistoryPublisher
-            publisher = TistoryPublisher(oauth)
-        elif platform == "youtube":
-            from src.tools.sns.youtube_publisher import YouTubePublisher
-            publisher = YouTubePublisher(oauth)
-        elif platform == "instagram":
-            from src.tools.sns.instagram_publisher import InstagramPublisher
-            publisher = InstagramPublisher(oauth)
-        elif platform == "naver_blog":
-            from src.tools.sns.naver_blog_publisher import NaverBlogPublisher
-            publisher = NaverBlogPublisher(oauth)
-        elif platform == "naver_cafe":
-            from src.tools.sns.naver_cafe_publisher import NaverCafePublisher
-            publisher = NaverCafePublisher(oauth)
-        elif platform == "daum_cafe":
-            from src.tools.sns.daum_cafe_publisher import DaumCafePublisher
-            publisher = DaumCafePublisher(oauth)
+        publisher = _get_publisher(platform, oauth)
         if not publisher:
             return {"success": False, "error": f"퍼블리셔 없음: {platform}"}
         content = PostContent(**content_data)
