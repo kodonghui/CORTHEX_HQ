@@ -397,8 +397,11 @@ def init_ai_client() -> bool:
     global _anthropic_client, _google_client, _openai_client
     any_ok = False
 
-    # Anthropic
-    if _anthropic_available:
+    # Anthropic — CLI 모드 활성화 시 API 클라이언트 봉인 (크레딧 보호)
+    if _USE_CLI_FOR_CLAUDE:
+        logger.info("Anthropic API 봉인 — CLI(Max 구독)만 사용")
+        any_ok = True  # CLI가 있으므로 AI 사용 가능
+    elif _anthropic_available:
         key = os.getenv("ANTHROPIC_API_KEY", "")
         if key:
             _anthropic_client = AsyncAnthropic(api_key=key)
@@ -469,8 +472,10 @@ def reset_exhausted_providers() -> None:
 
 def get_available_providers() -> dict:
     """현재 사용 가능한 프로바이더 상태를 반환합니다."""
+    # CLI 모드면 anthropic API 클라이언트 없어도 사용 가능 (CLI가 대신 처리)
+    anthropic_ok = (_USE_CLI_FOR_CLAUDE or _anthropic_client is not None) and "anthropic" not in _exhausted_providers
     return {
-        "anthropic": _anthropic_client is not None and "anthropic" not in _exhausted_providers,
+        "anthropic": anthropic_ok,
         "google": _google_client is not None and "google" not in _exhausted_providers,
         "openai": _openai_client is not None and "openai" not in _exhausted_providers,
     }
@@ -516,7 +521,12 @@ def select_model(text: str, override: str | None = None) -> str:
     # 자동 모드: 사용 가능한 프로바이더 중에서 선택 (소진된 프로바이더 건너뜀)
     is_complex = any(kw in text for kw in _COMPLEX_KEYWORDS)
 
-    if _anthropic_client and "anthropic" not in _exhausted_providers:
+    # CLI 모드면 Claude 모델 우선 (API 클라이언트 없어도 CLI로 라우팅됨)
+    if _USE_CLI_FOR_CLAUDE:
+        if len(text) <= 50 and not is_complex:
+            return "claude-haiku-4-5-20251001"
+        return "claude-sonnet-4-6"
+    elif _anthropic_client and "anthropic" not in _exhausted_providers:
         if len(text) <= 50 and not is_complex:
             return "claude-haiku-4-5-20251001"
         return "claude-sonnet-4-6"
@@ -547,11 +557,13 @@ async def classify_task(text: str) -> dict:
     if not is_ai_ready():
         return {"agent_id": "chief_of_staff", "reason": "AI 미연결", "cost_usd": 0}
 
-    # 분류용 모델: 가장 저렴한 모델 선택 (Gemini Flash → GPT Mini → Claude)
+    # 분류용 모델: 가장 저렴한 모델 선택 (Gemini Flash → GPT Mini → CLI Claude → API Claude)
     if _google_client:
         classify_model = "gemini-2.5-flash"
     elif _openai_client:
         classify_model = "gpt-5-mini"
+    elif _USE_CLI_FOR_CLAUDE:
+        classify_model = "claude-haiku-4-5-20251001"  # CLI로 라우팅 → API 크레딧 소진 방지
     elif _anthropic_client:
         classify_model = "claude-sonnet-4-6"
     else:
@@ -650,9 +662,6 @@ async def _call_claude_cli(
     if system_prompt:
         cmd.extend(["--system-prompt", system_prompt])
 
-    # 내장 도구 비활성화 (MCP 도구만 사용)
-    cmd.extend(["--tools", ""])
-
     # MCP 설정 — 도구가 있으면 MCP 서버 연결
     config_file_path = None
     if tools and cli_allowed_tools:
@@ -677,23 +686,23 @@ async def _call_claude_cli(
         cmd.extend(["--mcp-config", config_file_path])
         cmd.append("--dangerously-skip-permissions")
 
-    # 사용자 메시지 (마지막 인자)
-    cmd.append(full_message)
-
-    # 환경 변수 — CLAUDECODE 제거 (중첩 세션 방지)
+    # 사용자 메시지는 stdin으로 전달 (--tools 등 variadic 옵션과 충돌 방지)
+    # 환경 변수 — CLAUDECODE 제거 (중첩 세션 방지) + API 키 제거 (Max 구독 강제)
     env = os.environ.copy()
     env.pop("CLAUDECODE", None)
+    env.pop("ANTHROPIC_API_KEY", None)  # API 키 있으면 CLI가 API로 과금됨 → 제거하면 OAuth(Max) 사용
 
     start = time.time()
     try:
         proc = await asyncio.create_subprocess_exec(
             *cmd,
+            stdin=asyncio.subprocess.PIPE,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
             env=env,
         )
         stdout, stderr = await asyncio.wait_for(
-            proc.communicate(), timeout=ai_call_timeout
+            proc.communicate(input=full_message.encode("utf-8")), timeout=ai_call_timeout
         )
 
         elapsed = time.time() - start
@@ -792,6 +801,10 @@ async def _call_anthropic(
     tool_executor는 async 함수로, (tool_name, tool_input) -> result를 반환해야 합니다.
     reasoning_effort가 주어지면 extended thinking을 활성화합니다.
     """
+    import traceback
+    _trace = ''.join(traceback.format_stack()[-5:-1])
+    with open("/tmp/api_calls.log", "a") as _f:
+        _f.write(f"\n{'='*60}\n[_call_anthropic] model={model}\nmsg={user_message[:200]}\nstack:\n{_trace}\n")
     messages = []
     if conversation_history:
         messages.extend(conversation_history)
@@ -1395,9 +1408,10 @@ async def ask_ai(
 
     start = time.time()
     try:
-        # CLI 모드: Claude 호출을 CLI(Max 구독)로 라우팅
-        if use_cli and _USE_CLI_FOR_CLAUDE and provider == "anthropic":
-            logger.info("[CLI] %s → Claude CLI 모드 (caller=%s)", model, cli_caller_id)
+        # CLI 모드: 모든 Claude 호출을 CLI(Max 구독)로 자동 라우팅
+        if _USE_CLI_FOR_CLAUDE and provider == "anthropic":
+            _cli_id = cli_caller_id or "default"
+            logger.info("[CLI] %s → Claude CLI 모드 (caller=%s)", model, _cli_id)
             cli_result = await _call_claude_cli(
                 user_message, system_prompt, model,
                 tools=provider_tools, tool_executor=tool_executor,
@@ -1407,18 +1421,33 @@ async def ask_ai(
                 cli_caller_id=cli_caller_id,
                 cli_allowed_tools=cli_allowed_tools,
             )
-            # CLI 실패 시 API 폴백
+            # CLI 실패 시 — API 봉인 상태이므로 Google/OpenAI 폴백 또는 에러 반환
             if "error" in cli_result and cli_result.get("content", "") == "":
-                logger.warning("[CLI] 실패 → API 폴백: %s", cli_result["error"][:100])
-                coro = _call_anthropic(
-                    user_message, system_prompt, model,
-                    tools=provider_tools, tool_executor=tool_executor,
-                    reasoning_effort=reasoning_effort,
-                    conversation_history=conversation_history,
-                    ai_call_timeout=AI_CALL_TIMEOUT,
-                )
+                logger.warning("[CLI] 실패: %s", cli_result.get("error", "")[:200])
+                # Google 폴백
+                if _google_client:
+                    logger.info("[CLI] 실패 → Google 폴백")
+                    _fb_model = "gemini-2.5-flash"
+                    coro = _call_google(
+                        user_message, system_prompt, _fb_model,
+                        tools=provider_tools, tool_executor=tool_executor,
+                        reasoning_effort=reasoning_effort,
+                        conversation_history=conversation_history,
+                        ai_call_timeout=AI_CALL_TIMEOUT,
+                    )
+                elif _openai_client:
+                    logger.info("[CLI] 실패 → OpenAI 폴백")
+                    _fb_model = "gpt-5-mini"
+                    coro = _call_openai(
+                        user_message, system_prompt, _fb_model,
+                        tools=provider_tools, tool_executor=tool_executor,
+                        conversation_history=conversation_history,
+                        ai_call_timeout=AI_CALL_TIMEOUT,
+                    )
+                else:
+                    return {"error": f"CLI 실패, 폴백 프로바이더 없음: {cli_result.get('error', '')[:100]}", "content": "", "cost_usd": 0}
             else:
-                # CLI 성공 — 결과 직접 반환 (coro 대신)
+                # CLI 성공 — 결과 직접 반환
                 elapsed = time.time() - start
                 cli_result.setdefault("model", model)
                 cli_result.setdefault("time_seconds", elapsed)

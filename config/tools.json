@@ -4815,6 +4815,7 @@
           },
           "clips": {
             "type": "array",
+            "items": {"type": "string"},
             "description": "이어붙일 클립 파일 경로 리스트 (action=concat 시)"
           }
         },

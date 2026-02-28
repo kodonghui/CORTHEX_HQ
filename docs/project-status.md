@@ -9,8 +9,63 @@
 
 - **날짜**: 2026-02-28
 - **버전**: `4.00.000`
-- **빌드**: #706 (SNS 발행 안정화 + 미디어 썸네일)
+- **빌드**: #714 (CLI API키 봉인 — Max 구독 강제)
 - **서버**: https://corthex-hq.com
+
+---
+
+## 2026-02-28 — CLI API키 봉인 + API 의존 제거 (빌드 #712~#714)
+
+### 빌드 #714 — 근본 원인 수정
+- 🔴 **원인**: `_call_claude_cli()`에서 `env = os.environ.copy()` → 서버의 `ANTHROPIC_API_KEY`가 CLI에 전달 → CLI가 Max 대신 API 키로 과금
+- ✅ **수정**: `env.pop("ANTHROPIC_API_KEY")` 1줄 추가 → CLI는 OAuth(Max 구독)만 사용
+- ✅ **추가 봉인**: `_anthropic_client` 초기화 자체를 차단 (CLI 모드 시 API 클라이언트 미생성)
+- ✅ **CLI 실패 폴백**: API → Google/OpenAI로 변경 (API 절대 안 씀)
+- ✅ **검증**: 6명 전원 + 3명 중간난이도 테스트 → 전부 $0.0000, API 잔액 변동 없음
+
+---
+
+## 2026-02-28 — API 의존 제거 + 라우팅 수정 (빌드 #712)
+
+### 변경 내용
+- ✅ **분류/메모리 추출 → CLI 우선 라우팅** — Anthropic API 크레딧 소진 대응. classify_task() + 메모리 추출에 `_USE_CLI_FOR_CLAUDE` 체크 추가
+- ✅ **명시적 팀장 지시 파서** — `_parse_explicit_target()` 추가. "~팀장에게 지시" 패턴 최우선 라우팅 (키워드 매칭보다 우선)
+- ✅ **clips 스키마 수정** — video_editor의 clips 파라미터에 `items.type: string` 추가 (Google API 400 해결)
+
+### 검증 결과
+| 팀장 | 라우팅 | 비용 | 상태 |
+|------|--------|------|------|
+| 금융분석팀장 | ✅ 금융분석팀장 | $0.00 | 정상 |
+| 법무팀장 | ✅ 법무팀장 | $0.00 | 정상 |
+| 콘텐츠팀장 | ✅ 콘텐츠팀장 | $0.00 | 정상 (clips 에러 해결) |
+
+---
+
+## 2026-02-28 — 에이전트 CLI 전환 (빌드 #708~#710)
+
+### 핵심 변경
+- **모든 Claude 호출을 API → CLI(Max 구독)로 전환** → 에이전트 메인 호출 비용 $0
+- 구조: 에이전트 메인 호출 → CLI(무료) / 분류·QA·도구내부 → API(소량)
+- 하루 예상 비용: ~$3~7 → **~$0.1~0.3**
+
+### 새로 만든 것
+- `src/mcp_tool_server.py` — MCP 프록시 서버 (경량, 도구 실행은 HTTP로 메인 서버에 위임)
+- `web/ai_handler.py` — `_call_claude_cli()` 함수 + `_USE_CLI_FOR_CLAUDE` 플래그
+  - 모든 Claude 호출 자동 CLI 라우팅 (use_cli 파라미터 불필요)
+  - CLI 실패 시 자동 API 폴백
+  - stdin으로 프롬프트 전달 (--tools variadic 옵션 충돌 방지)
+- `web/arm_server.py` — `/api/internal/tool-invoke` 내부 엔드포인트
+- `web/agent_router.py` — `use_cli=True`, `cli_caller_id`, `cli_allowed_tools` 전달
+
+### MCP 도구 연동 구조
+```
+CEO 명령 → ask_ai(use_cli=True) → claude -p (CLI)
+              ↓ (도구 필요 시)
+         MCP 프록시 → HTTP POST /api/internal/tool-invoke → ToolPool.invoke()
+```
+
+### 비활성화 방법
+`ai_handler.py` → `_USE_CLI_FOR_CLAUDE = False` → 즉시 API 모드로 복귀
 
 ---
 
