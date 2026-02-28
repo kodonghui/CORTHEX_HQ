@@ -1,14 +1,17 @@
-"""SNS 관련 API — 플랫폼 연결, OAuth, 게시 대기열, 발행.
+"""SNS 관련 API — 플랫폼 연결, OAuth, 게시 대기열, 발행, 쿠키 관리.
 
 비유: 홍보실 — SNS 플랫폼 연동, 콘텐츠 승인/발행을 담당하는 곳.
 """
 import asyncio
 import logging
 import os
+import pickle
 import time
+from datetime import datetime, timezone, timedelta
+from pathlib import Path
 
 from fastapi import APIRouter, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 
 from db import save_setting, load_setting, create_task, update_task
 
@@ -438,3 +441,115 @@ async def get_sns_events(limit: int = 50):
     events = [q for q in queue if q.get("status") in ("published", "failed", "rejected", "rework")]
     events.sort(key=lambda x: x.get("published_at") or x.get("created_at", 0), reverse=True)
     return {"items": events[:limit], "total": len(events)}
+
+
+# ── 쿠키 관리 API ──
+# Selenium 퍼블리셔(네이버/카카오)의 CAPTCHA 우회용.
+# 대표님 PC 브라우저에서 Cookie-Editor로 쿠키 추출 → 서버에 업로드 → Selenium이 쿠키로 로그인.
+
+_COOKIE_DIR = Path(__file__).resolve().parent.parent.parent / "data" / "sns_cookies"
+_VALID_COOKIE_PLATFORMS = {"naver", "kakao"}
+_KST = timezone(timedelta(hours=9))
+_PLATFORM_EXPIRY_DAYS = {"naver": 90, "kakao": 30}
+
+
+@router.post("/api/sns/cookies/{platform}")
+async def upload_sns_cookies(platform: str, request: Request):
+    """Cookie-Editor에서 추출한 쿠키 JSON을 서버에 저장 (pickle)."""
+    if platform not in _VALID_COOKIE_PLATFORMS:
+        return JSONResponse({"success": False, "error": f"지원 플랫폼: {sorted(_VALID_COOKIE_PLATFORMS)}"}, 400)
+
+    try:
+        body = await request.json()
+    except Exception:
+        return JSONResponse({"success": False, "error": "JSON 파싱 실패"}, 400)
+
+    # Cookie-Editor JSON 배열 또는 document.cookie 문자열 둘 다 지원
+    if isinstance(body, str):
+        domain = ".naver.com" if platform == "naver" else ".kakao.com"
+        cookies = [
+            {"name": p.split("=", 1)[0].strip(), "value": p.split("=", 1)[1].strip(),
+             "domain": domain, "path": "/", "secure": True, "httpOnly": False}
+            for p in body.split(";") if "=" in p
+        ]
+    elif isinstance(body, list):
+        cookies = body
+    else:
+        return JSONResponse({"success": False, "error": "JSON 배열 또는 문자열 필요"}, 400)
+
+    if not cookies:
+        return JSONResponse({"success": False, "error": "쿠키가 비어있습니다"}, 400)
+
+    # 구조 검증 + 정규화
+    normalized = []
+    for c in cookies:
+        if not isinstance(c, dict) or "name" not in c or "value" not in c:
+            continue
+        normalized.append({
+            "name": c["name"], "value": c["value"],
+            "domain": c.get("domain", f".{platform}.com"),
+            "path": c.get("path", "/"),
+            "secure": c.get("secure", True),
+            "httpOnly": c.get("httpOnly", False),
+            "sameSite": c.get("sameSite", "None"),
+        })
+
+    if not normalized:
+        return JSONResponse({"success": False, "error": "유효한 쿠키가 없습니다 (name/value 필요)"}, 400)
+
+    # pickle 저장
+    _COOKIE_DIR.mkdir(parents=True, exist_ok=True)
+    with open(_COOKIE_DIR / f"{platform}_cookies.pkl", "wb") as f:
+        pickle.dump(normalized, f)
+
+    now_kst = datetime.now(_KST).isoformat()
+    save_setting(f"sns_cookie_{platform}_uploaded_at", now_kst)
+
+    logger.info("[SNS Cookie] %s 쿠키 %d개 업로드 완료", platform, len(normalized))
+    return {"success": True, "platform": platform, "cookie_count": len(normalized), "uploaded_at": now_kst}
+
+
+@router.get("/api/sns/cookies/status")
+async def get_sns_cookies_status():
+    """각 플랫폼의 쿠키 등록 상태 조회 (쿠키 값은 반환하지 않음)."""
+    result = {}
+    for platform in _VALID_COOKIE_PLATFORMS:
+        pkl = _COOKIE_DIR / f"{platform}_cookies.pkl"
+        if pkl.exists():
+            uploaded_at = load_setting(f"sns_cookie_{platform}_uploaded_at")
+            try:
+                with open(pkl, "rb") as f:
+                    cookie_count = len(pickle.load(f))
+            except Exception:
+                cookie_count = 0
+            age_days = round((time.time() - pkl.stat().st_mtime) / 86400, 1)
+            expiry_days = _PLATFORM_EXPIRY_DAYS.get(platform, 90)
+            estimated_expiry = None
+            if uploaded_at:
+                try:
+                    estimated_expiry = (datetime.fromisoformat(uploaded_at) + timedelta(days=expiry_days)).strftime("%Y-%m-%d")
+                except Exception:
+                    pass
+            result[platform] = {
+                "exists": True, "uploaded_at": uploaded_at,
+                "file_age_days": age_days, "cookie_count": cookie_count,
+                "estimated_expiry": estimated_expiry,
+                "expiry_warning": age_days > (expiry_days * 0.8),
+            }
+        else:
+            result[platform] = {"exists": False, "uploaded_at": None, "file_age_days": None,
+                                "cookie_count": 0, "estimated_expiry": None, "expiry_warning": False}
+    return result
+
+
+@router.delete("/api/sns/cookies/{platform}")
+async def delete_sns_cookies(platform: str):
+    """특정 플랫폼의 쿠키 파일 삭제."""
+    if platform not in _VALID_COOKIE_PLATFORMS:
+        return JSONResponse({"success": False, "error": f"지원 플랫폼: {sorted(_VALID_COOKIE_PLATFORMS)}"}, 400)
+    pkl = _COOKIE_DIR / f"{platform}_cookies.pkl"
+    if pkl.exists():
+        pkl.unlink()
+    save_setting(f"sns_cookie_{platform}_uploaded_at", None)
+    logger.info("[SNS Cookie] %s 쿠키 삭제 완료", platform)
+    return {"success": True, "platform": platform}

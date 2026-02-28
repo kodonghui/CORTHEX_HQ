@@ -282,7 +282,8 @@ function corthexApp() {
            rejectReason: '', rejectingId: null, queueFilter: 'all',
            mediaImages: [], mediaVideos: [],
            mediaSelectMode: false, selectedMedia: [],
-           showDeleteAllMediaModal: false, showClearQueueModal: false },
+           showDeleteAllMediaModal: false, showClearQueueModal: false,
+           cookieStatus: {}, cookiePlatform: 'naver', cookieJson: '' },
 
     // ── Trading (자동매매 시스템) ──
     trading: {
@@ -3824,6 +3825,43 @@ function corthexApp() {
         }
       } catch { /* 무시 */ }
       finally { this.sns.loading = false; }
+    },
+
+    // ── SNS Cookie Management ──
+    async loadCookieStatus() {
+      try {
+        const res = await fetch('/api/sns/cookies/status');
+        if (res.ok) this.sns.cookieStatus = await res.json();
+      } catch { /* 무시 */ }
+    },
+    async uploadSNSCookies() {
+      const p = this.sns.cookiePlatform;
+      const raw = this.sns.cookieJson.trim();
+      if (!raw) { this.showToast('쿠키 JSON을 입력하세요.', 'warning'); return; }
+      let cookies;
+      try { cookies = JSON.parse(raw); } catch {
+        this.showToast('JSON 형식이 올바르지 않습니다. Cookie-Editor의 Export 결과를 그대로 붙여넣으세요.', 'error'); return;
+      }
+      if (!Array.isArray(cookies) || !cookies.length) { this.showToast('쿠키 배열이 비어있습니다.', 'error'); return; }
+      try {
+        const res = await fetch(`/api/sns/cookies/${p}`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(cookies) });
+        const data = await res.json();
+        if (data.success) {
+          this.showToast(`${p === 'naver' ? '네이버' : '카카오'} 쿠키 ${data.cookie_count}개 등록 완료!`, 'success');
+          this.sns.cookieJson = '';
+          this.loadCookieStatus();
+        } else { this.showToast(data.error || '등록 실패', 'error'); }
+      } catch { this.showToast('서버 오류', 'error'); }
+    },
+    async deleteSNSCookie(p) {
+      this.showConfirm({ title: '쿠키 삭제', message: `${p === 'naver' ? '네이버' : '카카오'} 쿠키를 삭제할까요?`, confirmText: '삭제', onConfirm: async () => {
+        try {
+          const res = await fetch(`/api/sns/cookies/${p}`, { method: 'DELETE' });
+          const data = await res.json();
+          if (data.success) { this.showToast('쿠키 삭제 완료', 'success'); this.loadCookieStatus(); }
+          else { this.showToast(data.error || '삭제 실패', 'error'); }
+        } catch { this.showToast('서버 오류', 'error'); }
+      }});
     },
 
     // ── Trading (자동매매 시스템) 함수 ──

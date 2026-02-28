@@ -3569,6 +3569,7 @@
             <button @click="sns.tab = 'queue'; loadSNSQueue()" :class="sns.tab === 'queue' ? 'bg-hq-accent/20 text-hq-accent' : 'text-hq-muted'" class="px-3 py-1.5 text-xs font-semibold rounded-lg transition shrink-0">승인 대기열</button>
             <button @click="sns.tab = 'media'; loadMediaGallery()" :class="sns.tab === 'media' ? 'bg-hq-accent/20 text-hq-accent' : 'text-hq-muted'" class="px-3 py-1.5 text-xs font-semibold rounded-lg transition shrink-0">미디어</button>
             <button @click="sns.tab = 'events'; loadSNSEvents()" :class="sns.tab === 'events' ? 'bg-hq-accent/20 text-hq-accent' : 'text-hq-muted'" class="px-3 py-1.5 text-xs font-semibold rounded-lg transition shrink-0">이벤트</button>
+            <button @click="sns.tab = 'cookies'; loadCookieStatus()" :class="sns.tab === 'cookies' ? 'bg-hq-accent/20 text-hq-accent' : 'text-hq-muted'" class="px-3 py-1.5 text-xs font-semibold rounded-lg transition shrink-0">쿠키 관리</button>
           </div>
           <template x-if="sns.loading">
             <div class="text-center py-8 text-hq-muted">로딩 중...</div>
@@ -3866,6 +3867,66 @@
               </template>
             </div>
           </div>
+
+          <!-- SNS Tab 5: Cookie Management -->
+          <div x-show="sns.tab === 'cookies'" x-cloak>
+            <!-- 상태 카드 -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
+              <template x-for="p in ['naver', 'kakao']" :key="p">
+                <div class="glass border rounded-xl p-4" :class="(sns.cookieStatus||{})[p]?.exists ? 'border-hq-green/30' : 'border-hq-border'">
+                  <div class="flex items-center justify-between mb-2">
+                    <span class="text-sm font-bold text-hq-text" x-text="p === 'naver' ? '네이버' : '카카오 (티스토리/다음카페)'"></span>
+                    <span class="text-[10px] px-2 py-0.5 rounded-full font-semibold"
+                      :class="(sns.cookieStatus||{})[p]?.exists ? 'bg-hq-green/10 text-hq-green' : 'bg-hq-muted/10 text-hq-muted'"
+                      x-text="(sns.cookieStatus||{})[p]?.exists ? '등록됨' : '미등록'"></span>
+                  </div>
+                  <div x-show="(sns.cookieStatus||{})[p]?.exists" class="text-[10px] text-hq-muted/70 space-y-1 mb-3">
+                    <div>쿠키 수: <span class="text-hq-text" x-text="(sns.cookieStatus||{})[p]?.cookie_count || 0"></span>개</div>
+                    <div>등록일: <span class="text-hq-text" x-text="((sns.cookieStatus||{})[p]?.uploaded_at || '').substring(0,10)"></span></div>
+                    <div>만료 예상: <span class="text-hq-text" x-text="(sns.cookieStatus||{})[p]?.estimated_expiry || '—'"></span></div>
+                    <div x-show="(sns.cookieStatus||{})[p]?.expiry_warning" class="text-hq-yellow font-semibold">⚠️ 곧 만료 — 재등록 필요</div>
+                  </div>
+                  <button x-show="(sns.cookieStatus||{})[p]?.exists" @click="deleteSNSCookie(p)" class="text-[10px] text-hq-red/70 hover:text-hq-red transition">삭제</button>
+                </div>
+              </template>
+            </div>
+
+            <!-- 업로드 영역 -->
+            <div class="glass border border-hq-border rounded-xl p-5 mb-5">
+              <h3 class="text-sm font-bold text-hq-text mb-3">쿠키 등록</h3>
+              <div class="space-y-3">
+                <select x-model="sns.cookiePlatform" class="bg-hq-bg border border-hq-border rounded-lg px-3 py-2 text-sm text-hq-text w-full">
+                  <option value="naver">네이버 (naver.com)</option>
+                  <option value="kakao">카카오 (kakao.com / daum.net / tistory.com)</option>
+                </select>
+                <textarea x-model="sns.cookieJson" rows="5" placeholder="Cookie-Editor에서 Export한 JSON을 여기에 붙여넣기" class="w-full bg-hq-bg border border-hq-border rounded-lg px-3 py-2 text-xs text-hq-text font-mono resize-y focus:border-hq-accent/50 outline-none transition"></textarea>
+                <button @click="uploadSNSCookies()" class="bg-hq-accent hover:bg-hq-accent/80 text-white rounded-lg px-4 py-2 text-sm font-semibold transition w-full sm:w-auto">등록하기</button>
+              </div>
+            </div>
+
+            <!-- 가이드 -->
+            <div class="glass border border-hq-border/50 rounded-xl p-5">
+              <h3 class="text-sm font-bold text-hq-text mb-3">쿠키 등록 가이드</h3>
+              <div class="text-xs text-hq-muted space-y-3">
+                <div>
+                  <span class="font-bold text-hq-text">1단계: Cookie-Editor 확장 설치</span>
+                  <div class="pl-4 mt-1">Chrome에서 <a href="https://chromewebstore.google.com/detail/cookie-editor/hlkenndednhfkekhgcdicdfddnkalmdm" target="_blank" class="text-hq-accent underline">Cookie-Editor</a> 설치 (1회)</div>
+                </div>
+                <div>
+                  <span class="font-bold text-hq-text">2단계: 로그인 후 쿠키 추출</span>
+                  <div class="pl-4 mt-1 space-y-1">
+                    <div>네이버: <a href="https://www.naver.com" target="_blank" class="text-hq-accent underline">naver.com</a> 로그인 → Cookie-Editor 아이콘 → <strong>Export (JSON)</strong> 클릭</div>
+                    <div>카카오: <a href="https://accounts.kakao.com" target="_blank" class="text-hq-accent underline">accounts.kakao.com</a> 로그인 → Cookie-Editor → <strong>Export (JSON)</strong></div>
+                  </div>
+                </div>
+                <div>
+                  <span class="font-bold text-hq-text">3단계: 위 입력란에 붙여넣기 → 등록하기</span>
+                  <div class="pl-4 mt-1 text-hq-muted/60">유효기간: 네이버 ~90일, 카카오 ~30일. 만료 시 재등록.</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
         </div>
       </div></template>
 
