@@ -19,6 +19,9 @@ logger = logging.getLogger("corthex")
 
 router = APIRouter(tags=["sns"])
 
+# 동시 발행 시 DB 경합 방지 — 최대 1건씩 순차 처리
+_publish_lock = asyncio.Lock()
+
 # ── SNS 플랫폼 목록 + 환경변수 매핑 ──
 _SNS_PLATFORMS = ["instagram", "youtube", "tistory", "naver_blog", "naver_cafe", "daum_cafe"]
 
@@ -279,57 +282,59 @@ async def _auto_publish_after_approve(item_id: str):
     """승인 직후 자동 발행 (백그라운드 태스크).
 
     publish_sns()와 동일한 로직이지만, 실패해도 approved 상태 유지.
+    _publish_lock으로 동시 발행 경합 방지 (4건 동시 승인 → 순차 처리).
     """
-    try:
-        queue = load_setting("sns_publish_queue", []) or []
-        target = None
-        for item in queue:
-            if item.get("request_id") == item_id:
-                target = item
-                break
-        if not target or target.get("status") != "approved":
-            logger.warning("[SNS] 자동 발행 스킵: %s (상태: %s)", item_id, target.get("status") if target else "없음")
-            return
-
-        from src.tools.sns.base_publisher import PostContent
-        from src.tools.sns.oauth_manager import OAuthManager
-        oauth = OAuthManager()
-        platform = target.get("platform", "")
-        content_data = target.get("content", {})
-
-        publisher = _get_publisher(platform, oauth)
-        if not publisher:
-            target["status"] = "failed"
-            target["result"] = {"success": False, "message": f"퍼블리셔 없음: {platform}"}
-            save_setting("sns_publish_queue", queue)
-            logger.error("[SNS] 자동 발행 실패 — 퍼블리셔 없음: %s", platform)
-            return
-
-        content = PostContent(**content_data)
-        result = await publisher.publish(content)
-        target["status"] = "published" if result.success else "failed"
-        target["published_at"] = time.time()
-        target["result"] = {
-            "success": result.success,
-            "post_id": result.post_id,
-            "post_url": result.post_url,
-            "message": result.message,
-        }
-        save_setting("sns_publish_queue", queue)
-        logger.info("[SNS] 자동 발행 %s: %s → %s", "성공" if result.success else "실패", item_id, platform)
-
-    except Exception as e:
-        logger.error("[SNS] 자동 발행 오류: %s — %s", item_id, e, exc_info=True)
+    async with _publish_lock:
         try:
             queue = load_setting("sns_publish_queue", []) or []
+            target = None
             for item in queue:
                 if item.get("request_id") == item_id:
-                    item["status"] = "failed"
-                    item["result"] = {"success": False, "message": str(e)}
-                    save_setting("sns_publish_queue", queue)
+                    target = item
                     break
-        except Exception:
-            pass
+            if not target or target.get("status") != "approved":
+                logger.warning("[SNS] 자동 발행 스킵: %s (상태: %s)", item_id, target.get("status") if target else "없음")
+                return
+
+            from src.tools.sns.base_publisher import PostContent
+            from src.tools.sns.oauth_manager import OAuthManager
+            oauth = OAuthManager()
+            platform = target.get("platform", "")
+            content_data = target.get("content", {})
+
+            publisher = _get_publisher(platform, oauth)
+            if not publisher:
+                target["status"] = "failed"
+                target["result"] = {"success": False, "message": f"퍼블리셔 없음: {platform}"}
+                save_setting("sns_publish_queue", queue)
+                logger.error("[SNS] 자동 발행 실패 — 퍼블리셔 없음: %s", platform)
+                return
+
+            content = PostContent(**content_data)
+            result = await publisher.publish(content)
+            target["status"] = "published" if result.success else "failed"
+            target["published_at"] = time.time()
+            target["result"] = {
+                "success": result.success,
+                "post_id": result.post_id,
+                "post_url": result.post_url,
+                "message": result.message,
+            }
+            save_setting("sns_publish_queue", queue)
+            logger.info("[SNS] 자동 발행 %s: %s → %s", "성공" if result.success else "실패", item_id, platform)
+
+        except Exception as e:
+            logger.error("[SNS] 자동 발행 오류: %s — %s", item_id, e, exc_info=True)
+            try:
+                queue = load_setting("sns_publish_queue", []) or []
+                for item in queue:
+                    if item.get("request_id") == item_id:
+                        item["status"] = "failed"
+                        item["result"] = {"success": False, "message": str(e)}
+                        save_setting("sns_publish_queue", queue)
+                        break
+            except Exception:
+                pass
 
 
 def _get_publisher(platform: str, oauth):

@@ -281,6 +281,16 @@ class SNSManager(BaseTool):
             req.request_id, platform, caller_id,
         )
 
+        # 즉시 텔레그램 알림 (30분 주기 체크 대신 즉시 발송)
+        try:
+            from src.telegram.bot import get_notifier
+            notifier = get_notifier()
+            if notifier:
+                import asyncio
+                asyncio.create_task(notifier.notify_sns_approval(req.to_dict()))
+        except Exception as _e:
+            logger.debug("[SNS] 즉시 텔레그램 알림 실패 (무시): %s", _e)
+
         return {
             "request_id": req.request_id,
             "status": "pending",
