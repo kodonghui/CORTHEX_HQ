@@ -14,6 +14,35 @@
 
 ---
 
+## 2026-02-28 — SNS 자동발행 리서치 (네이버 봉인 / 티스토리·다음카페 준비)
+
+### 네이버 블로그 — 봉인 🔴
+- Selenium 자동화 시도: ActionChains / JS injection / undetected-chromedriver / chromedriver cdc_ 패치
+- **전부 실패** — 네이버가 헤드리스 브라우저 자체를 CAPTCHA로 차단
+- 쿠키 로그인: naver.com OK → blog.naver.com 글쓰기 접속 시 세션 불일치로 재로그인 요구
+- `sns_manager.py` ALLOWED_PLATFORMS에서 naver_blog 제거, BLOCKED 처리
+- 재도전 조건: 데스크톱 환경 or Naver 내부 API 역공학 or Playwright stealth
+
+### 티스토리 — ✅ 로그인 + 글쓰기 접근 성공
+- 티스토리 Open API **2024년 2월 완전 종료**. Selenium만 가능
+- 카카오 로그인 성공 (CAPTCHA 없음, 카카오톡 인증 1회 필요)
+- 글쓰기 페이지 접근 성공: `editor-tistory_ifr` iframe, `tagText` 입력 확인
+- 올바른 OAuth 플로우: 티스토리 로그인 → "카카오계정으로 로그인" → 카카오 OAuth → 콜백
+- GitHub Secrets 업데이트 완료: `KAKAO_ID`, `KAKAO_PW`, `TISTORY_BLOG_NAME`
+- **다음 단계**: 실제 테스트 글 발행 (카카오톡 인증 후 쿠키 재사용 가능 확인)
+
+### 다음카페 — ✅ 로그인 + 카페 접근 성공
+- 다음카페 API **2018년 종료**. Selenium만 가능
+- 카카오 로그인 후 cafe.daum.net 접근 성공 (서로연 카페)
+- **다음 단계**: 글쓰기 페이지 접근 + 실제 테스트 글 발행
+- 참고: 다음은 업스테이지에 매각 중 (2026.01 MOU)
+
+### 다음 검토 대상
+- 페이스북 (Graph API 기반, Meta 개발자 계정 필요)
+- X/트위터 (API v2, 유료 플랜 $100/월 필요할 수 있음)
+
+---
+
 ## 2026-02-28 — SketchVibe Phase 3 (아키텍처 재설계 — 서버변환 제거 + MCP 양방향)
 
 - ✅ 서버 변환 제거 — `/convert` 엔드포인트 삭제 (Claude API 직접호출 → Claude Code MCP로 이관)
