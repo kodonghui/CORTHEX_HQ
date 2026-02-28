@@ -801,10 +801,6 @@ async def _call_anthropic(
     tool_executor는 async 함수로, (tool_name, tool_input) -> result를 반환해야 합니다.
     reasoning_effort가 주어지면 extended thinking을 활성화합니다.
     """
-    import traceback
-    _trace = ''.join(traceback.format_stack()[-5:-1])
-    with open("/tmp/api_calls.log", "a") as _f:
-        _f.write(f"\n{'='*60}\n[_call_anthropic] model={model}\nmsg={user_message[:200]}\nstack:\n{_trace}\n")
     messages = []
     if conversation_history:
         messages.extend(conversation_history)

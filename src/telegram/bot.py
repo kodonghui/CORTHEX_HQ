@@ -379,12 +379,16 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         try:
             from web.app import tool_pool_ref
             if tool_pool_ref:
-                await tool_pool_ref.invoke(
+                result = await tool_pool_ref.invoke(
                     "sns_manager", action="approve", request_id=request_id,
                 )
+                # 자동 발행 트리거 — 웹 승인과 동일한 동작
+                if "error" not in result:
+                    from web.handlers.sns_handler import _auto_publish_after_approve
+                    asyncio.create_task(_auto_publish_after_approve(request_id))
                 await query.answer("승인 완료!")
                 await query.edit_message_text(
-                    f"\u2705 *SNS 발행 승인 완료*\n요청 ID: `{request_id}`",
+                    f"\u2705 *SNS 발행 승인 완료*\n요청 ID: `{request_id}`\n\U0001f680 자동 발행 진행중...",
                     parse_mode="Markdown",
                 )
             else:
