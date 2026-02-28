@@ -7328,14 +7328,14 @@
               </template>
             </div>
           </div>
-          <!-- Drawflow 캔버스 -->
+          <!-- Drawflow 캔버스 (분할 뷰용 — 별도 ID) -->
           <div class="flex-1 overflow-hidden relative">
             <template x-if="!flowchart.canvasLoaded">
               <div class="absolute inset-0 flex items-center justify-center z-10">
                 <div class="w-8 h-8 border-2 border-yellow-500/30 border-t-yellow-400 rounded-full animate-spin"></div>
               </div>
             </template>
-            <div id="nexus-canvas" class="w-full h-full"></div>
+            <div id="nexus-canvas-split" class="w-full h-full"></div>
           </div>
         </div>
       </div>

@@ -5596,11 +5596,9 @@ function corthexApp() {
       try {
         await Promise.all([_loadScript(_CDN.drawflow), _loadCSS(_CDN.drawflowcss)]);
         await this.$nextTick();
-        // 동일 ID가 여러 개일 때 현재 보이는 요소 선택 (split/canvas 모드 공존)
-        const candidates = document.querySelectorAll('#nexus-canvas');
-        let el = null;
-        for (const c of candidates) { if (c.offsetParent !== null) { el = c; break; } }
-        if (!el && candidates.length > 0) el = candidates[0];
+        // 모드별 캔버스 ID 선택 (split: nexus-canvas-split, canvas: nexus-canvas)
+        const canvasId = this.flowchart.mode === 'split' ? 'nexus-canvas-split' : 'nexus-canvas';
+        const el = document.getElementById(canvasId);
         if (!el || typeof Drawflow === 'undefined') throw new Error('캔버스 초기화 실패');
         const editor = new Drawflow(el);
         editor.reroute = true;
