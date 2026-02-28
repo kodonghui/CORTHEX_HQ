@@ -3,7 +3,7 @@
 > **규칙**: 미완료 항목은 전부 여기만. 날짜 파일에 ⬜ 절대 금지.
 > **수시 업데이트**: 완료되면 즉시 ✅ 표시 or 삭제. 새 항목 발견 시 즉시 추가.
 > 🔴 **매 배포 시 반드시 갱신!** — 배포하고 BACKLOG 안 건드리면 미완성!
-> 마지막 업데이트: 2026-03-01 빌드#716 (미커밋 정리 배포 + BMAD 툴링)
+> 마지막 업데이트: 2026-02-28 빌드#717 (SNS 버그 4개 수정 — 동시승인/텔레그램/즉시알림/디버그로그)
 
 ---
 
@@ -26,7 +26,7 @@
 
 - ✅ ~~**한미반도체(042700) KIS 주문 실패**~~ — `EXCG_ID_DVSN_CD` "" → "KRX" 수정 (빌드 #655 예정)
 - ⬜ **deploy.yml에 selenium 추가 필요** — PAT에 workflow 스코프 없어서 push 불가. 대표님이 GitHub에서 직접 수정하거나 토큰 스코프 추가 필요. 현재는 수동 설치로 동작 중
-- ⬜ **4건 동시 승인 시 3건 멈춤** — _auto_publish_after_approve 백그라운드 태스크 동시 실행 시 DB 경합. 순차 처리 또는 락 필요
+- ✅ ~~**4건 동시 승인 시 3건 멈춤**~~ — asyncio.Lock(_publish_lock) 추가로 순차 처리 (빌드#717)
 
 ---
 
@@ -51,8 +51,8 @@
 - ✅ ~~**티스토리 자동 발행**~~ — 공개 발행 성공! ActionChains label 클릭으로 React 라디오 전환. `tistory_publisher.py` 전면 수정
 - ✅ ~~**다음카페(서로연) 자동 발행**~~ — 발행 성공! `logins.daum.net` → 카카오 OAuth → `united_write` → TinyMCE. `daum_cafe_publisher.py` 전면 수정
 - ✅ ~~**SNS 웹 승인+자동발행**~~ — 웹에서 "승인+발행" 1클릭 → approve 후 asyncio.create_task로 자동 발행. _get_publisher() 헬퍼 추출
-- ⬜ **SNS 텔레그램 승인+자동발행** — 텔레그램 인라인 버튼 승인 시에도 자동 발행 연결 (bot.py handle_callback)
-- ⬜ **SNS submit 즉시 알림** — 마케팅팀장이 submit 시 텔레그램 즉시 알림 (현재 30분 주기 체크 의존)
+- ✅ ~~**SNS 텔레그램 승인+자동발행**~~ — bot.py handle_callback에 _auto_publish_after_approve 트리거 추가 (빌드#717)
+- ✅ ~~**SNS submit 즉시 알림**~~ — sns_manager._handle_submit() 완료 시 즉시 notify_sns_approval() 트리거 (빌드#717)
 - ✅ ~~**카드뉴스 시리즈 생성기**~~ — `card_news_series` action 추가 (빌드#701). 5~10장 한 번에 생성, 시리즈 일관성 프롬프트, SNS media_urls 자동 출력
   - V2 고려: 디자인 품질 부족 시 HTML 템플릿 + Playwright 방식 검토
 - ⬜ **페이스북 자동 발행 검토** — Graph API로 페이지/그룹 게시 가능 여부 조사. Meta 개발자 계정 필요. 티스토리/다음카페 완료 후 착수
