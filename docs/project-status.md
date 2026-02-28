@@ -14,6 +14,27 @@
 
 ---
 
+## 2026-02-28 — SNS 현황 정리 + 콘텐츠 파이프라인 계획
+
+### 완료된 발행 플랫폼
+- ✅ **티스토리** — Selenium + 카카오 OAuth, 공개 발행 성공
+- ✅ **다음카페(서로연)** — Selenium + 카카오 OAuth → TinyMCE, 발행 성공
+- ✅ **Instagram** — Graph API + 환경변수 토큰, 대표님 직접 발행 성공 확인
+- 🔴 **네이버 블로그** — 봉인 (CAPTCHA 차단)
+
+### 다음 단계: SNS 콘텐츠 파이프라인
+- 목표: 마케팅팀장이 콘텐츠(글/이미지/카드뉴스/동영상) 생성 → 대표님 승인 → 자동 발행
+- 이미 있음: sns_manager.py 승인 큐, notifier.py 텔레그램 승인 버튼, 이미지/동영상 생성기
+- 빠진 것: 카드뉴스 생성기, end-to-end 연결 테스트, 웹 UI 승인 화면(선택)
+- 추천 순서: ① e2e 연결 테스트 → ② 카드뉴스 생성기 → ③ 웹 UI
+
+### 개발 디렉토리 분리
+- `/home/ubuntu/corthex-dev/` — 개발 전용 (Claude 작업)
+- `/home/ubuntu/CORTHEX_HQ/` — 배포 전용 (서버 실행, 수정 금지)
+- git push로 반영 → GitHub Actions 자동 배포
+
+---
+
 ## 2026-02-28 — SketchVibe 새 캔버스 + 삭제 (빌드 #694)
 
 - ✅ 초기화 시 Mermaid + Drawflow 동시 클리어
