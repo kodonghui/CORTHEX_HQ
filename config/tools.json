@@ -74,7 +74,7 @@
       "category": "api",
       "name": "SNS Manager",
       "name_ko": "SNS 매니저",
-      "description": "5개 플랫폼(인스타그램/티스토리/유튜브/네이버블로그/다음카페) 통합 퍼블리싱. CEO 승인 큐 포함.",
+      "description": "SNS 통합 퍼블리싱(인스타그램/티스토리/다음카페). CEO 승인 큐 포함. submit 시 media_urls로 이미지/동영상 URL 전달 필수.",
       "parameters": {
         "type": "object",
         "properties": {
@@ -116,6 +116,25 @@
           "reason": {
             "type": "string",
             "description": "reject 시 거절 사유"
+          },
+          "media_urls": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "이미지/동영상 URL 목록. submit 시 반드시 포함 (예: [\"/api/media/images/xxx.png\"])"
+          },
+          "category": {
+            "type": "string",
+            "description": "카테고리명 (블로그 플랫폼용)"
+          },
+          "visibility": {
+            "type": "string",
+            "description": "공개 범위 (public/private, 기본 public)"
+          },
+          "extra": {
+            "type": "object",
+            "description": "플랫폼별 추가 옵션 (예: instagram REELS → {\"media_type\": \"REELS\"}, daum_cafe → {\"cafe_id\": \"...\", \"board_id\": \"...\"})"
           }
         },
         "required": [
