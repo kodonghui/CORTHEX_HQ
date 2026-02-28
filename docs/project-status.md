@@ -9,10 +9,17 @@
 
 - **날짜**: 2026-02-28
 - **버전**: `4.00.000`
-- **빌드**: #674 (Instagram 자동 발행)
+- **빌드**: #675 (릴스 파이프라인 + output 경로 통일)
 - **서버**: https://corthex-hq.com
 
 ---
+
+## 2026-02-28 — 릴스 자동 발행 파이프라인 (빌드 #675)
+
+- ✅ `instagram_publisher.py` — `_resolve_media_url()` 추가 (상대→절대 URL 변환)
+- ✅ 영상 생성기 2개 — 퍼블릭 URL 반환 추가
+- ✅ **미디어 도구 8개 경로 버그 수정** — `os.getcwd()` → `__file__` 기반 절대경로 통일
+- ✅ output/ 디렉토리 구조 + .gitkeep + .gitignore 정리
 
 ## 2026-02-28 — SketchVibe MVP 구현
 
