@@ -5895,6 +5895,19 @@ function corthexApp() {
       this.flowchart.sketchError = null;
       this.flowchart.sketchConfirmed = null;
       this.flowchart.approvalRequest = null;
+      // 캔버스도 초기화 (새로 그리기)
+      this.clearNexusCanvas();
+    },
+
+    async deleteConfirmedDiagram(item) {
+      if (!confirm(`"${item.name}" 다이어그램을 삭제할까요?`)) return;
+      try {
+        const r = await fetch(`/api/sketchvibe/confirmed/${item.safe_name}`, { method: 'DELETE' });
+        const data = await r.json();
+        if (data.error) throw new Error(data.error);
+        this.showToast(`"${item.name}" 삭제됨`, 'success');
+        await this.loadCanvasList();
+      } catch(e) { this.showToast('삭제 실패: ' + e.message, 'error'); }
     },
   };
 }

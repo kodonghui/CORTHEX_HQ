@@ -457,6 +457,32 @@ async def get_confirmed_diagram(name: str):
         return {"error": str(e)}
 
 
+@router.delete("/confirmed/{name}")
+async def delete_confirmed_diagram(name: str):
+    """확인된 다이어그램 삭제 (DB + 파일)"""
+    try:
+        from db import load_setting, save_setting
+        safe_name = re.sub(r"[^\w가-힣\-]", "_", name)
+        confirmed_list = load_setting("sketchvibe:confirmed_list", {})
+        if safe_name not in confirmed_list:
+            return {"error": "다이어그램을 찾을 수 없습니다"}
+        del confirmed_list[safe_name]
+        save_setting("sketchvibe:confirmed_list", confirmed_list)
+        # 파일도 삭제
+        base = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+            "knowledge", "sketchvibe",
+        )
+        for ext in [".md", ".html"]:
+            f = os.path.join(base, f"{safe_name}{ext}")
+            if os.path.isfile(f):
+                os.remove(f)
+        return {"deleted": True, "name": safe_name}
+    except Exception as e:
+        logger.error("confirmed 다이어그램 삭제 실패: %s", e)
+        return {"error": str(e)}
+
+
 def _gen_html_viewer(title: str, mermaid_code: str, interpretation: str) -> str:
     """mermaid.js CDN + dark 테마 + useMaxWidth: false HTML 뷰어 생성"""
     mermaid_json = json.dumps(mermaid_code)

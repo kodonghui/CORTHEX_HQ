@@ -7283,12 +7283,17 @@
             </template>
             <!-- 확인된 다이어그램 (맞아 누른 것) -->
             <template x-for="item in flowchart.confirmedItems" :key="item.safe_name">
-              <button @click="loadConfirmedDiagram(item)"
-                      class="w-full text-left py-1.5 px-3 text-xs text-white/50 hover:text-emerald-400 hover:bg-emerald-500/5 transition rounded-r-lg truncate flex items-center gap-1.5"
-                      :title="item.interpretation || item.name">
-                <span class="text-emerald-500/60 text-[10px]">&#x2713;</span>
-                <span x-text="item.name"></span>
-              </button>
+              <div class="group flex items-center hover:bg-emerald-500/5 transition rounded-r-lg">
+                <button @click="loadConfirmedDiagram(item)"
+                        class="flex-1 text-left py-1.5 px-3 text-xs text-white/50 hover:text-emerald-400 transition truncate flex items-center gap-1.5"
+                        :title="item.interpretation || item.name">
+                  <span class="text-emerald-500/60 text-[10px]">&#x2713;</span>
+                  <span x-text="item.name"></span>
+                </button>
+                <button @click.stop="deleteConfirmedDiagram(item)"
+                        class="opacity-0 group-hover:opacity-100 px-2 py-1 text-white/20 hover:text-red-400 transition text-xs shrink-0"
+                        title="삭제">&times;</button>
+              </div>
             </template>
             <!-- 캔버스 JSON 파일 -->
             <template x-for="item in flowchart.canvasItems" :key="item.name">
