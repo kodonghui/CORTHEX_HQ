@@ -5093,14 +5093,10 @@ function corthexApp() {
     // ── NEXUS: 풀스크린 오버레이 열기 ──
     openNexus() {
       this.nexusOpen = true;
+      this.flowchart.mode = 'canvas';
       setTimeout(async () => {
-        if (this.flowchart.mode === 'split' || this.flowchart.mode === 'mermaid') {
-          if (!this.flowchart.mermaidRendered) await this.generateMermaidSystemFlow();
-        }
-        if (this.flowchart.mode === 'split' || this.flowchart.mode === 'canvas') {
-          if (!this.flowchart.canvasLoaded) await this.initNexusCanvas();
-          await this.loadCanvasList();
-        }
+        if (!this.flowchart.canvasLoaded) await this.initNexusCanvas();
+        await this.loadCanvasList();
       }, 200);
     },
 
@@ -5246,14 +5242,7 @@ function corthexApp() {
     },
     // ══════════════════════════════════════════════ AGORA 끝 ══
 
-    // ── NEXUS: 모드 전환 ──
-    async onNexusModeChange(mode) {
-      this.flowchart.mode = mode;
-      await this.$nextTick();
-      if ((mode === 'split' || mode === 'mermaid') && !this.flowchart.mermaidRendered) await this.generateMermaidSystemFlow();
-      if ((mode === 'split' || mode === 'canvas') && !this.flowchart.canvasLoaded) await this.initNexusCanvas();
-      if (mode === 'split' || mode === 'canvas') await this.loadCanvasList();
-    },
+    // ── NEXUS: 모드 전환 (split/mermaid 삭제됨 — canvas만 유지) ──
 
     // ── NEXUS Mermaid: 시스템 플로우차트 생성 ──
     async generateMermaidSystemFlow() {
@@ -5596,9 +5585,7 @@ function corthexApp() {
       try {
         await Promise.all([_loadScript(_CDN.drawflow), _loadCSS(_CDN.drawflowcss)]);
         await this.$nextTick();
-        // 모드별 캔버스 ID 선택 (split: nexus-canvas-split, canvas: nexus-canvas)
-        const canvasId = this.flowchart.mode === 'split' ? 'nexus-canvas-split' : 'nexus-canvas';
-        const el = document.getElementById(canvasId);
+        const el = document.getElementById('nexus-canvas');
         if (!el || typeof Drawflow === 'undefined') throw new Error('캔버스 초기화 실패');
         const editor = new Drawflow(el);
         editor.reroute = true;
