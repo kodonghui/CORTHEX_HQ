@@ -9,8 +9,19 @@
 
 - **날짜**: 2026-02-28
 - **버전**: `4.00.000`
-- **빌드**: #712 (API 의존 제거 + 라우팅 수정 + clips 스키마)
+- **빌드**: #714 (CLI API키 봉인 — Max 구독 강제)
 - **서버**: https://corthex-hq.com
+
+---
+
+## 2026-02-28 — CLI API키 봉인 + API 의존 제거 (빌드 #712~#714)
+
+### 빌드 #714 — 근본 원인 수정
+- 🔴 **원인**: `_call_claude_cli()`에서 `env = os.environ.copy()` → 서버의 `ANTHROPIC_API_KEY`가 CLI에 전달 → CLI가 Max 대신 API 키로 과금
+- ✅ **수정**: `env.pop("ANTHROPIC_API_KEY")` 1줄 추가 → CLI는 OAuth(Max 구독)만 사용
+- ✅ **추가 봉인**: `_anthropic_client` 초기화 자체를 차단 (CLI 모드 시 API 클라이언트 미생성)
+- ✅ **CLI 실패 폴백**: API → Google/OpenAI로 변경 (API 절대 안 씀)
+- ✅ **검증**: 6명 전원 + 3명 중간난이도 테스트 → 전부 $0.0000, API 잔액 변동 없음
 
 ---
 
