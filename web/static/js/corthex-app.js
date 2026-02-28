@@ -5780,17 +5780,25 @@ function corthexApp() {
           s.src = src; s.onload = resolve; s.onerror = reject;
           document.head.appendChild(s);
         });
-        mermaid.initialize({
-          startOnLoad: false, theme: 'dark',
-          flowchart: { useMaxWidth: false, htmlLabels: true },
-          themeVariables: {
-            primaryColor: '#1e1b4b', primaryTextColor: '#e2e8f0',
-            primaryBorderColor: '#6366f1', lineColor: '#6366f1',
-            secondaryColor: '#0f172a', tertiaryColor: '#0c1220',
-            fontFamily: 'Pretendard, sans-serif', fontSize: '12px'
-          }
-        });
       }
+      // 다크/라이트 모드에 맞게 매번 재초기화
+      const isDark = this.darkMode;
+      mermaid.initialize({
+        startOnLoad: false,
+        theme: isDark ? 'dark' : 'default',
+        flowchart: { useMaxWidth: false, htmlLabels: true },
+        themeVariables: isDark ? {
+          primaryColor: '#1e1b4b', primaryTextColor: '#e2e8f0',
+          primaryBorderColor: '#6366f1', lineColor: '#6366f1',
+          secondaryColor: '#0f172a', tertiaryColor: '#0c1220',
+          fontFamily: 'Pretendard, sans-serif', fontSize: '12px'
+        } : {
+          primaryColor: '#ede9fe', primaryTextColor: '#1e1b4b',
+          primaryBorderColor: '#6366f1', lineColor: '#6366f1',
+          secondaryColor: '#f1f5f9', tertiaryColor: '#f8fafc',
+          fontFamily: 'Pretendard, sans-serif', fontSize: '12px'
+        }
+      });
 
       // 캔버스 오버레이에 렌더링 (사이드 패널 아닌 캔버스 영역)
       const el = document.getElementById('sketchvibe-canvas-mermaid');
@@ -5905,8 +5913,14 @@ function corthexApp() {
         const r = await fetch(`/api/sketchvibe/confirmed/${item.safe_name}`, { method: 'DELETE' });
         const data = await r.json();
         if (data.error) throw new Error(data.error);
+        // 즉시 목록에서 제거 (새로고침 불필요)
+        this.flowchart.confirmedItems = this.flowchart.confirmedItems.filter(i => i.safe_name !== item.safe_name);
+        // 현재 표시 중인 다이어그램이면 오버레이도 닫기
+        if (this.flowchart.sketchResult?.mermaid) {
+          this.flowchart.sketchResult = null;
+          this.flowchart.sketchConfirmed = null;
+        }
         this.showToast(`"${item.name}" 삭제됨`, 'success');
-        await this.loadCanvasList();
       } catch(e) { this.showToast('삭제 실패: ' + e.message, 'error'); }
     },
   };
