@@ -14,6 +14,15 @@ from fastapi.responses import JSONResponse
 
 from db import get_connection, load_setting
 from config_loader import _load_data, KST
+from argos_collector import (
+    _argos_collect_prices_safe,
+    _argos_collect_news_safe,
+    _argos_collect_dart_safe,
+    _argos_collect_macro_safe,
+    _argos_collect_financial_safe,
+    _argos_collect_sector_safe,
+    _argos_collect_macro,
+)
 
 logger = logging.getLogger("corthex")
 
@@ -30,48 +39,6 @@ def _compute_calibration_factor(lookback: int = 20) -> dict:
     ms = _ms()
     fn = getattr(ms, "_compute_calibration_factor", None) if ms else None
     return fn(lookback) if fn else {"factor": 1.0}
-
-
-async def _argos_collect_prices_safe():
-    ms = _ms()
-    fn = getattr(ms, "_argos_collect_prices_safe", None) if ms else None
-    return await fn() if fn else None
-
-
-async def _argos_collect_news_safe():
-    ms = _ms()
-    fn = getattr(ms, "_argos_collect_news_safe", None) if ms else None
-    return await fn() if fn else None
-
-
-async def _argos_collect_dart_safe():
-    ms = _ms()
-    fn = getattr(ms, "_argos_collect_dart_safe", None) if ms else None
-    return await fn() if fn else None
-
-
-async def _argos_collect_macro_safe():
-    ms = _ms()
-    fn = getattr(ms, "_argos_collect_macro_safe", None) if ms else None
-    return await fn() if fn else None
-
-
-async def _argos_collect_financial_safe():
-    ms = _ms()
-    fn = getattr(ms, "_argos_collect_financial_safe", None) if ms else None
-    return await fn() if fn else None
-
-
-async def _argos_collect_sector_safe():
-    ms = _ms()
-    fn = getattr(ms, "_argos_collect_sector_safe", None) if ms else None
-    return await fn() if fn else None
-
-
-async def _argos_collect_macro():
-    ms = _ms()
-    fn = getattr(ms, "_argos_collect_macro", None) if ms else None
-    return await fn() if fn else 0
 
 
 # ═══════════════════════════════════════════════════════════════
