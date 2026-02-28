@@ -1391,9 +1391,10 @@ async def ask_ai(
 
     start = time.time()
     try:
-        # CLI 모드: Claude 호출을 CLI(Max 구독)로 라우팅
-        if use_cli and _USE_CLI_FOR_CLAUDE and provider == "anthropic":
-            logger.info("[CLI] %s → Claude CLI 모드 (caller=%s)", model, cli_caller_id)
+        # CLI 모드: 모든 Claude 호출을 CLI(Max 구독)로 자동 라우팅
+        if _USE_CLI_FOR_CLAUDE and provider == "anthropic":
+            _cli_id = cli_caller_id or "default"
+            logger.info("[CLI] %s → Claude CLI 모드 (caller=%s)", model, _cli_id)
             cli_result = await _call_claude_cli(
                 user_message, system_prompt, model,
                 tools=provider_tools, tool_executor=tool_executor,
@@ -1405,7 +1406,7 @@ async def ask_ai(
             )
             # CLI 실패 시 API 폴백
             if "error" in cli_result and cli_result.get("content", "") == "":
-                logger.warning("[CLI] 실패 → API 폴백: %s", cli_result["error"][:100])
+                logger.warning("[CLI] 실패 → API 폴백: %s", cli_result.get("error", "")[:200])
                 coro = _call_anthropic(
                     user_message, system_prompt, model,
                     tools=provider_tools, tool_executor=tool_executor,
@@ -1414,7 +1415,7 @@ async def ask_ai(
                     ai_call_timeout=AI_CALL_TIMEOUT,
                 )
             else:
-                # CLI 성공 — 결과 직접 반환 (coro 대신)
+                # CLI 성공 — 결과 직접 반환
                 elapsed = time.time() - start
                 cli_result.setdefault("model", model)
                 cli_result.setdefault("time_seconds", elapsed)
