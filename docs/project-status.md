@@ -9,7 +9,7 @@
 
 - **날짜**: 2026-02-28
 - **버전**: `4.00.000`
-- **빌드**: #662
+- **빌드**: #667
 - **서버**: https://corthex-hq.com
 
 ---
@@ -21,7 +21,7 @@ KIS 버그 수정 + pricing 도구 합병 + 고객분석 도구 합병 + src/src
 
 ---
 
-## 🔴 arm_server.py 리팩토링 — 4-3 (P6 완료, P7 대기)
+## 🔴 arm_server.py 리팩토링 — 4-3 (P7 완료, P8 대기)
 
 > **비유**: 11,637줄짜리 거대한 공장 1동에 모든 부서가 들어가 있음.
 > 15개 부서를 식별했고, 독립성 높은 것부터 분리하는 계획.
@@ -29,14 +29,15 @@ KIS 버그 수정 + pricing 도구 합병 + 고객분석 도구 합병 + src/src
 
 ### 현재 상태
 
-- **파일**: `web/arm_server.py` — **4,948줄** (P6 후), 34개 API 엔드포인트
+- **파일**: `web/arm_server.py` — **4,509줄** (P7 후), 33개 API 엔드포인트
 - **P1 완료**: `web/config_loader.py` 343줄 분리 (빌드 #656)
 - **P2 완료**: `web/handlers/debug_handler.py` 591줄 분리 (빌드 #658)
 - **P3 완료**: `web/handlers/argos_handler.py` 505줄 분리 (빌드 #659)
 - **P4 완료**: `web/argos_collector.py` 1,026줄 분리 (빌드 #660)
-- **P5 완료**: `web/batch_system.py` 1,808줄 분리 (빌드 #661)
-- **P6 완료**: `web/trading_engine.py` 2,830줄 분리 (빌드 #662)
-- **등급**: D등급 모놀리스 (God Object) → 분리 진행 중 (6,689줄 감소, 57%)
+- **P5 완료**: `web/batch_system.py` 1,808줄 분리 (빌드 #663)
+- **P6 완료**: `web/trading_engine.py` 2,830줄 분리 (빌드 #665)
+- **P7 완료**: `web/scheduler.py` 508줄 분리 (빌드 #667)
+- **등급**: D등급 모놀리스 (God Object) → 분리 진행 중 (7,128줄 감소, 61%)
 - **목표**: **300~400줄** (thin FastAPI main) + 14개 모듈
 
 ### 15개 논리 모듈 식별
@@ -91,7 +92,7 @@ KIS 버그 수정 + pricing 도구 합병 + 고객분석 도구 합병 + src/src
 | **P4** | ✅ ARGOS 수집 (16함수+컨텍스트빌더) | `web/argos_collector.py` (1,026줄) | 963줄 감소 | 🟢 완료 |
 | **P5** | ✅ 배치 시스템+체인 (10개 API + 4단계 체인) | `web/batch_system.py` (1,808줄) | 1,760줄 감소 | 🟢 완료 |
 | **P6** | ✅ 트레이딩/CIO (6개 API + 정량분석 + 자동매매) | `web/trading_engine.py` (2,830줄) | 2,728줄 감소 | 🟢 완료 |
-| **P7** | 스케줄링/크론 | `web/scheduler.py` | ~1,800 | 🔴 |
+| **P7** | ✅ 스케줄링/크론 (1 API + 크론엔진 + Soul Gym루프) | `web/scheduler.py` (508줄) | 439줄 감소 | 🟢 완료 |
 | **P8** | **에이전트 라우팅** | `web/agent_router.py` | ~1,900 | 🔴🔴 |
 
 ### 아키텍처 패턴
@@ -129,7 +130,20 @@ web/
 
 ---
 
-## 2026-02-28 — arm_server.py 리팩토링 P6 (빌드 #662)
+## 2026-02-28 — arm_server.py 리팩토링 P7 (빌드 #667)
+
+- ✅ `web/scheduler.py` 신규 (508줄) — 크론 엔진 + 워크플로우 실행 + Soul Gym 루프
+  - 크론 표현식 파서/매처 (5필드 리눅스 표준)
+  - 1분 주기 크론 루프 (ARGOS 수집, 환율 갱신, 가격 트리거, 사용자 예약)
+  - 기본 스케줄 자동 등록 (CIO 일일/주간)
+  - 워크플로우 순차 실행 + WebSocket 진행 알림 (1 API)
+  - Soul Gym 24/7 상시 진화 루프
+  - `start_background_tasks()`: on_startup 스케줄링 부분 통합 (11개 백그라운드 태스크)
+- ✅ arm_server.py 4,948→4,509줄 (439줄 감소)
+- ✅ 서버 배포 + 헬스체크 + 11개 백그라운드 태스크 전부 시작 확인
+- 📌 **다음: P8** — 에이전트 라우팅 추출 (가장 어려움, 오퍼스 추천)
+
+## 2026-02-28 — arm_server.py 리팩토링 P6 (빌드 #665)
 
 - ✅ `web/trading_engine.py` 신규 (2,830줄) — CIO 신뢰도 학습 + 자동매매 + 정량분석
   - 6개 API 엔드포인트 trading_router로 이관
