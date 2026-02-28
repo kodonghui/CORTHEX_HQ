@@ -9,10 +9,19 @@
 
 - **날짜**: 2026-02-28
 - **버전**: `4.00.000`
-- **빌드**: 배포 대기 (SketchVibe Phase 2)
+- **빌드**: 배포 대기 (SketchVibe Phase 3)
 - **서버**: https://corthex-hq.com
 
 ---
+
+## 2026-02-28 — SketchVibe Phase 3 (아키텍처 재설계 — 서버변환 제거 + MCP 양방향)
+
+- ✅ 서버 변환 제거 — `/convert` 엔드포인트 삭제 (Claude API 직접호출 → Claude Code MCP로 이관)
+- ✅ SSE 엔드포인트 5개 추가 — save-canvas, push-event, request-approval, approve, stream
+- ✅ MCP 도구 2개 추가 — `update_canvas()`, `request_approval()` (기존 3도구 보존)
+- ✅ 프론트엔드 전면 재설계 — "변환하기" → "저장하기", SSE 구독, 실시간 Mermaid 렌더링
+- ✅ 팔레트 버그 수정 — 동일 ID 두 개 존재 시 보이는 요소 선택 + 노드 랜덤 위치
+- ✅ API 비용 표시 제거 ($0.0079 등)
 
 ## 2026-02-28 — SketchVibe Phase 2 (정확도 + MCP + 구현 브리지)
 
