@@ -650,9 +650,6 @@ async def _call_claude_cli(
     if system_prompt:
         cmd.extend(["--system-prompt", system_prompt])
 
-    # 내장 도구 비활성화 (MCP 도구만 사용)
-    cmd.extend(["--tools", ""])
-
     # MCP 설정 — 도구가 있으면 MCP 서버 연결
     config_file_path = None
     if tools and cli_allowed_tools:
@@ -677,9 +674,7 @@ async def _call_claude_cli(
         cmd.extend(["--mcp-config", config_file_path])
         cmd.append("--dangerously-skip-permissions")
 
-    # 사용자 메시지 (마지막 인자)
-    cmd.append(full_message)
-
+    # 사용자 메시지는 stdin으로 전달 (--tools 등 variadic 옵션과 충돌 방지)
     # 환경 변수 — CLAUDECODE 제거 (중첩 세션 방지)
     env = os.environ.copy()
     env.pop("CLAUDECODE", None)
@@ -688,12 +683,13 @@ async def _call_claude_cli(
     try:
         proc = await asyncio.create_subprocess_exec(
             *cmd,
+            stdin=asyncio.subprocess.PIPE,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
             env=env,
         )
         stdout, stderr = await asyncio.wait_for(
-            proc.communicate(), timeout=ai_call_timeout
+            proc.communicate(input=full_message.encode("utf-8")), timeout=ai_call_timeout
         )
 
         elapsed = time.time() - start
