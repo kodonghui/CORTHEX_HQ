@@ -275,6 +275,14 @@ async def sse_stream():
     async def event_generator():
         try:
             yield f"event: connected\ndata: {json.dumps({'status': 'ok'})}\n\n"
+            # 최근 Mermaid가 있으면 즉시 전송 (새 브라우저 복원용)
+            try:
+                from db import load_setting
+                latest = load_setting("sketchvibe:latest_mermaid", None)
+                if latest and latest.get("mermaid"):
+                    yield f"event: sketchvibe\ndata: {json.dumps(latest, ensure_ascii=False)}\n\n"
+            except Exception:
+                pass
             while True:
                 try:
                     msg = await asyncio.wait_for(queue.get(), timeout=30)
@@ -382,8 +390,24 @@ async def save_diagram(req: SaveDiagramRequest):
         "saved": True,
         "confirmed": True,
         "md_path": f"knowledge/sketchvibe/{safe_name}.md",
-        "html_path": f"knowledge/sketchvibe/{safe_name}.html",
+        "html_path": f"api/sketchvibe/viewer/{safe_name}",
     }
+
+
+@router.get("/viewer/{name}")
+async def viewer(name: str):
+    """확인된 다이어그램의 HTML 뷰어 반환 (브라우저에서 직접 열기)"""
+    from fastapi.responses import HTMLResponse
+    safe_name = re.sub(r"[^\w가-힣\-]", "_", name)
+    base = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+        "knowledge", "sketchvibe",
+    )
+    html_file = os.path.join(base, f"{safe_name}.html")
+    if not os.path.isfile(html_file):
+        return HTMLResponse("<h1>다이어그램을 찾을 수 없습니다</h1>", status_code=404)
+    with open(html_file, "r", encoding="utf-8") as f:
+        return HTMLResponse(f.read())
 
 
 @router.get("/confirmed")
