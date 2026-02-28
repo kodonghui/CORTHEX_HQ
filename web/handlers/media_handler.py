@@ -2,14 +2,21 @@
 
 비유: 사진관 — 에이전트가 만든 이미지/영상을 보여주고 정리하는 곳.
 """
+import io
+import logging
 import os
+from pathlib import Path
 
 from fastapi import APIRouter, Request
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, Response
 
 router = APIRouter(prefix="/api/media", tags=["media"])
+logger = logging.getLogger("corthex.media")
 
-_MEDIA_BASE = os.path.join(os.getcwd(), "output")
+# 프로젝트 루트의 output/ 디렉토리 (os.getcwd() 의존 제거 — 서버 cwd와 무관)
+_MEDIA_BASE = str(Path(__file__).resolve().parent.parent.parent / "output")
+_THUMB_DIR = os.path.join(_MEDIA_BASE, "thumbs")
+_THUMB_SIZE = (300, 300)
 
 
 @router.get("/images/{filename}")
@@ -32,16 +39,53 @@ async def serve_video(filename: str):
     return FileResponse(filepath, media_type="video/mp4")
 
 
+@router.get("/thumbs/{filename}")
+async def serve_thumbnail(filename: str):
+    """이미지 썸네일 서빙 (300x300, 자동 생성)."""
+    safe_name = os.path.basename(filename)
+    thumb_path = os.path.join(_THUMB_DIR, safe_name)
+
+    # 캐시된 썸네일 있으면 바로 서빙
+    if os.path.isfile(thumb_path):
+        return FileResponse(thumb_path, media_type="image/jpeg")
+
+    # 원본에서 썸네일 생성
+    original = os.path.join(_MEDIA_BASE, "images", safe_name)
+    if not os.path.isfile(original):
+        return JSONResponse({"error": "원본 파일 없음"}, status_code=404)
+
+    try:
+        from PIL import Image
+        os.makedirs(_THUMB_DIR, exist_ok=True)
+        img = Image.open(original)
+        img.thumbnail(_THUMB_SIZE, Image.LANCZOS)
+        # JPEG로 저장 (PNG 대비 ~90% 용량 감소)
+        thumb_jpeg = thumb_path.rsplit(".", 1)[0] + ".jpg"
+        img = img.convert("RGB")
+        img.save(thumb_jpeg, "JPEG", quality=75)
+        return FileResponse(thumb_jpeg, media_type="image/jpeg")
+    except Exception as e:
+        logger.warning("[Media] 썸네일 생성 실패 %s: %s", safe_name, e)
+        # 실패 시 원본 서빙
+        return FileResponse(original, media_type="image/png")
+
+
 @router.get("/list")
 async def list_media():
-    """생성된 미디어 파일 목록."""
+    """생성된 미디어 파일 목록 (썸네일 URL 포함)."""
     images_dir = os.path.join(_MEDIA_BASE, "images")
     videos_dir = os.path.join(_MEDIA_BASE, "videos")
     images = sorted(os.listdir(images_dir), reverse=True) if os.path.isdir(images_dir) else []
     videos = sorted(os.listdir(videos_dir), reverse=True) if os.path.isdir(videos_dir) else []
     return {
-        "images": [{"filename": f, "url": f"/api/media/images/{f}"} for f in images if f.endswith(".png")],
-        "videos": [{"filename": f, "url": f"/api/media/videos/{f}"} for f in videos if f.endswith(".mp4")],
+        "images": [
+            {"filename": f, "url": f"/api/media/images/{f}", "thumb": f"/api/media/thumbs/{f}"}
+            for f in images if f.endswith(".png")
+        ],
+        "videos": [
+            {"filename": f, "url": f"/api/media/videos/{f}"}
+            for f in videos if f.endswith(".mp4")
+        ],
     }
 
 

@@ -1,7 +1,7 @@
 """
-Gemini 나노바나나 Pro — 실제 이미지 생성 도구.
+Gemini 나노바나나 v2 — 실제 이미지 생성 도구.
 
-gemini-3-pro-image-preview 모델(Nano Banana Pro)로 마케팅 이미지를 직접 생성합니다.
+gemini-3.1-flash-image-preview 모델(Nano Banana v2)로 마케팅 이미지를 직접 생성합니다.
 기존 교수급 디자인 지식(플랫폼 사양, 스타일 가이드, 색상 심리학)을
 프롬프트 엔지니어링에 자동 반영하여 전문가급 이미지를 생성합니다.
 
@@ -10,7 +10,7 @@ gemini-3-pro-image-preview 모델(Nano Banana Pro)로 마케팅 이미지를 직
   - Google Ads Image Requirements (2024), Labrecque & Milne (2012) — Color Psychology
   - Lidwell et al. (2010) — Visual Hierarchy / Universal Principles of Design
 
-action: generate | banner | card_news | infographic | thumbnail | logo
+action: generate | banner | card_news | card_news_series | infographic | thumbnail | logo
         ad_creative | social_post | product_mockup | full
 """
 from __future__ import annotations
@@ -24,7 +24,8 @@ from src.tools.base import BaseTool
 
 logger = logging.getLogger("corthex.tools.gemini_image_generator")
 
-OUTPUT_DIR = os.path.join(os.getcwd(), "output", "images")
+# 프로젝트 루트의 output/images/ (os.getcwd() 의존 제거)
+OUTPUT_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "output", "images")
 
 # Gemini API 지원 aspect_ratio 값
 _VALID_ASPECTS = ("1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9", "21:9")
@@ -124,9 +125,9 @@ _COLOR_PSYCHOLOGY: dict[str, str] = {
 
 
 class GeminiImageGeneratorTool(BaseTool):
-    """나노바나나 Pro (gemini-3-pro-image-preview) 실제 이미지 생성 도구."""
+    """나노바나나 v2 (gemini-3.1-flash-image-preview) 실제 이미지 생성 도구."""
 
-    _IMAGE_MODEL = "gemini-3-pro-image-preview"
+    _IMAGE_MODEL = "gemini-3.1-flash-image-preview"
 
     async def execute(self, **kwargs: Any) -> str:
         action = kwargs.get("action", "generate")
@@ -136,12 +137,14 @@ class GeminiImageGeneratorTool(BaseTool):
         }
         if action == "generate":
             return await self._generate(kwargs)
+        elif action == "card_news_series":
+            return await self._generate_card_news_series(kwargs)
         elif action in typed_actions:
             return await self._generate_typed(action, kwargs)
         elif action == "full":
             return await self._generate_full_set(kwargs)
         else:
-            all_actions = ["generate"] + sorted(typed_actions) + ["full"]
+            all_actions = ["generate"] + sorted(typed_actions) + ["card_news_series", "full"]
             return (
                 f"## 알 수 없는 action: `{action}`\n\n"
                 "사용 가능한 action:\n"
@@ -250,7 +253,7 @@ class GeminiImageGeneratorTool(BaseTool):
     # ─── 핵심: 실제 이미지 생성 ───────────────────────
 
     async def _generate(self, kwargs: dict) -> str:
-        """Gemini 나노바나나 Pro API로 실제 이미지 생성."""
+        """Gemini 나노바나나 v2 API로 실제 이미지 생성."""
         genai = _get_genai()
         if genai is None:
             return "google-genai 라이브러리가 설치되지 않았습니다. pip install google-genai"
@@ -305,7 +308,7 @@ class GeminiImageGeneratorTool(BaseTool):
             text_resp = "\n".join(text_parts) if text_parts else ""
 
             result = (
-                f"## 이미지 생성 완료 (나노바나나 Pro)\n\n"
+                f"## 이미지 생성 완료 (나노바나나 v2)\n\n"
                 f"| 항목 | 값 |\n|------|----|\n"
                 f"| 모델 | `{self._IMAGE_MODEL}` |\n"
                 f"| 비율 | {aspect_ratio} |\n"
@@ -329,6 +332,141 @@ class GeminiImageGeneratorTool(BaseTool):
 
         enriched = {**kwargs, "prompt": prompt, "aspect_ratio": aspect_ratio}
         return await self._generate(enriched)
+
+    # ─── 카드뉴스 시리즈 생성 ─────────────────────────
+
+    async def _generate_card_news_series(self, kwargs: dict) -> str:
+        """카드뉴스 시리즈 (5~10장) 한 번에 생성."""
+        p = self._parse_params(kwargs)
+        topic = p["topic"]
+        slide_count = min(max(int(kwargs.get("slide_count", 5)), 2), 10)
+        aspect_ratio = self._resolve_aspect_ratio("card_news", kwargs)
+
+        # 슬라이드별 텍스트: slides_text가 있으면 줄 단위 분리
+        slides_text_raw = kwargs.get("slides_text", "")
+        if slides_text_raw:
+            slide_texts = [t.strip() for t in slides_text_raw.split("\n") if t.strip()]
+        else:
+            slide_texts = []
+
+        # 텍스트 수가 부족하면 자동 패딩
+        while len(slide_texts) < slide_count:
+            slide_texts.append("")
+
+        saved_urls: list[str] = []
+        slide_rows: list[str] = []
+
+        for i in range(slide_count):
+            # 슬라이드 타입 결정
+            if i == 0:
+                slide_type = "cover"
+            elif i == slide_count - 1:
+                slide_type = "closing"
+            else:
+                slide_type = "content"
+
+            slide_prompt = self._build_card_news_slide_prompt(
+                topic=topic,
+                slide_type=slide_type,
+                slide_num=i + 1,
+                total_slides=slide_count,
+                slide_text=slide_texts[i],
+                params=p,
+            )
+
+            result = await self._generate(
+                {"prompt": slide_prompt, "aspect_ratio": aspect_ratio}
+            )
+
+            # 결과에서 이미지 URL 추출
+            url = ""
+            if "/api/media/images/" in result:
+                for line in result.split("\n"):
+                    if "/api/media/images/" in line:
+                        start = line.find("/api/media/images/")
+                        end = line.find("`", start)
+                        if end == -1:
+                            end = len(line)
+                        url = line[start:end].strip().rstrip(")")
+                        break
+
+            label = slide_texts[i][:30] if slide_texts[i] else f"({slide_type})"
+            if url:
+                saved_urls.append(url)
+                slide_rows.append(f"| {i + 1} | {slide_type} | {label} | `{url}` |")
+            else:
+                slide_rows.append(f"| {i + 1} | {slide_type} | {label} | ⚠️ 생성 실패 |")
+                logger.warning("카드뉴스 슬라이드 %d/%d 생성 실패", i + 1, slide_count)
+
+        # 결과 마크다운 조립
+        urls_json = ", ".join(f'"{u}"' for u in saved_urls)
+        table = "\n".join(slide_rows)
+
+        return (
+            f"## 카드뉴스 시리즈 생성 완료\n\n"
+            f"| 항목 | 값 |\n|------|----|\n"
+            f"| 주제 | {topic} |\n"
+            f"| 스타일 | {p['style']} |\n"
+            f"| 비율 | {aspect_ratio} |\n"
+            f"| 생성 | {len(saved_urls)}/{slide_count}장 |\n\n"
+            f"### 슬라이드 목록\n"
+            f"| # | 타입 | 텍스트 | 이미지 |\n"
+            f"|---|------|--------|--------|\n"
+            f"{table}\n\n"
+            f"### SNS 발행용 media_urls\n"
+            f"```\n[{urls_json}]\n```\n\n"
+            f"위 media_urls를 sns_manager(action=submit)의 media_urls 파라미터에 "
+            f"그대로 사용하면 Instagram 캐러셀로 발행됩니다."
+        )
+
+    def _build_card_news_slide_prompt(
+        self,
+        *,
+        topic: str,
+        slide_type: str,
+        slide_num: int,
+        total_slides: int,
+        slide_text: str,
+        params: dict,
+    ) -> str:
+        """카드뉴스 시리즈 슬라이드 1장의 프롬프트 구축."""
+        # 슬라이드 타입별 지시
+        type_instructions = {
+            "cover": (
+                f"Bold eye-catching COVER slide for a card-news series. "
+                f"Large title text, visually striking. Topic: {topic}."
+            ),
+            "content": (
+                f"Content slide for a card-news series about '{topic}'. "
+                f"Clean layout with one key point per slide, easy to read."
+            ),
+            "closing": (
+                f"CLOSING slide for a card-news series about '{topic}'. "
+                f"Summary or call-to-action. Memorable ending."
+            ),
+        }
+        base = type_instructions.get(slide_type, type_instructions["content"])
+
+        # 시리즈 일관성 지시
+        consistency = (
+            f"Slide {slide_num} of {total_slides} in a cohesive card-news series. "
+            f"IMPORTANT: Maintain consistent visual identity — same color palette, "
+            f"typography style, layout structure, and design language across ALL slides."
+        )
+
+        # 스타일/색상/플랫폼 (기존 _build_prompt 로직 재사용)
+        sg = _STYLE_GUIDES.get(params["style"], _STYLE_GUIDES["minimal"])
+        style_part = f"Design style: {sg['prompt_hint']}. Avoid: {sg['avoid']}."
+
+        plat = _PLATFORM_SPECS.get(params["platform"], {})
+        plat_part = f"Platform: {plat['hint']}." if plat.get("hint") else ""
+
+        color_spec = f"Use brand colors: {params['colors']}." if params["colors"] else ""
+
+        text_part = f'Include text overlay: "{slide_text}".' if slide_text else ""
+
+        parts = [base, consistency, style_part, plat_part, color_spec, text_part]
+        return " ".join(part for part in parts if part).strip()
 
     # ─── 종합 세트 생성 ──────────────────────────────
 

@@ -57,7 +57,7 @@ tools:
   category: api
   name: SNS Manager
   name_ko: SNS 매니저
-  description: 4개 플랫폼(티스토리/유튜브/네이버블로그/다음카페(서로연)) 통합 퍼블리싱. CEO 승인 큐 포함. ❌인스타(잠금)/네이버카페(없음)
+  description: SNS 통합 퍼블리싱(인스타그램/티스토리/다음카페). CEO 승인 큐 포함. submit 시 media_urls로 이미지/동영상 URL 전달 필수.
   parameters:
     type: object
     properties:
@@ -73,7 +73,7 @@ tools:
         description: submit=발행 요청(큐 등록), approve=CEO 승인, reject=CEO 거절, publish=실제 발행(CMO만), queue=큐 조회, status=연결 상태
       platform:
         type: string
-        description: '발행 플랫폼 (tistory, youtube, naver_blog, daum_cafe). ❌instagram/naver_cafe 사용 불가'
+        description: '발행 플랫폼 (instagram, tistory, youtube, naver_blog, daum_cafe)'
       title:
         type: string
         description: 콘텐츠 제목
@@ -91,6 +91,20 @@ tools:
       reason:
         type: string
         description: reject 시 거절 사유
+      media_urls:
+        type: array
+        items:
+          type: string
+        description: '이미지/동영상 URL 목록. submit 시 반드시 포함 (예: ["/api/media/images/xxx.png"])'
+      category:
+        type: string
+        description: '카테고리명 (블로그 플랫폼용)'
+      visibility:
+        type: string
+        description: '공개 범위 (public/private, 기본 public)'
+      extra:
+        type: object
+        description: '플랫폼별 추가 옵션 (예: instagram REELS → {"media_type": "REELS"}, daum_cafe → {"cafe_id": "...", "board_id": "..."})'
     required:
     - action
 
@@ -1281,56 +1295,6 @@ tools:
     required:
     - action
     - content
-- tool_id: pricing_sensitivity
-  category: llm
-  name: Pricing Sensitivity
-  name_ko: 가격 민감도 분석
-  description: 교수급 가격 민감도 분석 — Van Westendorp PSM(4개 교차점), Gabor-Granger 수용도, 가격 탄력성, 수익 최적화, 가격 티어 설계
-  parameters:
-    type: object
-    properties:
-      action:
-        type: string
-        enum:
-        - full
-        - psm
-        - gabor_granger
-        - elasticity
-        - optimize
-        - tier
-        description: full=종합, psm=Van Westendorp, gabor_granger=수용도, elasticity=탄력성, optimize=수익최적화, tier=가격티어
-      too_cheap:
-        type: string
-        description: '너무 싸다 응답 가격들 쉼표 구분 (PSM용)'
-      cheap:
-        type: string
-        description: '싸다 응답 가격들 쉼표 구분 (PSM용)'
-      expensive:
-        type: string
-        description: '비싸다 응답 가격들 쉼표 구분 (PSM용)'
-      too_expensive:
-        type: string
-        description: '너무 비싸다 응답 가격들 쉼표 구분 (PSM용)'
-      current_price:
-        type: integer
-        description: 현재 가격 (탄력성용)
-      current_quantity:
-        type: integer
-        description: 현재 판매량 (탄력성용)
-      new_price:
-        type: integer
-        description: 변경 후 가격 (탄력성용)
-      new_quantity:
-        type: integer
-        description: 변경 후 판매량 (탄력성용)
-      base_price:
-        type: integer
-        description: 기준 가격 (최적화/티어용, 기본 30000)
-      product_name:
-        type: string
-        description: 제품/서비스명 (티어 설계용)
-    required:
-    - action
 - tool_id: churn_risk_scorer
   category: llm
   name: Churn Risk Scorer
@@ -3249,15 +3213,15 @@ tools:
   name: Pricing Optimizer
   name_ko: 가격 최적화 도구
   description: >
-    Van Westendorp PSM + Conjoint Analysis + 가격탄력성 기반 최적 가격 도출.
-    심리적 가격, 번들링, 프리미엄/프리미엄 전략, 경쟁 기반 가격.
+    Van Westendorp PSM + Gabor-Granger 수용도 + 가격탄력성 + 수익최적화 +
+    경쟁사 포지셔닝 + 마진 시뮬레이션 + 번들/티어 설계.
   parameters:
     type: object
     properties:
       action:
         type: string
-        enum: [optimize, psm, elasticity, bundle, competitive, full]
-        description: "optimize=종합최적화, psm=PSM분석, elasticity=가격탄력성, bundle=번들링, competitive=경쟁가격, full=전체리포트"
+        enum: [full, psm, gabor_granger, elasticity, optimize, competitor, margin, bundle]
+        description: "full=종합, psm=PSM분석, gabor_granger=가격수용도, elasticity=탄력성, optimize=수익최적화, competitor=경쟁사, margin=마진시뮬, bundle=티어설계"
       product:
         type: string
         description: "제품/서비스 설명"
@@ -3266,27 +3230,6 @@ tools:
         description: "시장/경쟁 가격 데이터"
     required: [action]
 
-- tool_id: customer_cohort_analyzer
-  category: local
-  name: Customer Cohort Analyzer
-  name_ko: 고객 코호트 분석 도구
-  description: >
-    코호트 기반 고객 행동 분석 — 리텐션 커브, 이탈 예측, LTV 세그먼트.
-    RFM 연동, 액션별 코호트, 시계열 트렌드.
-  parameters:
-    type: object
-    properties:
-      action:
-        type: string
-        enum: [analyze, retention, churn, ltv, segment, full]
-        description: "analyze=종합분석, retention=리텐션, churn=이탈예측, ltv=LTV분석, segment=세그먼트, full=전체리포트"
-      data:
-        type: string
-        description: "고객 데이터 설명"
-      period:
-        type: string
-        description: "분석 기간"
-    required: [action]
 
 - tool_id: swot_quantifier
   category: local
@@ -3310,23 +3253,23 @@ tools:
         description: "시장/경쟁 맥락"
     required: [action]
 
-# ─── 나노바나나 Pro 이미지 생성 (gemini-3-pro-image-preview) ───
+# ─── 나노바나나 v2 이미지 생성 (gemini-3.1-flash-image-preview) ───
 
 - tool_id: gemini_image_generator
   category: api
-  name: Nano Banana Pro Image Generator
-  name_ko: 나노바나나 Pro 이미지 생성
+  name: Nano Banana v2 Image Generator
+  name_ko: 나노바나나 v2 이미지 생성
   description: >
-    나노바나나 Pro(gemini-3-pro-image-preview)로 실제 마케팅 이미지 직접 생성.
-    배너, 카드뉴스, 인포그래픽, 썸네일, 로고, 광고, 소셜포스트, 제품목업.
+    나노바나나 v2(gemini-3.1-flash-image-preview)로 실제 마케팅 이미지 직접 생성.
+    배너, 카드뉴스, 카드뉴스 시리즈(5~10장 자동 생성), 인포그래픽, 썸네일, 로고, 광고, 소셜포스트, 제품목업.
     교수급 디자인 지식(플랫폼 사양, 스타일 가이드, 색상 심리학)이 프롬프트에 자동 반영됩니다.
   parameters:
     type: object
     properties:
       action:
         type: string
-        enum: [generate, banner, card_news, infographic, thumbnail, logo, ad_creative, social_post, product_mockup, full]
-        description: "generate=프롬프트직접, banner=배너, card_news=카드뉴스, infographic=인포그래픽, thumbnail=썸네일, logo=로고, ad_creative=광고, social_post=소셜포스트, product_mockup=제품목업, full=종합세트"
+        enum: [generate, banner, card_news, card_news_series, infographic, thumbnail, logo, ad_creative, social_post, product_mockup, full]
+        description: "generate=프롬프트직접, banner=배너, card_news=카드뉴스1장, card_news_series=카드뉴스시리즈(5~10장), infographic=인포그래픽, thumbnail=썸네일, logo=로고, ad_creative=광고, social_post=소셜포스트, product_mockup=제품목업, full=종합세트"
       prompt:
         type: string
         description: "이미지 생성 프롬프트 (action=generate일 때 필수)"
@@ -3348,6 +3291,12 @@ tools:
       context:
         type: string
         description: "추가 맥락/요구사항"
+      slide_count:
+        type: integer
+        description: "카드뉴스 시리즈 슬라이드 수 (기본 5, 최대 10). card_news_series 전용"
+      slides_text:
+        type: string
+        description: "카드뉴스 슬라이드별 텍스트 (줄바꿈으로 구분). card_news_series 전용. 예: '표지 제목\\n포인트 1\\n포인트 2\\n마무리'"
     required: [action]
 
 # ─── Veo 3.1 영상 생성 ───

@@ -11,7 +11,8 @@ from src.tools.base import BaseTool
 
 logger = logging.getLogger("corthex.tools.image_generator")
 
-OUTPUT_DIR = os.path.join(os.getcwd(), "output", "images")
+# 프로젝트 루트의 output/images/ (os.getcwd() 의존 제거)
+OUTPUT_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "output", "images")
 
 
 def _get_openai():

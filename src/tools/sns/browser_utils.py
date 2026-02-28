@@ -15,10 +15,17 @@ import time
 from pathlib import Path
 from typing import Any
 
+import shutil
+
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
-from webdriver_manager.chrome import ChromeDriverManager
+
+try:
+    from webdriver_manager.chrome import ChromeDriverManager
+    _WDM_AVAILABLE = True
+except ImportError:
+    _WDM_AVAILABLE = False
 
 logger = logging.getLogger("corthex.sns.browser")
 
@@ -62,8 +69,17 @@ class SNSBrowserManager:
         options.add_experimental_option("excludeSwitches", ["enable-automation"])
         options.add_experimental_option("useAutomationExtension", False)
 
+        # 시스템 chromedriver 우선 사용 (ARM 서버 호환)
+        system_chromedriver = shutil.which("chromedriver")
+        if system_chromedriver:
+            service = Service(system_chromedriver)
+        elif _WDM_AVAILABLE:
+            service = Service(ChromeDriverManager().install())
+        else:
+            service = Service()  # PATH에서 자동 탐색
+
         self._driver = webdriver.Chrome(
-            service=Service(ChromeDriverManager().install()),
+            service=service,
             options=options,
         )
 

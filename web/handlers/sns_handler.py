@@ -1,14 +1,17 @@
-"""SNS 관련 API — 플랫폼 연결, OAuth, 게시 대기열, 발행.
+"""SNS 관련 API — 플랫폼 연결, OAuth, 게시 대기열, 발행, 쿠키 관리.
 
 비유: 홍보실 — SNS 플랫폼 연동, 콘텐츠 승인/발행을 담당하는 곳.
 """
 import asyncio
 import logging
 import os
+import pickle
 import time
+from datetime import datetime, timezone, timedelta
+from pathlib import Path
 
 from fastapi import APIRouter, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 
 from db import save_setting, load_setting, create_task, update_task
 
@@ -251,7 +254,7 @@ async def delete_sns_item(item_id: str):
 
 @router.post("/api/sns/approve/{item_id}")
 async def approve_sns(item_id: str):
-    """CEO가 SNS 발행 요청을 승인."""
+    """CEO가 SNS 발행 요청을 승인 → 자동 발행까지 진행."""
     queue = load_setting("sns_publish_queue", []) or []
     for item in queue:
         if item.get("request_id") == item_id:
@@ -260,8 +263,99 @@ async def approve_sns(item_id: str):
             item["status"] = "approved"
             item["approved_at"] = time.time()
             save_setting("sns_publish_queue", queue)
-            return {"success": True, "status": "approved", "request_id": item_id}
+            # 자동 발행 (백그라운드 — Selenium 느리므로 즉시 응답)
+            asyncio.create_task(_auto_publish_after_approve(item_id))
+            return {
+                "success": True,
+                "status": "approved",
+                "request_id": item_id,
+                "auto_publish": True,
+                "message": "승인 완료. 자동 발행 진행중...",
+            }
     return {"success": False, "error": f"요청 ID를 찾을 수 없음: {item_id}"}
+
+
+async def _auto_publish_after_approve(item_id: str):
+    """승인 직후 자동 발행 (백그라운드 태스크).
+
+    publish_sns()와 동일한 로직이지만, 실패해도 approved 상태 유지.
+    """
+    try:
+        queue = load_setting("sns_publish_queue", []) or []
+        target = None
+        for item in queue:
+            if item.get("request_id") == item_id:
+                target = item
+                break
+        if not target or target.get("status") != "approved":
+            logger.warning("[SNS] 자동 발행 스킵: %s (상태: %s)", item_id, target.get("status") if target else "없음")
+            return
+
+        from src.tools.sns.base_publisher import PostContent
+        from src.tools.sns.oauth_manager import OAuthManager
+        oauth = OAuthManager()
+        platform = target.get("platform", "")
+        content_data = target.get("content", {})
+
+        publisher = _get_publisher(platform, oauth)
+        if not publisher:
+            target["status"] = "failed"
+            target["result"] = {"success": False, "message": f"퍼블리셔 없음: {platform}"}
+            save_setting("sns_publish_queue", queue)
+            logger.error("[SNS] 자동 발행 실패 — 퍼블리셔 없음: %s", platform)
+            return
+
+        content = PostContent(**content_data)
+        result = await publisher.publish(content)
+        target["status"] = "published" if result.success else "failed"
+        target["published_at"] = time.time()
+        target["result"] = {
+            "success": result.success,
+            "post_id": result.post_id,
+            "post_url": result.post_url,
+            "message": result.message,
+        }
+        save_setting("sns_publish_queue", queue)
+        logger.info("[SNS] 자동 발행 %s: %s → %s", "성공" if result.success else "실패", item_id, platform)
+
+    except Exception as e:
+        logger.error("[SNS] 자동 발행 오류: %s — %s", item_id, e, exc_info=True)
+        try:
+            queue = load_setting("sns_publish_queue", []) or []
+            for item in queue:
+                if item.get("request_id") == item_id:
+                    item["status"] = "failed"
+                    item["result"] = {"success": False, "message": str(e)}
+                    save_setting("sns_publish_queue", queue)
+                    break
+        except Exception:
+            pass
+
+
+def _get_publisher(platform: str, oauth):
+    """플랫폼별 퍼블리셔 인스턴스 반환."""
+    try:
+        if platform == "tistory":
+            from src.tools.sns.tistory_publisher import TistoryPublisher
+            return TistoryPublisher(oauth)
+        elif platform == "instagram":
+            from src.tools.sns.instagram_publisher import InstagramPublisher
+            return InstagramPublisher(oauth)
+        elif platform == "daum_cafe":
+            from src.tools.sns.daum_cafe_publisher import DaumCafePublisher
+            return DaumCafePublisher(oauth)
+        elif platform == "youtube":
+            from src.tools.sns.youtube_publisher import YouTubePublisher
+            return YouTubePublisher(oauth)
+        elif platform == "naver_blog":
+            from src.tools.sns.naver_blog_publisher import NaverBlogPublisher
+            return NaverBlogPublisher(oauth)
+        elif platform == "naver_cafe":
+            from src.tools.sns.naver_cafe_publisher import NaverCafePublisher
+            return NaverCafePublisher(oauth)
+    except ImportError as e:
+        logger.error("[SNS] 퍼블리셔 import 실패: %s — %s", platform, e)
+    return None
 
 
 @router.post("/api/sns/reject/{item_id}")
@@ -385,31 +479,12 @@ async def publish_sns(item_id: str):
         return {"success": False, "error": f"승인되지 않은 요청: {target.get('status')}"}
     # SNSManager를 통한 실제 발행
     try:
-        from src.tools.sns.sns_manager import SNSManager, _db_load
         from src.tools.sns.base_publisher import PostContent
         from src.tools.sns.oauth_manager import OAuthManager
         oauth = OAuthManager()
         platform = target.get("platform", "")
         content_data = target.get("content", {})
-        publisher = None
-        if platform == "tistory":
-            from src.tools.sns.tistory_publisher import TistoryPublisher
-            publisher = TistoryPublisher(oauth)
-        elif platform == "youtube":
-            from src.tools.sns.youtube_publisher import YouTubePublisher
-            publisher = YouTubePublisher(oauth)
-        elif platform == "instagram":
-            from src.tools.sns.instagram_publisher import InstagramPublisher
-            publisher = InstagramPublisher(oauth)
-        elif platform == "naver_blog":
-            from src.tools.sns.naver_blog_publisher import NaverBlogPublisher
-            publisher = NaverBlogPublisher(oauth)
-        elif platform == "naver_cafe":
-            from src.tools.sns.naver_cafe_publisher import NaverCafePublisher
-            publisher = NaverCafePublisher(oauth)
-        elif platform == "daum_cafe":
-            from src.tools.sns.daum_cafe_publisher import DaumCafePublisher
-            publisher = DaumCafePublisher(oauth)
+        publisher = _get_publisher(platform, oauth)
         if not publisher:
             return {"success": False, "error": f"퍼블리셔 없음: {platform}"}
         content = PostContent(**content_data)
@@ -438,3 +513,115 @@ async def get_sns_events(limit: int = 50):
     events = [q for q in queue if q.get("status") in ("published", "failed", "rejected", "rework")]
     events.sort(key=lambda x: x.get("published_at") or x.get("created_at", 0), reverse=True)
     return {"items": events[:limit], "total": len(events)}
+
+
+# ── 쿠키 관리 API ──
+# Selenium 퍼블리셔(네이버/카카오)의 CAPTCHA 우회용.
+# 대표님 PC 브라우저에서 Cookie-Editor로 쿠키 추출 → 서버에 업로드 → Selenium이 쿠키로 로그인.
+
+_COOKIE_DIR = Path(__file__).resolve().parent.parent.parent / "data" / "sns_cookies"
+_VALID_COOKIE_PLATFORMS = {"naver", "kakao"}
+_KST = timezone(timedelta(hours=9))
+_PLATFORM_EXPIRY_DAYS = {"naver": 90, "kakao": 30}
+
+
+@router.post("/api/sns/cookies/{platform}")
+async def upload_sns_cookies(platform: str, request: Request):
+    """Cookie-Editor에서 추출한 쿠키 JSON을 서버에 저장 (pickle)."""
+    if platform not in _VALID_COOKIE_PLATFORMS:
+        return JSONResponse({"success": False, "error": f"지원 플랫폼: {sorted(_VALID_COOKIE_PLATFORMS)}"}, 400)
+
+    try:
+        body = await request.json()
+    except Exception:
+        return JSONResponse({"success": False, "error": "JSON 파싱 실패"}, 400)
+
+    # Cookie-Editor JSON 배열 또는 document.cookie 문자열 둘 다 지원
+    if isinstance(body, str):
+        domain = ".naver.com" if platform == "naver" else ".kakao.com"
+        cookies = [
+            {"name": p.split("=", 1)[0].strip(), "value": p.split("=", 1)[1].strip(),
+             "domain": domain, "path": "/", "secure": True, "httpOnly": False}
+            for p in body.split(";") if "=" in p
+        ]
+    elif isinstance(body, list):
+        cookies = body
+    else:
+        return JSONResponse({"success": False, "error": "JSON 배열 또는 문자열 필요"}, 400)
+
+    if not cookies:
+        return JSONResponse({"success": False, "error": "쿠키가 비어있습니다"}, 400)
+
+    # 구조 검증 + 정규화
+    normalized = []
+    for c in cookies:
+        if not isinstance(c, dict) or "name" not in c or "value" not in c:
+            continue
+        normalized.append({
+            "name": c["name"], "value": c["value"],
+            "domain": c.get("domain", f".{platform}.com"),
+            "path": c.get("path", "/"),
+            "secure": c.get("secure", True),
+            "httpOnly": c.get("httpOnly", False),
+            "sameSite": c.get("sameSite", "None"),
+        })
+
+    if not normalized:
+        return JSONResponse({"success": False, "error": "유효한 쿠키가 없습니다 (name/value 필요)"}, 400)
+
+    # pickle 저장
+    _COOKIE_DIR.mkdir(parents=True, exist_ok=True)
+    with open(_COOKIE_DIR / f"{platform}_cookies.pkl", "wb") as f:
+        pickle.dump(normalized, f)
+
+    now_kst = datetime.now(_KST).isoformat()
+    save_setting(f"sns_cookie_{platform}_uploaded_at", now_kst)
+
+    logger.info("[SNS Cookie] %s 쿠키 %d개 업로드 완료", platform, len(normalized))
+    return {"success": True, "platform": platform, "cookie_count": len(normalized), "uploaded_at": now_kst}
+
+
+@router.get("/api/sns/cookies/status")
+async def get_sns_cookies_status():
+    """각 플랫폼의 쿠키 등록 상태 조회 (쿠키 값은 반환하지 않음)."""
+    result = {}
+    for platform in _VALID_COOKIE_PLATFORMS:
+        pkl = _COOKIE_DIR / f"{platform}_cookies.pkl"
+        if pkl.exists():
+            uploaded_at = load_setting(f"sns_cookie_{platform}_uploaded_at")
+            try:
+                with open(pkl, "rb") as f:
+                    cookie_count = len(pickle.load(f))
+            except Exception:
+                cookie_count = 0
+            age_days = round((time.time() - pkl.stat().st_mtime) / 86400, 1)
+            expiry_days = _PLATFORM_EXPIRY_DAYS.get(platform, 90)
+            estimated_expiry = None
+            if uploaded_at:
+                try:
+                    estimated_expiry = (datetime.fromisoformat(uploaded_at) + timedelta(days=expiry_days)).strftime("%Y-%m-%d")
+                except Exception:
+                    pass
+            result[platform] = {
+                "exists": True, "uploaded_at": uploaded_at,
+                "file_age_days": age_days, "cookie_count": cookie_count,
+                "estimated_expiry": estimated_expiry,
+                "expiry_warning": age_days > (expiry_days * 0.8),
+            }
+        else:
+            result[platform] = {"exists": False, "uploaded_at": None, "file_age_days": None,
+                                "cookie_count": 0, "estimated_expiry": None, "expiry_warning": False}
+    return result
+
+
+@router.delete("/api/sns/cookies/{platform}")
+async def delete_sns_cookies(platform: str):
+    """특정 플랫폼의 쿠키 파일 삭제."""
+    if platform not in _VALID_COOKIE_PLATFORMS:
+        return JSONResponse({"success": False, "error": f"지원 플랫폼: {sorted(_VALID_COOKIE_PLATFORMS)}"}, 400)
+    pkl = _COOKIE_DIR / f"{platform}_cookies.pkl"
+    if pkl.exists():
+        pkl.unlink()
+    save_setting(f"sns_cookie_{platform}_uploaded_at", None)
+    logger.info("[SNS Cookie] %s 쿠키 삭제 완료", platform)
+    return {"success": True, "platform": platform}

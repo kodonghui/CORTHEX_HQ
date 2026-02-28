@@ -617,7 +617,7 @@ class TechnicalAnalyzerTool(BaseTool):
             if idx < 0:
                 continue
             op, hi, lo, cl = o.iloc[idx], h.iloc[idx], l.iloc[idx], c.iloc[idx]
-            change = (cl - op) / op * 100
+            change = (cl - op) / op * 100 if op != 0 else 0.0
             body_type = "양봉" if cl > op else "음봉" if cl < op else "보합"
             date_str = df.index[idx].strftime("%m/%d") if hasattr(df.index[idx], 'strftime') else str(idx)
             lines.append(f"  {date_str}: {body_type} {self._arrow(change)} {self._fmt(abs(change))}% | 시:{op:,.0f} 고:{hi:,.0f} 저:{lo:,.0f} 종:{cl:,.0f}")

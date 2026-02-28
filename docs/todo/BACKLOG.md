@@ -2,71 +2,74 @@
 
 > **규칙**: 미완료 항목은 전부 여기만. 날짜 파일에 ⬜ 절대 금지.
 > **수시 업데이트**: 완료되면 즉시 ✅ 표시 or 삭제. 새 항목 발견 시 즉시 추가.
-> 마지막 업데이트: 2026-02-26 (세션 3)
+> 🔴 **매 배포 시 반드시 갱신!** — 배포하고 BACKLOG 안 건드리면 미완성!
+> 마지막 업데이트: 2026-02-28 빌드#706 (SNS 퍼블리셔 전면 수정 + 미디어 썸네일)
 
 ---
 
-## 🔴 즉시 (대표님이 직접 확인하신 버그)
+## 🟠 재확인 필요 (코드 완료, 실제 검증 안 됨)
 
-> 코드 수정 완료. 배포 후 서버에서 재현 확인 필요
-
-- ✅ **R-1: 대화 비우기 후 목록에 여전히 남음** — PATCH 응답 확인 + DELETE 폴백 추가 (세션3)
-- ✅ **R-4: 통신국 .env 없다고 뜸** — UI 텍스트 ".env" → "서버 환경변수" 수정 (세션3)
-- ⬜ **R-3: 전력분석 데이터 전혀 업데이트 안 됨**
-  tasks 테이블에 agent_id가 없는 것이 원인. 에이전트 실행 시 agent_id 기록 추가 필요.
-  서버 클로드가 ARGOS 디버깅 중이므로 함께 확인 예정
+- ⬜ **R-2: 작전일지 제목만 표시** — `_extract_title_summary()` 구현 완료. 실제 화면에서 제목 보이는지 확인 필요
+- ⬜ **노션 실제 저장 검증** — 대표님이 금융분석팀장 분석 실행 후 노션 양쪽 DB(비서/출력) 확인
+- ⬜ **Soul Gym 6팀장 Dry Run** — 서버에서 수동 실행 → soul_gym_rounds 테이블에 6팀장 전부 채워지는지 확인
+- ⬜ **즉시분석 재테스트** — 스트리밍 수정(#598) + thinking adaptive→enabled 이후 전체 흐름 미검증
 
 ---
 
-## 🟠 재확인 필요 (완료 표시됐지만 실제 검증 안 된 것)
+## 🔴 긴급 (데드라인 있음)
 
-- ⬜ **R-2: 작전일지 제목만 표시** — 배포 확인 필요 (C-2 완료 표시)
-- ⬜ **R-5: 동시 명령 큐** — 현재 큐 없이 병렬 asyncio.create_task() 실행. 레이스 컨디션 위험은 있으나 치명적이지 않음
-- ✅ **R-6: 장기기억 UI 클릭 영역 불명확** — 기억 버튼 크기 개선 + 안내 텍스트 추가 (세션3)
-- ⬜ **노션 실제 저장 검증** — 대표님이 금융분석팀장 분석 실행 후 노션 양쪽 DB 확인
-- ⬜ **Soul Gym Dry Run 테스트** — 서버에서 수동 실행 후 soul_gym_rounds 테이블 채워지는지 확인
-- ⬜ **즉시분석 재테스트** — 스트리밍 수정(빌드#598) + thinking.type=adaptive 이후 전체 흐름 확인
+- ✅ ~~**나노바나나 v2 교체**~~ — `gemini-3-pro-image-preview` → `gemini-3.1-flash-image-preview` 교체 완료 (Flash 티어, Pro 대비 ~50% 비용 절감)
 
 ---
 
-## 🟡 Phase 6 신규 기능 (N 시리즈, 대표님 검수 2026-02-26)
+## 🟡 버그 (발견됐지만 미수정)
 
-| # | 항목 | 맥락 | 우선순위 |
-|---|------|------|--------|
-| N-1 | **도구 131개 API/LLM/스텁 분류 전수** | Phase 6-3에서 3분류 완료. 대표님 요약표 필요 | 🟡 다음 |
-| N-2 | **NEXUS 손그림→mermaid AI 변환** | 칠판에 그리면 AI가 플로우차트로 그려주는 기능, 기술조사 후 착수 | 🔵 설계 후 |
-| ~~N-3~~ | ~~정보국 드래그앤드롭 파일 업로드~~ | ✅ 완료 (세션3) | — |
-| ~~N-4~~ | ~~진화시스템 웹 실시간 로그~~ | ✅ 완료 (세션3) — SSE+WebSocket+REST+전력분석 탭 패널 | — |
-| ~~N-5~~ | ~~피드백 모드 피그마급 재구현~~ | ✅ 완료 (세션3) — 클릭 핀+말풍선+인라인 입력+핀 목록 | — |
-| N-6 | **작전현황 vs 대시보드 역할 재설계** | 둘이 같은 건지 다른 건지 불명확 | 🟡 다음 |
-| N-7 | **왼쪽 바 도구 수 실시간 반영 + 재설계** | N-1 분류 후 카테고리별 표시 | 🟡 다음 |
-| N-8 | **AGORA 독립 viewMode 전환** | 현재 지휘소 탭 중 하나 → 사무실/대시보드처럼 독립 | 🟡 다음 |
-| N-9 | **보고서 ID 고도화** — 반려 시 섹션 ID 지정 + 해당 섹션만 재작성 + 버전 연결 | 반려할 때 어느 부분인지 특정, 그 부분만 재보고 | 🔵 설계 후 |
-| N-10 | **모바일 전면 전수 개편** | 탭 내용 모바일 최적화 전수검사 | 🔵 설계 후 |
-| N-11 | **통신로그 + 전략실 로그 UX 전면 개편** | 정보 위계/레이아웃/시각화 미완료 | 🔵 설계 후 |
+- ✅ ~~**한미반도체(042700) KIS 주문 실패**~~ — `EXCG_ID_DVSN_CD` "" → "KRX" 수정 (빌드 #655 예정)
+- ⬜ **deploy.yml에 selenium 추가 필요** — PAT에 workflow 스코프 없어서 push 불가. 대표님이 GitHub에서 직접 수정하거나 토큰 스코프 추가 필요. 현재는 수동 설치로 동작 중
+- ⬜ **4건 동시 승인 시 3건 멈춤** — _auto_publish_after_approve 백그라운드 태스크 동시 실행 시 DB 경합. 순차 처리 또는 락 필요
 
 ---
 
-## 🟡 Phase 5 — 새 기능 (Phase 0~4 완료 후 착수)
+## 🟡 코드 개선
 
-- ⬜ **4-3: cutting-edge 기술 재평가** — arm_server.py D등급. FastAPI 라우터 분리 등 아키텍처 개선 검토
-- ⬜ **Phase 5 신규 기능 목록** — Phase 0~4 전부 배포 확인 후 대표님과 논의
+- ✅ ~~**4-3: arm_server.py 리팩토링 P9**~~ — P9 완료 (1,843→1,075줄, 9개 모듈 10,562줄 분리, 91%). 리팩토링 종료
+- ✅ ~~**도구 합병: pricing**~~ — pricing_sensitivity 삭제, Gabor-Granger+수익최적화를 pricing_optimizer에 이식 (빌드 #655 예정)
+- ✅ ~~**도구 합병: 고객분석**~~ — customer_cohort_analyzer 삭제, RFM+CAC 회수를 customer_ltv_model에 이식 (빌드 #655 예정)
 
 ---
 
 ## 🟢 대표님이 직접 해야 하는 것
 
-- ⬜ **Instagram Meta 앱 설정** (3단계, 약 15분)
-  - Part A: `developers.facebook.com` → Corthex-Hq 앱 → "이용 사례 추가" → `Instagram 콘텐츠 게시`
-  - Part B: 그래프 API 탐색기 → 토큰 발급 (`instagram_business_basic`, `instagram_content_publish`)
-  - Part C: GitHub Secrets에 `INSTAGRAM_ACCESS_TOKEN` 등록
-  - 완료 후 Claude에게 말하면 코드 연결 + 발행 테스트 진행
-  - 상세 절차: `docs/todo/2026-02-26.md` "Instagram Meta 앱 설정" 섹션 참고
+- ✅ ~~**Instagram Meta 앱 설정**~~ — 토큰 발급 + GitHub Secrets 등록 + 코드 연동 완료
+- ✅ ~~**Instagram 실제 발행 테스트**~~ — 대표님이 직접 발행 성공 확인 (2026-02-28)
+
+---
+
+## 🟡 SNS 자동 발행
+
+- ✅ ~~**티스토리 자동 발행**~~ — 공개 발행 성공! ActionChains label 클릭으로 React 라디오 전환. `tistory_publisher.py` 전면 수정
+- ✅ ~~**다음카페(서로연) 자동 발행**~~ — 발행 성공! `logins.daum.net` → 카카오 OAuth → `united_write` → TinyMCE. `daum_cafe_publisher.py` 전면 수정
+- ✅ ~~**SNS 웹 승인+자동발행**~~ — 웹에서 "승인+발행" 1클릭 → approve 후 asyncio.create_task로 자동 발행. _get_publisher() 헬퍼 추출
+- ⬜ **SNS 텔레그램 승인+자동발행** — 텔레그램 인라인 버튼 승인 시에도 자동 발행 연결 (bot.py handle_callback)
+- ⬜ **SNS submit 즉시 알림** — 마케팅팀장이 submit 시 텔레그램 즉시 알림 (현재 30분 주기 체크 의존)
+- ✅ ~~**카드뉴스 시리즈 생성기**~~ — `card_news_series` action 추가 (빌드#701). 5~10장 한 번에 생성, 시리즈 일관성 프롬프트, SNS media_urls 자동 출력
+  - V2 고려: 디자인 품질 부족 시 HTML 템플릿 + Playwright 방식 검토
+- ⬜ **페이스북 자동 발행 검토** — Graph API로 페이지/그룹 게시 가능 여부 조사. Meta 개발자 계정 필요. 티스토리/다음카페 완료 후 착수
+- ⬜ **X(트위터) 자동 발행 검토** — X API v2 게시 가능 여부 조사. 유료 플랜(Basic $100/월) 필요할 수 있음. 티스토리/다음카페 완료 후 착수
+- 🔴 **네이버 블로그 자동 발행 — 보류** (2026-02-28 판정)
+  - 시도: Selenium + ActionChains 글자별 타이핑 / JS injection + 이벤트 디스패치 / undetected-chromedriver / chromedriver cdc_ 패치 / 쿠키 기반 로그인
+  - 결과: 전부 실패. 네이버가 헤드리스 브라우저 자체를 CAPTCHA로 차단. 쿠키 로드 후 naver.com은 로그인되나 blog.naver.com 글쓰기 접속 시 재로그인 요구 (세션 불일치)
+  - 원인: 네이버 2025년 이후 봇 탐지 대폭 강화. snap chromedriver(ARM)는 패치 불가(GLIBC 호환 문제)
+  - 재도전 조건: ① 대표님 PC(데스크톱)에서 실행하거나 ② Naver 내부 API 역공학 또는 ③ Playwright stealth 모드 시도
 
 ---
 
 ## 🔵 장기 / 보류
 
+- ✅ ~~**스케치바이브 MVP 개발**~~ — Phase 1 완료. Nexus 캔버스 → Claude → Mermaid 변환 + 확인 + .html 뷰어 저장
+- ✅ ~~**스케치바이브 Phase 2**~~ — MCP 서버(FastMCP) + 정확도 향상(_parse_drawflow 강화) + "맞아" 후 구현 브리지(confirmed API + MCP 도구)
+- ✅ ~~**스케치바이브 Phase 3**~~ — 아키텍처 재설계: 서버 변환 제거 + MCP 양방향(update_canvas/request_approval) + SSE 실시간 캔버스 + 팔레트 버그 수정
+- ⬜ **스케치바이브 이름/특허** (나중에) — 상표 충돌(getsketchvibe.com) 재검토 + 특허 출원 범위 확정 (법무팀장 논의)
 - ⬜ **NEXUS MCP 연동** — Claude가 NEXUS 캔버스 JSON 읽어서 시스템 이해 + 대표님 시각적 논의
 - ⬜ **DB soul 오버라이드 정리** — souls/*.md만 쓰도록 통일 (중복 오버라이드 제거)
 - ⬜ **이미지 스타일 개선** — 대표님 AI 인플루언서 스타일 확정 후 적용 (보류 중)

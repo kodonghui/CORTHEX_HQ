@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>CORTHEX — 코드 의존성</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #0d1117; color: #e6edf3; font-family: 'Segoe UI', sans-serif; padding: 32px; }
+  h2 { font-size: 15px; color: #58a6ff; margin: 32px 0 12px; border-left: 3px solid #58a6ff; padding-left: 10px; }
+  .subtitle { font-size: 12px; color: #8b949e; margin-bottom: 28px; }
+  .diagram { background: #161b22; border: 1px solid #30363d; border-radius: 10px; padding: 24px; overflow-x: auto; }
+  .mermaid { display: flex; justify-content: center; }
+  .note { font-size: 11px; color: #8b949e; margin-top: 10px; padding-left: 4px; }
+</style>
+</head>
+<body>
+
+<p class="subtitle">CORTHEX HQ | P8 완료 후 최종 상태 | Ctrl+스크롤 확대</p>
+
+<h2>arm_server.py 에서 뭐가 어디로 연결되나</h2>
+<div class="diagram">
+<div class="mermaid">
+graph LR
+    ARM["🏛️ arm_server.py\n(로비, ~300줄)"]
+
+    ARM --> ROUTER["🧠 agent_router.py\n에이전트 라우팅"]
+    ARM --> TRADE["📈 trading_engine.py\n매매·CIO"]
+    ARM --> BATCH["🏭 batch_system.py\n배치 분석"]
+    ARM --> SCHED["⏰ scheduler.py\n스케줄"]
+    ARM --> ARGOS["🔭 argos_collector.py\n뉴스·시황 수집"]
+    ARM --> CFG["⚙️ config_loader.py\n설정 로딩"]
+    ARM --> HANDLERS["🚪 handlers/\n접수 창구 28개"]
+
+    ROUTER --> AI["🤖 ai_handler.py\nClaude API"]
+    ROUTER --> DB["🗄️ db.py\nDB"]
+    ROUTER --> WS["📡 ws_manager.py\n실시간 화면"]
+
+    TRADE --> AI
+    TRADE --> KIS["💰 kis_client.py\n증권사 API"]
+    TRADE --> DB
+    TRADE --> WS
+
+    BATCH --> AI
+    BATCH --> DB
+    BATCH --> WS
+
+    SCHED --> BATCH
+    SCHED --> SOUL["💪 soul_gym_engine.py"]
+
+    ARGOS --> AI
+    ARGOS --> DB
+
+    HANDLERS --> ROUTER
+    HANDLERS --> TRADE
+    HANDLERS --> BATCH
+    HANDLERS --> ARGOS
+
+    CFG --> STATE["📊 state.py\n전역상태"]
+
+    AI --> WS
+
+    style ARM fill:#0d1f3c,stroke:#1f6feb,color:#58a6ff
+    style ROUTER fill:#1a2a0d,stroke:#2ea043
+    style TRADE fill:#1a2a0d,stroke:#2ea043
+    style BATCH fill:#1a2a0d,stroke:#2ea043
+    style SCHED fill:#1a2a0d,stroke:#2ea043
+    style ARGOS fill:#1a2a0d,stroke:#2ea043
+    style CFG fill:#1a2a0d,stroke:#2ea043
+    style HANDLERS fill:#2a1a0d,stroke:#d29922
+    style AI fill:#1c1c1c,stroke:#444
+    style KIS fill:#1c1c1c,stroke:#444
+    style DB fill:#1c1c1c,stroke:#444
+    style WS fill:#1c1c1c,stroke:#444
+    style STATE fill:#1c1c1c,stroke:#444
+    style SOUL fill:#1c1c1c,stroke:#444
+</div>
+</div>
+<p class="note">🟦 로비 | 🟩 엔진 (arm_server.py에서 분리) | 🟧 핸들러 | ⬛ 공통 도구</p>
+
+<h2>각 엔진이 어떤 도구를 쓰나 (엔진 → 도구)</h2>
+<div class="diagram">
+<div class="mermaid">
+graph LR
+    subgraph 엔진
+        ROUTER2["🧠 agent_router"]
+        TRADE2["📈 trading_engine"]
+        BATCH2["🏭 batch_system"]
+        SCHED2["⏰ scheduler"]
+        ARGOS2["🔭 argos_collector"]
+    end
+
+    subgraph 공통도구
+        AI2["🤖 ai_handler\nClaude API"]
+        KIS2["💰 kis_client\n증권사 API"]
+        DB2["🗄️ db\n데이터 저장"]
+        WS2["📡 ws_manager\n화면 업데이트"]
+    end
+
+    ROUTER2 --> AI2
+    ROUTER2 --> DB2
+    ROUTER2 --> WS2
+
+    TRADE2 --> AI2
+    TRADE2 --> KIS2
+    TRADE2 --> DB2
+    TRADE2 --> WS2
+
+    BATCH2 --> AI2
+    BATCH2 --> DB2
+    BATCH2 --> WS2
+
+    SCHED2 --> BATCH2
+
+    ARGOS2 --> AI2
+    ARGOS2 --> DB2
+
+    AI2 --> WS2
+</div>
+</div>
+<p class="note">모든 엔진은 결국 ai_handler(Claude)와 db(저장), ws_manager(화면 업데이트) 3개를 공통으로 씁니다</p>
+
+<script>
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: 'dark',
+    flowchart: { useMaxWidth: false, curve: 'basis' },
+    themeVariables: {
+      primaryColor: '#161b22',
+      primaryTextColor: '#e6edf3',
+      lineColor: '#58a6ff',
+      edgeLabelBackground: '#0d1117',
+    }
+  });
+</script>
+</body>
+</html>

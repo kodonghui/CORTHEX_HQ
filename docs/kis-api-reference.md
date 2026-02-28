@@ -50,7 +50,7 @@ custtype: P
 | `ORD_QTY` | 주문수량 (문자열) | `"1"` |
 | `ORD_UNPR` | 주문단가 (시장가 시 `"0"`) | `"55000"` |
 | `SLL_TYPE` | 매도유형 | 매도시 `"01"`, 매수시 `""` |
-| `EXCG_ID_DVSN_CD` | 거래소구분 | `""`=KRX기본, `"SOR"`, `"NXT"` |
+| `EXCG_ID_DVSN_CD` | 거래소구분 | `"KRX"`=한국거래소, `"SOR"`=스마트주문, `"NXT"`=대체거래소 (빈문자열 불가!) |
 | `CNDT_PRIC` | 조건가격 | `""` |
 
 ### 잔고조회 — GET `/uapi/domestic-stock/v1/trading/inquire-balance`

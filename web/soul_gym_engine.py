@@ -1,7 +1,7 @@
 """Soul Gym 엔진 — 에이전트 소울 경쟁 진화 시스템.
 
 비유: 운동 선수 훈련장. 에이전트의 매뉴얼(소울)을 약간씩 바꿔서
-      같은 시험(모의투자 분석)을 치르게 하고, 가장 잘하는 버전을 채택.
+      같은 시험을 치르게 하고, 가장 잘하는 버전을 채택.
 
 논문 기반:
 - EvoPrompt (ICLR 2024): 변이 생성 + 토너먼트 선택
@@ -11,12 +11,17 @@
 이원화 구조:
 - Gym 실행: gemini-2.5-flash (저비용)
 - 실사용: 대표님 선호 모델 (변경 없음)
+
+전 팀장 확장 (2026-02-27):
+- CIO: 기존 모의투자 분석 벤치마크 유지
+- CSO/CLO/CMO/CPO/비서실장: 부서별 맞춤 문항 벤치마크 (config/soul_gym_benchmarks.yaml)
 """
 
 import asyncio
 import json
 import logging
 import os
+import re
 import time
 from datetime import datetime
 from pathlib import Path
@@ -26,31 +31,51 @@ logger = logging.getLogger("corthex.soul_gym")
 KST = ZoneInfo("Asia/Seoul")
 BASE_DIR = Path(os.path.dirname(os.path.abspath(__file__)))
 SOULS_DIR = BASE_DIR.parent / "souls" / "agents"
+CONFIG_DIR = BASE_DIR.parent / "config"
 
 # ── 설정 ──
 GYM_MODEL = "gemini-2.5-flash"       # Gym 전용 모델 (저비용)
 JUDGE_MODEL = "gemini-2.5-flash"     # 채점 모델
 VARIANT_MODEL = "gemini-2.5-flash"   # 변이 생성 모델
 MIN_IMPROVEMENT = 3.0                # 최소 개선폭 (전 종목 평균 기준)
-COST_CAP_USD = 20.0                  # 1회 전체 진화 비용 상한
+COST_CAP_USD = 50.0                  # 1회 전체 진화 비용 상한 (6팀장)
 MAX_SOUL_SNIPPET = 1500              # 소울 스니펫 길이
 
-# 벤치마크가 모의투자 분석이므로, 투자팀장만 대상
-GYM_TARGET_AGENTS = ["cio_manager"]
+# 전 팀장 대상 (6명)
+GYM_TARGET_AGENTS = [
+    "cio_manager",       # 금융분석팀장
+    "cso_manager",       # 전략팀장
+    "clo_manager",       # 법무팀장
+    "cmo_manager",       # 마케팅팀장
+    "cpo_manager",       # 콘텐츠팀장
+    "chief_of_staff",    # 비서실장
+]
 
 
 def _load_agents_yaml() -> list[dict]:
     """config/agents.yaml에서 에이전트 목록 로드."""
-    config_dir = BASE_DIR.parent / "config"
     try:
         import yaml
-        path = config_dir / "agents.yaml"
+        path = CONFIG_DIR / "agents.yaml"
         if path.exists():
             data = yaml.safe_load(path.read_text(encoding="utf-8"))
             return data if isinstance(data, list) else data.get("agents", [])
     except Exception as e:
         logger.debug("agents.yaml 로드 실패: %s", e)
     return []
+
+
+def _load_benchmarks_yaml() -> dict:
+    """config/soul_gym_benchmarks.yaml에서 벤치마크 문항 로드."""
+    try:
+        import yaml
+        path = CONFIG_DIR / "soul_gym_benchmarks.yaml"
+        if path.exists():
+            data = yaml.safe_load(path.read_text(encoding="utf-8"))
+            return data.get("benchmarks", {}) if isinstance(data, dict) else {}
+    except Exception as e:
+        logger.debug("soul_gym_benchmarks.yaml 로드 실패: %s", e)
+    return {}
 
 
 def _load_current_soul(agent_id: str) -> str:
@@ -168,15 +193,27 @@ async def generate_variants(
 
 
 # ══════════════════════════════════════════════════════════════
-# 2. 벤치마크 실행 (모의투자 분석)
+# 2. 벤치마크 실행
 # ══════════════════════════════════════════════════════════════
 
 async def run_benchmark(agent_id: str, soul: str, watchlist: list[dict]) -> dict:
-    """주어진 소울로 watchlist 전 종목을 모의투자 분석하고 점수를 받습니다.
+    """에이전트 벤치마크 실행. CIO는 모의투자, 나머지는 문항 벤치마크."""
+    benchmarks = _load_benchmarks_yaml()
+    agent_bench = benchmarks.get(agent_id, {})
+    bench_type = agent_bench.get("type", "prompt_questions")
 
-    실제 _manager_with_delegation() 대신 ask_ai()로 직접 실행.
-    Gym은 flash2.5로 돌리므로 실사용 모델과 분리됨.
-    """
+    if bench_type == "watchlist_analysis":
+        return await _run_benchmark_watchlist(agent_id, soul, watchlist)
+    else:
+        questions = agent_bench.get("questions", [])
+        if not questions:
+            logger.warning("벤치마크 문항 없음: %s", agent_id)
+            return {"score": 0, "cost_usd": 0, "error": "벤치마크 문항 없음"}
+        return await _run_benchmark_questions(agent_id, soul, questions)
+
+
+async def _run_benchmark_watchlist(agent_id: str, soul: str, watchlist: list[dict]) -> dict:
+    """CIO 전용: 관심종목 모의투자 분석 벤치마크 (기존 방식 유지)."""
     from ai_handler import ask_ai
 
     if not watchlist:
@@ -209,21 +246,57 @@ async def run_benchmark(agent_id: str, soul: str, watchlist: list[dict]) -> dict
         )
         content = result.get("content", "")
         cost = result.get("cost_usd", 0)
-
-        # 채점
-        score = await judge_response(content, tickers_info, len(watchlist))
+        score = await _judge_watchlist(content, tickers_info, len(watchlist))
         return {"score": score, "cost_usd": cost, "content_preview": content[:300]}
     except Exception as e:
         logger.warning("벤치마크 실행 실패 (%s): %s", agent_id, e)
         return {"score": 0, "cost_usd": 0, "error": str(e)[:100]}
 
 
+async def _run_benchmark_questions(agent_id: str, soul: str, questions: list[dict]) -> dict:
+    """범용: 문항 기반 벤치마크. 각 문항 채점 후 평균."""
+    from ai_handler import ask_ai
+
+    total_score = 0.0
+    total_cost = 0.0
+    q_count = 0
+
+    for q in questions:
+        prompt = q.get("prompt", "")
+        judge_prompt = q.get("judge_prompt", "")
+        if not prompt:
+            continue
+
+        try:
+            # 에이전트 응답 생성
+            result = await ask_ai(
+                user_message=prompt,
+                system_prompt=soul,
+                model=GYM_MODEL,
+            )
+            content = result.get("content", "")
+            total_cost += result.get("cost_usd", 0)
+
+            # LLM-as-Judge 채점
+            score = await _judge_question(content, prompt, judge_prompt)
+            total_score += score
+            total_cost += 0  # judge cost는 _judge_question 내부에서 계산
+            q_count += 1
+            logger.info("  %s Q%d: %.1f점", agent_id, q_count, score)
+        except Exception as e:
+            logger.warning("문항 벤치마크 실패 (%s, Q%d): %s", agent_id, q_count + 1, e)
+            q_count += 1
+
+    avg_score = total_score / q_count if q_count > 0 else 0
+    return {"score": avg_score, "cost_usd": total_cost, "questions_count": q_count}
+
+
 # ══════════════════════════════════════════════════════════════
 # 3. 채점 (LLM-as-Judge)
 # ══════════════════════════════════════════════════════════════
 
-async def judge_response(response: str, tickers_info: str, num_stocks: int) -> float:
-    """Sonnet/Flash가 투자 분석 결과를 0~100 채점합니다."""
+async def _judge_watchlist(response: str, tickers_info: str, num_stocks: int) -> float:
+    """CIO 전용: 투자 분석 결과 채점 (기존 방식 유지)."""
     from ai_handler import ask_ai
 
     prompt = f"""아래는 {num_stocks}개 종목({tickers_info}) 투자 분석 결과입니다.
@@ -244,17 +317,51 @@ BLUF: [0-20]
 구조: [0-20]
 총점: [0-100]"""
 
+    return await _parse_judge_score(prompt, "투자 분석 품질 심사관")
+
+
+async def _judge_question(response: str, question: str, judge_instruction: str) -> float:
+    """범용: 문항 응답 채점."""
+    prompt = f"""아래는 AI 에이전트가 주어진 문항에 대해 작성한 응답입니다.
+
+## 문항
+{question[:1000]}
+
+## 에이전트 응답
+{response[:3000]}
+
+## 채점 지시
+{judge_instruction}
+
+## 채점 기준 (총 100점)
+1. **BLUF 형식** (20점): 결론이 명확하게 먼저 나오는가?
+2. **전문성** (30점): 정확한 근거와 논리가 있는가?
+3. **구체성** (30점): 숫자/일정/비용 등 구체적으로 제시되는가?
+4. **구조** (20점): 가독성 좋고, 섹션이 구분되어 있는가?
+
+## 응답 형식 (반드시 이 형식만)
+BLUF: [0-20]
+전문성: [0-30]
+구체성: [0-30]
+구조: [0-20]
+총점: [0-100]"""
+
+    return await _parse_judge_score(prompt, "AI 에이전트 품질 심사관")
+
+
+async def _parse_judge_score(prompt: str, system_prompt: str) -> float:
+    """채점 프롬프트를 실행하고 총점을 파싱합니다."""
+    from ai_handler import ask_ai
+
     try:
         result = await ask_ai(
             user_message=prompt,
-            system_prompt="당신은 투자 분석 품질 심사관입니다. 엄격하고 일관된 채점을 합니다.",
+            system_prompt=f"당신은 {system_prompt}입니다. 엄격하고 일관된 채점을 합니다.",
             model=JUDGE_MODEL,
         )
         content = result.get("content", "")
-        # 총점 파싱
         for line in content.split("\n"):
             if "총점" in line:
-                import re
                 nums = re.findall(r"\d+", line)
                 if nums:
                     score = float(nums[-1])
@@ -263,6 +370,10 @@ BLUF: [0-20]
     except Exception as e:
         logger.warning("채점 실패: %s", e)
         return 0.0
+
+
+# 하위 호환성: 기존 코드에서 직접 호출하는 경우 대비
+judge_response = _judge_watchlist
 
 
 # ══════════════════════════════════════════════════════════════
@@ -274,7 +385,7 @@ async def evolve_agent(agent_id: str, dry_run: bool = False) -> dict:
 
     1. 현재 소울 + warnings + 히스토리 로드
     2. 변이 A/B/C 생성 (flash2.5)
-    3. 원본 + 변이들 벤치마크 실행 (watchlist 전 종목)
+    3. 원본 + 변이들 벤치마크 실행 (부서별 맞춤)
     4. 채점 → 최고 점수 선택
     5. +3점 이상이면 자동 채택, 아니면 원본 유지
     """
@@ -292,14 +403,18 @@ async def evolve_agent(agent_id: str, dry_run: bool = False) -> dict:
     warnings = _load_warnings(agent_id)
     history = _load_gym_history(agent_id)
     watchlist = _load_watchlist()
-    if not watchlist:
-        return {"status": "error", "message": "관심종목 없음"}
+
+    # CIO는 watchlist 필요, 다른 팀장은 문항 벤치마크라 불필요
+    benchmarks = _load_benchmarks_yaml()
+    agent_bench = benchmarks.get(agent_id, {})
+    if agent_bench.get("type") == "watchlist_analysis" and not watchlist:
+        return {"status": "error", "message": "관심종목 없음 (CIO 벤치마크용)"}
 
     round_num = get_soul_gym_next_round(agent_id)
     total_cost = 0.0
 
-    logger.info("🧬 Soul Gym 시작: %s (R%d) — watchlist %d종목", agent_name, round_num, len(watchlist))
-    save_activity_log("system", f"🧬 Soul Gym: {agent_name} R{round_num} 시작 ({len(watchlist)}종목)", "info")
+    logger.info("🧬 Soul Gym 시작: %s (R%d)", agent_name, round_num)
+    save_activity_log("system", f"🧬 Soul Gym: {agent_name} R{round_num} 시작", "info")
 
     # ── Step 1: 변이 생성 ──
     gen_result = await generate_variants(agent_id, soul_current, warnings, history)
@@ -355,6 +470,7 @@ async def evolve_agent(agent_id: str, dry_run: bool = False) -> dict:
     elapsed = time.time() - start_time
 
     # ── Step 5: 결과 기록 (모든 변이 보존 — DGM 방식) ──
+    bench_type = agent_bench.get("type", "prompt_questions")
     record = {
         "agent_id": agent_id,
         "agent_name": agent_name,
@@ -373,7 +489,9 @@ async def evolve_agent(agent_id: str, dry_run: bool = False) -> dict:
             "elapsed_seconds": round(elapsed, 1),
         }, ensure_ascii=False),
         "benchmark_json": json.dumps({
-            "watchlist_count": len(watchlist),
+            "type": bench_type,
+            "watchlist_count": len(watchlist) if bench_type == "watchlist_analysis" else 0,
+            "questions_count": len(agent_bench.get("questions", [])),
             "model": GYM_MODEL,
             "min_improvement": MIN_IMPROVEMENT,
         }, ensure_ascii=False),
@@ -404,17 +522,14 @@ async def evolve_agent(agent_id: str, dry_run: bool = False) -> dict:
 # ══════════════════════════════════════════════════════════════
 
 async def evolve_all(dry_run: bool = False) -> dict:
-    """투자팀장 진화. 벤치마크가 모의투자 분석이므로 투자팀장만 대상.
-
-    다른 팀장은 부서별 벤치마크 추가 시 확장 가능.
-    """
+    """전 팀장 6명 순차 진화. 부서별 맞춤 벤치마크 적용."""
     from db import save_activity_log
 
     agents = _load_agents_yaml()
     managers = [a for a in agents if a.get("agent_id") in GYM_TARGET_AGENTS and not a.get("dormant")]
 
     if not managers:
-        return {"status": "error", "message": "진화 대상 에이전트 없음 (투자팀장 확인)"}
+        return {"status": "error", "message": "진화 대상 에이전트 없음"}
 
     logger.info("🧬 Soul Gym 전체 진화 시작: %d명", len(managers))
     save_activity_log("system", f"🧬 Soul Gym 전체 진화 시작: {len(managers)}명", "info")
@@ -439,13 +554,17 @@ async def evolve_all(dry_run: bool = False) -> dict:
             logger.error("🧬 %s 진화 실패: %s", aid, e)
             results.append({"agent_id": aid, "status": "error", "message": str(e)[:100]})
 
-    # 텔레그램 알림
+    # 활동 로그에 기록 (텔레그램 대신 ARGOS 로그)
     adopted_count = sum(1 for r in results if r.get("adopted"))
     summary = f"🧬 Soul Gym 완료: {len(results)}명 진화, {adopted_count}명 채택, 비용 ${total_cost:.2f}"
     save_activity_log("system", summary, "info")
 
-    if not dry_run:
-        await _send_telegram_summary(results, total_cost)
+    # 채택/유지 상세 로그
+    for r in results:
+        if r.get("adopted"):
+            save_activity_log("soul_gym", f"✅ {r['agent_name']}: {r['score_before']:.0f}→{r['score_after']:.0f} (+{r['improvement']:.0f}점) [{r['winner']}]", "info")
+        elif r.get("status") != "error":
+            save_activity_log("soul_gym", f"⬜ {r['agent_name']}: {r.get('score_before', 0):.0f}점 (원본 유지)", "info")
 
     return {
         "status": "completed",
@@ -457,30 +576,5 @@ async def evolve_all(dry_run: bool = False) -> dict:
     }
 
 
-async def _send_telegram_summary(results: list[dict], total_cost: float):
-    """진화 결과를 텔레그램으로 대표님에게 전송합니다."""
-    try:
-        from state import app_state
-        if not app_state.telegram_app:
-            return
-        ceo_id = os.getenv("TELEGRAM_CEO_CHAT_ID", "")
-        if not ceo_id:
-            return
-
-        adopted = [r for r in results if r.get("adopted")]
-        retained = [r for r in results if not r.get("adopted") and r.get("status") != "error"]
-
-        msg = f"🧬 Soul Gym 주간 진화 결과\n\n"
-        if adopted:
-            msg += f"✅ 채택 ({len(adopted)}명):\n"
-            for r in adopted:
-                msg += f"  • {r['agent_name']}: {r['score_before']:.0f}→{r['score_after']:.0f} (+{r['improvement']:.0f}점) [{r['winner']}]\n"
-        if retained:
-            msg += f"\n⬜ 원본 유지 ({len(retained)}명):\n"
-            for r in retained:
-                msg += f"  • {r['agent_name']}: {r.get('score_before', 0):.0f}점\n"
-        msg += f"\n💰 총 비용: ${total_cost:.2f}"
-
-        await app_state.telegram_app.bot.send_message(chat_id=int(ceo_id), text=msg)
-    except Exception as e:
-        logger.warning("Soul Gym 텔레그램 발송 실패: %s", e)
+## _send_telegram_summary 제거됨 (2026-02-27)
+## 텔레그램 대신 activity_logs(ARGOS)에 상세 기록. evolve_all()에서 직접 save_activity_log() 호출.

@@ -19,6 +19,7 @@ const _CDN = {
   forcegraph3d: 'https://unpkg.com/3d-force-graph@1/dist/3d-force-graph.min.js',
   drawflow:     'https://cdn.jsdelivr.net/npm/drawflow/dist/drawflow.min.js',
   drawflowcss:  'https://cdn.jsdelivr.net/npm/drawflow/dist/drawflow.min.css',
+  html2canvas:  'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js',
 };
 function _loadCSS(url) {
   return new Promise(resolve => {
@@ -49,6 +50,10 @@ function corthexApp() {
     feedbackPins: [],
     feedbackNewPin: null,  // { x, y, text }
     feedbackPinText: '',
+    // 드래그 캡처
+    fbDrag: null,       // { startX, startY, curX, curY } — 드래그 중 좌표
+    fbCapture: null,    // { x, y, w, h, dataUrl } — 캡처된 이미지
+    fbCaptureText: '',  // 캡처 코멘트
     wsConnected: false,
     totalCost: 0,
     totalTokens: 0,
@@ -277,7 +282,8 @@ function corthexApp() {
            rejectReason: '', rejectingId: null, queueFilter: 'all',
            mediaImages: [], mediaVideos: [],
            mediaSelectMode: false, selectedMedia: [],
-           showDeleteAllMediaModal: false, showClearQueueModal: false },
+           showDeleteAllMediaModal: false, showClearQueueModal: false,
+           cookieStatus: {}, cookiePlatform: 'naver', cookieJson: '' },
 
     // ── Trading (자동매매 시스템) ──
     trading: {
@@ -349,10 +355,7 @@ function corthexApp() {
 
     // ── NEXUS (3D / Canvas) ──
     flowchart: {
-      mode: '3d',         // '3d' | 'canvas' | 'mermaid'
-      // ── 3D 시스템 맵 ──
-      graph3dLoaded: false,
-      graph3dInstance: null,
+      mode: 'split',      // 'split' | 'mermaid' | 'canvas'
       // ── Mermaid 시스템 플로우 ──
       mermaidLoading: false,
       mermaidRendered: false,
@@ -362,7 +365,16 @@ function corthexApp() {
       canvasDirty: false,
       canvasName: '',
       canvasItems: [],
+      confirmedItems: [],  // 확인된 다이어그램 (맞아 누른 것)
       showCanvasNameModal: false,
+      // ── 스케치바이브 (Phase 3 — MCP 양방향) ──
+      sketchVibeOpen: false,
+      sketchDescription: '',
+      sketchResult: null,        // {saved, mermaid?, description?}
+      sketchConverting: false,
+      sketchError: null,
+      sketchConfirmed: null,     // {name, htmlPath}
+      approvalRequest: null,     // string — Claude Code 확인 요청 메시지
     },
 
     // ── AGORA (토론/논쟁 엔진) ──
@@ -1156,11 +1168,28 @@ function corthexApp() {
     },
 
     // E-1: 피드백 모드 — 피그마급 핀 시스템
+    // 클릭 위치의 DOM 요소 정보 추출
+    _getElementInfo(x, y) {
+      const el = document.elementFromPoint(x, y);
+      if (!el) return { tag: 'unknown', text: '' };
+      // 가장 가까운 의미 있는 부모 찾기 (섹션/카드/버튼)
+      const meaningful = el.closest('[x-show], [x-data], .glass, .bg-hq-panel, .bg-hq-surface, button, h1, h2, h3, p, td, th, label') || el;
+      const info = {
+        tag: meaningful.tagName.toLowerCase(),
+        classes: (meaningful.className || '').toString().slice(0, 120),
+        text: (meaningful.textContent || '').trim().slice(0, 80),
+        id: meaningful.id || '',
+      };
+      // x-show 조건 (어떤 탭/상태에서 보이는지)
+      const xShow = meaningful.getAttribute('x-show') || meaningful.closest('[x-show]')?.getAttribute('x-show') || '';
+      if (xShow) info.xShow = xShow.slice(0, 100);
+      return info;
+    },
     feedbackPlacePin(e) {
       if (!this.feedbackMode) return;
       // 기존 핀 입력 중이면 취소
       if (this.feedbackNewPin) { this.feedbackNewPin = null; this.feedbackPinText = ''; return; }
-      this.feedbackNewPin = { x: e.clientX, y: e.clientY };
+      this.feedbackNewPin = { x: e.clientX, y: e.clientY, element: this._getElementInfo(e.clientX, e.clientY) };
       this.feedbackPinText = '';
       this.$nextTick(() => {
         const inp = document.getElementById('feedbackPinInput');
@@ -1177,6 +1206,7 @@ function corthexApp() {
         comment: this.feedbackPinText.trim(),
         url: window.location.href,
         screen: { w: window.innerWidth, h: window.innerHeight },
+        element: this.feedbackNewPin.element,
       };
       try {
         const res = await fetch('/api/feedback/ui', {
@@ -1214,6 +1244,98 @@ function corthexApp() {
           }));
         }
       } catch {}
+    },
+
+    // ── 드래그 영역 캡처 ──
+    fbDragStart(e) {
+      if (!this.feedbackMode || this.feedbackNewPin || this.fbCapture) return;
+      this.fbDrag = { startX: e.clientX, startY: e.clientY, curX: e.clientX, curY: e.clientY };
+    },
+    fbDragMove(e) {
+      if (!this.fbDrag) return;
+      this.fbDrag.curX = e.clientX;
+      this.fbDrag.curY = e.clientY;
+    },
+    fbDragRect() {
+      if (!this.fbDrag) return { x: 0, y: 0, w: 0, h: 0 };
+      const x = Math.min(this.fbDrag.startX, this.fbDrag.curX);
+      const y = Math.min(this.fbDrag.startY, this.fbDrag.curY);
+      const w = Math.abs(this.fbDrag.curX - this.fbDrag.startX);
+      const h = Math.abs(this.fbDrag.curY - this.fbDrag.startY);
+      return { x, y, w, h };
+    },
+    async fbDragEnd(e) {
+      if (!this.fbDrag) return;
+      const rect = this.fbDragRect();
+      this.fbDrag = null;
+      // 너무 작으면 클릭으로 처리 (핀 모드)
+      if (rect.w < 20 || rect.h < 20) {
+        this.feedbackPlacePin(e);
+        return;
+      }
+      // html2canvas로 해당 영역 캡처
+      try {
+        await _loadScript(_CDN.html2canvas);
+        // 오버레이를 잠시 숨기고 캡처
+        const overlay = document.getElementById('fb-overlay');
+        if (overlay) overlay.style.display = 'none';
+        const canvas = await html2canvas(document.body, {
+          x: rect.x + window.scrollX,
+          y: rect.y + window.scrollY,
+          width: rect.w,
+          height: rect.h,
+          useCORS: true,
+          logging: false,
+          scale: 1,
+        });
+        if (overlay) overlay.style.display = '';
+        const dataUrl = canvas.toDataURL('image/png');
+        this.fbCapture = { x: rect.x, y: rect.y, w: rect.w, h: rect.h, dataUrl };
+        this.fbCaptureText = '';
+        this.$nextTick(() => {
+          const inp = document.getElementById('fbCaptureInput');
+          if (inp) inp.focus();
+        });
+      } catch (err) {
+        console.error('캡처 실패:', err);
+        this.showToast('영역 캡처 실패', 'error');
+      }
+    },
+    async fbCaptureSubmit() {
+      if (!this.fbCapture) return;
+      const payload = {
+        x: this.fbCapture.x, y: this.fbCapture.y,
+        w: this.fbCapture.w, h: this.fbCapture.h,
+        tab: this.activeTab, viewMode: this.viewMode,
+        comment: this.fbCaptureText.trim(),
+        image: this.fbCapture.dataUrl,
+        url: window.location.href,
+        screen: { w: window.innerWidth, h: window.innerHeight },
+      };
+      try {
+        const res = await fetch('/api/feedback/capture', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        const d = await res.json();
+        if (d.success) {
+          this.feedbackPins.push({
+            x: this.fbCapture.x + this.fbCapture.w / 2,
+            y: this.fbCapture.y + this.fbCapture.h / 2,
+            comment: '📸 ' + (this.fbCaptureText.trim() || '영역 캡처'),
+            tab: this.activeTab, id: d.id || Date.now(),
+            hasCapture: true, captureFile: d.file,
+          });
+          this.showToast(`영역 캡처 저장됨 (${this.fbCapture.w}×${this.fbCapture.h}px)`, 'success');
+        }
+      } catch { this.showToast('캡처 저장 실패', 'error'); }
+      this.fbCapture = null;
+      this.fbCaptureText = '';
+    },
+    fbCaptureCancel() {
+      this.fbCapture = null;
+      this.fbCaptureText = '';
     },
 
     sendPreset(text) {
@@ -2587,7 +2709,7 @@ function corthexApp() {
         const m = task.command.match(/@(\S+)/);
         if (m) {
           const k = m[1].toLowerCase();
-          const map = {'cto':'cto_manager','cso':'cso_manager','clo':'clo_manager','cmo':'cmo_manager','cio':'cio_manager','cpo':'cpo_manager','비서실장':'chief_of_staff'};
+          const map = {'cso':'cso_manager','clo':'clo_manager','cmo':'cmo_manager','cio':'cio_manager','cpo':'cpo_manager','비서실장':'chief_of_staff'};
           agentId = map[k] || null;
         }
       }
@@ -3658,11 +3780,16 @@ function corthexApp() {
 
     async approveSNS(id) {
       try {
+        this.showToast('승인 + 발행 진행중...', 'info');
         const res = await fetch(`/api/sns/approve/${id}`, { method: 'POST' });
         const data = await res.json();
         if (data.success) {
-          this.showToast('승인되었습니다.', 'success');
+          this.showToast('승인 완료! 자동 발행 진행중...', 'success');
           this.loadSNSQueue();
+          // 발행 완료까지 5초 후 큐 새로고침 (Selenium 소요 대기)
+          setTimeout(() => this.loadSNSQueue(), 5000);
+          setTimeout(() => this.loadSNSQueue(), 15000);
+          setTimeout(() => this.loadSNSQueue(), 30000);
         } else { this.showToast(data.error || '승인 실패', 'error'); }
       } catch { this.showToast('승인에 실패했습니다.', 'error'); }
     },
@@ -3705,6 +3832,43 @@ function corthexApp() {
         }
       } catch { /* 무시 */ }
       finally { this.sns.loading = false; }
+    },
+
+    // ── SNS Cookie Management ──
+    async loadCookieStatus() {
+      try {
+        const res = await fetch('/api/sns/cookies/status');
+        if (res.ok) this.sns.cookieStatus = await res.json();
+      } catch { /* 무시 */ }
+    },
+    async uploadSNSCookies() {
+      const p = this.sns.cookiePlatform;
+      const raw = this.sns.cookieJson.trim();
+      if (!raw) { this.showToast('쿠키 JSON을 입력하세요.', 'warning'); return; }
+      let cookies;
+      try { cookies = JSON.parse(raw); } catch {
+        this.showToast('JSON 형식이 올바르지 않습니다. Cookie-Editor의 Export 결과를 그대로 붙여넣으세요.', 'error'); return;
+      }
+      if (!Array.isArray(cookies) || !cookies.length) { this.showToast('쿠키 배열이 비어있습니다.', 'error'); return; }
+      try {
+        const res = await fetch(`/api/sns/cookies/${p}`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(cookies) });
+        const data = await res.json();
+        if (data.success) {
+          this.showToast(`${p === 'naver' ? '네이버' : '카카오'} 쿠키 ${data.cookie_count}개 등록 완료!`, 'success');
+          this.sns.cookieJson = '';
+          this.loadCookieStatus();
+        } else { this.showToast(data.error || '등록 실패', 'error'); }
+      } catch { this.showToast('서버 오류', 'error'); }
+    },
+    async deleteSNSCookie(p) {
+      this.showConfirm({ title: '쿠키 삭제', message: `${p === 'naver' ? '네이버' : '카카오'} 쿠키를 삭제할까요?`, confirmText: '삭제', onConfirm: async () => {
+        try {
+          const res = await fetch(`/api/sns/cookies/${p}`, { method: 'DELETE' });
+          const data = await res.json();
+          if (data.success) { this.showToast('쿠키 삭제 완료', 'success'); this.loadCookieStatus(); }
+          else { this.showToast(data.error || '삭제 실패', 'error'); }
+        } catch { this.showToast('서버 오류', 'error'); }
+      }});
     },
 
     // ── Trading (자동매매 시스템) 함수 ──
@@ -4688,7 +4852,7 @@ function corthexApp() {
         if (e.key === 'Escape') {
           if (this.nexusOpen) {
             this.nexusOpen = false;
-            if (this.flowchart.graph3dLabelsAnimId) { cancelAnimationFrame(this.flowchart.graph3dLabelsAnimId); this.flowchart.graph3dLabelsAnimId = 0; }
+            this._disconnectSketchVibeSSE();
             return;
           }
           if (this.viewMode === 'agora') { this.viewMode = 'chat'; if (this.agora.sseSource) { this.agora.sseSource.close(); this.agora.sseSource = null; } return; }
@@ -4757,7 +4921,7 @@ function corthexApp() {
       if (!filename) return '';
       let t = filename;
       t = t.replace(/\.md$/, '');
-      t = t.replace(/^(chief_of_staff|cio_manager|cso_manager|clo_manager|cmo_manager|cpo_manager|cto_manager|argos)_/i, '');
+      t = t.replace(/^(chief_of_staff|cio_manager|cso_manager|clo_manager|cmo_manager|cpo_manager|argos)_/i, '');
       t = t.replace(/^\d{4}-\d{2}-\d{2}[-_]?/, '');
       t = t.replace(/_\d{8}_\d{6}$/, '');
       t = t.replace(/_\d{8}T\d{6}$/, '');
@@ -4936,9 +5100,12 @@ function corthexApp() {
     // ── NEXUS: 풀스크린 오버레이 열기 ──
     openNexus() {
       this.nexusOpen = true;
-      setTimeout(() => {
-        if (this.flowchart.mode === '3d' && !this.flowchart.graph3dLoaded) this.initNexus3D();
-        if (this.flowchart.mode === 'canvas' && !this.flowchart.canvasLoaded) this.initNexusCanvas();
+      this.flowchart.mode = 'canvas';
+      setTimeout(async () => {
+        if (!this.flowchart.canvasLoaded) await this.initNexusCanvas();
+        await this.loadCanvasList();
+        // SSE 자동 연결 (캔버스에서 Mermaid 실시간 수신)
+        this._connectSketchVibeSSE();
       }, 200);
     },
 
@@ -5084,15 +5251,7 @@ function corthexApp() {
     },
     // ══════════════════════════════════════════════ AGORA 끝 ══
 
-    // ── NEXUS: 모드 전환 ──
-    async onNexusModeChange(mode) {
-      this.flowchart.mode = mode;
-      await this.$nextTick();
-      if (mode === '3d' && !this.flowchart.graph3dLoaded) await this.initNexus3D();
-      if (mode === 'mermaid' && !this.flowchart.mermaidRendered) await this.generateMermaidSystemFlow();
-      if (mode === 'canvas' && !this.flowchart.canvasLoaded) await this.initNexusCanvas();
-      if (mode === 'canvas') await this.loadCanvasList();
-    },
+    // ── NEXUS: 모드 전환 (split/mermaid 삭제됨 — canvas만 유지) ──
 
     // ── NEXUS Mermaid: 시스템 플로우차트 생성 ──
     async generateMermaidSystemFlow() {
@@ -5212,8 +5371,8 @@ function corthexApp() {
       }
     },
 
-    // ── NEXUS 3D: 시스템 전체 그래프 데이터 빌드 ──
-    _buildSystemGraphData(agentNodes, agentEdges) {
+    // ── NEXUS 3D: 제거됨 (2D 전환) ── 시스템 그래프 데이터는 Mermaid로 대체
+    _buildSystemGraphData_REMOVED(agentNodes, agentEdges) {
       const CAT = {
         core:    { color: '#e879f9', label: 'CORTHEX' },
         tab:     { color: '#60a5fa', label: 'UI 탭' },
@@ -5305,8 +5464,8 @@ function corthexApp() {
       return { nodes, links, CAT };
     },
 
-    // ── NEXUS 3D: 초기화 (방사형 계층 + 라벨 오버레이 + 화살표) ──
-    async initNexus3D() {
+    // ── NEXUS 3D: 제거됨 (2D 전환) ──
+    async initNexus3D_REMOVED() {
       try {
         await _loadScript(_CDN.forcegraph3d);
         const r = await fetch('/api/architecture/hierarchy');
@@ -5477,7 +5636,7 @@ function corthexApp() {
       }
     },
 
-    // ── NEXUS 캔버스: 파일 목록 ──
+    // ── NEXUS 캔버스: 파일 목록 + 확인된 다이어그램 ──
     async loadCanvasList() {
       try {
         const r = await fetch('/api/knowledge');
@@ -5485,6 +5644,30 @@ function corthexApp() {
         const data = await r.json();
         this.flowchart.canvasItems = (data.files || []).filter(f => f.folder === 'flowcharts' && f.name.endsWith('.json'));
       } catch(e) { console.error('loadCanvasList:', e); }
+      // 확인된 다이어그램 목록도 로드
+      try {
+        const r2 = await fetch('/api/sketchvibe/confirmed');
+        if (r2.ok) {
+          const d2 = await r2.json();
+          this.flowchart.confirmedItems = d2.diagrams || [];
+        }
+      } catch(e) { console.error('loadConfirmedList:', e); }
+    },
+
+    // ── 확인된 다이어그램 불러오기 (Mermaid 렌더링) ──
+    async loadConfirmedDiagram(item) {
+      try {
+        const r = await fetch(`/api/sketchvibe/confirmed/${item.safe_name}`);
+        if (!r.ok) throw new Error('불러오기 실패');
+        const data = await r.json();
+        if (data.mermaid) {
+          this.flowchart.sketchResult = { mermaid: data.mermaid, description: data.interpretation || '' };
+          this.flowchart.sketchConfirmed = null;
+          await this.$nextTick();
+          await this._renderSketchVibeMermaid(data.mermaid);
+          this.showToast(`"${item.name}" 다이어그램 로드`, 'success');
+        }
+      } catch(e) { this.showToast('불러오기 실패: ' + e.message, 'error'); }
     },
 
     // ── NEXUS 캔버스: 팔레트 노드 추가 ──
@@ -5494,7 +5677,10 @@ function corthexApp() {
       const labels = { agent:'에이전트', system:'시스템', api:'외부 API', decide:'결정 분기', start:'시작', end:'종료', note:'메모' };
       const colors = { agent:'#8b5cf6', system:'#3b82f6', api:'#059669', decide:'#f59e0b', start:'#22c55e', end:'#ef4444', note:'#6b7280' };
       const html = `<div class="nexus-node" style="background:${colors[type]||'#6b7280'};padding:6px 12px;border-radius:8px;color:#fff;font-size:12px;font-family:Pretendard,sans-serif;min-width:80px;text-align:center;cursor:move">${labels[type]||type}</div>`;
-      editor.addNode(type, 1, 1, 200, 200, type, { label: labels[type] }, html);
+      // 캔버스 중앙 근처 + 랜덤 오프셋 (노드 겹침 방지)
+      const cx = 300 + Math.floor(Math.random() * 200);
+      const cy = 200 + Math.floor(Math.random() * 200);
+      editor.addNode(type, 1, 1, cx, cy, type, { label: labels[type] }, html);
     },
 
     // ── NEXUS 캔버스: 저장 ──
@@ -5544,6 +5730,203 @@ function corthexApp() {
         this.flowchart.canvasDirty = false;
         this.flowchart.canvasName = '';
       }
+    },
+
+    // ══════════════════════════════════════════════ SketchVibe (Phase 3) ══
+
+    _sketchVibeSSE: null,
+
+    // ── 캔버스 저장 (서버 변환 없음 — Claude Code가 MCP로 읽기) ──
+    async saveSketchVibe() {
+      if (!this.flowchart.canvasEditor) {
+        this.showToast('캔버스가 로드되지 않았습니다', 'error');
+        return;
+      }
+      if (this.flowchart.sketchConverting) return;
+
+      this.flowchart.sketchConverting = true;
+      this.flowchart.sketchError = null;
+
+      try {
+        const canvasJson = this.flowchart.canvasEditor.export();
+        const nodes = canvasJson?.drawflow?.Home?.data || {};
+        if (Object.keys(nodes).length === 0) {
+          throw new Error('캔버스에 노드가 없습니다. 팔레트에서 노드를 추가해주세요.');
+        }
+
+        const resp = await fetch('/api/sketchvibe/save-canvas', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            canvas_json: canvasJson,
+            description: this.flowchart.sketchDescription
+          })
+        });
+
+        if (!resp.ok) throw new Error(`서버 오류 (${resp.status})`);
+        const data = await resp.json();
+        if (data.error) throw new Error(data.error);
+
+        this.flowchart.sketchResult = { saved: true };
+        this.showToast('저장됨 — VS Code에서 read_canvas 도구를 호출하세요', 'success');
+      } catch (e) {
+        this.flowchart.sketchError = e.message;
+      } finally {
+        this.flowchart.sketchConverting = false;
+      }
+    },
+
+    // ── Mermaid 렌더링 (SSE 이벤트로 호출됨) ──
+    async _renderSketchVibeMermaid(code) {
+      if (!window.mermaid) {
+        const src = this._CDN?.mermaid || 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js';
+        await new Promise((resolve, reject) => {
+          const s = document.createElement('script');
+          s.src = src; s.onload = resolve; s.onerror = reject;
+          document.head.appendChild(s);
+        });
+      }
+      // 다크/라이트 모드에 맞게 매번 재초기화
+      const isDark = this.darkMode;
+      mermaid.initialize({
+        startOnLoad: false,
+        theme: isDark ? 'dark' : 'default',
+        flowchart: { useMaxWidth: false, htmlLabels: true },
+        themeVariables: isDark ? {
+          primaryColor: '#1e1b4b', primaryTextColor: '#e2e8f0',
+          primaryBorderColor: '#6366f1', lineColor: '#6366f1',
+          secondaryColor: '#0f172a', tertiaryColor: '#0c1220',
+          fontFamily: 'Pretendard, sans-serif', fontSize: '12px'
+        } : {
+          primaryColor: '#ede9fe', primaryTextColor: '#1e1b4b',
+          primaryBorderColor: '#6366f1', lineColor: '#6366f1',
+          secondaryColor: '#f1f5f9', tertiaryColor: '#f8fafc',
+          fontFamily: 'Pretendard, sans-serif', fontSize: '12px'
+        }
+      });
+
+      // 캔버스 오버레이에 렌더링 (사이드 패널 아닌 캔버스 영역)
+      const el = document.getElementById('sketchvibe-canvas-mermaid');
+      if (!el) return;
+
+      try {
+        const svgId = 'sv-' + Date.now();
+        const { svg } = await mermaid.render(svgId, code);
+        el.innerHTML = svg;
+      } catch (e) {
+        el.innerHTML = `<pre class="text-red-400 text-xs p-2">렌더링 실패: ${e.message}\n\n코드:\n${code}</pre>`;
+      }
+    },
+
+    // ── SSE 연결: Claude Code → 브라우저 실시간 업데이트 ──
+    _connectSketchVibeSSE() {
+      if (this._sketchVibeSSE) return;
+      try {
+        this._sketchVibeSSE = new EventSource('/api/sketchvibe/stream');
+
+        this._sketchVibeSSE.addEventListener('sketchvibe', async (e) => {
+          const data = JSON.parse(e.data);
+          if (data.type === 'canvas_update') {
+            // Claude Code가 Mermaid 코드를 보냄 → 렌더링
+            this.flowchart.sketchResult = { mermaid: data.mermaid, description: data.description };
+            this.flowchart.sketchError = null;
+            this.flowchart.sketchConfirmed = null;
+            this.flowchart.approvalRequest = null;
+            await this.$nextTick();
+            await this._renderSketchVibeMermaid(data.mermaid);
+          } else if (data.type === 'approval_request') {
+            // Claude Code가 확인 요청
+            this.flowchart.approvalRequest = data.message;
+          } else if (data.type === 'approved') {
+            this.flowchart.approvalRequest = null;
+          }
+        });
+
+        this._sketchVibeSSE.onerror = () => {
+          this._sketchVibeSSE?.close();
+          this._sketchVibeSSE = null;
+          // 재연결 (3초 후)
+          setTimeout(() => {
+            if (this.nexusOpen) this._connectSketchVibeSSE();
+          }, 3000);
+        };
+      } catch (e) {
+        console.error('SketchVibe SSE 연결 실패:', e);
+      }
+    },
+
+    _disconnectSketchVibeSSE() {
+      if (this._sketchVibeSSE) {
+        this._sketchVibeSSE.close();
+        this._sketchVibeSSE = null;
+      }
+    },
+
+    // ── "맞아" 확인 → 다이어그램 저장 ──
+    async confirmSketchVibe() {
+      const r = this.flowchart.sketchResult;
+      if (!r || !r.mermaid) return;
+
+      const name = prompt('다이어그램 이름을 입력하세요:', '') || '';
+      if (!name.trim()) {
+        this.showToast('이름을 입력해주세요', 'error');
+        return;
+      }
+
+      try {
+        // 승인 이벤트 전송
+        await fetch('/api/sketchvibe/approve', { method: 'POST' });
+
+        const canvasJson = this.flowchart.canvasEditor?.export() || null;
+        const resp = await fetch('/api/sketchvibe/save-diagram', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            mermaid: r.mermaid,
+            name: name.trim(),
+            interpretation: r.description || '',
+            canvas_json: canvasJson,
+          })
+        });
+
+        const data = await resp.json();
+        if (data.error) throw new Error(data.error);
+
+        this.flowchart.sketchConfirmed = { name: name.trim() };
+        this.flowchart.approvalRequest = null;
+        // 저장된 캔버스 목록 갱신
+        this.loadCanvasList();
+        this.showToast(`"${name}" 확인 완료 — 저장됨`, 'success');
+      } catch (e) {
+        this.showToast('저장 실패: ' + e.message, 'error');
+      }
+    },
+
+    // ── "다시 해줘" → 결과 초기화 ──
+    retrySketchVibe() {
+      this.flowchart.sketchResult = null;
+      this.flowchart.sketchError = null;
+      this.flowchart.sketchConfirmed = null;
+      this.flowchart.approvalRequest = null;
+      // 캔버스도 초기화 (새로 그리기)
+      this.clearNexusCanvas();
+    },
+
+    async deleteConfirmedDiagram(item) {
+      if (!confirm(`"${item.name}" 다이어그램을 삭제할까요?`)) return;
+      try {
+        const r = await fetch(`/api/sketchvibe/confirmed/${item.safe_name}`, { method: 'DELETE' });
+        const data = await r.json();
+        if (data.error) throw new Error(data.error);
+        // 즉시 목록에서 제거 (새로고침 불필요)
+        this.flowchart.confirmedItems = this.flowchart.confirmedItems.filter(i => i.safe_name !== item.safe_name);
+        // 현재 표시 중인 다이어그램이면 오버레이도 닫기
+        if (this.flowchart.sketchResult?.mermaid) {
+          this.flowchart.sketchResult = null;
+          this.flowchart.sketchConfirmed = null;
+        }
+        this.showToast(`"${item.name}" 삭제됨`, 'success');
+      } catch(e) { this.showToast('삭제 실패: ' + e.message, 'error'); }
     },
   };
 }

@@ -452,6 +452,12 @@ jobs:
             echo "📋 등록된 API 키 수: $(grep -c '_KEY\|_ID\|_PASS\|_HOST\|_PORT\|_USER\|_TOKEN' "$ENV_FILE" || echo 0)개"
 
             # 6단계: 서버 재시작
+            # 6.5단계: Claude Code 업데이트 체크 크론 등록 (매일 00:00 UTC = 09:00 KST)
+            chmod +x /home/ubuntu/CORTHEX_HQ/scripts/check_claude_code_update.sh
+            (crontab -l 2>/dev/null | grep -v "check_claude_code_update" ; echo "0 0 * * * /home/ubuntu/CORTHEX_HQ/scripts/check_claude_code_update.sh >> /home/ubuntu/logs/claude_update_check.log 2>&1") | crontab -
+            mkdir -p /home/ubuntu/logs
+            echo "✅ Claude Code 업데이트 체크 크론 등록 완료 (매일 09:00 KST)"
+
             echo "🔁 서버 재시작 중..."
             # corthex.service가 올바른 경로로 arm_server.py를 실행하도록 강제 설정
             echo "♻️ corthex.service ExecStart 복원 중..."
@@ -483,6 +489,26 @@ jobs:
               echo "❌ 서버 시작 실패"
               sudo journalctl -u corthex --no-pager -n 30
               exit 1
+            fi
+
+            # 7.5단계: API 헬스체크 (핵심 4개)
+            echo "=== API 헬스체크 시작 ==="
+            sleep 10
+            BASE="https://corthex-hq.com"
+            FAIL=0
+            for ENDPOINT in "/" "/api/dashboard" "/api/argos/status" "/api/debug/ai-providers"; do
+              STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 "$BASE$ENDPOINT" 2>/dev/null || echo "000")
+              if [ "$STATUS" = "200" ]; then
+                echo "✅ $ENDPOINT → $STATUS"
+              else
+                echo "🔴 $ENDPOINT → $STATUS"
+                FAIL=1
+              fi
+            done
+            if [ "$FAIL" = "1" ]; then
+              echo "⚠️ 일부 엔드포인트 이상 감지 (서비스는 계속)"
+            else
+              echo "=== 모든 헬스체크 통과 ==="
             fi
 
             # 8단계: 배포 상태 JSON 저장

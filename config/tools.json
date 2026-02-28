@@ -1,0 +1,5284 @@
+{
+  "tools": [
+    {
+      "tool_id": "daum_cafe",
+      "category": "api",
+      "name": "Daum Cafe Search",
+      "name_ko": "다음 카페 검색",
+      "description": "다음 카페 글 검색 및 본문 크롤링, 소비자 반응 분석 (카카오 API)",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "search",
+              "read",
+              "analyze"
+            ],
+            "description": "search=글 검색, read=본문 크롤링, analyze=소비자 반응 분석"
+          },
+          "query": {
+            "type": "string",
+            "description": "검색 키워드"
+          },
+          "cafe_id": {
+            "type": "string",
+            "description": "카페 ID (특정 카페 한정 검색 시)"
+          },
+          "count": {
+            "type": "integer",
+            "description": "검색 결과 수 (기본값 20)"
+          }
+        },
+        "required": [
+          "action",
+          "query"
+        ]
+      }
+    },
+    {
+      "tool_id": "leet_survey",
+      "category": "api",
+      "name": "LEET Survey",
+      "name_ko": "LEET 해설 서베이",
+      "description": "6개 커뮤니티(다음카페/네이버카페/네이버블로그/오르비/디시인사이드/티스토리)에서 LEET 해설 부정의견 자동 수집·분석",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "survey",
+              "analyze",
+              "report"
+            ],
+            "description": "survey=커뮤니티 수집, analyze=부정의견 분석, report=종합 보고서 생성"
+          },
+          "year": {
+            "type": "integer",
+            "description": "LEET 시험 연도 (예: 2026)"
+          },
+          "keyword": {
+            "type": "string",
+            "description": "추가 검색 키워드 (예: 특정 문항번호, 과목명)"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      }
+    },
+    {
+      "tool_id": "sns_manager",
+      "category": "api",
+      "name": "SNS Manager",
+      "name_ko": "SNS 매니저",
+      "description": "SNS 통합 퍼블리싱(인스타그램/티스토리/다음카페). CEO 승인 큐 포함. submit 시 media_urls로 이미지/동영상 URL 전달 필수.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "submit",
+              "approve",
+              "reject",
+              "publish",
+              "queue",
+              "status"
+            ],
+            "description": "submit=발행 요청(큐 등록), approve=CEO 승인, reject=CEO 거절, publish=실제 발행(CMO만), queue=큐 조회, status=연결 상태"
+          },
+          "platform": {
+            "type": "string",
+            "description": "발행 플랫폼 (instagram, tistory, youtube, naver_blog, daum_cafe)"
+          },
+          "title": {
+            "type": "string",
+            "description": "콘텐츠 제목"
+          },
+          "body": {
+            "type": "string",
+            "description": "콘텐츠 본문"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "태그 목록"
+          },
+          "request_id": {
+            "type": "string",
+            "description": "approve/reject/publish 시 필요한 요청 ID"
+          },
+          "reason": {
+            "type": "string",
+            "description": "reject 시 거절 사유"
+          },
+          "media_urls": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "이미지/동영상 URL 목록. submit 시 반드시 포함 (예: [\"/api/media/images/xxx.png\"])"
+          },
+          "category": {
+            "type": "string",
+            "description": "카테고리명 (블로그 플랫폼용)"
+          },
+          "visibility": {
+            "type": "string",
+            "description": "공개 범위 (public/private, 기본 public)"
+          },
+          "extra": {
+            "type": "object",
+            "description": "플랫폼별 추가 옵션 (예: instagram REELS → {\"media_type\": \"REELS\"}, daum_cafe → {\"cafe_id\": \"...\", \"board_id\": \"...\"})"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      }
+    },
+    {
+      "tool_id": "kr_stock",
+      "category": "api",
+      "name": "Korean Stock Data",
+      "name_ko": "한국 주식 데이터",
+      "description": "한국거래소 주가/거래량 조회, 기술적 지표(RSI/MACD/BB) 자동 계산, 시가총액 순위 (pykrx)",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "price",
+              "ohlcv",
+              "indicators",
+              "market_cap"
+            ],
+            "description": "수행할 작업. price=주가조회, ohlcv=기간별 데이터, indicators=기술적지표, market_cap=시가총액순위"
+          },
+          "ticker": {
+            "type": "string",
+            "description": "종목코드 (예: 005930). ticker 또는 name 중 하나 필수"
+          },
+          "name": {
+            "type": "string",
+            "description": "종목명 (예: 삼성전자). ticker 또는 name 중 하나 필수"
+          },
+          "days": {
+            "type": "integer",
+            "description": "조회 기간 (일수, 기본값 30)"
+          },
+          "market": {
+            "type": "string",
+            "enum": [
+              "KOSPI",
+              "KOSDAQ"
+            ],
+            "description": "시장 구분 (market_cap action에만 사용, 기본값 KOSPI)"
+          },
+          "top_n": {
+            "type": "integer",
+            "description": "시가총액 상위 N개 (market_cap action에만 사용, 기본값 20)"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      }
+    },
+    {
+      "tool_id": "dart_api",
+      "category": "api",
+      "name": "DART Financial Statements",
+      "name_ko": "DART 재무제표",
+      "description": "금융감독원 DART 기업 재무제표(매출/영업이익/순이익), 기업정보, 최신 공시 조회",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "financial",
+              "company",
+              "disclosure"
+            ],
+            "description": "financial=재무제표 조회, company=기업정보, disclosure=최신 공시"
+          },
+          "company": {
+            "type": "string",
+            "description": "기업명 (예: 삼성전자, SK하이닉스, LG에너지솔루션)"
+          },
+          "year": {
+            "type": "string",
+            "description": "조회 연도 (예: 2024, 기본값: 2024)"
+          },
+          "report_code": {
+            "type": "string",
+            "description": "공시 유형 코드 (11011=사업보고서, 기본값: 11011)"
+          }
+        },
+        "required": [
+          "action",
+          "company"
+        ]
+      }
+    },
+    {
+      "tool_id": "naver_news",
+      "category": "api",
+      "name": "Naver News Search",
+      "name_ko": "네이버 뉴스 검색",
+      "description": "네이버 검색 API로 최신 뉴스 검색, 금융/시장 뉴스 분석",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "search",
+              "analyze"
+            ],
+            "description": "search=뉴스 검색, analyze=뉴스 분석"
+          },
+          "query": {
+            "type": "string",
+            "description": "검색 키워드"
+          },
+          "count": {
+            "type": "integer",
+            "description": "검색 결과 수 (기본값 10)"
+          },
+          "sort": {
+            "type": "string",
+            "enum": [
+              "date",
+              "sim"
+            ],
+            "description": "정렬 기준 (date=최신순, sim=관련도순. 기본값: date)"
+          }
+        },
+        "required": [
+          "action",
+          "query"
+        ]
+      }
+    },
+    {
+      "tool_id": "ecos_macro",
+      "category": "api",
+      "name": "ECOS Macro Indicators",
+      "name_ko": "한국은행 경제 지표",
+      "description": "한국은행 ECOS API로 기준금리, GDP, CPI, 환율 등 거시경제 지표 조회",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "rate",
+              "gdp",
+              "cpi",
+              "exchange",
+              "full"
+            ],
+            "description": "rate=기준금리, gdp=GDP, cpi=소비자물가, exchange=환율, full=전체 지표"
+          },
+          "period": {
+            "type": "string",
+            "description": "조회 기간 (예: 2024, 2024Q1)"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      }
+    },
+    {
+      "tool_id": "naver_datalab",
+      "category": "api",
+      "name": "Naver DataLab Trends",
+      "name_ko": "네이버 데이터랩",
+      "description": "네이버 데이터랩 API로 키워드 검색량 추이(최대 5개 비교) 및 쇼핑 트렌드 분석",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "trend",
+              "shopping",
+              "compare"
+            ],
+            "description": "trend=검색량 추이, shopping=쇼핑 트렌드, compare=키워드 비교"
+          },
+          "keywords": {
+            "type": "string",
+            "description": "키워드 쉼표 구분 (최대 5개, 예: 삼성전자,카카오,네이버)"
+          },
+          "period": {
+            "type": "string",
+            "description": "조회 기간 (예: 1m, 3m, 1y)"
+          }
+        },
+        "required": [
+          "action",
+          "keywords"
+        ]
+      }
+    },
+    {
+      "tool_id": "public_data",
+      "category": "api",
+      "name": "Public Data Portal",
+      "name_ko": "공공데이터",
+      "description": "공공데이터포털 API로 인구, 교육, 경제 등 정부 통계 데이터 조회",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "search",
+              "query"
+            ],
+            "description": "search=데이터셋 검색, query=데이터 조회"
+          },
+          "keyword": {
+            "type": "string",
+            "description": "검색 키워드"
+          },
+          "dataset_id": {
+            "type": "string",
+            "description": "데이터셋 ID (query 시 필수)"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      }
+    },
+    {
+      "tool_id": "platform_market_scraper",
+      "category": "api",
+      "name": "Platform Market Scraper",
+      "name_ko": "플랫폼 시장 조사기",
+      "description": "크몽/탈잉/클래스101 플랫폼에서 서비스 가격·리뷰·판매량 수집 및 시장 분석",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "scrape",
+              "analyze",
+              "compare"
+            ],
+            "description": "scrape=데이터 수집, analyze=시장 분석, compare=플랫폼 비교"
+          },
+          "platform": {
+            "type": "string",
+            "enum": [
+              "kmong",
+              "taling",
+              "class101",
+              "all"
+            ],
+            "description": "플랫폼 (기본값: all)"
+          },
+          "category": {
+            "type": "string",
+            "description": "카테고리 (예: 디자인, 마케팅, 개발)"
+          },
+          "keyword": {
+            "type": "string",
+            "description": "검색 키워드"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      }
+    },
+    {
+      "tool_id": "kipris",
+      "category": "api",
+      "name": "KIPRIS Patent/Trademark Search",
+      "name_ko": "특허/상표 검색",
+      "description": "KIPRIS Plus API로 특허, 상표, 디자인 검색 및 분석",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "patent",
+              "trademark",
+              "design"
+            ],
+            "description": "patent=특허 검색, trademark=상표 검색, design=디자인 검색"
+          },
+          "query": {
+            "type": "string",
+            "description": "검색 키워드"
+          },
+          "applicant": {
+            "type": "string",
+            "description": "출원인명 (선택)"
+          }
+        },
+        "required": [
+          "action",
+          "query"
+        ]
+      }
+    },
+    {
+      "tool_id": "law_search",
+      "category": "api",
+      "name": "Law/Precedent Search",
+      "name_ko": "법령/판례 검색",
+      "description": "국가법령정보센터 API로 법령 조문 및 판례 검색",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "law",
+              "precedent",
+              "search"
+            ],
+            "description": "law=법령 조문 검색, precedent=판례 검색, search=통합 검색"
+          },
+          "query": {
+            "type": "string",
+            "description": "검색 키워드"
+          },
+          "law_name": {
+            "type": "string",
+            "description": "법령명 (예: 저작권법, 개인정보보호법)"
+          }
+        },
+        "required": [
+          "action",
+          "query"
+        ]
+      }
+    },
+    {
+      "tool_id": "precedent_analyzer",
+      "category": "api",
+      "name": "Precedent Analyzer",
+      "name_ko": "판례 트렌드 분석기",
+      "description": "특정 법률 분야의 판례를 대량 수집하여 판결 경향(연도별 건수, 승소율, 키워드) 분석",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "trend",
+              "statistics",
+              "keyword"
+            ],
+            "description": "trend=연도별 판결 경향, statistics=승소율 통계, keyword=키워드 분석"
+          },
+          "field": {
+            "type": "string",
+            "description": "법률 분야 (예: 저작권, 특허, 노동, 상법)"
+          },
+          "years": {
+            "type": "integer",
+            "description": "분석 기간 연수 (기본값 5)"
+          }
+        },
+        "required": [
+          "action",
+          "field"
+        ]
+      }
+    },
+    {
+      "tool_id": "trademark_similarity",
+      "category": "api",
+      "name": "Trademark Similarity Checker",
+      "name_ko": "상표 유사도 검사기",
+      "description": "브랜드명/상표명의 기존 등록 상표 대비 유사도(글자·발음·외관) 자동 판별",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "check",
+              "detail"
+            ],
+            "description": "check=유사도 검사, detail=상세 비교 분석"
+          },
+          "brand_name": {
+            "type": "string",
+            "description": "검사할 브랜드명/상표명"
+          },
+          "class_code": {
+            "type": "string",
+            "description": "상표 분류코드 (선택, 예: 09, 35, 42)"
+          }
+        },
+        "required": [
+          "action",
+          "brand_name"
+        ]
+      }
+    },
+    {
+      "tool_id": "contract_reviewer",
+      "category": "llm",
+      "name": "Contract Reviewer",
+      "name_ko": "계약서 자동 검토기",
+      "description": "계약서 텍스트에서 위험/불리 조항 자동 탐지 및 필수 조항 누락 체크",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "review",
+              "risk",
+              "checklist"
+            ],
+            "description": "review=종합 검토, risk=위험 조항 탐지, checklist=필수 조항 누락 체크"
+          },
+          "contract_text": {
+            "type": "string",
+            "description": "계약서 텍스트 내용"
+          },
+          "contract_type": {
+            "type": "string",
+            "description": "계약 유형 (예: 용역, 라이선스, 고용, NDA)"
+          }
+        },
+        "required": [
+          "action",
+          "contract_text"
+        ]
+      }
+    },
+    {
+      "tool_id": "nda_analyzer",
+      "category": "llm",
+      "name": "NDA Analyzer",
+      "name_ko": "NDA 분석기",
+      "description": "비밀유지계약(NDA/기밀유지계약) 조항별 리스크 분석, 불리 조항 탐지, 비교분석, 초안 가이드라인",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "analyze",
+              "compare",
+              "draft_guide"
+            ],
+            "description": "analyze=조항별 리스크 분석, compare=비교 분석, draft_guide=초안 가이드라인"
+          },
+          "nda_text": {
+            "type": "string",
+            "description": "NDA 텍스트 내용"
+          },
+          "party_role": {
+            "type": "string",
+            "enum": [
+              "disclosing",
+              "receiving",
+              "mutual"
+            ],
+            "description": "우리 측 역할 (disclosing=공개측, receiving=수령측, mutual=상호)"
+          }
+        },
+        "required": [
+          "action",
+          "nda_text"
+        ]
+      }
+    },
+    {
+      "tool_id": "license_scanner",
+      "category": "llm",
+      "name": "License Scanner",
+      "name_ko": "라이선스 스캐너",
+      "description": "오픈소스/소프트웨어 라이선스 의무·제한사항 분석 및 호환성 검사, 카피레프트 전파 위험 진단",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "scan",
+              "compatibility",
+              "risk"
+            ],
+            "description": "scan=라이선스 분석, compatibility=호환성 검사, risk=카피레프트 위험 진단"
+          },
+          "license_name": {
+            "type": "string",
+            "description": "라이선스명 (예: MIT, GPL-3.0, Apache-2.0)"
+          },
+          "project_license": {
+            "type": "string",
+            "description": "프로젝트 라이선스 (호환성 검사 시)"
+          }
+        },
+        "required": [
+          "action",
+          "license_name"
+        ]
+      }
+    },
+    {
+      "tool_id": "ip_portfolio_manager",
+      "category": "llm",
+      "name": "IP Portfolio Manager",
+      "name_ko": "IP 포트폴리오 관리기",
+      "description": "기업의 지식재산권(특허, 상표, 디자인, 저작권) 포트폴리오 분석·관리 및 IP 전략 수립",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "overview",
+              "analyze",
+              "strategy"
+            ],
+            "description": "overview=포트폴리오 현황, analyze=IP 분석, strategy=IP 전략 수립"
+          },
+          "company": {
+            "type": "string",
+            "description": "기업명"
+          },
+          "ip_type": {
+            "type": "string",
+            "enum": [
+              "patent",
+              "trademark",
+              "design",
+              "copyright",
+              "all"
+            ],
+            "description": "IP 유형 (기본값: all)"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      }
+    },
+    {
+      "tool_id": "ai_governance_checker",
+      "category": "llm",
+      "name": "AI Governance Checker",
+      "name_ko": "AI 거버넌스 검사기",
+      "description": "AI 시스템의 거버넌스·윤리·규제 준수(EU AI Act, ISO 42001, OECD AI 원칙) 체계적 검증",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "check",
+              "eu_ai_act",
+              "iso_42001",
+              "full"
+            ],
+            "description": "check=종합 검증, eu_ai_act=EU AI Act 준수, iso_42001=ISO 42001 점검, full=전체 리포트"
+          },
+          "system_description": {
+            "type": "string",
+            "description": "AI 시스템 설명"
+          },
+          "risk_level": {
+            "type": "string",
+            "enum": [
+              "minimal",
+              "limited",
+              "high",
+              "unacceptable"
+            ],
+            "description": "AI 위험 수준 (EU AI Act 기준)"
+          }
+        },
+        "required": [
+          "action",
+          "system_description"
+        ]
+      }
+    },
+    {
+      "tool_id": "law_change_monitor",
+      "category": "llm",
+      "name": "Law Change Monitor",
+      "name_ko": "법령 변경 알리미",
+      "description": "관련 법령의 개정/신설/폐지 자동 감지 및 사업 영향 분석",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "monitor",
+              "impact",
+              "history"
+            ],
+            "description": "monitor=변경사항 감지, impact=사업 영향 분석, history=개정 이력 조회"
+          },
+          "law_names": {
+            "type": "string",
+            "description": "감시할 법령명 쉼표 구분 (예: 저작권법,개인정보보호법)"
+          },
+          "days": {
+            "type": "integer",
+            "description": "최근 N일 이내 변경사항 (기본값 30)"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      }
+    },
+    {
+      "tool_id": "regulation_radar",
+      "category": "llm",
+      "name": "Regulation Radar",
+      "name_ko": "규제 동향 레이더",
+      "description": "국내외 규제 동향 실시간 모니터링 및 사업 영향 분석 — OECD RIA 방법론 기반, 산업별 규제 스캔, 국가별 비교, 시행 일정표",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "scan",
+              "impact",
+              "timeline",
+              "compare"
+            ],
+            "description": "scan=규제동향스캔, impact=사업영향분석, timeline=시행일정표, compare=국가별비교"
+          },
+          "industry": {
+            "type": "string",
+            "description": "산업/기술 분야 (예: AI, 핀테크, 이커머스, 플랫폼, 제조, SaaS)"
+          },
+          "name": {
+            "type": "string",
+            "description": "관심 분야명 (예: 개인정보보호, 암호자산, ESG)"
+          },
+          "regulation": {
+            "type": "string",
+            "description": "규제명 또는 규제 설명 (impact 사용 시 필수)"
+          },
+          "business_description": {
+            "type": "string",
+            "description": "사업 설명 (impact 사용 시 필수)"
+          },
+          "regulation_topic": {
+            "type": "string",
+            "description": "규제 주제 (compare 사용 시 필수, 예: AI 규제, 개인정보보호)"
+          },
+          "countries": {
+            "type": "string",
+            "description": "비교 국가 쉼표 구분 (compare 사용 시, 기본값: 한국,미국,EU)"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      }
+    },
+    {
+      "tool_id": "dispute_simulator",
+      "category": "llm",
+      "name": "Dispute Simulator",
+      "name_ko": "법적 분쟁 시뮬레이터",
+      "description": "법적 분쟁 시나리오 시뮬레이션 및 결과 예측 — 게임이론(Nash), 의사결정트리(Raiffa), 비용 추정, 최적 대응 전략",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "simulate",
+              "outcome",
+              "strategy",
+              "cost"
+            ],
+            "description": "simulate=시나리오시뮬레이션, outcome=결과예측, strategy=전략수립, cost=비용추정"
+          },
+          "dispute_description": {
+            "type": "string",
+            "description": "분쟁 상황 설명 (필수)"
+          },
+          "name": {
+            "type": "string",
+            "description": "사건명 (simulate 사용 시, 선택)"
+          },
+          "evidence": {
+            "type": "string",
+            "description": "증거/근거 텍스트 (outcome 사용 시, 선택)"
+          },
+          "goal": {
+            "type": "string",
+            "enum": [
+              "승소",
+              "합의",
+              "비용최소화"
+            ],
+            "description": "전략 목표 (strategy 사용 시, 기본값: 승소)"
+          },
+          "dispute_type": {
+            "type": "string",
+            "enum": [
+              "민사",
+              "형사",
+              "행정",
+              "중재"
+            ],
+            "description": "분쟁 유형 (cost 사용 시, 기본값: 민사)"
+          }
+        },
+        "required": [
+          "action",
+          "dispute_description"
+        ]
+      }
+    },
+    {
+      "tool_id": "github_tool",
+      "category": "api",
+      "name": "GitHub API",
+      "name_ko": "GitHub",
+      "description": "GitHub REST API로 이슈, PR, 커밋 이력, 저장소 통계 조회",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "issues",
+              "pulls",
+              "commits",
+              "stats"
+            ],
+            "description": "issues=이슈 조회, pulls=PR 조회, commits=커밋 이력, stats=저장소 통계"
+          },
+          "repo": {
+            "type": "string",
+            "description": "저장소 (예: kodonghui/CORTHEX_HQ)"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "open",
+              "closed",
+              "all"
+            ],
+            "description": "상태 필터 (기본값: open)"
+          },
+          "count": {
+            "type": "integer",
+            "description": "조회 건수 (기본값 10)"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      }
+    },
+    {
+      "tool_id": "code_quality",
+      "category": "llm",
+      "name": "Code Quality Check",
+      "name_ko": "코드 품질 검사",
+      "description": "bandit(보안), ruff(린팅), pytest(테스트)로 코드 품질 종합 검사",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "full",
+              "security",
+              "lint",
+              "test"
+            ],
+            "description": "full=종합 검사, security=보안(bandit), lint=린팅(ruff), test=테스트(pytest)"
+          },
+          "path": {
+            "type": "string",
+            "description": "검사 대상 경로 (예: web/, tests/)"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      }
+    },
+    {
+      "tool_id": "notion_api",
+      "category": "api",
+      "name": "Notion Integration",
+      "name_ko": "노션 연동",
+      "description": "Notion API로 페이지 생성/수정, 데이터베이스 쿼리, 마크다운 자동 변환",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "create",
+              "update",
+              "query",
+              "read"
+            ],
+            "description": "create=페이지 생성, update=페이지 수정, query=DB 쿼리, read=페이지 읽기"
+          },
+          "page_id": {
+            "type": "string",
+            "description": "페이지 ID (update/read 시)"
+          },
+          "database_id": {
+            "type": "string",
+            "description": "데이터베이스 ID (query 시)"
+          },
+          "content": {
+            "type": "string",
+            "description": "마크다운 콘텐츠 (create/update 시)"
+          },
+          "title": {
+            "type": "string",
+            "description": "페이지 제목 (create 시)"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      }
+    },
+    {
+      "tool_id": "doc_converter",
+      "category": "local",
+      "name": "Document Converter",
+      "name_ko": "문서 변환",
+      "description": "pandoc으로 마크다운을 PDF, DOCX, ePub(전자책)으로 변환",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "pdf",
+              "docx",
+              "epub"
+            ],
+            "description": "pdf=PDF 변환, docx=DOCX 변환, epub=ePub 변환"
+          },
+          "content": {
+            "type": "string",
+            "description": "변환할 마크다운 콘텐츠"
+          },
+          "title": {
+            "type": "string",
+            "description": "문서 제목"
+          }
+        },
+        "required": [
+          "action",
+          "content"
+        ]
+      }
+    },
+    {
+      "tool_id": "dart_monitor",
+      "category": "api",
+      "name": "DART Monitor",
+      "name_ko": "공시 알리미",
+      "description": "DART 공시 자동 감시 — 관심 기업의 새 공시를 자동 감지하고 주가 영향 분석",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "check",
+              "add",
+              "remove",
+              "list"
+            ],
+            "description": "check=새 공시 확인, add=감시 기업 추가, remove=감시 기업 제거, list=감시 목록 조회"
+          },
+          "company": {
+            "type": "string",
+            "description": "기업명 (add/remove/check 시, 예: 삼성전자)"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      }
+    },
+    {
+      "tool_id": "stock_screener",
+      "category": "api",
+      "name": "Stock Screener",
+      "name_ko": "종목 스크리너",
+      "description": "한국 상장사 조건 필터링 — PER/PBR/시가총액/거래량 기반 스크리닝 + 프리셋 전략(가치주/성장주/배당주/모멘텀)",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "screen",
+              "preset",
+              "custom"
+            ],
+            "description": "screen=조건 스크리닝, preset=프리셋 전략, custom=사용자 정의 필터"
+          },
+          "preset": {
+            "type": "string",
+            "enum": [
+              "value",
+              "growth",
+              "dividend",
+              "momentum"
+            ],
+            "description": "프리셋 전략 (value=가치주, growth=성장주, dividend=배당주, momentum=모멘텀)"
+          },
+          "market": {
+            "type": "string",
+            "enum": [
+              "KOSPI",
+              "KOSDAQ",
+              "ALL"
+            ],
+            "description": "시장 (기본값: ALL)"
+          },
+          "max_per": {
+            "type": "number",
+            "description": "PER 상한"
+          },
+          "min_pbr": {
+            "type": "number",
+            "description": "PBR 하한"
+          },
+          "top_n": {
+            "type": "integer",
+            "description": "상위 N개 종목 (기본값 20)"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      }
+    },
+    {
+      "tool_id": "technical_analyzer",
+      "category": "api",
+      "name": "Technical Analyzer",
+      "name_ko": "기술적 분석 도구",
+      "description": "교수급 30개 지표 종합 기술적 분석 — 추세(MA/ADX/PSAR), 모멘텀(RSI/MACD/Stochastic/CCI/Williams), 변동성(BB/ATR), 거래량(OBV/CMF/AD), 캔들패턴, 지지/저항선, 매매신호 종합 스코어",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "full",
+              "trend",
+              "momentum",
+              "volatility",
+              "volume",
+              "pattern",
+              "support_resistance",
+              "signal"
+            ],
+            "description": "full=전체분석, trend=추세, momentum=모멘텀, volatility=변동성, volume=거래량, pattern=캔들패턴, support_resistance=지지저항, signal=매매신호종합"
+          },
+          "name": {
+            "type": "string",
+            "description": "종목명 (예: 삼성전자)"
+          },
+          "ticker": {
+            "type": "string",
+            "description": "종목코드 (예: 005930)"
+          },
+          "days": {
+            "type": "integer",
+            "description": "분석 기간 일수 (기본 200일, 장기 지표용)"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      }
+    },
+    {
+      "tool_id": "dcf_valuator",
+      "category": "llm",
+      "name": "DCF Valuator",
+      "name_ko": "DCF 기업가치 평가",
+      "description": "교수급 기업가치 평가 — DCF(현금흐름할인), 그레이엄 넘버, DDM(배당할인), 상대가치(PER/PBR 밴드), 민감도 분석 5가지 밸류에이션 모델 종합",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "full",
+              "dcf",
+              "relative",
+              "graham",
+              "ddm",
+              "sensitivity"
+            ],
+            "description": "full=전체종합, dcf=현금흐름할인, relative=상대가치, graham=그레이엄넘버, ddm=배당할인, sensitivity=민감도분석"
+          },
+          "name": {
+            "type": "string",
+            "description": "종목명 (예: 삼성전자)"
+          },
+          "ticker": {
+            "type": "string",
+            "description": "종목코드 (예: 005930)"
+          },
+          "discount_rate": {
+            "type": "number",
+            "description": "할인율 (기본 0.10 = 10%)"
+          },
+          "growth_rate": {
+            "type": "number",
+            "description": "성장률 (기본 0.05 = 5%)"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      }
+    },
+    {
+      "tool_id": "portfolio_optimizer",
+      "category": "api",
+      "name": "Portfolio Optimizer",
+      "name_ko": "포트폴리오 최적화",
+      "description": "마코위츠 포트폴리오 이론 기반 최적화 — 몬테카를로 시뮬레이션(10,000회), 최대샤프/최소변동성 포트폴리오, 효율적 프론티어",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "full",
+              "optimize",
+              "min_risk",
+              "equal_weight",
+              "efficient_frontier"
+            ],
+            "description": "full=전체분석, optimize=최대샤프비율, min_risk=최소리스크, equal_weight=균등배분, efficient_frontier=효율적프론티어"
+          },
+          "names": {
+            "type": "string",
+            "description": "종목명 쉼표 구분 (예: 삼성전자,카카오,현대차)"
+          },
+          "tickers": {
+            "type": "string",
+            "description": "종목코드 쉼표 구분 (예: 005930,035720,005380)"
+          },
+          "days": {
+            "type": "integer",
+            "description": "분석 기간 일수 (기본 252일 = 1년)"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      }
+    },
+    {
+      "tool_id": "risk_calculator",
+      "category": "api",
+      "name": "Risk Calculator",
+      "name_ko": "리스크 계산기",
+      "description": "VaR(90/95/99%), CVaR, MDD, 롤링변동성, 왜도/첨도, 샤프/소르티노/칼마 비율, 스트레스테스트 — 종합 리스크 분석",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "full",
+              "var",
+              "drawdown",
+              "volatility",
+              "ratios",
+              "stress"
+            ],
+            "description": "full=전체분석, var=VaR/CVaR, drawdown=최대낙폭, volatility=변동성, ratios=샤프/소르티노, stress=스트레스테스트"
+          },
+          "name": {
+            "type": "string",
+            "description": "종목명 (예: 삼성전자)"
+          },
+          "ticker": {
+            "type": "string",
+            "description": "종목코드 (예: 005930)"
+          },
+          "days": {
+            "type": "integer",
+            "description": "분석 기간 일수 (기본 252일)"
+          },
+          "investment": {
+            "type": "integer",
+            "description": "투자금액 원 (기본 10000000)"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      }
+    },
+    {
+      "tool_id": "sector_rotator",
+      "category": "api",
+      "name": "Sector Rotator",
+      "name_ko": "섹터 로테이션",
+      "description": "KOSPI 시가총액 상위 50 기반 업종별 수익률 랭킹, 모멘텀 분석, 경기 사이클 기반 섹터 로테이션 전략",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "full",
+              "ranking",
+              "momentum",
+              "rotation",
+              "compare"
+            ],
+            "description": "full=전체분석, ranking=업종랭킹, momentum=모멘텀, rotation=로테이션전략, compare=업종비교"
+          },
+          "sector": {
+            "type": "string",
+            "description": "특정 업종 (예: 반도체, 자동차)"
+          },
+          "days": {
+            "type": "integer",
+            "description": "분석 기간 일수 (기본 90일)"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      }
+    },
+    {
+      "tool_id": "sentiment_scorer",
+      "category": "api",
+      "name": "Sentiment Scorer",
+      "name_ko": "시장 감성 분석",
+      "description": "네이버 뉴스 기반 감성 분석 — 한국 금융 감성사전(64개 키워드), 뉴스 심리 점수(0~100), 시장/종목 전반 감성 판단",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "full",
+              "news",
+              "market",
+              "keyword"
+            ],
+            "description": "full=전체분석, news=뉴스감성, market=시장전반, keyword=키워드감성"
+          },
+          "name": {
+            "type": "string",
+            "description": "종목명 또는 키워드 (예: 삼성전자, 금리인상)"
+          },
+          "count": {
+            "type": "integer",
+            "description": "뉴스 검색 건수 (기본 20)"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      }
+    },
+    {
+      "tool_id": "pair_analyzer",
+      "category": "api",
+      "name": "Pair Analyzer",
+      "name_ko": "페어트레이딩 분석",
+      "description": "페어트레이딩 전략 — 상관관계, 스프레드 Z-score, 반감기(Ornstein-Uhlenbeck), KOSPI 상위 20 페어 스캐닝",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "full",
+              "correlation",
+              "spread",
+              "signal",
+              "scan"
+            ],
+            "description": "full=전체분석, correlation=상관관계, spread=스프레드, signal=매매신호, scan=페어스캔"
+          },
+          "name1": {
+            "type": "string",
+            "description": "종목1 이름 (예: 삼성전자)"
+          },
+          "name2": {
+            "type": "string",
+            "description": "종목2 이름 (예: SK하이닉스)"
+          },
+          "ticker1": {
+            "type": "string",
+            "description": "종목1 코드"
+          },
+          "ticker2": {
+            "type": "string",
+            "description": "종목2 코드"
+          },
+          "days": {
+            "type": "integer",
+            "description": "분석 기간 일수 (기본 252일)"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      }
+    },
+    {
+      "tool_id": "earnings_surprise",
+      "category": "api",
+      "name": "Earnings Surprise",
+      "name_ko": "어닝 서프라이즈 분석",
+      "description": "EPS 분기 추세, 실적 시즌 수익률 패턴, PEAD(Post-Earnings Announcement Drift) 분석",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "full",
+              "history",
+              "pattern",
+              "estimate"
+            ],
+            "description": "full=전체분석, history=EPS히스토리, pattern=실적시즌패턴, estimate=서프라이즈확률추정"
+          },
+          "name": {
+            "type": "string",
+            "description": "종목명 (예: 삼성전자)"
+          },
+          "ticker": {
+            "type": "string",
+            "description": "종목코드 (예: 005930)"
+          },
+          "years": {
+            "type": "integer",
+            "description": "분석 연수 (기본 5년)"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      }
+    },
+    {
+      "tool_id": "funnel_analyzer",
+      "category": "llm",
+      "name": "Funnel Analyzer",
+      "name_ko": "AARRR 퍼널 분석기",
+      "description": "교수급 AARRR 퍼널 분석 — 전환율/이탈률 계산, 병목 자동 진단, 성장 건강도(Quick Ratio), 업종별 벤치마크 비교, 개선 효과 시뮬레이션",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "full",
+              "analyze",
+              "bottleneck",
+              "growth",
+              "benchmark",
+              "forecast"
+            ],
+            "description": "full=종합분석, analyze=퍼널전환율, bottleneck=병목진단, growth=성장건강도, benchmark=벤치마크비교, forecast=개선시뮬레이션"
+          },
+          "visitors": {
+            "type": "integer",
+            "description": "방문자 수"
+          },
+          "signups": {
+            "type": "integer",
+            "description": "가입자 수 (Acquisition)"
+          },
+          "activated": {
+            "type": "integer",
+            "description": "활성화 사용자 수 (Activation)"
+          },
+          "retained": {
+            "type": "integer",
+            "description": "유지 사용자 수 (Retention)"
+          },
+          "revenue_users": {
+            "type": "integer",
+            "description": "결제 사용자 수 (Revenue)"
+          },
+          "referrers": {
+            "type": "integer",
+            "description": "추천 사용자 수 (Referral)"
+          },
+          "industry": {
+            "type": "string",
+            "enum": [
+              "saas",
+              "ecommerce",
+              "education",
+              "media",
+              "fintech"
+            ],
+            "description": "업종 (벤치마크 비교용)"
+          },
+          "period": {
+            "type": "string",
+            "description": "측정 기간 (예: 2026-01, weekly)"
+          },
+          "new_users": {
+            "type": "integer",
+            "description": "신규 가입 (Growth Accounting용)"
+          },
+          "churned": {
+            "type": "integer",
+            "description": "이탈 사용자 수 (Growth Accounting용)"
+          },
+          "resurrected": {
+            "type": "integer",
+            "description": "복귀 사용자 수 (Growth Accounting용)"
+          },
+          "improve_pct": {
+            "type": "number",
+            "description": "시뮬레이션 개선 폭 (%p, 기본 10)"
+          }
+        },
+        "required": [
+          "action",
+          "visitors",
+          "signups"
+        ]
+      }
+    },
+    {
+      "tool_id": "ab_test_engine",
+      "category": "llm",
+      "name": "AB Test Engine",
+      "name_ko": "A/B 테스트 통계 검정기",
+      "description": "교수급 A/B 테스트 통계 검정 — 빈도주의(Z-test) + 베이지안(Monte Carlo) 이중 검증, 표본 크기 계산, 검정력 분석, 매출 기반 t-test, 다변량 검정(본페로니 보정)",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "full",
+              "test",
+              "sample_size",
+              "power",
+              "revenue",
+              "multi"
+            ],
+            "description": "full=종합분석, test=전환율검정, sample_size=표본크기계산, power=검정력분석, revenue=매출검정, multi=다변량검정"
+          },
+          "visitors_a": {
+            "type": "integer",
+            "description": "A안 방문자 수"
+          },
+          "conversions_a": {
+            "type": "integer",
+            "description": "A안 전환 수"
+          },
+          "visitors_b": {
+            "type": "integer",
+            "description": "B안 방문자 수"
+          },
+          "conversions_b": {
+            "type": "integer",
+            "description": "B안 전환 수"
+          },
+          "confidence": {
+            "type": "number",
+            "description": "신뢰수준 (기본 0.95)"
+          },
+          "baseline_rate": {
+            "type": "number",
+            "description": "기존 전환율 (표본 크기 계산용, 예 0.05)"
+          },
+          "mde": {
+            "type": "number",
+            "description": "최소 감지 효과 (Minimum Detectable Effect, 예 0.01)"
+          },
+          "revenue_a": {
+            "type": "string",
+            "description": "A안 매출 데이터 쉼표 구분 (예: 50000,62000,48000)"
+          },
+          "revenue_b": {
+            "type": "string",
+            "description": "B안 매출 데이터 쉼표 구분 (예: 55000,71000,53000)"
+          },
+          "variants": {
+            "type": "string",
+            "description": "JSON 형태 다변량 데이터 (예: [{\"name\":\"A\",\"visitors\":1000,\"conversions\":50},...])"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      }
+    },
+    {
+      "tool_id": "customer_ltv_model",
+      "category": "llm",
+      "name": "Customer LTV Model",
+      "name_ko": "고객 생애가치 예측",
+      "description": "교수급 CLV 예측 — BG/NBD 구매확률 + Gamma-Gamma 객단가 모델, 세그먼트 분류, 코호트 비교, 유닛 이코노믹스(CAC vs CLV), 할인 CLV(DCF)",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "full",
+              "predict",
+              "segment",
+              "cohort",
+              "unit_economics",
+              "discount"
+            ],
+            "description": "full=종합, predict=개별예측, segment=세그먼트, cohort=코호트비교, unit_economics=유닛이코노믹스, discount=할인CLV"
+          },
+          "frequency": {
+            "type": "integer",
+            "description": "반복 구매 횟수 (기본 5)"
+          },
+          "recency": {
+            "type": "integer",
+            "description": "최근 구매까지 경과일 (기본 30)"
+          },
+          "T": {
+            "type": "integer",
+            "description": "관찰 기간 일수 (기본 365)"
+          },
+          "monetary": {
+            "type": "integer",
+            "description": "평균 주문금액 원 (기본 50000)"
+          },
+          "horizon": {
+            "type": "integer",
+            "description": "예측 기간 일수 (기본 365)"
+          },
+          "cac": {
+            "type": "integer",
+            "description": "고객획득비용 원 (유닛 이코노믹스용, 기본 100000)"
+          },
+          "monthly_revenue": {
+            "type": "integer",
+            "description": "월 평균 매출 원 (기본 50000)"
+          },
+          "monthly_churn": {
+            "type": "number",
+            "description": "월 이탈률 (기본 0.05)"
+          },
+          "gross_margin": {
+            "type": "number",
+            "description": "매출총이익률 (기본 0.7)"
+          },
+          "industry": {
+            "type": "string",
+            "enum": [
+              "saas",
+              "ecommerce",
+              "subscription_box",
+              "mobile_app",
+              "fintech"
+            ],
+            "description": "업종 (벤치마크 비교용)"
+          },
+          "customers": {
+            "type": "string",
+            "description": "JSON 고객 데이터 (세그먼트용, 예: [{\"id\":\"C1\",\"frequency\":5,...}])"
+          },
+          "cohorts": {
+            "type": "string",
+            "description": "JSON 코호트 데이터 (코호트 비교용)"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      }
+    },
+    {
+      "tool_id": "rfm_segmentation",
+      "category": "llm",
+      "name": "RFM Segmentation",
+      "name_ko": "RFM 고객 세분화",
+      "description": "교수급 RFM 고객 세분화 — Recency/Frequency/Monetary 3축 분석, 11개 세그먼트 자동 분류, 히트맵 매트릭스, 이동 분석, 세그먼트별 액션 플랜",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "full",
+              "analyze",
+              "matrix",
+              "migration",
+              "action_plan",
+              "score"
+            ],
+            "description": "full=종합, analyze=RFM분석, matrix=히트맵, migration=이동분석, action_plan=액션플랜, score=개별점수"
+          },
+          "customers": {
+            "type": "string",
+            "description": "JSON 고객 데이터 (예: [{\"id\":\"C1\",\"recency\":30,\"frequency\":5,\"monetary\":50000}])"
+          },
+          "recency": {
+            "type": "integer",
+            "description": "개별 고객 최근 구매 경과일 (score용)"
+          },
+          "frequency": {
+            "type": "integer",
+            "description": "개별 고객 구매 횟수 (score용)"
+          },
+          "monetary": {
+            "type": "integer",
+            "description": "개별 고객 평균 주문금액 (score용)"
+          },
+          "quintiles": {
+            "type": "integer",
+            "description": "분위수 (기본 5 = quintile)"
+          },
+          "budget": {
+            "type": "integer",
+            "description": "마케팅 예산 원 (액션 플랜용, 기본 10000000)"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      }
+    },
+    {
+      "tool_id": "content_quality_scorer",
+      "category": "llm",
+      "name": "Content Quality Scorer",
+      "name_ko": "콘텐츠 품질 채점기",
+      "description": "교수급 콘텐츠 품질 채점 — 가독성(Flesch 한국어변형), SEO 점수, E-E-A-T 평가, Cialdini 설득력 분석, 구조/참여도까지 100점 만점 종합 채점",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "full",
+              "score",
+              "readability",
+              "seo",
+              "eeat",
+              "persuasion"
+            ],
+            "description": "full=종합, score=종합점수, readability=가독성, seo=SEO분석, eeat=E-E-A-T, persuasion=설득력"
+          },
+          "content": {
+            "type": "string",
+            "description": "분석할 콘텐츠 본문 텍스트"
+          },
+          "title": {
+            "type": "string",
+            "description": "콘텐츠 제목"
+          },
+          "keyword": {
+            "type": "string",
+            "description": "핵심 키워드 (SEO 분석용)"
+          },
+          "meta_description": {
+            "type": "string",
+            "description": "메타 디스크립션 (SEO용)"
+          },
+          "author": {
+            "type": "string",
+            "description": "저자명 (E-E-A-T용)"
+          },
+          "has_citations": {
+            "type": "boolean",
+            "description": "인용/출처 포함 여부 (E-E-A-T용)"
+          },
+          "has_data": {
+            "type": "boolean",
+            "description": "데이터/통계 포함 여부 (E-E-A-T용)"
+          }
+        },
+        "required": [
+          "action",
+          "content"
+        ]
+      }
+    },
+    {
+      "tool_id": "churn_risk_scorer",
+      "category": "llm",
+      "name": "Churn Risk Scorer",
+      "name_ko": "이탈 위험 점수",
+      "description": "교수급 이탈 위험 분석 — Cox PH 생존분석 기반 이탈 점수(0~100), Kaplan-Meier 생존곡선, 요인분석, 방지전략",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "full",
+              "score",
+              "batch",
+              "survival",
+              "factors",
+              "strategy"
+            ],
+            "description": "full=종합, score=개별점수, batch=일괄평가, survival=생존곡선, factors=요인분석, strategy=방지전략"
+          },
+          "recency_days": {
+            "type": "integer",
+            "description": "마지막 활동 이후 경과일 (score 시)"
+          },
+          "frequency_decline": {
+            "type": "number",
+            "description": "활동 빈도 감소율 (0~1, score 시)"
+          },
+          "support_tickets": {
+            "type": "integer",
+            "description": "최근 고객지원 문의 건수 (score 시)"
+          },
+          "payment_issues": {
+            "type": "integer",
+            "description": "결제 실패/지연 횟수 (score 시)"
+          },
+          "engagement_score": {
+            "type": "integer",
+            "description": "참여도 점수 0~100 (score 시)"
+          },
+          "tenure_months": {
+            "type": "integer",
+            "description": "가입 후 경과 개월수 (score 시)"
+          },
+          "customers": {
+            "type": "string",
+            "description": "JSON 고객 데이터 배열 (batch 시, 예: [{\"id\":\"C1\",\"recency_days\":30,...}])"
+          },
+          "monthly_revenue_per_customer": {
+            "type": "integer",
+            "description": "고객 1인당 월 매출 원 (strategy 시, 기본값 50000)"
+          },
+          "total_customers": {
+            "type": "integer",
+            "description": "전체 고객 수 (strategy 시)"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      }
+    },
+    {
+      "tool_id": "marketing_attribution",
+      "category": "llm",
+      "name": "Marketing Attribution",
+      "name_ko": "마케팅 채널 기여도",
+      "description": "교수급 채널 기여도 — Shapley Value + Markov Chain + 6가지 기여모델 비교 + ROI 예산 재배분",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "full",
+              "shapley",
+              "markov",
+              "compare",
+              "roi",
+              "path"
+            ],
+            "description": "full=종합, shapley=공정기여도, markov=전환확률, compare=6모델비교, roi=ROI분석, path=경로분석"
+          },
+          "paths_json": {
+            "type": "string",
+            "description": "JSON 전환 경로 데이터 (예: [[\"google\",\"email\",\"purchase\"],[\"sns\",\"purchase\"]])"
+          },
+          "channel_costs": {
+            "type": "string",
+            "description": "JSON 채널별 비용 (예: {\"google\":500000,\"email\":100000,\"sns\":300000})"
+          },
+          "monthly_budget": {
+            "type": "integer",
+            "description": "월 마케팅 예산 원 (roi 시, 기본값 10000000)"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      }
+    },
+    {
+      "tool_id": "cohort_retention",
+      "category": "llm",
+      "name": "Cohort Retention",
+      "name_ko": "코호트 리텐션",
+      "description": "교수급 코호트 리텐션 — 히트맵, 커브 피팅(지수/로그/멱함수), sBG 모델 예측, NRR/GRR, 업종 벤치마크",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "full",
+              "heatmap",
+              "curve",
+              "benchmark",
+              "revenue",
+              "predict"
+            ],
+            "description": "full=종합, heatmap=히트맵, curve=커브피팅, benchmark=벤치마크, revenue=매출리텐션, predict=예측"
+          },
+          "cohort_json": {
+            "type": "string",
+            "description": "JSON 코호트 데이터 (예: [{\"month\":\"2026-01\",\"users\":[100,80,60,50]}])"
+          },
+          "industry": {
+            "type": "string",
+            "enum": [
+              "saas_b2b",
+              "saas_b2c",
+              "ecommerce",
+              "mobile_app",
+              "gaming",
+              "fintech",
+              "media"
+            ],
+            "description": "업종 (벤치마크 비교용)"
+          },
+          "starting_mrr": {
+            "type": "integer",
+            "description": "기초 월반복매출 MRR 원 (revenue 시)"
+          },
+          "expansion_mrr": {
+            "type": "integer",
+            "description": "확장 MRR 원 (기존 고객 업그레이드, revenue 시)"
+          },
+          "contraction_mrr": {
+            "type": "integer",
+            "description": "축소 MRR 원 (기존 고객 다운그레이드, revenue 시)"
+          },
+          "churned_mrr": {
+            "type": "integer",
+            "description": "이탈 MRR 원 (해지 고객, revenue 시)"
+          },
+          "predict_months": {
+            "type": "integer",
+            "description": "예측 개월수 (predict 시, 기본값 12)"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      }
+    },
+    {
+      "tool_id": "viral_coefficient",
+      "category": "llm",
+      "name": "Viral Coefficient",
+      "name_ko": "바이럴 계수",
+      "description": "교수급 바이럴 분석 — K-factor, Bass 확산 모델(S자 곡선), SIR 시뮬레이션, 업종 벤치마크, 루프 최적화",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "full",
+              "kfactor",
+              "bass",
+              "simulate",
+              "benchmark",
+              "optimize"
+            ],
+            "description": "full=종합, kfactor=바이럴계수, bass=확산모델, simulate=시뮬레이션, benchmark=벤치마크, optimize=최적화"
+          },
+          "invites_per_user": {
+            "type": "number",
+            "description": "사용자당 평균 초대 수"
+          },
+          "invite_conversion": {
+            "type": "number",
+            "description": "초대 전환율 (0~1)"
+          },
+          "current_users": {
+            "type": "integer",
+            "description": "현재 사용자 수"
+          },
+          "k_factor": {
+            "type": "number",
+            "description": "바이럴 계수 (벤치마크/시뮬레이션용)"
+          },
+          "innovation_coeff": {
+            "type": "number",
+            "description": "Bass 혁신 계수 p (기본 0.03)"
+          },
+          "imitation_coeff": {
+            "type": "number",
+            "description": "Bass 모방 계수 q (기본 0.38)"
+          },
+          "market_potential": {
+            "type": "integer",
+            "description": "시장 잠재 규모"
+          },
+          "industry": {
+            "type": "string",
+            "enum": [
+              "messaging",
+              "social_media",
+              "marketplace",
+              "saas_b2b",
+              "saas_b2c",
+              "ecommerce",
+              "gaming",
+              "fintech",
+              "content",
+              "education"
+            ],
+            "description": "업종 (벤치마크 비교용)"
+          },
+          "seed_users": {
+            "type": "integer",
+            "description": "초기 사용자 수 (simulate 시)"
+          },
+          "total_market": {
+            "type": "integer",
+            "description": "전체 시장 규모 (simulate 시)"
+          },
+          "monthly_churn_rate": {
+            "type": "number",
+            "description": "월 이탈률 (simulate 시, 예 0.05 = 5%)"
+          },
+          "simulation_months": {
+            "type": "integer",
+            "description": "시뮬레이션 기간 개월수 (simulate 시, 기본값 24)"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      }
+    },
+    {
+      "tool_id": "backtest_engine",
+      "category": "api",
+      "name": "Backtest Engine",
+      "name_ko": "포트폴리오 백테스터",
+      "description": "투자 전략 백테스트 — 골든크로스/RSI/MACD/바이앤홀드 전략을 과거 데이터로 시뮬레이션 (수익률/MDD/샤프비율)",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "backtest",
+              "compare",
+              "optimize"
+            ],
+            "description": "backtest=전략 백테스트, compare=전략 비교, optimize=파라미터 최적화"
+          },
+          "strategy": {
+            "type": "string",
+            "enum": [
+              "golden_cross",
+              "rsi",
+              "macd",
+              "buy_and_hold",
+              "custom"
+            ],
+            "description": "전략 유형 (golden_cross=골든크로스, rsi=RSI, macd=MACD, buy_and_hold=바이앤홀드)"
+          },
+          "name": {
+            "type": "string",
+            "description": "종목명 (예: 삼성전자)"
+          },
+          "ticker": {
+            "type": "string",
+            "description": "종목코드 (예: 005930)"
+          },
+          "days": {
+            "type": "integer",
+            "description": "백테스트 기간 일수 (기본값 252)"
+          },
+          "initial_capital": {
+            "type": "integer",
+            "description": "초기 투자금 (기본값 10000000)"
+          }
+        },
+        "required": [
+          "action",
+          "strategy"
+        ]
+      }
+    },
+    {
+      "tool_id": "insider_tracker",
+      "category": "api",
+      "name": "Insider Tracker",
+      "name_ko": "내부자 거래 추적기",
+      "description": "대주주/임원 자사주 매매 감지 — DART 임원·주요주주 소유보고 분석, 시장 전체 지분 변동 스캔",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "track",
+              "scan",
+              "alert"
+            ],
+            "description": "track=특정기업 내부자거래 추적, scan=전체시장 스캔, alert=내부자 알림 설정"
+          },
+          "company": {
+            "type": "string",
+            "description": "기업명 (track 사용 시 필수, 예: 삼성전자)"
+          },
+          "days": {
+            "type": "integer",
+            "description": "조회 기간 일수 (기본값: 90)"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      }
+    },
+    {
+      "tool_id": "dividend_calendar",
+      "category": "api",
+      "name": "Dividend Calendar",
+      "name_ko": "배당 캘린더",
+      "description": "배당 일정/이력/상위 종목 — 월별 배당 종목, 기업별 배당 이력, 배당수익률 TOP 종목 조회",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "calendar",
+              "history",
+              "top"
+            ],
+            "description": "calendar=월별 배당 일정, history=기업별 배당 이력, top=배당수익률 상위 종목"
+          },
+          "month": {
+            "type": "string",
+            "description": "조회 월 (예: 2026-03)"
+          },
+          "name": {
+            "type": "string",
+            "description": "기업명 (history 시, 예: 삼성전자)"
+          },
+          "market": {
+            "type": "string",
+            "enum": [
+              "KOSPI",
+              "KOSDAQ",
+              "ALL"
+            ],
+            "description": "시장 (top 시, 기본값: ALL)"
+          },
+          "top_n": {
+            "type": "integer",
+            "description": "상위 N개 (기본값 20)"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      }
+    },
+    {
+      "tool_id": "seo_analyzer",
+      "category": "api",
+      "name": "SEO Analyzer",
+      "name_ko": "SEO 분석기",
+      "description": "웹사이트 SEO(검색엔진 최적화) 종합 감사 — 메타태그, 콘텐츠, 기술, 성능 14개 항목 100점 만점 점검 및 개선안 제시",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "audit",
+              "meta",
+              "content",
+              "technical"
+            ],
+            "description": "audit=종합 감사, meta=메타태그 분석, content=콘텐츠 분석, technical=기술 분석"
+          },
+          "url": {
+            "type": "string",
+            "description": "분석할 웹사이트 URL (예: https://corthex-hq.com)"
+          },
+          "keyword": {
+            "type": "string",
+            "description": "핵심 키워드 (SEO 타겟)"
+          }
+        },
+        "required": [
+          "action",
+          "url"
+        ]
+      }
+    },
+    {
+      "tool_id": "sentiment_analyzer",
+      "category": "api",
+      "name": "Sentiment Analyzer",
+      "name_ko": "SNS 감정 분석기",
+      "description": "네이버 뉴스/블로그 기반 키워드 여론 분석 — 긍정/부정/중립 비율, 감정 추이, 종합 여론 보고서 생성",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "analyze",
+              "trend",
+              "report"
+            ],
+            "description": "analyze=여론 분석, trend=감정 추이, report=종합 보고서"
+          },
+          "keyword": {
+            "type": "string",
+            "description": "분석 키워드"
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "news",
+              "blog",
+              "all"
+            ],
+            "description": "소스 (news=뉴스, blog=블로그, all=전체. 기본값: all)"
+          },
+          "days": {
+            "type": "integer",
+            "description": "분석 기간 일수 (기본값 7)"
+          }
+        },
+        "required": [
+          "action",
+          "keyword"
+        ]
+      }
+    },
+    {
+      "tool_id": "hashtag_recommender",
+      "category": "api",
+      "name": "Hashtag Recommender",
+      "name_ko": "해시태그 추천기",
+      "description": "SNS 게시물용 해시태그 자동 추천 — 대형/중형/소형 최적 조합, 인스타그램/유튜브/틱톡 플랫폼별 전략",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "recommend",
+              "analyze"
+            ],
+            "description": "recommend=해시태그 추천, analyze=해시태그 분석"
+          },
+          "topic": {
+            "type": "string",
+            "description": "게시물 주제/키워드"
+          },
+          "platform": {
+            "type": "string",
+            "enum": [
+              "instagram",
+              "youtube",
+              "tiktok",
+              "all"
+            ],
+            "description": "플랫폼 (기본값: all)"
+          },
+          "count": {
+            "type": "integer",
+            "description": "추천 개수 (기본값 30)"
+          }
+        },
+        "required": [
+          "action",
+          "topic"
+        ]
+      }
+    },
+    {
+      "tool_id": "email_optimizer",
+      "category": "llm",
+      "name": "Email Optimizer",
+      "name_ko": "이메일 마케팅 최적화기",
+      "description": "마케팅 이메일 제목 효과 예측 및 개선 — 8개 규칙 100점 만점 점수 산정, 제목 개선안, A/B 테스트 쌍 생성",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "score",
+              "improve",
+              "ab_test"
+            ],
+            "description": "score=제목 효과 점수, improve=제목 개선안, ab_test=A/B 테스트 쌍 생성"
+          },
+          "subject": {
+            "type": "string",
+            "description": "이메일 제목"
+          },
+          "audience": {
+            "type": "string",
+            "description": "대상 독자 (예: 고객, 잠재고객, 구독자)"
+          }
+        },
+        "required": [
+          "action",
+          "subject"
+        ]
+      }
+    },
+    {
+      "tool_id": "competitor_sns_monitor",
+      "category": "api",
+      "name": "Competitor SNS Monitor",
+      "name_ko": "경쟁사 SNS 모니터",
+      "description": "경쟁사 SNS 활동 자동 수집·분석 — 네이버블로그/인스타그램/유튜브 감시 목록 관리 및 전략 보고서 생성",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "monitor",
+              "add",
+              "remove",
+              "report"
+            ],
+            "description": "monitor=활동 수집, add=감시 대상 추가, remove=감시 대상 제거, report=전략 보고서"
+          },
+          "competitor": {
+            "type": "string",
+            "description": "경쟁사명"
+          },
+          "platform": {
+            "type": "string",
+            "enum": [
+              "naver_blog",
+              "instagram",
+              "youtube",
+              "all"
+            ],
+            "description": "플랫폼 (기본값: all)"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      }
+    },
+    {
+      "tool_id": "competitor_monitor",
+      "category": "api",
+      "name": "Competitor Monitor",
+      "name_ko": "경쟁사 웹사이트 감지기",
+      "description": "경쟁사 웹사이트 변경사항 자동 감지 (URL 등록 → 스냅샷 비교 → 변경 분석)",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "check",
+              "add",
+              "remove",
+              "list"
+            ],
+            "description": "check=변경사항 확인, add=URL 등록, remove=URL 제거, list=감시 목록 조회"
+          },
+          "url": {
+            "type": "string",
+            "description": "경쟁사 웹사이트 URL"
+          },
+          "name": {
+            "type": "string",
+            "description": "경쟁사명 (식별용)"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      }
+    },
+    {
+      "tool_id": "app_review_scraper",
+      "category": "api",
+      "name": "App Review Scraper",
+      "name_ko": "앱 리뷰 수집기",
+      "description": "구글 플레이스토어 앱 리뷰 대량 수집 + 별점 분포·키워드·추이 분석",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "scrape",
+              "analyze",
+              "compare"
+            ],
+            "description": "scrape=리뷰 수집, analyze=분석, compare=경쟁 앱 비교"
+          },
+          "app_id": {
+            "type": "string",
+            "description": "앱 패키지명 또는 이름 (예: com.kakao.talk)"
+          },
+          "count": {
+            "type": "integer",
+            "description": "수집 리뷰 수 (기본값 100)"
+          },
+          "rating_filter": {
+            "type": "integer",
+            "description": "별점 필터 (1~5, 선택)"
+          }
+        },
+        "required": [
+          "action",
+          "app_id"
+        ]
+      }
+    },
+    {
+      "tool_id": "youtube_analyzer",
+      "category": "llm",
+      "name": "YouTube Analyzer",
+      "name_ko": "유튜브 분석기",
+      "description": "유튜브 채널 영상 데이터 수집 + 콘텐츠 전략·벤치마킹 분석",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "channel",
+              "video",
+              "benchmark"
+            ],
+            "description": "channel=채널 분석, video=영상 분석, benchmark=벤치마킹"
+          },
+          "channel_url": {
+            "type": "string",
+            "description": "유튜브 채널 URL"
+          },
+          "video_url": {
+            "type": "string",
+            "description": "유튜브 영상 URL (video 분석 시)"
+          },
+          "count": {
+            "type": "integer",
+            "description": "분석 영상 수 (기본값 20)"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      }
+    },
+    {
+      "tool_id": "subsidy_finder",
+      "category": "api",
+      "name": "Subsidy Finder",
+      "name_ko": "정부 지원금 찾기",
+      "description": "기업마당/K-Startup 정부 지원사업 검색 + 우리 회사 조건 매칭·신청 전략",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "search",
+              "match",
+              "strategy"
+            ],
+            "description": "search=지원사업 검색, match=조건 매칭, strategy=신청 전략"
+          },
+          "keyword": {
+            "type": "string",
+            "description": "검색 키워드 (예: AI, 스타트업, 콘텐츠)"
+          },
+          "company_type": {
+            "type": "string",
+            "description": "기업 유형 (예: 예비창업자, 초기, 중소기업)"
+          },
+          "region": {
+            "type": "string",
+            "description": "지역 (예: 서울, 경기)"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      }
+    },
+    {
+      "tool_id": "naver_place_scraper",
+      "category": "api",
+      "name": "Naver Place Scraper",
+      "name_ko": "네이버 플레이스 리뷰 수집기",
+      "description": "네이버 플레이스(지도) 매장/학원 리뷰 수집 + 만족·불만 요인 분석",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "scrape",
+              "analyze"
+            ],
+            "description": "scrape=리뷰 수집, analyze=만족/불만 요인 분석"
+          },
+          "place_name": {
+            "type": "string",
+            "description": "장소명 (예: 삼성동 맛집, 강남 학원)"
+          },
+          "place_url": {
+            "type": "string",
+            "description": "네이버 플레이스 URL (직접 지정 시)"
+          },
+          "count": {
+            "type": "integer",
+            "description": "수집 리뷰 수 (기본값 50)"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      }
+    },
+    {
+      "tool_id": "scholar_scraper",
+      "category": "api",
+      "name": "Scholar Scraper",
+      "name_ko": "학술 논문 검색기",
+      "description": "Google Scholar 논문 검색 + 연도별 트렌드·인용 분석, 사업 활용 학술 근거 제공",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "search",
+              "trend",
+              "cite"
+            ],
+            "description": "search=논문 검색, trend=연도별 트렌드, cite=인용 분석"
+          },
+          "query": {
+            "type": "string",
+            "description": "검색 키워드"
+          },
+          "years": {
+            "type": "integer",
+            "description": "검색 기간 연수 (기본값 5)"
+          },
+          "count": {
+            "type": "integer",
+            "description": "검색 결과 수 (기본값 10)"
+          }
+        },
+        "required": [
+          "action",
+          "query"
+        ]
+      }
+    },
+    {
+      "tool_id": "uptime_monitor",
+      "category": "api",
+      "name": "Uptime Monitor",
+      "name_ko": "웹사이트 상태 모니터",
+      "description": "웹사이트 가동 상태 확인, 응답 속도 측정, 다운 감지 및 이력 관리",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "check",
+              "history",
+              "add",
+              "remove"
+            ],
+            "description": "check=상태 확인, history=이력 조회, add=모니터링 URL 추가, remove=URL 제거"
+          },
+          "url": {
+            "type": "string",
+            "description": "웹사이트 URL (예: https://corthex-hq.com)"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      }
+    },
+    {
+      "tool_id": "security_scanner",
+      "category": "api",
+      "name": "Security Scanner",
+      "name_ko": "보안 취약점 스캐너",
+      "description": "프로젝트 의존성 패키지의 알려진 보안 취약점(CVE) 검사 (pip-audit / OSV API)",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "scan",
+              "report"
+            ],
+            "description": "scan=취약점 검사, report=보고서 생성"
+          },
+          "path": {
+            "type": "string",
+            "description": "검사 대상 경로 (예: requirements.txt, package.json)"
+          },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "critical",
+              "high",
+              "medium",
+              "low",
+              "all"
+            ],
+            "description": "심각도 필터 (기본값: all)"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      }
+    },
+    {
+      "tool_id": "log_analyzer",
+      "category": "llm",
+      "name": "Log Analyzer",
+      "name_ko": "에러 로그 분석기",
+      "description": "로그 분석 — 파일 로그(analyze/top_errors/timeline) + DB 활동 로그(activity/trading). activity: 에이전트별/레벨별/키워드별 활동 로그 조회. trading: 자동매매 흐름 추적 (버튼 클릭→분석→시그널→주문까지 어디서 실패했는지 진단)",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "analyze",
+              "top_errors",
+              "timeline",
+              "activity",
+              "trading"
+            ],
+            "description": "analyze=파일 로그 분석, top_errors=에러 빈도 Top N, timeline=시간대별 분포, activity=DB 활동 로그 조회, trading=자동매매 로그 진단"
+          },
+          "agent_id": {
+            "type": "string",
+            "description": "에이전트 ID 필터 (예: cio_manager, system). activity 액션에서 사용"
+          },
+          "level": {
+            "type": "string",
+            "enum": [
+              "error",
+              "warning",
+              "info"
+            ],
+            "description": "로그 레벨 필터"
+          },
+          "keyword": {
+            "type": "string",
+            "description": "메시지 내 키워드 검색 (예: 매매, KIS, 주문)"
+          },
+          "hours": {
+            "type": "integer",
+            "description": "최근 N시간 내 로그만 조회 (기본 24)"
+          },
+          "limit": {
+            "type": "integer",
+            "description": "최대 조회 건수 (기본 100~200)"
+          }
+        }
+      }
+    },
+    {
+      "tool_id": "api_benchmark",
+      "category": "api",
+      "name": "API Benchmark",
+      "name_ko": "API 성능 측정기",
+      "description": "도구/API 응답 속도(P50/P95/P99) 및 성공률 측정, 성능 보고서 생성",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "measure",
+              "report",
+              "compare"
+            ],
+            "description": "measure=성능 측정, report=보고서 생성, compare=API 간 비교"
+          },
+          "tool_id": {
+            "type": "string",
+            "description": "측정할 도구/API ID (예: kr_stock, dart_api)"
+          },
+          "iterations": {
+            "type": "integer",
+            "description": "측정 반복 횟수 (기본값 10)"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      }
+    },
+    {
+      "tool_id": "report_generator",
+      "category": "llm",
+      "name": "Report Generator",
+      "name_ko": "보고서 자동 생성기",
+      "description": "투자보고서/시장분석/주간보고 등 전문 마크다운·HTML 보고서 자동 생성",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "generate",
+              "template"
+            ],
+            "description": "generate=보고서 생성, template=템플릿 기반 생성"
+          },
+          "report_type": {
+            "type": "string",
+            "enum": [
+              "investment",
+              "market",
+              "weekly",
+              "daily",
+              "custom"
+            ],
+            "description": "보고서 유형 (investment=투자, market=시장분석, weekly=주간, daily=일간)"
+          },
+          "data": {
+            "type": "string",
+            "description": "보고서에 포함할 데이터/내용"
+          },
+          "format": {
+            "type": "string",
+            "enum": [
+              "markdown",
+              "html"
+            ],
+            "description": "출력 형식 (기본값: markdown)"
+          }
+        },
+        "required": [
+          "action",
+          "report_type"
+        ]
+      }
+    },
+    {
+      "tool_id": "meeting_formatter",
+      "category": "llm",
+      "name": "Meeting Formatter",
+      "name_ko": "회의록 자동 정리기",
+      "description": "회의 내용에서 결정사항/할일/담당자 자동 추출, 구조화된 회의록 생성",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "format",
+              "extract"
+            ],
+            "description": "format=회의록 정리, extract=결정사항/할일 추출"
+          },
+          "content": {
+            "type": "string",
+            "description": "회의 내용 텍스트"
+          },
+          "meeting_title": {
+            "type": "string",
+            "description": "회의 제목 (선택)"
+          },
+          "date": {
+            "type": "string",
+            "description": "회의 일자 (예: 2026-02-21)"
+          }
+        },
+        "required": [
+          "action",
+          "content"
+        ]
+      }
+    },
+    {
+      "tool_id": "newsletter_builder",
+      "category": "llm",
+      "name": "Newsletter Builder",
+      "name_ko": "자동 뉴스레터 생성기",
+      "description": "주간/월간 뉴스레터 자동 생성 (뉴스, 트렌드, 커뮤니티, 팁 섹션 포함)",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "generate",
+              "preview"
+            ],
+            "description": "generate=뉴스레터 생성, preview=미리보기"
+          },
+          "period": {
+            "type": "string",
+            "enum": [
+              "weekly",
+              "monthly"
+            ],
+            "description": "기간 (weekly=주간, monthly=월간)"
+          },
+          "topics": {
+            "type": "string",
+            "description": "포함할 주제 쉼표 구분 (예: 시장동향,기술트렌드,법률변경)"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      }
+    },
+    {
+      "tool_id": "real_web_search",
+      "category": "api",
+      "name": "Real Web Search",
+      "name_ko": "실시간 웹 검색",
+      "description": "SerpAPI를 통한 실시간 구글 검색 — 웹/뉴스/이미지 검색 및 결과 분석",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "search",
+              "news",
+              "image"
+            ],
+            "description": "search=웹 검색, news=뉴스 검색, image=이미지 검색"
+          },
+          "query": {
+            "type": "string",
+            "description": "검색 키워드"
+          },
+          "count": {
+            "type": "integer",
+            "description": "검색 결과 수 (기본값 10)"
+          },
+          "lang": {
+            "type": "string",
+            "description": "검색 언어 (기본값: ko)"
+          }
+        },
+        "required": [
+          "action",
+          "query"
+        ]
+      }
+    },
+    {
+      "tool_id": "spreadsheet_tool",
+      "category": "llm",
+      "name": "Spreadsheet Tool",
+      "name_ko": "스프레드시트 도구",
+      "description": "엑셀(xlsx)/CSV 파일 읽기·쓰기·분석 — 데이터 필터링, 통계 요약, 피벗 테이블",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "read",
+              "write",
+              "analyze",
+              "pivot"
+            ],
+            "description": "read=파일 읽기, write=파일 쓰기, analyze=통계 요약, pivot=피벗 테이블"
+          },
+          "file_path": {
+            "type": "string",
+            "description": "파일 경로 (예: data/report.xlsx)"
+          },
+          "data": {
+            "type": "string",
+            "description": "쓰기/분석할 데이터 (JSON 형태)"
+          },
+          "sheet": {
+            "type": "string",
+            "description": "시트명 (xlsx 파일의 경우)"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      }
+    },
+    {
+      "tool_id": "chart_generator",
+      "category": "local",
+      "name": "Chart Generator",
+      "name_ko": "차트 생성기",
+      "description": "데이터를 막대/꺾은선/원형/산점도/캔들차트로 시각화 — PNG 또는 HTML",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "bar",
+              "line",
+              "pie",
+              "scatter",
+              "candlestick",
+              "dashboard"
+            ],
+            "description": "차트 유형. bar=막대, line=꺾은선, pie=원형, scatter=산점도, candlestick=캔들차트, dashboard=대시보드"
+          },
+          "title": {
+            "type": "string",
+            "description": "차트 제목"
+          },
+          "labels": {
+            "type": "string",
+            "description": "X축 레이블 목록 (쉼표 구분 문자열, 예: 1월,2월,3월)"
+          },
+          "values": {
+            "type": "string",
+            "description": "Y축 값 목록 (쉼표 구분 문자열, 예: 100,200,300)"
+          },
+          "data": {
+            "type": "string",
+            "description": "데이터 JSON 문자열. dict({레이블:값}) 또는 list([{name:..., value:...}]) 형태"
+          },
+          "xlabel": {
+            "type": "string",
+            "description": "X축 이름"
+          },
+          "ylabel": {
+            "type": "string",
+            "description": "Y축 이름"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      }
+    },
+    {
+      "tool_id": "pdf_parser",
+      "category": "llm",
+      "name": "PDF Parser",
+      "name_ko": "PDF 파서",
+      "description": "PDF 파일에서 텍스트/표 추출 — 페이지별 추출, 내용 요약, 텍스트 검색",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "extract",
+              "summarize",
+              "search"
+            ],
+            "description": "extract=텍스트/표 추출, summarize=내용 요약, search=텍스트 검색"
+          },
+          "file_path": {
+            "type": "string",
+            "description": "PDF 파일 경로"
+          },
+          "pages": {
+            "type": "string",
+            "description": "추출할 페이지 범위 (예: 1-5, 3, all. 기본값: all)"
+          },
+          "query": {
+            "type": "string",
+            "description": "검색 키워드 (search 시 필수)"
+          }
+        },
+        "required": [
+          "action",
+          "file_path"
+        ]
+      }
+    },
+    {
+      "tool_id": "prompt_tester",
+      "category": "llm",
+      "name": "Prompt Tester",
+      "name_ko": "프롬프트 테스터",
+      "description": "프롬프트를 여러 AI 모델로 실행·비교 — 모델별 응답 비교, A/B 테스트, 품질 평가",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "test",
+              "compare",
+              "evaluate"
+            ],
+            "description": "test=프롬프트 실행, compare=모델별 비교, evaluate=품질 평가"
+          },
+          "prompt": {
+            "type": "string",
+            "description": "테스트할 프롬프트"
+          },
+          "models": {
+            "type": "string",
+            "description": "비교할 모델 쉼표 구분 (예: claude-sonnet-4-6,gpt-5.2)"
+          }
+        },
+        "required": [
+          "action",
+          "prompt"
+        ]
+      }
+    },
+    {
+      "tool_id": "embedding_tool",
+      "category": "api",
+      "name": "Embedding Tool",
+      "name_ko": "임베딩 도구",
+      "description": "텍스트를 AI 벡터로 변환 — 임베딩, 유사도 계산, 일괄 처리, 클러스터링",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "embed",
+              "similarity",
+              "batch",
+              "cluster"
+            ],
+            "description": "embed=벡터 변환, similarity=유사도 계산, batch=일괄 처리, cluster=클러스터링"
+          },
+          "text": {
+            "type": "string",
+            "description": "변환할 텍스트"
+          },
+          "texts": {
+            "type": "string",
+            "description": "복수 텍스트 (JSON 배열 형태, batch/cluster 시)"
+          },
+          "compare_to": {
+            "type": "string",
+            "description": "비교 대상 텍스트 (similarity 시)"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      }
+    },
+    {
+      "tool_id": "token_counter",
+      "category": "local",
+      "name": "Token Counter",
+      "name_ko": "토큰 카운터",
+      "description": "AI 모델 토큰 수 계산 — 토큰 수, 예상 비용 산출, 토큰 한도 맞춤 자르기",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "count",
+              "cost",
+              "truncate"
+            ],
+            "description": "count=토큰 수 계산, cost=예상 비용 산출, truncate=토큰 한도 자르기"
+          },
+          "text": {
+            "type": "string",
+            "description": "분석할 텍스트"
+          },
+          "model": {
+            "type": "string",
+            "description": "대상 모델 (예: claude-sonnet-4-6, gpt-5.2)"
+          },
+          "max_tokens": {
+            "type": "integer",
+            "description": "최대 토큰 수 (truncate 시)"
+          }
+        },
+        "required": [
+          "action",
+          "text"
+        ]
+      }
+    },
+    {
+      "tool_id": "notification_engine",
+      "category": "api",
+      "name": "Notification Engine",
+      "name_ko": "알림 엔진",
+      "description": "텔레그램·이메일로 자동 알림 발송 — 메시지/보고서 알림, 템플릿 발송, 이력 관리",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "send",
+              "template",
+              "history"
+            ],
+            "description": "send=즉시 알림 발송, template=템플릿으로 발송, history=발송 이력 조회"
+          },
+          "message": {
+            "type": "string",
+            "description": "알림 메시지 내용 (send 사용 시 필수)"
+          },
+          "channel": {
+            "type": "string",
+            "enum": [
+              "telegram",
+              "email",
+              "all"
+            ],
+            "description": "발송 채널 (기본값: telegram)"
+          },
+          "title": {
+            "type": "string",
+            "description": "알림 제목 (선택)"
+          },
+          "template_name": {
+            "type": "string",
+            "description": "템플릿 이름 (template 사용 시 필수)"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      }
+    },
+    {
+      "tool_id": "schedule_tool",
+      "category": "local",
+      "name": "Schedule Manager",
+      "name_ko": "예약 관리",
+      "description": "크론 예약 관리 — 예약 생성·수정·삭제·조회·토글. 이름으로 검색 가능 (ID 불필요)",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "list",
+              "create",
+              "update",
+              "delete",
+              "toggle"
+            ],
+            "description": "list=조회, create=생성, update=수정, delete=삭제, toggle=활성화/비활성화"
+          },
+          "name": {
+            "type": "string",
+            "description": "예약 이름. create 시 필수. update/delete/toggle 시 이 이름으로 예약을 찾습니다 (부분 매칭 지원, 예: \"뉴스\" → \"뉴스 브리핑\" 매칭)"
+          },
+          "command": {
+            "type": "string",
+            "description": "실행할 명령 텍스트 (create/update 시). AI가 이 텍스트를 받아 실행합니다"
+          },
+          "cron": {
+            "type": "string",
+            "description": "크론 표현식 (분 시 일 월 요일). 예: \"30 8 * * 1-5\"=평일 08:30, \"0 9 * * *\"=매일 09:00"
+          },
+          "schedule_id": {
+            "type": "string",
+            "description": "예약 ID (선택 — name으로도 찾을 수 있으므로 보통 불필요)"
+          },
+          "description": {
+            "type": "string",
+            "description": "예약 설명 (선택)"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      }
+    },
+    {
+      "tool_id": "us_stock",
+      "category": "api",
+      "name": "US Stock Tool",
+      "name_ko": "미국주식 도구",
+      "description": "미국주식 심층분석 — 시세, 재무제표, OHLCV, 기술지표, 동종업체, 실적, 스크리너",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "quote",
+              "financials",
+              "ohlcv",
+              "indicators",
+              "peers",
+              "earnings",
+              "screener"
+            ],
+            "description": "quote=시세, financials=재무제표, ohlcv=차트데이터, indicators=기술지표, peers=동종업체, earnings=실적, screener=종목스크리닝"
+          },
+          "symbol": {
+            "type": "string",
+            "description": "미국주식 티커 심볼 (예: AAPL, TSLA, NVDA, MSFT)"
+          },
+          "period": {
+            "type": "string",
+            "description": "데이터 기간 (예: 1mo, 3mo, 6mo, 1y, 5y). 기본값: 3mo"
+          },
+          "interval": {
+            "type": "string",
+            "description": "봉 간격 (1d, 1wk, 1mo). 기본값: 1d"
+          },
+          "sector": {
+            "type": "string",
+            "description": "섹터 필터 (screener용, 예: Technology, Healthcare)"
+          },
+          "min_market_cap": {
+            "type": "number",
+            "description": "최소 시가총액 필터 (screener용, 단위 달러)"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      }
+    },
+    {
+      "tool_id": "global_market_tool",
+      "category": "api",
+      "name": "Global Market Tool",
+      "name_ko": "글로벌 시장 도구",
+      "description": "글로벌 주식/지수/암호화폐/환율 조회 — 미국·일본·유럽 주식, 비트코인 시세, 환율",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "stock",
+              "index",
+              "crypto",
+              "forex",
+              "compare"
+            ],
+            "description": "stock=해외주식 조회, index=글로벌지수, crypto=암호화폐, forex=환율, compare=비교"
+          },
+          "symbol": {
+            "type": "string",
+            "description": "주식 심볼 (stock 사용 시 필수, 예: AAPL, TSLA, NVDA)"
+          },
+          "indices": {
+            "type": "string",
+            "description": "조회할 지수 목록 (index 사용 시, 예: SP500,NASDAQ,DOW)"
+          },
+          "coins": {
+            "type": "string",
+            "description": "암호화폐 목록 (crypto 사용 시, 기본값: bitcoin,ethereum)"
+          },
+          "period": {
+            "type": "string",
+            "description": "조회 기간 (compare 사용 시, 예: 1mo, 3mo, 1y)"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      }
+    },
+    {
+      "tool_id": "financial_calculator",
+      "category": "local",
+      "name": "Financial Calculator",
+      "name_ko": "재무 계산기",
+      "description": "재무 분석 계산 — DCF 기업가치, NPV/IRR, 대출 시뮬레이션, ROI/CAGR, 손익분기점",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "dcf",
+              "npv_irr",
+              "loan",
+              "roi",
+              "breakeven"
+            ],
+            "description": "dcf=DCF 기업가치, npv_irr=NPV/IRR 계산, loan=대출 시뮬레이션, roi=ROI/CAGR, breakeven=손익분기점"
+          },
+          "cash_flows": {
+            "type": "string",
+            "description": "현금흐름 쉼표 구분 (예: -1000000,300000,400000,500000)"
+          },
+          "discount_rate": {
+            "type": "number",
+            "description": "할인율 (예: 0.10 = 10%)"
+          },
+          "principal": {
+            "type": "integer",
+            "description": "대출 원금 (loan 시)"
+          },
+          "rate": {
+            "type": "number",
+            "description": "금리 (loan 시, 예: 0.035 = 3.5%)"
+          },
+          "months": {
+            "type": "integer",
+            "description": "대출 기간 월수 (loan 시)"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      }
+    },
+    {
+      "tool_id": "calendar_tool",
+      "category": "api",
+      "name": "Calendar Tool",
+      "name_ko": "캘린더 도구",
+      "description": "Google Calendar 연동 — 일정 조회·생성·수정·삭제, 검색, 빈 시간 확인",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "list",
+              "create",
+              "update",
+              "delete",
+              "search",
+              "free_time"
+            ],
+            "description": "list=일정 조회, create=일정 생성, update=수정, delete=삭제, search=검색, free_time=빈 시간 확인"
+          },
+          "date": {
+            "type": "string",
+            "description": "날짜 (예: 2026-02-21)"
+          },
+          "title": {
+            "type": "string",
+            "description": "일정 제목 (create/update 시)"
+          },
+          "start_time": {
+            "type": "string",
+            "description": "시작 시간 (예: 2026-02-21T09:00:00)"
+          },
+          "end_time": {
+            "type": "string",
+            "description": "종료 시간 (예: 2026-02-21T10:00:00)"
+          },
+          "event_id": {
+            "type": "string",
+            "description": "일정 ID (update/delete 시)"
+          },
+          "query": {
+            "type": "string",
+            "description": "검색 키워드 (search 시)"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      }
+    },
+    {
+      "tool_id": "email_sender",
+      "category": "api",
+      "name": "Email Sender",
+      "name_ko": "이메일 발송기",
+      "description": "이메일 자동 발송 — 텍스트/HTML 이메일, 초안 작성, 템플릿, 대량 발송",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "send",
+              "draft",
+              "template",
+              "bulk"
+            ],
+            "description": "send=즉시 발송, draft=초안 작성, template=템플릿 발송, bulk=대량 발송"
+          },
+          "to": {
+            "type": "string",
+            "description": "수신자 이메일 주소"
+          },
+          "subject": {
+            "type": "string",
+            "description": "이메일 제목"
+          },
+          "body": {
+            "type": "string",
+            "description": "이메일 본문"
+          },
+          "format": {
+            "type": "string",
+            "enum": [
+              "text",
+              "html"
+            ],
+            "description": "본문 형식 (기본값: text)"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      }
+    },
+    {
+      "tool_id": "vector_knowledge",
+      "category": "api",
+      "name": "Vector Knowledge Base",
+      "name_ko": "벡터 지식베이스",
+      "description": "의미 기반 지식 검색(RAG) — 자연어 검색, 문서 벡터 저장, 파일 일괄 추가",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "search",
+              "store",
+              "add_file",
+              "list"
+            ],
+            "description": "search=자연어 검색, store=문서 저장, add_file=파일 추가, list=저장 목록 조회"
+          },
+          "query": {
+            "type": "string",
+            "description": "검색 질의 (search 시 필수)"
+          },
+          "content": {
+            "type": "string",
+            "description": "저장할 문서 내용 (store 시)"
+          },
+          "file_path": {
+            "type": "string",
+            "description": "추가할 파일 경로 (add_file 시)"
+          },
+          "top_k": {
+            "type": "integer",
+            "description": "검색 결과 수 (기본값 5)"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      }
+    },
+    {
+      "tool_id": "decision_tracker",
+      "category": "llm",
+      "name": "Decision Tracker",
+      "name_ko": "의사결정 추적기",
+      "description": "의사결정 기록·추적 — 결정 배경/선택지/이유 기록, 결과 업데이트, 패턴 분석",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "record",
+              "update",
+              "list",
+              "analyze"
+            ],
+            "description": "record=결정 기록, update=결과 업데이트, list=기록 조회, analyze=패턴 분석"
+          },
+          "decision": {
+            "type": "string",
+            "description": "의사결정 내용 (record 시)"
+          },
+          "options": {
+            "type": "string",
+            "description": "선택지 쉼표 구분 (record 시, 예: A안,B안,C안)"
+          },
+          "reason": {
+            "type": "string",
+            "description": "결정 사유 (record 시)"
+          },
+          "decision_id": {
+            "type": "string",
+            "description": "결정 ID (update 시)"
+          },
+          "result": {
+            "type": "string",
+            "description": "결과 (update 시)"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      }
+    },
+    {
+      "tool_id": "image_generator",
+      "category": "api",
+      "name": "Image Generator",
+      "name_ko": "이미지 생성기",
+      "description": "AI 이미지 생성 — DALL-E 3로 이미지 생성, 기존 이미지 편집/변형",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "generate",
+              "edit",
+              "variation"
+            ],
+            "description": "generate=이미지 생성, edit=이미지 편집, variation=변형 생성"
+          },
+          "prompt": {
+            "type": "string",
+            "description": "이미지 생성 프롬프트"
+          },
+          "size": {
+            "type": "string",
+            "enum": [
+              "1024x1024",
+              "1792x1024",
+              "1024x1792"
+            ],
+            "description": "이미지 크기 (기본값: 1024x1024)"
+          },
+          "image_path": {
+            "type": "string",
+            "description": "편집할 기존 이미지 경로 (edit/variation 시)"
+          }
+        },
+        "required": [
+          "action",
+          "prompt"
+        ]
+      }
+    },
+    {
+      "tool_id": "audio_transcriber",
+      "category": "api",
+      "name": "Audio Transcriber",
+      "name_ko": "음성 변환기",
+      "description": "음성/오디오를 텍스트로 변환 — 한국어 STT, 자동 번역, 녹음 요약, 회의록 변환",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "transcribe",
+              "translate",
+              "summarize"
+            ],
+            "description": "transcribe=텍스트 변환, translate=자동 번역, summarize=녹음 요약"
+          },
+          "file_path": {
+            "type": "string",
+            "description": "오디오 파일 경로"
+          },
+          "language": {
+            "type": "string",
+            "description": "언어 (기본값: ko)"
+          }
+        },
+        "required": [
+          "action",
+          "file_path"
+        ]
+      }
+    },
+    {
+      "tool_id": "cross_agent_protocol",
+      "category": "local",
+      "name": "Cross Agent Protocol",
+      "name_ko": "에이전트 협업 프로토콜",
+      "description": "에이전트 간 횡적 협업 — 작업 요청, 정보 공유, 작업 인계, 결과 수집·종합",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "request",
+              "broadcast",
+              "handoff",
+              "respond",
+              "status",
+              "collect"
+            ],
+            "description": "수행할 협업 액션 — request: 작업 요청, broadcast: 전체 공유, handoff: 작업 인계, respond: 요청 응답, status: 현황 조회, collect: 결과 수집"
+          },
+          "to_agent": {
+            "type": "string",
+            "description": "요청/인계/응답 대상 에이전트 ID (request, handoff, respond 시 필수)"
+          },
+          "task": {
+            "type": "string",
+            "description": "요청할 작업 내용 (request, handoff 시 필수)"
+          },
+          "message": {
+            "type": "string",
+            "description": "전체 공유 메시지 (broadcast 시 필수)"
+          },
+          "context": {
+            "type": "string",
+            "description": "배경 정보·참고 자료 (선택)"
+          },
+          "priority": {
+            "type": "string",
+            "enum": [
+              "긴급",
+              "높음",
+              "보통",
+              "낮음"
+            ],
+            "description": "우선순위 (기본값: 보통)"
+          },
+          "current_result": {
+            "type": "string",
+            "description": "현재까지 작업 결과 (handoff 시 전달)"
+          },
+          "next_task": {
+            "type": "string",
+            "description": "인수인계 후 수행할 다음 작업 (handoff 시)"
+          },
+          "request_id": {
+            "type": "string",
+            "description": "응답/수집할 메시지 ID (respond, collect 시)"
+          },
+          "response": {
+            "type": "string",
+            "description": "요청에 대한 응답 내용 (respond 시 필수)"
+          },
+          "request_ids": {
+            "type": "string",
+            "description": "수집할 메시지 ID 목록 — 쉼표 구분 (collect 시)"
+          },
+          "tags": {
+            "type": "string",
+            "description": "현황 조회 시 필터 태그 (status 시, 선택)"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      }
+    },
+    {
+      "tool_id": "trading_settings_control",
+      "category": "local",
+      "name": "Trading Settings Control",
+      "name_ko": "자동매매 설정 제어",
+      "description": "자동매매 설정값을 조회하거나 변경합니다. CEO 투자 성향별 안전 범위 내에서만 변경 가능합니다.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "get_settings",
+              "update_settings",
+              "get_risk_profile"
+            ],
+            "description": "수행할 작업 — get_settings: 현재 설정 조회, update_settings: 설정 변경, get_risk_profile: 투자 성향 및 안전 범위 조회"
+          },
+          "changes": {
+            "type": "string",
+            "description": "변경할 설정 JSON 문자열 (update_settings 시 필수). 예: '{\"min_confidence\": 60, \"default_stop_loss\": -7}'"
+          },
+          "reason": {
+            "type": "string",
+            "description": "변경 사유 (update_settings 시 필수). 예: '시장 변동성 증가로 손절 기준 완화'"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      }
+    },
+    {
+      "tool_id": "trading_executor",
+      "category": "local",
+      "name": "Trading Order Executor (VECTOR)",
+      "name_ko": "매매 주문 실행 (VECTOR)",
+      "description": "매수/매도 주문을 실행합니다. paper_trading 모드면 가상 포트폴리오만 업데이트하고, 실거래 모드면 KIS API로 실제 주문을 넣습니다. 한국주식은 시장가(price=0), 미국주식은 지정가 필수.\n",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "buy",
+              "sell"
+            ],
+            "description": "매수 또는 매도"
+          },
+          "ticker": {
+            "type": "string",
+            "description": "종목코드 (한국: 005930, 미국: AAPL)"
+          },
+          "qty": {
+            "type": "integer",
+            "description": "주문 수량"
+          },
+          "price": {
+            "type": "number",
+            "description": "지정가 (한국주식 0=시장가, 미국주식은 필수)"
+          },
+          "market": {
+            "type": "string",
+            "enum": [
+              "KR",
+              "US"
+            ],
+            "description": "시장 (KR=한국, US=미국)"
+          },
+          "reason": {
+            "type": "string",
+            "description": "주문 사유 (분석 근거)"
+          }
+        },
+        "required": [
+          "action",
+          "ticker",
+          "qty",
+          "market"
+        ]
+      }
+    },
+    {
+      "tool_id": "architecture_evaluator",
+      "category": "llm",
+      "name": "Architecture Evaluator",
+      "name_ko": "아키텍처 평가 도구",
+      "description": "ISO/IEC 25010 품질모델 기반 아키텍처 종합 평가. SOLID 원칙, 디자인 패턴, 안티패턴, 결합도/응집도, DDD, 마이그레이션 전략 분석.\n",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "evaluate",
+              "solid",
+              "patterns",
+              "antipatterns",
+              "coupling",
+              "migration",
+              "ddd",
+              "full"
+            ],
+            "description": "evaluate=종합평가, solid=SOLID분석, patterns=디자인패턴, antipatterns=안티패턴탐지, coupling=결합도분석, migration=마이그레이션전략, ddd=도메인주도설계, full=전체리포트"
+          },
+          "code": {
+            "type": "string",
+            "description": "분석할 코드 또는 아키텍처 설명"
+          },
+          "context": {
+            "type": "string",
+            "description": "프로젝트 맥락 (기술스택, 팀규모, 비즈니스 도메인)"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      }
+    },
+    {
+      "tool_id": "performance_profiler",
+      "category": "llm",
+      "name": "Performance Profiler",
+      "name_ko": "성능 프로파일러",
+      "description": "Brendan Gregg USE Method + Big-O 복잡도 + USL 확장성 분석. 병목탐지, 메모리분석, DB최적화, API지연시간 P50/P95/P99 분석.\n",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "analyze",
+              "complexity",
+              "bottleneck",
+              "memory",
+              "scalability",
+              "database",
+              "api",
+              "optimize",
+              "full"
+            ],
+            "description": "analyze=종합분석, complexity=복잡도, bottleneck=병목탐지, memory=메모리, scalability=확장성, database=DB성능, api=API지연, optimize=최적화제안, full=전체리포트"
+          },
+          "code": {
+            "type": "string",
+            "description": "분석할 코드 또는 시스템 설명"
+          },
+          "context": {
+            "type": "string",
+            "description": "실행 환경 (서버 스펙, 트래픽 규모, SLA 요구사항)"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      }
+    },
+    {
+      "tool_id": "tech_debt_analyzer",
+      "category": "llm",
+      "name": "Tech Debt Analyzer",
+      "name_ko": "기술부채 분석기",
+      "description": "SQALE 방법론 + Fowler Quadrant 기반 기술부채 종합 평가. 코드스멜 탐지, 비즈니스 영향도, WSJF 우선순위, 상환 로드맵 생성.\n",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "assess",
+              "classify",
+              "smells",
+              "impact",
+              "prioritize",
+              "roadmap",
+              "metrics",
+              "full"
+            ],
+            "description": "assess=종합평가, classify=유형분류, smells=코드스멜, impact=영향도, prioritize=우선순위, roadmap=로드맵, metrics=측정지표, full=전체리포트"
+          },
+          "code": {
+            "type": "string",
+            "description": "분석할 코드 또는 프로젝트 설명"
+          },
+          "context": {
+            "type": "string",
+            "description": "프로젝트 맥락 (개발기간, 팀규모, 배포주기)"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      }
+    },
+    {
+      "tool_id": "system_design_advisor",
+      "category": "llm",
+      "name": "System Design Advisor",
+      "name_ko": "시스템 설계 자문 도구",
+      "description": "CAP 정리 + DDIA(Designing Data-Intensive Applications) 기반 시스템 설계 자문. 확장성, 데이터저장소 선택, 통신패턴, 신뢰성, 보안, 관측성 설계.\n",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "design",
+              "scalability",
+              "datastore",
+              "communication",
+              "reliability",
+              "security",
+              "observability",
+              "full"
+            ],
+            "description": "design=종합설계, scalability=확장성, datastore=저장소선택, communication=통신패턴, reliability=신뢰성, security=보안, observability=관측성, full=전체리포트"
+          },
+          "requirements": {
+            "type": "string",
+            "description": "시스템 요구사항 (사용자수, QPS, 데이터량, SLA)"
+          },
+          "context": {
+            "type": "string",
+            "description": "기존 시스템 맥락 또는 신규 설계 배경"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      }
+    },
+    {
+      "tool_id": "ai_model_evaluator",
+      "category": "llm",
+      "name": "AI Model Evaluator",
+      "name_ko": "AI 모델 평가 도구",
+      "description": "HELM 프레임워크 + Chatbot Arena 기반 AI 모델 종합 평가. 모델 비교, 벤치마크, 비용분석, 안전성, 배포전략, 프롬프트엔지니어링 분석.\n",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "evaluate",
+              "compare",
+              "select",
+              "benchmark",
+              "cost",
+              "safety",
+              "deploy",
+              "prompt",
+              "full"
+            ],
+            "description": "evaluate=종합평가, compare=모델비교, select=모델추천, benchmark=벤치마크, cost=비용분석, safety=안전성, deploy=배포전략, prompt=프롬프트분석, full=전체리포트"
+          },
+          "target": {
+            "type": "string",
+            "description": "평가 대상 모델 또는 용도"
+          },
+          "requirements": {
+            "type": "string",
+            "description": "요구사항 (성능, 비용, 지연시간 제약)"
+          },
+          "context": {
+            "type": "string",
+            "description": "사용 맥락 (도메인, 사용자 규모, 보안 요구)"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      }
+    },
+    {
+      "tool_id": "market_sizer",
+      "category": "local",
+      "name": "Market Sizer",
+      "name_ko": "시장규모 추정 도구",
+      "description": "TAM/SAM/SOM을 Top-down + Bottom-up + Fermi 3가지 방법론으로 교차검증. 산업별 침투율, 성장률(CAGR), 시장단계별 벤치마크 제공.\n",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "full",
+              "top_down",
+              "bottom_up",
+              "fermi",
+              "compare",
+              "growth"
+            ],
+            "description": "full=종합분석, top_down=탑다운, bottom_up=바텀업, fermi=페르미추정, compare=교차비교, growth=성장률예측"
+          },
+          "industry": {
+            "type": "string",
+            "description": "산업/시장 (예: SaaS_B2B, FinTech, AI_Service)"
+          },
+          "target": {
+            "type": "string",
+            "description": "분석 대상 제품/서비스"
+          },
+          "context": {
+            "type": "string",
+            "description": "추가 맥락 (지역, 고객세그먼트)"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      }
+    },
+    {
+      "tool_id": "business_model_scorer",
+      "category": "local",
+      "name": "Business Model Scorer",
+      "name_ko": "비즈니스 모델 채점 도구",
+      "description": "Osterwalder BMC 9블록 + 유닛이코노믹스(LTV/CAC) + 린스타트업 가설검증 기반 비즈니스 모델 종합 평가 및 채점.\n",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "score",
+              "bmc",
+              "unit_economics",
+              "hypothesis",
+              "pivot",
+              "full"
+            ],
+            "description": "score=종합채점, bmc=BMC분석, unit_economics=유닛이코노믹스, hypothesis=가설검증, pivot=피봇전략, full=전체리포트"
+          },
+          "model": {
+            "type": "string",
+            "description": "비즈니스 모델 설명"
+          },
+          "context": {
+            "type": "string",
+            "description": "시장/경쟁 맥락"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      }
+    },
+    {
+      "tool_id": "competitive_mapper",
+      "category": "local",
+      "name": "Competitive Mapper",
+      "name_ko": "경쟁 지형도 도구",
+      "description": "Porter 5-Forces + 전략 그룹 매핑 + Blue Ocean 전략 캔버스 기반 경쟁 환경 종합 분석 및 포지셔닝 전략 도출.\n",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "map",
+              "five_forces",
+              "strategic_group",
+              "blue_ocean",
+              "positioning",
+              "full"
+            ],
+            "description": "map=경쟁지형도, five_forces=5Forces, strategic_group=전략그룹, blue_ocean=블루오션, positioning=포지셔닝, full=전체리포트"
+          },
+          "industry": {
+            "type": "string",
+            "description": "산업/시장"
+          },
+          "competitors": {
+            "type": "string",
+            "description": "주요 경쟁사 목록"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      }
+    },
+    {
+      "tool_id": "growth_forecaster",
+      "category": "local",
+      "name": "Growth Forecaster",
+      "name_ko": "성장 예측 도구",
+      "description": "Bass Diffusion Model + S-curve + Cohort 분석 기반 성장 예측. 사용자 증가, 매출 예측, 시나리오별 성장 경로 시뮬레이션.\n",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "forecast",
+              "bass_model",
+              "s_curve",
+              "cohort",
+              "scenario",
+              "full"
+            ],
+            "description": "forecast=종합예측, bass_model=Bass모델, s_curve=S커브, cohort=코호트분석, scenario=시나리오, full=전체리포트"
+          },
+          "data": {
+            "type": "string",
+            "description": "현재 지표 데이터 (사용자수, 매출, 성장률)"
+          },
+          "context": {
+            "type": "string",
+            "description": "시장/제품 맥락"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      }
+    },
+    {
+      "tool_id": "scenario_simulator",
+      "category": "local",
+      "name": "Scenario Simulator",
+      "name_ko": "시나리오 시뮬레이터",
+      "description": "Monte Carlo 시뮬레이션 + Decision Tree + 민감도 분석 기반 사업 시나리오 시뮬레이션 및 의사결정 지원.\n",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "simulate",
+              "monte_carlo",
+              "decision_tree",
+              "sensitivity",
+              "war_game",
+              "full"
+            ],
+            "description": "simulate=종합시뮬레이션, monte_carlo=몬테카를로, decision_tree=의사결정트리, sensitivity=민감도, war_game=워게임, full=전체리포트"
+          },
+          "scenario": {
+            "type": "string",
+            "description": "시나리오 설명 (변수, 가정, 조건)"
+          },
+          "context": {
+            "type": "string",
+            "description": "사업 맥락"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      }
+    },
+    {
+      "tool_id": "document_summarizer",
+      "category": "llm",
+      "name": "Document Summarizer",
+      "name_ko": "문서 요약 도구",
+      "description": "학술 수준 문서 요약 — ROUGE 최적화 + 추출적/추상적 요약 이중 방식. 보고서, 논문, 회의록, 법률문서 등 다양한 문서 유형 지원.\n",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "summarize",
+              "extract",
+              "abstract",
+              "compare",
+              "key_points",
+              "full"
+            ],
+            "description": "summarize=종합요약, extract=추출적요약, abstract=추상적요약, compare=문서비교, key_points=핵심포인트, full=전체리포트"
+          },
+          "document": {
+            "type": "string",
+            "description": "요약할 문서 내용"
+          },
+          "doc_type": {
+            "type": "string",
+            "description": "문서 유형 (report, paper, minutes, legal, article)"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      }
+    },
+    {
+      "tool_id": "terms_generator",
+      "category": "llm",
+      "name": "Terms Generator",
+      "name_ko": "용어집 생성 도구",
+      "description": "도메인 특화 용어집 자동 생성 — ISO 704 용어작업 원칙 준거. 기술/법률/비즈니스/의학 등 전문분야 용어 정의, 동의어, 관련어 매핑.\n",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "generate",
+              "define",
+              "synonym",
+              "hierarchy",
+              "translate",
+              "full"
+            ],
+            "description": "generate=용어집생성, define=정의작성, synonym=동의어매핑, hierarchy=계층구조, translate=다국어, full=전체리포트"
+          },
+          "domain": {
+            "type": "string",
+            "description": "도메인 (tech, legal, business, medical)"
+          },
+          "terms": {
+            "type": "string",
+            "description": "용어 목록 또는 문서"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      }
+    },
+    {
+      "tool_id": "communication_optimizer",
+      "category": "llm",
+      "name": "Communication Optimizer",
+      "name_ko": "커뮤니케이션 최적화 도구",
+      "description": "Flesch-Kincaid 가독성 + 설득 심리학(Cialdini) 기반 문서 커뮤니케이션 최적화. 독자 맞춤 톤/수준 조정, 구조화, 시각적 포맷팅 제안.\n",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "optimize",
+              "readability",
+              "persuasion",
+              "structure",
+              "tone",
+              "full"
+            ],
+            "description": "optimize=종합최적화, readability=가독성분석, persuasion=설득력, structure=구조화, tone=톤조정, full=전체리포트"
+          },
+          "text": {
+            "type": "string",
+            "description": "최적화할 텍스트"
+          },
+          "audience": {
+            "type": "string",
+            "description": "대상 독자 (executive, developer, customer, investor)"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      }
+    },
+    {
+      "tool_id": "agenda_optimizer",
+      "category": "llm",
+      "name": "Agenda Optimizer",
+      "name_ko": "안건 최적화 도구",
+      "description": "회의 안건 최적화 — Parkinson 법칙 + 인지부하 이론 기반 시간 배분. 안건 우선순위, 최적 순서, 시간 할당, 참석자 매핑.\n",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "optimize",
+              "prioritize",
+              "allocate",
+              "sequence",
+              "full"
+            ],
+            "description": "optimize=종합최적화, prioritize=우선순위, allocate=시간배분, sequence=순서최적화, full=전체리포트"
+          },
+          "agenda": {
+            "type": "string",
+            "description": "안건 목록"
+          },
+          "context": {
+            "type": "string",
+            "description": "회의 맥락 (목적, 참석자, 제한시간)"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      }
+    },
+    {
+      "tool_id": "priority_matrix",
+      "category": "llm",
+      "name": "Priority Matrix",
+      "name_ko": "우선순위 매트릭스 도구",
+      "description": "Eisenhower 매트릭스 + RICE 스코어링 + MoSCoW 기반 다차원 우선순위 결정. 업무 분류, 긴급도/중요도 평가, 자원 배분 최적화.\n",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "matrix",
+              "eisenhower",
+              "rice",
+              "moscow",
+              "weighted",
+              "full"
+            ],
+            "description": "matrix=종합매트릭스, eisenhower=아이젠하워, rice=RICE스코어, moscow=MoSCoW, weighted=가중치, full=전체리포트"
+          },
+          "tasks": {
+            "type": "string",
+            "description": "우선순위 결정할 업무/프로젝트 목록"
+          },
+          "criteria": {
+            "type": "string",
+            "description": "평가 기준 (비용, 영향도, 긴급도)"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      }
+    },
+    {
+      "tool_id": "meeting_effectiveness",
+      "category": "llm",
+      "name": "Meeting Effectiveness",
+      "name_ko": "회의 효과성 분석 도구",
+      "description": "회의 효과성 측정 — ROI 산출(참석자×시간×시급 vs 산출물 가치). 패턴 분석, 개선 제안, 회의 문화 진단.\n",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "analyze",
+              "roi",
+              "patterns",
+              "improve",
+              "culture",
+              "full"
+            ],
+            "description": "analyze=종합분석, roi=ROI산출, patterns=패턴분석, improve=개선제안, culture=문화진단, full=전체리포트"
+          },
+          "meeting_data": {
+            "type": "string",
+            "description": "회의 데이터 (참석자, 시간, 안건, 결과)"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      }
+    },
+    {
+      "tool_id": "delegation_analyzer",
+      "category": "llm",
+      "name": "Delegation Analyzer",
+      "name_ko": "위임 분석 도구",
+      "description": "Hersey-Blanchard 상황적 리더십 모델 기반 위임 전략 분석. 팀원 역량/의지 매트릭스, 위임 수준 결정, 모니터링 빈도 추천.\n",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "analyze",
+              "assess",
+              "assign",
+              "monitor",
+              "full"
+            ],
+            "description": "analyze=종합분석, assess=역량평가, assign=업무배정, monitor=모니터링전략, full=전체리포트"
+          },
+          "task": {
+            "type": "string",
+            "description": "위임할 업무"
+          },
+          "team": {
+            "type": "string",
+            "description": "팀원 정보 (역량, 경험, 현재 업무량)"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      }
+    },
+    {
+      "tool_id": "stakeholder_mapper",
+      "category": "llm",
+      "name": "Stakeholder Mapper",
+      "name_ko": "이해관계자 매핑 도구",
+      "description": "Mitchell의 현저성 모델(Power/Legitimacy/Urgency) 기반 이해관계자 매핑. 영향력/관심도 매트릭스, 커뮤니케이션 전략, 갈등 예측.\n",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "map",
+              "salience",
+              "influence",
+              "communication",
+              "conflict",
+              "full"
+            ],
+            "description": "map=종합매핑, salience=현저성분석, influence=영향력매트릭스, communication=소통전략, conflict=갈등예측, full=전체리포트"
+          },
+          "stakeholders": {
+            "type": "string",
+            "description": "이해관계자 목록 및 정보"
+          },
+          "project": {
+            "type": "string",
+            "description": "프로젝트/이슈 맥락"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      }
+    },
+    {
+      "tool_id": "compliance_checker",
+      "category": "llm",
+      "name": "Compliance Checker",
+      "name_ko": "컴플라이언스 점검 도구",
+      "description": "GDPR/CCPA/개인정보보호법/전자상거래법 등 주요 규제 준수 여부 점검. 체크리스트 기반 진단, 위반 위험도 평가, 시정 방안 제시.\n",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "check",
+              "gdpr",
+              "privacy",
+              "ecommerce",
+              "labor",
+              "full"
+            ],
+            "description": "check=종합점검, gdpr=GDPR, privacy=개인정보, ecommerce=전자상거래, labor=노동법, full=전체리포트"
+          },
+          "target": {
+            "type": "string",
+            "description": "점검 대상 (서비스, 정책, 약관)"
+          },
+          "jurisdiction": {
+            "type": "string",
+            "description": "관할권 (KR, EU, US, global)"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      }
+    },
+    {
+      "tool_id": "privacy_auditor",
+      "category": "llm",
+      "name": "Privacy Auditor",
+      "name_ko": "프라이버시 감사 도구",
+      "description": "개인정보 영향평가(PIA) + DPIA(Data Protection Impact Assessment) 기반 감사. 데이터 흐름 분석, 동의 관리, 보존기간, 국외이전 적법성 점검.\n",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "audit",
+              "pia",
+              "data_flow",
+              "consent",
+              "retention",
+              "transfer",
+              "full"
+            ],
+            "description": "audit=종합감사, pia=영향평가, data_flow=데이터흐름, consent=동의관리, retention=보존기간, transfer=국외이전, full=전체리포트"
+          },
+          "system": {
+            "type": "string",
+            "description": "감사 대상 시스템/서비스"
+          },
+          "data_types": {
+            "type": "string",
+            "description": "처리하는 개인정보 유형"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      }
+    },
+    {
+      "tool_id": "risk_communicator",
+      "category": "llm",
+      "name": "Risk Communicator",
+      "name_ko": "리스크 커뮤니케이션 도구",
+      "description": "위기 커뮤니케이션 전략 수립 — Coombs SCCT(Situational Crisis Communication Theory) 기반. 위기 유형 분류, 대응 전략, 이해관계자별 메시지, 타임라인 제시.\n",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "communicate",
+              "classify",
+              "strategy",
+              "message",
+              "timeline",
+              "full"
+            ],
+            "description": "communicate=종합전략, classify=위기분류, strategy=대응전략, message=메시지작성, timeline=타임라인, full=전체리포트"
+          },
+          "crisis": {
+            "type": "string",
+            "description": "위기 상황 설명"
+          },
+          "stakeholders": {
+            "type": "string",
+            "description": "주요 이해관계자"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      }
+    },
+    {
+      "tool_id": "risk_matrix",
+      "category": "llm",
+      "name": "Risk Matrix",
+      "name_ko": "리스크 매트릭스 도구",
+      "description": "ISO 31000 기반 리스크 평가 매트릭스 — 발생확률 × 영향도 매핑. 리스크 식별, 정량/정성 평가, 완화 전략, 잔여 리스크 모니터링.\n",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "assess",
+              "identify",
+              "quantify",
+              "mitigate",
+              "monitor",
+              "full"
+            ],
+            "description": "assess=종합평가, identify=식별, quantify=정량화, mitigate=완화전략, monitor=모니터링, full=전체리포트"
+          },
+          "risks": {
+            "type": "string",
+            "description": "리스크 목록 또는 프로젝트 설명"
+          },
+          "context": {
+            "type": "string",
+            "description": "조직/프로젝트 맥락"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      }
+    },
+    {
+      "tool_id": "pricing_optimizer",
+      "category": "local",
+      "name": "Pricing Optimizer",
+      "name_ko": "가격 최적화 도구",
+      "description": "Van Westendorp PSM + Gabor-Granger 수용도 + 가격탄력성 + 수익최적화 + 경쟁사 포지셔닝 + 마진 시뮬레이션 + 번들/티어 설계.\n",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "full",
+              "psm",
+              "gabor_granger",
+              "elasticity",
+              "optimize",
+              "competitor",
+              "margin",
+              "bundle"
+            ],
+            "description": "full=종합, psm=PSM분석, gabor_granger=가격수용도, elasticity=탄력성, optimize=수익최적화, competitor=경쟁사, margin=마진시뮬, bundle=티어설계"
+          },
+          "product": {
+            "type": "string",
+            "description": "제품/서비스 설명"
+          },
+          "market_data": {
+            "type": "string",
+            "description": "시장/경쟁 가격 데이터"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      }
+    },
+    {
+      "tool_id": "swot_quantifier",
+      "category": "local",
+      "name": "SWOT Quantifier",
+      "name_ko": "SWOT 정량화 도구",
+      "description": "SWOT 분석의 정량화 — TOWS 매트릭스 + AHP(Analytic Hierarchy Process) 기반. 강점/약점/기회/위협에 가중치 부여, 전략 우선순위 도출.\n",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "analyze",
+              "quantify",
+              "tows",
+              "ahp",
+              "strategy",
+              "full"
+            ],
+            "description": "analyze=종합분석, quantify=정량화, tows=TOWS매트릭스, ahp=AHP분석, strategy=전략도출, full=전체리포트"
+          },
+          "company": {
+            "type": "string",
+            "description": "기업/제품 설명"
+          },
+          "context": {
+            "type": "string",
+            "description": "시장/경쟁 맥락"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      }
+    },
+    {
+      "tool_id": "gemini_image_generator",
+      "category": "api",
+      "name": "Nano Banana v2 Image Generator",
+      "name_ko": "나노바나나 v2 이미지 생성",
+      "description": "나노바나나 v2(gemini-3.1-flash-image-preview)로 실제 마케팅 이미지 직접 생성. 배너, 카드뉴스, 카드뉴스 시리즈(5~10장 자동 생성), 인포그래픽, 썸네일, 로고, 광고, 소셜포스트, 제품목업. 교수급 디자인 지식(플랫폼 사양, 스타일 가이드, 색상 심리학)이 프롬프트에 자동 반영됩니다.\n",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "generate",
+              "banner",
+              "card_news",
+              "card_news_series",
+              "infographic",
+              "thumbnail",
+              "logo",
+              "ad_creative",
+              "social_post",
+              "product_mockup",
+              "full"
+            ],
+            "description": "generate=프롬프트직접, banner=배너, card_news=카드뉴스1장, card_news_series=카드뉴스시리즈(5~10장), infographic=인포그래픽, thumbnail=썸네일, logo=로고, ad_creative=광고, social_post=소셜포스트, product_mockup=제품목업, full=종합세트"
+          },
+          "prompt": {
+            "type": "string",
+            "description": "이미지 생성 프롬프트 (action=generate일 때 필수)"
+          },
+          "topic": {
+            "type": "string",
+            "description": "주제/제품명"
+          },
+          "style": {
+            "type": "string",
+            "description": "스타일 (minimal, corporate, playful, luxury, tech)"
+          },
+          "platform": {
+            "type": "string",
+            "description": "대상 플랫폼 (instagram, youtube, facebook, naver_blog, twitter, linkedin, kakao)"
+          },
+          "aspect_ratio": {
+            "type": "string",
+            "description": "비율 (1:1, 16:9, 9:16, 4:3, 3:4)"
+          },
+          "text_overlay": {
+            "type": "string",
+            "description": "이미지 위 텍스트"
+          },
+          "context": {
+            "type": "string",
+            "description": "추가 맥락/요구사항"
+          },
+          "slide_count": {
+            "type": "integer",
+            "description": "카드뉴스 시리즈 슬라이드 수 (기본 5, 최대 10). card_news_series 전용"
+          },
+          "slides_text": {
+            "type": "string",
+            "description": "카드뉴스 슬라이드별 텍스트 (줄바꿈으로 구분). card_news_series 전용. 예: '표지 제목\\n포인트 1\\n포인트 2\\n마무리'"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      }
+    },
+    {
+      "tool_id": "gemini_video_generator",
+      "category": "api",
+      "name": "Veo 3.1 Video Generator",
+      "name_ko": "Veo 3.1 영상 생성",
+      "description": "Veo 3.1(veo-3.1-generate-preview)로 마케팅 영상 직접 생성. 릴스/쇼츠/광고 영상 등 SNS 콘텐츠용 짧은 영상.\n",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "generate",
+              "reels",
+              "ad"
+            ],
+            "description": "generate=프롬프트직접, reels=릴스/쇼츠(9:16), ad=광고(16:9)"
+          },
+          "prompt": {
+            "type": "string",
+            "description": "영상 생성 프롬프트"
+          },
+          "topic": {
+            "type": "string",
+            "description": "주제 (prompt 자동생성용)"
+          },
+          "resolution": {
+            "type": "string",
+            "description": "해상도 (720p, 1080p, 4k)"
+          },
+          "duration": {
+            "type": "string",
+            "description": "길이 (4, 6, 8초)"
+          },
+          "aspect_ratio": {
+            "type": "string",
+            "description": "비율 (16:9, 9:16)"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      }
+    },
+    {
+      "tool_id": "tts_generator",
+      "category": "api",
+      "name": "TTS Voice Generator",
+      "name_ko": "TTS 음성 생성",
+      "description": "OpenAI TTS(gpt-4o-mini-tts)로 텍스트를 자연스러운 음성으로 변환. AI 인플루언서 영상의 1단계 — 대본을 음성으로 변환합니다. 주제만 주면 대본 자동 작성 후 음성까지 생성합니다.\n",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "generate",
+              "script"
+            ],
+            "description": "generate=텍스트→음성, script=주제→대본작성→음성"
+          },
+          "text": {
+            "type": "string",
+            "description": "음성으로 변환할 텍스트 (action=generate 시)"
+          },
+          "topic": {
+            "type": "string",
+            "description": "대본 주제 (action=script 시)"
+          },
+          "voice": {
+            "type": "string",
+            "enum": [
+              "alloy",
+              "ash",
+              "ballad",
+              "coral",
+              "echo",
+              "fable",
+              "nova",
+              "onyx",
+              "sage",
+              "shimmer"
+            ],
+            "description": "음성 (nova=친근한여성, onyx=깊은남성, coral=밝은여성)"
+          },
+          "speed": {
+            "type": "number",
+            "description": "속도 (0.25~4.0, 기본 1.0)"
+          },
+          "duration": {
+            "type": "integer",
+            "description": "목표 영상 길이(초) — action=script 시 대본 분량 조절"
+          },
+          "tone": {
+            "type": "string",
+            "description": "대본 톤 (예: 친근하고 전문적인)"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      }
+    },
+    {
+      "tool_id": "lipsync_video_generator",
+      "category": "api",
+      "name": "Lipsync Video Generator",
+      "name_ko": "립싱크 영상 생성",
+      "description": "AI 인플루언서 이미지 + 음성 → 입이 움직이는 영상 생성. Replicate 클라우드 GPU에서 SadTalker를 실행합니다. 이미지+대본만 주면 TTS+립싱크까지 한번에 처리합니다.\n",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "generate",
+              "from_text"
+            ],
+            "description": "generate=이미지+음성→영상, from_text=이미지+대본→TTS→영상(올인원)"
+          },
+          "image": {
+            "type": "string",
+            "description": "인플루언서 이미지 파일명 또는 경로 (미지정 시 기본 이미지 사용)"
+          },
+          "audio": {
+            "type": "string",
+            "description": "음성 파일 경로 (action=generate 시)"
+          },
+          "text": {
+            "type": "string",
+            "description": "대본 텍스트 (action=from_text 시)"
+          },
+          "topic": {
+            "type": "string",
+            "description": "대본 주제 (action=from_text 시, text 미지정 시 자동 작성)"
+          },
+          "voice": {
+            "type": "string",
+            "description": "TTS 음성 선택 (from_text 시)"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      }
+    },
+    {
+      "tool_id": "video_editor",
+      "category": "local",
+      "name": "Video Editor",
+      "name_ko": "영상 편집",
+      "description": "ffmpeg 기반 영상 편집 — 자막, BGM, 클립 합치기. AI 인플루언서 영상의 마지막 단계. 립싱크 영상에 자막과 배경음악을 추가합니다.\n",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "subtitle",
+              "bgm",
+              "concat",
+              "full"
+            ],
+            "description": "subtitle=자막합성, bgm=배경음악, concat=클립합치기, full=자막+BGM"
+          },
+          "video": {
+            "type": "string",
+            "description": "영상 파일 경로 (미지정 시 최신 립싱크 영상)"
+          },
+          "text": {
+            "type": "string",
+            "description": "자막 텍스트 (action=subtitle/full 시, 자동 SRT 생성)"
+          },
+          "srt": {
+            "type": "string",
+            "description": "SRT 자막 파일 경로"
+          },
+          "bgm": {
+            "type": "string",
+            "description": "BGM 파일 경로 (action=bgm/full 시)"
+          },
+          "bgm_volume": {
+            "type": "number",
+            "description": "BGM 볼륨 (0.0~1.0, 기본 0.15)"
+          },
+          "clips": {
+            "type": "array",
+            "description": "이어붙일 클립 파일 경로 리스트 (action=concat 시)"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      }
+    },
+    {
+      "tool_id": "sec_edgar",
+      "category": "api",
+      "name": "SEC EDGAR Filings",
+      "name_ko": "SEC 공시 조회",
+      "description": "SEC EDGAR 공시 조회 — 10-K/10-Q, 내부자 거래, 기관투자자 보유 분석 (Lakonishok & Lee 2001)",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "filings",
+              "insider",
+              "institutional",
+              "search"
+            ],
+            "description": "filings=공시목록, insider=내부자거래, institutional=기관보유, search=기업검색"
+          },
+          "symbol": {
+            "type": "string",
+            "description": "미국주식 티커 (예: AAPL, TSLA)"
+          },
+          "filing_type": {
+            "type": "string",
+            "description": "공시 유형 (10-K, 10-Q, 8-K, DEF 14A 등)"
+          }
+        }
+      }
+    },
+    {
+      "tool_id": "us_financial_analyzer",
+      "category": "api",
+      "name": "US Financial Deep Analyzer",
+      "name_ko": "미국기업 재무심층분석",
+      "description": "DCF(Monte Carlo 10000회)+DuPont 3요소+Graham 안전마진+PEG — Damodaran 방법론",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "dcf",
+              "dupont",
+              "valuation",
+              "full"
+            ],
+            "description": "dcf=DCF분석, dupont=DuPont분해, valuation=멀티플밸류에이션, full=전체"
+          },
+          "symbol": {
+            "type": "string",
+            "description": "미국주식 티커 (예: AAPL)"
+          },
+          "growth_rate": {
+            "type": "number",
+            "description": "FCF 성장률 추정 (예: 0.08 = 8%)"
+          }
+        }
+      }
+    },
+    {
+      "tool_id": "us_technical_analyzer",
+      "category": "api",
+      "name": "US Technical Analysis Pro",
+      "name_ko": "미국주식 기술적분석 전문",
+      "description": "멀티타임프레임+일목균형표+피보나치+5지표 컨센서스 — Dow/Elliott/Wilder 이론 기반",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "multi_timeframe",
+              "ichimoku",
+              "fibonacci",
+              "consensus",
+              "full"
+            ],
+            "description": "multi_timeframe=다중시간, ichimoku=일목, fibonacci=피보나치, consensus=종합, full=전체"
+          },
+          "symbol": {
+            "type": "string",
+            "description": "미국주식 티커 (예: NVDA)"
+          }
+        }
+      }
+    },
+    {
+      "tool_id": "options_flow",
+      "category": "api",
+      "name": "Options Flow Analyzer",
+      "name_ko": "옵션 흐름 분석",
+      "description": "Put/Call Ratio, Max Pain, 이상거래 감지 — Easley et al(1998) 정보거래 이론",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "overview",
+              "unusual",
+              "max_pain",
+              "full"
+            ],
+            "description": "overview=옵션개요, unusual=이상거래, max_pain=MaxPain, full=전체"
+          },
+          "symbol": {
+            "type": "string",
+            "description": "미국주식 티커 (예: AAPL)"
+          }
+        }
+      }
+    },
+    {
+      "tool_id": "macro_fed_tracker",
+      "category": "api",
+      "name": "Fed/Macro Tracker",
+      "name_ko": "Fed/매크로 지표 추적",
+      "description": "Taylor Rule, 수익률곡선, VIX온도계, 국채수익률 — Fed 정책 분석 + 경기침체 예측",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "overview",
+              "taylor_rule",
+              "yield_curve",
+              "full"
+            ],
+            "description": "overview=매크로대시보드, taylor_rule=이론금리, yield_curve=수익률곡선, full=전체"
+          },
+          "cpi": {
+            "type": "number",
+            "description": "현재 CPI (기본값 3.0)"
+          },
+          "gdp_gap": {
+            "type": "number",
+            "description": "GDP 갭 (기본값 1.0)"
+          }
+        }
+      }
+    },
+    {
+      "tool_id": "sector_rotation",
+      "category": "api",
+      "name": "Sector Rotation Analyzer",
+      "name_ko": "섹터 로테이션 분석",
+      "description": "Fidelity 경기사이클 맵, 섹터RS순위, ETF자금흐름 — Levy(1967)+Faber(2007)",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "map",
+              "relative_strength",
+              "flow",
+              "full"
+            ],
+            "description": "map=경기사이클맵, relative_strength=상대강도순위, flow=ETF자금흐름, full=전체"
+          },
+          "period": {
+            "type": "string",
+            "description": "RS 기간 (1mo, 3mo, 6mo, 1y). 기본값: 3mo"
+          }
+        }
+      }
+    },
+    {
+      "tool_id": "earnings_ai",
+      "category": "api",
+      "name": "AI Earnings Predictor",
+      "name_ko": "AI 실적 예측",
+      "description": "어닝서프라이즈 히스토리, PEAD드리프트, 이익의 질 — Ball&Brown(1968)+Sloan(1996)",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "upcoming",
+              "surprise_history",
+              "quality",
+              "full"
+            ],
+            "description": "upcoming=실적임박분석, surprise_history=서프라이즈패턴, quality=이익의질, full=전체"
+          },
+          "symbol": {
+            "type": "string",
+            "description": "미국주식 티커 (예: TSLA)"
+          }
+        }
+      }
+    },
+    {
+      "tool_id": "sentiment_nlp",
+      "category": "api",
+      "name": "Market Sentiment NLP",
+      "name_ko": "시장 감성 분석",
+      "description": "Fear&Greed지수, 공매도분석, 뉴스감성 — Baker&Wurgler(2006)+Tetlock(2007)",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "fear_greed",
+              "short_interest",
+              "social",
+              "full"
+            ],
+            "description": "fear_greed=공포탐욕, short_interest=공매도, social=뉴스감성, full=전체"
+          },
+          "symbol": {
+            "type": "string",
+            "description": "미국주식 티커 (공매도/뉴스용, 예: GME)"
+          }
+        }
+      }
+    },
+    {
+      "tool_id": "portfolio_optimizer_v2",
+      "category": "api",
+      "name": "Portfolio Optimizer Pro",
+      "name_ko": "글로벌 포트폴리오 최적화",
+      "description": "Markowitz MVO+Risk Parity+Kelly Criterion — 10000 Monte Carlo + 효율적프론티어, 최적 포트폴리오 비중 계산",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "optimize",
+              "analyze",
+              "kelly",
+              "risk_parity",
+              "efficient_frontier",
+              "full"
+            ],
+            "description": "optimize=Markowitz MVO 최적화, analyze=포트폴리오 현황 분석, kelly=Kelly Criterion 비중, risk_parity=Risk Parity 비중, efficient_frontier=효율적프론티어, full=전체 종합"
+          },
+          "symbols": {
+            "type": "string",
+            "description": "종목리스트 (공백/콤마 구분, 예: AAPL MSFT GOOGL AMZN)"
+          },
+          "tickers": {
+            "type": "string",
+            "description": "한국주식 종목코드 쉼표 구분 (예: 005930,035720,005380). symbols 또는 tickers 중 하나 필수"
+          },
+          "weights": {
+            "type": "string",
+            "description": "현재 포트폴리오 비중 쉼표 구분 (예: 0.3,0.3,0.2,0.2). analyze 시 사용"
+          },
+          "risk_tolerance": {
+            "type": "string",
+            "enum": [
+              "conservative",
+              "moderate",
+              "aggressive"
+            ],
+            "description": "투자 위험 선호도 (conservative=보수적, moderate=중립, aggressive=공격적). 기본값: moderate"
+          },
+          "target_return": {
+            "type": "number",
+            "description": "목표 수익률 (예: 0.12 = 12%). efficient_frontier 시 사용"
+          },
+          "max_weight": {
+            "type": "number",
+            "description": "단일 종목 최대 비중 제한 (예: 0.4 = 40%). 기본값: 0.4"
+          },
+          "period": {
+            "type": "string",
+            "description": "분석 기간 (예: 1y, 3y, 5y). 기본값: 1y"
+          },
+          "benchmark": {
+            "type": "string",
+            "description": "벤치마크 지수 (예: SPY, KOSPI). 선택"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      }
+    },
+    {
+      "tool_id": "correlation_analyzer",
+      "category": "api",
+      "name": "Correlation & Crisis Detector",
+      "name_ko": "상관관계 + 위기 감지",
+      "description": "동적상관관계, Tail Dependence, VIX Term Structure — Engle DCC(2002)+위기감지",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "correlation",
+              "crisis_detection",
+              "tail_risk",
+              "full"
+            ],
+            "description": "correlation=상관행렬, crisis_detection=위기감지, tail_risk=꼬리위험, full=전체"
+          },
+          "symbols": {
+            "type": "string",
+            "description": "자산리스트 (공백/콤마 구분). 미입력 시 10개 글로벌 자산 기본 세트"
+          }
+        }
+      }
+    },
+    {
+      "tool_id": "dc_lawschool_crawler",
+      "category": "api",
+      "name": "DC Lawschool Gallery Crawler",
+      "name_ko": "DC 법전원갤 크롤러",
+      "description": "DCinside 법전원갤에서 게시글 수집 + 인기글/검색/트렌드 분석 (LEET/로스쿨 시장조사)",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "hot",
+              "search",
+              "trend",
+              "read"
+            ],
+            "description": "hot=인기글 수집, search=키워드 검색, trend=트렌드 분석, read=게시글 읽기"
+          },
+          "query": {
+            "type": "string",
+            "description": "검색 키워드 (search 액션용)"
+          },
+          "count": {
+            "type": "integer",
+            "description": "수집 게시글 수 (기본값 30)"
+          },
+          "pages": {
+            "type": "integer",
+            "description": "크롤링 페이지 수 (기본값 3)"
+          },
+          "post_no": {
+            "type": "string",
+            "description": "읽을 게시글 번호 (read 액션용)"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      }
+    },
+    {
+      "tool_id": "orbi_crawler",
+      "category": "api",
+      "name": "Orbi LEET Crawler",
+      "name_ko": "오르비 LEET 크롤러",
+      "description": "오르비(orbi.kr)에서 LEET/로스쿨 관련 게시글 검색 + 트렌드 분석",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "search",
+              "hot",
+              "trend",
+              "read"
+            ],
+            "description": "search=키워드 검색, hot=인기글, trend=트렌드 분석, read=글 읽기"
+          },
+          "query": {
+            "type": "string",
+            "description": "검색 키워드 (기본값 LEET)"
+          },
+          "count": {
+            "type": "integer",
+            "description": "수집 게시글 수 (기본값 20)"
+          },
+          "post_id": {
+            "type": "string",
+            "description": "읽을 게시글 ID (read 액션용)"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      }
+    },
+    {
+      "tool_id": "lawschool_community",
+      "category": "api",
+      "name": "Lawschool Community Aggregator",
+      "name_ko": "법전원 커뮤니티 통합",
+      "description": "DC 법전원갤 + 오르비 + 서로연(다음카페) 통합 검색/트렌드 분석 — LEET/로스쿨 시장조사",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "search",
+              "trend",
+              "hot",
+              "compare"
+            ],
+            "description": "search=통합 검색, trend=트렌드 분석, hot=인기글, compare=커뮤니티 비교"
+          },
+          "query": {
+            "type": "string",
+            "description": "검색 키워드"
+          },
+          "source": {
+            "type": "string",
+            "description": "dc,orbi,seolyeon 중 선택 (기본값: all)"
+          },
+          "topic": {
+            "type": "string",
+            "description": "분석 주제 (trend/compare 액션용)"
+          },
+          "count": {
+            "type": "integer",
+            "description": "수집 게시글 수 (기본값 20)"
+          }
+        },
+        "required": [
+          "action"
+        ]
+      }
+    },
+    {
+      "tool_id": "read_knowledge",
+      "category": "local",
+      "name": "Read Knowledge",
+      "name_ko": "정보국 조회",
+      "description": "knowledge/ 폴더의 지식 파일을 on-demand로 읽는 도구. 리트마스터 제품정보, 투자 정책, 출판 가이드, 전사 규칙, 시스템 플로우차트 조회 가능",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "division": {
+            "type": "string",
+            "enum": [
+              "leet_master",
+              "finance",
+              "publishing",
+              "shared",
+              "flowcharts"
+            ],
+            "description": "조회할 부서/카테고리. 없으면 전체 목록 반환"
+          },
+          "file": {
+            "type": "string",
+            "description": "파일명 (확장자 제외, 예: product_info). division만 주면 파일 목록 반환"
+          }
+        }
+      }
+    }
+  ]
+}

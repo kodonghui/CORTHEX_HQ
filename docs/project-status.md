@@ -7,10 +7,387 @@
 
 ## 마지막 업데이트
 
-- **날짜**: 2026-02-26
+- **날짜**: 2026-02-28
 - **버전**: `4.00.000`
-- **빌드**: #623+ → 세션4 모바일 최적화 진행 중
+- **빌드**: #706 (SNS 발행 안정화 + 미디어 썸네일)
 - **서버**: https://corthex-hq.com
+
+---
+
+## 2026-02-28 — SNS 퍼블리셔 전면 수정 (빌드 #704~#706)
+
+### 발견된 버그 + 수정
+- ✅ **venv selenium 미설치** → TistoryPublisher/DaumCafePublisher 임포트 실패. 수동 설치+서버 재시작
+- ✅ **CMO allowed_tools 누락** → gemini_image_generator/gemini_video_generator 추가 (빌드 #704)
+- ✅ **tools.yaml 스키마 누락** → sns_manager에 media_urls/extra/category/visibility 파라미터 추가 (빌드 #705)
+- ✅ **인스타 이미지 발행 실패** → _wait_for_processing을 이미지에도 적용 + 3회 재시도 (빌드 #706)
+- ✅ **티스토리 셀렉터 깨짐** → 10개 CSS 셀렉터 순차 시도 + JS 폴백 (빌드 #706)
+- ✅ **미디어 탭 느림** → 썸네일 API (300x300 JPEG, 원본 1.1MB → 13KB 98%↓) (빌드 #706)
+
+### SNS 4종 발행 테스트 결과
+| 콘텐츠 | 플랫폼 | 결과 |
+|--------|--------|------|
+| 텍스트 | 티스토리 | ✅ 큐등록 성공 (발행은 셀렉터 이슈 → 수정 배포됨) |
+| 이미지 | 인스타그램 | ✅ 큐등록+발행 (재시도 로직 추가) |
+| 동영상(Veo 3.1) | 인스타 릴스 | ✅ 큐등록+발행 성공 |
+| 카드뉴스 5장 | 인스타 캐러셀 | ✅ 큐등록+발행 성공 |
+
+---
+
+## 2026-02-28 — 카드뉴스 시리즈 생성기 (빌드 #701)
+
+- ✅ `gemini_image_generator.py` — `card_news_series` action 추가 (~140줄)
+  - `_generate_card_news_series()`: 5~10장 순차 생성, 실패 시 건너뛰기
+  - `_build_card_news_slide_prompt()`: 표지/내용/마무리 타입별 프롬프트 + 시리즈 일관성 지시
+  - `slides_text` 파라미터: 줄바꿈 구분으로 슬라이드별 텍스트 지정
+  - SNS 발행용 `media_urls` 리스트 자동 출력 → sns_manager submit에 바로 사용
+- ✅ `tools.yaml/json` — card_news_series action + slide_count/slides_text 파라미터 문서화
+- 사용법: 마케팅팀장 → `gemini_image_generator(action=card_news_series, topic="...", slide_count=7)` → 이미지 7장 생성 → `sns_manager(action=submit, media_urls=[...])` → 대표님 승인 → Instagram 캐러셀 자동 발행
+
+---
+
+## 2026-02-28 — SNS 웹 승인+자동발행 구현
+
+### 변경 내용
+- ✅ **웹 "승인+발행" 1클릭** — approve 시 `asyncio.create_task(_auto_publish_after_approve)` 자동 발행
+- ✅ `_get_publisher()` 헬퍼 추출 — 기존 publish_sns()와 자동발행이 공유
+- ✅ 프론트엔드: "승인" → "승인+발행" 버튼, approved 상태에 "발행 진행중..." 애니메이션
+- ✅ 5초/15초/30초 자동 새로고침 (Selenium 발행 대기)
+
+### 완료된 발행 플랫폼
+- ✅ **티스토리** — Selenium + 카카오 OAuth
+- ✅ **다음카페(서로연)** — Selenium + 카카오 OAuth → TinyMCE
+- ✅ **Instagram** — Graph API, 대표님 직접 발행 성공 확인
+- 🔴 **네이버 블로그** — 봉인 (CAPTCHA 차단)
+
+### 남은 작업
+- ⬜ 텔레그램 승인 시에도 자동 발행 연결
+- ⬜ submit 즉시 텔레그램 알림
+- ⬜ 카드뉴스 생성기
+
+### 개발 디렉토리 분리
+- `/home/ubuntu/corthex-dev/` — 개발 전용 (Claude 작업)
+- `/home/ubuntu/CORTHEX_HQ/` — 배포 전용 (서버 실행, 수정 금지)
+- git push로 반영 → GitHub Actions 자동 배포
+
+---
+
+## 2026-02-28 — SketchVibe 새 캔버스 + 삭제 (빌드 #694)
+
+- ✅ 초기화 시 Mermaid + Drawflow 동시 클리어
+- ✅ 저장된 다이어그램 삭제: DELETE API + 사이드바 × 버튼
+
+## 2026-02-28 — SketchVibe 캔버스 직접 렌더링 (빌드 #692)
+
+- ✅ Mermaid 결과를 사이드 패널이 아닌 **캔버스 영역에 직접 렌더링** (스케치 교체 UX)
+- ✅ 캔버스 오버레이: 상단 바(맞아/초기화 버튼) + Mermaid 풀스크린 렌더링
+- ✅ SSE 자동 연결: NEXUS 탭 열 때 자동, 닫을 때 해제
+- 대표님 피드백: "내가 그린거를 교체하는거라구" → 캔버스 위에 직접 표시
+
+## 2026-02-28 — SNS 자동발행 리서치 (네이버 봉인 / 티스토리·다음카페 준비)
+
+### 네이버 블로그 — 봉인 🔴
+- Selenium 자동화 시도: ActionChains / JS injection / undetected-chromedriver / chromedriver cdc_ 패치
+- **전부 실패** — 네이버가 헤드리스 브라우저 자체를 CAPTCHA로 차단
+- 쿠키 로그인: naver.com OK → blog.naver.com 글쓰기 접속 시 세션 불일치로 재로그인 요구
+- `sns_manager.py` ALLOWED_PLATFORMS에서 naver_blog 제거, BLOCKED 처리
+- 재도전 조건: 데스크톱 환경 or Naver 내부 API 역공학 or Playwright stealth
+
+### 티스토리 — ✅ 로그인 + 글쓰기 접근 성공
+- 티스토리 Open API **2024년 2월 완전 종료**. Selenium만 가능
+- 카카오 로그인 성공 (CAPTCHA 없음, 카카오톡 인증 1회 필요)
+- 글쓰기 페이지 접근 성공: `editor-tistory_ifr` iframe, `tagText` 입력 확인
+- 올바른 OAuth 플로우: 티스토리 로그인 → "카카오계정으로 로그인" → 카카오 OAuth → 콜백
+- GitHub Secrets 업데이트 완료: `KAKAO_ID`, `KAKAO_PW`, `TISTORY_BLOG_NAME`
+- **다음 단계**: 실제 테스트 글 발행 (카카오톡 인증 후 쿠키 재사용 가능 확인)
+
+### 다음카페 — ✅ 로그인 + 카페 접근 성공
+- 다음카페 API **2018년 종료**. Selenium만 가능
+- 카카오 로그인 후 cafe.daum.net 접근 성공 (서로연 카페)
+- **다음 단계**: 글쓰기 페이지 접근 + 실제 테스트 글 발행
+- 참고: 다음은 업스테이지에 매각 중 (2026.01 MOU)
+
+### 다음 검토 대상
+- 페이스북 (Graph API 기반, Meta 개발자 계정 필요)
+- X/트위터 (API v2, 유료 플랜 $100/월 필요할 수 있음)
+
+---
+
+## 2026-02-28 — SketchVibe Phase 3 (아키텍처 재설계 — 서버변환 제거 + MCP 양방향)
+
+- ✅ 서버 변환 제거 — `/convert` 엔드포인트 삭제 (Claude API 직접호출 → Claude Code MCP로 이관)
+- ✅ SSE 엔드포인트 5개 추가 — save-canvas, push-event, request-approval, approve, stream
+- ✅ MCP 도구 2개 추가 — `update_canvas()`, `request_approval()` (기존 3도구 보존)
+- ✅ 프론트엔드 전면 재설계 — "변환하기" → "저장하기", SSE 구독, 실시간 Mermaid 렌더링
+- ✅ 팔레트 버그 수정 — 동일 ID 두 개 존재 시 보이는 요소 선택 + 노드 랜덤 위치
+- ✅ API 비용 표시 제거 ($0.0079 등)
+- ✅ NEXUS 분할뷰 + 시스템플로우 삭제 — 캔버스 모드만 유지, HTML 151줄 제거, 모드버튼 삭제
+- ✅ HTML 뷰어 404 수정 — `/api/sketchvibe/viewer/{name}` 엔드포인트 (nginx 우회)
+- ✅ 크롬 빈 캔버스 수정 — SSE 연결 시 최근 Mermaid 즉시 복원
+- ✅ 새 창 제거 + 저장 캔버스 목록 — Mermaid 인라인 렌더링 + confirmed 다이어그램 사이드바 표시
+
+## 2026-02-28 — SketchVibe Phase 2 (정확도 + MCP + 구현 브리지)
+
+- ✅ `_parse_drawflow()` 강화 — 노드타입→Mermaid 형태, 레이아웃 자동판단(LR/TD), 공간 그룹→subgraph, 분기 포트 정보
+- ✅ Claude 프롬프트 확장 — sequenceDiagram/stateDiagram/classDiagram 지원, 매핑표+예시 2개
+- ✅ `web/mcp_sketchvibe.py` 신규 — FastMCP 서버 (read_canvas, list_confirmed, get_confirmed)
+- ✅ `.mcp.json` — sketchvibe MCP 서버 등록
+- ✅ confirmed API 2개 — `GET /confirmed`, `GET /confirmed/{name}` (SQLite 기반)
+- ✅ "맞아" 후 구현 안내 패널 — MCP URI + HTML 뷰어 + 캔버스 JSON 전달
+- ✅ 모델 하드코딩 수정 — `load_setting("sketchvibe_model")` 기반
+
+## 2026-02-28 — 릴스 자동 발행 파이프라인 (빌드 #675)
+
+- ✅ `instagram_publisher.py` — `_resolve_media_url()` 추가 (상대→절대 URL 변환)
+- ✅ 영상 생성기 2개 — 퍼블릭 URL 반환 추가
+- ✅ **미디어 도구 8개 경로 버그 수정** — `os.getcwd()` → `__file__` 기반 절대경로 통일
+- ✅ output/ 디렉토리 구조 + .gitkeep + .gitignore 정리
+
+## 2026-02-28 — SketchVibe MVP 구현
+
+- ✅ `web/handlers/sketchvibe_handler.py` 신규 (~230줄) — 변환/캔버스조회/저장 API 3개
+- ✅ `web/arm_server.py` — sketchvibe_router 마운트
+- ✅ `web/static/js/corthex-app.js` — 데이터 변수 5개 + 메서드 4개 (+128줄)
+- ✅ `web/templates/index.html` — 토글 버튼 + 스케치바이브 패널 (+100줄)
+- 파이프라인: 캔버스 스케치 + 자연어 → Claude → Mermaid 변환 → 확인 → .md/.html 저장
+- UX: 타입 선택 없음(AI 자동 판단), 캔버스 모드 내 슬라이드 패널
+- MCP: REST API `/api/sketchvibe/canvas`로 대체, 별도 MCP 서버는 Phase 2
+
+## 2026-02-28 — Instagram 자동 발행 기능 추가
+
+- ✅ `instagram_publisher.py` — OAuth→환경변수 토큰 전환 + User ID 자동 조회
+- ✅ `sns_manager.py` — Instagram 잠금 해제 (ALLOWED_PLATFORMS + import 활성화)
+- ✅ `agents.yaml` CMO — 지원 플랫폼 4→5개, Instagram 활성화
+- ✅ `tools.yaml/json` — sns_manager 설명 업데이트
+- ✅ 나노바나나 v2 교체 완료 (빌드 #673)
+
+## 2026-02-28 (sketchvibe 세션)
+
+- agents.yaml 모델/추론 업데이트 (비서실장 low, 사업기획 medium 등)
+- Instagram 연동 준비: Meta 앱 + 토큰 발급 + GitHub Secrets 등록
+- 스케치바이브 설계 전체 확정: `docs/todo/스케치바이브_아이디어.md`
+  - 캔버스: Nexus Drawflow 재활용 확정
+  - 전달: Claude MCP 서버
+  - UX: 타입 선택 UI 없음, AI 자동 판단
+  - MVP: Phase 1+2 둘 다, 별도 세션에서 개발
+  - 개발 프롬프트 작성 완료 (대표님에게 전달됨)
+- BACKLOG.md 스케치바이브 개발 항목 추가
+- 상세: `docs/updates/2026-02-28_스케치바이브논의.md`
+
+---
+
+## ✅ BACKLOG 전체 소탕 — 완료 (빌드 #655)
+
+KIS 버그 수정 + pricing 도구 합병 + 고객분석 도구 합병 + src/src 중복 정리.
+249파일 변경, 70,240줄 삭제. 상세: `docs/updates/2026-02-27_BACKLOG소탕.md`
+
+---
+
+## ✅ arm_server.py 리팩토링 — 4-3 (P9 완료, 리팩토링 종료)
+
+> **비유**: 11,637줄짜리 거대한 공장 1동 → 9개 전문 모듈로 분리 완료.
+
+### 현재 상태
+
+- **파일**: `web/arm_server.py` — **1,075줄** (P9 후, 91% 감소)
+- **P1 완료**: `web/config_loader.py` 343줄 분리 (빌드 #656)
+- **P2 완료**: `web/handlers/debug_handler.py` 591줄 분리 (빌드 #658)
+- **P3 완료**: `web/handlers/argos_handler.py` 505줄 분리 (빌드 #659)
+- **P4 완료**: `web/argos_collector.py` 1,026줄 분리 (빌드 #660)
+- **P5 완료**: `web/batch_system.py` 1,808줄 분리 (빌드 #663)
+- **P6 완료**: `web/trading_engine.py` 2,830줄 분리 (빌드 #665)
+- **P7 완료**: `web/scheduler.py` 508줄 분리 (빌드 #667)
+- **P8 완료**: `web/agent_router.py` 2,500줄 분리 (에이전트 라우팅/QA/노션/도구풀)
+- **P9 완료**: `web/telegram_bot.py` 797줄 분리 (텔레그램 봇 전체)
+- **등급**: D등급 → B등급 (God Object 완전 해소, 10,562줄 감소, 91%)
+
+### 15개 논리 모듈 식별
+
+| # | 모듈 | 줄수 | 함수 | 결합도 | 추출 난이도 |
+|---|------|------|------|--------|-----------|
+| 1 | 유틸리티+초기화 | 210 | 4 | 없음 | 🟢 쉬움 |
+| 2 | 설정+데이터 로딩 | 1,200 | 13 | yaml,db | 🟢 쉬움 |
+| 3 | WebSocket/SSE | 190 | 5 | ws_manager | 🟢 쉬움 |
+| 4 | Soul Gym | 161 | 3 | ai_handler | 🟢 쉬움 |
+| 5 | 도구 관리 | 194 | 3 | app_state | 🟢 쉬움 |
+| 6 | 대시보드 API | 108 | 5 | 읽기 전용 | 🟢 쉬움 |
+| 7 | 디버그 API | 338 | 11 | 진단용 | 🟢 쉬움 |
+| 8 | ARGOS 수집 | 4,161 | 25 | 외부 API | 🟡 보통 |
+| 9 | 배치 시스템 | 1,235 | 15 | agent callback | 🟡 보통 |
+| 10 | 배치 체인 | 1,218 | 10 | 비동기 상태머신 | 🟡 보통 |
+| 11 | 스케줄링/크론 | 1,836 | 10 | 전 모듈 참조 | 🔴 어려움 |
+| 12 | 트레이딩/CIO | 4,333 | 31 | ARGOS↔순환 | 🔴 어려움 |
+| 13 | 텔레그램 봇 | 4,705 | 7 | 허브 패턴 | 🔴 어려움 |
+| 14 | **에이전트 라우팅** | **1,865** | **25** | **핵심 허브** | 🔴🔴 가장 어려움 |
+| 15 | 라이프사이클 | 85 | 2 | 전체 조율 | 🟡 보통 |
+
+### 핵심 의존성 (순환 참조 3곳)
+
+| 함수 | 호출 횟수 | 영향 범위 |
+|------|---------|---------|
+| `ask_ai()` | 33곳 | 에이전트/배치/트레이딩/Soul Gym 전부 |
+| `save_activity_log()` | 91곳 | 전 모듈 (시스템 로깅) |
+| `update_task()` | 53곳 | 배치/스케줄링/트레이딩/에이전트 |
+| `_call_agent()` | 22곳 | 배치/트레이딩/에이전트 라우팅 |
+
+**순환 참조**:
+- ARGOS ↔ 트레이딩 (가격 수집 ↔ 매매 신호)
+- 크론 ↔ 전 모듈 (크론이 전부 호출, 전부가 크론에 등록)
+- 에이전트 라우팅 ↔ 텔레그램 (에이전트→알림, 텔레그램→에이전트 호출)
+
+### 8단계 추출 계획
+
+> 원칙: **독립적인 것부터, 결합도 높은 것은 나중에**
+> Phase마다 커밋+배포+검증 후 다음 진행
+>
+> 🚨🚨🚨 **매 Phase 완료 후 반드시 /compact 대비!** 🚨🚨🚨
+> Phase 1개 끝날 때마다: ① 이 문서 업데이트 ② BACKLOG 갱신 ③ todo 날짜파일 갱신
+> → 그래야 다음 Phase 시작 전 compact해도 맥락 안 잃음!
+> **compact 안 하고 2~3 Phase 연속 돌리면 컨텍스트 폭발 → 실수 확률 급증**
+
+| Phase | 추출 대상 | 목표 파일 | 예상 줄수 | 난이도 |
+|-------|----------|---------|---------|--------|
+| **P1** | ✅ 유틸+설정+라이프사이클 | `web/config_loader.py` (343줄) | 294줄 감소 | 🟢 완료 |
+| **P2** | ✅ 디버그 API (Soul Gym/도구는 이미 분리됨) | `handlers/debug_handler.py` (591줄) | 515줄 감소 | 🟢 완료 |
+| **P3** | ✅ ARGOS API (WebSocket은 결합도 높아 보류) | `handlers/argos_handler.py` (505줄) | 429줄 감소 | 🟢 완료 |
+| **P4** | ✅ ARGOS 수집 (16함수+컨텍스트빌더) | `web/argos_collector.py` (1,026줄) | 963줄 감소 | 🟢 완료 |
+| **P5** | ✅ 배치 시스템+체인 (10개 API + 4단계 체인) | `web/batch_system.py` (1,808줄) | 1,760줄 감소 | 🟢 완료 |
+| **P6** | ✅ 트레이딩/CIO (6개 API + 정량분석 + 자동매매) | `web/trading_engine.py` (2,830줄) | 2,728줄 감소 | 🟢 완료 |
+| **P7** | ✅ 스케줄링/크론 (1 API + 크론엔진 + Soul Gym루프) | `web/scheduler.py` (508줄) | 439줄 감소 | 🟢 완료 |
+| **P8** | ✅ 에이전트 라우팅 | `web/agent_router.py` (2,500줄) | 2,666줄 감소 | 🔴🔴 완료 |
+| **P9** | ✅ 텔레그램 봇 | `web/telegram_bot.py` (797줄) | 768줄 감소 | 🟡 완료 |
+
+### 아키텍처 패턴
+
+- **Dependency Injection**: `on_startup()`에서 콜백 등록 (하드코딩 import 금지)
+- **이벤트 버스**: 텔레그램은 이벤트 구독 (직접 호출 금지)
+- **팩토리 패턴**: 크론 작업은 레지스트리 등록 방식
+- **순환 해소**: ARGOS↔트레이딩은 데이터를 인자로 전달 (직접 import 금지)
+
+### 최종 목표 구조
+
+```
+web/
+├─ arm_server.py          (300~400줄, thin main + 라우터 마운트만)
+├─ config_loader.py       (설정 로딩, DB 영속, 초기화)
+├─ agent_router.py        (에이전트 라우팅, ask_ai, _call_agent)
+├─ argos_collector.py     (ARGOS 데이터 수집 전체)
+├─ trading_engine.py      (매매 엔진, 시그널, 주문)
+├─ batch_system.py        (배치 시스템 + 배치 체인)
+├─ scheduler.py           (크론 스케줄러)
+├─ soul_gym.py            (Soul Gym 진화)
+├─ ws_handler.py          (WebSocket/SSE)
+├─ dashboard_api.py       (대시보드 API)
+├─ debug_api.py           (디버그 엔드포인트)
+├─ tool_mgr.py            (도구 풀 관리)
+└─ (기존) ai_handler.py, kis_client.py, ...
+```
+
+### ⚠️ 리스크
+
+- 🔴 **에이전트 라우팅** (ask_ai 33곳 호출) — 가장 마지막에, 가장 신중하게
+- 🔴 **ARGOS↔트레이딩 순환** — DI 패턴으로 해소 필요
+- 🟡 **크론 스케줄러** — 전 모듈 의존, 팩토리 패턴 필수
+- 🟢 **P1~P3은 안전** — 독립적, 기계적 분리
+
+---
+
+## 2026-02-28 — arm_server.py 리팩토링 P9 (텔레그램 봇 분리)
+
+- ✅ `web/telegram_bot.py` 신규 (797줄) — CEO 텔레그램 인터페이스 전체
+  - 명령 핸들러 12개 + 모델 선택 3단계 버튼
+  - 한국어 AI 명령 (/토론, /심층토론, /전체, /순차)
+  - 웹 응답 텔레그램 전달 (_forward_web_response_to_telegram)
+- ✅ arm_server.py 1,843→1,075줄 (768줄 감소)
+- ✅ P8 버그 수정: _NOTION_API_KEY 미임포트 → os.getenv 직접 호출
+- ✅ **리팩토링 최종**: 11,637→1,075줄 (10,562줄 분리, 91%), D등급→B등급
+
+## 2026-02-28 — arm_server.py 리팩토링 P7 (빌드 #667)
+
+- ✅ `web/scheduler.py` 신규 (508줄) — 크론 엔진 + 워크플로우 실행 + Soul Gym 루프
+  - 크론 표현식 파서/매처 (5필드 리눅스 표준)
+  - 1분 주기 크론 루프 (ARGOS 수집, 환율 갱신, 가격 트리거, 사용자 예약)
+  - 기본 스케줄 자동 등록 (CIO 일일/주간)
+  - 워크플로우 순차 실행 + WebSocket 진행 알림 (1 API)
+  - Soul Gym 24/7 상시 진화 루프
+  - `start_background_tasks()`: on_startup 스케줄링 부분 통합 (11개 백그라운드 태스크)
+- ✅ arm_server.py 4,948→4,509줄 (439줄 감소)
+- ✅ 서버 배포 + 헬스체크 + 11개 백그라운드 태스크 전부 시작 확인
+- 📌 **다음: P8** — 에이전트 라우팅 추출 (가장 어려움, 오퍼스 추천)
+
+## 2026-02-28 — arm_server.py 리팩토링 P6 (빌드 #665)
+
+- ✅ `web/trading_engine.py` 신규 (2,830줄) — CIO 신뢰도 학습 + 자동매매 + 정량분석
+  - 6개 API 엔드포인트 trading_router로 이관
+  - CIO 학습: ELO + Bayesian 보정 + 도구 효과 + 오답 패턴
+  - 정량분석: RSI/MACD/볼린저/거래량/이평선 합의투표
+  - 자동매매: 가격 트리거 + 손절/익절 + 봇 루프 + DST 감지
+- ✅ arm_server.py 7,676→4,948줄 (2,728줄 감소)
+- ✅ 서버 배포 + 헬스체크 + 트레이딩 API 검증 정상
+- 📌 **다음: P7** — 스케줄링/크론 추출
+
+## 2026-02-28 — arm_server.py 리팩토링 P5 (빌드 #661)
+
+- ✅ `web/batch_system.py` 신규 (1,808줄) — 배치 큐 + AI Batch API + 배치 체인 4단계 오케스트레이터
+  - 10개 API 엔드포인트 batch_router로 이관
+  - 분류 → 팀장 지시서 → 전문가 배치 → 종합 보고서 (4단계 파이프라인)
+  - 배치 폴러, 브로드캐스트 모드, 실시간 폴백
+- ✅ arm_server.py 9,436→7,676줄 (1,760줄 감소)
+- ✅ 서버 배포 + 배치 API 3종 검증 (queue/chains/pending 정상)
+- 📌 **다음: P6** — 트레이딩/CIO 추출
+
+## 2026-02-28 — arm_server.py 리팩토링 P4 (빌드 #660)
+
+- ✅ `web/argos_collector.py` 신규 (1,026줄) — ARGOS 수집 16함수 + 컨텍스트 빌더
+- ✅ arm_server.py 10,399→9,436줄 (963줄 감소)
+- ✅ argos_handler.py 스텁 7개 → argos_collector 직접 import로 교체
+- ✅ 서버 배포 + ARGOS 수집 동작 검증 정상
+
+---
+
+## 2026-02-27 — arm_server.py 리팩토링 P1 (빌드 #656)
+
+- ✅ `web/config_loader.py` 신규 (343줄) — _log, _load_env_file, _load_config, _load_data, _build_agents_from_yaml, AGENTS, KST, 디렉토리 상수, MODEL_*_MAP
+- ✅ arm_server.py 11,637→11,343줄 (294줄 감소)
+- 📌 **다음: P2** — Soul Gym + 디버그 API + 도구관리 추출
+
+---
+
+## 2026-02-27 — BACKLOG 소탕 (빌드 #655)
+
+- ✅ KIS `EXCG_ID_DVSN_CD` "" → "KRX" (한미반도체 주문 실패 해결)
+- ✅ pricing 도구 합병 (sensitivity 612줄 삭제, optimizer에 Gabor-Granger+수익최적화 이식)
+- ✅ 고객분석 도구 합병 (cohort_analyzer 413줄 삭제, ltv_model에 RFM+CAC 이식)
+- ✅ src/src/ 중복 디렉토리 425파일 정리 (70,240줄 삭제)
+
+## 2026-02-27 — 도구 전수 심사 + 서버 사전계산 아키텍처 (빌드 #650)
+
+> **핵심**: 141개 도구 코드 전수 분석 → 4분류 → 금융팀장 도구 호출 44회→0회
+
+- ✅ **141개 도구 전수 심사** — Opus 3개 에이전트 병렬 코드 분석 (교수급 48 / 실용급 65 / 오합지졸 1)
+- ✅ **4분류 체계 확립** — 🟢서버실시간(ARGOS) / 🔵서버스폰(pool.invoke) / 🟡AI직접 / ⛔삭제
+- ✅ **쓰레기 도구 4개 삭제** — newsletter_builder, dc_lawschool_crawler, orbi_crawler, rfm_segmentation
+- ✅ **CIO 서버 사전계산 8개** — technical_analyzer→quant_section, dcf_valuator+risk_calculator→dcf_risk_section, correlation_analyzer+portfolio_optimizer_v2→STEP2 강제 실행
+- ✅ **CIO allowed_tools 18개 제거** — ARGOS 대체 10개 + 서버 사전계산 8개 → AI 도구 호출 44회→0회
+- ✅ **도구 분류 마스터 문서** — `docs/architecture/tool-classification.md` 대문짝만하게 작성
+- 📌 **분류 마스터 문서**: `docs/architecture/tool-classification.md`
+- 📌 **심사 상세**: `docs/architecture/tool-audit.md`
+
+## 2026-02-27 — ARGOS C안 구현 (빌드 #642~647)
+- ✅ **금융분석팀장 실시간 도구 10개 제거** — 서버 수집 데이터만 사용 (40분→정상)
+- ✅ **thinking type 버그 수정** — adaptive→enabled (400 에러 해결)
+- ✅ **technical_analyzer divide-by-zero** 수정
+- ✅ **ARGOS 매크로 확장** — S&P500·NASDAQ·미국10년물·한국기준금리 추가 (11건)
+- ✅ **ARGOS 재무지표 수집** — pykrx PER/PBR/EPS/BPS, KR 7개 종목 (7건)
+- ✅ **ARGOS 업종지수 수집** — pykrx 11개 업종, 8건 수집 완료
+- ✅ **collect/now API** — financial·sector 즉시수집 타입 추가
+
+## 2026-02-27 — 버그 수정 + Phase 5 일괄 구현
+- ✅ **R-3: 전력분석 데이터 누락** — update_task()에 agent_id 추가 (6곳)
+- ✅ **R-5: 레이스컨디션** — ARGOS/Soul Gym bool→asyncio.Lock + state.py bg_lock/batch_lock
+- ✅ **5-1: NEXUS 2D 분할뷰** — 3D 제거, Mermaid+Canvas 분할 레이아웃
+- ✅ **5-2: Soul Gym 6팀장 확장** — benchmarks.yaml + 엔진 전면 개편 (팀장별 맞춤 벤치마크 3문항)
+- ⬜ **4-3: arm_server.py 리팩토링** — 계획 수립 완료, 실행 보류 (대형 작업)
 
 ## 2026-02-26 추가 완료 (세션 5 — Phase 6 Final)
 - ✅ **R-2: 작전일지 제목 요약** — `_extract_title_summary()` 마크다운 헤더/첫 문장 추출
@@ -83,7 +460,7 @@
 - arm_server.py "처장→팀장" **81건** 일괄 치환 (텔레그램코드 보호)
 - 일회성 스크립트 2개 삭제
 
-### Phase 3 — UX/UI 전면 개편 🔄 진행중
+### Phase 3 — UX/UI 전면 개편 ✅ 완료
 
 **목표**: 대표님 32개 개선 항목 전부 구현.
 **상태**: Phase A+B+C+D+E 전체 완료. 기밀문서 전면개편 + 금융분석팀장 이름 통일.

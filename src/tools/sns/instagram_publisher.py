@@ -22,23 +22,96 @@ logger = logging.getLogger("corthex.sns.instagram")
 
 GRAPH_API = "https://graph.instagram.com/v21.0"
 
+# 퍼블릭 URL 기본 도메인 (Cloudflare 프록시)
+_SITE_URL = os.getenv("SITE_URL", "https://corthex-hq.com")
+
 
 class InstagramPublisher(BasePublisher):
-    """Instagram Graph API 기반 퍼블리셔."""
+    """Instagram Graph API 기반 퍼블리셔.
+
+    인증: INSTAGRAM_ACCESS_TOKEN 환경변수를 직접 사용 (OAuth 흐름 불필요).
+    User ID: INSTAGRAM_USER_ID가 없으면 토큰으로 자동 조회.
+    """
 
     platform = "instagram"
 
-    @property
-    def ig_user_id(self) -> str:
-        return os.getenv("INSTAGRAM_USER_ID", "")
+    def __init__(self, oauth: Any = None) -> None:
+        # OAuth 매니저 없이도 동작 (환경변수 토큰 직접 사용)
+        if oauth is not None:
+            super().__init__(oauth)
+        self._cached_user_id: str = ""
+        self._resolved_uid: str = ""
+
+    def _get_access_token(self) -> str:
+        """환경변수에서 Instagram 액세스 토큰을 가져온다."""
+        return os.getenv("INSTAGRAM_ACCESS_TOKEN", "")
+
+    async def _resolve_user_id(self) -> str:
+        """INSTAGRAM_USER_ID 환경변수 또는 토큰으로 자동 조회."""
+        env_id = os.getenv("INSTAGRAM_USER_ID", "")
+        if env_id:
+            return env_id
+        if self._cached_user_id:
+            return self._cached_user_id
+        # 토큰으로 User ID 자동 조회
+        token = self._get_access_token()
+        if not token:
+            return ""
+        try:
+            async with httpx.AsyncClient(timeout=10) as client:
+                resp = await client.get(
+                    f"{GRAPH_API}/me",
+                    params={"fields": "id,username", "access_token": token},
+                )
+                data = resp.json()
+                uid = data.get("id", "")
+                if uid:
+                    self._cached_user_id = uid
+                    uname = data.get("username", "")
+                    logger.info("[Instagram] User ID 자동 조회 성공: %s (@%s)", uid, uname)
+                return uid
+        except Exception as e:
+            logger.error("[Instagram] User ID 조회 실패: %s", e)
+            return ""
+
+    @staticmethod
+    def _resolve_media_url(url: str) -> str:
+        """상대 경로를 Instagram Graph API가 받을 수 있는 절대 URL로 변환.
+
+        /api/media/videos/file.mp4 → https://corthex-hq.com/api/media/videos/file.mp4
+        output/videos/file.mp4    → https://corthex-hq.com/api/media/videos/file.mp4
+        이미 https://...          → 그대로 반환
+
+        nginx가 /api/ 경로만 FastAPI로 프록시하므로 /api/media/ 경로 사용.
+        """
+        if url.startswith(("http://", "https://")):
+            return url
+        # 이미 /api/media/ 경로면 도메인만 붙이기
+        if url.startswith("/api/media/"):
+            return f"{_SITE_URL}{url}"
+        # output/videos/파일명 또는 /output/videos/파일명
+        if "output/videos/" in url:
+            filename = url.split("/")[-1]
+            return f"{_SITE_URL}/api/media/videos/{filename}"
+        if "output/images/" in url:
+            filename = url.split("/")[-1]
+            return f"{_SITE_URL}/api/media/images/{filename}"
+        # 파일명만 온 경우 → 확장자로 판단
+        if url.endswith((".mp4", ".mov", ".avi")):
+            return f"{_SITE_URL}/api/media/videos/{url}"
+        if url.endswith((".jpg", ".jpeg", ".png", ".webp")):
+            return f"{_SITE_URL}/api/media/images/{url}"
+        return f"{_SITE_URL}/{url}"
 
     async def _api_call(
         self, endpoint: str, method: str = "POST", **params: Any
     ) -> dict[str, Any]:
-        token = await self._get_token()
+        token = self._get_access_token()
+        if not token:
+            return {"error": "INSTAGRAM_ACCESS_TOKEN 환경변수가 설정되지 않았습니다."}
         params["access_token"] = token
 
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=30) as client:
             url = f"{GRAPH_API}/{endpoint}"
             if method == "GET":
                 resp = await client.get(url, params=params)
@@ -48,11 +121,20 @@ class InstagramPublisher(BasePublisher):
 
     async def publish(self, content: PostContent) -> PublishResult:
         """이미지 또는 릴스를 Instagram에 게시."""
-        if not self.ig_user_id:
+        token = self._get_access_token()
+        if not token:
             return PublishResult(
                 success=False,
                 platform="instagram",
-                message="INSTAGRAM_USER_ID 환경변수가 필요합니다.",
+                message="INSTAGRAM_ACCESS_TOKEN 환경변수가 설정되지 않았습니다.",
+            )
+
+        ig_user_id = await self._resolve_user_id()
+        if not ig_user_id:
+            return PublishResult(
+                success=False,
+                platform="instagram",
+                message="Instagram User ID를 가져올 수 없습니다. INSTAGRAM_ACCESS_TOKEN을 확인하세요.",
             )
 
         media_urls = content.media_urls
@@ -63,8 +145,14 @@ class InstagramPublisher(BasePublisher):
                 message="이미지 또는 동영상 URL이 필요합니다 (media_urls).",
             )
 
+        # 상대 경로 → 절대 URL 변환 (Instagram Graph API는 퍼블릭 URL만 허용)
+        media_urls = [self._resolve_media_url(u) for u in media_urls]
+
         is_video = content.extra.get("media_type") == "REELS"
         caption = self._build_caption(content)
+
+        # ig_user_id를 내부 메서드에서 사용할 수 있도록 캐시
+        self._resolved_uid = ig_user_id
 
         if len(media_urls) > 1 and not is_video:
             return await self._publish_carousel(media_urls, caption)
@@ -94,7 +182,7 @@ class InstagramPublisher(BasePublisher):
             params["image_url"] = media_url
 
         container = await self._api_call(
-            f"{self.ig_user_id}/media", **params
+            f"{self._resolved_uid}/media", **params
         )
         container_id = container.get("id")
         if not container_id:
@@ -104,30 +192,38 @@ class InstagramPublisher(BasePublisher):
                 raw_response=container,
             )
 
-        # 동영상은 처리 시간 대기
-        if is_video:
-            await self._wait_for_processing(container_id)
+        # 미디어 처리 대기 (동영상은 길게, 이미지는 짧게)
+        max_wait = 120 if is_video else 30
+        await self._wait_for_processing(container_id, max_wait=max_wait)
 
-        # 2단계: 게시
-        result = await self._api_call(
-            f"{self.ig_user_id}/media_publish",
-            creation_id=container_id,
-        )
-
-        post_id = result.get("id", "")
-        if post_id:
-            logger.info("[Instagram] 게시 성공: %s", post_id)
-            return PublishResult(
-                success=True, platform="instagram",
-                post_id=post_id,
-                post_url=f"https://www.instagram.com/p/{post_id}/",
-                message="Instagram 게시 완료",
-                raw_response=result,
+        # 2단계: 게시 (실패 시 재시도 — 처리 지연 대응)
+        last_error: dict = {}
+        for attempt in range(3):
+            result = await self._api_call(
+                f"{self._resolved_uid}/media_publish",
+                creation_id=container_id,
             )
+            post_id = result.get("id", "")
+            if post_id:
+                logger.info("[Instagram] 게시 성공: %s", post_id)
+                return PublishResult(
+                    success=True, platform="instagram",
+                    post_id=post_id,
+                    post_url=f"https://www.instagram.com/p/{post_id}/",
+                    message="Instagram 게시 완료",
+                    raw_response=result,
+                )
+            last_error = result
+            error_code = result.get("error", {}).get("code", 0)
+            if error_code == 9007:  # Media not ready
+                logger.warning("[Instagram] 미디어 처리 중... %d초 대기 (시도 %d/3)", 10, attempt + 1)
+                await asyncio.sleep(10)
+            else:
+                break
 
         return PublishResult(
             success=False, platform="instagram",
-            message=f"게시 실패: {result}", raw_response=result,
+            message=f"게시 실패: {last_error}", raw_response=last_error,
         )
 
     async def _publish_carousel(
@@ -137,7 +233,7 @@ class InstagramPublisher(BasePublisher):
         children_ids = []
         for url in media_urls[:10]:  # 최대 10개
             container = await self._api_call(
-                f"{self.ig_user_id}/media",
+                f"{self._resolved_uid}/media",
                 image_url=url,
                 is_carousel_item="true",
             )
@@ -153,7 +249,7 @@ class InstagramPublisher(BasePublisher):
 
         # 2단계: 캐러셀 컨테이너 생성
         carousel = await self._api_call(
-            f"{self.ig_user_id}/media",
+            f"{self._resolved_uid}/media",
             media_type="CAROUSEL",
             caption=caption,
             children=",".join(children_ids),
@@ -165,26 +261,36 @@ class InstagramPublisher(BasePublisher):
                 message=f"캐러셀 생성 실패: {carousel}",
             )
 
-        # 3단계: 게시
-        result = await self._api_call(
-            f"{self.ig_user_id}/media_publish",
-            creation_id=carousel_id,
-        )
+        # 캐러셀 컨테이너 처리 대기
+        await self._wait_for_processing(carousel_id, max_wait=60)
 
-        post_id = result.get("id", "")
-        if post_id:
-            logger.info("[Instagram] 캐러셀 게시 성공: %s", post_id)
-            return PublishResult(
-                success=True, platform="instagram",
-                post_id=post_id,
-                post_url=f"https://www.instagram.com/p/{post_id}/",
-                message=f"Instagram 캐러셀 게시 완료 ({len(children_ids)}장)",
-                raw_response=result,
+        # 3단계: 게시 (재시도 포함)
+        last_error: dict = {}
+        for attempt in range(3):
+            result = await self._api_call(
+                f"{self._resolved_uid}/media_publish",
+                creation_id=carousel_id,
             )
+            post_id = result.get("id", "")
+            if post_id:
+                logger.info("[Instagram] 캐러셀 게시 성공: %s", post_id)
+                return PublishResult(
+                    success=True, platform="instagram",
+                    post_id=post_id,
+                    post_url=f"https://www.instagram.com/p/{post_id}/",
+                    message=f"Instagram 캐러셀 게시 완료 ({len(children_ids)}장)",
+                    raw_response=result,
+                )
+            last_error = result
+            error_code = result.get("error", {}).get("code", 0)
+            if error_code == 9007:
+                await asyncio.sleep(10)
+            else:
+                break
 
         return PublishResult(
             success=False, platform="instagram",
-            message=f"캐러셀 게시 실패: {result}", raw_response=result,
+            message=f"캐러셀 게시 실패: {last_error}", raw_response=last_error,
         )
 
     async def _wait_for_processing(
@@ -210,7 +316,7 @@ class InstagramPublisher(BasePublisher):
 
     async def get_recent_media(self, limit: int = 10) -> list[dict[str, Any]]:
         data = await self._api_call(
-            f"{self.ig_user_id}/media", method="GET",
+            f"{self._resolved_uid}/media", method="GET",
             fields="id,caption,media_type,timestamp,permalink",
             limit=str(limit),
         )

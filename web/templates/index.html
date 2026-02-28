@@ -42,8 +42,8 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="CORTHEX HQ">
   <link rel="apple-touch-icon" href="/static/images/corthex-logo-256.png">
-  <link rel="stylesheet" href="/static/css/corthex-styles.css?v=BUILD_NUMBER_PLACEHOLDER">
-  <script defer src="/static/js/corthex-app.js?v=BUILD_NUMBER_PLACEHOLDER"></script>
+  <link rel="stylesheet" href="/static/css/corthex-styles.css?v=649">
+  <script defer src="/static/js/corthex-app.js?v=649"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/@alpinejs/collapse@3.x.x/dist/cdn.min.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 </head>
@@ -92,7 +92,7 @@
         </div>
       </div>
       <div class="flex items-center gap-2 header-build-badge">
-        <span class="text-[10px] text-hq-muted bg-hq-surface border border-hq-border rounded-md px-2 py-0.5">빌드 #BUILD_NUMBER_PLACEHOLDER</span>
+        <span class="text-[10px] text-hq-muted bg-hq-surface border border-hq-border rounded-md px-2 py-0.5">빌드 #649</span>
         <span class="text-[10px] text-hq-cyan/85 bg-hq-cyan/5 border border-hq-cyan/20 rounded-md px-2 py-0.5">CEO 관제</span>
       </div>
     </div>
@@ -3569,6 +3569,7 @@
             <button @click="sns.tab = 'queue'; loadSNSQueue()" :class="sns.tab === 'queue' ? 'bg-hq-accent/20 text-hq-accent' : 'text-hq-muted'" class="px-3 py-1.5 text-xs font-semibold rounded-lg transition shrink-0">승인 대기열</button>
             <button @click="sns.tab = 'media'; loadMediaGallery()" :class="sns.tab === 'media' ? 'bg-hq-accent/20 text-hq-accent' : 'text-hq-muted'" class="px-3 py-1.5 text-xs font-semibold rounded-lg transition shrink-0">미디어</button>
             <button @click="sns.tab = 'events'; loadSNSEvents()" :class="sns.tab === 'events' ? 'bg-hq-accent/20 text-hq-accent' : 'text-hq-muted'" class="px-3 py-1.5 text-xs font-semibold rounded-lg transition shrink-0">이벤트</button>
+            <button @click="sns.tab = 'cookies'; loadCookieStatus()" :class="sns.tab === 'cookies' ? 'bg-hq-accent/20 text-hq-accent' : 'text-hq-muted'" class="px-3 py-1.5 text-xs font-semibold rounded-lg transition shrink-0">쿠키 관리</button>
           </div>
           <template x-if="sns.loading">
             <div class="text-center py-8 text-hq-muted">로딩 중...</div>
@@ -3700,12 +3701,13 @@
                     </div>
                     <!-- 대기 → 승인/거절 버튼 -->
                     <div class="flex items-center gap-2" x-show="item.status === 'pending'">
-                      <button @click="approveSNS(item.request_id)" class="bg-hq-green/20 text-hq-green rounded-lg px-3 py-1 text-xs hover:bg-hq-green/30">승인</button>
+                      <button @click="approveSNS(item.request_id)" class="bg-hq-green/20 text-hq-green rounded-lg px-3 py-1 text-xs hover:bg-hq-green/30 font-bold">승인+발행</button>
                       <button @click="sns.rejectingId = item.request_id" class="bg-hq-red/20 text-hq-red rounded-lg px-3 py-1 text-xs hover:bg-hq-red/30">거절</button>
                     </div>
-                    <!-- 승인됨 → 발행 버튼 -->
+                    <!-- 승인됨 → 자동 발행 진행중 (수동 발행 버튼도 유지) -->
                     <div class="flex items-center gap-2" x-show="item.status === 'approved'">
-                      <button @click="publishSNS(item.request_id)" class="bg-hq-accent/20 text-hq-accent rounded-lg px-3 py-1 text-xs hover:bg-hq-accent/30 font-bold">🚀 발행</button>
+                      <span class="text-hq-accent text-xs animate-pulse">발행 진행중...</span>
+                      <button @click="publishSNS(item.request_id)" class="bg-hq-accent/20 text-hq-accent rounded-lg px-2 py-0.5 text-[10px] hover:bg-hq-accent/30">수동 발행</button>
                     </div>
                     <!-- 발행완료 → 링크 -->
                     <div x-show="item.status === 'published' && item.result?.post_url">
@@ -3802,7 +3804,7 @@
                           <span x-show="(sns.selectedMedia || []).find(m => m.filename === img.filename)">&#10003;</span>
                         </div>
                       </div>
-                      <img :src="img.url" class="w-full h-32 object-cover group-hover:scale-105 transition-transform" loading="lazy" />
+                      <img :src="img.thumb || img.url" class="w-full h-32 object-cover group-hover:scale-105 transition-transform" loading="lazy" />
                       <div class="px-2 py-1.5">
                         <div class="text-[9px] text-hq-muted truncate" x-text="img.filename"></div>
                       </div>
@@ -3866,6 +3868,66 @@
               </template>
             </div>
           </div>
+
+          <!-- SNS Tab 5: Cookie Management -->
+          <div x-show="sns.tab === 'cookies'" x-cloak>
+            <!-- 상태 카드 -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
+              <template x-for="p in ['naver', 'kakao']" :key="p">
+                <div class="glass border rounded-xl p-4" :class="(sns.cookieStatus||{})[p]?.exists ? 'border-hq-green/30' : 'border-hq-border'">
+                  <div class="flex items-center justify-between mb-2">
+                    <span class="text-sm font-bold text-hq-text" x-text="p === 'naver' ? '네이버' : '카카오 (티스토리/다음카페)'"></span>
+                    <span class="text-[10px] px-2 py-0.5 rounded-full font-semibold"
+                      :class="(sns.cookieStatus||{})[p]?.exists ? 'bg-hq-green/10 text-hq-green' : 'bg-hq-muted/10 text-hq-muted'"
+                      x-text="(sns.cookieStatus||{})[p]?.exists ? '등록됨' : '미등록'"></span>
+                  </div>
+                  <div x-show="(sns.cookieStatus||{})[p]?.exists" class="text-[10px] text-hq-muted/70 space-y-1 mb-3">
+                    <div>쿠키 수: <span class="text-hq-text" x-text="(sns.cookieStatus||{})[p]?.cookie_count || 0"></span>개</div>
+                    <div>등록일: <span class="text-hq-text" x-text="((sns.cookieStatus||{})[p]?.uploaded_at || '').substring(0,10)"></span></div>
+                    <div>만료 예상: <span class="text-hq-text" x-text="(sns.cookieStatus||{})[p]?.estimated_expiry || '—'"></span></div>
+                    <div x-show="(sns.cookieStatus||{})[p]?.expiry_warning" class="text-hq-yellow font-semibold">⚠️ 곧 만료 — 재등록 필요</div>
+                  </div>
+                  <button x-show="(sns.cookieStatus||{})[p]?.exists" @click="deleteSNSCookie(p)" class="text-[10px] text-hq-red/70 hover:text-hq-red transition">삭제</button>
+                </div>
+              </template>
+            </div>
+
+            <!-- 업로드 영역 -->
+            <div class="glass border border-hq-border rounded-xl p-5 mb-5">
+              <h3 class="text-sm font-bold text-hq-text mb-3">쿠키 등록</h3>
+              <div class="space-y-3">
+                <select x-model="sns.cookiePlatform" class="bg-hq-bg border border-hq-border rounded-lg px-3 py-2 text-sm text-hq-text w-full">
+                  <option value="naver">네이버 (naver.com)</option>
+                  <option value="kakao">카카오 (kakao.com / daum.net / tistory.com)</option>
+                </select>
+                <textarea x-model="sns.cookieJson" rows="5" placeholder="Cookie-Editor에서 Export한 JSON을 여기에 붙여넣기" class="w-full bg-hq-bg border border-hq-border rounded-lg px-3 py-2 text-xs text-hq-text font-mono resize-y focus:border-hq-accent/50 outline-none transition"></textarea>
+                <button @click="uploadSNSCookies()" class="bg-hq-accent hover:bg-hq-accent/80 text-white rounded-lg px-4 py-2 text-sm font-semibold transition w-full sm:w-auto">등록하기</button>
+              </div>
+            </div>
+
+            <!-- 가이드 -->
+            <div class="glass border border-hq-border/50 rounded-xl p-5">
+              <h3 class="text-sm font-bold text-hq-text mb-3">쿠키 등록 가이드</h3>
+              <div class="text-xs text-hq-muted space-y-3">
+                <div>
+                  <span class="font-bold text-hq-text">1단계: Cookie-Editor 확장 설치</span>
+                  <div class="pl-4 mt-1">Chrome에서 <a href="https://chromewebstore.google.com/detail/cookie-editor/hlkenndednhfkekhgcdicdfddnkalmdm" target="_blank" class="text-hq-accent underline">Cookie-Editor</a> 설치 (1회)</div>
+                </div>
+                <div>
+                  <span class="font-bold text-hq-text">2단계: 로그인 후 쿠키 추출</span>
+                  <div class="pl-4 mt-1 space-y-1">
+                    <div>네이버: <a href="https://www.naver.com" target="_blank" class="text-hq-accent underline">naver.com</a> 로그인 → Cookie-Editor 아이콘 → <strong>Export (JSON)</strong> 클릭</div>
+                    <div>카카오: <a href="https://accounts.kakao.com" target="_blank" class="text-hq-accent underline">accounts.kakao.com</a> 로그인 → Cookie-Editor → <strong>Export (JSON)</strong></div>
+                  </div>
+                </div>
+                <div>
+                  <span class="font-bold text-hq-text">3단계: 위 입력란에 붙여넣기 → 등록하기</span>
+                  <div class="pl-4 mt-1 text-hq-muted/60">유효기간: 네이버 ~90일, 카카오 ~30일. 만료 시 재등록.</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
         </div>
       </div></template>
 
@@ -5417,7 +5479,7 @@
             <span class="w-2 h-2 rounded-full bg-hq-yellow animate-pulse"></span>
             피드백 모드 ON
           </div>
-          <p class="text-[10px] text-hq-muted mb-2">화면을 클릭하면 핀이 생성됩니다</p>
+          <p class="text-[10px] text-hq-muted mb-2">드래그 → 영역 캡처 | 클릭 → 핀</p>
           <div class="text-[10px] text-hq-muted mb-1.5" x-text="'핀 ' + feedbackPins.length + '개'"></div>
           <!-- 핀 목록 (최근 5개) -->
           <div class="max-h-24 overflow-y-auto scrollbar-thin space-y-1 mb-2">
@@ -5441,19 +5503,29 @@
           </svg>
         </button>
       </div>
-      <!-- E-1: 피드백 클릭 캡처 오버레이 + 핀 표시 -->
-      <div x-show="feedbackMode"
-           @click="feedbackPlacePin($event)"
-           class="fixed inset-0 z-40 cursor-crosshair" style="background: rgba(234, 179, 8, 0.03);">
+      <!-- E-1: 피드백 드래그 캡처 오버레이 + 핀 표시 -->
+      <div x-show="feedbackMode" id="fb-overlay"
+           @mousedown.prevent="fbDragStart($event)"
+           @mousemove="fbDragMove($event)"
+           @mouseup="fbDragEnd($event)"
+           class="fixed inset-0 z-40 cursor-crosshair select-none" style="background: rgba(234, 179, 8, 0.03);">
+        <!-- 드래그 중 선택 영역 표시 -->
+        <div x-show="fbDrag && (Math.abs(fbDrag.curX - fbDrag.startX) > 5 || Math.abs(fbDrag.curY - fbDrag.startY) > 5)"
+             class="absolute border-2 border-hq-yellow bg-hq-yellow/10 rounded pointer-events-none"
+             :style="fbDrag ? `left:${fbDragRect().x}px;top:${fbDragRect().y}px;width:${fbDragRect().w}px;height:${fbDragRect().h}px` : ''">
+          <div class="absolute -top-5 left-0 text-[10px] text-hq-yellow bg-black/70 px-1.5 py-0.5 rounded"
+               x-text="fbDrag ? fbDragRect().w + '×' + fbDragRect().h : ''"></div>
+        </div>
         <!-- 기존 핀 표시 -->
         <template x-for="(pin, idx) in feedbackPins" :key="pin.id || idx">
           <div class="absolute z-41" :style="`left:${pin.x - 8}px;top:${pin.y - 8}px`">
-            <div class="w-6 h-6 rounded-full bg-hq-yellow text-black text-[10px] font-bold flex items-center justify-center shadow-lg cursor-pointer hover:scale-110 transition"
+            <div class="w-6 h-6 rounded-full shadow-lg cursor-pointer hover:scale-110 transition flex items-center justify-center text-[10px] font-bold"
+                 :class="pin.hasCapture ? 'bg-hq-blue text-white' : 'bg-hq-yellow text-black'"
                  :title="pin.comment" x-text="idx + 1"></div>
           </div>
         </template>
-        <!-- 새 핀 입력 폼 -->
-        <div x-show="feedbackNewPin" x-transition @click.stop
+        <!-- 새 핀 입력 폼 (클릭 모드) -->
+        <div x-show="feedbackNewPin" x-transition @click.stop @mousedown.stop
              class="absolute z-42" :style="feedbackNewPin ? `left:${feedbackNewPin.x}px;top:${feedbackNewPin.y + 16}px` : ''">
           <div class="bg-hq-bg border border-hq-yellow/40 rounded-xl shadow-2xl p-3 w-64">
             <div class="flex items-center gap-2 mb-2">
@@ -5468,6 +5540,30 @@
             <div class="flex gap-2 mt-2">
               <button @click="submitFeedbackPin()" class="flex-1 py-1.5 text-xs font-semibold rounded-lg bg-hq-yellow/20 text-hq-yellow hover:bg-hq-yellow/30 transition">저장</button>
               <button @click="feedbackNewPin = null; feedbackPinText = ''" class="py-1.5 px-3 text-xs rounded-lg bg-hq-muted/10 text-hq-muted hover:bg-hq-muted/20 transition">취소</button>
+            </div>
+          </div>
+        </div>
+        <!-- 캡처 결과 + 코멘트 폼 -->
+        <div x-show="fbCapture" x-transition @click.stop @mousedown.stop
+             class="absolute z-42" :style="fbCapture ? `left:${Math.min(fbCapture.x, window.innerWidth - 320)}px;top:${Math.min(fbCapture.y + fbCapture.h + 8, window.innerHeight - 260)}px` : ''">
+          <div class="bg-hq-bg border border-hq-blue/50 rounded-xl shadow-2xl p-3 w-72">
+            <div class="flex items-center gap-2 mb-2">
+              <span class="text-sm">📸</span>
+              <span class="text-xs font-bold text-hq-blue">영역 캡처</span>
+              <span class="text-[10px] text-hq-muted ml-auto" x-text="fbCapture ? fbCapture.w + '×' + fbCapture.h + 'px' : ''"></span>
+            </div>
+            <!-- 캡처 미리보기 -->
+            <div class="mb-2 rounded-lg overflow-hidden border border-hq-border bg-black/30 max-h-32">
+              <img x-show="fbCapture && fbCapture.dataUrl" :src="fbCapture ? fbCapture.dataUrl : ''" class="w-full object-contain max-h-32" alt="캡처">
+            </div>
+            <textarea id="fbCaptureInput" x-model="fbCaptureText"
+                      @keydown.enter.meta="fbCaptureSubmit()" @keydown.enter.ctrl="fbCaptureSubmit()"
+                      @keydown.escape="fbCaptureCancel()"
+                      placeholder="코멘트 (선택)... Ctrl+Enter 전송"
+                      class="w-full bg-hq-surface border border-hq-border rounded-lg px-3 py-2 text-xs text-hq-text resize-none h-14 focus:border-hq-blue/50 outline-none"></textarea>
+            <div class="flex gap-2 mt-2">
+              <button @click="fbCaptureSubmit()" class="flex-1 py-1.5 text-xs font-semibold rounded-lg bg-hq-blue/20 text-hq-blue hover:bg-hq-blue/30 transition">저장</button>
+              <button @click="fbCaptureCancel()" class="py-1.5 px-3 text-xs rounded-lg bg-hq-muted/10 text-hq-muted hover:bg-hq-muted/20 transition">취소</button>
             </div>
           </div>
         </div>
@@ -7125,43 +7221,24 @@
       <div class="shrink-0 flex items-center gap-3 px-5 py-3 border-b border-white/10 bg-[#0a0f1a]/90 backdrop-blur-md">
         <!-- NEXUS 로고 -->
         <span class="text-base font-black tracking-[0.3em] text-[#e879f9]">NEXUS</span>
-        <span class="text-xs text-white/20">|</span>
-        <!-- 모드 전환 -->
-        <div class="flex items-center bg-white/5 border border-white/10 rounded-lg p-0.5 gap-0.5">
-          <button @click="onNexusModeChange('3d')"
-                  :class="flowchart.mode==='3d' ? 'bg-emerald-500/20 text-emerald-400' : 'text-white/40 hover:text-white/70'"
-                  class="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition">
-            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
-            3D 시스템 맵
+        <!-- 캔버스 도구 -->
+        <div class="flex items-center gap-2 ml-2">
+          <input x-model="flowchart.canvasName" type="text" placeholder="파일명..."
+                 class="bg-white/5 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-white/80 font-mono outline-none focus:border-yellow-500/50 w-36"/>
+          <button @click="saveNexusCanvas()"
+                  class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-yellow-500/20 text-yellow-400 hover:bg-yellow-500/30 transition"
+                  :class="flowchart.canvasDirty ? 'ring-1 ring-yellow-500/40' : ''">
+            <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17,21 17,13 7,13 7,21"/><polyline points="7,3 7,8 15,8"/></svg>
+            <span x-text="flowchart.canvasDirty ? '저장 *' : '저장'"></span>
           </button>
-          <button @click="onNexusModeChange('mermaid')"
-                  :class="flowchart.mode==='mermaid' ? 'bg-cyan-500/20 text-cyan-400' : 'text-white/40 hover:text-white/70'"
-                  class="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition">
-            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
-            시스템 플로우
-          </button>
-          <button @click="onNexusModeChange('canvas')"
-                  :class="flowchart.mode==='canvas' ? 'bg-yellow-500/20 text-yellow-400' : 'text-white/40 hover:text-white/70'"
-                  class="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition">
-            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
-            비주얼 캔버스
+          <button @click="clearNexusCanvas()" class="px-2.5 py-1.5 rounded-lg text-xs bg-white/5 border border-white/10 text-white/40 hover:text-red-400 hover:border-red-400/40 transition">초기화</button>
+          <button @click="flowchart.sketchVibeOpen = !flowchart.sketchVibeOpen; flowchart.sketchVibeOpen ? _connectSketchVibeSSE() : _disconnectSketchVibeSSE()"
+                  :class="flowchart.sketchVibeOpen ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : 'bg-white/5 text-white/40 border-white/10 hover:text-emerald-400 hover:border-emerald-500/30'"
+                  class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition ml-2">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="M2 2l7.586 7.586"/><circle cx="11" cy="11" r="2"/></svg>
+            스케치바이브
           </button>
         </div>
-
-        <!-- 캔버스 모드 도구 -->
-        <template x-if="flowchart.mode === 'canvas'">
-          <div class="flex items-center gap-2 ml-2">
-            <input x-model="flowchart.canvasName" type="text" placeholder="파일명..."
-                   class="bg-white/5 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-white/80 font-mono outline-none focus:border-yellow-500/50 w-36"/>
-            <button @click="saveNexusCanvas()"
-                    class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-yellow-500/20 text-yellow-400 hover:bg-yellow-500/30 transition"
-                    :class="flowchart.canvasDirty ? 'ring-1 ring-yellow-500/40' : ''">
-              <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17,21 17,13 7,13 7,21"/><polyline points="7,3 7,8 15,8"/></svg>
-              <span x-text="flowchart.canvasDirty ? '저장 *' : '저장'"></span>
-            </button>
-            <button @click="clearNexusCanvas()" class="px-2.5 py-1.5 rounded-lg text-xs bg-white/5 border border-white/10 text-white/40 hover:text-red-400 hover:border-red-400/40 transition">초기화</button>
-          </div>
-        </template>
 
         <!-- 우측 닫기 -->
         <div class="ml-auto flex items-center gap-3">
@@ -7174,73 +7251,8 @@
         </div>
       </div>
 
-      <!-- ── 3D 시스템 맵 ── -->
-      <div x-show="flowchart.mode === '3d'" class="flex-1 flex flex-col overflow-hidden" x-cloak>
-        <template x-if="!flowchart.graph3dLoaded">
-          <div class="flex-1 flex items-center justify-center">
-            <div class="flex flex-col items-center gap-4 text-center px-8">
-              <div class="w-14 h-14 border-2 border-emerald-500/30 border-t-emerald-400 rounded-full animate-spin"></div>
-              <p class="text-sm text-white/50">3D 시스템 맵 구축 중...</p>
-              <p class="text-xs text-white/25">에이전트 + 탭 + 서비스 + 프로세스 전체 로딩</p>
-            </div>
-          </div>
-        </template>
-        <div id="nexus-3d" class="flex-1 w-full" style="min-height:400px"></div>
-        <!-- 3D 범례 + 안내 -->
-        <div class="shrink-0 flex items-center justify-between px-5 py-2.5 bg-[#0a0f1a]/90 border-t border-white/10">
-          <div class="flex items-center gap-3 flex-wrap">
-            <template x-for="cat in [
-              {c:'#e879f9',l:'CORTHEX'},{c:'#60a5fa',l:'UI 탭'},{c:'#a78bfa',l:'부서'},
-              {c:'#34d399',l:'에이전트'},{c:'#fbbf24',l:'저장소'},{c:'#fb923c',l:'외부서비스'},{c:'#f87171',l:'프로세스'}
-            ]" :key="cat.l">
-              <div class="flex items-center gap-1.5">
-                <span class="w-2.5 h-2.5 rounded-sm" :style="`background:${cat.c}`"></span>
-                <span class="text-xs text-white/50" x-text="cat.l"></span>
-              </div>
-            </template>
-          </div>
-          <div class="flex items-center gap-4 text-xs text-white/30">
-            <span>→ 화살표: 데이터 흐름</span><span>● 입자: 실시간 통신</span><span class="text-white/15">|</span><span>드래그: 회전</span><span>휠: 줌</span><span>에이전트 클릭 → 사령관실</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- ── Mermaid 시스템 플로우 ── -->
-      <div x-show="flowchart.mode === 'mermaid'" class="flex-1 flex flex-col overflow-hidden" x-cloak>
-        <!-- 로딩 -->
-        <template x-if="flowchart.mermaidLoading">
-          <div class="flex-1 flex items-center justify-center">
-            <div class="flex flex-col items-center gap-4 text-center px-8">
-              <div class="w-14 h-14 border-2 border-cyan-500/30 border-t-cyan-400 rounded-full animate-spin"></div>
-              <p class="text-sm text-white/50">시스템 플로우차트 생성 중...</p>
-            </div>
-          </div>
-        </template>
-        <!-- Mermaid SVG 영역 -->
-        <div x-show="!flowchart.mermaidLoading" class="flex-1 overflow-auto p-6 bg-[#0c1220]">
-          <div id="nexus-mermaid" class="flex justify-center items-start min-h-full"></div>
-        </div>
-        <!-- 하단 범례 -->
-        <div class="shrink-0 flex items-center justify-between px-5 py-2.5 bg-[#0a0f1a]/90 border-t border-white/10">
-          <div class="flex items-center gap-3 flex-wrap">
-            <template x-for="cat in [
-              {c:'#e879f9',l:'CEO/입력'},{c:'#60a5fa',l:'서버'},{c:'#a78bfa',l:'에이전트'},
-              {c:'#34d399',l:'도구'},{c:'#fbbf24',l:'UI/출력'}
-            ]" :key="cat.l">
-              <div class="flex items-center gap-1.5">
-                <span class="w-2.5 h-2.5 rounded-sm" :style="`background:${cat.c}`"></span>
-                <span class="text-xs text-white/50" x-text="cat.l"></span>
-              </div>
-            </template>
-          </div>
-          <div class="flex items-center gap-3">
-            <button @click="generateMermaidSystemFlow()" class="px-3 py-1.5 rounded-lg text-xs bg-cyan-500/20 text-cyan-400 hover:bg-cyan-500/30 transition font-semibold">새로고침</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- ── 비주얼 캔버스 ── -->
-      <div x-show="flowchart.mode === 'canvas'" class="flex-1 flex overflow-hidden" x-cloak>
+      <!-- ══════ 캔버스 (유일한 모드) ══════ -->
+      <div class="flex-1 flex overflow-hidden">
         <!-- 좌측: 팔레트 + 목록 -->
         <div class="w-44 shrink-0 border-r border-white/10 bg-[#0a0f1a] flex flex-col overflow-hidden">
           <div class="px-3 py-2 border-b border-white/10">
@@ -7263,13 +7275,29 @@
               <div class="text-xs text-white/30 py-2 animate-pulse">로딩 중...</div>
             </template>
           </div>
-          <div class="px-3 py-2 border-b border-white/10">
+          <div class="px-3 py-2 border-b border-white/10 flex items-center justify-between">
             <span class="text-xs font-semibold text-white/40 uppercase tracking-wider">저장된 캔버스</span>
+            <button @click="retrySketchVibe()" class="text-[10px] text-white/30 hover:text-emerald-400 transition px-1.5 py-0.5 rounded hover:bg-emerald-500/10" title="새 캔버스">+ 새로</button>
           </div>
           <div class="flex-1 overflow-y-auto scrollbar-thin py-1">
-            <template x-if="flowchart.canvasItems.length === 0">
+            <template x-if="flowchart.canvasItems.length === 0 && flowchart.confirmedItems.length === 0">
               <div class="px-3 py-2 text-xs text-white/20 italic">아직 없습니다</div>
             </template>
+            <!-- 확인된 다이어그램 (맞아 누른 것) -->
+            <template x-for="item in flowchart.confirmedItems" :key="item.safe_name">
+              <div class="group flex items-center hover:bg-emerald-500/5 transition rounded-r-lg">
+                <button @click="loadConfirmedDiagram(item)"
+                        class="flex-1 text-left py-1.5 px-3 text-xs text-white/50 hover:text-emerald-400 transition truncate flex items-center gap-1.5"
+                        :title="item.interpretation || item.name">
+                  <span class="text-emerald-500/60 text-[10px]">&#x2713;</span>
+                  <span x-text="item.name"></span>
+                </button>
+                <button @click.stop="deleteConfirmedDiagram(item)"
+                        class="opacity-0 group-hover:opacity-100 w-6 h-6 flex items-center justify-center text-white/30 hover:text-red-400 hover:bg-red-500/10 rounded transition shrink-0 mr-1"
+                        title="삭제">&times;</button>
+              </div>
+            </template>
+            <!-- 캔버스 JSON 파일 -->
             <template x-for="item in flowchart.canvasItems" :key="item.name">
               <button @click="loadNexusCanvas(item)"
                       class="w-full text-left py-1.5 px-3 text-xs text-white/40 hover:text-white/80 hover:bg-white/5 transition rounded-r-lg font-mono truncate"
@@ -7296,6 +7324,183 @@
             </div>
           </template>
           <div id="nexus-canvas" class="w-full h-full"></div>
+          <!-- Mermaid 결과 — 스케치를 교체하여 캔버스에 표시 -->
+          <div x-show="flowchart.sketchResult && flowchart.sketchResult.mermaid"
+               x-transition:enter="transition ease-out duration-300"
+               x-transition:enter-start="opacity-0"
+               x-transition:enter-end="opacity-100"
+               x-transition:leave="transition ease-in duration-200"
+               x-transition:leave-start="opacity-100"
+               x-transition:leave-end="opacity-0"
+               :class="darkMode ? 'bg-[#0a0f1a]' : 'bg-white'"
+               class="absolute inset-0 overflow-auto z-20 flex flex-col" x-cloak>
+            <!-- 상단 바 -->
+            <div class="flex items-center justify-between px-4 py-2.5 shrink-0"
+                 :class="darkMode ? 'border-b border-white/10' : 'border-b border-gray-200'"
+              <div class="flex items-center gap-2">
+                <span class="text-emerald-400 text-xs font-bold">변환 결과</span>
+                <template x-if="flowchart.sketchResult && flowchart.sketchResult.description">
+                  <span class="text-[10px] text-white/30 truncate max-w-[200px]" x-text="flowchart.sketchResult.description"></span>
+                </template>
+              </div>
+              <div class="flex gap-2">
+                <template x-if="!flowchart.sketchConfirmed">
+                  <div class="flex gap-2">
+                    <button @click="confirmSketchVibe()" class="px-4 py-1.5 rounded-lg text-xs font-bold bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 border border-emerald-500/30 transition">
+                      맞아 ✓
+                    </button>
+                    <button @click="retrySketchVibe()" class="px-4 py-1.5 rounded-lg text-xs font-bold bg-white/5 text-white/50 hover:text-white/80 border border-white/10 hover:border-white/20 transition">
+                      초기화 ↩
+                    </button>
+                  </div>
+                </template>
+                <template x-if="flowchart.sketchConfirmed">
+                  <div class="flex items-center gap-2">
+                    <span class="text-emerald-400/60 text-[10px]">✓ 확인됨</span>
+                    <button @click="retrySketchVibe()" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-white/5 text-white/40 hover:text-white/70 border border-white/10 transition">
+                      새 다이어그램
+                    </button>
+                  </div>
+                </template>
+              </div>
+            </div>
+            <!-- Claude Code 확인 요청 알림 (캔버스 위) -->
+            <template x-if="flowchart.approvalRequest">
+              <div class="mx-4 mt-3 p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 flex items-center gap-3 animate-pulse shrink-0">
+                <span class="text-amber-400 text-sm">!</span>
+                <span class="text-xs text-white/60 flex-1" x-text="flowchart.approvalRequest"></span>
+              </div>
+            </template>
+            <!-- Mermaid 렌더링 영역 -->
+            <div class="flex-1 overflow-auto flex items-center justify-center p-6">
+              <div id="sketchvibe-canvas-mermaid" class="flex justify-center"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ══════ 스케치바이브 패널 ══════ -->
+        <div x-show="flowchart.sketchVibeOpen"
+             x-transition:enter="transition ease-out duration-200"
+             x-transition:enter-start="translate-x-full opacity-0"
+             x-transition:enter-end="translate-x-0 opacity-100"
+             x-transition:leave="transition ease-in duration-150"
+             x-transition:leave-start="translate-x-0 opacity-100"
+             x-transition:leave-end="translate-x-full opacity-0"
+             class="w-96 shrink-0 border-l border-white/10 bg-[#0a0f1a] flex flex-col overflow-hidden" x-cloak>
+
+          <!-- 헤더 -->
+          <div class="shrink-0 px-4 py-2.5 border-b border-white/10 flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <span class="text-xs font-bold text-emerald-400 tracking-wider uppercase">SketchVibe</span>
+              <span class="text-xs text-white/20">스케치 → 다이어그램</span>
+            </div>
+            <button @click="flowchart.sketchVibeOpen = false; _disconnectSketchVibeSSE()" class="w-6 h-6 rounded flex items-center justify-center text-white/30 hover:text-white/60 transition">
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+            </button>
+          </div>
+
+          <!-- 입력: 설명 + 저장 -->
+          <div class="p-3 border-b border-white/10 flex flex-col gap-2">
+            <label class="text-xs text-white/50 font-semibold">이 스케치를 설명해주세요</label>
+            <textarea x-model="flowchart.sketchDescription"
+                      class="w-full h-16 bg-white/5 border border-white/10 rounded-lg p-2.5 text-xs text-white/80 placeholder:text-white/20 outline-none focus:border-emerald-500/50 resize-none"
+                      placeholder="예: A 서버에서 B DB로 요청 보내고, C 캐시 거쳐 응답하는 구조"></textarea>
+            <button @click="saveSketchVibe()"
+                    :disabled="flowchart.sketchConverting"
+                    class="w-full py-2 rounded-lg text-xs font-bold transition flex items-center justify-center gap-2"
+                    :class="flowchart.sketchConverting ? 'bg-emerald-500/10 text-emerald-500/50 cursor-wait' : 'bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 border border-emerald-500/30'">
+              <template x-if="flowchart.sketchConverting">
+                <div class="w-3.5 h-3.5 border-2 border-emerald-500/30 border-t-emerald-400 rounded-full animate-spin"></div>
+              </template>
+              <svg x-show="!flowchart.sketchConverting" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17,21 17,13 7,13 7,21"/><polyline points="7,3 7,8 15,8"/></svg>
+              <span x-text="flowchart.sketchConverting ? '저장 중...' : '저장하기'"></span>
+            </button>
+          </div>
+
+          <!-- 결과 영역 -->
+          <div class="flex-1 overflow-y-auto p-3 flex flex-col gap-3 scrollbar-thin">
+            <!-- 에러 -->
+            <template x-if="flowchart.sketchError">
+              <div class="p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-xs text-red-400" x-text="flowchart.sketchError"></div>
+            </template>
+
+            <!-- Claude Code 확인 요청 알림 -->
+            <template x-if="flowchart.approvalRequest">
+              <div class="p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 flex flex-col gap-2.5 animate-pulse">
+                <div class="flex items-center gap-2">
+                  <span class="text-amber-400 text-sm">!</span>
+                  <span class="text-xs font-bold text-amber-400 uppercase tracking-wider">Claude Code 확인 요청</span>
+                </div>
+                <p class="text-xs text-white/60" x-text="flowchart.approvalRequest"></p>
+                <div class="flex gap-2">
+                  <button @click="confirmSketchVibe()" class="flex-1 py-2.5 rounded-lg text-xs font-bold bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 border border-emerald-500/30 transition">
+                    맞아 ✓
+                  </button>
+                  <button @click="retrySketchVibe()" class="flex-1 py-2.5 rounded-lg text-xs font-bold bg-white/5 text-white/50 hover:text-white/80 border border-white/10 hover:border-white/20 transition">
+                    다시 해줘 ↩
+                  </button>
+                </div>
+              </div>
+            </template>
+
+            <!-- Mermaid 결과 → 캔버스에 표시됨 (사이드 패널은 상태만) -->
+            <template x-if="flowchart.sketchResult && flowchart.sketchResult.mermaid && !flowchart.sketchConfirmed">
+              <div class="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex flex-col gap-2">
+                <div class="flex items-center gap-2">
+                  <span class="text-emerald-400 text-sm">&#x25C0;</span>
+                  <span class="text-xs font-bold text-emerald-400">캔버스에 표시됨</span>
+                </div>
+                <p class="text-xs text-white/40 leading-relaxed">변환 결과가 캔버스에 표시되었습니다. 상단 "맞아 ✓"로 확인하세요.</p>
+              </div>
+            </template>
+
+            <!-- 저장 완료 메시지 (캔버스 저장 후, Mermaid 수신 전) -->
+            <template x-if="flowchart.sketchResult && flowchart.sketchResult.saved && !flowchart.sketchResult.mermaid">
+              <div class="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex flex-col gap-2">
+                <div class="flex items-center gap-2">
+                  <span class="text-emerald-400 text-sm">✓</span>
+                  <span class="text-xs font-bold text-emerald-400">저장 완료</span>
+                </div>
+                <p class="text-xs text-white/50 leading-relaxed">
+                  VS Code Claude Code에서 <span class="font-mono text-emerald-400/70">read_canvas</span> 도구를 호출하세요.
+                </p>
+                <p class="text-xs text-white/30 leading-relaxed">
+                  Claude Code가 Mermaid로 변환하면 여기에 실시간으로 표시됩니다.
+                </p>
+              </div>
+            </template>
+
+            <!-- 확인 완료 → 구현 안내 패널 -->
+            <template x-if="flowchart.sketchConfirmed">
+              <div class="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex flex-col gap-2.5">
+                <div class="flex items-center gap-2">
+                  <span class="text-emerald-400 text-sm">✓</span>
+                  <span class="text-xs font-bold text-emerald-400 tracking-wider uppercase">확인 완료</span>
+                  <span class="text-[10px] text-white/30 ml-auto" x-text="flowchart.sketchConfirmed.name"></span>
+                </div>
+                <p class="text-xs text-white/50 leading-relaxed">
+                  저장된 캔버스에 추가되었습니다. Claude Code에서 구현 가능합니다.
+                </p>
+                <button @click="retrySketchVibe()"
+                        class="w-full py-2 rounded-lg text-xs font-semibold bg-white/5 text-white/40 hover:text-white/70 border border-white/10 transition">
+                  새 다이어그램
+                </button>
+              </div>
+            </template>
+
+            <!-- 빈 상태 -->
+            <template x-if="!flowchart.sketchResult && !flowchart.sketchError && !flowchart.sketchConverting && !flowchart.sketchConfirmed && !flowchart.approvalRequest">
+              <div class="flex-1 flex items-center justify-center min-h-[200px]">
+                <div class="text-center space-y-1.5">
+                  <div class="text-2xl opacity-20 mb-3">🎨</div>
+                  <p class="text-xs text-white/30">1. 캔버스에 노드를 배치하고 선으로 연결</p>
+                  <p class="text-xs text-white/30">2. "저장하기"로 캔버스 저장</p>
+                  <p class="text-xs text-white/30">3. VS Code Claude Code에서 read_canvas 호출</p>
+                  <p class="text-xs text-emerald-500/50 font-semibold mt-2">Claude Code가 변환한 결과가 여기에 표시됩니다</p>
+                </div>
+              </div>
+            </template>
+          </div>
         </div>
       </div>
 
