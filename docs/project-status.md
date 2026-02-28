@@ -9,7 +9,7 @@
 
 - **날짜**: 2026-02-28
 - **버전**: `4.00.000`
-- **빌드**: 배포 대기 (SketchVibe Phase 3)
+- **빌드**: #689 (SketchVibe Phase 3 + 버그 수정)
 - **서버**: https://corthex-hq.com
 
 ---
@@ -52,6 +52,9 @@
 - ✅ 팔레트 버그 수정 — 동일 ID 두 개 존재 시 보이는 요소 선택 + 노드 랜덤 위치
 - ✅ API 비용 표시 제거 ($0.0079 등)
 - ✅ NEXUS 분할뷰 + 시스템플로우 삭제 — 캔버스 모드만 유지, HTML 151줄 제거, 모드버튼 삭제
+- ✅ HTML 뷰어 404 수정 — `/api/sketchvibe/viewer/{name}` 엔드포인트 (nginx 우회)
+- ✅ 크롬 빈 캔버스 수정 — SSE 연결 시 최근 Mermaid 즉시 복원
+- ✅ 새 창 제거 + 저장 캔버스 목록 — Mermaid 인라인 렌더링 + confirmed 다이어그램 사이드바 표시
 
 ## 2026-02-28 — SketchVibe Phase 2 (정확도 + MCP + 구현 브리지)
 
