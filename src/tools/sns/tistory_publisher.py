@@ -84,7 +84,7 @@ class TistoryPublisher(BasePublisher):
                 return PublishResult(success=False, platform=self.platform, message="카카오 로그인 실패")
 
             driver.get(self.write_url)
-            random_delay(3.0, 5.0)
+            random_delay(4.0, 6.0)
 
             # 임시 저장 글 알림 처리
             try:
@@ -95,22 +95,63 @@ class TistoryPublisher(BasePublisher):
             except Exception:
                 pass
 
-            wait = WebDriverWait(driver, 20)
+            wait = WebDriverWait(driver, 30)
 
-            # 제목 입력 (textarea#post-title-inp)
+            # 에디터 로드 대기 (React SPA — DOM 완전 렌더 대기)
             try:
-                title_input = wait.until(EC.presence_of_element_located(
-                    (By.CSS_SELECTOR, "textarea#post-title-inp, textarea.textarea_tit, input#post-title-inp, input[name='title']")
-                ))
-                title_input.clear()
-                title_input.send_keys(content.title)
-            except TimeoutException:
+                wait.until(lambda d: d.execute_script("return document.readyState") == "complete")
+                random_delay(2.0, 3.0)
+            except Exception:
+                pass
+
+            # 제목 입력 — 다중 셀렉터 시도 (Tistory UI 버전별 대응)
+            _TITLE_SELECTORS = [
+                "textarea#post-title-inp",
+                "textarea.textarea_tit",
+                "input#post-title-inp",
+                "input[name='title']",
+                "#post-title-inp",
+                ".tit_post textarea",
+                ".area_tit textarea",
+                "[data-name='title']",
+                "input[placeholder*='제목']",
+                "textarea[placeholder*='제목']",
+            ]
+            title_input = None
+            for sel in _TITLE_SELECTORS:
                 try:
-                    title_el = driver.find_element(By.XPATH, "//textarea[contains(@class, 'textarea_tit')] | //input[contains(@placeholder, '제목')]")
-                    title_el.clear()
-                    title_el.send_keys(content.title)
-                except Exception as e:
-                    return PublishResult(success=False, platform=self.platform, message=f"제목 입력 영역을 찾을 수 없습니다: {e}")
+                    title_input = WebDriverWait(driver, 3).until(
+                        EC.presence_of_element_located((By.CSS_SELECTOR, sel))
+                    )
+                    logger.info("[Tistory] 제목 셀렉터 매치: %s", sel)
+                    break
+                except TimeoutException:
+                    continue
+            if not title_input:
+                # JS 폴백: 모든 textarea/input 중 제목처럼 보이는 것 찾기
+                try:
+                    title_input = driver.execute_script("""
+                        var els = document.querySelectorAll('textarea, input[type="text"]');
+                        for (var i = 0; i < els.length; i++) {
+                            var el = els[i];
+                            var ph = (el.placeholder || '').toLowerCase();
+                            var cls = (el.className || '').toLowerCase();
+                            var id = (el.id || '').toLowerCase();
+                            if (ph.includes('제목') || cls.includes('tit') || id.includes('title')) return el;
+                        }
+                        return null;
+                    """)
+                except Exception:
+                    pass
+            if not title_input:
+                # 디버그용: 현재 페이지 상태 로깅
+                page_url = driver.current_url
+                page_title = driver.title
+                logger.error("[Tistory] 제목 입력 못 찾음. URL=%s title=%s", page_url, page_title)
+                return PublishResult(success=False, platform=self.platform,
+                    message=f"제목 입력 영역을 찾을 수 없습니다. URL={page_url}")
+            title_input.clear()
+            title_input.send_keys(content.title)
 
             random_delay(0.5, 1.0)
 

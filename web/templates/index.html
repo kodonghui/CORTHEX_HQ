@@ -3804,7 +3804,7 @@
                           <span x-show="(sns.selectedMedia || []).find(m => m.filename === img.filename)">&#10003;</span>
                         </div>
                       </div>
-                      <img :src="img.url" class="w-full h-32 object-cover group-hover:scale-105 transition-transform" loading="lazy" />
+                      <img :src="img.thumb || img.url" class="w-full h-32 object-cover group-hover:scale-105 transition-transform" loading="lazy" />
                       <div class="px-2 py-1.5">
                         <div class="text-[9px] text-hq-muted truncate" x-text="img.filename"></div>
                       </div>
