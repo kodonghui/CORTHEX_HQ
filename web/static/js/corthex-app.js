@@ -4847,6 +4847,7 @@ function corthexApp() {
         if (e.key === 'Escape') {
           if (this.nexusOpen) {
             this.nexusOpen = false;
+            this._disconnectSketchVibeSSE();
             return;
           }
           if (this.viewMode === 'agora') { this.viewMode = 'chat'; if (this.agora.sseSource) { this.agora.sseSource.close(); this.agora.sseSource = null; } return; }
@@ -5098,6 +5099,8 @@ function corthexApp() {
       setTimeout(async () => {
         if (!this.flowchart.canvasLoaded) await this.initNexusCanvas();
         await this.loadCanvasList();
+        // SSE 자동 연결 (캔버스에서 Mermaid 실시간 수신)
+        this._connectSketchVibeSSE();
       }, 200);
     },
 
@@ -5654,7 +5657,8 @@ function corthexApp() {
         const data = await r.json();
         if (data.mermaid) {
           this.flowchart.sketchResult = { mermaid: data.mermaid, description: data.interpretation || '' };
-          this.flowchart.sketchVibeOpen = true;
+          this.flowchart.sketchConfirmed = null;
+          await this.$nextTick();
           await this._renderSketchVibeMermaid(data.mermaid);
           this.showToast(`"${item.name}" 다이어그램 로드`, 'success');
         }
@@ -5788,7 +5792,8 @@ function corthexApp() {
         });
       }
 
-      const el = document.getElementById('sketchvibe-mermaid-result');
+      // 캔버스 오버레이에 렌더링 (사이드 패널 아닌 캔버스 영역)
+      const el = document.getElementById('sketchvibe-canvas-mermaid');
       if (!el) return;
 
       try {
@@ -5829,7 +5834,7 @@ function corthexApp() {
           this._sketchVibeSSE = null;
           // 재연결 (3초 후)
           setTimeout(() => {
-            if (this.flowchart.sketchVibeOpen) this._connectSketchVibeSSE();
+            if (this.nexusOpen) this._connectSketchVibeSSE();
           }, 3000);
         };
       } catch (e) {

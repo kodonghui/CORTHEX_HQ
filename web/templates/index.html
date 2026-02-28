@@ -7317,6 +7317,56 @@
             </div>
           </template>
           <div id="nexus-canvas" class="w-full h-full"></div>
+          <!-- Mermaid 결과 — 스케치를 교체하여 캔버스에 표시 -->
+          <div x-show="flowchart.sketchResult && flowchart.sketchResult.mermaid"
+               x-transition:enter="transition ease-out duration-300"
+               x-transition:enter-start="opacity-0"
+               x-transition:enter-end="opacity-100"
+               x-transition:leave="transition ease-in duration-200"
+               x-transition:leave-start="opacity-100"
+               x-transition:leave-end="opacity-0"
+               class="absolute inset-0 overflow-auto bg-[#0a0f1a] z-20 flex flex-col" x-cloak>
+            <!-- 상단 바 -->
+            <div class="flex items-center justify-between px-4 py-2.5 border-b border-white/10 shrink-0">
+              <div class="flex items-center gap-2">
+                <span class="text-emerald-400 text-xs font-bold">변환 결과</span>
+                <template x-if="flowchart.sketchResult && flowchart.sketchResult.description">
+                  <span class="text-[10px] text-white/30 truncate max-w-[200px]" x-text="flowchart.sketchResult.description"></span>
+                </template>
+              </div>
+              <div class="flex gap-2">
+                <template x-if="!flowchart.sketchConfirmed">
+                  <div class="flex gap-2">
+                    <button @click="confirmSketchVibe()" class="px-4 py-1.5 rounded-lg text-xs font-bold bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 border border-emerald-500/30 transition">
+                      맞아 ✓
+                    </button>
+                    <button @click="retrySketchVibe()" class="px-4 py-1.5 rounded-lg text-xs font-bold bg-white/5 text-white/50 hover:text-white/80 border border-white/10 hover:border-white/20 transition">
+                      초기화 ↩
+                    </button>
+                  </div>
+                </template>
+                <template x-if="flowchart.sketchConfirmed">
+                  <div class="flex items-center gap-2">
+                    <span class="text-emerald-400/60 text-[10px]">✓ 확인됨</span>
+                    <button @click="retrySketchVibe()" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-white/5 text-white/40 hover:text-white/70 border border-white/10 transition">
+                      새 다이어그램
+                    </button>
+                  </div>
+                </template>
+              </div>
+            </div>
+            <!-- Claude Code 확인 요청 알림 (캔버스 위) -->
+            <template x-if="flowchart.approvalRequest">
+              <div class="mx-4 mt-3 p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 flex items-center gap-3 animate-pulse shrink-0">
+                <span class="text-amber-400 text-sm">!</span>
+                <span class="text-xs text-white/60 flex-1" x-text="flowchart.approvalRequest"></span>
+              </div>
+            </template>
+            <!-- Mermaid 렌더링 영역 -->
+            <div class="flex-1 overflow-auto flex items-center justify-center p-6">
+              <div id="sketchvibe-canvas-mermaid" class="flex justify-center"></div>
+            </div>
+          </div>
         </div>
 
         <!-- ══════ 스케치바이브 패널 ══════ -->
@@ -7384,28 +7434,14 @@
               </div>
             </template>
 
-            <!-- Mermaid 실시간 렌더링 (SSE로 Claude Code가 보낸 다이어그램) -->
-            <template x-if="flowchart.sketchResult && flowchart.sketchResult.mermaid">
-              <div class="flex flex-col gap-3">
-                <template x-if="flowchart.sketchResult.description">
-                  <div class="p-3 rounded-lg bg-emerald-500/5 border border-emerald-500/20">
-                    <span class="text-xs text-emerald-400/80" x-text="flowchart.sketchResult.description"></span>
-                  </div>
-                </template>
-                <div class="rounded-lg bg-[#0c1220] border border-white/10 p-3 overflow-auto" style="max-height:400px">
-                  <div id="sketchvibe-mermaid-result" class="flex justify-center"></div>
+            <!-- Mermaid 결과 → 캔버스에 표시됨 (사이드 패널은 상태만) -->
+            <template x-if="flowchart.sketchResult && flowchart.sketchResult.mermaid && !flowchart.sketchConfirmed">
+              <div class="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex flex-col gap-2">
+                <div class="flex items-center gap-2">
+                  <span class="text-emerald-400 text-sm">&#x25C0;</span>
+                  <span class="text-xs font-bold text-emerald-400">캔버스에 표시됨</span>
                 </div>
-                <!-- 승인 요청 없을 때도 수동 확인 가능 -->
-                <template x-if="!flowchart.approvalRequest && !flowchart.sketchConfirmed">
-                  <div class="flex gap-2">
-                    <button @click="confirmSketchVibe()" class="flex-1 py-2.5 rounded-lg text-xs font-bold bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 border border-emerald-500/30 transition">
-                      맞아 ✓
-                    </button>
-                    <button @click="retrySketchVibe()" class="flex-1 py-2.5 rounded-lg text-xs font-bold bg-white/5 text-white/50 hover:text-white/80 border border-white/10 hover:border-white/20 transition">
-                      초기화 ↩
-                    </button>
-                  </div>
-                </template>
+                <p class="text-xs text-white/40 leading-relaxed">변환 결과가 캔버스에 표시되었습니다. 상단 "맞아 ✓"로 확인하세요.</p>
               </div>
             </template>
 
