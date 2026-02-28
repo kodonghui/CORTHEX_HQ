@@ -3,7 +3,7 @@
 > **규칙**: 미완료 항목은 전부 여기만. 날짜 파일에 ⬜ 절대 금지.
 > **수시 업데이트**: 완료되면 즉시 ✅ 표시 or 삭제. 새 항목 발견 시 즉시 추가.
 > 🔴 **매 배포 시 반드시 갱신!** — 배포하고 BACKLOG 안 건드리면 미완성!
-> 마지막 업데이트: 2026-02-28 (인스타 발행 성공 + SNS 콘텐츠 파이프라인 계획)
+> 마지막 업데이트: 2026-02-28 (SNS 웹 승인+자동발행 구현)
 
 ---
 
@@ -47,9 +47,10 @@
 
 - ✅ ~~**티스토리 자동 발행**~~ — 공개 발행 성공! ActionChains label 클릭으로 React 라디오 전환. `tistory_publisher.py` 전면 수정
 - ✅ ~~**다음카페(서로연) 자동 발행**~~ — 발행 성공! `logins.daum.net` → 카카오 OAuth → `united_write` → TinyMCE. `daum_cafe_publisher.py` 전면 수정
-- ⬜ **SNS 콘텐츠 파이프라인 구축** — 마케팅팀장이 콘텐츠(글/이미지/카드뉴스/동영상) 생성 → 대표님 텔레그램 승인 → 자동 발행. 백엔드(sns_manager.py 승인 큐 + notifier.py 텔레그램 알림)는 이미 구현됨. 남은 작업: ① end-to-end 연결 테스트 ② 카드뉴스 생성기 ③ 웹 UI 승인 화면(선택)
-  - 이미 있는 도구: gemini_image_generator(이미지), gemini_video_generator(동영상), lipsync_video_generator(립싱크), sns_manager(승인큐), notifier(텔레그램 승인 버튼)
-  - 빠진 것: 카드뉴스 생성기(인스타용 텍스트+디자인 조합), 마케팅팀장→승인큐→발행 end-to-end 흐름 검증
+- ✅ ~~**SNS 웹 승인+자동발행**~~ — 웹에서 "승인+발행" 1클릭 → approve 후 asyncio.create_task로 자동 발행. _get_publisher() 헬퍼 추출
+- ⬜ **SNS 텔레그램 승인+자동발행** — 텔레그램 인라인 버튼 승인 시에도 자동 발행 연결 (bot.py handle_callback)
+- ⬜ **SNS submit 즉시 알림** — 마케팅팀장이 submit 시 텔레그램 즉시 알림 (현재 30분 주기 체크 의존)
+- ⬜ **카드뉴스 생성기** — 인스타용 텍스트+디자인 조합 이미지 (gemini_image_generator의 card_news action 활용 가능)
 - ⬜ **페이스북 자동 발행 검토** — Graph API로 페이지/그룹 게시 가능 여부 조사. Meta 개발자 계정 필요. 티스토리/다음카페 완료 후 착수
 - ⬜ **X(트위터) 자동 발행 검토** — X API v2 게시 가능 여부 조사. 유료 플랜(Basic $100/월) 필요할 수 있음. 티스토리/다음카페 완료 후 착수
 - 🔴 **네이버 블로그 자동 발행 — 보류** (2026-02-28 판정)

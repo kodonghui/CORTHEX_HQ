@@ -3780,11 +3780,16 @@ function corthexApp() {
 
     async approveSNS(id) {
       try {
+        this.showToast('승인 + 발행 진행중...', 'info');
         const res = await fetch(`/api/sns/approve/${id}`, { method: 'POST' });
         const data = await res.json();
         if (data.success) {
-          this.showToast('승인되었습니다.', 'success');
+          this.showToast('승인 완료! 자동 발행 진행중...', 'success');
           this.loadSNSQueue();
+          // 발행 완료까지 5초 후 큐 새로고침 (Selenium 소요 대기)
+          setTimeout(() => this.loadSNSQueue(), 5000);
+          setTimeout(() => this.loadSNSQueue(), 15000);
+          setTimeout(() => this.loadSNSQueue(), 30000);
         } else { this.showToast(data.error || '승인 실패', 'error'); }
       } catch { this.showToast('승인에 실패했습니다.', 'error'); }
     },
