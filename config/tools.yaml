@@ -3433,6 +3433,8 @@ tools:
         description: "BGM 볼륨 (0.0~1.0, 기본 0.15)"
       clips:
         type: array
+        items:
+          type: string
         description: "이어붙일 클립 파일 경로 리스트 (action=concat 시)"
     required: [action]
 

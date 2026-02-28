@@ -547,11 +547,13 @@ async def classify_task(text: str) -> dict:
     if not is_ai_ready():
         return {"agent_id": "chief_of_staff", "reason": "AI 미연결", "cost_usd": 0}
 
-    # 분류용 모델: 가장 저렴한 모델 선택 (Gemini Flash → GPT Mini → Claude)
+    # 분류용 모델: 가장 저렴한 모델 선택 (Gemini Flash → GPT Mini → CLI Claude → API Claude)
     if _google_client:
         classify_model = "gemini-2.5-flash"
     elif _openai_client:
         classify_model = "gpt-5-mini"
+    elif _USE_CLI_FOR_CLAUDE:
+        classify_model = "claude-haiku-4-5-20251001"  # CLI로 라우팅 → API 크레딧 소진 방지
     elif _anthropic_client:
         classify_model = "claude-sonnet-4-6"
     else:
