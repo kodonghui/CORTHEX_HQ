@@ -149,9 +149,9 @@
 - 🔴 루프 횟수 제한 없음! 로그 `(23회)` = 도구 호출 횟수 표시 (제한 없음)
 
 ---
-# 🚨🚨🚨 작업 완료 6단계 — 전부 안 하면 미완성! 🚨🚨🚨
+# 🚨🚨🚨 작업 완료 7단계 — 전부 안 하면 미완성! 🚨🚨🚨
 
-> **이거 안 지키면 미완성이다. 커밋했다고 끝이 아니다. 6단계 전부.**
+> **이거 안 지키면 미완성이다. 커밋했다고 끝이 아니다. 7단계 전부.**
 
 ## ① docs/updates/날짜_요약.md 작성
 ## ② docs/project-status.md 업데이트
@@ -181,10 +181,11 @@ gh run list --workflow=deploy.yml --limit=1
 > 버그 발견 시 전부 기록 (✅/🔴). 심각하면 🚨 즉시 보고
 > 팀장 최종 기록 책임 | 전수검사: `docs/inspection-protocol.md`
 
-## 🚨🚨🚨 Phase별 대형 작업 = 매 Phase마다 compact 대비! 🚨🚨🚨
-> **리팩토링/대형 플랜처럼 여러 Phase로 나뉜 작업 시:**
-> **1 Phase 끝날 때마다** → ① project-status.md ② BACKLOG.md ③ todo/날짜.md 전부 갱신
-> **그래야 /compact 해도 다음 Phase를 바로 이어갈 수 있다!**
+## ⑦ 🔴 compact 대비 — 작업 완료 시 반드시!
+> **모든 작업 마무리 시** ①~⑥ 문서 갱신이 곧 compact 대비.
+> docs/project-status.md + BACKLOG.md + todo/날짜.md에 현재 상태가 전부 기록되어 있으면
+> /compact 후에도 다음 세션이 바로 이어갈 수 있다.
+> **Phase별 대형 작업**: 1 Phase 끝날 때마다 반드시 ①~⑥ 전부 갱신.
 > compact 안 하고 2~3 Phase 연속 → 컨텍스트 폭발 → 실수 확률 급증
 
 ---
