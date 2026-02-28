@@ -7278,9 +7278,19 @@
             <span class="text-xs font-semibold text-white/40 uppercase tracking-wider">저장된 캔버스</span>
           </div>
           <div class="flex-1 overflow-y-auto scrollbar-thin py-1">
-            <template x-if="flowchart.canvasItems.length === 0">
+            <template x-if="flowchart.canvasItems.length === 0 && flowchart.confirmedItems.length === 0">
               <div class="px-3 py-2 text-xs text-white/20 italic">아직 없습니다</div>
             </template>
+            <!-- 확인된 다이어그램 (맞아 누른 것) -->
+            <template x-for="item in flowchart.confirmedItems" :key="item.safe_name">
+              <button @click="loadConfirmedDiagram(item)"
+                      class="w-full text-left py-1.5 px-3 text-xs text-white/50 hover:text-emerald-400 hover:bg-emerald-500/5 transition rounded-r-lg truncate flex items-center gap-1.5"
+                      :title="item.interpretation || item.name">
+                <span class="text-emerald-500/60 text-[10px]">&#x2713;</span>
+                <span x-text="item.name"></span>
+              </button>
+            </template>
+            <!-- 캔버스 JSON 파일 -->
             <template x-for="item in flowchart.canvasItems" :key="item.name">
               <button @click="loadNexusCanvas(item)"
                       class="w-full text-left py-1.5 px-3 text-xs text-white/40 hover:text-white/80 hover:bg-white/5 transition rounded-r-lg font-mono truncate"
@@ -7421,24 +7431,15 @@
                 <div class="flex items-center gap-2">
                   <span class="text-emerald-400 text-sm">✓</span>
                   <span class="text-xs font-bold text-emerald-400 tracking-wider uppercase">확인 완료</span>
+                  <span class="text-[10px] text-white/30 ml-auto" x-text="flowchart.sketchConfirmed.name"></span>
                 </div>
                 <p class="text-xs text-white/50 leading-relaxed">
-                  Claude Code에서 이 다이어그램을 읽고 구현할 수 있습니다.
+                  저장된 캔버스에 추가되었습니다. Claude Code에서 구현 가능합니다.
                 </p>
-                <div class="bg-black/30 rounded p-2 font-mono text-[10px] text-white/30 break-all">
-                  sketchvibe://<span x-text="flowchart.sketchConfirmed.name" class="text-emerald-400/70"></span>
-                </div>
-                <div class="flex gap-2">
-                  <a :href="'/' + flowchart.sketchConfirmed.htmlPath"
-                     target="_blank"
-                     class="flex-1 py-2 rounded-lg text-xs text-center font-semibold bg-cyan-500/10 text-cyan-400 hover:bg-cyan-500/20 border border-cyan-500/20 transition">
-                    HTML 뷰어 열기
-                  </a>
-                  <button @click="retrySketchVibe()"
-                          class="flex-1 py-2 rounded-lg text-xs font-semibold bg-white/5 text-white/40 hover:text-white/70 border border-white/10 transition">
-                    새 다이어그램
-                  </button>
-                </div>
+                <button @click="retrySketchVibe()"
+                        class="w-full py-2 rounded-lg text-xs font-semibold bg-white/5 text-white/40 hover:text-white/70 border border-white/10 transition">
+                  새 다이어그램
+                </button>
               </div>
             </template>
 
