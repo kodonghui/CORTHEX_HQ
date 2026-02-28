@@ -365,6 +365,12 @@ function corthexApp() {
       canvasName: '',
       canvasItems: [],
       showCanvasNameModal: false,
+      // ── 스케치바이브 ──
+      sketchVibeOpen: false,
+      sketchDescription: '',
+      sketchResult: null,        // {mermaid, interpretation, diagram_type}
+      sketchConverting: false,
+      sketchError: null,
     },
 
     // ── AGORA (토론/논쟁 엔진) ──
@@ -5659,6 +5665,128 @@ function corthexApp() {
         this.flowchart.canvasDirty = false;
         this.flowchart.canvasName = '';
       }
+    },
+
+    // ══════════════════════════════════════════════ SketchVibe ══
+
+    // ── 스케치 → Mermaid 변환 ──
+    async convertSketchVibe() {
+      if (!this.flowchart.canvasEditor) {
+        this.showToast('캔버스가 로드되지 않았습니다', 'error');
+        return;
+      }
+      if (this.flowchart.sketchConverting) return;
+
+      this.flowchart.sketchConverting = true;
+      this.flowchart.sketchError = null;
+      this.flowchart.sketchResult = null;
+
+      try {
+        const canvasJson = this.flowchart.canvasEditor.export();
+
+        // 노드가 있는지 확인
+        const nodes = canvasJson?.drawflow?.Home?.data || {};
+        if (Object.keys(nodes).length === 0) {
+          throw new Error('캔버스에 노드가 없습니다. 팔레트에서 노드를 추가해주세요.');
+        }
+
+        const resp = await fetch('/api/sketchvibe/convert', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            canvas_json: canvasJson,
+            description: this.flowchart.sketchDescription
+          })
+        });
+
+        if (!resp.ok) throw new Error(`서버 오류 (${resp.status})`);
+
+        const data = await resp.json();
+        if (data.error) throw new Error(data.error);
+        if (!data.mermaid) throw new Error('Mermaid 코드가 비어있습니다');
+
+        this.flowchart.sketchResult = data;
+
+        // Mermaid 렌더링
+        await this.$nextTick();
+        await this._renderSketchVibeMermaid(data.mermaid);
+      } catch (e) {
+        this.flowchart.sketchError = e.message;
+      } finally {
+        this.flowchart.sketchConverting = false;
+      }
+    },
+
+    // ── Mermaid 렌더링 ──
+    async _renderSketchVibeMermaid(code) {
+      // mermaid CDN 로드 (이미 로드됐으면 스킵)
+      if (!window.mermaid) {
+        const src = this._CDN?.mermaid || 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js';
+        await new Promise((resolve, reject) => {
+          const s = document.createElement('script');
+          s.src = src; s.onload = resolve; s.onerror = reject;
+          document.head.appendChild(s);
+        });
+        mermaid.initialize({
+          startOnLoad: false, theme: 'dark',
+          flowchart: { useMaxWidth: false, htmlLabels: true },
+          themeVariables: {
+            primaryColor: '#1e1b4b', primaryTextColor: '#e2e8f0',
+            primaryBorderColor: '#6366f1', lineColor: '#6366f1',
+            secondaryColor: '#0f172a', tertiaryColor: '#0c1220',
+            fontFamily: 'Pretendard, sans-serif', fontSize: '12px'
+          }
+        });
+      }
+
+      const el = document.getElementById('sketchvibe-mermaid-result');
+      if (!el) return;
+
+      try {
+        // 고유 ID 생성 (중복 방지)
+        const svgId = 'sv-' + Date.now();
+        const { svg } = await mermaid.render(svgId, code);
+        el.innerHTML = svg;
+      } catch (e) {
+        el.innerHTML = `<pre class="text-red-400 text-xs p-2">렌더링 실패: ${e.message}\n\n코드:\n${code}</pre>`;
+      }
+    },
+
+    // ── "맞아" 확인 → 다이어그램 저장 ──
+    async confirmSketchVibe() {
+      const r = this.flowchart.sketchResult;
+      if (!r) return;
+
+      const name = prompt('다이어그램 이름을 입력하세요:', '') || '';
+      if (!name.trim()) {
+        this.showToast('이름을 입력해주세요', 'error');
+        return;
+      }
+
+      try {
+        const resp = await fetch('/api/sketchvibe/save-diagram', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            mermaid: r.mermaid,
+            name: name.trim(),
+            interpretation: r.interpretation
+          })
+        });
+
+        const data = await resp.json();
+        if (data.error) throw new Error(data.error);
+
+        this.showToast(`"${name}" 저장 완료! (.md + .html)`, 'success');
+      } catch (e) {
+        this.showToast('저장 실패: ' + e.message, 'error');
+      }
+    },
+
+    // ── "다시 해줘" → 결과 초기화 ──
+    retrySketchVibe() {
+      this.flowchart.sketchResult = null;
+      this.flowchart.sketchError = null;
     },
   };
 }

@@ -986,6 +986,10 @@ app.include_router(notion_router)
 from handlers.argos_handler import router as argos_api_router
 app.include_router(argos_api_router)
 
+# ── SketchVibe (스케치→다이어그램 변환) ──
+from handlers.sketchvibe_handler import router as sketchvibe_router
+app.include_router(sketchvibe_router)
+
 # ── 도구 실행/상태/건강 → handlers/tools_handler.py로 분리 ──
 
 

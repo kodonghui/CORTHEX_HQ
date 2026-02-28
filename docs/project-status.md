@@ -14,6 +14,16 @@
 
 ---
 
+## 2026-02-28 — SketchVibe MVP 구현
+
+- ✅ `web/handlers/sketchvibe_handler.py` 신규 (~230줄) — 변환/캔버스조회/저장 API 3개
+- ✅ `web/arm_server.py` — sketchvibe_router 마운트
+- ✅ `web/static/js/corthex-app.js` — 데이터 변수 5개 + 메서드 4개 (+128줄)
+- ✅ `web/templates/index.html` — 토글 버튼 + 스케치바이브 패널 (+100줄)
+- 파이프라인: 캔버스 스케치 + 자연어 → Claude → Mermaid 변환 → 확인 → .md/.html 저장
+- UX: 타입 선택 없음(AI 자동 판단), 캔버스 모드 내 슬라이드 패널
+- MCP: REST API `/api/sketchvibe/canvas`로 대체, 별도 MCP 서버는 Phase 2
+
 ## 2026-02-28 — Instagram 자동 발행 기능 추가
 
 - ✅ `instagram_publisher.py` — OAuth→환경변수 토큰 전환 + User ID 자동 조회
