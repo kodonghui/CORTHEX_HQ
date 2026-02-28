@@ -50,7 +50,11 @@
 - ✅ ~~**SNS 웹 승인+자동발행**~~ — 웹에서 "승인+발행" 1클릭 → approve 후 asyncio.create_task로 자동 발행. _get_publisher() 헬퍼 추출
 - ⬜ **SNS 텔레그램 승인+자동발행** — 텔레그램 인라인 버튼 승인 시에도 자동 발행 연결 (bot.py handle_callback)
 - ⬜ **SNS submit 즉시 알림** — 마케팅팀장이 submit 시 텔레그램 즉시 알림 (현재 30분 주기 체크 의존)
-- ⬜ **카드뉴스 생성기** — 인스타용 텍스트+디자인 조합 이미지 (gemini_image_generator의 card_news action 활용 가능)
+- ⬜ **카드뉴스 생성기** — 인스타용 텍스트+디자인 조합 이미지
+  - gemini_image_generator에 `card_news` action 이미 존재 (`src/tools/gemini_image_generator.py`)
+  - 마케팅팀장 allowed_tools에 gemini_image_generator 등록됨
+  - 검토 필요: card_news action이 실제로 인스타 규격(1080x1080)에 맞는지, 슬라이드 여러 장 생성 가능한지
+  - 대안: HTML→이미지 변환 방식 (디자인 정밀 제어 가능, puppeteer/playwright 필요)
 - ⬜ **페이스북 자동 발행 검토** — Graph API로 페이지/그룹 게시 가능 여부 조사. Meta 개발자 계정 필요. 티스토리/다음카페 완료 후 착수
 - ⬜ **X(트위터) 자동 발행 검토** — X API v2 게시 가능 여부 조사. 유료 플랜(Basic $100/월) 필요할 수 있음. 티스토리/다음카페 완료 후 착수
 - 🔴 **네이버 블로그 자동 발행 — 보류** (2026-02-28 판정)
