@@ -9,7 +9,7 @@
 
 - **날짜**: 2026-02-27
 - **버전**: `4.00.000`
-- **빌드**: #659
+- **빌드**: #660
 - **서버**: https://corthex-hq.com
 
 ---
@@ -21,7 +21,7 @@ KIS 버그 수정 + pricing 도구 합병 + 고객분석 도구 합병 + src/src
 
 ---
 
-## 🔴 arm_server.py 리팩토링 — 4-3 (P3 완료, P4 대기)
+## 🔴 arm_server.py 리팩토링 — 4-3 (P4 완료, P5 대기)
 
 > **비유**: 11,637줄짜리 거대한 공장 1동에 모든 부서가 들어가 있음.
 > 15개 부서를 식별했고, 독립성 높은 것부터 분리하는 계획.
@@ -29,11 +29,12 @@ KIS 버그 수정 + pricing 도구 합병 + 고객분석 도구 합병 + src/src
 
 ### 현재 상태
 
-- **파일**: `web/arm_server.py` — **10,399줄** (P3 후), 50개 API 엔드포인트
+- **파일**: `web/arm_server.py` — **9,436줄** (P4 후), 50개 API 엔드포인트
 - **P1 완료**: `web/config_loader.py` 343줄 분리 (빌드 #656)
 - **P2 완료**: `web/handlers/debug_handler.py` 591줄 분리 (빌드 #658)
 - **P3 완료**: `web/handlers/argos_handler.py` 505줄 분리 (빌드 #659)
-- **등급**: D등급 모놀리스 (God Object) → 분리 진행 중 (1,238줄 감소)
+- **P4 완료**: `web/argos_collector.py` 1,026줄 분리 (빌드 #660)
+- **등급**: D등급 모놀리스 (God Object) → 분리 진행 중 (2,201줄 감소)
 - **목표**: **300~400줄** (thin FastAPI main) + 14개 모듈
 
 ### 15개 논리 모듈 식별
@@ -80,7 +81,7 @@ KIS 버그 수정 + pricing 도구 합병 + 고객분석 도구 합병 + src/src
 | **P1** | ✅ 유틸+설정+라이프사이클 | `web/config_loader.py` (343줄) | 294줄 감소 | 🟢 완료 |
 | **P2** | ✅ 디버그 API (Soul Gym/도구는 이미 분리됨) | `handlers/debug_handler.py` (591줄) | 515줄 감소 | 🟢 완료 |
 | **P3** | ✅ ARGOS API (WebSocket은 결합도 높아 보류) | `handlers/argos_handler.py` (505줄) | 429줄 감소 | 🟢 완료 |
-| **P4** | ARGOS 수집 | `web/argos_collector.py` | ~4,200 | 🟡 |
+| **P4** | ✅ ARGOS 수집 (16함수+컨텍스트빌더) | `web/argos_collector.py` (1,026줄) | 963줄 감소 | 🟢 완료 |
 | **P5** | 배치 시스템+체인 | `web/batch_system.py` | ~2,500 | 🟡 |
 | **P6** | 트레이딩/CIO | `web/trading_engine.py` | ~4,300 | 🔴 |
 | **P7** | 스케줄링/크론 | `web/scheduler.py` | ~1,800 | 🔴 |
@@ -118,6 +119,16 @@ web/
 - 🔴 **ARGOS↔트레이딩 순환** — DI 패턴으로 해소 필요
 - 🟡 **크론 스케줄러** — 전 모듈 의존, 팩토리 패턴 필수
 - 🟢 **P1~P3은 안전** — 독립적, 기계적 분리
+
+---
+
+## 2026-02-28 — arm_server.py 리팩토링 P4 (빌드 #660)
+
+- ✅ `web/argos_collector.py` 신규 (1,026줄) — ARGOS 수집 16함수 + 컨텍스트 빌더
+- ✅ arm_server.py 10,399→9,436줄 (963줄 감소)
+- ✅ argos_handler.py 스텁 7개 → argos_collector 직접 import로 교체
+- ✅ 서버 배포 + ARGOS 수집 동작 검증 (price/news/dart 정상)
+- 📌 **다음: P5** — 배치 시스템+체인 추출
 
 ---
 
