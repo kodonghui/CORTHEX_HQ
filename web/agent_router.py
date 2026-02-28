@@ -104,6 +104,17 @@ _AGENT_NAMES: dict[str, str] = {
     "cpo_manager": "콘텐츠팀장",
 }
 
+# 한국어 이름 → 에이전트 ID 역매핑 (명시적 지시 파싱용)
+_AGENT_NAME_TO_ID: dict[str, str] = {v: k for k, v in _AGENT_NAMES.items()}
+
+
+def _parse_explicit_target(text: str) -> str | None:
+    """'~팀장에게 지시/질문' 패턴에서 팀장 ID 추출. 명시적 지시 최우선."""
+    for name, agent_id in _AGENT_NAME_TO_ID.items():
+        if name in text:
+            return agent_id
+    return None
+
 # 브로드캐스트 키워드 (모든 부서에 동시 전달하는 명령)
 _BROADCAST_KEYWORDS = [
     "전체", "모든 부서", "출석", "회의", "현황 보고",
@@ -851,11 +862,14 @@ async def _extract_and_save_memory(agent_id: str, task: str, response: str):
             "JSON만 반환 (설명 없이):"
         )
 
+        from ai_handler import _USE_CLI_FOR_CLAUDE
         _mem_providers = get_available_providers()
         if _mem_providers.get("google"):
             _mem_model = "gemini-2.5-flash"
         elif _mem_providers.get("openai"):
             _mem_model = "gpt-5-mini"
+        elif _USE_CLI_FOR_CLAUDE:
+            _mem_model = "claude-haiku-4-5-20251001"  # CLI 라우팅 → API 크레딧 소진 방지
         else:
             _mem_model = "claude-sonnet-4-6"
         result = await ask_ai(
@@ -900,10 +914,16 @@ def _classify_by_keywords(text: str) -> str | None:
 async def _route_task(text: str) -> dict:
     """CEO 명령을 적합한 에이전트에게 라우팅합니다.
 
+    0단계: 명시적 팀장 지시 파싱 ("~팀장에게 지시") — 최우선
     1단계: 키워드 매칭 (무료, 즉시)
-    2단계: AI 분류 (Haiku, ~$0.001)
+    2단계: AI 분류 (Haiku/Flash, ~$0.001)
     3단계: 폴백 → 비서실장
     """
+    # 0단계: "~팀장에게 지시" 명시적 파싱 — 최우선
+    explicit_id = _parse_explicit_target(text)
+    if explicit_id:
+        return {"agent_id": explicit_id, "method": "명시적지시", "cost_usd": 0.0, "reason": f"명시적 팀장 지시"}
+
     agent_id = _classify_by_keywords(text)
     if agent_id:
         return {"agent_id": agent_id, "method": "키워드", "cost_usd": 0.0, "reason": "키워드 매칭"}
