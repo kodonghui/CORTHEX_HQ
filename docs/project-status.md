@@ -9,7 +9,7 @@
 
 - **날짜**: 2026-02-28
 - **버전**: `4.00.000`
-- **빌드**: #661
+- **빌드**: #662
 - **서버**: https://corthex-hq.com
 
 ---
@@ -21,7 +21,7 @@ KIS 버그 수정 + pricing 도구 합병 + 고객분석 도구 합병 + src/src
 
 ---
 
-## 🔴 arm_server.py 리팩토링 — 4-3 (P5 완료, P6 대기)
+## 🔴 arm_server.py 리팩토링 — 4-3 (P6 완료, P7 대기)
 
 > **비유**: 11,637줄짜리 거대한 공장 1동에 모든 부서가 들어가 있음.
 > 15개 부서를 식별했고, 독립성 높은 것부터 분리하는 계획.
@@ -29,13 +29,14 @@ KIS 버그 수정 + pricing 도구 합병 + 고객분석 도구 합병 + src/src
 
 ### 현재 상태
 
-- **파일**: `web/arm_server.py` — **7,676줄** (P5 후), 40개 API 엔드포인트
+- **파일**: `web/arm_server.py` — **4,948줄** (P6 후), 34개 API 엔드포인트
 - **P1 완료**: `web/config_loader.py` 343줄 분리 (빌드 #656)
 - **P2 완료**: `web/handlers/debug_handler.py` 591줄 분리 (빌드 #658)
 - **P3 완료**: `web/handlers/argos_handler.py` 505줄 분리 (빌드 #659)
 - **P4 완료**: `web/argos_collector.py` 1,026줄 분리 (빌드 #660)
 - **P5 완료**: `web/batch_system.py` 1,808줄 분리 (빌드 #661)
-- **등급**: D등급 모놀리스 (God Object) → 분리 진행 중 (3,961줄 감소, 34%)
+- **P6 완료**: `web/trading_engine.py` 2,830줄 분리 (빌드 #662)
+- **등급**: D등급 모놀리스 (God Object) → 분리 진행 중 (6,689줄 감소, 57%)
 - **목표**: **300~400줄** (thin FastAPI main) + 14개 모듈
 
 ### 15개 논리 모듈 식별
@@ -89,7 +90,7 @@ KIS 버그 수정 + pricing 도구 합병 + 고객분석 도구 합병 + src/src
 | **P3** | ✅ ARGOS API (WebSocket은 결합도 높아 보류) | `handlers/argos_handler.py` (505줄) | 429줄 감소 | 🟢 완료 |
 | **P4** | ✅ ARGOS 수집 (16함수+컨텍스트빌더) | `web/argos_collector.py` (1,026줄) | 963줄 감소 | 🟢 완료 |
 | **P5** | ✅ 배치 시스템+체인 (10개 API + 4단계 체인) | `web/batch_system.py` (1,808줄) | 1,760줄 감소 | 🟢 완료 |
-| **P6** | 트레이딩/CIO | `web/trading_engine.py` | ~4,300 | 🔴 |
+| **P6** | ✅ 트레이딩/CIO (6개 API + 정량분석 + 자동매매) | `web/trading_engine.py` (2,830줄) | 2,728줄 감소 | 🟢 완료 |
 | **P7** | 스케줄링/크론 | `web/scheduler.py` | ~1,800 | 🔴 |
 | **P8** | **에이전트 라우팅** | `web/agent_router.py` | ~1,900 | 🔴🔴 |
 
@@ -127,6 +128,17 @@ web/
 - 🟢 **P1~P3은 안전** — 독립적, 기계적 분리
 
 ---
+
+## 2026-02-28 — arm_server.py 리팩토링 P6 (빌드 #662)
+
+- ✅ `web/trading_engine.py` 신규 (2,830줄) — CIO 신뢰도 학습 + 자동매매 + 정량분석
+  - 6개 API 엔드포인트 trading_router로 이관
+  - CIO 학습: ELO + Bayesian 보정 + 도구 효과 + 오답 패턴
+  - 정량분석: RSI/MACD/볼린저/거래량/이평선 합의투표
+  - 자동매매: 가격 트리거 + 손절/익절 + 봇 루프 + DST 감지
+- ✅ arm_server.py 7,676→4,948줄 (2,728줄 감소)
+- ✅ 서버 배포 + 헬스체크 + 트레이딩 API 검증 정상
+- 📌 **다음: P7** — 스케줄링/크론 추출
 
 ## 2026-02-28 — arm_server.py 리팩토링 P5 (빌드 #661)
 
