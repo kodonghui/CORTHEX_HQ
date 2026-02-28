@@ -4544,9 +4544,9 @@
     {
       "tool_id": "gemini_image_generator",
       "category": "api",
-      "name": "Nano Banana Pro Image Generator",
-      "name_ko": "나노바나나 Pro 이미지 생성",
-      "description": "나노바나나 Pro(gemini-3-pro-image-preview)로 실제 마케팅 이미지 직접 생성. 배너, 카드뉴스, 인포그래픽, 썸네일, 로고, 광고, 소셜포스트, 제품목업. 교수급 디자인 지식(플랫폼 사양, 스타일 가이드, 색상 심리학)이 프롬프트에 자동 반영됩니다.\n",
+      "name": "Nano Banana v2 Image Generator",
+      "name_ko": "나노바나나 v2 이미지 생성",
+      "description": "나노바나나 v2(gemini-3.1-flash-image-preview)로 실제 마케팅 이미지 직접 생성. 배너, 카드뉴스, 인포그래픽, 썸네일, 로고, 광고, 소셜포스트, 제품목업. 교수급 디자인 지식(플랫폼 사양, 스타일 가이드, 색상 심리학)이 프롬프트에 자동 반영됩니다.\n",
       "parameters": {
         "type": "object",
         "properties": {

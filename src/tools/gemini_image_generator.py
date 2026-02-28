@@ -1,7 +1,7 @@
 """
-Gemini 나노바나나 Pro — 실제 이미지 생성 도구.
+Gemini 나노바나나 v2 — 실제 이미지 생성 도구.
 
-gemini-3-pro-image-preview 모델(Nano Banana Pro)로 마케팅 이미지를 직접 생성합니다.
+gemini-3.1-flash-image-preview 모델(Nano Banana v2)로 마케팅 이미지를 직접 생성합니다.
 기존 교수급 디자인 지식(플랫폼 사양, 스타일 가이드, 색상 심리학)을
 프롬프트 엔지니어링에 자동 반영하여 전문가급 이미지를 생성합니다.
 
@@ -124,9 +124,9 @@ _COLOR_PSYCHOLOGY: dict[str, str] = {
 
 
 class GeminiImageGeneratorTool(BaseTool):
-    """나노바나나 Pro (gemini-3-pro-image-preview) 실제 이미지 생성 도구."""
+    """나노바나나 v2 (gemini-3.1-flash-image-preview) 실제 이미지 생성 도구."""
 
-    _IMAGE_MODEL = "gemini-3-pro-image-preview"
+    _IMAGE_MODEL = "gemini-3.1-flash-image-preview"
 
     async def execute(self, **kwargs: Any) -> str:
         action = kwargs.get("action", "generate")
@@ -250,7 +250,7 @@ class GeminiImageGeneratorTool(BaseTool):
     # ─── 핵심: 실제 이미지 생성 ───────────────────────
 
     async def _generate(self, kwargs: dict) -> str:
-        """Gemini 나노바나나 Pro API로 실제 이미지 생성."""
+        """Gemini 나노바나나 v2 API로 실제 이미지 생성."""
         genai = _get_genai()
         if genai is None:
             return "google-genai 라이브러리가 설치되지 않았습니다. pip install google-genai"
@@ -305,7 +305,7 @@ class GeminiImageGeneratorTool(BaseTool):
             text_resp = "\n".join(text_parts) if text_parts else ""
 
             result = (
-                f"## 이미지 생성 완료 (나노바나나 Pro)\n\n"
+                f"## 이미지 생성 완료 (나노바나나 v2)\n\n"
                 f"| 항목 | 값 |\n|------|----|\n"
                 f"| 모델 | `{self._IMAGE_MODEL}` |\n"
                 f"| 비율 | {aspect_ratio} |\n"
