@@ -7,9 +7,9 @@
 
 ## 마지막 업데이트
 
-- **날짜**: 2026-02-27
+- **날짜**: 2026-02-28
 - **버전**: `4.00.000`
-- **빌드**: #660
+- **빌드**: #661
 - **서버**: https://corthex-hq.com
 
 ---
@@ -21,7 +21,7 @@ KIS 버그 수정 + pricing 도구 합병 + 고객분석 도구 합병 + src/src
 
 ---
 
-## 🔴 arm_server.py 리팩토링 — 4-3 (P4 완료, P5 대기)
+## 🔴 arm_server.py 리팩토링 — 4-3 (P5 완료, P6 대기)
 
 > **비유**: 11,637줄짜리 거대한 공장 1동에 모든 부서가 들어가 있음.
 > 15개 부서를 식별했고, 독립성 높은 것부터 분리하는 계획.
@@ -29,12 +29,13 @@ KIS 버그 수정 + pricing 도구 합병 + 고객분석 도구 합병 + src/src
 
 ### 현재 상태
 
-- **파일**: `web/arm_server.py` — **9,436줄** (P4 후), 50개 API 엔드포인트
+- **파일**: `web/arm_server.py` — **7,676줄** (P5 후), 40개 API 엔드포인트
 - **P1 완료**: `web/config_loader.py` 343줄 분리 (빌드 #656)
 - **P2 완료**: `web/handlers/debug_handler.py` 591줄 분리 (빌드 #658)
 - **P3 완료**: `web/handlers/argos_handler.py` 505줄 분리 (빌드 #659)
 - **P4 완료**: `web/argos_collector.py` 1,026줄 분리 (빌드 #660)
-- **등급**: D등급 모놀리스 (God Object) → 분리 진행 중 (2,201줄 감소)
+- **P5 완료**: `web/batch_system.py` 1,808줄 분리 (빌드 #661)
+- **등급**: D등급 모놀리스 (God Object) → 분리 진행 중 (3,961줄 감소, 34%)
 - **목표**: **300~400줄** (thin FastAPI main) + 14개 모듈
 
 ### 15개 논리 모듈 식별
@@ -87,7 +88,7 @@ KIS 버그 수정 + pricing 도구 합병 + 고객분석 도구 합병 + src/src
 | **P2** | ✅ 디버그 API (Soul Gym/도구는 이미 분리됨) | `handlers/debug_handler.py` (591줄) | 515줄 감소 | 🟢 완료 |
 | **P3** | ✅ ARGOS API (WebSocket은 결합도 높아 보류) | `handlers/argos_handler.py` (505줄) | 429줄 감소 | 🟢 완료 |
 | **P4** | ✅ ARGOS 수집 (16함수+컨텍스트빌더) | `web/argos_collector.py` (1,026줄) | 963줄 감소 | 🟢 완료 |
-| **P5** | 배치 시스템+체인 | `web/batch_system.py` | ~2,500 | 🟡 |
+| **P5** | ✅ 배치 시스템+체인 (10개 API + 4단계 체인) | `web/batch_system.py` (1,808줄) | 1,760줄 감소 | 🟢 완료 |
 | **P6** | 트레이딩/CIO | `web/trading_engine.py` | ~4,300 | 🔴 |
 | **P7** | 스케줄링/크론 | `web/scheduler.py` | ~1,800 | 🔴 |
 | **P8** | **에이전트 라우팅** | `web/agent_router.py` | ~1,900 | 🔴🔴 |
@@ -127,13 +128,22 @@ web/
 
 ---
 
+## 2026-02-28 — arm_server.py 리팩토링 P5 (빌드 #661)
+
+- ✅ `web/batch_system.py` 신규 (1,808줄) — 배치 큐 + AI Batch API + 배치 체인 4단계 오케스트레이터
+  - 10개 API 엔드포인트 batch_router로 이관
+  - 분류 → 팀장 지시서 → 전문가 배치 → 종합 보고서 (4단계 파이프라인)
+  - 배치 폴러, 브로드캐스트 모드, 실시간 폴백
+- ✅ arm_server.py 9,436→7,676줄 (1,760줄 감소)
+- ✅ 서버 배포 + 배치 API 3종 검증 (queue/chains/pending 정상)
+- 📌 **다음: P6** — 트레이딩/CIO 추출
+
 ## 2026-02-28 — arm_server.py 리팩토링 P4 (빌드 #660)
 
 - ✅ `web/argos_collector.py` 신규 (1,026줄) — ARGOS 수집 16함수 + 컨텍스트 빌더
 - ✅ arm_server.py 10,399→9,436줄 (963줄 감소)
 - ✅ argos_handler.py 스텁 7개 → argos_collector 직접 import로 교체
-- ✅ 서버 배포 + ARGOS 수집 동작 검증 (price/news/dart 정상)
-- 📌 **다음: P5** — 배치 시스템+체인 추출
+- ✅ 서버 배포 + ARGOS 수집 동작 검증 정상
 
 ---
 
