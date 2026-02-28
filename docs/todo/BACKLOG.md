@@ -3,7 +3,7 @@
 > **규칙**: 미완료 항목은 전부 여기만. 날짜 파일에 ⬜ 절대 금지.
 > **수시 업데이트**: 완료되면 즉시 ✅ 표시 or 삭제. 새 항목 발견 시 즉시 추가.
 > 🔴 **매 배포 시 반드시 갱신!** — 배포하고 BACKLOG 안 건드리면 미완성!
-> 마지막 업데이트: 2026-02-28 (나노바나나 v2 교체)
+> 마지막 업데이트: 2026-02-28 (Instagram 자동 발행 추가)
 
 ---
 
@@ -38,16 +38,15 @@
 
 ## 🟢 대표님이 직접 해야 하는 것
 
-- ⬜ **Instagram Meta 앱 설정** (3단계, 약 15분)
-  - Part A: `developers.facebook.com` → Corthex-Hq 앱 → "이용 사례 추가" → `Instagram 콘텐츠 게시`
-  - Part B: 그래프 API 탐색기 → 토큰 발급 (`instagram_business_basic`, `instagram_content_publish`)
-  - Part C: GitHub Secrets에 `INSTAGRAM_ACCESS_TOKEN` 등록
-  - 상세 절차: `docs/todo/2026-02-26.md` 참고
+- ✅ ~~**Instagram Meta 앱 설정**~~ — 토큰 발급 + GitHub Secrets 등록 + 코드 연동 완료
+- ⬜ **Instagram 실제 발행 테스트** — corthex-hq.com에서 이미지 URL + 캡션으로 발행 테스트 필요 (개발 모드)
 
 ---
 
 ## 🔵 장기 / 보류
 
+- ⬜ **스케치바이브 개발** (별도 세션) — Phase 1 + Phase 2 둘 다. Nexus 캔버스 → MCP 서버 연결 → Mermaid 변환 파이프라인. 상세: `docs/todo/스케치바이브_아이디어.md`
+- ⬜ **스케치바이브 이름/특허** (나중에) — 상표 충돌(getsketchvibe.com) 재검토 + 특허 출원 범위 확정 (법무팀장 논의)
 - ⬜ **NEXUS MCP 연동** — Claude가 NEXUS 캔버스 JSON 읽어서 시스템 이해 + 대표님 시각적 논의
 - ⬜ **DB soul 오버라이드 정리** — souls/*.md만 쓰도록 통일 (중복 오버라이드 제거)
 - ⬜ **이미지 스타일 개선** — 대표님 AI 인플루언서 스타일 확정 후 적용 (보류 중)

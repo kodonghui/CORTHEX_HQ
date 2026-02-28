@@ -9,8 +9,24 @@
 
 - **날짜**: 2026-02-28
 - **버전**: `4.00.000`
-- **빌드**: #667
+- **빌드**: 배포 진행중
 - **서버**: https://corthex-hq.com
+
+---
+
+## 2026-02-28 — Instagram 자동 발행 기능 추가
+
+- ✅ `instagram_publisher.py` — OAuth→환경변수 토큰 전환 + User ID 자동 조회
+- ✅ `sns_manager.py` — Instagram 잠금 해제 (ALLOWED_PLATFORMS + import 활성화)
+- ✅ `agents.yaml` CMO — 지원 플랫폼 4→5개, Instagram 활성화
+- ✅ `tools.yaml/json` — sns_manager 설명 업데이트
+- ✅ 나노바나나 v2 교체 완료 (빌드 #673)
+
+## 2026-02-28 (sketchvibe 세션)
+
+- agents.yaml 모델/추론 업데이트 (비서실장 low, 사업기획 medium 등)
+- Instagram 연동 준비: Meta 앱 + 토큰 발급 + GitHub Secrets 등록
+- 스케치바이브 설계: `docs/todo/스케치바이브_아이디어.md`
 
 ---
 
