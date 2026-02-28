@@ -9,10 +9,20 @@
 
 - **날짜**: 2026-02-28
 - **버전**: `4.00.000`
-- **빌드**: #675 (릴스 파이프라인 + output 경로 통일)
+- **빌드**: 배포 대기 (SketchVibe Phase 2)
 - **서버**: https://corthex-hq.com
 
 ---
+
+## 2026-02-28 — SketchVibe Phase 2 (정확도 + MCP + 구현 브리지)
+
+- ✅ `_parse_drawflow()` 강화 — 노드타입→Mermaid 형태, 레이아웃 자동판단(LR/TD), 공간 그룹→subgraph, 분기 포트 정보
+- ✅ Claude 프롬프트 확장 — sequenceDiagram/stateDiagram/classDiagram 지원, 매핑표+예시 2개
+- ✅ `web/mcp_sketchvibe.py` 신규 — FastMCP 서버 (read_canvas, list_confirmed, get_confirmed)
+- ✅ `.mcp.json` — sketchvibe MCP 서버 등록
+- ✅ confirmed API 2개 — `GET /confirmed`, `GET /confirmed/{name}` (SQLite 기반)
+- ✅ "맞아" 후 구현 안내 패널 — MCP URI + HTML 뷰어 + 캔버스 JSON 전달
+- ✅ 모델 하드코딩 수정 — `load_setting("sketchvibe_model")` 기반
 
 ## 2026-02-28 — 릴스 자동 발행 파이프라인 (빌드 #675)
 
