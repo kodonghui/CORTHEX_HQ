@@ -26,7 +26,14 @@
 
 - agents.yaml 모델/추론 업데이트 (비서실장 low, 사업기획 medium 등)
 - Instagram 연동 준비: Meta 앱 + 토큰 발급 + GitHub Secrets 등록
-- 스케치바이브 설계: `docs/todo/스케치바이브_아이디어.md`
+- 스케치바이브 설계 전체 확정: `docs/todo/스케치바이브_아이디어.md`
+  - 캔버스: Nexus Drawflow 재활용 확정
+  - 전달: Claude MCP 서버
+  - UX: 타입 선택 UI 없음, AI 자동 판단
+  - MVP: Phase 1+2 둘 다, 별도 세션에서 개발
+  - 개발 프롬프트 작성 완료 (대표님에게 전달됨)
+- BACKLOG.md 스케치바이브 개발 항목 추가
+- 상세: `docs/updates/2026-02-28_스케치바이브논의.md`
 
 ---
 
