@@ -19,3 +19,4 @@ output/**/*.mp3
 output/**/*.wav
 output/**/*.txt
 !output/**/.gitkeep
+_bmad-output/

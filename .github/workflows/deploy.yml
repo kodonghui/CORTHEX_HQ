@@ -491,6 +491,26 @@ jobs:
               exit 1
             fi
 
+            # 7.5단계: API 헬스체크 (핵심 4개)
+            echo "=== API 헬스체크 시작 ==="
+            sleep 10
+            BASE="https://corthex-hq.com"
+            FAIL=0
+            for ENDPOINT in "/" "/api/dashboard" "/api/argos/status" "/api/debug/ai-providers"; do
+              STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 "$BASE$ENDPOINT" 2>/dev/null || echo "000")
+              if [ "$STATUS" = "200" ]; then
+                echo "✅ $ENDPOINT → $STATUS"
+              else
+                echo "🔴 $ENDPOINT → $STATUS"
+                FAIL=1
+              fi
+            done
+            if [ "$FAIL" = "1" ]; then
+              echo "⚠️ 일부 엔드포인트 이상 감지 (서비스는 계속)"
+            else
+              echo "=== 모든 헬스체크 통과 ==="
+            fi
+
             # 8단계: 배포 상태 JSON 저장
             echo "{\"build\":${BUILD_NUMBER},\"time\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\",\"status\":\"success\",\"commit\":\"$(cd /home/ubuntu/CORTHEX_HQ && git rev-parse --short HEAD)\"}" | sudo tee /var/www/html/deploy-status.json > /dev/null
 
