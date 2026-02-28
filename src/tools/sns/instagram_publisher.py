@@ -192,30 +192,38 @@ class InstagramPublisher(BasePublisher):
                 raw_response=container,
             )
 
-        # 동영상은 처리 시간 대기
-        if is_video:
-            await self._wait_for_processing(container_id)
+        # 미디어 처리 대기 (동영상은 길게, 이미지는 짧게)
+        max_wait = 120 if is_video else 30
+        await self._wait_for_processing(container_id, max_wait=max_wait)
 
-        # 2단계: 게시
-        result = await self._api_call(
-            f"{self._resolved_uid}/media_publish",
-            creation_id=container_id,
-        )
-
-        post_id = result.get("id", "")
-        if post_id:
-            logger.info("[Instagram] 게시 성공: %s", post_id)
-            return PublishResult(
-                success=True, platform="instagram",
-                post_id=post_id,
-                post_url=f"https://www.instagram.com/p/{post_id}/",
-                message="Instagram 게시 완료",
-                raw_response=result,
+        # 2단계: 게시 (실패 시 재시도 — 처리 지연 대응)
+        last_error: dict = {}
+        for attempt in range(3):
+            result = await self._api_call(
+                f"{self._resolved_uid}/media_publish",
+                creation_id=container_id,
             )
+            post_id = result.get("id", "")
+            if post_id:
+                logger.info("[Instagram] 게시 성공: %s", post_id)
+                return PublishResult(
+                    success=True, platform="instagram",
+                    post_id=post_id,
+                    post_url=f"https://www.instagram.com/p/{post_id}/",
+                    message="Instagram 게시 완료",
+                    raw_response=result,
+                )
+            last_error = result
+            error_code = result.get("error", {}).get("code", 0)
+            if error_code == 9007:  # Media not ready
+                logger.warning("[Instagram] 미디어 처리 중... %d초 대기 (시도 %d/3)", 10, attempt + 1)
+                await asyncio.sleep(10)
+            else:
+                break
 
         return PublishResult(
             success=False, platform="instagram",
-            message=f"게시 실패: {result}", raw_response=result,
+            message=f"게시 실패: {last_error}", raw_response=last_error,
         )
 
     async def _publish_carousel(
@@ -253,26 +261,36 @@ class InstagramPublisher(BasePublisher):
                 message=f"캐러셀 생성 실패: {carousel}",
             )
 
-        # 3단계: 게시
-        result = await self._api_call(
-            f"{self._resolved_uid}/media_publish",
-            creation_id=carousel_id,
-        )
+        # 캐러셀 컨테이너 처리 대기
+        await self._wait_for_processing(carousel_id, max_wait=60)
 
-        post_id = result.get("id", "")
-        if post_id:
-            logger.info("[Instagram] 캐러셀 게시 성공: %s", post_id)
-            return PublishResult(
-                success=True, platform="instagram",
-                post_id=post_id,
-                post_url=f"https://www.instagram.com/p/{post_id}/",
-                message=f"Instagram 캐러셀 게시 완료 ({len(children_ids)}장)",
-                raw_response=result,
+        # 3단계: 게시 (재시도 포함)
+        last_error: dict = {}
+        for attempt in range(3):
+            result = await self._api_call(
+                f"{self._resolved_uid}/media_publish",
+                creation_id=carousel_id,
             )
+            post_id = result.get("id", "")
+            if post_id:
+                logger.info("[Instagram] 캐러셀 게시 성공: %s", post_id)
+                return PublishResult(
+                    success=True, platform="instagram",
+                    post_id=post_id,
+                    post_url=f"https://www.instagram.com/p/{post_id}/",
+                    message=f"Instagram 캐러셀 게시 완료 ({len(children_ids)}장)",
+                    raw_response=result,
+                )
+            last_error = result
+            error_code = result.get("error", {}).get("code", 0)
+            if error_code == 9007:
+                await asyncio.sleep(10)
+            else:
+                break
 
         return PublishResult(
             success=False, platform="instagram",
-            message=f"캐러셀 게시 실패: {result}", raw_response=result,
+            message=f"캐러셀 게시 실패: {last_error}", raw_response=last_error,
         )
 
     async def _wait_for_processing(
