@@ -141,6 +141,8 @@ agents:
   - youtube_analyzer
   - naver_news
   - sns_manager
+  - gemini_image_generator
+  - gemini_video_generator
   - notification_engine
   - cross_agent_protocol
   - funnel_analyzer
