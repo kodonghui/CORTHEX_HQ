@@ -1145,7 +1145,11 @@ async def _call_agent(agent_id: str, text: str, conversation_id: str | None = No
     result = await ask_ai(text, system_prompt=soul, model=model,
                           tools=tool_schemas, tool_executor=tool_executor_fn,
                           reasoning_effort=_get_agent_reasoning_effort(agent_id),
-                          conversation_history=conv_history)
+                          conversation_history=conv_history,
+                          # CLI 모드: Claude 호출을 CLI(Max 구독)로 라우팅
+                          use_cli=True,
+                          cli_caller_id=agent_id,
+                          cli_allowed_tools=allowed)
     await _broadcast_status(agent_id, "working", 0.7, "응답 처리 중...")
 
     if "error" in result:

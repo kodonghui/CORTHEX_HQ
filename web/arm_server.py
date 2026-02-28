@@ -990,6 +990,35 @@ app.include_router(argos_api_router)
 from handlers.sketchvibe_handler import router as sketchvibe_router
 app.include_router(sketchvibe_router)
 
+# ── 내부 도구 실행 API (MCP 프록시 → CLI 에이전트 도구 호출용) ──
+@app.post("/api/internal/tool-invoke")
+async def internal_tool_invoke(request: Request):
+    """MCP 프록시 서버가 호출하는 내부 도구 실행 엔드포인트.
+
+    CLI 에이전트가 MCP를 통해 도구를 사용할 때,
+    MCP 서버가 이 엔드포인트로 도구 실행을 위임합니다.
+    localhost에서만 접근 가능 (nginx가 외부 차단).
+    """
+    from agent_router import _init_tool_pool
+    try:
+        body = await request.json()
+        tool_name = body.get("tool_name", "")
+        arguments = body.get("arguments", {})
+        caller_id = body.get("caller_id", "cli_agent")
+
+        if not tool_name:
+            return JSONResponse({"error": "tool_name 필수"}, status_code=400)
+
+        pool = _init_tool_pool()
+        if not pool:
+            return JSONResponse({"error": "ToolPool 초기화 실패"}, status_code=500)
+
+        result = await pool.invoke(tool_name, caller_id=caller_id, **arguments)
+        return {"result": result}
+    except Exception as e:
+        logger.error("[InternalTool] %s 실행 오류: %s", body.get("tool_name", "?"), e)
+        return JSONResponse({"error": str(e)}, status_code=500)
+
 # ── 도구 실행/상태/건강 → handlers/tools_handler.py로 분리 ──
 
 

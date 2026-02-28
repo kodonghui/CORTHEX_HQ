@@ -584,6 +584,196 @@ async def classify_task(text: str) -> dict:
         return {"agent_id": "chief_of_staff", "reason": "분류 결과 파싱 실패", "cost_usd": result.get("cost_usd", 0)}
 
 
+# ── CLI 모드: Claude CLI(Max 구독)를 통한 호출 ──
+
+# CLI 모드 활성화 플래그 — True면 Claude 호출을 CLI로 라우팅
+_USE_CLI_FOR_CLAUDE = True
+
+# MCP 서버 경로
+_MCP_SERVER_PATH = str(Path(__file__).resolve().parent.parent / "src" / "mcp_tool_server.py")
+_VENV_PYTHON = "/home/ubuntu/venv/bin/python3"
+
+
+async def _call_claude_cli(
+    user_message: str,
+    system_prompt: str = "",
+    model: str = "claude-sonnet-4-6",
+    tools: list | None = None,
+    tool_executor: callable | None = None,
+    reasoning_effort: str = "",
+    conversation_history: list | None = None,
+    ai_call_timeout: int = 600,
+    cli_caller_id: str = "cli_agent",
+    cli_allowed_tools: list[str] | None = None,
+) -> dict:
+    """Claude CLI(Max 구독)를 통해 AI를 호출합니다.
+
+    API 대신 `claude -p` CLI를 사용하여 Claude를 호출합니다.
+    도구 호출은 MCP 프로토콜을 통해 CORTHEX 서버로 위임됩니다.
+    비용: Max 구독 = 추가 과금 없음.
+    """
+    import tempfile
+
+    # Model name → CLI alias
+    model_alias = model
+    if model.startswith("claude-"):
+        if "opus" in model:
+            model_alias = "opus"
+        elif "haiku" in model:
+            model_alias = "haiku"
+        else:
+            model_alias = "sonnet"
+
+    # 대화 기록을 메시지에 포함
+    full_message = user_message
+    if conversation_history:
+        history_parts = []
+        for msg in conversation_history:
+            role = msg.get("role", "user")
+            content = msg.get("content", "")
+            if isinstance(content, list):
+                content = " ".join(
+                    c.get("text", "") for c in content if c.get("type") == "text"
+                )
+            history_parts.append(f"[{role}]: {content}")
+        history_str = "\n".join(history_parts)
+        full_message = f"[이전 대화]\n{history_str}\n\n[현재 요청]\n{user_message}"
+
+    # CLI 명령 구성
+    cmd = [
+        "claude", "-p",
+        "--model", model_alias,
+        "--output-format", "json",
+        "--no-session-persistence",
+    ]
+
+    if system_prompt:
+        cmd.extend(["--system-prompt", system_prompt])
+
+    # 내장 도구 비활성화 (MCP 도구만 사용)
+    cmd.extend(["--tools", ""])
+
+    # MCP 설정 — 도구가 있으면 MCP 서버 연결
+    config_file_path = None
+    if tools and cli_allowed_tools:
+        mcp_config = {
+            "mcpServers": {
+                "corthex": {
+                    "command": _VENV_PYTHON,
+                    "args": [_MCP_SERVER_PATH],
+                    "env": {
+                        "MCP_CALLER_ID": cli_caller_id,
+                        "MCP_ALLOWED_TOOLS": ",".join(cli_allowed_tools),
+                    },
+                }
+            }
+        }
+        # MCP config 임시 파일
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".json", delete=False, prefix="mcp_"
+        ) as f:
+            json.dump(mcp_config, f)
+            config_file_path = f.name
+        cmd.extend(["--mcp-config", config_file_path])
+        cmd.append("--dangerously-skip-permissions")
+
+    # 사용자 메시지 (마지막 인자)
+    cmd.append(full_message)
+
+    # 환경 변수 — CLAUDECODE 제거 (중첩 세션 방지)
+    env = os.environ.copy()
+    env.pop("CLAUDECODE", None)
+
+    start = time.time()
+    try:
+        proc = await asyncio.create_subprocess_exec(
+            *cmd,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+            env=env,
+        )
+        stdout, stderr = await asyncio.wait_for(
+            proc.communicate(), timeout=ai_call_timeout
+        )
+
+        elapsed = time.time() - start
+
+        if proc.returncode != 0:
+            err_msg = stderr.decode(errors="replace")[:500]
+            logger.error("Claude CLI 실패 (exit=%d, %.1fs): %s", proc.returncode, elapsed, err_msg)
+            return {
+                "error": f"CLI 실패: {err_msg[:200]}",
+                "content": "", "model": model,
+                "input_tokens": 0, "output_tokens": 0,
+                "cost_usd": 0, "time_seconds": elapsed,
+            }
+
+        output = stdout.decode(errors="replace").strip()
+        if not output:
+            return {
+                "error": "CLI 출력 없음",
+                "content": "", "model": model,
+                "input_tokens": 0, "output_tokens": 0,
+                "cost_usd": 0, "time_seconds": elapsed,
+            }
+
+        # JSON 파싱
+        try:
+            result = json.loads(output)
+        except json.JSONDecodeError:
+            # 텍스트 출력 (JSON이 아닌 경우)
+            return {
+                "content": output, "model": model, "provider": "cli",
+                "input_tokens": 0, "output_tokens": 0,
+                "cost_usd": 0, "time_seconds": elapsed,
+            }
+
+        # CLI JSON 결과 → 표준 포맷 변환
+        content = result.get("result", "")
+        model_usage = result.get("modelUsage", {})
+        input_tokens = sum(v.get("inputTokens", 0) for v in model_usage.values())
+        output_tokens = sum(v.get("outputTokens", 0) for v in model_usage.values())
+
+        return {
+            "content": content,
+            "model": model,
+            "provider": "cli",
+            "input_tokens": input_tokens,
+            "output_tokens": output_tokens,
+            "cost_usd": 0,  # Max 구독 = 추가 과금 없음
+            "time_seconds": result.get("duration_ms", elapsed * 1000) / 1000,
+        }
+
+    except asyncio.TimeoutError:
+        logger.error("Claude CLI 타임아웃 (%ds)", ai_call_timeout)
+        try:
+            proc.kill()
+        except Exception:
+            pass
+        return {
+            "error": f"CLI 타임아웃 ({ai_call_timeout}초)",
+            "content": "", "model": model,
+            "input_tokens": 0, "output_tokens": 0,
+            "cost_usd": 0, "time_seconds": ai_call_timeout,
+        }
+    except Exception as e:
+        elapsed = time.time() - start
+        logger.error("Claude CLI 예외 (%.1fs): %s", elapsed, e)
+        return {
+            "error": f"CLI 예외: {e}",
+            "content": "", "model": model,
+            "input_tokens": 0, "output_tokens": 0,
+            "cost_usd": 0, "time_seconds": elapsed,
+        }
+    finally:
+        # MCP config 임시 파일 정리
+        if config_file_path and os.path.exists(config_file_path):
+            try:
+                os.unlink(config_file_path)
+            except Exception:
+                pass
+
+
 # ── 프로바이더별 API 호출 ──
 
 async def _call_anthropic(
@@ -1111,6 +1301,10 @@ async def ask_ai(
     tool_executor: callable | None = None,
     reasoning_effort: str = "",
     conversation_history: list | None = None,
+    # CLI 모드 파라미터 (에이전트 호출 시 사용)
+    use_cli: bool = False,
+    cli_caller_id: str = "",
+    cli_allowed_tools: list[str] | None = None,
 ) -> dict:
     """AI에게 질문합니다 (프로바이더 자동 판별).
 
@@ -1118,19 +1312,13 @@ async def ask_ai(
         user_message: 사용자 메시지 (질문/명령)
         system_prompt: 시스템 프롬프트 (AI의 역할/맥락 설정)
         model: 사용할 AI 모델명 (None이면 자동 선택)
-        tools: 도구 스키마 리스트 (Anthropic 포맷 기준).
-            _load_tool_schemas()["anthropic"] 또는 _build_tool_schemas()의 반환값을 전달.
-            프로바이더별 변환은 내부에서 자동 처리됩니다.
-            None이면 도구 없이 기존과 동일하게 텍스트만 반환합니다.
-        tool_executor: 도구 실행 함수 (async callable).
-            시그니처: async def executor(tool_name: str, tool_input: dict) -> Any
-            예: ToolPool.invoke를 래핑한 함수
-        reasoning_effort: 추론 강도 ("low" | "medium" | "high" | "xhigh").
-            Claude는 extended thinking을 활성화하고, OpenAI reasoning 모델은 reasoning_effort를 전달합니다.
-            빈 문자열("")이면 일반 모드로 동작합니다.
-        conversation_history: 이전 대화 기록 리스트 (선택).
-            [{"role": "user", "content": "..."}, {"role": "assistant", "content": "..."}, ...]
-            제공하면 현재 메시지 앞에 삽입하여 대화 맥락을 유지합니다.
+        tools: 도구 스키마 리스트 (Anthropic 포맷 기준)
+        tool_executor: 도구 실행 함수 (API 모드에서만 사용)
+        reasoning_effort: 추론 강도 ("low" | "medium" | "high" | "xhigh")
+        conversation_history: 이전 대화 기록 리스트
+        use_cli: True면 Claude 호출을 CLI(Max 구독)로 라우팅
+        cli_caller_id: CLI 모드 에이전트 ID (MCP 도구 실행 시 caller 식별)
+        cli_allowed_tools: CLI 모드 허용 도구 목록
 
     반환: {"content", "model", "input_tokens", "output_tokens", "cost_usd", "time_seconds"}
     AI 불가 시: {"error": "사유"}
@@ -1207,7 +1395,38 @@ async def ask_ai(
 
     start = time.time()
     try:
-        if provider == "anthropic":
+        # CLI 모드: Claude 호출을 CLI(Max 구독)로 라우팅
+        if use_cli and _USE_CLI_FOR_CLAUDE and provider == "anthropic":
+            logger.info("[CLI] %s → Claude CLI 모드 (caller=%s)", model, cli_caller_id)
+            cli_result = await _call_claude_cli(
+                user_message, system_prompt, model,
+                tools=provider_tools, tool_executor=tool_executor,
+                reasoning_effort=reasoning_effort,
+                conversation_history=conversation_history,
+                ai_call_timeout=AI_CALL_TIMEOUT,
+                cli_caller_id=cli_caller_id,
+                cli_allowed_tools=cli_allowed_tools,
+            )
+            # CLI 실패 시 API 폴백
+            if "error" in cli_result and cli_result.get("content", "") == "":
+                logger.warning("[CLI] 실패 → API 폴백: %s", cli_result["error"][:100])
+                coro = _call_anthropic(
+                    user_message, system_prompt, model,
+                    tools=provider_tools, tool_executor=tool_executor,
+                    reasoning_effort=reasoning_effort,
+                    conversation_history=conversation_history,
+                    ai_call_timeout=AI_CALL_TIMEOUT,
+                )
+            else:
+                # CLI 성공 — 결과 직접 반환 (coro 대신)
+                elapsed = time.time() - start
+                cli_result.setdefault("model", model)
+                cli_result.setdefault("time_seconds", elapsed)
+                result = cli_result
+                # cost 계산 건너뛰고 직접 반환
+                result.setdefault("cost_usd", 0)
+                return result
+        elif provider == "anthropic":
             coro = _call_anthropic(
                 user_message, system_prompt, model,
                 tools=provider_tools, tool_executor=tool_executor,
