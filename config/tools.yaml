@@ -3247,15 +3247,15 @@ tools:
   name_ko: 나노바나나 v2 이미지 생성
   description: >
     나노바나나 v2(gemini-3.1-flash-image-preview)로 실제 마케팅 이미지 직접 생성.
-    배너, 카드뉴스, 인포그래픽, 썸네일, 로고, 광고, 소셜포스트, 제품목업.
+    배너, 카드뉴스, 카드뉴스 시리즈(5~10장 자동 생성), 인포그래픽, 썸네일, 로고, 광고, 소셜포스트, 제품목업.
     교수급 디자인 지식(플랫폼 사양, 스타일 가이드, 색상 심리학)이 프롬프트에 자동 반영됩니다.
   parameters:
     type: object
     properties:
       action:
         type: string
-        enum: [generate, banner, card_news, infographic, thumbnail, logo, ad_creative, social_post, product_mockup, full]
-        description: "generate=프롬프트직접, banner=배너, card_news=카드뉴스, infographic=인포그래픽, thumbnail=썸네일, logo=로고, ad_creative=광고, social_post=소셜포스트, product_mockup=제품목업, full=종합세트"
+        enum: [generate, banner, card_news, card_news_series, infographic, thumbnail, logo, ad_creative, social_post, product_mockup, full]
+        description: "generate=프롬프트직접, banner=배너, card_news=카드뉴스1장, card_news_series=카드뉴스시리즈(5~10장), infographic=인포그래픽, thumbnail=썸네일, logo=로고, ad_creative=광고, social_post=소셜포스트, product_mockup=제품목업, full=종합세트"
       prompt:
         type: string
         description: "이미지 생성 프롬프트 (action=generate일 때 필수)"
@@ -3277,6 +3277,12 @@ tools:
       context:
         type: string
         description: "추가 맥락/요구사항"
+      slide_count:
+        type: integer
+        description: "카드뉴스 시리즈 슬라이드 수 (기본 5, 최대 10). card_news_series 전용"
+      slides_text:
+        type: string
+        description: "카드뉴스 슬라이드별 텍스트 (줄바꿈으로 구분). card_news_series 전용. 예: '표지 제목\\n포인트 1\\n포인트 2\\n마무리'"
     required: [action]
 
 # ─── Veo 3.1 영상 생성 ───
