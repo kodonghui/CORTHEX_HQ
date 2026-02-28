@@ -9,8 +9,36 @@
 
 - **날짜**: 2026-02-28
 - **버전**: `4.00.000`
-- **빌드**: #706 (SNS 발행 안정화 + 미디어 썸네일)
+- **빌드**: #710 (에이전트 CLI 전환 — API→CLI Max 구독)
 - **서버**: https://corthex-hq.com
+
+---
+
+## 2026-02-28 — 에이전트 CLI 전환 (빌드 #708~#710)
+
+### 핵심 변경
+- **모든 Claude 호출을 API → CLI(Max 구독)로 전환** → 에이전트 메인 호출 비용 $0
+- 구조: 에이전트 메인 호출 → CLI(무료) / 분류·QA·도구내부 → API(소량)
+- 하루 예상 비용: ~$3~7 → **~$0.1~0.3**
+
+### 새로 만든 것
+- `src/mcp_tool_server.py` — MCP 프록시 서버 (경량, 도구 실행은 HTTP로 메인 서버에 위임)
+- `web/ai_handler.py` — `_call_claude_cli()` 함수 + `_USE_CLI_FOR_CLAUDE` 플래그
+  - 모든 Claude 호출 자동 CLI 라우팅 (use_cli 파라미터 불필요)
+  - CLI 실패 시 자동 API 폴백
+  - stdin으로 프롬프트 전달 (--tools variadic 옵션 충돌 방지)
+- `web/arm_server.py` — `/api/internal/tool-invoke` 내부 엔드포인트
+- `web/agent_router.py` — `use_cli=True`, `cli_caller_id`, `cli_allowed_tools` 전달
+
+### MCP 도구 연동 구조
+```
+CEO 명령 → ask_ai(use_cli=True) → claude -p (CLI)
+              ↓ (도구 필요 시)
+         MCP 프록시 → HTTP POST /api/internal/tool-invoke → ToolPool.invoke()
+```
+
+### 비활성화 방법
+`ai_handler.py` → `_USE_CLI_FOR_CLAUDE = False` → 즉시 API 모드로 복귀
 
 ---
 
