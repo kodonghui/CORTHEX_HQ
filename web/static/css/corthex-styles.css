@@ -2,11 +2,11 @@
 
 /* ═══ Noir Commander 팔레트 (2026-03-01) ═══ */
 :root, .dark {
-  --hq-bg: 10 10 10;            /* #0a0a0a — 칠흑 */
-  --hq-surface: 20 20 20;       /* #141414 — 카드 */
-  --hq-panel: 15 15 15;         /* #0f0f0f — 패널 */
-  --hq-border: 42 42 42;        /* #2a2a2a — 테두리 */
-  --hq-border-light: 68 68 68;  /* #444444 — 밝은 테두리 */
+  --hq-bg: 24 24 24;            /* #181818 — 다크 그레이 */
+  --hq-surface: 34 34 34;       /* #222222 — 카드 */
+  --hq-panel: 28 28 28;         /* #1c1c1c — 패널 */
+  --hq-border: 50 50 50;        /* #323232 — 테두리 */
+  --hq-border-light: 75 75 75;  /* #4b4b4b — 밝은 테두리 */
   --hq-accent: 251 191 36;      /* #fbbf24 — amber-400 (골드) */
   --hq-cyan: 245 158 11;        /* #f59e0b — amber-500 */
   --hq-purple: 217 119 6;       /* #d97706 — amber-600 */
@@ -42,7 +42,7 @@ body { font-family: 'Pretendard Variable', 'Pretendard', -apple-system, BlinkMac
 
 /* ═══ Noir Commander 배경 ═══ */
 .dark body {
-  background: #0a0a0a;
+  background: #181818;
   background-attachment: fixed;
 }
 /* 미세한 골드 글로우 — 오른쪽 위 */
