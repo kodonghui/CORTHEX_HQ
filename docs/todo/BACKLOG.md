@@ -125,7 +125,7 @@
 - ✅ ~~**로그인 화면 풀스크린**~~ — bootstrap mode 우회 버그 수정 + 풀스크린 재설계 — 빌드 #741
 - ⬜ **Phase 3** — 채팅버블 리디자인, 홈 대시보드 카드, 사무실 뷰 팀원 카드 (선택)
 - ⬜ **누나 비밀번호 변경** — 설정에서 `sister2026` → 원하는 값
-- ⬜ **CLAUDE_API_KEY_SISTER 등록** — 누나 Claude 계정 생기면 GitHub Secrets 추가
+- ✅ ~~**누나 CLI 자격증명 등록**~~ — `/home/ubuntu/.claude-sister/.claude/.credentials.json` OAuth 토큰 등록 완료. Eden/Zoe/Sage 3명 전원 $0 동작 확인 (2026-03-01)
 
 ## 🔵 v5 추후 작업
 
