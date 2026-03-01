@@ -34,6 +34,7 @@ workspaces:
     showBulkModel: true        # 전체 에이전트 모델 일괄 변경 섹션 표시
     showSatisfaction: true     # CEO 만족도 카드 표시
     allowedDivisions: []       # 빈 배열 = 기밀문서/정보국 전체 탭 허용
+    showSections: []           # 빈 배열 = 모든 탭 허용 (CEO는 전체 접근)
 
   sister:
     label: "사주냥 관제"
@@ -51,6 +52,7 @@ workspaces:
     showBulkModel: false
     showSatisfaction: false
     allowedDivisions: [saju]   # 사주 탭만
+    showSections: [home, command, performance]  # 대시보드 / 명령센터 / 전력분석만
 
   viewer:
     label: "로그인 필요"
