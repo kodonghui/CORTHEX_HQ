@@ -46,20 +46,14 @@
 
 ---
 
-## 🔴 대개편 Phase 1 — 구현 대기 (기획 완료)
+## 🟡 대개편 Phase 1 후속 (빌드 #722 배포 완료)
 
-> 기획 문서: `_bmad-output/planning-artifacts/` (product-brief, ux-design-spec, prd 전부 완료)
-> 구현 순서는 PRD "Implementation Priority" 참조
+> 기획: product-brief + ux-design-spec + prd 완료 (2026-03-01)
+> 구현: CSS + HTML 대개편 완료 (2026-03-01, 빌드 #722)
+> 다음: 대표님 실사용 후 버그/개선 수정
 
-- ⬜ **[1] CSS 변수 시스템 정비** — `corthex-styles.css` : --hq-bg-base/surface/elevated, --hq-text 3단계, --hq-border, --hq-accent 토큰 추가
-- ⬜ **[2] 데스크탑 사이드바 탭** — 상단 탭 → 좌측 240px 수직 탭바 (아이콘+텍스트, 현재 탭 에메랄드 border)
-- ⬜ **[3] CommandInput 리디자인** — 사령관실 입력창: auto-grow, 포커스 glow, 플레이스홀더 "대표님, 무엇을 지시하시겠습니까?", 히스토리 ↑
-- ⬜ **[4] AgentBubble 리디자인** — 에이전트 이름 표시, 좌측 컬러 border (팀원별), 마크다운 렌더링 개선
-- ⬜ **[5] AgentStatusBar** — 각 에이전트 온라인/작업중/오류 상태 dot 표시
-- ⬜ **[6] SNSCard 리디자인** — 플랫폼 아이콘 개선, 카드 레이아웃, 버튼 위계 (Primary 승인/Secondary 수정/Tertiary 반려)
-- ⬜ **[7] ReportCard + 읽기 모드** — 목록 행 (유형배지+제목+날짜), 읽기 모드 (900px, line-height 1.8, 다음보고서)
-- ⬜ **[8] EmptyState 패턴** — 통신국 빈 상태, 보고서 없음 상태
-- ⬜ **[9] 접근성 정비** — focus ring (에메랄드 2px), aria-label 주요 컴포넌트, prefers-reduced-motion
+- ⬜ **대개편 Phase 1 피드백 반영** — 대표님이 corthex-hq.com 실사용 후 버그/개선 사항 수정
+- ⬜ **대개편 Phase 2 착수 조건** — Phase 1 KPI 달성 확인 (7일 연속 "열고 싶다") 후 아고라/넥서스 재설계
 
 ---
 
