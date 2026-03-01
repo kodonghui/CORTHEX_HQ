@@ -7,10 +7,29 @@
 
 ## 마지막 업데이트
 
-- **날짜**: 2026-03-01
+- **날짜**: 2026-03-02
 - **버전**: `5.00.000` ✅ v5 완료
-- **빌드**: #753+ 배포완료 (최신)
+- **빌드**: #760 배포완료 (최신)
 - **서버**: https://corthex-hq.com
+
+## 2026-03-02 — sister(누나) 계정 4가지 버그 수정 + 로그아웃 수정
+
+| PR | 빌드 | 내용 |
+|----|------|------|
+| #728 | #759 | sister 4가지 버그: 인증 org 격리 + saju 에이전트 표시 + 비서실장 숨김 |
+| #729 | #760 | 로그아웃 버튼 표시 수정 (bootstrapMode 초기화 누락) |
+
+**수정 파일 6개**: auth_handler.py · conversation_handler.py · activity_handler.py · archive_handler.py · index.html · corthex-app.js
+
+**핵심 변경**:
+- 쿠키 기반 토큰 자동 전송: `_extract_token()` (header→query→쿠키 폴백)
+- `get_auth_org()` API: sister→"saju", ceo→"" 자동 반환
+- 대화/작전일지/기밀문서 3개 핸들러에 인증 org 필터 적용
+- 사이드바: saju 에이전트 4명 실제 렌더링 + 비서실장 sister 숨김
+
+상세: `docs/updates/2026-03-02_sister계정버그수정.md`
+
+---
 
 ## 2026-03-01 — 누나 CLI 연동 + 빌드 번호 자동화
 
