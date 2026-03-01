@@ -1,38 +1,38 @@
 /* 폰트는 index.html에서 preload로 비동기 로드 (CSS @import 순차 블로킹 제거) */
 
-/* ═══ 사이버 사령부 팔레트 (Cyber Command Center — 네온 다크) ═══ */
+/* ═══ 프리미엄 SaaS 팔레트 (다크 — Radix/shadcn 스타일) ═══ */
 :root, .dark {
-  --hq-bg: 18 22 32;
-  --hq-surface: 26 32 46;
-  --hq-panel: 34 42 58;
-  --hq-border: 55 65 88;
-  --hq-border-light: 70 82 108;
-  --hq-accent: 0 200 150;
-  --hq-cyan: 0 230 255;
-  --hq-purple: 140 100 255;
-  --hq-green: 0 255 136;
-  --hq-yellow: 255 210 0;
-  --hq-red: 255 60 80;
-  --hq-text: 225 238 245;
-  --hq-muted: 135 155 175;
+  --hq-bg: 9 9 11;              /* #09090b — 거의 검정 */
+  --hq-surface: 17 17 20;       /* #111114 — 카드 */
+  --hq-panel: 24 24 27;         /* #18181b — 패널 */
+  --hq-border: 39 39 42;        /* #27272a — 테두리 */
+  --hq-border-light: 63 63 70;  /* #3f3f46 — 밝은 테두리 */
+  --hq-accent: 139 92 246;      /* #8b5cf6 — violet-500 */
+  --hq-cyan: 167 139 250;       /* #a78bfa — violet-400 */
+  --hq-purple: 196 181 253;     /* #c4b5fd — violet-300 */
+  --hq-green: 52 211 153;       /* #34d399 — emerald-400 */
+  --hq-yellow: 251 191 36;      /* #fbbf24 — amber-400 */
+  --hq-red: 248 113 113;        /* #f87171 — red-400 */
+  --hq-text: 250 250 250;       /* #fafafa */
+  --hq-muted: 113 113 122;      /* #71717a — zinc-500 */
   --hq-shadow: 0 0 0;
 }
-/* ═══ 라이트모드 팔레트 (클린 화이트 — 깨끗하고 밝은 디자인) ═══ */
+/* ═══ 프리미엄 SaaS 팔레트 (라이트 — 클린 화이트) ═══ */
 html:not(.dark) {
-  --hq-bg: 241 243 249;         /* #F1F3F9 — 연한 파란회색 배경 */
-  --hq-surface: 255 255 255;    /* #FFFFFF — 순백 카드 */
-  --hq-panel: 233 236 244;      /* #E9ECF4 — 패널 */
-  --hq-border: 210 215 230;     /* #D2D7E6 — 테두리 */
-  --hq-border-light: 195 200 220;
-  --hq-accent: 59 91 219;       /* #3B5BDB — 진한 파랑 강조 */
-  --hq-cyan: 0 145 180;
-  --hq-purple: 105 50 205;
-  --hq-green: 16 152 105;
-  --hq-yellow: 200 120 0;
-  --hq-red: 210 40 40;
-  --hq-text: 25 28 50;          /* #191C32 — 짙은 남색 글자 */
-  --hq-muted: 100 105 135;      /* #646987 — 보조 글자 */
-  --hq-shadow: 100 110 150;     /* 파란 계열 그림자 */
+  --hq-bg: 250 250 250;         /* #fafafa */
+  --hq-surface: 255 255 255;    /* #ffffff */
+  --hq-panel: 244 244 245;      /* #f4f4f5 — zinc-100 */
+  --hq-border: 228 228 231;     /* #e4e4e7 — zinc-200 */
+  --hq-border-light: 212 212 216; /* #d4d4d8 — zinc-300 */
+  --hq-accent: 124 58 237;      /* #7c3aed — violet-600 */
+  --hq-cyan: 109 40 217;        /* #6d28d9 — violet-700 */
+  --hq-purple: 109 40 217;      /* #6d28d9 */
+  --hq-green: 16 185 129;       /* #10b981 — emerald-500 */
+  --hq-yellow: 217 119 6;       /* #d97706 — amber-600 */
+  --hq-red: 239 68 68;          /* #ef4444 — red-500 */
+  --hq-text: 9 9 11;            /* #09090b */
+  --hq-muted: 113 113 122;      /* #71717a */
+  --hq-shadow: 100 100 120;
 }
 
 * { box-sizing: border-box; }
@@ -40,65 +40,43 @@ body { font-family: 'Pretendard Variable', 'Pretendard', -apple-system, BlinkMac
 /* 포인트 명조체 — 제목/워크플로우 이름 등에 사용 */
 .font-title { font-family: 'Pretendard Variable', 'Pretendard', sans-serif; font-weight: 700; letter-spacing: -0.01em; }
 
-/* ═══ 사이버 사령부 배경 (딥 다크 + 네온 글로우) ═══ */
+/* ═══ 배경 (단색 — 프리미엄 SaaS) ═══ */
 .dark body {
-  background: linear-gradient(145deg, #10141E 0%, #141A28 30%, #121820 60%, #161222 100%);
+  background: rgb(9,9,11);
   background-attachment: fixed;
 }
-/* 네온 글로우 — 사이버 그린 (왼쪽 위) */
+/* 미세한 바이올렛 글로우 — 왼쪽 위 */
 .dark body::before {
   content: '';
   position: fixed;
-  top: -25%;
-  left: -15%;
-  width: 65%;
-  height: 65%;
-  background: radial-gradient(ellipse at center, rgba(0,255,136,0.06) 0%, transparent 65%);
+  top: -30%;
+  left: -20%;
+  width: 60%;
+  height: 60%;
+  background: radial-gradient(ellipse at center, rgba(139,92,246,0.04) 0%, transparent 70%);
   pointer-events: none;
   z-index: 0;
 }
-/* 네온 글로우 — 시안 (오른쪽 아래) */
+/* 미세한 바이올렛 글로우 — 오른쪽 아래 */
 .dark body::after {
   content: '';
   position: fixed;
-  bottom: -25%;
-  right: -15%;
-  width: 65%;
-  height: 65%;
-  background: radial-gradient(ellipse at center, rgba(0,230,255,0.05) 0%, transparent 65%);
+  bottom: -30%;
+  right: -20%;
+  width: 60%;
+  height: 60%;
+  background: radial-gradient(ellipse at center, rgba(139,92,246,0.03) 0%, transparent 70%);
   pointer-events: none;
   z-index: 0;
 }
 
-/* ═══ 라이트 모드 배경 (클린 화이트 그라데이션) ═══ */
+/* ═══ 라이트 모드 배경 (순백) ═══ */
 html:not(.dark) body {
-  background: linear-gradient(160deg, #F1F3F9 0%, #E8ECF6 40%, #EEF0F8 70%, #F3F1F9 100%);
+  background: rgb(250,250,250);
   background-attachment: fixed;
 }
-/* 라이트 모드 장식 글로우 — 파란빛 (왼쪽 위) */
-html:not(.dark) body::before {
-  content: '';
-  position: fixed;
-  top: -20%;
-  left: -10%;
-  width: 50%;
-  height: 50%;
-  background: radial-gradient(ellipse at center, rgba(59,91,219,0.06) 0%, transparent 60%);
-  pointer-events: none;
-  z-index: 0;
-}
-/* 라이트 모드 장식 글로우 — 보랏빛 (오른쪽 아래) */
-html:not(.dark) body::after {
-  content: '';
-  position: fixed;
-  bottom: -20%;
-  right: -10%;
-  width: 50%;
-  height: 50%;
-  background: radial-gradient(ellipse at center, rgba(140,80,220,0.05) 0%, transparent 60%);
-  pointer-events: none;
-  z-index: 0;
-}
+html:not(.dark) body::before { display: none; }
+html:not(.dark) body::after { display: none; }
 
 .font-mono { font-family: 'JetBrains Mono', monospace; }
 
@@ -176,61 +154,28 @@ html:not(.dark) body::after {
 .msg-processing { animation: scaleIn 0.3s ease-out; }
 .shimmer { background: linear-gradient(90deg, transparent 25%, rgba(var(--hq-accent),0.08) 50%, transparent 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; }
 
-/* ═══ 사이버 사령부 전용 애니메이션 ═══ */
+/* ═══ 카드 효과 (SaaS 스타일) ═══ */
 @keyframes cyberGlow {
-  0%, 100% { box-shadow: 0 0 5px rgba(0,255,136,0.1), inset 0 0 5px rgba(0,255,136,0.05); }
-  50% { box-shadow: 0 0 20px rgba(0,255,136,0.2), inset 0 0 10px rgba(0,255,136,0.1); }
-}
-@keyframes scanLine {
-  0% { transform: translateY(-100%); }
-  100% { transform: translateY(100vh); }
-}
-@keyframes dataStream {
-  0% { background-position: 0% 0%; }
-  100% { background-position: 0% 100%; }
-}
-@keyframes neonPulse {
-  0%, 100% { text-shadow: 0 0 4px rgba(0,255,136,0.4), 0 0 11px rgba(0,255,136,0.2); }
-  50% { text-shadow: 0 0 8px rgba(0,255,136,0.6), 0 0 20px rgba(0,255,136,0.3), 0 0 40px rgba(0,255,136,0.1); }
-}
-@keyframes borderGlow {
-  0%, 100% { border-color: rgba(0,255,136,0.15); }
-  50% { border-color: rgba(0,255,136,0.4); }
+  0%, 100% { box-shadow: 0 0 0 1px rgb(var(--hq-accent) / 0.1); }
+  50% { box-shadow: 0 0 0 1px rgb(var(--hq-accent) / 0.2), 0 0 12px rgb(var(--hq-accent) / 0.06); }
 }
 .cyber-glow { animation: cyberGlow 3s ease-in-out infinite; }
-.neon-text { animation: neonPulse 2s ease-in-out infinite; }
-.cyber-border { animation: borderGlow 2.5s ease-in-out infinite; }
+.neon-text { color: rgb(var(--hq-accent)); }
+.cyber-border { border-color: rgb(var(--hq-accent) / 0.3); }
 
-/* 사이버 카드 호버 효과 */
 .cyber-card {
-  transition: all 0.3s ease;
-  border: 1px solid rgba(0,255,136,0.1);
+  transition: all 0.2s ease;
+  border: 1px solid rgb(var(--hq-border));
 }
 .cyber-card:hover {
-  border-color: rgba(0,255,136,0.4);
-  box-shadow: 0 0 15px rgba(0,255,136,0.1), 0 4px 20px rgba(0,0,0,0.3);
+  border-color: rgb(var(--hq-accent) / 0.35);
+  box-shadow: 0 4px 16px rgb(var(--hq-shadow) / 0.12);
   transform: translateY(-1px);
 }
 
-/* 스캔라인 오버레이 (미세한 CRT 효과) */
-.scan-overlay::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: repeating-linear-gradient(
-    0deg,
-    transparent,
-    transparent 2px,
-    rgba(0,255,136,0.01) 2px,
-    rgba(0,255,136,0.01) 4px
-  );
-  pointer-events: none;
-  z-index: 1;
-}
-
-/* Gradient text — 냉정한 지휘소 에메랄드 */
+/* Gradient text — 바이올렛 SaaS */
 .gradient-text {
-  background: linear-gradient(135deg, #34d399, #22d3ee);
+  background: linear-gradient(135deg, #a78bfa, #818cf8);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -252,17 +197,15 @@ html:not(.dark) body::after {
   z-index: -1;
 }
 
-/* Glow effects */
-.glow-cyan { box-shadow: 0 0 20px rgb(var(--hq-cyan) / 0.25), 0 0 40px rgb(var(--hq-cyan) / 0.1); }
-.glow-blue { box-shadow: 0 0 20px rgb(var(--hq-accent) / 0.25), 0 0 40px rgb(var(--hq-accent) / 0.1); }
-.glow-purple { box-shadow: 0 0 20px rgb(var(--hq-purple) / 0.25), 0 0 40px rgb(var(--hq-purple) / 0.1); }
-.glow-accent { box-shadow: 0 0 24px rgb(var(--hq-accent) / 0.3); }
+/* Glow effects — 미세한 그림자로 대체 */
+.glow-cyan { box-shadow: 0 0 0 1px rgb(var(--hq-accent) / 0.2), 0 4px 12px rgb(var(--hq-shadow) / 0.1); }
+.glow-blue { box-shadow: 0 0 0 1px rgb(var(--hq-accent) / 0.2), 0 4px 12px rgb(var(--hq-shadow) / 0.1); }
+.glow-purple { box-shadow: 0 0 0 1px rgb(var(--hq-accent) / 0.2), 0 4px 12px rgb(var(--hq-shadow) / 0.1); }
+.glow-accent { box-shadow: 0 0 0 1px rgb(var(--hq-accent) / 0.25); }
 
-/* Glass effect — 냉정한 지휘소 (솔리드 표면, blur 최소화) */
+/* Glass effect — SaaS 솔리드 (blur 제거) */
 .glass {
   background: rgb(var(--hq-surface));
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
   border-color: rgb(var(--hq-border));
 }
 
@@ -298,13 +241,13 @@ html:not(.dark) body::after {
   box-shadow: 0 8px 24px rgb(var(--hq-shadow) / 0.15);
 }
 
-/* Card hover glow — 유리 위 보라빛 글로우 */
+/* Card hover — SaaS 스타일 */
 .hover-glow {
-  transition: box-shadow 0.3s ease, border-color 0.3s ease, background-color 0.3s ease;
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
 }
 .hover-glow:hover {
-  box-shadow: 0 0 24px rgb(var(--hq-green) / 0.15), 0 4px 16px rgb(var(--hq-cyan) / 0.1);
-  border-color: rgb(var(--hq-green) / 0.25);
+  box-shadow: 0 0 0 1px rgb(var(--hq-accent) / 0.2), 0 4px 12px rgb(var(--hq-shadow) / 0.1);
+  border-color: rgb(var(--hq-accent) / 0.3);
 }
 
 /* Agent avatar */
@@ -355,15 +298,15 @@ html:not(.dark) body::after {
 
 /* ■ 네모 배지 — 계층별 색상 구분 */
 .badge-marker { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 6px; vertical-align: middle; }
-.badge-marker-primary { background: linear-gradient(135deg, #8c64ff, #a78bfa); box-shadow: 0 0 6px rgba(140, 100, 255, 0.5); }
-/* 2단계 중첩: 시안색 */
+.badge-marker-primary { background: linear-gradient(135deg, #8b5cf6, #a78bfa); }
+/* 2단계 중첩: 인디고 */
 .markdown-body ul ul .badge-marker,
 .markdown-body ol ul .badge-marker,
-.markdown-body li li .badge-marker { background: linear-gradient(135deg, #00e6ff, #06b6d4); box-shadow: 0 0 6px rgba(0, 230, 255, 0.5); }
-/* 3단계 중첩: 초록색 */
+.markdown-body li li .badge-marker { background: linear-gradient(135deg, #818cf8, #6366f1); }
+/* 3단계 중첩: 에메랄드 */
 .markdown-body ul ul ul .badge-marker,
 .markdown-body ol ol ul .badge-marker,
-.markdown-body li li li .badge-marker { background: linear-gradient(135deg, #00ff88, #34d399); box-shadow: 0 0 6px rgba(0, 255, 136, 0.5); }
+.markdown-body li li li .badge-marker { background: linear-gradient(135deg, #34d399, #10b981); }
 
 /* Typing effect for welcome */
 .typing-text {
@@ -1381,7 +1324,7 @@ html:not(.dark) .log-item:hover { background: rgb(var(--hq-accent) / 0.08) !impo
 /* ── SNS 승인 버튼 (Primary CTA) ── */
 .btn-approve {
   background: rgb(var(--hq-accent));
-  color: #000000;
+  color: #ffffff;
   font-weight: 700;
   border-radius: 8px;
   padding: 6px 14px;
@@ -1389,15 +1332,15 @@ html:not(.dark) .log-item:hover { background: rgb(var(--hq-accent) / 0.08) !impo
   transition: background 0.15s ease, transform 0.1s ease;
   border: none;
 }
-.btn-approve:hover { background: rgb(52 211 153 / 0.85); }
+.btn-approve:hover { background: rgb(var(--hq-cyan)); }
 .btn-approve:active { transform: scale(0.97); }
 
 /* ── 에이전트 상태 dot ── */
 .status-dot-online {
   width: 8px; height: 8px;
   border-radius: 50%;
-  background: rgb(var(--hq-accent));
-  box-shadow: 0 0 0 0 rgb(var(--hq-accent) / 0.4);
+  background: rgb(var(--hq-green));
+  box-shadow: 0 0 0 0 rgb(var(--hq-green) / 0.4);
   animation: pulse-dot 2s ease-in-out infinite;
 }
 .status-dot-busy {
