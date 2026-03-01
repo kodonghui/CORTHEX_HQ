@@ -325,8 +325,8 @@
           <span class="flex items-center gap-1 text-hq-yellow"><span class="w-1.5 h-1.5 rounded-full bg-hq-yellow"></span> <span x-text="Object.values(activeAgents).filter(a => a.status === 'idle').length"></span> 대기</span>
         </div>
 
-        <!-- CEO 프로필 — sidebarFilter='all'일 때만 (데이터 스코프) -->
-        <div class="mb-2" x-show="workspace.sidebarFilter === 'all'">
+        <!-- CEO 프로필 — sidebarFilter='ceo'일 때만 (내 CLI 직원만) -->
+        <div class="mb-2" x-show="workspace.sidebarFilter === 'ceo'">
           <div @click="showCeoProfile = true" class="flex items-center gap-2.5 px-3 py-2.5 rounded-xl bg-gradient-to-r from-hq-accent/10 to-hq-purple/10 border border-hq-accent/20 cursor-pointer hover:border-hq-accent/40 hover:from-hq-accent/15 hover:to-hq-purple/15 transition-all">
             <div class="agent-avatar bg-gradient-to-br from-hq-accent to-hq-purple text-white">CEO</div>
             <div class="flex-1">
@@ -337,8 +337,8 @@
           </div>
         </div>
 
-        <!-- 비서실장 — sidebarFilter='all'일 때만 -->
-        <div class="space-y-0.5 mb-1" x-show="workspace.sidebarFilter === 'all'">
+        <!-- 비서실장 — cli_owner='ceo' 에이전트 → sidebarFilter='ceo'일 때 -->
+        <div class="space-y-0.5 mb-1" x-show="workspace.sidebarFilter === 'ceo'">
           <template x-for="id in ['chief_of_staff']" :key="id">
             <div :id="'agent-' + id" @click="openAgentConfig(id)"
                  class="flex items-center gap-3 px-3 py-2.5 rounded-xl border cursor-pointer transition-all duration-200"
@@ -360,8 +360,8 @@
           </template>
         </div>
 
-        <!-- ── 리트마스터 본부 — sidebarFilter='all'일 때만 -->
-        <div x-show="workspace.sidebarFilter === 'all'">
+        <!-- ── 리트마스터 본부 — cli_owner='ceo' 에이전트 → sidebarFilter='ceo'일 때 -->
+        <div x-show="workspace.sidebarFilter === 'ceo'">
           <div class="flex items-center gap-2 px-1 py-1 mb-1">
             <div class="flex-1 h-px bg-hq-border/40"></div>
             <div class="text-[10px] text-hq-muted/80 font-semibold tracking-wide whitespace-nowrap px-1">리트마스터 본부</div>
@@ -392,8 +392,8 @@
           </div>
         </div>
 
-        <!-- ── 스케치바이브 본부 (준비중) — sidebarFilter='all'일 때만 -->
-        <div class="mt-1" x-show="workspace.sidebarFilter === 'all'">
+        <!-- ── 스케치바이브 본부 (준비중) — cli_owner='ceo' → sidebarFilter='ceo'일 때 -->
+        <div class="mt-1" x-show="workspace.sidebarFilter === 'ceo'">
           <div class="flex items-center gap-2 px-1 py-1 mb-1">
             <div class="flex-1 h-px bg-hq-border/40"></div>
             <div class="text-[10px] text-hq-muted/80 font-semibold tracking-wide whitespace-nowrap px-1">스케치바이브 본부</div>
@@ -404,7 +404,7 @@
           </div>
         </div>
 
-        <!-- ── 사주 본부 (전 역할 표시, 누나에게는 강조) ── -->
+        <!-- ── 사주 본부 — 내 CLI 에이전트만 표시 (cli_owner 기반) ── -->
         <div class="mt-1">
           <div class="flex items-center gap-2 px-1 py-1 mb-1">
             <div class="flex-1 h-px bg-hq-green/30"></div>
@@ -413,7 +413,7 @@
           </div>
           <div class="space-y-0.5">
             <template x-for="id in ['saju_executive','saju_eden','saju_zoe','saju_sage']" :key="id">
-              <div
+              <div x-show="(agents.find(a => a.agent_id === id) || {}).cli_owner === workspace.sidebarFilter"
                    :id="'agent-' + id" @click="openAgentConfig(id)"
                    class="flex items-center gap-3 px-3 py-2.5 rounded-xl border cursor-pointer transition-all duration-200"
                    :class="activeAgents[id]?.status==='working' ? 'bg-hq-yellow/5 border-hq-yellow/20 hover:bg-hq-yellow/10' : 'border-transparent hover:bg-hq-panel/40 hover:border-hq-border'">

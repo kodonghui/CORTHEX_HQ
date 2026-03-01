@@ -1,7 +1,8 @@
 # config/workspaces.yaml
-# 네이버 모델: 같은 기능, 다른 데이터.
+# 네이버+슬랙 모델: 같은 기능, 다른 데이터, 내 CLI 직원만.
 # 탭/뷰/NEXUS 등 기능은 모든 워크스페이스 동일 — 여기에 없음.
-# 여기 있는 것: 브랜딩(label/color) + 데이터 스코프(orgScope/sidebarFilter/mentionFilter) + 사무실 배치(officeLayout)
+# 여기 있는 것: 브랜딩 + 데이터 스코프 + 사무실 배치
+# 핵심 원칙: 내 계정 = 내 CLI 에이전트만 보이고 지시 가능
 # 새 사람 추가 = 프로파일 1개 추가. 코드 수정 0줄.
 
 workspaces:
@@ -26,9 +27,10 @@ workspaces:
         icon: "📊"
         color: "hq-purple"
         agents: [fin_analyst]
-    sidebarFilter: all
-    orgScope: null
-    mentionFilter: all
+    # cli_owner='ceo'인 에이전트만 사이드바/@멘션에 표시
+    sidebarFilter: ceo
+    mentionFilter: ceo
+    orgScope: null            # API 데이터는 전체 (CEO는 전체 데이터 조회)
 
   sister:
     label: "사주냥 관제"
@@ -39,6 +41,7 @@ workspaces:
         icon: "🐱"
         color: "hq-green"
         agents: [saju_eden, saju_zoe, saju_sage]
-    sidebarFilter: saju
-    orgScope: saju
-    mentionFilter: saju
+    # cli_owner='sister'인 에이전트만 사이드바/@멘션에 표시
+    sidebarFilter: sister
+    mentionFilter: sister
+    orgScope: saju            # API 데이터는 saju org만

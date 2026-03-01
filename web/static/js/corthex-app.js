@@ -1483,13 +1483,13 @@ function corthexApp() {
           'saju': '사주본부',
         };
         const divOrder = ['secretary', 'tech', 'strategy', 'legal', 'marketing', 'finance', 'publishing', 'saju'];
-        // v5.1: workspace.mentionFilter 기반 에이전트 필터 (네이버 모델)
+        // v5.1: workspace.mentionFilter 기반 — 내 CLI 에이전트만 멘션 가능
         const mf = this.workspace.mentionFilter;
         const visibleAgents = (!mf || mf === 'all')
           ? Object.entries(this.agentNames)
           : Object.entries(this.agentNames).filter(([id]) => {
               const agent = this.agents.find(a => a.agent_id === id);
-              return agent?.org === mf;
+              return agent?.cli_owner === mf;
             });
         const matches = visibleAgents
           .filter(([id, name]) => !this.mentionQuery || id.toLowerCase().includes(this.mentionQuery) || name.toLowerCase().includes(this.mentionQuery))
