@@ -42,8 +42,8 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="CORTHEX HQ">
   <link rel="apple-touch-icon" href="/static/images/corthex-logo-256.png">
-  <link rel="stylesheet" href="/static/css/corthex-styles.css?v=727">
-  <script defer src="/static/js/corthex-app.js?v=727"></script>
+  <link rel="stylesheet" href="/static/css/corthex-styles.css?v=728">
+  <script defer src="/static/js/corthex-app.js?v=728"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/@alpinejs/collapse@3.x.x/dist/cdn.min.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 </head>
@@ -92,7 +92,7 @@
         </div>
       </div>
       <div class="flex items-center gap-2 header-build-badge">
-        <span class="text-[10px] text-hq-muted bg-hq-surface border border-hq-border rounded-md px-2 py-0.5">빌드 #727</span>
+        <span class="text-[10px] text-hq-muted bg-hq-surface border border-hq-border rounded-md px-2 py-0.5">빌드 #728</span>
         <span class="text-[10px] text-hq-cyan/85 bg-hq-cyan/5 border border-hq-cyan/20 rounded-md px-2 py-0.5">CEO 관제</span>
       </div>
     </div>
@@ -339,23 +339,33 @@
         </div>
 
         <!-- 팀장 6명 (flat list) -->
-        <div class="space-y-1">
+        <div class="space-y-0.5">
           <template x-for="id in ['chief_of_staff','cio_manager','cso_manager','clo_manager','cmo_manager','cpo_manager']" :key="id">
             <div :id="'agent-' + id" @click="openAgentConfig(id)"
-                 class="flex items-center gap-2.5 px-3 py-2.5 rounded-xl border border-transparent cursor-pointer transition-all duration-200 hover:bg-hq-panel/25 hover:border-hq-border"
+                 class="flex items-center gap-3 px-3 py-2.5 rounded-xl border cursor-pointer transition-all duration-200"
+                 :class="activeAgents[id]?.status==='working'
+                   ? 'bg-hq-yellow/5 border-hq-yellow/20 hover:bg-hq-yellow/10'
+                   : 'border-transparent hover:bg-hq-panel/40 hover:border-hq-border'"
                  title="클릭하면 모델·추론·소울 설정 가능">
-              <div class="w-8 h-8 rounded-lg flex items-center justify-center text-[10px] font-bold shrink-0"
-                   :class="{'bg-amber-500/20 text-amber-400': id==='chief_of_staff', 'bg-red-500/20 text-red-400': id==='cio_manager', 'bg-purple-500/20 text-purple-400': id==='cso_manager', 'bg-emerald-500/20 text-emerald-400': id==='clo_manager', 'bg-orange-500/20 text-orange-400': id==='cmo_manager', 'bg-fuchsia-500/20 text-fuchsia-400': id==='cpo_manager'}"
-                   x-text="getAgentInitials(id)"></div>
-              <div class="flex-1 min-w-0">
-                <div class="text-xs font-semibold text-hq-text" x-text="getAgentName(id)"></div>
-                <div class="text-[10px] text-hq-muted font-mono truncate" x-text="getModelDisplayName(agentModels[id])"></div>
+              <!-- 아바타 (w-9 h-9 — 기존보다 크게) -->
+              <div class="relative shrink-0">
+                <div class="w-9 h-9 rounded-xl flex items-center justify-center text-[11px] font-bold"
+                     :class="{'bg-amber-500/20 text-amber-400': id==='chief_of_staff', 'bg-red-500/20 text-red-400': id==='cio_manager', 'bg-purple-500/20 text-purple-400': id==='cso_manager', 'bg-emerald-500/20 text-emerald-400': id==='clo_manager', 'bg-orange-500/20 text-orange-400': id==='cmo_manager', 'bg-fuchsia-500/20 text-fuchsia-400': id==='cpo_manager'}"
+                     x-text="getAgentInitials(id)"></div>
+                <!-- 상태 점 — 아바타 우하단 -->
+                <span class="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 shrink-0 transition-colors"
+                      :style="darkMode ? 'border-color: rgb(var(--hq-surface))' : 'border-color: rgb(var(--hq-surface))'"
+                      :class="[getAgentDotClass(id), activeAgents[id]?.status==='working' ? 'agent-working-glow' : '']"></span>
               </div>
-              <span class="w-2 h-2 rounded-full shrink-0 transition-colors"
-                    :class="[getAgentDotClass(id), activeAgents[id]?.status==='working' ? 'agent-working-glow' : '']"></span>
-              <span x-show="activeAgents[id]?.status === 'working'"
-                    class="text-[9px] font-mono text-hq-yellow shrink-0"
-                    x-text="activeAgents[id]?.elapsed || '00:00'"></span>
+              <div class="flex-1 min-w-0">
+                <div class="text-xs font-semibold text-hq-text leading-tight" x-text="getAgentName(id)"></div>
+                <!-- 작업 중이면 경과 시간, 아니면 모델명 -->
+                <div class="text-[10px] font-mono truncate leading-tight mt-0.5"
+                     :class="activeAgents[id]?.status==='working' ? 'text-hq-yellow' : 'text-hq-muted'">
+                  <span x-show="activeAgents[id]?.status === 'working'" x-text="'⏱ ' + (activeAgents[id]?.elapsed || '00:00')"></span>
+                  <span x-show="activeAgents[id]?.status !== 'working'" x-text="getModelDisplayName(agentModels[id])"></span>
+                </div>
+              </div>
             </div>
           </template>
         </div>
@@ -448,25 +458,25 @@
       </div>
 
       <!-- ═══ Tab Navigation (채팅 모드일 때만 표시 — 모바일에서는 하단 네비 사용) ═══ -->
-      <div x-show="viewMode === 'chat'" class="flex items-center gap-0.5 px-3 pt-2 pb-0 border-b border-hq-border bg-hq-surface shrink-0 mobile-tabs-scroll desktop-tab-bar">
-        <!-- 기본 탭 5개 (#12) -->
+      <div x-show="viewMode === 'chat'" class="flex items-center gap-1 px-3 py-2 border-b border-hq-border bg-hq-surface shrink-0 mobile-tabs-scroll desktop-tab-bar">
+        <!-- 기본 탭 5개 (#12) — pill 스타일 -->
         <template x-for="tab in getPrimaryTabs()" :key="tab.id">
           <button @click="switchTab(tab.id); showMoreTabs = false"
                   :class="activeTab === tab.id
-                    ? 'text-hq-accent border-hq-accent bg-hq-accent/10 font-bold'
-                    : 'text-hq-muted border-transparent hover:text-hq-text hover:bg-hq-panel/20'"
-                  class="flex items-center gap-1.5 px-3 py-2 text-[11px] font-semibold border-b-2 transition-all rounded-t-lg whitespace-nowrap">
+                    ? 'bg-hq-accent/15 text-hq-accent font-bold'
+                    : 'text-hq-muted hover:text-hq-text hover:bg-hq-panel/50'"
+                  class="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-semibold rounded-lg transition-all whitespace-nowrap">
             <span x-html="tab.icon" class="w-3.5 h-3.5"></span>
             <span x-text="tab.label"></span>
           </button>
         </template>
-        <!-- 더보기 드롭다운 -->
+        <!-- 더보기 드롭다운 — pill 스타일 -->
         <div class="relative">
           <button @click="showMoreTabs = !showMoreTabs"
                   :class="getSecondaryTabs().some(t => t.id === activeTab)
-                    ? 'text-hq-accent border-hq-accent bg-hq-accent/10 font-bold'
-                    : 'text-hq-muted border-transparent hover:text-hq-text hover:bg-hq-panel/20'"
-                  class="flex items-center gap-1 px-3 py-2 text-[11px] font-semibold border-b-2 transition-all rounded-t-lg whitespace-nowrap">
+                    ? 'bg-hq-accent/15 text-hq-accent font-bold'
+                    : 'text-hq-muted hover:text-hq-text hover:bg-hq-panel/50'"
+                  class="flex items-center gap-1 px-3 py-1.5 text-[11px] font-semibold rounded-lg transition-all whitespace-nowrap">
             <span x-text="getSecondaryTabs().find(t => t.id === activeTab)?.label || '더보기'"></span>
             <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
           </button>
