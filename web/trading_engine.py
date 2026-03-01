@@ -87,7 +87,7 @@ def _ms():
 # ────────────────────────────────────────────────────────────────
 
 _CIO_ANALYSTS = [
-    "cio_manager", "market_condition_specialist", "stock_analysis_specialist",
+    "fin_analyst", "market_condition_specialist", "stock_analysis_specialist",
     "technical_analysis_specialist", "risk_management_specialist",
 ]
 
@@ -408,7 +408,7 @@ def _capture_specialist_contributions_sync(
                     cio_rec = "SELL"
                 save_prediction_specialist(
                     prediction_id=pred_id,
-                    agent_id="cio_manager",
+                    agent_id="fin_analyst",
                     recommendation=cio_rec,
                     confidence=0.0,
                     tools_used="[]",
@@ -547,7 +547,7 @@ async def _cio_prediction_verifier():
 
 
 async def _cio_weekly_soul_update():
-    """매주 일요일 KST 02:00: CLO가 CIO 오류 패턴 분석 → cio_manager.md 자동 업데이트."""
+    """매주 일요일 KST 02:00: CLO가 CIO 오류 패턴 분석 → fin_analyst.md 자동 업데이트."""
     import pytz as _pytz_s
     import re as _re_s
     _KST_s = _pytz_s.timezone("Asia/Seoul")
@@ -592,7 +592,7 @@ async def _cio_weekly_soul_update():
 
             analysis_prompt = (
                 "당신은 CLO(준법감시인)입니다. CIO(투자팀장)의 최근 투자 예측 결과를 분석하여,\n"
-                "반복되는 오류 패턴을 찾고 cio_manager.md에 추가할 규칙을 제안하세요.\n\n"
+                "반복되는 오류 패턴을 찾고 fin_analyst.md에 추가할 규칙을 제안하세요.\n\n"
                 f"## CIO 최근 예측 결과\n"
                 f"전체 정확도: {summary.get('overall_accuracy', '-')}%\n"
                 f"최근 20건 정확도: {summary.get('recent_20_accuracy', '-')}%\n"
@@ -601,7 +601,7 @@ async def _cio_weekly_soul_update():
                 f"## 개별 예측 결과\n{predictions_text}\n\n"
                 "## 요청\n"
                 "1. 반복 오류 패턴 3가지 분석 (예: '반도체 섹터 과대평가 경향')\n"
-                "2. 각 패턴에 대한 개선 규칙 제안 (cio_manager.md에 추가할 마크다운 형식)\n"
+                "2. 각 패턴에 대한 개선 규칙 제안 (fin_analyst.md에 추가할 마크다운 형식)\n"
                 "3. 답변은 반드시 아래 형식:\n"
                 "---SOUL_UPDATE_START---\n"
                 "[마크다운 형식의 규칙 내용]\n"
@@ -609,7 +609,7 @@ async def _cio_weekly_soul_update():
             )
 
             try:
-                result_dict = await _ms()._call_agent("clo_manager", analysis_prompt)
+                result_dict = await _ms()._call_agent("leet_legal", analysis_prompt)
                 result = result_dict.get("content", "") if isinstance(result_dict, dict) else str(result_dict)
                 if not result:
                     _logger_s.warning("[CIO소울] CLO 응답 없음")
@@ -626,7 +626,7 @@ async def _cio_weekly_soul_update():
 
                 new_content = match.group(1).strip()
                 soul_path = os.path.normpath(
-                    os.path.join(os.path.dirname(__file__), "..", "souls", "agents", "cio_manager.md")
+                    os.path.join(os.path.dirname(__file__), "..", "souls", "agents", "fin_analyst.md")
                 )
 
                 if os.path.exists(soul_path):
@@ -1416,13 +1416,13 @@ async def _build_dcf_risk_prompt_section(market_watchlist: list, market: str = "
         try:
             if market == "KR":
                 dcf_r, risk_r = await asyncio.gather(
-                    pool.invoke("dcf_valuator", caller_id="cio_manager", action="all", ticker=ticker),
-                    pool.invoke("risk_calculator", caller_id="cio_manager", action="full", ticker=ticker),
+                    pool.invoke("dcf_valuator", caller_id="fin_analyst", action="all", ticker=ticker),
+                    pool.invoke("risk_calculator", caller_id="fin_analyst", action="full", ticker=ticker),
                 )
             else:
                 dcf_r, risk_r = await asyncio.gather(
-                    pool.invoke("us_financial_analyzer", caller_id="cio_manager", action="dcf", ticker=ticker),
-                    pool.invoke("risk_calculator", caller_id="cio_manager", action="full", ticker=ticker),
+                    pool.invoke("us_financial_analyzer", caller_id="fin_analyst", action="dcf", ticker=ticker),
+                    pool.invoke("risk_calculator", caller_id="fin_analyst", action="full", ticker=ticker),
                 )
             # 결과를 종목당 800자로 요약 (프롬프트 토큰 절약)
             return f"### {name}({ticker})\n**[DCF 가치평가]**\n{str(dcf_r)[:800]}\n**[리스크 분석]**\n{str(risk_r)[:800]}"
@@ -1482,7 +1482,7 @@ def _register_position_triggers(
         triggers = triggers[:500]
     _save_data("price_triggers", triggers)
     save_activity_log(
-        "cio_manager",
+        "fin_analyst",
         f"🎯 트리거 등록: {name} 손절 {stop_price:,.0f} / 익절 {take_price:,.0f} ({sl_pct}%/{tp_pct}%)",
         "info",
     )
@@ -1526,7 +1526,7 @@ async def _check_price_triggers() -> None:
         is_us     = market == "US"
 
         save_activity_log(
-            "cio_manager",
+            "fin_analyst",
             f"{type_kr} 발동: {name}({ticker}) 현재가 {current_price:,.0f} / 목표 {tp_val:,.0f} → {action_kr} {qty}주",
             "info",
         )
@@ -1588,7 +1588,7 @@ async def _check_price_triggers() -> None:
                 })
                 _save_data("trading_history", history)
                 save_activity_log(
-                    "cio_manager",
+                    "fin_analyst",
                     f"✅ {type_kr} 자동{action_kr} 완료: {name} {qty}주 @ {current_price:,.0f} ({mode})",
                     "info",
                 )
@@ -1604,13 +1604,13 @@ async def _check_price_triggers() -> None:
                             other["active"] = False
             else:
                 save_activity_log(
-                    "cio_manager",
+                    "fin_analyst",
                     f"❌ {type_kr} 주문 실패: {name} — {order_result.get('message','원인 불명')[:80]}",
                     "error",
                 )
         except Exception as ex:
             save_activity_log(
-                "cio_manager",
+                "fin_analyst",
                 f"❌ {type_kr} 트리거 오류: {name} — {str(ex)[:80]}",
                 "error",
             )
@@ -1661,11 +1661,11 @@ async def generate_trading_signals():
 
     # 정량지표 사전분석 (병렬 계산)
     _auto_market = "US" if (len(us_tickers) > len(kr_tickers)) else "KR"
-    save_activity_log("cio_manager", "📐 정량지표 사전계산 시작 (자동매매)...", "info")
+    save_activity_log("fin_analyst", "📐 정량지표 사전계산 시작 (자동매매)...", "info")
     quant_section_auto = await _build_quant_prompt_section(watchlist, _auto_market)
 
     # ARGOS DB 수집 데이터 주입 (자동매매)
-    save_activity_log("cio_manager", "📡 ARGOS 수집 데이터 로딩 (자동매매)...", "info")
+    save_activity_log("fin_analyst", "📡 ARGOS 수집 데이터 로딩 (자동매매)...", "info")
     argos_section_auto = await _build_argos_context_section(watchlist, _auto_market)
 
     # CIO에게 보내는 분석 명령
@@ -1724,7 +1724,7 @@ async def generate_trading_signals():
         return {"success": True, "signals": signals[:20]}
 
     # CIO + 4명 전문가에게 위임 (실제 도구 사용 + 병렬 분석)
-    save_activity_log("cio_manager", f"📊 자동매매 시그널 생성 — {len(watchlist)}개 종목 분석 시작", "info")
+    save_activity_log("fin_analyst", f"📊 자동매매 시그널 생성 — {len(watchlist)}개 종목 분석 시작", "info")
 
     # 1단계: 투자팀장 독자 분석 + 도구 활용 (P2-4: 병렬화)
     cio_solo_prompt = (
@@ -1736,9 +1736,9 @@ async def generate_trading_signals():
         f"[시그널] 카카오 (035720) | 관망 | 신뢰도 48% | 비중 5% | 목표가 0 | 방향성 불명확\n"
         f"※ 신뢰도는 종목별로 독립적으로 0~100 숫자 + % 기호. 비중은 전 종목 합계 ≤ {100 - _cash_reserve}%. 목표가는 숫자만."
     )
-    cio_soul = _ms()._load_agent_prompt("cio_manager")
-    cio_solo_model = select_model(cio_solo_prompt, override=_ms()._get_model_override("cio_manager"))
-    save_activity_log("cio_manager", "📊 CIO 독자 분석 + 전문가 위임 병렬 시작", "info")
+    cio_soul = _ms()._load_agent_prompt("fin_analyst")
+    cio_solo_model = select_model(cio_solo_prompt, override=_ms()._get_model_override("fin_analyst"))
+    save_activity_log("fin_analyst", "📊 CIO 독자 분석 + 전문가 위임 병렬 시작", "info")
     # CIO 독자 분석 시작 교신 로그
     try:
         from db import save_delegation_log as _sdl
@@ -1747,7 +1747,7 @@ async def generate_trading_signals():
         logger.debug("CIO 위임 로그 저장 실패: %s", e)
 
     # CIO 독자 분석용 도구 로드
-    cio_detail = _AGENTS_DETAIL.get("cio_manager", {})
+    cio_detail = _AGENTS_DETAIL.get("fin_analyst", {})
     cio_allowed = cio_detail.get("allowed_tools", [])
     cio_solo_tools = None
     cio_solo_executor = None
@@ -1779,9 +1779,9 @@ async def generate_trading_signals():
         return {"content": content, "cost_usd": cost}
 
     # 병렬 실행: CIO 독자 분석 + 전문가 위임
-    await _ms()._broadcast_status("cio_manager", "working", 0.1, "투자팀장 분석 진행 중...")
+    await _ms()._broadcast_status("fin_analyst", "working", 0.1, "투자팀장 분석 진행 중...")
     cio_solo_task = _cio_solo_analysis()
-    spec_task = _delegate_to_specialists("cio_manager", prompt)
+    spec_task = _delegate_to_specialists("fin_analyst", prompt)
     cio_solo_result, spec_results = await asyncio.gather(cio_solo_task, spec_task)
 
     cio_solo_content = cio_solo_result.get("content", "")
@@ -1798,7 +1798,7 @@ async def generate_trading_signals():
             spec_parts.append(f"[{name}]\n{r.get('content', '응답 없음')}")
             spec_cost += r.get("cost_usd", 0)
 
-    mgr_name = _ms()._AGENT_NAMES.get("cio_manager", "CIO")
+    mgr_name = _ms()._AGENT_NAMES.get("fin_analyst", "CIO")
     synthesis_prompt = (
         f"당신은 {mgr_name}입니다. 아래 두 가지 분석을 종합하여 최종 시그널을 결정하세요.\n\n"
         f"## CEO 원본 명령\n{prompt}\n\n"
@@ -1807,11 +1807,11 @@ async def generate_trading_signals():
         f"## 전문가 분석 결과\n" + "\n\n".join(spec_parts) + "\n\n"
         f"위 독자 분석과 전문가 보고서를 모두 반영하여 최종 시그널을 결정하세요."
     )
-    override = _ms()._get_model_override("cio_manager")
+    override = _ms()._get_model_override("fin_analyst")
     synth_model = select_model(synthesis_prompt, override=override)
-    await _ms()._broadcast_status("cio_manager", "working", 0.7, "독자 분석 + 전문가 결과 종합 중...")
+    await _ms()._broadcast_status("fin_analyst", "working", 0.7, "독자 분석 + 전문가 결과 종합 중...")
     synthesis = await ask_ai(synthesis_prompt, system_prompt=cio_soul, model=synth_model)
-    await _ms()._broadcast_status("cio_manager", "done", 1.0, "보고 완료")
+    await _ms()._broadcast_status("fin_analyst", "done", 1.0, "보고 완료")
 
     specialists_used = len([r for r in (spec_results or []) if "error" not in r])
     if "error" in synthesis:
@@ -1841,7 +1841,7 @@ async def generate_trading_signals():
 
     buy_count = len([s for s in parsed_signals if s.get("action") == "buy"])
     sell_count = len([s for s in parsed_signals if s.get("action") == "sell"])
-    save_activity_log("cio_manager",
+    save_activity_log("fin_analyst",
         f"📊 CIO 시그널 완료: {len(watchlist)}개 종목 (매수 {buy_count}, 매도 {sell_count}, 비용 ${cost:.4f})",
         "info")
 
@@ -1933,7 +1933,7 @@ async def generate_trading_signals():
             division="finance",
             filename=filename,
             content=archive_content,
-            agent_id="cio_manager",
+            agent_id="fin_analyst",
         )
     except Exception as e:
         logger.debug("CIO 아카이브 저장 실패: %s", e)
@@ -2228,7 +2228,7 @@ async def stop_trading_now():
     task = app_state.bg_tasks.get("trading_run_now")
     if task and not task.done():
         task.cancel()
-        save_activity_log("cio_manager", "🛑 CEO가 수동으로 분석을 중지했습니다.", "info")
+        save_activity_log("fin_analyst", "🛑 CEO가 수동으로 분석을 중지했습니다.", "info")
         await wm.broadcast({"type": "trading_run_complete", "success": False, "stopped": True, "signals_count": 0, "orders_triggered": 0})
         return {"success": True, "message": "분석이 중지되었습니다."}
     return {"success": False, "message": "진행 중인 분석이 없습니다."}
@@ -2266,15 +2266,15 @@ async def _run_trading_now_inner(selected_tickers: list[str] | None = None, *, a
     cal_section = _build_calibration_prompt_section(settings)
 
     # 정량지표 사전분석 (RSI/MACD/볼린저/거래량/추세 — 병렬 계산)
-    save_activity_log("cio_manager", "📐 정량지표 사전계산 시작...", "info")
+    save_activity_log("fin_analyst", "📐 정량지표 사전계산 시작...", "info")
     quant_section = await _build_quant_prompt_section(market_watchlist, market)
 
     # ARGOS DB 수집 데이터 주입 (주가/매크로/공시/뉴스 — 서버가 직접 제공)
-    save_activity_log("cio_manager", "📡 ARGOS 수집 데이터 로딩...", "info")
+    save_activity_log("fin_analyst", "📡 ARGOS 수집 데이터 로딩...", "info")
     argos_section = await _build_argos_context_section(market_watchlist, market)
 
     # DCF 가치평가 + 리스크 분석 — 서버가 Python으로 사전 계산 (AI 호출 아님)
-    save_activity_log("cio_manager", "📊 DCF/리스크 사전계산 중...", "info")
+    save_activity_log("fin_analyst", "📊 DCF/리스크 사전계산 중...", "info")
     dcf_risk_section = await _build_dcf_risk_prompt_section(market_watchlist, market)
 
     tickers_info = ", ".join([f"{w['name']}({w['ticker']})" for w in market_watchlist])
@@ -2307,8 +2307,8 @@ async def _run_trading_now_inner(selected_tickers: list[str] | None = None, *, a
 - 목표가(권장 매수 진입가): 매수/관망 종목은 반드시 입력. 현재가보다 낮은 목표 진입가 설정. 미국 주식은 USD 단위. 매도 종목은 0
 - 목표가 도달 시 서버가 자동으로 매수 실행 — 신중하게 설정할 것"""
 
-    save_activity_log("cio_manager", f"🔍 수동 즉시 분석 시작: {market_label}장 {len(market_watchlist)}개 종목", "info")
-    cio_result = await _ms()._call_agent("cio_manager", prompt)
+    save_activity_log("fin_analyst", f"🔍 수동 즉시 분석 시작: {market_label}장 {len(market_watchlist)}개 종목", "info")
+    cio_result = await _ms()._call_agent("fin_analyst", prompt)
     content = cio_result.get("content", "")
     cost = cio_result.get("cost_usd", 0)
 
@@ -2321,29 +2321,29 @@ async def _run_trading_now_inner(selected_tickers: list[str] | None = None, *, a
             symbols_str = " ".join([w["ticker"] for w in market_watchlist])
 
             # 2-A: correlation_analyzer tail_risk
-            _l = save_activity_log("cio_manager", "🎯 [STEP2 서버강제] correlation_analyzer tail_risk 실행 중...", "tool")
+            _l = save_activity_log("fin_analyst", "🎯 [STEP2 서버강제] correlation_analyzer tail_risk 실행 중...", "tool")
             await wm.send_activity_log(_l)
             corr_input = {"action": "tail_risk", "symbols": tickers_str if market == "KR" else symbols_str}
-            corr_result = await pool.invoke("correlation_analyzer", caller_id="cio_manager", **corr_input)
+            corr_result = await pool.invoke("correlation_analyzer", caller_id="fin_analyst", **corr_input)
 
             # 2-B: portfolio_optimizer_v2 optimize
-            _l = save_activity_log("cio_manager", "🎯 [STEP2 서버강제] portfolio_optimizer_v2 optimize 실행 중...", "tool")
+            _l = save_activity_log("fin_analyst", "🎯 [STEP2 서버강제] portfolio_optimizer_v2 optimize 실행 중...", "tool")
             await wm.send_activity_log(_l)
             port_input = ({"action": "optimize", "tickers": tickers_str, "risk_tolerance": "moderate"}
                           if market == "KR" else
                           {"action": "optimize", "symbols": symbols_str, "risk_tolerance": "moderate"})
-            port_result = await pool.invoke("portfolio_optimizer_v2", caller_id="cio_manager", **port_input)
+            port_result = await pool.invoke("portfolio_optimizer_v2", caller_id="fin_analyst", **port_input)
 
             step2_section = (
                 "\n\n---\n\n## [STEP2 — 포트폴리오 레벨 분석]\n\n"
                 f"### 종목 간 동시 하락 위험 (correlation_analyzer)\n{corr_result}\n\n"
                 f"### 최적 포트폴리오 비중 (portfolio_optimizer_v2)\n{port_result}"
             )
-            _l = save_activity_log("cio_manager", "✅ [STEP2 서버강제] correlation_analyzer + portfolio_optimizer_v2 완료", "info")
+            _l = save_activity_log("fin_analyst", "✅ [STEP2 서버강제] correlation_analyzer + portfolio_optimizer_v2 완료", "info")
             await wm.send_activity_log(_l)
     except Exception as _step2_err:
         logger.warning("[STEP2 강제실행] 오류: %s", _step2_err)
-        _l = save_activity_log("cio_manager", f"⚠️ [STEP2 서버강제] 오류: {str(_step2_err)[:80]}", "warning")
+        _l = save_activity_log("fin_analyst", f"⚠️ [STEP2 서버강제] 오류: {str(_step2_err)[:80]}", "warning")
         await wm.send_activity_log(_l)
 
     if step2_section:
@@ -2384,7 +2384,7 @@ async def _run_trading_now_inner(selected_tickers: list[str] | None = None, *, a
     calibration = _compute_calibration_factor(settings.get("calibration_lookback", 20))
     calibration_factor = calibration.get("factor", 1.0)
     if calibration.get("win_rate") is not None:
-        save_activity_log("cio_manager",
+        save_activity_log("fin_analyst",
             f"📊 자기보정 적용: factor={calibration_factor} ({calibration.get('note', '')})", "info")
 
     # 자동봇 모드: auto_execute 꺼져있으면 매매 건너뜀
@@ -2392,7 +2392,7 @@ async def _run_trading_now_inner(selected_tickers: list[str] | None = None, *, a
     if auto_bot:
         auto_execute = settings.get("auto_execute", False)
         if not auto_execute:
-            save_activity_log("cio_manager",
+            save_activity_log("fin_analyst",
                 "🚫 자동봇 분석 완료 — auto_execute=OFF이므로 매매 건너뜀", "info")
             should_execute = False
 
@@ -2421,12 +2421,12 @@ async def _run_trading_now_inner(selected_tickers: list[str] | None = None, *, a
                 logger.debug("잔고 조회 실패: %s", e)
             if account_balance <= 0:
                 account_balance = 1_000_000
-                save_activity_log("cio_manager", "CIO 비중 모드: 잔고 조회 실패, 기본 100만원 사용", "warning")
-            save_activity_log("cio_manager",
+                save_activity_log("fin_analyst", "CIO 비중 모드: 잔고 조회 실패, 기본 100만원 사용", "warning")
+            save_activity_log("fin_analyst",
                 f"CIO 비중 모드: 계좌잔고 {account_balance:,.0f}원 기준 자동 주수 산출", "info")
 
         mode_label = ("실거래" if not KIS_IS_MOCK else "모의투자") if use_kis else ("모의투자" if use_mock_kis else "가상")
-        save_activity_log("cio_manager",
+        save_activity_log("fin_analyst",
             f"📋 매매 실행 시작: 시그널 {len(parsed_signals)}건, 최소신뢰도 {min_confidence}%, order_size={order_size}, KIS={use_kis}, MOCK={use_mock_kis}, 모드={mode_label}", "info")
 
         for sig in parsed_signals:
@@ -2434,7 +2434,7 @@ async def _run_trading_now_inner(selected_tickers: list[str] | None = None, *, a
                 continue
             effective_conf = sig.get("confidence", 0) * calibration_factor
             if effective_conf < min_confidence:
-                save_activity_log("cio_manager",
+                save_activity_log("fin_analyst",
                     f"[수동] {sig.get('name', sig['ticker'])} 신뢰도 부족 ({effective_conf:.0f}% < {min_confidence}%) — 건너뜀",
                     "info")
                 continue
@@ -2443,7 +2443,7 @@ async def _run_trading_now_inner(selected_tickers: list[str] | None = None, *, a
             sig_market = sig.get("market", market)
             is_us = sig_market.upper() in ("US", "USA", "OVERSEAS") or (ticker.isalpha() and len(ticker) <= 5)
             action_kr = "매수" if sig["action"] == "buy" else "매도"
-            save_activity_log("cio_manager",
+            save_activity_log("fin_analyst",
                 f"🎯 {action_kr} 시도: {sig.get('name', ticker)} ({ticker}) 신뢰도 {effective_conf:.0f}% 비중 {sig.get('weight', 0)}%", "info")
 
             try:
@@ -2452,18 +2452,18 @@ async def _run_trading_now_inner(selected_tickers: list[str] | None = None, *, a
                     if _KIS_AVAILABLE and _kis_configured():
                         us_price_data = await _kis_us_price(ticker)
                         price = us_price_data.get("price", 0) if us_price_data.get("success") else 0
-                        save_activity_log("cio_manager", f"  💵 {ticker} 현재가: ${price:.2f} (KIS 조회)", "info")
+                        save_activity_log("fin_analyst", f"  💵 {ticker} 현재가: ${price:.2f} (KIS 조회)", "info")
                     else:
                         target_w = next((w for w in market_watchlist if w.get("ticker", "").upper() == ticker.upper()), None)
                         price = float(target_w.get("target_price", 0)) if target_w else 0
                     if price <= 0:
-                        save_activity_log("cio_manager", f"[수동/US] {ticker} 현재가 조회 실패 (price={price}) — 건너뜀", "warning")
+                        save_activity_log("fin_analyst", f"[수동/US] {ticker} 현재가 조회 실패 (price={price}) — 건너뜀", "warning")
                         continue
                     _fx = _get_fx_rate()
                     _sig_weight = _get_signal_weight(sig, effective_conf)
                     _order_amt = order_size if order_size > 0 else int(account_balance * _sig_weight)
                     qty = max(1, int(_order_amt / (price * _fx)))
-                    save_activity_log("cio_manager",
+                    save_activity_log("fin_analyst",
                         f"  📐 주문 계산: 잔고 {account_balance:,.0f}원 × 비중 {_sig_weight:.1%} = {_order_amt:,.0f}원 → ${price:.2f} × ₩{_fx:.0f} = {qty}주", "info")
                 else:
                     if _KIS_AVAILABLE and _kis_configured():
@@ -2478,17 +2478,17 @@ async def _run_trading_now_inner(selected_tickers: list[str] | None = None, *, a
 
                 if use_kis:
                     mode_str = "실거래" if not KIS_IS_MOCK else "모의투자(KIS)"
-                    save_activity_log("cio_manager",
+                    save_activity_log("fin_analyst",
                         f"  🚀 KIS 주문 전송: {action_kr} {ticker} {qty}주 @ {'$'+str(round(price,2)) if is_us else str(price)+'원'} ({mode_str})", "info")
                     if is_us:
                         order_result = await _kis_us_order(ticker, sig["action"], qty, price=price)
                     else:
                         order_result = await _kis_order(ticker, sig["action"], qty, price=0)
-                    save_activity_log("cio_manager",
+                    save_activity_log("fin_analyst",
                         f"  📨 KIS 응답: success={order_result.get('success')}, msg={order_result.get('message', '')[:100]}", "info")
                     if order_result["success"]:
                         orders_triggered += 1
-                        save_activity_log("cio_manager",
+                        save_activity_log("fin_analyst",
                             f"✅ [수동/{mode_str}] {action_kr} 성공: {sig.get('name', ticker)} {qty}주 (신뢰도 {effective_conf:.0f}%)",
                             "info")
                         history = _load_data("trading_history", [])
@@ -2508,21 +2508,21 @@ async def _run_trading_now_inner(selected_tickers: list[str] | None = None, *, a
                             _register_position_triggers(ticker, sig.get("name", ticker), price, qty,
                                                         "US" if is_us else "KR", settings, source_id=_h_id)
                     else:
-                        save_activity_log("cio_manager",
+                        save_activity_log("fin_analyst",
                             f"❌ [수동/{mode_str}] 주문 실패: {sig.get('name', ticker)} — {order_result.get('message', '원인 불명')}", "error")
                 elif use_mock_kis:
                     # ── KIS 모의투자 계좌로 실제 주문 ──
-                    save_activity_log("cio_manager",
+                    save_activity_log("fin_analyst",
                         f"  🚀 KIS 모의투자 주문 전송: {action_kr} {ticker} {qty}주 @ {'$'+str(round(price,2)) if is_us else str(price)+'원'}", "info")
                     if is_us:
                         order_result = await _kis_mock_us_order(ticker, sig["action"], qty, price=price)
                     else:
                         order_result = await _kis_mock_order(ticker, sig["action"], qty, price=0)
-                    save_activity_log("cio_manager",
+                    save_activity_log("fin_analyst",
                         f"  📨 KIS 모의투자 응답: success={order_result.get('success')}, msg={order_result.get('message', '')[:100]}", "info")
                     if order_result["success"]:
                         orders_triggered += 1
-                        save_activity_log("cio_manager",
+                        save_activity_log("fin_analyst",
                             f"✅ [수동/모의투자] {action_kr} 성공: {sig.get('name', ticker)} {qty}주 (신뢰도 {effective_conf:.0f}%)", "info")
                         history = _load_data("trading_history", [])
                         _h_id2 = f"mock_{datetime.now(KST).strftime('%Y%m%d%H%M%S')}_{ticker}"
@@ -2541,7 +2541,7 @@ async def _run_trading_now_inner(selected_tickers: list[str] | None = None, *, a
                             _register_position_triggers(ticker, sig.get("name", ticker), price, qty,
                                                         "US" if is_us else "KR", settings, source_id=_h_id2)
                     else:
-                        save_activity_log("cio_manager",
+                        save_activity_log("fin_analyst",
                             f"❌ [수동/모의투자] 주문 실패: {sig.get('name', ticker)} — {order_result.get('message', '원인 불명')}", "error")
                 else:
                     # 가상 포트폴리오 (paper trading)
@@ -2576,7 +2576,7 @@ async def _run_trading_now_inner(selected_tickers: list[str] | None = None, *, a
                             "status": "executed", "market": sig.get("market", market),
                         })
                         _save_data("trading_history", history)
-                        save_activity_log("cio_manager",
+                        save_activity_log("fin_analyst",
                             f"[수동/가상] 매수: {sig.get('name', ticker)} {qty}주 x {price:,.0f}원 (신뢰도 {effective_conf:.0f}%)", "info")
                         _register_position_triggers(ticker, sig.get("name", ticker), price, qty,
                                                     sig.get("market", market), settings, source_id=_h_id3)
@@ -2605,13 +2605,13 @@ async def _run_trading_now_inner(selected_tickers: list[str] | None = None, *, a
                             })
                             _save_data("trading_history", history)
                             pnl_str = f"{'+'if pnl>=0 else ''}{pnl:,.0f}원"
-                            save_activity_log("cio_manager",
+                            save_activity_log("fin_analyst",
                                 f"[수동/가상] 매도: {sig.get('name', ticker)} {sell_qty}주 x {price:,.0f}원 (손익 {pnl_str})", "info")
             except Exception as order_err:
                 import traceback
                 _tb = traceback.format_exc()
                 logger.error("[수동 분석] 자동주문 오류 (%s): %s\n%s", ticker, order_err, _tb)
-                save_activity_log("cio_manager", f"❌ [수동] 주문 오류: {ticker} — {order_err}", "error")
+                save_activity_log("fin_analyst", f"❌ [수동] 주문 오류: {ticker} — {order_err}", "error")
 
     # ── CIO 목표가 기반 buy_limit 트리거 자동 등록 (수동 즉시분석) ──
     _today_str2 = datetime.now(KST).strftime("%Y%m%d")
@@ -2651,13 +2651,13 @@ async def _run_trading_now_inner(selected_tickers: list[str] | None = None, *, a
             _all2 = _all2[:500]
         _save_data("price_triggers", _all2)
         save_activity_log(
-            "cio_manager",
+            "fin_analyst",
             f"🎯 목표매수 자동등록: {_bl2_name}({_bl2_ticker}) 목표가 {_tp:,.0f} × {_qty2}주",
             "info",
         )
 
     _mode_log = "자동봇" if auto_bot else "수동"
-    save_activity_log("cio_manager",
+    save_activity_log("fin_analyst",
         f"✅ {_mode_log} 분석 완료: {len(parsed_signals)}개 시그널 (주문 {orders_triggered}건, 비용 ${cost:.4f})", "info")
 
     return {
@@ -2805,7 +2805,7 @@ async def _trading_bot_loop():
 
             market_name = "한국" if market == "KR" else "미국"
             logger.info("[TRADING BOT] %s장 오픈 — %d개 종목 분석 시작", market_name, len(market_watchlist))
-            save_activity_log("cio_manager",
+            save_activity_log("fin_analyst",
                 f"🤖 자동매매 봇: {market_name}장 {len(market_watchlist)}개 종목 분석+매매 시작",
                 "info")
 
@@ -2817,11 +2817,11 @@ async def _trading_bot_loop():
                 _orders = result.get("orders_triggered", 0)
                 _cost = result.get("cost_usd", 0)
                 logger.info("[TRADING BOT] 분석 완료: 시그널 %d건, 주문 %d건, 비용 $%.4f", _sig_count, _orders, _cost)
-                save_activity_log("cio_manager",
+                save_activity_log("fin_analyst",
                     f"✅ 자동매매 봇 완료: 시그널 {_sig_count}건, 주문 {_orders}건 (비용 ${_cost:.4f})", "info")
             except Exception as inner_err:
                 logger.error("[TRADING BOT] _run_trading_now_inner 오류: %s", inner_err)
-                save_activity_log("cio_manager",
+                save_activity_log("fin_analyst",
                     f"❌ 자동매매 봇 분석 오류: {inner_err}", "error")
 
         except Exception as e:

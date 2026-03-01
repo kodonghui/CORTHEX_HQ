@@ -1898,7 +1898,7 @@ tools:
           activity=DB 활동 로그 조회, trading=자동매매 로그 진단
       agent_id:
         type: string
-        description: "에이전트 ID 필터 (예: cio_manager, system). activity 액션에서 사용"
+        description: "에이전트 ID 필터 (예: fin_analyst, system). activity 액션에서 사용"
       level:
         type: string
         enum: [error, warning, info]

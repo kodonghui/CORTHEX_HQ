@@ -25,7 +25,6 @@ except ImportError:
     def is_ai_ready(): return False
 
 from agent_router import _process_ai_command, _tg_convert_names
-from batch_system import _start_batch_chain
 
 # ── 텔레그램 라이브러리 (선택적 로드) ──
 _telegram_available = False
@@ -608,33 +607,6 @@ async def _start_telegram_bot() -> None:
                         f"👤 {footer_who} | 💰 ${cost:.4f} | 🤖 {model_short}",
                         parse_mode=None,
                     )
-            elif mode == "batch" and is_ai_ready():
-                # 배치 모드 + AI 연결됨 → 실제 배치 체인 실행
-                update_task(task["task_id"], status="pending",
-                            result_summary="📦 [배치 체인] 시작 중...")
-                await update.message.reply_text(
-                    f"📦 배치 접수 완료 (#{task['task_id']})\n"
-                    f"배치 체인이 백그라운드에서 실행됩니다.\n"
-                    f"완료 시 결과를 여기로 보내드리겠습니다.",
-                    parse_mode=None,
-                )
-
-                # 배치 체인을 백그라운드로 실행
-                async def _tg_run_batch(text_arg, task_id_arg, chat_id_arg):
-                    try:
-                        chain_result = await _start_batch_chain(text_arg, task_id_arg)
-                        if "error" in chain_result and app_state.telegram_app:
-                            try:
-                                await app_state.telegram_app.bot.send_message(
-                                    chat_id=int(chat_id_arg),
-                                    text=f"❌ 배치 시작 실패: {chain_result['error']}",
-                                )
-                            except Exception as e2:
-                                logger.debug("TG 배치 실패 전송 실패: %s", e2)
-                    except Exception as e:
-                        _log(f"[TG] 배치 체인 오류: {e}")
-
-                asyncio.create_task(_tg_run_batch(text, task["task_id"], chat_id))
             else:
                 # AI 미연결 → 접수만
                 update_task(task["task_id"], status="completed",

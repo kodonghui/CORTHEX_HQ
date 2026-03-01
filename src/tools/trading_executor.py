@@ -127,7 +127,7 @@ class TradingExecutorTool(BaseTool):
 
         # 활동 로그
         ms.save_activity_log(
-            "cio_manager",
+            "fin_analyst",
             f"🎯 VECTOR {action_ko} 실행: {ticker} {qty}주 (주문번호: {order_no}, {mode})",
             "info",
         )
@@ -227,7 +227,7 @@ class TradingExecutorTool(BaseTool):
         save_setting("trading_history", history)
 
         ms.save_activity_log(
-            "cio_manager",
+            "fin_analyst",
             f"📝 VECTOR {action_ko} (가상): {ticker} {qty}주 @ {price:,.0f}",
             "info",
         )

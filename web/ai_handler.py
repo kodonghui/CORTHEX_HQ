@@ -203,11 +203,11 @@ _CLASSIFY_PROMPT = """당신은 업무 분류 전문가입니다.
 CEO의 명령을 읽고 어느 부서가 처리해야 하는지 판단하세요.
 
 ## 부서 목록
-- cso_manager: 사업기획 (시장조사, 사업계획, 매출 예측, 비즈니스모델, 수익, 경쟁사)
-- clo_manager: 법무IP (저작권, 특허, 상표, 약관, 계약, 법률, 소송)
-- cmo_manager: 마케팅고객 (마케팅, 광고, SNS, 인스타그램, 유튜브, 콘텐츠, 브랜딩, 설문)
-- cio_manager: 투자분석 (주식, 투자, 종목, 시황, 포트폴리오, 코스피, 나스닥, 차트, 금리)
-- cpo_manager: 출판기록 (회사기록, 연대기, 블로그, 출판, 편집, 회고, 빌딩로그)
+- leet_strategist: 사업기획 (시장조사, 사업계획, 매출 예측, 비즈니스모델, 수익, 경쟁사)
+- leet_legal: 법무IP (저작권, 특허, 상표, 약관, 계약, 법률, 소송)
+- leet_marketer: 마케팅고객 (마케팅, 광고, SNS, 인스타그램, 유튜브, 콘텐츠, 브랜딩, 설문)
+- fin_analyst: 투자분석 (주식, 투자, 종목, 시황, 포트폴리오, 코스피, 나스닥, 차트, 금리)
+- leet_publisher: 출판기록 (회사기록, 연대기, 블로그, 출판, 편집, 회고, 빌딩로그)
 - chief_of_staff: 일반 질문, 요약, 일정 관리, 기타 (위 부서에 해당하지 않는 경우)
 
 ## 출력 형식
@@ -552,7 +552,7 @@ async def classify_task(text: str) -> dict:
     """CEO 명령을 분류하여 적합한 에이전트 ID를 반환합니다.
 
     가장 저렴한 사용 가능 모델로 분류를 수행합니다.
-    반환: {"agent_id": "cso_manager", "reason": "...", "cost_usd": 0.001}
+    반환: {"agent_id": "leet_strategist", "reason": "...", "cost_usd": 0.001}
     """
     if not is_ai_ready():
         return {"agent_id": "chief_of_staff", "reason": "AI 미연결", "cost_usd": 0}

@@ -252,6 +252,11 @@ _bg_results = app_state.bg_results
 async def websocket_endpoint(ws: WebSocket):
     await ws.accept()
     wm._connections.append(ws)
+    # v5: WebSocket 연결 시 session_role 확인 (token 쿼리 파라미터로 전달)
+    from handlers.auth_handler import _get_session
+    _ws_token = ws.query_params.get("token", "")
+    _ws_session = _get_session(_ws_token) if _ws_token else None
+    ws_session_role: str = _ws_session.get("role", "ceo") if _ws_session else "ceo"
     try:
         # 연결 시 초기 상태 전송 (activity_log가 아닌 system_info 이벤트 사용 — 통신로그에 안 뜨게)
         now = datetime.now(KST).strftime("%H:%M:%S")
@@ -331,40 +336,6 @@ async def websocket_endpoint(ws: WebSocket):
                         ("activity_log", log_entry),
                     ])
 
-                    # 배치 모드: 위임 체인 전체를 Batch API로 실행
-                    if use_batch and is_ai_ready():
-                        update_task(task["task_id"], status="pending",
-                                    result_summary="📦 [배치 체인] 시작 중...")
-                        # 즉시 접수 응답 → 대화창 바로 풀림 (배치는 백그라운드에서 실행)
-                        await ws.send_json({
-                            "event": "result",
-                            "data": {
-                                "content": (
-                                    f"📦 **배치 접수 완료** (#{task['task_id']})\n\n"
-                                    f"배치 체인이 백그라운드에서 실행됩니다.\n"
-                                    f"각 단계 완료 시 자동으로 진행되며, "
-                                    f"최종 보고서가 완성되면 알려드리겠습니다.\n\n"
-                                    f"💡 대화를 계속하실 수 있습니다."
-                                ),
-                                "sender_id": "chief_of_staff",
-                                "handled_by": "비서실장",
-                                "time_seconds": 0,
-                                "cost": 0,
-                            }
-                        })
-
-                        # 배치 체인을 백그라운드 태스크로 실행 (대화 차단 없음)
-                        async def _run_batch_chain(text, task_id, ws_ref):
-                            try:
-                                chain_result = await _start_batch_chain(text, task_id)
-                                if "error" in chain_result:
-                                    await wm.broadcast("batch_chain_progress", {"message": f"❌ 배치 시작 실패: {chain_result['error']}"})
-                            except Exception as e:
-                                _log(f"[CHAIN] 백그라운드 배치 체인 오류: {e}")
-
-                        asyncio.create_task(_run_batch_chain(cmd_text, task["task_id"], ws))
-                        continue
-
                     # 토론 명령: 백그라운드 실행 (채팅 차단 없음)
                     _stripped = cmd_text.strip()
                     is_debate_cmd = _stripped.startswith("/토론") or _stripped.startswith("/심층토론")
@@ -435,7 +406,8 @@ async def websocket_endpoint(ws: WebSocket):
                         update_task(task["task_id"], status="running")
                         app_state.bg_current_task_id = task["task_id"]
                         asyncio.create_task(
-                            _run_agent_bg(cmd_text, task["task_id"], ws_target_agent_id, ws_conversation_id)
+                            _run_agent_bg(cmd_text, task["task_id"], ws_target_agent_id, ws_conversation_id,
+                                          session_role=ws_session_role)
                         )
                     else:
                         update_task(task["task_id"], status="completed",
@@ -459,13 +431,13 @@ async def websocket_endpoint(ws: WebSocket):
 # ── 백그라운드 에이전트 실행 (새로고침해도 안 끊김) ──
 
 async def _run_agent_bg(cmd_text: str, task_id: str, target_agent_id: str | None = None,
-                        conversation_id: str | None = None):
+                        conversation_id: str | None = None, session_role: str = "ceo"):
     """에이전트 작업을 백그라운드에서 실행. WebSocket 연결과 무관하게 동작."""
 
     _bg_tasks[task_id] = asyncio.current_task()
     try:
         result = await _process_ai_command(cmd_text, task_id, target_agent_id=target_agent_id,
-                                           conversation_id=conversation_id)
+                                           conversation_id=conversation_id, session_role=session_role)
         if "error" in result:
             update_task(task_id, status="failed",
                         result_summary=result.get("error", "")[:200],
@@ -816,13 +788,6 @@ async def get_performance():
 # ── 작업(Task) API → handlers/task_handler.py로 분리 ──
 from handlers.task_handler import router as task_router
 app.include_router(task_router)
-
-# ── 배치 시스템 → batch_system.py로 분리 (P5 리팩토링) ──
-from batch_system import (
-    batch_router,
-    _start_batch_chain,
-)
-app.include_router(batch_router)
 
 # ── 트레이딩 엔진 → trading_engine.py로 분리 (P6 리팩토링) ──
 from trading_engine import (

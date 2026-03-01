@@ -14,7 +14,7 @@
           frontend_specialist_143028.md
       finance/
         investment/
-          cio_manager_143032.md
+          fin_analyst_143032.md
 """
 from __future__ import annotations
 

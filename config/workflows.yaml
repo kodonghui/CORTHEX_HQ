@@ -15,7 +15,7 @@ workflows:
         assigned_agent: "market_condition_specialist"
       - name: "브리핑 보고서 생성"
         command: "이전 단계 결과를 종합하여 일일 시장 브리핑 보고서를 생성해줘: {prev_result}"
-        assigned_agent: "cio_manager"
+        assigned_agent: "fin_analyst"
 
   # ── 워크플로우 2: 종목 심층 분석 ──
   - workflow_id: "deep_stock_analysis"
@@ -33,7 +33,7 @@ workflows:
         assigned_agent: "stock_analysis_specialist"
       - name: "종합 투자 보고서"
         command: "이전 분석 결과를 종합하여 투자 보고서를 작성해줘: {prev_result}"
-        assigned_agent: "cio_manager"
+        assigned_agent: "fin_analyst"
 
   # ── 워크플로우 3: 경쟁사 정기 모니터링 ──
   - workflow_id: "competitor_monitoring"
@@ -51,7 +51,7 @@ workflows:
         assigned_agent: "survey_specialist"
       - name: "종합 경쟁 분석 보고서"
         command: "경쟁사 모니터링 결과를 종합하여 경쟁 분석 보고서를 작성해줘: {prev_result}"
-        assigned_agent: "cmo_manager"
+        assigned_agent: "leet_marketer"
 
   # ── 워크플로우 4: 콘텐츠 생산 파이프라인 ──
   - workflow_id: "content_pipeline"
@@ -84,7 +84,7 @@ workflows:
         assigned_agent: "patent_specialist"
       - name: "법률 리스크 종합 보고"
         command: "법률 리스크 점검 결과를 종합하여 보고서를 작성해줘: {prev_result}"
-        assigned_agent: "clo_manager"
+        assigned_agent: "leet_legal"
 
   # ── 워크플로우 6: 주간 종합 보고서 ──
   - workflow_id: "weekly_comprehensive"
@@ -99,7 +99,7 @@ workflows:
         assigned_agent: "cto_manager"
       - name: "마케팅 성과"
         command: "이번 주 SNS 활동과 마케팅 성과를 정리해줘"
-        assigned_agent: "cmo_manager"
+        assigned_agent: "leet_marketer"
       - name: "주간 보고서 생성"
         command: "이전 단계 결과를 종합하여 주간 보고서를 생성해줘: {prev_result}"
         assigned_agent: "chief_of_staff"

@@ -252,7 +252,7 @@ async def argos_confidence(ticker: str):
         elo_adj = 0
         try:
             from db import get_analyst_elo
-            elos = [get_analyst_elo(aid)["elo_rating"] for aid in ["cio_manager"]]
+            elos = [get_analyst_elo(aid)["elo_rating"] for aid in ["fin_analyst"]]
             avg_elo = sum(elos) / len(elos)
             # ELO 1500 기준: 100점 차이 = ±3%p
             elo_adj = round((avg_elo - 1500) / 100 * 3, 1)

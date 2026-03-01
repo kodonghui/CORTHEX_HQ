@@ -87,7 +87,7 @@ def test_save_quality_review():
     """품질 검수 저장이 성공하는지."""
     rid = save_quality_review(
         chain_id="test_chain_1",
-        reviewer_id="cio_manager",
+        reviewer_id="fin_analyst",
         target_id="stock_analysis_specialist",
         division="finance.investment",
         passed=True,
@@ -102,7 +102,7 @@ def test_save_quality_review_failed():
     """불합격 검수 저장 + 반려사유."""
     rid = save_quality_review(
         chain_id="test_chain_2",
-        reviewer_id="cio_manager",
+        reviewer_id="fin_analyst",
         target_id="stock_analysis_specialist",
         division="finance.investment",
         passed=False,
@@ -140,9 +140,9 @@ def test_save_collaboration_log():
     rid = save_collaboration_log(
         from_division="finance.investment",
         to_division="leet_master.marketing",
-        from_agent="cio_manager",
+        from_agent="fin_analyst",
         to_agent="community_specialist",
-        redirected_to="cmo_manager",
+        redirected_to="leet_marketer",
         task_summary="마케팅 데이터 요청",
     )
     assert rid > 0
