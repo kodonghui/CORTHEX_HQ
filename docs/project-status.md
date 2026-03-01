@@ -9,8 +9,22 @@
 
 - **날짜**: 2026-03-01
 - **버전**: `4.00.002`
-- **빌드**: #721 (모바일 UX Phase 2+3 — 5초취소토스트 + 바텀시트 + 재시도버블)
+- **빌드**: #725 (냉정한 지휘소 대개편 Phase 1 — CSS 디자인 시스템 + 수직 탭바 + 에메랄드 팔레트)
 - **서버**: https://corthex-hq.com
+
+## 2026-03-01 — 냉정한 지휘소 대개편 (빌드 #722~#725)
+
+BMAD 3단계 기획(product-brief + ux-design-spec + prd) 완료 후 구현.
+
+| 빌드 | 내용 |
+|------|------|
+| #722 | CSS 디자인 시스템 전환 (--hq-accent 에메랄드, agent-bubble/user-bubble CSS, hq-nav-strip CSS) |
+| #723 | HTML 클래스 실제 적용 (agent-bubble/user-bubble, SVG #34d399, 헤더 1px 라인) |
+| #724 | 배경 밝기 (#0a0a0a→#131317) + 데스크탑 수직 탭바 HTML (6탭 + 통신국 배지) |
+| #725 | 입력창 placeholder 개선 + 웰컴 SVG 에메랄드 + hq-empty-state CSS |
+
+**미구현 PRD 항목**: AgentStatusBar(FR-12), ReportCard 리스트뷰(FR-32~40)
+**상세**: `docs/updates/2026-03-01_대개편구현.md`
 
 ---
 
