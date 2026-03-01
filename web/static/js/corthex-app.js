@@ -539,6 +539,12 @@ function corthexApp() {
       // restoreActivityLogs, fetchDelegationLogs, _connectCommsSSE → activityLog 탭 진입 시
       // loadConversation, loadPresets → command 탭 진입 시
 
+      // 딥링크: ?tab=sns 등 URL 파라미터로 탭 직접 이동
+      const urlTab = new URLSearchParams(window.location.search).get('tab');
+      if (urlTab) {
+        setTimeout(() => { this.switchTab(urlTab); }, 300);
+      }
+
       // 키보드 단축키 + 기타
       this.initKeyboardShortcuts();
       try { this.recentCommands = JSON.parse(localStorage.getItem('corthex-recent-cmds') || '[]'); } catch(e) { this.recentCommands = []; }
