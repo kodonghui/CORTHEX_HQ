@@ -525,7 +525,7 @@ app.include_router(media_router)
 # ── API 엔드포인트 ──
 
 # ── 인증(Auth) API → handlers/auth_handler.py로 분리 ──
-from handlers.auth_handler import router as auth_router, check_auth as _check_auth, get_auth_role
+from handlers.auth_handler import router as auth_router, check_auth as _check_auth, get_auth_role, get_auth_org
 app.include_router(auth_router)
 
 

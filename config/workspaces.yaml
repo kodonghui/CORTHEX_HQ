@@ -65,3 +65,4 @@ workspaces:
     showBulkModel: false
     showSatisfaction: false
     allowedDivisions: []
+    showSections: []
