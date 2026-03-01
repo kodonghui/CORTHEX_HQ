@@ -1489,3 +1489,76 @@ header.hq-header {
 .hq-empty-icon { width: 80px; height: 80px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: rgb(var(--hq-accent) / 0.05); border: 1px solid rgb(var(--hq-accent) / 0.1); color: rgb(var(--hq-accent) / 0.4); }
 .hq-empty-title { font-size: 0.95rem; font-weight: 500; color: rgb(var(--hq-text-dim)); }
 .hq-empty-sub { font-size: 0.8rem; color: rgb(var(--hq-muted)); }
+
+/* ══════════════════════════════════════
+   ── Login Screen ──
+══════════════════════════════════════ */
+.hq-login-grid {
+  background-image:
+    linear-gradient(rgba(52, 211, 153, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(52, 211, 153, 0.04) 1px, transparent 1px);
+  background-size: 48px 48px;
+  animation: loginGridPulse 4s ease-in-out infinite;
+}
+@keyframes loginGridPulse {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}
+.hq-login-scanline {
+  background: linear-gradient(to bottom, transparent 50%, rgba(0,0,0,0.025) 50%);
+  background-size: 100% 4px;
+  pointer-events: none;
+}
+.hq-login-logo {
+  background: linear-gradient(135deg, rgb(var(--hq-accent)), #22d3ee, rgb(var(--hq-accent)));
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: loginLogoShimmer 3s linear infinite;
+  filter: drop-shadow(0 0 24px rgba(52, 211, 153, 0.35));
+}
+@keyframes loginLogoShimmer {
+  0% { background-position: 0% center; }
+  100% { background-position: 200% center; }
+}
+.hq-login-blink {
+  animation: blink 1.2s step-end infinite;
+}
+.hq-login-dot {
+  animation: pulseDot 2s ease-in-out infinite;
+}
+.hq-login-card {
+  background: rgba(var(--hq-surface), 0.85);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(52, 211, 153, 0.15);
+  box-shadow: 0 0 0 1px rgba(52, 211, 153, 0.05), 0 24px 64px rgba(0,0,0,0.6), inset 0 1px 0 rgba(52, 211, 153, 0.1);
+}
+.hq-login-input {
+  background: rgba(var(--hq-bg), 0.9);
+  border: 1px solid rgba(var(--hq-border), 0.6);
+  letter-spacing: 0.15em;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.hq-login-input:focus {
+  box-shadow: 0 0 0 3px rgba(52, 211, 153, 0.08);
+}
+.hq-login-btn {
+  position: relative;
+  overflow: hidden;
+  transition: all 0.2s;
+}
+.hq-login-btn::before {
+  content: '';
+  position: absolute;
+  top: 0; left: -100%;
+  width: 100%; height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.05), transparent);
+  transition: left 0.4s;
+}
+.hq-login-btn:hover::before { left: 100%; }
+.hq-login-corner {
+  font-family: 'Geist Mono', 'Courier New', monospace;
+  font-size: 10px;
+  letter-spacing: 0.15em;
+}

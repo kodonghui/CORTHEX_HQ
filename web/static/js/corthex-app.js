@@ -3155,29 +3155,35 @@ function corthexApp() {
     async checkAuth() {
       try {
         const token = localStorage.getItem('corthex_token');
-        const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
-        const data = await fetch('/api/auth/status', { headers }).then(r => r.json());
+        if (!token) {
+          // 토큰 없으면 항상 로그인 화면 (bootstrap mode도 포함)
+          const data = await fetch('/api/auth/status').then(r => r.json());
+          this.auth.bootstrapMode = data.bootstrap_mode;
+          this.auth.showLogin = true;
+          return;
+        }
+        const data = await fetch('/api/auth/status', {
+          headers: { 'Authorization': `Bearer ${token}` },
+        }).then(r => r.json());
         this.auth.bootstrapMode = data.bootstrap_mode;
         if (data.authenticated) {
           this.auth.role = data.role || 'ceo';
+          this.auth.token = token;
           this.auth.showLogin = false;
-          if (token) {
-            this.auth.token = token;
-            const userJson = localStorage.getItem('corthex_user');
-            if (userJson) {
-              this.auth.user = JSON.parse(userJson);
-              this.auth.role = this.auth.user?.role || data.role || 'ceo';
-            }
+          const userJson = localStorage.getItem('corthex_user');
+          if (userJson) {
+            this.auth.user = JSON.parse(userJson);
+            this.auth.role = this.auth.user?.role || data.role || 'ceo';
           }
           return;
         }
-        // 인증 실패
+        // 토큰 만료
         localStorage.removeItem('corthex_token');
         localStorage.removeItem('corthex_user');
         this.auth.showLogin = true;
       } catch (e) {
         this.auth.bootstrapMode = true;
-        this.auth.role = 'ceo';
+        this.auth.showLogin = true;
       }
     },
 
@@ -3227,9 +3233,7 @@ function corthexApp() {
       this.auth.token = null;
       this.auth.user = null;
       this.auth.role = 'viewer';
-      if (!this.auth.bootstrapMode) {
-        this.auth.showLogin = true;
-      }
+      this.auth.showLogin = true;
       this.showToast('로그아웃 되었습니다', 'info');
     },
 
