@@ -42,8 +42,8 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="CORTHEX HQ">
   <link rel="apple-touch-icon" href="/static/images/corthex-logo-256.png">
-  <link rel="stylesheet" href="/static/css/corthex-styles.css?v=726">
-  <script defer src="/static/js/corthex-app.js?v=726"></script>
+  <link rel="stylesheet" href="/static/css/corthex-styles.css?v=727">
+  <script defer src="/static/js/corthex-app.js?v=727"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/@alpinejs/collapse@3.x.x/dist/cdn.min.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 </head>
@@ -92,7 +92,7 @@
         </div>
       </div>
       <div class="flex items-center gap-2 header-build-badge">
-        <span class="text-[10px] text-hq-muted bg-hq-surface border border-hq-border rounded-md px-2 py-0.5">빌드 #726</span>
+        <span class="text-[10px] text-hq-muted bg-hq-surface border border-hq-border rounded-md px-2 py-0.5">빌드 #727</span>
         <span class="text-[10px] text-hq-cyan/85 bg-hq-cyan/5 border border-hq-cyan/20 rounded-md px-2 py-0.5">CEO 관제</span>
       </div>
     </div>
@@ -7223,16 +7223,17 @@
   </div>
 
   <!-- ══════════════════════════════════════════════════ 범용 확인 모달 ══ -->
-  <div x-show="confirmModal.show" x-transition.opacity
-       class="fixed inset-0 z-[100] flex items-center justify-center p-4"
+  <!-- x-if 사용: show=false 시 DOM에서 완전 제거 → x-transition 글리치 방지 -->
+  <template x-if="confirmModal.show">
+  <div class="fixed inset-0 z-[100] flex items-center justify-center p-4"
        :style="darkMode ? 'background: rgba(2,0,12,0.8); backdrop-filter: blur(8px);' : 'background: rgba(100,80,120,0.25); backdrop-filter: blur(6px);'"
-       @click.self="closeConfirm()" style="display: none;">
+       @click.self="closeConfirm()">
     <div class="w-full max-w-sm rounded-3xl overflow-hidden relative"
          :style="darkMode
            ? 'background: rgba(18,10,36,0.92); border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 0 60px rgba(139,92,246,0.12), 0 8px 32px rgba(0,0,0,0.4);'
            : 'background: rgba(255,255,255,0.96); border: 1px solid rgba(160,120,200,0.2); box-shadow: 0 8px 32px rgba(0,0,0,0.08);'"
-         x-transition:enter="transition ease-out duration-300"
-         x-transition:enter-start="opacity-0 scale-90 translate-y-4"
+         x-transition:enter="transition ease-out duration-200"
+         x-transition:enter-start="opacity-0 scale-95 translate-y-2"
          x-transition:enter-end="opacity-100 scale-100 translate-y-0">
       <!-- 상단 라인 -->
       <div :style="confirmModal.isDanger
@@ -7283,6 +7284,7 @@
       </div>
     </div>
   </div>
+  </template><!-- /confirmModal x-if -->
 
   <!-- ══════════════════════════════════════════════════ NEXUS 풀스크린 오버레이 ══ -->
   <template x-if="nexusOpen">
