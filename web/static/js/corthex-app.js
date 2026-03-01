@@ -5046,16 +5046,20 @@ function corthexApp() {
       });
     },
 
-    // ── #12: Tab grouping helpers ──
+    // ── #12: Tab grouping helpers (v5.2: showSections 기반 필터) ──
+    _tabAllowed(tabId) {
+      const ss = this.workspace.showSections;
+      return !ss || ss.length === 0 || ss.includes(tabId);
+    },
     getPrimaryTabs() {
       // 메인 탭 순서: 작전현황 / 사령관실 / 전략실 / 통신로그 / 작전일지 / 기밀문서
       const order = ['home', 'command', 'trading', 'activityLog', 'history', 'archive'];
-      return order.map(id => this.tabs.find(t => t.id === id)).filter(Boolean);
+      return order.map(id => this.tabs.find(t => t.id === id)).filter(t => t && this._tabAllowed(t.id));
     },
     getSecondaryTabs() {
       // 더보기: 전력분석 / 자동화 / 크론기지 / 통신국 / 정보국 / ARGOS
       const order = ['performance', 'workflow', 'schedule', 'sns', 'knowledge', 'intelligence'];
-      return order.map(id => this.tabs.find(t => t.id === id)).filter(Boolean);
+      return order.map(id => this.tabs.find(t => t.id === id)).filter(t => t && this._tabAllowed(t.id));
     },
 
     // ── #4: Publishing division support ──
