@@ -85,11 +85,14 @@ async def delete_all_archives_api():
 
 
 @router.get("")
-async def get_archive_list(division: str = None, limit: int = 100, org: str = ""):
+async def get_archive_list(request: Request, division: str = None, limit: int = 100, org: str = ""):
+    from handlers.auth_handler import get_auth_org
+    auth_org = get_auth_org(request)
+    effective_org = auth_org or org  # 인증 org 우선 (sister→saju 강제)
     docs = list_archives(division=division, limit=limit)
     # v5: org 스코프 필터 (ADR-7 — 탭 숨김 아닌 데이터 스코프)
-    if org:
-        docs = [d for d in docs if d.get("division", "").startswith(org)]
+    if effective_org:
+        docs = [d for d in docs if d.get("division", "").startswith(effective_org)]
     for doc in docs:
         doc.setdefault("importance", "일반")
         doc.setdefault("tags", [])
