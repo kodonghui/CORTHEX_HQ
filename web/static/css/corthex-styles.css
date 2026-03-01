@@ -1479,29 +1479,10 @@ header.hq-header {
   }
 }
 
-/* ═══ 데스크탑 수직 탭바 (Vertical Nav Strip) ═══ */
+/* ═══ 데스크탑 수직 탭바 — 비활성화 ═══ */
 
-/* 데스크탑에서 기존 수평 탭바 숨김 */
-@media (min-width: 768px) {
-  .desktop-tab-bar { display: none !important; }
-}
-
-/* 수직 탭바 컨테이너 */
-.hq-nav-strip {
-  display: none; /* 모바일 기본값: 숨김 */
-  flex-direction: column;
-  align-items: center;
-  width: 68px;
-  flex-shrink: 0;
-  padding: 8px 0;
-  gap: 2px;
-  background: rgb(var(--hq-surface));
-  border-right: 1px solid rgb(var(--hq-border));
-  overflow: hidden;
-}
-@media (min-width: 768px) {
-  .hq-nav-strip { display: flex; }
-}
+/* 수직 탭바 — 비활성화 */
+.hq-nav-strip { display: none !important; }
 
 /* 수직 탭 버튼 */
 .hq-nav-btn {
