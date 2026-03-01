@@ -85,10 +85,11 @@ async def delete_all_archives_api():
 
 
 @router.get("")
-async def get_archive_list(division: str = None, limit: int = 100):
+async def get_archive_list(division: str = None, limit: int = 100, org: str = ""):
     docs = list_archives(division=division, limit=limit)
-    # importance/tags 필드를 각 문서에 추가 (content가 없으므로 별도 조회 없이 기본값 반환)
-    # 목록 조회는 content를 포함하지 않으므로 기본값 사용; 상세 조회에서 실제 값 반환
+    # v5: org 스코프 필터 (ADR-7 — 탭 숨김 아닌 데이터 스코프)
+    if org:
+        docs = [d for d in docs if d.get("division", "").startswith(org)]
     for doc in docs:
         doc.setdefault("importance", "일반")
         doc.setdefault("tags", [])

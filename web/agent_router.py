@@ -118,8 +118,28 @@ def _can_command(session_role: str, agent_id: str) -> bool:
     return session_role == cli_owner
 
 
+# v5: agents.yaml name 필드 → agent_id 역매핑 (@Eden→saju_eden, @Zoe→saju_zoe 등)
+_AGENT_DISPLAY_NAME_TO_ID: dict[str, str] = {
+    detail.get("name", "").lower(): agent_id
+    for agent_id, detail in _AGENTS_DETAIL.items()
+    if detail.get("name")
+}
+
+
 def _parse_explicit_target(text: str) -> str | None:
-    """'~팀장에게 지시/질문' 패턴에서 팀장 ID 추출. 명시적 지시 최우선."""
+    """'~팀장에게 지시/질문' 또는 '@DisplayName' 패턴에서 에이전트 ID 추출."""
+    # @DisplayName 멘션 우선 (FR-11: @Eden → saju_eden)
+    import re
+    at_match = re.search(r'@(\w+)', text)
+    if at_match:
+        mention = at_match.group(1).lower()
+        # 영문 표시명 기반 매핑 (@Eden, @Zoe, @Sage 등)
+        if mention in _AGENT_DISPLAY_NAME_TO_ID:
+            return _AGENT_DISPLAY_NAME_TO_ID[mention]
+        # agent_id 직접 (@saju_eden 등)
+        if mention in _AGENTS_DETAIL:
+            return mention
+    # 한국어 이름 기반 (~팀장에게 등)
     for name, agent_id in _AGENT_NAME_TO_ID.items():
         if name in text:
             return agent_id

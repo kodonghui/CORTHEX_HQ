@@ -1407,20 +1407,20 @@ def clear_conversation_messages() -> None:
 
 # ── Conversations (멀티턴 대화 세션) CRUD ──
 
-def create_conversation(agent_id: str | None = None, title: str = "새 대화") -> dict:
+def create_conversation(agent_id: str | None = None, title: str = "새 대화", org: str = "") -> dict:
     """새 대화 세션을 생성합니다."""
     conv_id = _gen_task_id()
     now = _now_iso()
     conn = get_connection()
     try:
         conn.execute(
-            "INSERT INTO conversations (conversation_id, title, agent_id, created_at, updated_at) "
-            "VALUES (?, ?, ?, ?, ?)",
-            (conv_id, title, agent_id, now, now),
+            "INSERT INTO conversations (conversation_id, title, agent_id, org, created_at, updated_at) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            (conv_id, title, agent_id, org, now, now),
         )
         conn.commit()
         return {"conversation_id": conv_id, "title": title, "agent_id": agent_id,
-                "turn_count": 0, "total_cost": 0.0, "is_active": 1,
+                "org": org, "turn_count": 0, "total_cost": 0.0, "is_active": 1,
                 "created_at": now, "updated_at": now}
     except sqlite3.OperationalError:
         return {"conversation_id": conv_id, "title": title}
@@ -1428,14 +1428,20 @@ def create_conversation(agent_id: str | None = None, title: str = "새 대화") 
         conn.close()
 
 
-def list_conversations(limit: int = 50) -> list:
-    """활성 대화 세션 목록을 반환합니다 (최신순)."""
+def list_conversations(limit: int = 50, org: str | None = None) -> list:
+    """활성 대화 세션 목록을 반환합니다 (최신순). org 지정 시 해당 본부만."""
     conn = get_connection()
     try:
-        rows = conn.execute(
-            "SELECT * FROM conversations WHERE is_active = 1 ORDER BY updated_at DESC LIMIT ?",
-            (limit,),
-        ).fetchall()
+        if org:
+            rows = conn.execute(
+                "SELECT * FROM conversations WHERE is_active = 1 AND org = ? ORDER BY updated_at DESC LIMIT ?",
+                (org, limit),
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                "SELECT * FROM conversations WHERE is_active = 1 ORDER BY updated_at DESC LIMIT ?",
+                (limit,),
+            ).fetchall()
         return [dict(r) for r in rows]
     except sqlite3.OperationalError:
         return []
