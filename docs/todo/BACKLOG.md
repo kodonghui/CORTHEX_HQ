@@ -3,7 +3,7 @@
 > **규칙**: 미완료 항목은 전부 여기만. 날짜 파일에 ⬜ 절대 금지.
 > **수시 업데이트**: 완료되면 즉시 ✅ 표시 or 삭제. 새 항목 발견 시 즉시 추가.
 > 🔴 **매 배포 시 반드시 갱신!** — 배포하고 BACKLOG 안 건드리면 미완성!
-> 마지막 업데이트: 2026-03-01 빌드#721 (모바일 UX Phase 1+2+3 전체 완료)
+> 마지막 업데이트: 2026-03-01 빌드#721 (모바일 UX Phase 1+2+3 완료) + BMAD 기획 3종 완료 (커밋 예정)
 
 ---
 
@@ -43,6 +43,23 @@
 
 - ✅ ~~**Instagram Meta 앱 설정**~~ — 토큰 발급 + GitHub Secrets 등록 + 코드 연동 완료
 - ✅ ~~**Instagram 실제 발행 테스트**~~ — 대표님이 직접 발행 성공 확인 (2026-02-28)
+
+---
+
+## 🔴 대개편 Phase 1 — 구현 대기 (기획 완료)
+
+> 기획 문서: `_bmad-output/planning-artifacts/` (product-brief, ux-design-spec, prd 전부 완료)
+> 구현 순서는 PRD "Implementation Priority" 참조
+
+- ⬜ **[1] CSS 변수 시스템 정비** — `corthex-styles.css` : --hq-bg-base/surface/elevated, --hq-text 3단계, --hq-border, --hq-accent 토큰 추가
+- ⬜ **[2] 데스크탑 사이드바 탭** — 상단 탭 → 좌측 240px 수직 탭바 (아이콘+텍스트, 현재 탭 에메랄드 border)
+- ⬜ **[3] CommandInput 리디자인** — 사령관실 입력창: auto-grow, 포커스 glow, 플레이스홀더 "대표님, 무엇을 지시하시겠습니까?", 히스토리 ↑
+- ⬜ **[4] AgentBubble 리디자인** — 에이전트 이름 표시, 좌측 컬러 border (팀원별), 마크다운 렌더링 개선
+- ⬜ **[5] AgentStatusBar** — 각 에이전트 온라인/작업중/오류 상태 dot 표시
+- ⬜ **[6] SNSCard 리디자인** — 플랫폼 아이콘 개선, 카드 레이아웃, 버튼 위계 (Primary 승인/Secondary 수정/Tertiary 반려)
+- ⬜ **[7] ReportCard + 읽기 모드** — 목록 행 (유형배지+제목+날짜), 읽기 모드 (900px, line-height 1.8, 다음보고서)
+- ⬜ **[8] EmptyState 패턴** — 통신국 빈 상태, 보고서 없음 상태
+- ⬜ **[9] 접근성 정비** — focus ring (에메랄드 2px), aria-label 주요 컴포넌트, prefers-reduced-motion
 
 ---
 
