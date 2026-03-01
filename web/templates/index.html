@@ -97,14 +97,13 @@
       </div>
     </div>
 
-    <!-- 로그아웃 버튼 (로그인 상태일 때) -->
-    <template x-if="auth.token">
-      <button @click="doLogout()"
-              class="text-[10px] text-hq-muted hover:text-hq-red border border-hq-border hover:border-hq-red/30 rounded-md px-2 py-0.5 transition mr-2"
-              title="로그아웃">로그아웃</button>
-    </template>
-
     <div class="flex items-center gap-5">
+      <!-- 로그아웃 버튼 (로그인 상태일 때) -->
+      <template x-if="auth.token">
+        <button @click="doLogout()"
+                class="text-[10px] text-hq-muted hover:text-hq-red border border-hq-border hover:border-hq-red/30 rounded-md px-2 py-0.5 transition"
+                title="로그아웃">로그아웃</button>
+      </template>
       <!-- System Status (click → health popover) -->
       <div class="flex items-center gap-2 relative">
         <template x-if="systemStatus === 'idle'">
