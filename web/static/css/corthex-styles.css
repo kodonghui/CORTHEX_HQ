@@ -1,21 +1,21 @@
 /* 폰트는 index.html에서 preload로 비동기 로드 (CSS @import 순차 블로킹 제거) */
 
-/* ═══ 인디고 B 팔레트 (2026-03-01) ═══ */
+/* ═══ Noir Commander B 팔레트 (2026-03-01) ═══ */
 :root, .dark {
-  --hq-bg: 23 23 48;            /* #171730 — 미디엄 인디고 */
-  --hq-surface: 33 33 62;       /* #21213e — 카드 */
-  --hq-panel: 27 27 56;         /* #1b1b38 — 패널 */
-  --hq-border: 50 50 90;        /* #32325a — 테두리 */
-  --hq-border-light: 70 70 120; /* #464678 — 밝은 테두리 */
-  --hq-accent: 139 92 246;      /* #8b5cf6 — violet-500 */
-  --hq-cyan: 167 139 250;       /* #a78bfa — violet-400 */
-  --hq-purple: 109 40 217;      /* #6d28d9 — violet-700 */
+  --hq-bg: 20 20 20;            /* #141414 — Noir B */
+  --hq-surface: 30 30 30;       /* #1e1e1e — 카드 */
+  --hq-panel: 24 24 24;         /* #181818 — 패널 */
+  --hq-border: 50 50 50;        /* #323232 — 테두리 */
+  --hq-border-light: 75 75 75;  /* #4b4b4b — 밝은 테두리 */
+  --hq-accent: 251 191 36;      /* #fbbf24 — amber-400 (골드) */
+  --hq-cyan: 245 158 11;        /* #f59e0b — amber-500 */
+  --hq-purple: 217 119 6;       /* #d97706 — amber-600 */
   --hq-green: 52 211 153;       /* #34d399 — emerald-400 */
   --hq-yellow: 251 191 36;      /* #fbbf24 — amber-400 */
   --hq-red: 248 113 113;        /* #f87171 — red-400 */
   --hq-text: 245 245 245;       /* #f5f5f5 — 거의 순백 */
-  --hq-muted: 130 130 180;      /* #8282b4 — 인디고 뮤트 */
-  --hq-shadow: 10 10 40;
+  --hq-muted: 115 115 115;      /* #737373 — neutral-500 */
+  --hq-shadow: 0 0 0;
 }
 /* ═══ 프리미엄 SaaS 팔레트 (라이트 — 클린 화이트) ═══ */
 html:not(.dark) {
@@ -40,12 +40,12 @@ body { font-family: 'Pretendard Variable', 'Pretendard', -apple-system, BlinkMac
 /* 포인트 명조체 — 제목/워크플로우 이름 등에 사용 */
 .font-title { font-family: 'Pretendard Variable', 'Pretendard', sans-serif; font-weight: 700; letter-spacing: -0.01em; }
 
-/* ═══ 인디고 B 배경 ═══ */
+/* ═══ Noir Commander B 배경 ═══ */
 .dark body {
-  background: #171730;
+  background: #141414;
   background-attachment: fixed;
 }
-/* 미세한 바이올렛 글로우 — 오른쪽 위 */
+/* 미세한 골드 글로우 — 오른쪽 위 */
 .dark body::before {
   content: '';
   position: fixed;
@@ -53,11 +53,11 @@ body { font-family: 'Pretendard Variable', 'Pretendard', -apple-system, BlinkMac
   right: -10%;
   width: 55%;
   height: 65%;
-  background: radial-gradient(ellipse at center, rgba(139,92,246,0.08) 0%, transparent 65%);
+  background: radial-gradient(ellipse at center, rgba(251,191,36,0.06) 0%, transparent 65%);
   pointer-events: none;
   z-index: 0;
 }
-/* 미세한 바이올렛 글로우 — 왼쪽 아래 */
+/* 미세한 골드 글로우 — 왼쪽 아래 */
 .dark body::after {
   content: '';
   position: fixed;
@@ -65,7 +65,7 @@ body { font-family: 'Pretendard Variable', 'Pretendard', -apple-system, BlinkMac
   left: -10%;
   width: 40%;
   height: 50%;
-  background: radial-gradient(ellipse at center, rgba(139,92,246,0.04) 0%, transparent 65%);
+  background: radial-gradient(ellipse at center, rgba(251,191,36,0.03) 0%, transparent 65%);
   pointer-events: none;
   z-index: 0;
 }
