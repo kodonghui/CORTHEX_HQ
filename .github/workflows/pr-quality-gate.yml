@@ -1,0 +1,76 @@
+name: PR Quality Gate — Claude Code Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - 'web/templates/**'
+      - 'web/static/js/**'
+      - 'web/handlers/**'
+      - 'web/app.py'
+      - 'web/arm_server.py'
+      - 'config/**'
+
+jobs:
+  claude-review:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Claude Code Quality Gate
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude_env: |
+            ANTHROPIC_API_KEY=${{ secrets.ANTHROPIC_API_KEY }}
+          prompt: |
+            이 PR의 변경된 파일들을 검토해줘. CORTHEX HQ 프로젝트의 핵심 규칙 위반 여부를 체크하고 PR 댓글로 결과를 남겨줘.
+
+            ## 🔴 반드시 체크할 것 (위반 시 FAIL)
+
+            1. **role if/else 하드코딩 금지**
+               - `auth.role === 'sister'`, `auth.role === 'ceo'` 같은 조건 있으면 FAIL
+               - `x-show="auth.role"` 패턴 있으면 FAIL
+               - 올바른 방식: `workspace.sidebarFilter`, `workspace.showX`, `agentCliOwner[id]`
+
+            2. **CEO 데이터 격리**
+               - 새로 추가된 섹션/카드/탭에 workspace 조건이 없으면 FAIL
+               - 누나 계정에서 CEO 전용 정보(만족도, 팀장 6명 목록, CEO SNS 등)가 노출될 수 있는 코드 FAIL
+
+            3. **API 엔드포인트 orgScope 필터**
+               - 새 API 엔드포인트가 org 파라미터 없이 전체 데이터 반환하면 WARN
+               - /api/agents, /api/performance 등에 cli_owner/org 필터 빠지면 WARN
+
+            4. **에이전트 하드코딩**
+               - `['chief_of_staff', 'fin_analyst', ...]` 배열 하드코딩 새로 추가되면 WARN
+               - workspace.officeLayout, agentCliOwner 등 동적 데이터 사용 권장
+
+            ## 📋 결과 형식
+            아래 형식으로 PR에 댓글 달아줘:
+
+            ---
+            ## 🤖 CORTHEX Quality Gate
+
+            ### 결과: PASS / FAIL / WARN
+
+            | 체크 항목 | 결과 | 상세 |
+            |---------|------|------|
+            | role if/else 없음 | ✅/❌ | 파일:라인 |
+            | CEO 데이터 격리 | ✅/❌ | 파일:라인 |
+            | orgScope 필터 | ✅/⚠️ | 파일:라인 |
+            | 에이전트 하드코딩 | ✅/⚠️ | 파일:라인 |
+
+            ### 위반 사항
+            (있으면 상세히, 없으면 "없음")
+
+            ### 권장 수정
+            (있으면 코드 예시 포함)
+            ---
+
+          claude_args: "--max-turns 5 --model claude-sonnet-4-6"
