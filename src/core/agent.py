@@ -50,6 +50,10 @@ class AgentConfig(BaseModel):
     max_retries: int = 2
     temperature: float = 0.3
     reasoning_effort: str = ""  # "", "low", "medium", "high"
+    cli_owner: str = ""  # ceo | sister — CLI 소유자 필터
+    org: str = ""  # 조직 스코프
+    dormant: bool = False  # 비활성 에이전트
+    telegram_code: str = ""  # 텔레그램 코드
 
 
 class BaseAgent(ABC):

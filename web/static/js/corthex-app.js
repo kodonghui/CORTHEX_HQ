@@ -478,6 +478,7 @@ function corthexApp() {
     },
     agentRoles: {},
     agentModels: {},
+    agentCliOwner: {},
     agentModelRaw: {},
     agentReasonings: {},
 
@@ -2407,7 +2408,9 @@ function corthexApp() {
     async loadPerformance() {
       try {
         const data = await fetch('/api/performance').then(r => r.json());
-        const agents = data.agents || [];
+        // v5.1: 현재 에이전트에 없는 구 ID(specialist, cio_manager 등) 필터링
+        const knownIds = Object.keys(this.agentNames || {});
+        const agents = (data.agents || []).filter(a => knownIds.length === 0 || knownIds.includes(a.agent_id));
         const maxCost = Math.max(...agents.map(a => a.cost_usd || 0), 0.0001);
         const totalTasks = agents.reduce((s, a) => s + (a.tasks_completed || 0), 0);
         const rates = agents.filter(a => a.tasks_completed > 0).map(a => a.success_rate || 0);
@@ -3311,6 +3314,8 @@ function corthexApp() {
             this.agentReasonings[a.agent_id] = a.reasoning_effort || '';
             // 에이전트 카드에 표시명 저장 (추론레벨은 템플릿에서 별도 표시)
             this.agentModels[a.agent_id] = a.model_name || '';
+            // v5.1: cli_owner 매핑 (사이드바 슬랙 모델 필터링용)
+            this.agentCliOwner[a.agent_id] = a.cli_owner || '';
             if (a.division) {
               const divMap = { '비서실': 'secretary', '기술개발처': 'tech', '사업기획처': 'strategy',
                                '법무처': 'legal', '마케팅처': 'marketing', '투자분석처': 'finance',

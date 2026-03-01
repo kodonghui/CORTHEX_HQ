@@ -436,6 +436,8 @@ async def get_agents() -> list[dict]:
             "capabilities": agent.config.capabilities,
             "subordinate_ids": agent.config.subordinate_ids,
             "superior_id": agent.config.superior_id,
+            "cli_owner": agent.config.cli_owner,
+            "dormant": agent.config.dormant,
         })
     return agents
 
