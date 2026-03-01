@@ -3,7 +3,7 @@
 > **규칙**: 미완료 항목은 전부 여기만. 날짜 파일에 ⬜ 절대 금지.
 > **수시 업데이트**: 완료되면 즉시 ✅ 표시 or 삭제. 새 항목 발견 시 즉시 추가.
 > 🔴 **매 배포 시 반드시 갱신!** — 배포하고 BACKLOG 안 건드리면 미완성!
-> 마지막 업데이트: 2026-03-02 빌드#760 (sister 4가지 버그 + 로그아웃 수정)
+> 마지막 업데이트: 2026-03-02 빌드#762 (v5.1 Config-driven Workspace — role if/else 전면 폐기)
 
 ---
 
@@ -76,6 +76,18 @@
   - 결과: 전부 실패. 네이버가 헤드리스 브라우저 자체를 CAPTCHA로 차단. 쿠키 로드 후 naver.com은 로그인되나 blog.naver.com 글쓰기 접속 시 재로그인 요구 (세션 불일치)
   - 원인: 네이버 2025년 이후 봇 탐지 대폭 강화. snap chromedriver(ARM)는 패치 불가(GLIBC 호환 문제)
   - 재도전 조건: ① 대표님 PC(데스크톱)에서 실행하거나 ② Naver 내부 API 역공학 또는 ③ Playwright stealth 모드 시도
+
+---
+
+## ✅ v5.1 Config-driven Workspace (빌드 #762)
+
+- ✅ ~~**role if/else 전면 폐기**~~ — JS/HTML에서 `auth.role === 'sister'` 17곳 제거 → `workspace.*` 설정 데이터 기반 (PR #730)
+- ✅ ~~**config/workspaces.yaml 신규**~~ — CEO/sister 워크스페이스 프로파일 (브랜딩+데이터스코프+사무실배치)
+- ✅ ~~**GET /api/workspace-profile**~~ — 로그인 시 워크스페이스 프로파일 자동 로드
+- ✅ ~~**사이드바/@멘션 cli_owner 기반**~~ — org 기반 → cli_owner 기반 필터 (슬랙 모델: 내 CLI 직원만)
+- ✅ ~~**yaml2json.py workspaces 추가**~~ — 배포 시 workspaces.json 자동 생성
+- ✅ ~~**CLAUDE.md v5.1 정리**~~ — v3 잔재(처장=5번째분석가) 제거, 워크스페이스 규칙 반영
+- ✅ ~~**architecture.md 코드 동기화**~~ — sidebarFilter/mentionFilter cli_owner 기반으로 수정
 
 ---
 

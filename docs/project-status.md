@@ -8,9 +8,33 @@
 ## 마지막 업데이트
 
 - **날짜**: 2026-03-02
-- **버전**: `5.00.000` ✅ v5 완료
-- **빌드**: #760 배포완료 (최신)
+- **버전**: `5.10.000` ✅ v5.1 Config-driven Workspace
+- **빌드**: #762 배포완료 (최신)
 - **서버**: https://corthex-hq.com
+
+## 2026-03-02 — v5.1 Config-driven Workspace (빌드 #762)
+
+| PR | 빌드 | 내용 |
+|----|------|------|
+| #730 | #762 | v5.1 워크스페이스 아키텍처 — role if/else 전면 폐기, config 기반 동적 렌더링 |
+
+**변경 파일 8개**: workspaces.yaml(신규) · yaml2json.py · config_loader.py · arm_server.py · corthex-app.js · index.html · CLAUDE.md · 핸드오프문서
+
+**핵심 변경**:
+- `config/workspaces.yaml`: CEO/sister 워크스페이스 프로파일 (브랜딩+데이터스코프+사무실배치)
+- `GET /api/workspace-profile`: 로그인 시 워크스페이스 프로파일 자동 로드
+- JS/HTML role if/else 17곳 → `workspace.*` 설정 데이터 기반 렌더링
+- 사이드바/@멘션: org 기반 → cli_owner 기반 필터 (슬랙 모델: 내 CLI 직원만)
+- CLAUDE.md: v3 잔재 제거, v5.1 아키텍처 규칙 반영
+
+**아키텍처 원칙**:
+- 네이버 모델: 같은 기능(탭/뷰/NEXUS), 다른 데이터(에이전트/로그/문서)
+- 슬랙 모델: 사이드바/@멘션 = 내 CLI 직원만 (cli_owner 기반)
+- 새 사람 추가 = workspaces.yaml 프로파일 1개. 코드 수정 0줄
+
+상세: `docs/updates/2026-03-02_v51-workspace-architecture.md`
+
+---
 
 ## 2026-03-02 — sister(누나) 계정 4가지 버그 수정 + 로그아웃 수정
 
