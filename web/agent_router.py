@@ -1161,6 +1161,9 @@ async def _call_agent(agent_id: str, text: str, conversation_id: str | None = No
     # 최근 대화 기록 로드
     conv_history = _build_conv_history(conversation_id, text)
 
+    # v5: 에이전트별 cli_owner 확인 (saju 본부 에이전트 → sister 계정)
+    _agent_cli_owner = _AGENTS_DETAIL.get(agent_id, {}).get("cli_owner", "ceo")
+
     await _broadcast_status(agent_id, "working", 0.3, "AI 응답 생성 중...")
     result = await ask_ai(text, system_prompt=soul, model=model,
                           tools=tool_schemas, tool_executor=tool_executor_fn,
@@ -1169,7 +1172,8 @@ async def _call_agent(agent_id: str, text: str, conversation_id: str | None = No
                           # CLI 모드: Claude 호출을 CLI(Max 구독)로 라우팅
                           use_cli=True,
                           cli_caller_id=agent_id,
-                          cli_allowed_tools=allowed)
+                          cli_allowed_tools=allowed,
+                          cli_owner=_agent_cli_owner)
     await _broadcast_status(agent_id, "working", 0.7, "응답 처리 중...")
 
     if "error" in result:

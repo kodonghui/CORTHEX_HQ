@@ -148,7 +148,7 @@ function corthexApp() {
     workflowExec: { show: false, workflowId: null, workflowName: '', mode: 'realtime', steps: [], currentStep: -1, done: false, error: null, finalResult: null },
 
     // ── Auth (인증) ──
-    auth: { user: null, token: null, showLogin: false, loginUser: '', loginPass: '', loginError: '', role: 'ceo', bootstrapMode: true },
+    auth: { user: null, token: null, showLogin: false, loginUser: '', loginPass: '', loginError: '', role: 'ceo', loginRole: 'ceo', bootstrapMode: true },
 
     // ── Memory Modal (에이전트 기억) ──
     memoryModal: { visible: false, agentId: '', agentName: '', items: [], newKey: '', newValue: '' },
@@ -3164,7 +3164,10 @@ function corthexApp() {
           if (token) {
             this.auth.token = token;
             const userJson = localStorage.getItem('corthex_user');
-            if (userJson) this.auth.user = JSON.parse(userJson);
+            if (userJson) {
+              this.auth.user = JSON.parse(userJson);
+              this.auth.role = this.auth.user?.role || data.role || 'ceo';
+            }
           }
           return;
         }
@@ -3186,17 +3189,23 @@ function corthexApp() {
         const data = await fetch('/api/auth/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ password }),
+          body: JSON.stringify({ password, role: this.auth.loginRole || 'ceo' }),
         }).then(r => r.json());
         if (data.success) {
+          const user = data.user || { role: this.auth.loginRole || 'ceo' };
           localStorage.setItem('corthex_token', data.token);
-          localStorage.setItem('corthex_user', JSON.stringify(data.user || {role:'ceo'}));
+          localStorage.setItem('corthex_user', JSON.stringify(user));
           this.auth.token = data.token;
-          this.auth.user = data.user || {role:'ceo'};
-          this.auth.role = 'ceo';
+          this.auth.user = user;
+          this.auth.role = user.role || 'ceo';
           this.auth.showLogin = false;
           this.auth.loginPass = '';
-          this.showToast('로그인 성공', 'success');
+          // sister 로그인 시 기밀문서 자동으로 사주 탭 설정
+          if (this.auth.role === 'sister' && this.archive) {
+            this.archive.filterDivision = 'saju';
+          }
+          const label = this.auth.role === 'sister' ? '누나 계정' : 'CEO';
+          this.showToast(`${label} 로그인 성공`, 'success');
         } else {
           this.auth.loginError = data.error || '로그인 실패';
         }
@@ -4985,6 +4994,17 @@ function corthexApp() {
         'publishing': '콘텐츠팀',
       };
       return labels[division] || division;
+    },
+
+    // v5: 본부(bunbu) 필터 매칭 헬퍼
+    matchesBunbu(division, bunbu) {
+      if (bunbu === 'all') return true;
+      const d = division || '';
+      if (bunbu === 'leet_master') return d.startsWith('leet_master') || d === 'finance.investment' || d === 'publishing';
+      if (bunbu === 'sketchvibe') return d.startsWith('sketchvibe');
+      if (bunbu === 'saju') return d.startsWith('saju');
+      if (bunbu === 'common') return d === 'secretary';
+      return d === bunbu; // exact match fallback
     },
 
     // 에이전트 직급 분류
