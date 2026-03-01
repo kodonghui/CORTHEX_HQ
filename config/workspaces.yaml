@@ -51,3 +51,15 @@ workspaces:
     showBulkModel: false
     showSatisfaction: false
     allowedDivisions: [saju]   # 사주 탭만
+
+  viewer:
+    label: "로그인 필요"
+    color: "hq-muted"
+    showBuildNumber: false
+    officeLayout: []
+    sidebarFilter: ""          # 빈 문자열 = 아무 에이전트도 안 보임
+    mentionFilter: ""
+    orgScope: null
+    showBulkModel: false
+    showSatisfaction: false
+    allowedDivisions: []

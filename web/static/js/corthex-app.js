@@ -3228,8 +3228,9 @@ function corthexApp() {
     async initWorkspace() {
       try {
         const token = this.auth.token || localStorage.getItem('corthex_token');
+        if (!token) return;  // 토큰 없으면 스킵 — 로그인 전 viewer 기본값 유지
         const res = await fetch('/api/workspace-profile', {
-          headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+          headers: { 'Authorization': `Bearer ${token}` },
         });
         if (res.ok) {
           const profile = await res.json();
