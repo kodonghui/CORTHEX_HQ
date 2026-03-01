@@ -508,14 +508,22 @@ function corthexApp() {
 
     // ── 범용 확인 모달 ──
     showConfirm({ title = '확인', message = '', detail = '', confirmText = '확인', isDanger = true, onConfirm = null } = {}) {
-      this.confirmModal = { show: true, title, message, detail, confirmText, isDanger, onConfirm };
+      this.confirmModal.title = title;
+      this.confirmModal.message = message;
+      this.confirmModal.detail = detail;
+      this.confirmModal.confirmText = confirmText;
+      this.confirmModal.isDanger = isDanger;
+      this.confirmModal.onConfirm = onConfirm;
+      this.confirmModal.show = true;
     },
     closeConfirm() {
-      this.confirmModal = { show: false, title: '', message: '', detail: '', confirmText: '확인', isDanger: true, onConfirm: null };
+      this.confirmModal.show = false;
+      this.confirmModal.onConfirm = null;
     },
     executeConfirm() {
-      if (this.confirmModal.onConfirm) this.confirmModal.onConfirm();
+      const fn = this.confirmModal.onConfirm;
       this.closeConfirm();
+      try { if (fn) fn(); } catch(e) { console.error('[Confirm] action error:', e); }
     },
 
     init() {
