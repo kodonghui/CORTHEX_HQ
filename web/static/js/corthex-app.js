@@ -1278,11 +1278,11 @@ function corthexApp() {
         const res = await fetch('/api/feedback/ui');
         if (res.ok) {
           const data = await res.json();
-          this.feedbackPins = (data.feedbacks || []).slice(-20).map(f => ({
+          this.feedbackPins = (data.items || data.feedbacks || []).slice(-20).map(f => ({
             x: f.x || 0, y: f.y || 0,
             comment: f.comment || '',
             tab: f.tab || '',
-            timestamp: f.created_at || '',
+            timestamp: f.date || f.created_at || '',
             id: f.id || Date.now(),
           }));
         }
