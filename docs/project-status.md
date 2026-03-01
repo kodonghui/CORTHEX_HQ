@@ -9,8 +9,17 @@
 
 - **날짜**: 2026-03-01
 - **버전**: `5.00.000` ✅ v5 완료
-- **빌드**: #752 배포완료 (최신)
+- **빌드**: #753+ 배포완료 (최신)
 - **서버**: https://corthex-hq.com
+
+## 2026-03-01 — 누나 CLI 연동 + 빌드 번호 자동화
+
+- ✅ 누나 CLI 자격증명 등록 (`/home/ubuntu/.claude-sister/.claude/.credentials.json`)
+- ✅ Eden/Zoe/Sage 3명 전원 누나 Max 구독으로 $0 동작 확인
+- ✅ 빌드 번호 하드코딩(#730) → `BUILD_NUMBER_PLACEHOLDER` 자동 치환 복원
+- 상세: `docs/updates/2026-03-01_누나CLI연동.md`
+
+---
 
 ## 2026-03-01 — v5 전체 완료 (빌드 #750~#752)
 
