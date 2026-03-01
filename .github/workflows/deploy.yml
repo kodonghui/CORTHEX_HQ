@@ -458,6 +458,10 @@ jobs:
             mkdir -p /home/ubuntu/logs
             echo "✅ Claude Code 업데이트 체크 크론 등록 완료 (매일 09:00 KST)"
 
+            # v5 DB 마이그레이션 (org 컬럼 추가 + sns_accounts 생성 — 멱등성 보장)
+            echo "🗄️ v5 DB 마이그레이션..."
+            /home/ubuntu/venv/bin/python3 /home/ubuntu/CORTHEX_HQ/scripts/migrate_v5.py || true
+
             echo "🔁 서버 재시작 중..."
             # corthex.service가 올바른 경로로 arm_server.py를 실행하도록 강제 설정
             echo "♻️ corthex.service ExecStart 복원 중..."
