@@ -366,22 +366,21 @@
           </template>
         </div>
 
-        <!-- ── 사주 본부 — 내 CLI 에이전트만 표시 (cli_owner 기반) ── -->
-        <div class="mt-1">
+        <!-- ── 리트마스터 본부 — cli_owner 기반 필터링 (슬랙 모델) -->
+        <div x-show="agentCliOwner['leet_strategist'] === workspace.sidebarFilter">
           <div class="flex items-center gap-2 px-1 py-1 mb-1">
-            <div class="flex-1 h-px bg-hq-green/30"></div>
-            <div class="text-[10px] font-semibold tracking-wide whitespace-nowrap px-1 text-hq-green">사주 본부</div>
-            <div class="flex-1 h-px bg-hq-green/30"></div>
+            <div class="flex-1 h-px bg-hq-accent/30"></div>
+            <div class="text-[10px] font-semibold tracking-wide whitespace-nowrap px-1 text-hq-accent">리트마스터 본부</div>
+            <div class="flex-1 h-px bg-hq-accent/30"></div>
           </div>
           <div class="space-y-0.5">
-            <template x-for="id in ['saju_executive','saju_eden','saju_zoe','saju_sage']" :key="id">
-              <div x-show="agentCliOwner[id] === workspace.sidebarFilter"
-                   :id="'agent-' + id" @click="openAgentConfig(id)"
+            <template x-for="id in ['leet_strategist','leet_legal','leet_marketer','fin_analyst','leet_publisher']" :key="id">
+              <div :id="'agent-' + id" @click="openAgentConfig(id)"
                    class="flex items-center gap-3 px-3 py-2.5 rounded-xl border cursor-pointer transition-all duration-200"
                    :class="activeAgents[id]?.status==='working' ? 'bg-hq-yellow/5 border-hq-yellow/20 hover:bg-hq-yellow/10' : 'border-transparent hover:bg-hq-panel/40 hover:border-hq-border'">
                 <div class="relative shrink-0">
                   <div class="w-9 h-9 rounded-xl flex items-center justify-center text-[11px] font-bold"
-                       :class="'bg-emerald-500/20 text-emerald-400'"
+                       :class="{'bg-red-500/20 text-red-400': id==='fin_analyst', 'bg-purple-500/20 text-purple-400': id==='leet_strategist', 'bg-teal-500/20 text-teal-400': id==='leet_legal', 'bg-orange-500/20 text-orange-400': id==='leet_marketer', 'bg-fuchsia-500/20 text-fuchsia-400': id==='leet_publisher'}"
                        x-text="getAgentInitials(id)"></div>
                   <span class="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 shrink-0 transition-colors"
                         :style="'border-color: rgb(var(--hq-surface))'"
@@ -399,21 +398,22 @@
           </div>
         </div>
 
-        <!-- ── 리트마스터 본부 — cli_owner 기반 필터링 (슬랙 모델) -->
-        <div x-show="agentCliOwner['leet_strategist'] === workspace.sidebarFilter">
+        <!-- ── 사주 본부 — 내 CLI 에이전트만 표시 (cli_owner 기반) ── -->
+        <div class="mt-1">
           <div class="flex items-center gap-2 px-1 py-1 mb-1">
-            <div class="flex-1 h-px bg-hq-accent/30"></div>
-            <div class="text-[10px] font-semibold tracking-wide whitespace-nowrap px-1 text-hq-accent">리트마스터 본부</div>
-            <div class="flex-1 h-px bg-hq-accent/30"></div>
+            <div class="flex-1 h-px bg-hq-green/30"></div>
+            <div class="text-[10px] font-semibold tracking-wide whitespace-nowrap px-1 text-hq-green">사주 본부</div>
+            <div class="flex-1 h-px bg-hq-green/30"></div>
           </div>
           <div class="space-y-0.5">
-            <template x-for="id in ['leet_strategist','leet_legal','leet_marketer','fin_analyst','leet_publisher']" :key="id">
-              <div :id="'agent-' + id" @click="openAgentConfig(id)"
+            <template x-for="id in ['saju_executive','saju_eden','saju_zoe','saju_sage']" :key="id">
+              <div x-show="agentCliOwner[id] === workspace.sidebarFilter"
+                   :id="'agent-' + id" @click="openAgentConfig(id)"
                    class="flex items-center gap-3 px-3 py-2.5 rounded-xl border cursor-pointer transition-all duration-200"
                    :class="activeAgents[id]?.status==='working' ? 'bg-hq-yellow/5 border-hq-yellow/20 hover:bg-hq-yellow/10' : 'border-transparent hover:bg-hq-panel/40 hover:border-hq-border'">
                 <div class="relative shrink-0">
                   <div class="w-9 h-9 rounded-xl flex items-center justify-center text-[11px] font-bold"
-                       :class="{'bg-red-500/20 text-red-400': id==='fin_analyst', 'bg-purple-500/20 text-purple-400': id==='leet_strategist', 'bg-teal-500/20 text-teal-400': id==='leet_legal', 'bg-orange-500/20 text-orange-400': id==='leet_marketer', 'bg-fuchsia-500/20 text-fuchsia-400': id==='leet_publisher'}"
+                       :class="'bg-emerald-500/20 text-emerald-400'"
                        x-text="getAgentInitials(id)"></div>
                   <span class="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 shrink-0 transition-colors"
                         :style="'border-color: rgb(var(--hq-surface))'"
