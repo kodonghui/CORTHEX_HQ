@@ -2,11 +2,11 @@
 
 /* ═══ 프리미엄 SaaS 팔레트 (다크 — Radix/shadcn 스타일) ═══ */
 :root, .dark {
-  --hq-bg: 18 18 22;            /* #121216 — 진한 다크 (기존보다 밝음) */
-  --hq-surface: 26 26 32;       /* #1a1a20 — 카드 */
-  --hq-panel: 34 34 42;         /* #22222a — 패널 */
-  --hq-border: 50 50 62;        /* #32323e — 테두리 */
-  --hq-border-light: 72 72 86;  /* #484856 — 밝은 테두리 */
+  --hq-bg: 30 30 38;            /* #1e1e26 — 미디엄 다크 */
+  --hq-surface: 40 40 52;       /* #282834 — 카드 */
+  --hq-panel: 50 50 64;         /* #323240 — 패널 */
+  --hq-border: 68 68 88;        /* #444458 — 테두리 */
+  --hq-border-light: 95 95 118; /* #5f5f76 — 밝은 테두리 */
   --hq-accent: 139 92 246;      /* #8b5cf6 — violet-500 */
   --hq-cyan: 167 139 250;       /* #a78bfa — violet-400 */
   --hq-purple: 196 181 253;     /* #c4b5fd — violet-300 */
@@ -42,7 +42,7 @@ body { font-family: 'Pretendard Variable', 'Pretendard', -apple-system, BlinkMac
 
 /* ═══ 배경 (단색 — 프리미엄 SaaS) ═══ */
 .dark body {
-  background: rgb(18,18,22);
+  background: rgb(30,30,38);
   background-attachment: fixed;
 }
 /* 미세한 바이올렛 글로우 — 왼쪽 위 */
