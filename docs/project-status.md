@@ -8,9 +8,22 @@
 ## 마지막 업데이트
 
 - **날짜**: 2026-03-02
-- **버전**: `5.10.000` ✅ v5.1 Config-driven Workspace
-- **빌드**: #762 배포완료 (최신)
+- **버전**: `5.10.001` ✅ v5.1 프론트엔드 버그 4건 수정
+- **빌드**: #765 배포완료 (최신)
 - **서버**: https://corthex-hq.com
+
+## 2026-03-02 — v5.1 프론트엔드 버그 4건 수정 (빌드 #765)
+
+| 버그 | 증상 | 수정 |
+|------|------|------|
+| 사이드바 에이전트 | CEO 사이드바에 에이전트 0개 | AgentConfig에 cli_owner 추가 + x-show → agentCliOwner 기반 동적 필터 |
+| 사무실 뷰 하드코딩 | "CORTHEX STAFF 팀장 6명" 고정 | workspace.officeLayout x-for 동적 렌더링 (CEO 4섹션, 누나 1섹션) |
+| 로그아웃 버튼 | CEO 로그인해도 안 보임 | bootstrapMode 조건 제거 → auth.token만 확인 |
+| 전력분석 시체 에이전트 | specialist/cio_manager 등 unknown 좌르르 | loadPerformance + loadGymHistory에서 agentNames 기반 필터 아웃 |
+
+상세: `docs/updates/2026-03-02_v51_프론트엔드버그4건수정.md`
+
+---
 
 ## 2026-03-02 — v5.1 Config-driven Workspace (빌드 #762)
 
