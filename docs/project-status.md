@@ -8,9 +8,29 @@
 ## 마지막 업데이트
 
 - **날짜**: 2026-03-01
-- **버전**: `4.00.005`
-- **빌드**: #745 배포완료 (최신)
+- **버전**: `5.00.000` (v5 마이그레이션 진행중)
+- **PR**: #724 (머지 대기중 → 배포 전)
 - **서버**: https://corthex-hq.com
+
+## 2026-03-01 — v5 에이전트 리네임 + CLI 라우팅 보호 (PR #724)
+
+### PR #724 — 머지 대기중
+| 항목 | 내용 |
+|------|------|
+| 에이전트 ID 리네임 | 5개 → leet_*/fin_analyst (33파일, PATTERN-8 통과) |
+| saju 본부 추가 | saju_executive/eden/zoe/sage (사주냥 서비스) |
+| `_can_command()` | sister → CEO 에이전트 접근 차단 (FR-3) |
+| WS 토큰 파라미터 | session_role 추출 체인 완성 |
+| batch_system.py | 전역 삭제 + 참조 정리 |
+| migrate_v5.py | DB org컬럼 + sns_accounts (실행 대기중) |
+
+### 남은 v5 작업 (BACKLOG)
+- `python scripts/migrate_v5.py` 실서버 실행 (PR 머지 후)
+- FR-5/6: 채팅/기밀문서 org 필터링 UI
+- FR-9/10: 통신국/작전일지 org 스코프 API
+- FR-11: @멘션 org 라우팅 (saju_eden/@Eden)
+
+---
 
 ## 2026-03-01 — 인디고 B 팔레트 전환 (빌드 #745)
 

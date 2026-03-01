@@ -3,7 +3,7 @@
 > **규칙**: 미완료 항목은 전부 여기만. 날짜 파일에 ⬜ 절대 금지.
 > **수시 업데이트**: 완료되면 즉시 ✅ 표시 or 삭제. 새 항목 발견 시 즉시 추가.
 > 🔴 **매 배포 시 반드시 갱신!** — 배포하고 BACKLOG 안 건드리면 미완성!
-> 마지막 업데이트: 2026-03-01 빌드#745 (PR#721 인디고 B 팔레트 #171730 + violet-500)
+> 마지막 업데이트: 2026-03-01 PR#724 (v5 에이전트 리네임 + CLI 라우팅 보호, 머지 대기)
 
 ---
 
@@ -76,6 +76,17 @@
   - 결과: 전부 실패. 네이버가 헤드리스 브라우저 자체를 CAPTCHA로 차단. 쿠키 로드 후 naver.com은 로그인되나 blog.naver.com 글쓰기 접속 시 재로그인 요구 (세션 불일치)
   - 원인: 네이버 2025년 이후 봇 탐지 대폭 강화. snap chromedriver(ARM)는 패치 불가(GLIBC 호환 문제)
   - 재도전 조건: ① 대표님 PC(데스크톱)에서 실행하거나 ② Naver 내부 API 역공학 또는 ③ Playwright stealth 모드 시도
+
+---
+
+## 🔴 v5 진행중 (PR #724 머지 후 착수)
+
+- ⬜ **migrate_v5.py 실서버 실행** — PR#724 머지 + 배포 완료 후 `python scripts/migrate_v5.py` 실행 (org컬럼 4테이블 + sns_accounts)
+- ⬜ **FR-5/6: 채팅/기밀문서 org 필터링 UI** — index.html: 세션 org 기준 데이터 필터링 (탭 숨김 아님)
+- ⬜ **FR-9: 통신국 org 스코프** — `/api/sns-accounts?org=...` 파라미터 + 누나 로그인 시 사주 계정만 표시
+- ⬜ **FR-10: 작전일지/보고서 org 스코프** — API org 파라미터 지원 + UI sessionOrg 전달
+- ⬜ **FR-11: @멘션 org 라우팅** — @Eden/@Zoe/@Sage → 현재 org 기준 saju_eden/zoe/sage 라우팅
+- ⬜ **saju 에이전트 소울 파일** — souls/agents/saju_eden.md, saju_zoe.md, saju_sage.md 작성
 
 ---
 
