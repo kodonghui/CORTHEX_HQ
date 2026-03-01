@@ -81,6 +81,8 @@
 
 ## 🔵 장기 / 보류
 
+- ⬜ **bmad soul 행동패턴 CORTHEX 직원 흡수** — bmad `pm/analyst/tech-writer` 역할의 행동 패턴을 CORTHEX 직원 soul에 흡수. 대상: 전략팀장(pm), 콘텐츠팀장(tech-writer), 금융분석팀장(analyst). **조건**: v5 직원 구성 확정 후 착수. 상세 방향: `docs/claude-rules/에이전트_팀.md`
+
 - ✅ ~~**스케치바이브 MVP 개발**~~ — Phase 1 완료. Nexus 캔버스 → Claude → Mermaid 변환 + 확인 + .html 뷰어 저장
 - ✅ ~~**스케치바이브 Phase 2**~~ — MCP 서버(FastMCP) + 정확도 향상(_parse_drawflow 강화) + "맞아" 후 구현 브리지(confirmed API + MCP 도구)
 - ✅ ~~**스케치바이브 Phase 3**~~ — 아키텍처 재설계: 서버 변환 제거 + MCP 양방향(update_canvas/request_approval) + SSE 실시간 캔버스 + 팔레트 버그 수정

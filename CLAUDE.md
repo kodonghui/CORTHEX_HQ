@@ -87,6 +87,12 @@
 - `docs/과외/` — 개발 용어 설명 + 운용 가이드
 - 리트마스터: https://github.com/kodonghui/leet-master
 
+## 🔴 팀 에이전트 & 실서버 검증
+- **팀 에이전트 의무**: 조사+수정+검증 동시 필요 시 → `TeamCreate+Agent` 병렬 투입. 혼자 하면 컨텍스트 낭비, 검증 누락
+- **실서버 검증 의무**: 구현 완료 → `WebFetch` API 직접 테스트 + 서버 로그(`/api/debug/server-logs`) 확인 → 통과 후만 대표님 보고
+- **"됐겠지" 절대 금지**: 코드만 짜고 확인 없이 완료 보고 금지. 반드시 corthex-hq.com에서 직접 검증
+- 상세 운용 절차: `docs/claude-rules/에이전트_팀.md`
+
 ## 기타
 - TodoWrite로 진행 표시 (3개+ 작업 시). in_progress 1개만
 - gh CLI 없으면 세션 시작 시 설치
