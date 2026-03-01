@@ -148,7 +148,7 @@ function corthexApp() {
     workflowExec: { show: false, workflowId: null, workflowName: '', mode: 'realtime', steps: [], currentStep: -1, done: false, error: null, finalResult: null },
 
     // ── Auth (인증) ──
-    auth: { user: null, token: null, showLogin: false, loginUser: '', loginPass: '', loginError: '', role: 'ceo', loginRole: 'ceo', bootstrapMode: true },
+    auth: { user: null, token: null, showLogin: false, loginUser: '', loginPass: '', loginError: '', role: 'ceo', org: '', loginRole: 'ceo', bootstrapMode: true },
 
     // ── Memory Modal (에이전트 기억) ──
     memoryModal: { visible: false, agentId: '', agentName: '', items: [], newKey: '', newValue: '' },
@@ -3183,18 +3183,23 @@ function corthexApp() {
         this.auth.bootstrapMode = data.bootstrap_mode;
         if (data.authenticated) {
           this.auth.role = data.role || 'ceo';
+          this.auth.org = data.org || '';
           this.auth.token = token;
+          // 쿠키 갱신 (페이지 새로고침 시에도 백엔드가 인증 org 읽을 수 있도록)
+          document.cookie = `corthex_token=${token}; path=/; SameSite=Strict; max-age=${86400 * 7}`;
           this.auth.showLogin = false;
           const userJson = localStorage.getItem('corthex_user');
           if (userJson) {
             this.auth.user = JSON.parse(userJson);
             this.auth.role = this.auth.user?.role || data.role || 'ceo';
+            this.auth.org = this.auth.user?.org || data.org || '';
           }
           return;
         }
         // 토큰 만료
         localStorage.removeItem('corthex_token');
         localStorage.removeItem('corthex_user');
+        document.cookie = 'corthex_token=; path=/; max-age=0';
         this.auth.showLogin = true;
       } catch (e) {
         this.auth.bootstrapMode = true;
@@ -3219,6 +3224,9 @@ function corthexApp() {
           this.auth.token = data.token;
           this.auth.user = user;
           this.auth.role = user.role || 'ceo';
+          this.auth.org = user.org || '';
+          // 쿠키에도 토큰 저장 — fetch 요청 시 자동 전송 → 백엔드 인증 org 자동 필터
+          document.cookie = `corthex_token=${data.token}; path=/; SameSite=Strict; max-age=${86400 * 7}`;
           this.auth.showLogin = false;
           this.auth.loginPass = '';
           // sister 로그인 시 기밀문서 자동으로 사주 탭 설정
@@ -3245,9 +3253,11 @@ function corthexApp() {
       } catch (e) { /* 무시 */ }
       localStorage.removeItem('corthex_token');
       localStorage.removeItem('corthex_user');
+      document.cookie = 'corthex_token=; path=/; max-age=0';
       this.auth.token = null;
       this.auth.user = null;
       this.auth.role = 'viewer';
+      this.auth.org = '';
       this.auth.showLogin = true;
       this.showToast('로그아웃 되었습니다', 'info');
     },

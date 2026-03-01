@@ -4,9 +4,10 @@
 """
 import logging
 
-from fastapi import APIRouter, Body, Query
+from fastapi import APIRouter, Body, Query, Request
 from fastapi.responses import JSONResponse
 
+from handlers.auth_handler import get_auth_org
 from db import (
     save_conversation_message,
     load_conversation_messages,
@@ -37,9 +38,11 @@ async def create_session(data: dict = Body(...)):
 
 
 @router.get("/sessions")
-async def get_sessions(limit: int = Query(30), org: str = Query("")):
-    """대화 세션 목록을 반환합니다 (최신순). org 지정 시 해당 본부만."""
-    sessions = list_conversations(limit=limit, org=org or None)
+async def get_sessions(request: Request, limit: int = Query(30), org: str = Query("")):
+    """대화 세션 목록을 반환합니다 (최신순). 인증 org 자동 적용."""
+    auth_org = get_auth_org(request)
+    effective_org = auth_org or org  # 인증 org 우선 (sister→saju 강제)
+    sessions = list_conversations(limit=limit, org=effective_org or None)
     return sessions
 
 

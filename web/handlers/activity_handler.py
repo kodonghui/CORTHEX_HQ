@@ -45,13 +45,16 @@ def _is_noise(message: str) -> bool:
 # ── 활동 로그 API ──
 
 @router.get("/api/activity-logs")
-async def get_activity_logs(limit: int = 50, agent_id: str = None, include_noise: bool = False, org: str = ""):
+async def get_activity_logs(request: Request, limit: int = 50, agent_id: str = None, include_noise: bool = False, org: str = ""):
+    from handlers.auth_handler import get_auth_org
+    auth_org = get_auth_org(request)
+    effective_org = auth_org or org  # 인증 org 우선 (sister→saju 강제)
     logs = list_activity_logs(limit=limit * 2 if not include_noise else limit, agent_id=agent_id)
     if not include_noise:
         logs = [l for l in logs if not _is_noise(l.get("message", ""))]
     # v5: org 스코프 필터 (sister → saju 에이전트 로그만)
-    if org:
-        logs = [l for l in logs if l.get("agent_id", "").startswith(org)]
+    if effective_org:
+        logs = [l for l in logs if l.get("agent_id", "").startswith(effective_org)]
     return logs[:limit]
 
 

@@ -32,36 +32,44 @@ def _get_session(token: str) -> dict | None:
     return None
 
 
-def check_auth(request: Request) -> bool:
-    """요청의 인증 상태를 확인합니다."""
+def _extract_token(request: Request) -> str:
+    """요청에서 토큰 추출: Authorization 헤더 → query param → 쿠키 순."""
     token = request.headers.get("Authorization", "").replace("Bearer ", "")
     if not token:
         token = request.query_params.get("token", "")
-    return _get_session(token) is not None
+    if not token:
+        token = request.cookies.get("corthex_token", "")
+    return token
+
+
+def check_auth(request: Request) -> bool:
+    """요청의 인증 상태를 확인합니다."""
+    return _get_session(_extract_token(request)) is not None
 
 
 def get_auth_role(request: Request) -> str:
     """인증된 사용자의 역할 반환. 미인증 시 'viewer'."""
-    token = request.headers.get("Authorization", "").replace("Bearer ", "")
-    if not token:
-        token = request.query_params.get("token", "")
-    s = _get_session(token)
+    s = _get_session(_extract_token(request))
     return s.get("role", "ceo") if s else "viewer"
+
+
+def get_auth_org(request: Request) -> str:
+    """인증된 사용자의 org 반환. sister→'saju', ceo→'', 미인증→''."""
+    s = _get_session(_extract_token(request))
+    return s.get("org", "") if s else ""
 
 
 @router.get("/status")
 async def auth_status(request: Request):
-    token = request.headers.get("Authorization", "").replace("Bearer ", "")
-    if not token:
-        token = request.query_params.get("token", "")
+    token = _extract_token(request)
     s = _get_session(token)
     if s:
-        return {"bootstrap_mode": False, "role": s.get("role", "ceo"), "authenticated": True}
+        return {"bootstrap_mode": False, "role": s.get("role", "ceo"), "org": s.get("org", ""), "authenticated": True}
     # 비밀번호가 기본값이고 세션이 없으면 부트스트랩 모드
     stored_pw = load_setting("admin_password")
     if (not stored_pw or stored_pw == "corthex2026") and not _sessions:
-        return {"bootstrap_mode": True, "role": "ceo", "authenticated": True}
-    return {"bootstrap_mode": False, "role": "viewer", "authenticated": False}
+        return {"bootstrap_mode": True, "role": "ceo", "org": "", "authenticated": True}
+    return {"bootstrap_mode": False, "role": "viewer", "org": "", "authenticated": False}
 
 
 @router.post("/login")
@@ -83,14 +91,15 @@ async def login(request: Request):
         return JSONResponse({"success": False, "error": "비밀번호가 틀립니다"}, status_code=401)
 
     token = str(_uuid.uuid4())
-    _sessions[token] = {"expiry": time.time() + _SESSION_TTL, "role": role}
-    return {"success": True, "token": token, "user": {"role": role, "name": user_name}}
+    org = "saju" if role == "sister" else ""
+    _sessions[token] = {"expiry": time.time() + _SESSION_TTL, "role": role, "org": org}
+    return {"success": True, "token": token, "user": {"role": role, "name": user_name, "org": org}}
 
 
 @router.post("/logout")
 async def logout(request: Request):
     """로그아웃."""
-    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    token = _extract_token(request)
     if token in _sessions:
         del _sessions[token]
     return {"success": True}
@@ -99,10 +108,9 @@ async def logout(request: Request):
 @router.get("/check")
 async def auth_check(request: Request):
     """토큰 유효성 확인."""
-    token = request.headers.get("Authorization", "").replace("Bearer ", "")
-    s = _get_session(token)
+    s = _get_session(_extract_token(request))
     if s:
-        return {"authenticated": True, "role": s.get("role", "ceo")}
+        return {"authenticated": True, "role": s.get("role", "ceo"), "org": s.get("org", "")}
     return JSONResponse({"authenticated": False}, status_code=401)
 
 
