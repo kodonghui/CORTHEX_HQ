@@ -6,8 +6,8 @@
 ---
 
 ## 🔴 절대 규칙 (위반 시 즉시 수정)
-- **🚨 role if/else 하드코딩 절대 금지**: `if (auth.role === 'sister')`, `x-show="auth.role"` 등 역할 기반 분기 코드 작성 금지. 워크스페이스 차이는 반드시 `config/workspaces.yaml` + `workspace.*` 데이터로만 처리 (네이버 모델 = 같은 기능, 다른 데이터). 위반 시 아키텍처 전면 위반.
-- **처장 = 5번째 분석가**: 독자분석 병렬 구조 깨는 코드 변경 금지 | `_manager_with_delegation()`
+- **🚨 role if/else 금지 (v5.1)**: `if (auth.role === 'sister')` / `x-show="auth.role"` 등 1줄이라도 금지. `workspace.*` 설정 데이터만 사용. 아키텍처: `_bmad-output/planning-artifacts/architecture.md`
+- **워크스페이스**: 네이버 모델(같은 기능, 다른 데이터) + 슬랙 모델(cli_owner 기반 내 직원만)
 - **실시간 모니터링**: "로그 확인해" → `/api/activity-logs` 1분마다 자동 보고
 - **메모리 파일 금지**: `~/.claude/` memory 저장 금지. 상태/기록은 git 파일에만
 - **서버 로그 접근 가능**: `/api/debug/server-logs` | "안 된다" 말하지 마
