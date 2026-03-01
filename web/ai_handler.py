@@ -617,6 +617,7 @@ async def _call_claude_cli(
     ai_call_timeout: int = 600,
     cli_caller_id: str = "cli_agent",
     cli_allowed_tools: list[str] | None = None,
+    cli_owner: str = "ceo",  # v5: 'ceo'(Max 구독) | 'sister'(CLAUDE_API_KEY_SISTER)
 ) -> dict:
     """Claude CLI(Max 구독)를 통해 AI를 호출합니다.
 
@@ -687,10 +688,20 @@ async def _call_claude_cli(
         cmd.append("--dangerously-skip-permissions")
 
     # 사용자 메시지는 stdin으로 전달 (--tools 등 variadic 옵션과 충돌 방지)
-    # 환경 변수 — CLAUDECODE 제거 (중첩 세션 방지) + API 키 제거 (Max 구독 강제)
+    # 환경 변수 — CLAUDECODE 제거 (중첩 세션 방지) + API 키 라우팅 (cli_owner에 따라)
     env = os.environ.copy()
     env.pop("CLAUDECODE", None)
-    env.pop("ANTHROPIC_API_KEY", None)  # API 키 있으면 CLI가 API로 과금됨 → 제거하면 OAuth(Max) 사용
+    if cli_owner == "sister":
+        # 누나 계정 → CLAUDE_API_KEY_SISTER 사용 (없으면 Max 구독으로 폴백)
+        sister_key = os.getenv("CLAUDE_API_KEY_SISTER", "")
+        if sister_key:
+            env["ANTHROPIC_API_KEY"] = sister_key
+            logger.info("CLI cli_owner=sister → CLAUDE_API_KEY_SISTER 사용")
+        else:
+            env.pop("ANTHROPIC_API_KEY", None)  # 키 없으면 OAuth(Max) 폴백
+            logger.info("CLI cli_owner=sister → CLAUDE_API_KEY_SISTER 미설정, Max 구독 폴백")
+    else:
+        env.pop("ANTHROPIC_API_KEY", None)  # CEO: API 키 제거 → OAuth(Max 구독) 강제
 
     start = time.time()
     try:
@@ -1314,6 +1325,7 @@ async def ask_ai(
     use_cli: bool = False,
     cli_caller_id: str = "",
     cli_allowed_tools: list[str] | None = None,
+    cli_owner: str = "ceo",  # v5: 에이전트별 CLI 계정 ('ceo' | 'sister')
 ) -> dict:
     """AI에게 질문합니다 (프로바이더 자동 판별).
 
@@ -1416,6 +1428,7 @@ async def ask_ai(
                 ai_call_timeout=AI_CALL_TIMEOUT,
                 cli_caller_id=cli_caller_id,
                 cli_allowed_tools=cli_allowed_tools,
+                cli_owner=cli_owner,
             )
             # CLI 실패 시 — API 봉인 상태이므로 Google/OpenAI 폴백 또는 에러 반환
             if "error" in cli_result and cli_result.get("content", "") == "":

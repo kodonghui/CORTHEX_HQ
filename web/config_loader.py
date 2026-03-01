@@ -325,6 +325,8 @@ def _build_agents_from_yaml() -> list[dict]:
                 "name_ko": detail.get("name_ko", aid),
                 "role": detail.get("role", "specialist"),
                 "division": detail.get("division", ""),
+                "org": detail.get("org", "leet_master"),  # v5: 본부 (common/leet_master/sketchvibe/saju)
+                "cli_owner": detail.get("cli_owner", "ceo"),  # v5: CLI 계정 (ceo/sister)
                 "superior_id": detail.get("superior_id", ""),
                 "dormant": detail.get("dormant", False),
                 "status": "idle",
