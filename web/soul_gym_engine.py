@@ -43,11 +43,11 @@ MAX_SOUL_SNIPPET = 1500              # 소울 스니펫 길이
 
 # 전 팀장 대상 (6명)
 GYM_TARGET_AGENTS = [
-    "cio_manager",       # 금융분석팀장
-    "cso_manager",       # 전략팀장
-    "clo_manager",       # 법무팀장
-    "cmo_manager",       # 마케팅팀장
-    "cpo_manager",       # 콘텐츠팀장
+    "fin_analyst",       # 금융분석팀장
+    "leet_strategist",       # 전략팀장
+    "leet_legal",       # 법무팀장
+    "leet_marketer",       # 마케팅팀장
+    "leet_publisher",       # 콘텐츠팀장
     "chief_of_staff",    # 비서실장
 ]
 

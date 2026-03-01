@@ -69,26 +69,26 @@ _QUALITY_GATE_AVAILABLE = False
 
 # 부서별 키워드 라우팅 테이블
 _ROUTING_KEYWORDS: dict[str, list[str]] = {
-    "cso_manager": [
+    "leet_strategist": [
         "시장", "경쟁사", "사업계획", "매출", "예측", "전략",
         "비즈니스", "BM", "수익", "사업", "기획", "성장",
     ],
-    "clo_manager": [
+    "leet_legal": [
         "저작권", "특허", "상표", "약관", "계약", "법률", "소송", "IP",
         "규제", "라이선스", "법적", "법무",
     ],
-    "cmo_manager": [
+    "leet_marketer": [
         "마케팅", "광고", "SNS", "인스타", "유튜브", "고객",
         "설문", "브랜딩", "콘텐츠", "홍보", "프로모션", "캠페인",
     ],
-    "cio_manager": [
+    "fin_analyst": [
         "삼성", "애플", "주식", "투자", "종목", "차트", "시황",
         "코스피", "나스닥", "포트폴리오", "금리", "환율", "채권",
         "ETF", "펀드", "배당", "테슬라", "엔비디아",
         "매수", "매도", "자동매매", "키움", "백테스트", "전략",
         "손절", "익절", "시가총액", "PER", "RSI", "MACD",
     ],
-    "cpo_manager": [
+    "leet_publisher": [
         "기록", "빌딩로그", "연대기", "블로그", "출판", "편집", "회고",
         "아카이브", "문서화", "회의록",
     ],
@@ -97,15 +97,25 @@ _ROUTING_KEYWORDS: dict[str, list[str]] = {
 # 에이전트 ID → 한국어 이름 매핑
 _AGENT_NAMES: dict[str, str] = {
     "chief_of_staff": "비서실장",
-    "cso_manager": "전략팀장",
-    "clo_manager": "법무팀장",
-    "cmo_manager": "마케팅팀장",
-    "cio_manager": "금융분석팀장",
-    "cpo_manager": "콘텐츠팀장",
+    "leet_strategist": "전략팀장",
+    "leet_legal": "법무팀장",
+    "leet_marketer": "마케팅팀장",
+    "fin_analyst": "금융분석팀장",
+    "leet_publisher": "콘텐츠팀장",
 }
 
 # 한국어 이름 → 에이전트 ID 역매핑 (명시적 지시 파싱용)
 _AGENT_NAME_TO_ID: dict[str, str] = {v: k for k, v in _AGENT_NAMES.items()}
+
+
+def _can_command(session_role: str, agent_id: str) -> bool:
+    """v5: CLI 라우팅 보호 — session_role과 cli_owner가 일치할 때만 허용.
+    chief_of_staff는 CEO 전용. 그 외 에이전트는 cli_owner 기준."""
+    if agent_id == "chief_of_staff":
+        return session_role == "ceo"
+    detail = _AGENTS_DETAIL.get(agent_id, {})
+    cli_owner = detail.get("cli_owner", "ceo")
+    return session_role == cli_owner
 
 
 def _parse_explicit_target(text: str) -> str | None:
@@ -126,21 +136,21 @@ _BROADCAST_KEYWORDS = [
 # 재도입 시점: 팀장 혼자 30분+ & 병렬이 의미 있을 때 (CLAUDE.md 규칙)
 _MANAGER_SPECIALISTS: dict[str, list[str]] = {
     "chief_of_staff": [],
-    "cso_manager": [],
-    "clo_manager": [],
-    "cmo_manager": [],
-    "cio_manager": [],
-    "cpo_manager": [],
+    "leet_strategist": [],
+    "leet_legal": [],
+    "leet_marketer": [],
+    "fin_analyst": [],
+    "leet_publisher": [],
 }
 
 # 매니저 → 부서 매핑 (품질검수 루브릭 조회용)
 _MANAGER_DIVISION: dict[str, str] = {
     "chief_of_staff": "secretary",
-    "cso_manager": "leet_master.strategy",
-    "clo_manager": "leet_master.legal",
-    "cmo_manager": "leet_master.marketing",
-    "cio_manager": "finance.investment",
-    "cpo_manager": "publishing",
+    "leet_strategist": "leet_master.strategy",
+    "leet_legal": "leet_master.legal",
+    "leet_marketer": "leet_master.marketing",
+    "fin_analyst": "finance.investment",
+    "leet_publisher": "publishing",
 }
 
 # 동면 부서 (품질검수 제외)
@@ -172,14 +182,14 @@ _SEQUENTIAL_KEYWORDS = ["순차", "협업", "순서대로", "단계별", "릴레
 
 # 토론 발언 순서 로테이션
 DEBATE_ROTATION = [
-    ["cio_manager", "cto_manager", "cso_manager", "cmo_manager", "clo_manager", "cpo_manager"],
-    ["cto_manager", "cso_manager", "cio_manager", "clo_manager", "cmo_manager", "cpo_manager"],
-    ["cso_manager", "cmo_manager", "cto_manager", "cio_manager", "cpo_manager", "clo_manager"],
+    ["fin_analyst", "cto_manager", "leet_strategist", "leet_marketer", "leet_legal", "leet_publisher"],
+    ["cto_manager", "leet_strategist", "fin_analyst", "leet_legal", "leet_marketer", "leet_publisher"],
+    ["leet_strategist", "leet_marketer", "cto_manager", "fin_analyst", "leet_publisher", "leet_legal"],
 ]
 
 # 팀장별 토론 관점 — 1라운드에서 각자 무엇을 분석해야 하는지 구체적으로 지시
 _DEBATE_LENSES: dict[str, str] = {
-    "cio_manager": (
+    "fin_analyst": (
         "투자/재무 관점에서 분석하세요:\n"
         "- 이 주제가 회사 재무에 미치는 영향 (매출, 비용, ROI 수치 추정)\n"
         "- 실행 시 재무 리스크와 기회비용\n"
@@ -191,25 +201,25 @@ _DEBATE_LENSES: dict[str, str] = {
         "- 개발 리소스 (인력, 시간, 비용) 현실적 추정\n"
         "- 기술적 리스크 (확장성, 유지보수, 보안) 구체적으로"
     ),
-    "cso_manager": (
+    "leet_strategist": (
         "사업 전략 관점에서 분석하세요:\n"
         "- 시장 규모와 경쟁 구도 (구체적 수치나 사례 인용)\n"
         "- 우리의 차별화 포인트가 무엇이고 경쟁 우위가 지속 가능한지\n"
         "- 실행 전략의 단계와 우선순위"
     ),
-    "cmo_manager": (
+    "leet_marketer": (
         "마케팅/고객 관점에서 분석하세요:\n"
         "- 타겟 고객이 이것을 정말 원하는지, 어떤 근거가 있는지\n"
         "- 고객 획득 비용(CAC)과 채널 전략의 현실성\n"
         "- 브랜드/포지셔닝에 미치는 영향"
     ),
-    "clo_manager": (
+    "leet_legal": (
         "법무/리스크 관점에서 분석하세요:\n"
         "- 법적 리스크와 규제 이슈 (구체적 법령이나 판례 인용)\n"
         "- 지식재산권 보호 방안 또는 침해 위험\n"
         "- 계약/약관/개인정보 관련 주의사항"
     ),
-    "cpo_manager": (
+    "leet_publisher": (
         "제품/콘텐츠 관점에서 분석하세요:\n"
         "- 사용자 경험과 제품 완성도에 미치는 영향\n"
         "- 콘텐츠 전략 및 지식 자산으로서의 가치\n"
@@ -1690,11 +1700,11 @@ def _determine_routing_level(text: str) -> tuple[int, str | None]:
 
     MANAGER_KEYWORDS = {
         "cto_manager": ["기술", "개발", "코드", "api", "서버", "앱", "웹", "프론트", "백엔드", "인프라", "ai 모델", "데이터베이스"],
-        "cso_manager": ["사업", "시장", "재무", "전략", "비즈니스", "계획", "수익", "매출", "투자 계획"],
-        "clo_manager": ["법", "계약", "저작권", "특허", "약관", "법률", "ip"],
-        "cmo_manager": ["마케팅", "고객", "콘텐츠", "sns", "광고", "커뮤니티", "브랜딩"],
-        "cio_manager": ["투자", "주식", "코스피", "시황", "종목", "리스크", "포트폴리오", "etf", "채권"],
-        "cpo_manager": ["기록", "출판", "블로그", "연대기", "회고", "편집", "아카이브"],
+        "leet_strategist": ["사업", "시장", "재무", "전략", "비즈니스", "계획", "수익", "매출", "투자 계획"],
+        "leet_legal": ["법", "계약", "저작권", "특허", "약관", "법률", "ip"],
+        "leet_marketer": ["마케팅", "고객", "콘텐츠", "sns", "광고", "커뮤니티", "브랜딩"],
+        "fin_analyst": ["투자", "주식", "코스피", "시황", "종목", "리스크", "포트폴리오", "etf", "채권"],
+        "leet_publisher": ["기록", "출판", "블로그", "연대기", "회고", "편집", "아카이브"],
     }
 
     matched_manager = None
@@ -1806,7 +1816,7 @@ async def _chief_finalize(original_text: str, manager_results: dict) -> dict:
 
 async def _broadcast_to_managers_all(text: str, task_id: str, conversation_id: str | None = None) -> dict:
     """Level 4: 활성 팀장 병렬 호출 (브로드캐스트)."""
-    managers = [m for m in ["cso_manager", "clo_manager", "cmo_manager", "cio_manager", "cpo_manager"]
+    managers = [m for m in ["leet_strategist", "leet_legal", "leet_marketer", "fin_analyst", "leet_publisher"]
                 if m not in _DORMANT_MANAGERS]
     staff_specialists = []
 
@@ -1967,7 +1977,7 @@ async def _broadcast_with_debate(ceo_message: str, rounds: int = 2) -> dict:
     """임원 회의 방식 토론 — CEO 메시지를 팀장들이 다단계 토론 후 비서실장이 종합."""
     debate_history = ""
 
-    all_managers = ["cio_manager", "cto_manager", "cso_manager", "cmo_manager", "clo_manager", "cpo_manager"]
+    all_managers = ["fin_analyst", "cto_manager", "leet_strategist", "leet_marketer", "leet_legal", "leet_publisher"]
     manager_ids = [m for m in all_managers if m in _AGENTS_DETAIL]
 
     for round_num in range(1, rounds + 1):
@@ -2072,8 +2082,8 @@ async def _sequential_collaboration(text: str, task_id: str, agent_order: list[s
         order_prompt = (
             f"CEO 명령: {text}\n\n"
             "이 작업을 처리하기 위해 어떤 부서가 어떤 순서로 작업해야 하는지 결정하세요.\n"
-            "가능한 부서: cto_manager(기술), cso_manager(사업), clo_manager(법무), "
-            "cmo_manager(마케팅), cio_manager(투자), cpo_manager(기획)\n\n"
+            "가능한 부서: cto_manager(기술), leet_strategist(사업), leet_legal(법무), "
+            "leet_marketer(마케팅), fin_analyst(투자), leet_publisher(기획)\n\n"
             "JSON 형식으로 답변:\n"
             '{"order": ["첫번째_agent_id", "두번째_agent_id"], "reason": "이유"}\n'
             "최소 2개, 최대 4개 부서만 선택하세요. 관련 없는 부서는 제외."
@@ -2096,7 +2106,7 @@ async def _sequential_collaboration(text: str, task_id: str, agent_order: list[s
                 pass
 
         if not agent_order:
-            agent_order = ["cto_manager", "cso_manager"]
+            agent_order = ["cto_manager", "leet_strategist"]
 
     valid_agents = set(_AGENT_NAMES.keys())
     agent_order = [a for a in agent_order if a in valid_agents]
@@ -2205,8 +2215,9 @@ async def _sequential_collaboration(text: str, task_id: str, agent_order: list[s
 # ══════════════════════════════════════════════════════════════════
 
 async def _process_ai_command(text: str, task_id: str, target_agent_id: str | None = None,
-                              conversation_id: str | None = None) -> dict:
-    """CEO 명령을 적합한 에이전트에게 위임하고 AI 결과를 반환합니다."""
+                              conversation_id: str | None = None,
+                              session_role: str = "ceo") -> dict:
+    """CEO/Sister 명령을 적합한 에이전트에게 위임하고 AI 결과를 반환합니다."""
     # 1) 예산 확인
     limit = float(load_setting("daily_budget_usd") or 7.0)
     today = get_today_cost()
@@ -2331,9 +2342,13 @@ async def _process_ai_command(text: str, task_id: str, target_agent_id: str | No
     if _is_broadcast_command(text):
         return await _broadcast_to_managers(text, task_id, target_agent_id=target_agent_id, conversation_id=conversation_id)
 
-    # 3) CEO가 @에이전트로 직접 지정한 경우
+    # 3) @에이전트 직접 지정 (CLI 라우팅 보호 적용)
     if target_agent_id:
-        logger.info("CEO 직접 지정: → %s", target_agent_id)
+        if not _can_command(session_role, target_agent_id):
+            blocked_msg = f"⚠️ 접근 거부: {session_role} 계정은 `{target_agent_id}` 에이전트를 직접 호출할 수 없습니다."
+            update_task(task_id, status="failed", result_summary=blocked_msg[:200], success=0)
+            return {"error": blocked_msg, "agent_id": target_agent_id, "handled_by": "시스템"}
+        logger.info("직접 지정: %s → %s", session_role, target_agent_id)
         target_id = target_agent_id
         routing = {"agent_id": target_id, "method": "ceo_direct", "cost_usd": 0}
         routing_cost = 0

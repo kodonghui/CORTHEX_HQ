@@ -430,7 +430,7 @@ class LogAnalyzerTool(BaseTool):
 
         # CIO 에이전트 + 시스템의 매매 관련 로그 수집
         cio_logs = self._get_activity_logs(
-            agent_id="cio_manager", limit=limit, hours=hours,
+            agent_id="fin_analyst", limit=limit, hours=hours,
         )
         system_trading_logs = self._get_activity_logs(
             agent_id="system", keyword="매매", limit=limit, hours=hours,

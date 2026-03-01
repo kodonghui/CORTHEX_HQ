@@ -1123,7 +1123,7 @@ async def cio_update_trading_settings(request: Request):
     if len(history) > 100:
         history = history[-100:]
     save_setting("trading_settings_history", history)
-    save_activity_log("cio_manager", f"⚙️ 금융분석팀장 설정 변경: {', '.join(f'{k}={v}' for k, v in applied.items())} | {reason}", "info")
+    save_activity_log("fin_analyst", f"⚙️ 금융분석팀장 설정 변경: {', '.join(f'{k}={v}' for k, v in applied.items())} | {reason}", "info")
 
     return {"success": True, "applied": applied, "rejected": rejected, "settings": settings}
 

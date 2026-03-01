@@ -68,7 +68,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger("corthex.sns.manager")
 
 # 퍼블리싱 실행 권한이 있는 역할 (CMO 이상)
-PUBLISH_ROLES = {"cmo_manager", "chief_of_staff"}
+PUBLISH_ROLES = {"leet_marketer", "chief_of_staff"}
 
 # 서버사이드 플랫폼 허용 목록 — 여기 없는 플랫폼은 submit 자체가 차단됨
 ALLOWED_PLATFORMS = {"tistory", "daum_cafe", "instagram"}

@@ -4,13 +4,13 @@ apply_souls.py
 
 적용 대상 (총 28명):
   Group A: chief_of_staff, report_specialist, schedule_specialist, relay_specialist,
-           cpo_manager, chronicle_specialist, editor_specialist, archive_specialist
-  Group B: cio_manager, market_condition_specialist, stock_analysis_specialist,
+           leet_publisher, chronicle_specialist, editor_specialist, archive_specialist
+  Group B: fin_analyst, market_condition_specialist, stock_analysis_specialist,
            technical_analysis_specialist, risk_management_specialist
   Group C: cto_manager, frontend_specialist, backend_specialist, infra_specialist,
-           ai_model_specialist, clo_manager, copyright_specialist, patent_specialist
-  Group D: cso_manager, market_research_specialist, business_plan_specialist,
-           financial_model_specialist, cmo_manager, survey_specialist, content_specialist
+           ai_model_specialist, leet_legal, copyright_specialist, patent_specialist
+  Group D: leet_strategist, market_research_specialist, business_plan_specialist,
+           financial_model_specialist, leet_marketer, survey_specialist, content_specialist
 
 제외 (기존 Soul 유지):
   community_specialist (Soul 파일에 포함되지 않음)

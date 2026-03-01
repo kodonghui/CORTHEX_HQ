@@ -22,11 +22,11 @@ def _setup_test_agents():
     """테스트용 에이전트 환경 설정 — 6명 팀장 체제."""
     cap.register_valid_agents([
         {"agent_id": "chief_of_staff", "division": "secretary", "superior_id": "", "dormant": False},
-        {"agent_id": "cso_manager", "division": "leet_master.strategy", "superior_id": "chief_of_staff", "dormant": False},
-        {"agent_id": "clo_manager", "division": "leet_master.legal", "superior_id": "chief_of_staff", "dormant": False},
-        {"agent_id": "cmo_manager", "division": "leet_master.marketing", "superior_id": "chief_of_staff", "dormant": False},
-        {"agent_id": "cio_manager", "division": "finance.investment", "superior_id": "chief_of_staff", "dormant": False},
-        {"agent_id": "cpo_manager", "division": "publishing", "superior_id": "chief_of_staff", "dormant": False},
+        {"agent_id": "leet_strategist", "division": "leet_master.strategy", "superior_id": "chief_of_staff", "dormant": False},
+        {"agent_id": "leet_legal", "division": "leet_master.legal", "superior_id": "chief_of_staff", "dormant": False},
+        {"agent_id": "leet_marketer", "division": "leet_master.marketing", "superior_id": "chief_of_staff", "dormant": False},
+        {"agent_id": "fin_analyst", "division": "finance.investment", "superior_id": "chief_of_staff", "dormant": False},
+        {"agent_id": "leet_publisher", "division": "publishing", "superior_id": "chief_of_staff", "dormant": False},
     ])
 
 
@@ -35,10 +35,10 @@ def _setup_test_agents():
 def test_register_dict_agents():
     """dict 기반 등록 시 agent_id, division, dormant가 올바르게 저장되는지."""
     _setup_test_agents()
-    assert "cio_manager" in cap._valid_agent_ids
-    assert "cso_manager" in cap._valid_agent_ids
-    assert cap._agent_info["cio_manager"]["division"] == "finance.investment"
-    assert cap._agent_info["cio_manager"]["dormant"] is False
+    assert "fin_analyst" in cap._valid_agent_ids
+    assert "leet_strategist" in cap._valid_agent_ids
+    assert cap._agent_info["fin_analyst"]["division"] == "finance.investment"
+    assert cap._agent_info["fin_analyst"]["dormant"] is False
 
 
 def test_register_str_agents():
@@ -56,8 +56,8 @@ def test_register_str_agents():
 def test_resolve_exact_id():
     """정확한 에이전트 ID는 그대로 반환."""
     _setup_test_agents()
-    assert cap._resolve_agent_id("cio_manager") == "cio_manager"
-    assert cap._resolve_agent_id("cmo_manager") == "cmo_manager"
+    assert cap._resolve_agent_id("fin_analyst") == "fin_analyst"
+    assert cap._resolve_agent_id("leet_marketer") == "leet_marketer"
 
 
 def test_resolve_unknown_returns_original():
@@ -71,15 +71,15 @@ def test_resolve_unknown_returns_original():
 def test_different_division_info():
     """다른 부서 에이전트 정보가 다른지."""
     _setup_test_agents()
-    cio_div = cap._agent_info["cio_manager"]["division"]
-    cmo_div = cap._agent_info["cmo_manager"]["division"]
+    cio_div = cap._agent_info["fin_analyst"]["division"]
+    cmo_div = cap._agent_info["leet_marketer"]["division"]
     assert cio_div != cmo_div
 
 
 def test_all_managers_active():
     """모든 팀장이 active(non-dormant) 상태인지."""
     _setup_test_agents()
-    for aid in ["chief_of_staff", "cso_manager", "clo_manager", "cmo_manager", "cio_manager", "cpo_manager"]:
+    for aid in ["chief_of_staff", "leet_strategist", "leet_legal", "leet_marketer", "fin_analyst", "leet_publisher"]:
         assert cap._agent_info[aid]["dormant"] is False
 
 

@@ -10,12 +10,12 @@
 
 benchmarks:
   # ── 금융분석팀장 (CIO) ── 기존 모의투자 분석 유지
-  cio_manager:
+  fin_analyst:
     type: watchlist_analysis   # 특수: 관심종목 기반 모의투자 분석
     description: "관심종목 전체 투자 분석 (기존 방식 유지)"
 
   # ── 전략팀장 (CSO) ──
-  cso_manager:
+  leet_strategist:
     type: prompt_questions
     description: "사업 전략 및 시장 분석"
     questions:
@@ -47,7 +47,7 @@ benchmarks:
         judge_prompt: "IP 전략의 전문성과 비즈니스 연계를 채점하세요."
 
   # ── 법무팀장 (CLO) ──
-  clo_manager:
+  leet_legal:
     type: prompt_questions
     description: "법률 자문 및 컴플라이언스"
     questions:
@@ -79,7 +79,7 @@ benchmarks:
         judge_prompt: "AI 저작권/책임 분석의 법적 정확성을 채점하세요."
 
   # ── 마케팅팀장 (CMO) ──
-  cmo_manager:
+  leet_marketer:
     type: prompt_questions
     description: "마케팅 전략 및 콘텐츠"
     questions:
@@ -111,7 +111,7 @@ benchmarks:
         judge_prompt: "콘텐츠 캘린더의 구체성과 마케팅 효과를 채점하세요."
 
   # ── 콘텐츠팀장 (CPO) ──
-  cpo_manager:
+  leet_publisher:
     type: prompt_questions
     description: "콘텐츠 기획 및 출판"
     questions:

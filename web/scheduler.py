@@ -43,7 +43,6 @@ from argos_collector import (
     _argos_monthly_rl_analysis,
     _build_argos_context_section,
 )
-from batch_system import _ensure_batch_poller
 
 logger = logging.getLogger("corthex")
 
@@ -500,9 +499,4 @@ async def start_background_tasks():
 
     # PENDING 배치 또는 진행 중인 체인 있으면 폴러 시작
     pending_batches = load_setting("pending_batches") or []
-    active_batches = [b for b in pending_batches if b.get("status") in ("pending", "processing")]
-    chains = load_setting("batch_chains") or []
-    active_chains = [c for c in chains if c.get("status") in ("running", "pending")]
-    if active_batches or active_chains:
-        _ensure_batch_poller()
-        _log(f"[BATCH] 미완료 배치 {len(active_batches)}개 + 체인 {len(active_chains)}개 감지 — 폴러 자동 시작")
+    # v5: batch_system 제거됨 — 미완료 배치 폴러 비활성

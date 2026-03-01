@@ -422,11 +422,11 @@ function corthexApp() {
     agentNames: {
       'chief_of_staff': '비서실장',
       
-      'cso_manager': '사업기획팀장',
-      'clo_manager': '법무팀장',
-      'cmo_manager': '마케팅팀장',
-      'cio_manager': '금융분석팀장',
-      'cpo_manager': '콘텐츠팀장',
+      'leet_strategist': '사업기획팀장',
+      'leet_legal': '법무팀장',
+      'leet_marketer': '마케팅팀장',
+      'fin_analyst': '금융분석팀장',
+      'leet_publisher': '콘텐츠팀장',
       'argos': 'ARGOS',
     },
 
@@ -434,11 +434,11 @@ function corthexApp() {
     agentInitials: {
       'chief_of_staff': 'CS',
       
-      'cso_manager': '사업기',
-      'clo_manager': '법무',
-      'cmo_manager': '마케팅',
-      'cio_manager': '금융분',
-      'cpo_manager': '콘텐츠',
+      'leet_strategist': '사업기',
+      'leet_legal': '법무',
+      'leet_marketer': '마케팅',
+      'fin_analyst': '금융분',
+      'leet_publisher': '콘텐츠',
       'argos': '⚙',
     },
 
@@ -446,11 +446,11 @@ function corthexApp() {
     agentDivision: {
       'chief_of_staff': 'secretary',
       
-      'cso_manager': 'strategy',
-      'clo_manager': 'legal',
-      'cmo_manager': 'marketing',
-      'cio_manager': 'finance',
-      'cpo_manager': 'publishing',
+      'leet_strategist': 'strategy',
+      'leet_legal': 'legal',
+      'leet_marketer': 'marketing',
+      'fin_analyst': 'finance',
+      'leet_publisher': 'publishing',
       'argos': 'system',
     },
 
@@ -640,7 +640,8 @@ function corthexApp() {
     // ── WebSocket ──
     connectWebSocket() {
       const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-      this.ws = new WebSocket(`${protocol}//${location.host}/ws`);
+      const wsToken = this.auth.token ? `?token=${encodeURIComponent(this.auth.token)}` : '';
+      this.ws = new WebSocket(`${protocol}//${location.host}/ws${wsToken}`);
 
       this.ws.onopen = () => {
         this.wsConnected = true;
@@ -755,7 +756,7 @@ function corthexApp() {
           }
           this.saveActivityLogs();
           // 전략실 활동로그에도 CIO 관련이면 실시간 추가
-          { const cioAgents = ['cio_manager', 'stock_analysis', 'market_condition', 'technical_analysis', 'risk_management'];
+          { const cioAgents = ['fin_analyst', 'stock_analysis', 'market_condition', 'technical_analysis', 'risk_management'];
             const aid = (msg.data.agent_id || '').toLowerCase();
             if (cioAgents.some(k => aid.includes(k))) {
               const alId = 'al_' + (msg.data.timestamp || Date.now());
@@ -2771,7 +2772,7 @@ function corthexApp() {
         const m = task.command.match(/@(\S+)/);
         if (m) {
           const k = m[1].toLowerCase();
-          const map = {'cso':'cso_manager','clo':'clo_manager','cmo':'cmo_manager','cio':'cio_manager','cpo':'cpo_manager','비서실장':'chief_of_staff'};
+          const map = {'cso':'leet_strategist','clo':'leet_legal','cmo':'leet_marketer','cio':'fin_analyst','cpo':'leet_publisher','비서실장':'chief_of_staff'};
           agentId = map[k] || null;
         }
       }
@@ -4388,7 +4389,7 @@ function corthexApp() {
     getCioLogColor(log) {
       // #4: 에이전트별 색상 구분 (CIO팀 내부)
       const sender = (log.sender || log.agent_id || '').toLowerCase();
-      if (sender.includes('cio_manager') || sender.includes('투자팀장')) return 'text-hq-accent';
+      if (sender.includes('fin_analyst') || sender.includes('투자팀장')) return 'text-hq-accent';
       if (sender.includes('market_condition') || sender.includes('시황')) return 'text-hq-cyan';
       if (sender.includes('stock_analysis') || sender.includes('종목')) return 'text-hq-green';
       if (sender.includes('technical_analysis') || sender.includes('기술')) return 'text-hq-yellow';
@@ -4403,7 +4404,7 @@ function corthexApp() {
     getCioShortName(agentIdOrName) {
       if (!agentIdOrName) return '';
       const id = agentIdOrName.toLowerCase();
-      if (id.includes('cio_manager') || id.includes('투자팀장') || id.includes('금융분석팀장')) return '금융분석팀장';
+      if (id.includes('fin_analyst') || id.includes('투자팀장') || id.includes('금융분석팀장')) return '금융분석팀장';
       if (id.includes('market_condition') || id.includes('시황분석')) return '시황분석';
       if (id.includes('stock_analysis') || id.includes('종목분석')) return '종목분석';
       if (id.includes('technical_analysis') || id.includes('기술적분석') || id.includes('기술분석')) return '기술분석';
@@ -5015,7 +5016,7 @@ function corthexApp() {
     getAgentTier(agentId) {
       if (!agentId) return 'unknown';
       if (agentId === 'argos') return 'system';
-      const managers = ['chief_of_staff','cso_manager','clo_manager','cmo_manager','cio_manager','cpo_manager'];
+      const managers = ['chief_of_staff','leet_strategist','leet_legal','leet_marketer','fin_analyst','leet_publisher'];
       if (managers.includes(agentId)) return 'manager';
       return 'other';
     },
@@ -5038,7 +5039,7 @@ function corthexApp() {
       if (!filename) return '';
       let t = filename;
       t = t.replace(/\.md$/, '');
-      t = t.replace(/^(chief_of_staff|cio_manager|cso_manager|clo_manager|cmo_manager|cpo_manager|argos)_/i, '');
+      t = t.replace(/^(chief_of_staff|fin_analyst|leet_strategist|leet_legal|leet_marketer|leet_publisher|argos)_/i, '');
       t = t.replace(/^\d{4}-\d{2}-\d{2}[-_]?/, '');
       t = t.replace(/_\d{8}_\d{6}$/, '');
       t = t.replace(/_\d{8}T\d{6}$/, '');
@@ -5150,7 +5151,7 @@ function corthexApp() {
       if (!agentId) return '#6b7280';
       const id = agentId.toLowerCase();
       // CIO 팀 — 개별 색상 구분 (#4)
-      if (id.includes('cio_manager') || id === 'cio' || id.includes('투자팀장')) return '#00d4aa';  // 청록 (처장)
+      if (id.includes('fin_analyst') || id === 'cio' || id.includes('투자팀장')) return '#00d4aa';  // 청록 (처장)
       if (id.includes('market_condition') || id.includes('시황분석')) return '#00b4d8';  // 시안 (시황)
       if (id.includes('stock_analysis') || id.includes('종목분석')) return '#34d399';   // 초록 (종목)
       if (id.includes('technical_analysis') || id.includes('기술적분석')) return '#fbbf24';  // 노랑 (기술)

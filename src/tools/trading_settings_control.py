@@ -110,7 +110,7 @@ class TradingSettingsControlTool(BaseTool):
             if len(history) > 100:
                 history = history[-100:]
             save_setting("trading_settings_history", history)
-            save_activity_log("cio_manager", f"⚙️ 금융분석팀장 설정 변경: {', '.join(f'{k}={v}' for k, v in applied.items())} | {reason}", "info")
+            save_activity_log("fin_analyst", f"⚙️ 금융분석팀장 설정 변경: {', '.join(f'{k}={v}' for k, v in applied.items())} | {reason}", "info")
 
             result = f"✅ 설정 변경 완료 ({reason})\n\n"
             if applied:
