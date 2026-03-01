@@ -3228,6 +3228,7 @@ function corthexApp() {
           // 쿠키에도 토큰 저장 — fetch 요청 시 자동 전송 → 백엔드 인증 org 자동 필터
           document.cookie = `corthex_token=${data.token}; path=/; SameSite=Strict; max-age=${86400 * 7}`;
           this.auth.showLogin = false;
+          this.auth.bootstrapMode = false;
           this.auth.loginPass = '';
           // sister 로그인 시 기밀문서 자동으로 사주 탭 설정
           if (this.auth.role === 'sister' && this.archive) {
