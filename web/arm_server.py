@@ -536,7 +536,12 @@ async def workspace_profile(request: Request):
     role = get_auth_role(request)
     profile = get_workspace_profile(role)
     if not profile:
-        return JSONResponse({"error": f"워크스페이스 미정의: {role}"}, status_code=404)
+        # viewer 또는 미정의 role → 최소 권한 프로파일 반환 (404 금지)
+        profile = get_workspace_profile("viewer") or {
+            "label": "로그인 필요", "sidebarFilter": "", "mentionFilter": "",
+            "orgScope": None, "showBulkModel": False, "showSatisfaction": False,
+            "allowedDivisions": [], "officeLayout": [], "showBuildNumber": False,
+        }
     return profile
 
 
@@ -550,10 +555,40 @@ app.include_router(tools_router)
 
 
 @app.get("/api/dashboard")
-async def get_dashboard():
+async def get_dashboard(request: Request):
     now = datetime.now(KST).isoformat()
+    _role = get_auth_role(request)
+    _org = get_auth_org(request)
+
+    # orgScope 기반 에이전트 필터 (누나는 자신의 에이전트 비용만)
+    _scope_agents = None  # None = 전체
+    if _org:
+        _scope_agents = [a["agent_id"] for a in AGENTS if a.get("org") == _org or a.get("cli_owner") == _role]
+
     stats = get_dashboard_stats()
     today_cost = get_today_cost()
+
+    # sister 계정: 자신의 에이전트 비용만 계산
+    if _scope_agents is not None:
+        try:
+            _conn_cost = __import__("db").get_connection()
+            _kst_midnight_c = datetime.now(KST).replace(hour=0, minute=0, second=0, microsecond=0)
+            _today_start_c = _kst_midnight_c.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S")
+            _placeholders = ",".join("?" * len(_scope_agents))
+            _row = _conn_cost.execute(
+                f"SELECT COALESCE(SUM(cost_usd),0) FROM tasks WHERE agent_id IN ({_placeholders}) AND created_at >= ?",
+                _scope_agents + [_today_start_c]
+            ).fetchone()
+            today_cost = float(_row[0]) if _row else 0.0
+            _row_total = _conn_cost.execute(
+                f"SELECT COALESCE(SUM(cost_usd),0) FROM tasks WHERE agent_id IN ({_placeholders})",
+                _scope_agents
+            ).fetchone()
+            stats["total_cost"] = float(_row_total[0]) if _row_total else 0.0
+            _conn_cost.close()
+        except Exception as _e:
+            logger.debug("orgScope 비용 계산 실패: %s", _e)
+
     daily_limit = float(load_setting("daily_budget_usd") or 7.0)
 
     # ── 프로바이더별 오늘 AI 호출 횟수 ──
