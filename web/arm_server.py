@@ -46,6 +46,7 @@ from config_loader import (
     _AGENTS_FALLBACK, _build_agents_from_yaml, AGENTS,
     MODEL_REASONING_MAP, MODEL_MAX_TOKENS_MAP,
     _PROJECT_ROOT,
+    load_workspace_profiles, get_workspace_profile,
 )
 
 try:
@@ -524,8 +525,19 @@ app.include_router(media_router)
 # ── API 엔드포인트 ──
 
 # ── 인증(Auth) API → handlers/auth_handler.py로 분리 ──
-from handlers.auth_handler import router as auth_router, check_auth as _check_auth
+from handlers.auth_handler import router as auth_router, check_auth as _check_auth, get_auth_role
 app.include_router(auth_router)
+
+
+# ── 워크스페이스 프로파일 API (v5.1 네이버 모델) ──
+@app.get("/api/workspace-profile")
+async def workspace_profile(request: Request):
+    """로그인한 사용자의 워크스페이스 프로파일 반환."""
+    role = get_auth_role(request)
+    profile = get_workspace_profile(role)
+    if not profile:
+        return JSONResponse({"error": f"워크스페이스 미정의: {role}"}, status_code=404)
+    return profile
 
 
 # ── 에이전트 관리 API → handlers/agent_handler.py로 분리 ──

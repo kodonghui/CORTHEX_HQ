@@ -1,0 +1,44 @@
+# config/workspaces.yaml
+# 네이버 모델: 같은 기능, 다른 데이터.
+# 탭/뷰/NEXUS 등 기능은 모든 워크스페이스 동일 — 여기에 없음.
+# 여기 있는 것: 브랜딩(label/color) + 데이터 스코프(orgScope/sidebarFilter/mentionFilter) + 사무실 배치(officeLayout)
+# 새 사람 추가 = 프로파일 1개 추가. 코드 수정 0줄.
+
+workspaces:
+  ceo:
+    label: "CEO 관제"
+    color: "hq-cyan"
+    showBuildNumber: true
+    officeLayout:
+      - section: "COMMAND CENTER"
+        icon: "⚡"
+        color: "hq-cyan"
+        agents: [chief_of_staff]
+      - section: "리트마스터 본부"
+        icon: "📚"
+        color: "hq-accent"
+        agents: [leet_strategist, leet_legal, leet_marketer, leet_publisher]
+      - section: "사주 본부"
+        icon: "🐱"
+        color: "hq-green"
+        agents: [saju_executive]
+      - section: "금융 본부"
+        icon: "📊"
+        color: "hq-purple"
+        agents: [fin_analyst]
+    sidebarFilter: all
+    orgScope: null
+    mentionFilter: all
+
+  sister:
+    label: "사주냥 관제"
+    color: "hq-green"
+    showBuildNumber: false
+    officeLayout:
+      - section: "사주냥 TEAM"
+        icon: "🐱"
+        color: "hq-green"
+        agents: [saju_eden, saju_zoe, saju_sage]
+    sidebarFilter: saju
+    orgScope: saju
+    mentionFilter: saju

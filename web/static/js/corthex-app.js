@@ -150,6 +150,9 @@ function corthexApp() {
     // ── Auth (인증) ──
     auth: { user: null, token: null, showLogin: false, loginUser: '', loginPass: '', loginError: '', role: 'ceo', org: '', loginRole: 'ceo', bootstrapMode: true },
 
+    // ── Workspace Profile (v5.1 네이버 모델: 같은 기능, 다른 데이터) ──
+    workspace: { label: '', color: 'hq-cyan', showBuildNumber: true, officeLayout: [], sidebarFilter: 'all', orgScope: null, mentionFilter: 'all' },
+
     // ── Memory Modal (에이전트 기억) ──
     memoryModal: { visible: false, agentId: '', agentName: '', items: [], newKey: '', newValue: '' },
 
@@ -1480,10 +1483,14 @@ function corthexApp() {
           'saju': '사주본부',
         };
         const divOrder = ['secretary', 'tech', 'strategy', 'legal', 'marketing', 'finance', 'publishing', 'saju'];
-        // sister 계정은 saju 에이전트만 멘션 가능
-        const visibleAgents = this.auth.role === 'sister'
-          ? Object.entries(this.agentNames).filter(([id]) => id.startsWith('saju_'))
-          : Object.entries(this.agentNames);
+        // v5.1: workspace.mentionFilter 기반 에이전트 필터 (네이버 모델)
+        const mf = this.workspace.mentionFilter;
+        const visibleAgents = (!mf || mf === 'all')
+          ? Object.entries(this.agentNames)
+          : Object.entries(this.agentNames).filter(([id]) => {
+              const agent = this.agents.find(a => a.agent_id === id);
+              return agent?.org === mf;
+            });
         const matches = visibleAgents
           .filter(([id, name]) => !this.mentionQuery || id.toLowerCase().includes(this.mentionQuery) || name.toLowerCase().includes(this.mentionQuery))
           .map(([id, name]) => ({ id, name, div: this.agentDivision[id] || '' }));
@@ -3194,6 +3201,8 @@ function corthexApp() {
             this.auth.role = this.auth.user?.role || data.role || 'ceo';
             this.auth.org = this.auth.user?.org || data.org || '';
           }
+          // v5.1: 워크스페이스 프로파일 로드 (네이버 모델)
+          await this.initWorkspace();
           return;
         }
         // 토큰 만료
@@ -3204,6 +3213,22 @@ function corthexApp() {
       } catch (e) {
         this.auth.bootstrapMode = true;
         this.auth.showLogin = true;
+      }
+    },
+
+    // v5.1: 워크스페이스 프로파일 로드 (네이버 모델: 같은 기능, 다른 데이터)
+    async initWorkspace() {
+      try {
+        const token = this.auth.token || localStorage.getItem('corthex_token');
+        const res = await fetch('/api/workspace-profile', {
+          headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+        });
+        if (res.ok) {
+          const profile = await res.json();
+          this.workspace = { ...this.workspace, ...profile };
+        }
+      } catch (e) {
+        console.warn('[WORKSPACE] 프로파일 로드 실패:', e);
       }
     },
 
@@ -3230,12 +3255,13 @@ function corthexApp() {
           this.auth.showLogin = false;
           this.auth.bootstrapMode = false;
           this.auth.loginPass = '';
-          // sister 로그인 시 기밀문서 자동으로 사주 탭 설정
-          if (this.auth.role === 'sister' && this.archive) {
-            this.archive.filterDivision = 'saju';
+          // v5.1: 워크스페이스 프로파일 로드 (네이버 모델)
+          await this.initWorkspace();
+          // orgScope 기반으로 기밀문서 필터 자동 설정
+          if (this.workspace.orgScope && this.archive) {
+            this.archive.filterDivision = this.workspace.orgScope;
           }
-          const label = this.auth.role === 'sister' ? '누나 계정' : 'CEO';
-          this.showToast(`${label} 로그인 성공`, 'success');
+          this.showToast(`${this.workspace.label || this.auth.role} 로그인 성공`, 'success');
         } else {
           this.auth.loginError = data.error || '로그인 실패';
         }
@@ -3580,8 +3606,8 @@ function corthexApp() {
       this.archive.selectedReport = null;
       this.archive.loading = true;
       try {
-        // v5: sister 계정은 saju division 기밀문서만
-        const orgParam = this.auth.role === 'sister' ? '?org=saju' : '';
+        // v5.1: workspace.orgScope 기반 데이터 필터 (네이버 모델)
+        const orgParam = this.workspace.orgScope ? `?org=${this.workspace.orgScope}` : '';
         const res = await fetch(`/api/archive${orgParam}`);
         if (res.ok) this.archive.files = await res.json();
       } catch { this.showToast('아카이브를 불러올 수 없습니다.', 'error'); }
@@ -4757,8 +4783,8 @@ function corthexApp() {
     // ── #13: Activity Log Persistence ──
     restoreActivityLogs() {
       // DB에서 최근 활동 로그 불러오기 (페이지 새로고침해도 이력 유지)
-      // v5: sister 계정은 saju 에이전트 로그만
-      const orgParam = this.auth.role === 'sister' ? '&org=saju' : '';
+      // v5.1: workspace.orgScope 기반 로그 필터 (네이버 모델)
+      const orgParam = this.workspace.orgScope ? `&org=${this.workspace.orgScope}` : '';
       fetch(`/api/activity-logs?limit=100${orgParam}`)
         .then(r => r.json())
         .then(logs => {
@@ -4897,7 +4923,7 @@ function corthexApp() {
     // ── 멀티턴 대화 세션 관리 ──
     async newConversation(agentId = null) {
       try {
-        const org = this.auth.role === 'sister' ? 'saju' : '';
+        const org = this.workspace.orgScope || '';
         const res = await fetch('/api/conversation/sessions', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -4920,8 +4946,8 @@ function corthexApp() {
 
     async loadConversationList() {
       try {
-        // v5: sister 계정은 saju org 대화만 조회
-        const orgParam = this.auth.role === 'sister' ? '&org=saju' : '';
+        // v5.1: workspace.orgScope 기반 대화 필터 (네이버 모델)
+        const orgParam = this.workspace.orgScope ? `&org=${this.workspace.orgScope}` : '';
         const res = await fetch(`/api/conversation/sessions?limit=30${orgParam}`);
         if (res.ok) {
           this.conversationList = await res.json();

@@ -316,8 +316,8 @@
       <div class="flex-1 overflow-y-auto scrollbar-thin p-4 space-y-1.5">
         <div class="flex items-center justify-between px-2 mb-3">
           <div class="text-[10px] font-bold text-hq-muted uppercase tracking-[0.15em] font-mono">TEAM</div>
-          <div x-show="auth.role === 'sister'" class="text-[10px] text-hq-green font-semibold bg-hq-green/10 px-2 py-0.5 rounded-full">누나</div>
-          <div x-show="auth.role !== 'sister'" class="text-[10px] text-hq-muted" x-text="(agentsList || []).length + '명'"></div>
+          <div x-show="workspace.label && workspace.label !== 'CEO 관제'" class="text-[10px] font-semibold px-2 py-0.5 rounded-full" :class="'text-' + workspace.color + ' bg-' + workspace.color + '/10'" x-text="workspace.label"></div>
+          <div x-show="!workspace.label || workspace.label === 'CEO 관제'" class="text-[10px] text-hq-muted" x-text="(agentsList || []).length + '명'"></div>
         </div>
         <!-- 에이전트 상태 요약 -->
         <div class="flex items-center gap-3 px-2 py-2 mb-3 rounded-lg bg-hq-panel border border-hq-border/30 text-[10px]">
@@ -325,8 +325,8 @@
           <span class="flex items-center gap-1 text-hq-yellow"><span class="w-1.5 h-1.5 rounded-full bg-hq-yellow"></span> <span x-text="Object.values(activeAgents).filter(a => a.status === 'idle').length"></span> 대기</span>
         </div>
 
-        <!-- CEO (대표님에게만) -->
-        <div class="mb-2" x-show="auth.role !== 'sister'">
+        <!-- CEO 프로필 — sidebarFilter='all'일 때만 (데이터 스코프) -->
+        <div class="mb-2" x-show="workspace.sidebarFilter === 'all'">
           <div @click="showCeoProfile = true" class="flex items-center gap-2.5 px-3 py-2.5 rounded-xl bg-gradient-to-r from-hq-accent/10 to-hq-purple/10 border border-hq-accent/20 cursor-pointer hover:border-hq-accent/40 hover:from-hq-accent/15 hover:to-hq-purple/15 transition-all">
             <div class="agent-avatar bg-gradient-to-br from-hq-accent to-hq-purple text-white">CEO</div>
             <div class="flex-1">
@@ -337,8 +337,8 @@
           </div>
         </div>
 
-        <!-- 비서실장 (CEO 전용 — 설계: sister는 saju_* 에이전트만) -->
-        <div class="space-y-0.5 mb-1" x-show="auth.role !== 'sister'">
+        <!-- 비서실장 — sidebarFilter='all'일 때만 -->
+        <div class="space-y-0.5 mb-1" x-show="workspace.sidebarFilter === 'all'">
           <template x-for="id in ['chief_of_staff']" :key="id">
             <div :id="'agent-' + id" @click="openAgentConfig(id)"
                  class="flex items-center gap-3 px-3 py-2.5 rounded-xl border cursor-pointer transition-all duration-200"
@@ -360,8 +360,8 @@
           </template>
         </div>
 
-        <!-- ── 리트마스터 본부 (CEO만) ── -->
-        <div x-show="auth.role !== 'sister'">
+        <!-- ── 리트마스터 본부 — sidebarFilter='all'일 때만 -->
+        <div x-show="workspace.sidebarFilter === 'all'">
           <div class="flex items-center gap-2 px-1 py-1 mb-1">
             <div class="flex-1 h-px bg-hq-border/40"></div>
             <div class="text-[10px] text-hq-muted/80 font-semibold tracking-wide whitespace-nowrap px-1">리트마스터 본부</div>
@@ -392,8 +392,8 @@
           </div>
         </div>
 
-        <!-- ── 스케치바이브 본부 (CEO만, 준비중) ── -->
-        <div x-show="auth.role !== 'sister'" class="mt-1">
+        <!-- ── 스케치바이브 본부 (준비중) — sidebarFilter='all'일 때만 -->
+        <div class="mt-1" x-show="workspace.sidebarFilter === 'all'">
           <div class="flex items-center gap-2 px-1 py-1 mb-1">
             <div class="flex-1 h-px bg-hq-border/40"></div>
             <div class="text-[10px] text-hq-muted/80 font-semibold tracking-wide whitespace-nowrap px-1">스케치바이브 본부</div>
@@ -407,20 +407,19 @@
         <!-- ── 사주 본부 (전 역할 표시, 누나에게는 강조) ── -->
         <div class="mt-1">
           <div class="flex items-center gap-2 px-1 py-1 mb-1">
-            <div class="flex-1 h-px" :class="auth.role === 'sister' ? 'bg-hq-green/30' : 'bg-hq-border/40'"></div>
-            <div class="text-[10px] font-semibold tracking-wide whitespace-nowrap px-1"
-                 :class="auth.role === 'sister' ? 'text-hq-green' : 'text-hq-muted/80'">사주 본부</div>
-            <div class="flex-1 h-px" :class="auth.role === 'sister' ? 'bg-hq-green/30' : 'bg-hq-border/40'"></div>
+            <div class="flex-1 h-px bg-hq-green/30"></div>
+            <div class="text-[10px] font-semibold tracking-wide whitespace-nowrap px-1 text-hq-green">사주 본부</div>
+            <div class="flex-1 h-px bg-hq-green/30"></div>
           </div>
           <div class="space-y-0.5">
             <template x-for="id in ['saju_executive','saju_eden','saju_zoe','saju_sage']" :key="id">
-              <div x-show="auth.role === 'sister' ? id !== 'saju_executive' : true"
+              <div
                    :id="'agent-' + id" @click="openAgentConfig(id)"
                    class="flex items-center gap-3 px-3 py-2.5 rounded-xl border cursor-pointer transition-all duration-200"
                    :class="activeAgents[id]?.status==='working' ? 'bg-hq-yellow/5 border-hq-yellow/20 hover:bg-hq-yellow/10' : 'border-transparent hover:bg-hq-panel/40 hover:border-hq-border'">
                 <div class="relative shrink-0">
                   <div class="w-9 h-9 rounded-xl flex items-center justify-center text-[11px] font-bold"
-                       :class="auth.role === 'sister' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-violet-500/20 text-violet-400'"
+                       :class="'bg-emerald-500/20 text-emerald-400'"
                        x-text="getAgentInitials(id)"></div>
                   <span class="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 shrink-0 transition-colors"
                         :style="'border-color: rgb(var(--hq-surface))'"
@@ -3487,30 +3486,20 @@
             <div class="w-1/3 sm:min-w-[280px] overflow-y-auto scrollbar-thin pr-1 flex flex-col">
               <!-- 본부 필터 탭 (sticky, v5) -->
               <div class="flex gap-1 mb-2 sticky top-0 z-10 pb-1" style="background: rgb(var(--hq-bg));">
-                <!-- 전체 (CEO만 활성화) -->
-                <button x-show="auth.role !== 'sister'"
-                        @click="archive.filterDivision = 'all'; loadArchive()"
+                <!-- v5.1: 기밀문서 division 필터 — 모든 사용자 동일 (네이버 모델) -->
+                <button @click="archive.filterDivision = 'all'; loadArchive()"
                         :class="archive.filterDivision === 'all' ? 'bg-hq-accent/20 text-hq-accent font-bold' : 'text-hq-muted hover:text-hq-text'"
                         class="px-2.5 py-1 text-[11px] rounded-lg transition whitespace-nowrap">전체</button>
-                <!-- 리트마스터 (CEO만) -->
-                <button x-show="auth.role !== 'sister'"
-                        @click="archive.filterDivision = 'leet_master'; loadArchive()"
+                <button @click="archive.filterDivision = 'leet_master'; loadArchive()"
                         :class="archive.filterDivision === 'leet_master' ? 'bg-hq-accent/20 text-hq-accent font-bold' : 'text-hq-muted hover:text-hq-text'"
                         class="px-2.5 py-1 text-[11px] rounded-lg transition whitespace-nowrap">리트마스터</button>
-                <!-- 스케치바이브 (CEO만) -->
-                <button x-show="auth.role !== 'sister'"
-                        @click="archive.filterDivision = 'sketchvibe'; loadArchive()"
+                <button @click="archive.filterDivision = 'sketchvibe'; loadArchive()"
                         :class="archive.filterDivision === 'sketchvibe' ? 'bg-hq-accent/20 text-hq-accent font-bold' : 'text-hq-muted hover:text-hq-text'"
                         class="px-2.5 py-1 text-[11px] rounded-lg transition whitespace-nowrap">스케치바이브</button>
-                <!-- 사주 (전 역할, 누나에게는 강조) -->
                 <button @click="archive.filterDivision = 'saju'; loadArchive()"
-                        :class="archive.filterDivision === 'saju'
-                          ? (auth.role === 'sister' ? 'bg-hq-green/20 text-hq-green font-bold' : 'bg-hq-accent/20 text-hq-accent font-bold')
-                          : 'text-hq-muted hover:text-hq-text'"
+                        :class="archive.filterDivision === 'saju' ? 'bg-hq-green/20 text-hq-green font-bold' : 'text-hq-muted hover:text-hq-text'"
                         class="px-2.5 py-1 text-[11px] rounded-lg transition whitespace-nowrap">사주</button>
-                <!-- 공통 (CEO만) -->
-                <button x-show="auth.role !== 'sister'"
-                        @click="archive.filterDivision = 'common'; loadArchive()"
+                <button @click="archive.filterDivision = 'common'; loadArchive()"
                         :class="archive.filterDivision === 'common' ? 'bg-hq-accent/20 text-hq-accent font-bold' : 'text-hq-muted hover:text-hq-text'"
                         class="px-2.5 py-1 text-[11px] rounded-lg transition whitespace-nowrap">공통</button>
               </div>
