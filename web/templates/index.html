@@ -1167,6 +1167,17 @@
                 </div>
               </template>
 
+              <!-- Phase 3: 재시도 버블 (30초 무응답) -->
+              <template x-if="msg.type === 'retry'">
+                <div class="mb-4 scale-in">
+                  <div class="retry-bubble">
+                    <span class="retry-bubble-icon">⚠️</span>
+                    <div class="retry-bubble-text" x-text="msg.text"></div>
+                    <button class="retry-bubble-btn" @click="retryMessage(msg.retryText)">재시도</button>
+                  </div>
+                </div>
+              </template>
+
             </div>
           </template>
         </div>
@@ -3709,9 +3720,10 @@
                       <span x-show="item.revision > 0" class="text-[9px] text-orange-400" x-text="'v' + (item.revision || 1)"></span>
                       <span class="text-[9px] text-hq-muted" x-text="item.requested_by ? '요청: ' + item.requested_by : ''"></span>
                     </div>
-                    <!-- 대기 → 승인/거절 버튼 -->
+                    <!-- 대기 → 승인/거절 버튼 (데스크탑: 즉시 승인 / 모바일: 5초 undo) -->
                     <div class="flex items-center gap-2" x-show="item.status === 'pending'">
-                      <button @click="approveSNS(item.request_id)" class="bg-hq-green/20 text-hq-green rounded-lg px-3 py-1 text-xs hover:bg-hq-green/30 font-bold">승인+발행</button>
+                      <button @click="window.innerWidth <= 768 ? approveWithUndo(item.request_id) : approveSNS(item.request_id)"
+                              class="bg-hq-green/20 text-hq-green rounded-lg px-3 py-1 text-xs hover:bg-hq-green/30 font-bold sns-approve-btn">승인+발행</button>
                       <button @click="sns.rejectingId = item.request_id" class="bg-hq-red/20 text-hq-red rounded-lg px-3 py-1 text-xs hover:bg-hq-red/30">거절</button>
                     </div>
                     <!-- 승인됨 → 자동 발행 진행중 (수동 발행 버튼도 유지) -->
@@ -5578,6 +5590,48 @@
           </div>
         </div>
       </div>
+
+      <!-- ═══ Phase 2: 5초 취소 토스트 스택 (모바일 전용) ═══ -->
+      <div class="mobile-undo-toast-stack md:hidden" x-cloak>
+        <template x-for="toast in mobileUndoToasts" :key="toast.id">
+          <div class="mobile-undo-toast" style="position:relative;overflow:hidden;">
+            <span style="font-size:20px;">✅</span>
+            <div class="mobile-undo-toast-text">
+              승인 발행 예약됨
+              <div class="mobile-undo-toast-sub" x-text="toast.countdown + '초 후 발행 확정'"></div>
+            </div>
+            <button class="mobile-undo-toast-cancel" @click="cancelUndoToast(toast.id)">취소</button>
+            <div class="mobile-undo-toast-progress" :style="'width:' + toast.progress + '%'"></div>
+          </div>
+        </template>
+      </div>
+
+      <!-- ═══ Phase 3: 모바일 @멘션 바텀 시트 ═══ -->
+      <template x-if="mobileMentionSheetOpen">
+        <div>
+          <div class="mobile-bottom-sheet-backdrop md:hidden" @click="closeMobileMentionSheet()"></div>
+          <div class="mobile-bottom-sheet md:hidden">
+            <div class="mobile-bottom-sheet-handle"></div>
+            <div class="mobile-bottom-sheet-title">팀장 선택</div>
+            <div class="mobile-bottom-sheet-list">
+              <template x-for="group in mentionGroups" :key="group.label">
+                <div>
+                  <div class="mobile-sheet-group-label" x-text="group.label"></div>
+                  <template x-for="agent in group.agents" :key="agent.id">
+                    <div class="mobile-sheet-agent-item" @click="insertMentionFromSheet(agent)">
+                      <div class="mobile-sheet-agent-avatar" :class="getAgentAvatarClass(agent.id)" x-text="getAgentInitials(agent.id)"></div>
+                      <div>
+                        <div class="mobile-sheet-agent-name" x-text="agent.name"></div>
+                        <div class="mobile-sheet-agent-div" x-text="agent.div"></div>
+                      </div>
+                    </div>
+                  </template>
+                </div>
+              </template>
+            </div>
+          </div>
+        </div>
+      </template>
 
       <!-- ═══ Mobile Bottom Navigation (모바일 하단 네비) ═══ -->
       <nav class="mobile-bottom-nav safe-bottom" x-cloak>

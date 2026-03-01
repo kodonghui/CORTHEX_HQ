@@ -724,6 +724,158 @@ html:not(.dark) .glow-accent { box-shadow: 0 0 20px rgb(var(--hq-accent) / 0.15)
     justify-content: center;
     padding: 0 3px;
   }
+
+  /* ── Phase 2: 5초 취소 토스트 ── */
+  .mobile-undo-toast-stack {
+    position: fixed;
+    bottom: calc(64px + env(safe-area-inset-bottom, 0px) + 8px);
+    left: 12px;
+    right: 12px;
+    z-index: 9999;
+    display: flex;
+    flex-direction: column-reverse;
+    gap: 8px;
+    pointer-events: none;
+  }
+  .mobile-undo-toast {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: rgb(var(--hq-surface));
+    border: 1px solid rgb(var(--hq-green) / 0.4);
+    border-radius: 12px;
+    padding: 12px 14px;
+    pointer-events: auto;
+    animation: toast-slide-up 0.2s ease-out;
+  }
+  @keyframes toast-slide-up {
+    from { transform: translateY(16px); opacity: 0; }
+    to   { transform: translateY(0);    opacity: 1; }
+  }
+  .mobile-undo-toast-text { flex: 1; font-size: 13px; font-weight: 600; color: rgb(var(--hq-text)); }
+  .mobile-undo-toast-sub  { font-size: 11px; color: rgb(var(--hq-muted)); font-weight: 400; }
+  .mobile-undo-toast-cancel {
+    background: rgb(var(--hq-yellow) / 0.15);
+    border: 1px solid rgb(var(--hq-yellow) / 0.4);
+    color: rgb(var(--hq-yellow));
+    border-radius: 8px;
+    padding: 6px 12px;
+    font-size: 12px;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+  .mobile-undo-toast-progress {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    height: 3px;
+    background: rgb(var(--hq-green));
+    border-radius: 0 0 12px 12px;
+    transition: width 0.1s linear;
+  }
+
+  /* ── Phase 3: 바텀 시트 (모바일 @멘션) ── */
+  .mobile-bottom-sheet-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.6);
+    z-index: 8000;
+    backdrop-filter: blur(2px);
+    animation: fade-in 0.15s ease-out;
+  }
+  @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+
+  .mobile-bottom-sheet {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 8001;
+    background: rgb(var(--hq-surface));
+    border-radius: 20px 20px 0 0;
+    border-top: 1px solid rgb(var(--hq-border));
+    padding: 0 0 calc(env(safe-area-inset-bottom, 0px) + 8px);
+    max-height: 60vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    animation: sheet-slide-up 0.25s cubic-bezier(0.2, 0, 0, 1);
+  }
+  @keyframes sheet-slide-up {
+    from { transform: translateY(100%); }
+    to   { transform: translateY(0); }
+  }
+  .mobile-bottom-sheet-handle {
+    width: 36px; height: 4px;
+    background: rgb(var(--hq-border));
+    border-radius: 2px;
+    margin: 10px auto 12px;
+    flex-shrink: 0;
+  }
+  .mobile-bottom-sheet-title {
+    font-size: 13px; font-weight: 700;
+    color: rgb(var(--hq-muted));
+    padding: 0 16px 10px;
+    flex-shrink: 0;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+  }
+  .mobile-bottom-sheet-list {
+    overflow-y: auto;
+    flex: 1;
+    padding: 0 8px 8px;
+  }
+  .mobile-sheet-agent-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 10px;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: background 0.1s;
+  }
+  .mobile-sheet-agent-item:active { background: rgb(var(--hq-panel)); }
+  .mobile-sheet-agent-avatar {
+    width: 38px; height: 38px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 800;
+    flex-shrink: 0;
+  }
+  .mobile-sheet-agent-name { font-size: 15px; font-weight: 600; color: rgb(var(--hq-text)); }
+  .mobile-sheet-agent-div  { font-size: 11px; color: rgb(var(--hq-muted)); margin-top: 1px; }
+  .mobile-sheet-group-label {
+    font-size: 10px; font-weight: 700;
+    color: rgb(var(--hq-muted) / 0.6);
+    padding: 10px 10px 4px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+  }
+
+  /* ── Phase 3: 재시도 버블 ── */
+  .retry-bubble {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: rgb(var(--hq-panel));
+    border: 1px solid rgb(var(--hq-yellow) / 0.4);
+    border-radius: 12px;
+    padding: 10px 14px;
+    margin: 4px 0;
+    max-width: 88% !important;
+  }
+  .retry-bubble-icon { font-size: 16px; flex-shrink: 0; }
+  .retry-bubble-text { font-size: 13px; color: rgb(var(--hq-yellow)); font-weight: 600; flex: 1; }
+  .retry-bubble-btn {
+    background: rgb(var(--hq-yellow) / 0.15);
+    border: 1px solid rgb(var(--hq-yellow) / 0.5);
+    color: rgb(var(--hq-yellow));
+    border-radius: 8px;
+    padding: 5px 12px;
+    font-size: 12px;
+    font-weight: 700;
+    white-space: nowrap;
+  }
 }
 
 /* ═══ Small Mobile (<480px) — iPhone 14 (390×844) 최적화 ═══ */

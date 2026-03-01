@@ -285,6 +285,14 @@ function corthexApp() {
            showDeleteAllMediaModal: false, showClearQueueModal: false,
            cookieStatus: {}, cookiePlatform: 'naver', cookieJson: '' },
 
+    // Phase 2: 5초 취소 토스트
+    mobileUndoToasts: [],
+    // Phase 3: 모바일 @멘션 바텀 시트
+    mobileMentionSheetOpen: false,
+    // Phase 3: 재시도 버블
+    _responseTimer: null,
+    _lastRetryText: '',
+
     // ── Trading (자동매매 시스템) ──
     trading: {
       tab: 'dashboard',
@@ -939,6 +947,8 @@ function corthexApp() {
           })();
 
           this.systemStatus = 'idle';
+          // Phase 3: 응답 도착 시 재시도 타이머 취소
+          if (this._responseTimer) { clearTimeout(this._responseTimer); this._responseTimer = null; }
           this.currentTaskId = null;
           this.totalCost = msg.data.cost || this.totalCost;
           this.showToast('작업이 완료되었습니다.', 'success');
@@ -1134,6 +1144,25 @@ function corthexApp() {
 
       this.$nextTick(() => this.scrollToBottom());
       setTimeout(() => this.scrollToBottom(), 150);
+
+      // Phase 3: 30초 무응답 시 재시도 버블 표시
+      if (this._responseTimer) clearTimeout(this._responseTimer);
+      this._lastRetryText = text;
+      this._responseTimer = setTimeout(() => {
+        if (this.systemStatus === 'working') {
+          this.messages.push({ type: 'retry', text: '응답이 없습니다. 재시도하시겠습니까?', retryText: this._lastRetryText, timestamp: new Date().toISOString() });
+          this.systemStatus = 'idle';
+          this.$nextTick(() => this.scrollToBottom());
+        }
+        this._responseTimer = null;
+      }, 30000);
+    },
+
+    // Phase 3: 재시도 버블에서 재전송
+    retryMessage(text) {
+      this.messages = this.messages.filter(m => m.type !== 'retry');
+      this.inputText = text;
+      this.sendMessage();
     },
 
     // D-2: 명령 큐에서 다음 명령 자동 실행
@@ -1441,11 +1470,30 @@ function corthexApp() {
           .filter(d => groupMap[d] && groupMap[d].length > 0)
           .map(d => ({ label: divLabels[d] || d, agents: groupMap[d] }));
         this.mentionResults = matches;
-        this.showMentionDropdown = matches.length > 0;
+        // Phase 3: 모바일에서는 바텀 시트로 표시
+        if (window.innerWidth <= 768 && matches.length > 0) {
+          this.mobileMentionSheetOpen = true;
+          this.showMentionDropdown = false;
+          document.body.style.overflow = 'hidden';
+        } else {
+          this.showMentionDropdown = matches.length > 0;
+          this.mobileMentionSheetOpen = false;
+        }
       } else {
         this.showMentionDropdown = false;
+        this.mobileMentionSheetOpen = false;
         this.mentionGroups = [];
       }
+    },
+
+    closeMobileMentionSheet() {
+      this.mobileMentionSheetOpen = false;
+      document.body.style.overflow = '';
+    },
+
+    insertMentionFromSheet(agent) {
+      this.insertMention(agent);
+      this.closeMobileMentionSheet();
     },
 
     insertSlashCommand(cmd) {
@@ -2153,7 +2201,7 @@ function corthexApp() {
       if (tabId === 'knowledge') this.loadKnowledge();
       if (tabId === 'archive') this.loadArchive();
       if (tabId === 'archmap' && !this.archMap.loaded) this.loadArchMap();
-      if (tabId === 'sns') this.loadSNS();
+      if (tabId === 'sns') { this.loadSNS(); this._connectCommsSSE(); } // Phase 2: SNS 탭 진입 시 SSE 연결
       if (tabId === 'agora') { this._connectAgoraSSE(); this._loadAgoraStatus(); }
       if (tabId === 'intelligence') this.loadIntelligence();
       if (tabId === 'trading') {
@@ -3798,6 +3846,37 @@ function corthexApp() {
           setTimeout(() => this.loadSNSQueue(), 30000);
         } else { this.showToast(data.error || '승인 실패', 'error'); }
       } catch { this.showToast('승인에 실패했습니다.', 'error'); }
+    },
+
+    // Phase 2: 5초 취소 토스트가 있는 승인 (모바일 전용 UX)
+    approveWithUndo(requestId) {
+      const toastId = Date.now();
+      const toast = { id: toastId, requestId, countdown: 5, progress: 100 };
+      this.mobileUndoToasts.push(toast);
+      const interval = setInterval(() => {
+        const t = this.mobileUndoToasts.find(x => x.id === toastId);
+        if (!t) { clearInterval(interval); return; }
+        t.countdown--;
+        t.progress = (t.countdown / 5) * 100;
+        if (t.countdown <= 0) {
+          clearInterval(interval);
+          this.mobileUndoToasts = this.mobileUndoToasts.filter(x => x.id !== toastId);
+          this.approveSNS(requestId);
+          try { navigator.vibrate(10); } catch(e) {}
+        }
+      }, 1000);
+      // interval ID를 toast에 저장 (취소에 필요)
+      const t = this.mobileUndoToasts.find(x => x.id === toastId);
+      if (t) t._interval = interval;
+    },
+
+    cancelUndoToast(toastId) {
+      const t = this.mobileUndoToasts.find(x => x.id === toastId);
+      if (t) {
+        clearInterval(t._interval);
+        this.mobileUndoToasts = this.mobileUndoToasts.filter(x => x.id !== toastId);
+        this.showToast('취소되었습니다', 'info');
+      }
     },
 
     async rejectSNS(id) {
