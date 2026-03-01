@@ -31,14 +31,15 @@ async def create_session(data: dict = Body(...)):
     """새 대화 세션을 생성합니다."""
     title = data.get("title", "새 대화")
     agent_id = data.get("agent_id") or None
-    session = create_conversation(agent_id=agent_id, title=title)
+    org = data.get("org", "")
+    session = create_conversation(agent_id=agent_id, title=title, org=org)
     return {"success": True, "session": session}
 
 
 @router.get("/sessions")
-async def get_sessions(limit: int = Query(30)):
-    """대화 세션 목록을 반환합니다 (최신순)."""
-    sessions = list_conversations(limit=limit)
+async def get_sessions(limit: int = Query(30), org: str = Query("")):
+    """대화 세션 목록을 반환합니다 (최신순). org 지정 시 해당 본부만."""
+    sessions = list_conversations(limit=limit, org=org or None)
     return sessions
 
 

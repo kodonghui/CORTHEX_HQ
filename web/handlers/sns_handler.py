@@ -13,7 +13,7 @@ from pathlib import Path
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 
-from db import save_setting, load_setting, create_task, update_task
+from db import save_setting, load_setting, create_task, update_task, get_connection
 
 logger = logging.getLogger("corthex")
 
@@ -215,6 +215,29 @@ async def debug_instagram_token():
 @router.post("/api/sns/youtube/upload")
 async def post_youtube_video(request: Request):
     return {"success": False, "error": "유튜브 API가 아직 연동되지 않았습니다."}
+
+
+# ── v5: SNS 계정 목록 (org 스코프) ──
+
+@router.get("/api/sns/accounts")
+async def get_sns_accounts(org: str = ""):
+    """SNS 계정 목록 조회. org 지정 시 해당 본부 계정만."""
+    conn = get_connection()
+    try:
+        if org:
+            rows = conn.execute(
+                "SELECT id, org, platform, account_name, created_at FROM sns_accounts WHERE org = ? ORDER BY created_at",
+                (org,)
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                "SELECT id, org, platform, account_name, created_at FROM sns_accounts ORDER BY org, created_at"
+            ).fetchall()
+        return [dict(r) for r in rows]
+    except Exception as e:
+        return []
+    finally:
+        conn.close()
 
 
 # ── 게시 대기열 (Queue) ──

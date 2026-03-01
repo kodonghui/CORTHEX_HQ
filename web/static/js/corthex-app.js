@@ -421,36 +421,45 @@ function corthexApp() {
     // Agent name mapping (v4 — 6팀장 체제)
     agentNames: {
       'chief_of_staff': '비서실장',
-      
       'leet_strategist': '사업기획팀장',
       'leet_legal': '법무팀장',
       'leet_marketer': '마케팅팀장',
       'fin_analyst': '금융분석팀장',
       'leet_publisher': '콘텐츠팀장',
+      'saju_executive': '사업본부장',
+      'saju_eden': 'Eden',
+      'saju_zoe': 'Zoe',
+      'saju_sage': 'Sage',
       'argos': 'ARGOS',
     },
 
     // Agent initials for avatars
     agentInitials: {
       'chief_of_staff': 'CS',
-      
       'leet_strategist': '사업기',
       'leet_legal': '법무',
       'leet_marketer': '마케팅',
       'fin_analyst': '금융분',
       'leet_publisher': '콘텐츠',
+      'saju_executive': '본부장',
+      'saju_eden': 'Ed',
+      'saju_zoe': 'Zo',
+      'saju_sage': 'Sa',
       'argos': '⚙',
     },
 
     // Division mapping for auto-expand
     agentDivision: {
       'chief_of_staff': 'secretary',
-      
       'leet_strategist': 'strategy',
       'leet_legal': 'legal',
       'leet_marketer': 'marketing',
       'fin_analyst': 'finance',
       'leet_publisher': 'publishing',
+      'saju_executive': 'saju',
+      'saju_eden': 'saju',
+      'saju_zoe': 'saju',
+      'saju_sage': 'saju',
       'argos': 'system',
     },
 
@@ -1467,10 +1476,15 @@ function corthexApp() {
         this.mentionQuery = atMatch[1].toLowerCase();
         const divLabels = {
           'secretary': '비서실', 'tech': '기술개발처', 'strategy': '사업기획처',
-          'legal': '법무처', 'marketing': '마케팅처', 'finance': '투자분석처', 'publishing': '출판기록처'
+          'legal': '법무처', 'marketing': '마케팅처', 'finance': '투자분석처', 'publishing': '출판기록처',
+          'saju': '사주본부',
         };
-        const divOrder = ['secretary', 'tech', 'strategy', 'legal', 'marketing', 'finance', 'publishing'];
-        const matches = Object.entries(this.agentNames)
+        const divOrder = ['secretary', 'tech', 'strategy', 'legal', 'marketing', 'finance', 'publishing', 'saju'];
+        // sister 계정은 saju 에이전트만 멘션 가능
+        const visibleAgents = this.auth.role === 'sister'
+          ? Object.entries(this.agentNames).filter(([id]) => id.startsWith('saju_'))
+          : Object.entries(this.agentNames);
+        const matches = visibleAgents
           .filter(([id, name]) => !this.mentionQuery || id.toLowerCase().includes(this.mentionQuery) || name.toLowerCase().includes(this.mentionQuery))
           .map(([id, name]) => ({ id, name, div: this.agentDivision[id] || '' }));
         const groupMap = {};
@@ -3555,7 +3569,9 @@ function corthexApp() {
       this.archive.selectedReport = null;
       this.archive.loading = true;
       try {
-        const res = await fetch('/api/archive');
+        // v5: sister 계정은 saju division 기밀문서만
+        const orgParam = this.auth.role === 'sister' ? '?org=saju' : '';
+        const res = await fetch(`/api/archive${orgParam}`);
         if (res.ok) this.archive.files = await res.json();
       } catch { this.showToast('아카이브를 불러올 수 없습니다.', 'error'); }
       finally { this.archive.loading = false; }
@@ -4730,7 +4746,9 @@ function corthexApp() {
     // ── #13: Activity Log Persistence ──
     restoreActivityLogs() {
       // DB에서 최근 활동 로그 불러오기 (페이지 새로고침해도 이력 유지)
-      fetch('/api/activity-logs?limit=100')
+      // v5: sister 계정은 saju 에이전트 로그만
+      const orgParam = this.auth.role === 'sister' ? '&org=saju' : '';
+      fetch(`/api/activity-logs?limit=100${orgParam}`)
         .then(r => r.json())
         .then(logs => {
           if (Array.isArray(logs)) {
@@ -4868,10 +4886,11 @@ function corthexApp() {
     // ── 멀티턴 대화 세션 관리 ──
     async newConversation(agentId = null) {
       try {
+        const org = this.auth.role === 'sister' ? 'saju' : '';
         const res = await fetch('/api/conversation/sessions', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ agent_id: agentId }),
+          body: JSON.stringify({ agent_id: agentId, org }),
         });
         const data = await res.json();
         if (data.success) {
@@ -4890,7 +4909,9 @@ function corthexApp() {
 
     async loadConversationList() {
       try {
-        const res = await fetch('/api/conversation/sessions?limit=30');
+        // v5: sister 계정은 saju org 대화만 조회
+        const orgParam = this.auth.role === 'sister' ? '&org=saju' : '';
+        const res = await fetch(`/api/conversation/sessions?limit=30${orgParam}`);
         if (res.ok) {
           this.conversationList = await res.json();
         }
