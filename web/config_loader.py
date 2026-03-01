@@ -343,3 +343,25 @@ def _build_agents_from_yaml() -> list[dict]:
 
 
 AGENTS = _build_agents_from_yaml()
+
+
+# ── 워크스페이스 프로파일 (v5.1 네이버 모델) ──
+
+_workspace_profiles: dict | None = None
+
+
+def load_workspace_profiles() -> dict:
+    """config/workspaces.yaml 로드 — 서버 시작 시 1회, 메모리 캐싱."""
+    global _workspace_profiles
+    if _workspace_profiles is not None:
+        return _workspace_profiles
+    # _load_config는 JSON 우선 → YAML 폴백 (기존 패턴 재사용)
+    raw = _load_config("workspaces")
+    _workspace_profiles = raw.get("workspaces", {})
+    _log(f"[WORKSPACE] {len(_workspace_profiles)}개 워크스페이스 프로파일 로드")
+    return _workspace_profiles
+
+
+def get_workspace_profile(role: str) -> dict | None:
+    """role에 해당하는 워크스페이스 프로파일 반환. 없으면 None."""
+    return load_workspace_profiles().get(role)

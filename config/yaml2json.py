@@ -29,7 +29,7 @@ for config_dir_str in config_dirs:
         print(f"  ⚠️ {config_dir_str} 폴더 없음 — 건너뜀")
         continue
 
-    for name in ["agents", "tools", "quality_rules"]:
+    for name in ["agents", "tools", "quality_rules", "workspaces"]:
         src = config_dir / f"{name}.yaml"
         dst = config_dir / f"{name}.json"
         if src.exists():
