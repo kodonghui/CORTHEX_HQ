@@ -42,8 +42,8 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="CORTHEX HQ">
   <link rel="apple-touch-icon" href="/static/images/corthex-logo-256.png">
-  <link rel="stylesheet" href="/static/css/corthex-styles.css?v=649">
-  <script defer src="/static/js/corthex-app.js?v=649"></script>
+  <link rel="stylesheet" href="/static/css/corthex-styles.css?v=722">
+  <script defer src="/static/js/corthex-app.js?v=722"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/@alpinejs/collapse@3.x.x/dist/cdn.min.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 </head>
@@ -52,7 +52,7 @@
       x-data="corthexApp()" x-init="init()">
 
   <!-- ═══ Top Bar ═══ -->
-  <header class="h-14 glass border-b border-hq-border flex items-center justify-between px-5 shrink-0 z-20">
+  <header class="h-14 hq-header flex items-center justify-between px-5 shrink-0 z-20" style="background: rgb(var(--hq-surface)); border-bottom: 1px solid rgb(var(--hq-border))">
     <div class="flex items-center gap-4">
       <!-- Sidebar Toggle -->
       <button @click="sidebarOpen = !sidebarOpen"
@@ -92,7 +92,7 @@
         </div>
       </div>
       <div class="flex items-center gap-2 header-build-badge">
-        <span class="text-[10px] text-hq-muted bg-hq-surface border border-hq-border rounded-md px-2 py-0.5">빌드 #649</span>
+        <span class="text-[10px] text-hq-muted bg-hq-surface border border-hq-border rounded-md px-2 py-0.5">빌드 #722</span>
         <span class="text-[10px] text-hq-cyan/85 bg-hq-cyan/5 border border-hq-cyan/20 rounded-md px-2 py-0.5">CEO 관제</span>
       </div>
     </div>
@@ -303,13 +303,14 @@
          x-transition:leave-start="opacity-100"
          x-transition:leave-end="opacity-0"></div>
     <aside x-show="sidebarOpen"
-           x-transition:enter="transition-all ease-out duration-300"
-           x-transition:enter-start="opacity-0 -translate-x-full w-0"
-           x-transition:enter-end="opacity-100 translate-x-0 w-[280px]"
+           x-transition:enter="transition-all ease-out duration-250"
+           x-transition:enter-start="opacity-0 -translate-x-4 w-0"
+           x-transition:enter-end="opacity-100 translate-x-0 w-[260px]"
            x-transition:leave="transition-all ease-in duration-200"
-           x-transition:leave-start="opacity-100 translate-x-0 w-[280px]"
-           x-transition:leave-end="opacity-0 -translate-x-full w-0"
-           class="w-[280px] bg-hq-surface border-r border-hq-border flex flex-col shrink-0 overflow-hidden max-md:fixed max-md:top-14 max-md:left-0 max-md:bottom-0 max-md:z-40 max-md:shadow-2xl">
+           x-transition:leave-start="opacity-100 translate-x-0 w-[260px]"
+           x-transition:leave-end="opacity-0 -translate-x-4 w-0"
+           class="w-[260px] flex flex-col shrink-0 overflow-hidden max-md:fixed max-md:top-14 max-md:left-0 max-md:bottom-0 max-md:z-40 max-md:shadow-2xl"
+           style="background: rgb(var(--hq-surface)); border-right: 1px solid rgb(var(--hq-border))">
 
       <!-- Team (flat) -->
       <div class="flex-1 overflow-y-auto scrollbar-thin p-4 space-y-1.5">
@@ -487,7 +488,7 @@
       <div x-show="viewMode === 'chat' && activeTab === 'home'" x-cloak class="flex-1 overflow-y-auto scrollbar-thin px-6 pt-8 pb-6 bg-grid tab-content-padded">
         <div class="max-w-5xl mx-auto fade-in-up">
           <div class="mb-6">
-            <h1 class="text-xl md:text-2xl font-bold gradient-text mb-1 welcome-title">CYBER COMMAND CENTER</h1>
+            <h1 class="text-xl md:text-2xl font-bold gradient-text mb-1 welcome-title">AI 지휘소</h1>
             <p class="text-sm text-hq-muted">빠른 요약 — 상세 실시간 분석은 <button @click="viewMode='dashboard'; loadDashboard()" class="text-hq-accent hover:underline">대시보드</button>에서</p>
           </div>
 
@@ -908,10 +909,10 @@
                 <div class="absolute inset-0 bg-hq-accent/10 rounded-full blur-3xl scale-150"></div>
               </div>
 
-              <h1 class="text-4xl font-extrabold gradient-text mb-2 tracking-tight" style="letter-spacing: 0.15em;">CYBER COMMAND</h1>
-              <p class="text-lg text-hq-green/90 mb-1" x-text="greeting"></p>
-              <p class="text-hq-cyan/60 text-sm mb-8 max-w-sm leading-relaxed font-mono">
-                [ SYSTEM ONLINE ] 29 UNITS STANDING BY
+              <h1 class="text-3xl font-bold gradient-text mb-2" style="letter-spacing: 0.08em; font-family: 'JetBrains Mono', monospace;">CORTHEX HQ</h1>
+              <p class="text-base text-hq-text/80 mb-1" x-text="greeting"></p>
+              <p class="text-hq-muted text-sm mb-8 max-w-sm leading-relaxed">
+                무엇을 지시하시겠습니까?
               </p>
 
               <div class="flex gap-3 mb-6">
@@ -1326,7 +1327,7 @@
         </div>
 
         <!-- ═══ Input Bar ═══ -->
-        <div class="border-t-2 border-hq-accent/20 bg-hq-surface/90 backdrop-blur-md p-4 shrink-0 shadow-[0_-4px_16px_rgb(var(--hq-shadow)/0.08)] relative z-50 chat-input-bar">
+        <div class="command-input-wrap p-4 shrink-0 relative z-50 chat-input-bar">
           <div class="max-w-4xl mx-auto relative">
             <!-- 슬래시 명령어 팝업 -->
             <div x-show="showSlashDropdown" x-transition
@@ -1427,13 +1428,11 @@
               <div class="flex-1 relative">
                 <textarea x-model="inputText" x-ref="inputArea"
                   @keydown="handleInputKeydown($event)" @input="handleInputChange($event)"
-                  :placeholder="systemStatus === 'working' ? '명령 대기열에 추가됩니다...' : inputHints[inputHintIndex]"
+                  :placeholder="systemStatus === 'working' ? '명령 대기열에 추가됩니다...' : '대표님, 무엇을 지시하시겠습니까?'"
                   rows="1"
-                  class="w-full bg-hq-bg border-2 border-hq-border-light rounded-xl px-4 py-3 pr-10 text-sm text-hq-text
-                         placeholder-hq-muted/70 focus:outline-none focus:border-hq-accent/60 input-glow-animated
-                         disabled:opacity-40 disabled:cursor-not-allowed transition-all resize-none overflow-hidden
-                         shadow-sm"
-                  style="min-height:44px; max-height:200px;" autofocus></textarea>
+                  class="command-textarea w-full px-4 py-3 pr-10 text-hq-text
+                         disabled:opacity-40 disabled:cursor-not-allowed resize-none overflow-hidden"
+                  style="min-height:46px; max-height:200px;" autofocus></textarea>
                 <div class="absolute right-3 bottom-3 text-[10px] font-mono text-hq-muted/70"
                      x-show="!inputText.trim() && systemStatus !== 'working'">Enter &#9166;</div>
               </div>
@@ -1441,11 +1440,12 @@
                 :disabled="!inputText.trim()"
                 :class="inputText.trim()
                   ? (systemStatus === 'working'
-                    ? 'bg-gradient-to-r from-hq-yellow/80 to-amber-500/80 hover:from-hq-yellow hover:to-amber-500 text-black shadow-lg shadow-hq-yellow/30'
-                    : 'bg-gradient-to-r from-hq-green/80 to-hq-cyan/80 hover:from-hq-green hover:to-hq-cyan text-black shadow-lg shadow-hq-green/30 hover:shadow-xl hover:shadow-hq-green/40')
-                  : 'border-2 border-hq-accent/30 bg-hq-accent/10 text-hq-accent/40'"
+                    ? 'bg-hq-yellow text-black shadow-lg'
+                    : 'send-btn-active')
+                  : 'border border-hq-border bg-hq-panel/50 text-hq-muted/40'"
                 class="rounded-full w-12 h-12 flex items-center justify-center transition-all shrink-0"
-                :title="systemStatus === 'working' ? '대기열에 추가' : '보내기'">
+                :title="systemStatus === 'working' ? '대기열에 추가' : '보내기'"
+                style="min-width:48px;">
                 <svg x-show="systemStatus !== 'working'" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
                   <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 10.5L12 3m0 0l7.5 7.5M12 3v18"/>
                 </svg>
@@ -3545,8 +3545,8 @@
                   <div class="w-16 h-16 rounded-2xl bg-hq-purple/10 flex items-center justify-center mb-3 float-anim">
                     <svg class="w-8 h-8 text-hq-purple/50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/></svg>
                   </div>
-                  <div class="text-xs font-semibold text-hq-text/60 mb-1">보관된 보고서 없음</div>
-                  <div class="text-[11px] text-hq-muted">에이전트 작업 완료 시 자동 저장됩니다</div>
+                  <div class="text-xs font-semibold text-hq-text/60 mb-1">보고서 없음</div>
+                  <div class="text-[11px] text-hq-muted">에이전트에게 분석을 지시해보세요</div>
                 </div>
               </div>
             </div>
@@ -3563,7 +3563,7 @@
                       <button @click="deleteArchiveReport(archive.selectedReport)" class="text-xs text-hq-muted hover:text-hq-red transition">삭제</button>
                     </div>
                   </div>
-                  <div class="text-sm leading-relaxed markdown-body" x-html="renderMarkdown(archive.content)"></div>
+                  <div class="report-reading-mode markdown-body" x-html="renderMarkdown(archive.content)"></div>
                 </div>
               </template>
               <template x-if="!archive.content">
@@ -3708,23 +3708,24 @@
               <button x-show="sns.queue.length > 0" @click="sns.showClearQueueModal = true"
                 class="text-[10px] text-red-400 hover:text-red-300 px-2 py-1 rounded-lg hover:bg-red-500/10 transition">전체 초기화</button>
             </div>
-            <div class="space-y-2">
+            <div class="space-y-3">
               <template x-for="item in sns.queue.filter(q => sns.queueFilter === 'all' || q.status === sns.queueFilter)" :key="item.request_id">
-                <div class="glass border border-hq-border rounded-xl p-4">
+                <div class="sns-card-redesign p-4"
+                     :class="item.status === 'pending' ? 'status-pending' : item.status === 'approved' ? 'status-approved' : item.status === 'published' ? 'status-published' : item.status === 'rework' ? 'status-rework' : ''">
                   <div class="flex items-center justify-between mb-2">
                     <div class="flex items-center gap-2">
-                      <span class="text-xs font-bold text-hq-text capitalize" x-text="item.platform || '-'"></span>
-                      <span class="status-badge text-[9px]"
-                        :class="item.status === 'pending' ? 'bg-hq-yellow/10 text-hq-yellow' : item.status === 'approved' ? 'bg-hq-green/10 text-hq-green' : item.status === 'published' ? 'bg-hq-cyan/10 text-hq-cyan' : item.status === 'rework' ? 'bg-hq-orange/10 text-orange-400' : 'bg-hq-red/10 text-hq-red'"
-                        x-text="item.status === 'pending' ? '대기' : item.status === 'approved' ? '승인됨' : item.status === 'published' ? '발행완료' : item.status === 'failed' ? '실패' : item.status === 'rework' ? '재작업중' : '거절'"></span>
-                      <span x-show="item.revision > 0" class="text-[9px] text-orange-400" x-text="'v' + (item.revision || 1)"></span>
-                      <span class="text-[9px] text-hq-muted" x-text="item.requested_by ? '요청: ' + item.requested_by : ''"></span>
+                      <span class="text-xs font-bold text-hq-text uppercase tracking-wide font-mono" x-text="item.platform || '-'"></span>
+                      <span class="text-[10px] px-2 py-0.5 rounded-full font-semibold"
+                        :class="item.status === 'pending' ? 'bg-hq-yellow/10 text-hq-yellow' : item.status === 'approved' ? 'bg-hq-accent/10 text-hq-accent' : item.status === 'published' ? 'bg-hq-muted/10 text-hq-muted' : item.status === 'rework' ? 'bg-hq-red/10 text-hq-red' : 'bg-hq-border text-hq-muted'"
+                        x-text="item.status === 'pending' ? '대기 중' : item.status === 'approved' ? '승인됨' : item.status === 'published' ? '발행 완료' : item.status === 'failed' ? '실패' : item.status === 'rework' ? '재작업 중' : '거절'"></span>
+                      <span x-show="item.revision > 0" class="text-[9px] text-hq-yellow" x-text="'v' + (item.revision || 1)"></span>
+                      <span class="text-[9px] text-hq-muted" x-text="item.requested_by ? item.requested_by : ''"></span>
                     </div>
                     <!-- 대기 → 승인/거절 버튼 (데스크탑: 즉시 승인 / 모바일: 5초 undo) -->
                     <div class="flex items-center gap-2" x-show="item.status === 'pending'">
                       <button @click="window.innerWidth <= 768 ? approveWithUndo(item.request_id) : approveSNS(item.request_id)"
-                              class="bg-hq-green/20 text-hq-green rounded-lg px-3 py-1 text-xs hover:bg-hq-green/30 font-bold sns-approve-btn">승인+발행</button>
-                      <button @click="sns.rejectingId = item.request_id" class="bg-hq-red/20 text-hq-red rounded-lg px-3 py-1 text-xs hover:bg-hq-red/30">거절</button>
+                              class="btn-approve sns-approve-btn">✓ 승인+발행</button>
+                      <button @click="sns.rejectingId = item.request_id" class="text-hq-muted hover:text-hq-red text-xs px-2 py-1 rounded-lg hover:bg-hq-red/10 transition">거절</button>
                     </div>
                     <!-- 승인됨 → 자동 발행 진행중 (수동 발행 버튼도 유지) -->
                     <div class="flex items-center gap-2" x-show="item.status === 'approved'">
@@ -3777,7 +3778,11 @@
                 </div>
               </template>
               <template x-if="sns.queue.filter(q => sns.queueFilter === 'all' || q.status === sns.queueFilter).length === 0">
-                <div class="text-center text-hq-muted/80 py-8">대기열이 비어있습니다</div>
+                <div class="empty-state">
+                  <div class="empty-state-icon">✓</div>
+                  <div class="empty-state-title" x-text="sns.queueFilter === 'pending' ? '승인 대기 없음' : '항목 없음'"></div>
+                  <div class="empty-state-desc" x-text="sns.queueFilter === 'pending' ? '오늘 모두 처리됐습니다' : '해당 상태의 항목이 없습니다'"></div>
+                </div>
               </template>
             </div>
           </div>

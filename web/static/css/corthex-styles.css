@@ -1,20 +1,20 @@
 /* 폰트는 index.html에서 preload로 비동기 로드 (CSS @import 순차 블로킹 제거) */
 
-/* ═══ 사이버 사령부 팔레트 (Cyber Command Center — 네온 다크) ═══ */
+/* ═══ 냉정한 지휘소 팔레트 (Cold Command Center — 순흑 에메랄드) ═══ */
 :root, .dark {
-  --hq-bg: 18 22 32;
-  --hq-surface: 26 32 46;
-  --hq-panel: 34 42 58;
-  --hq-border: 55 65 88;
-  --hq-border-light: 70 82 108;
-  --hq-accent: 0 200 150;
-  --hq-cyan: 0 230 255;
-  --hq-purple: 140 100 255;
-  --hq-green: 0 255 136;
-  --hq-yellow: 255 210 0;
-  --hq-red: 255 60 80;
-  --hq-text: 225 238 245;
-  --hq-muted: 135 155 175;
+  --hq-bg: 10 10 10;            /* #0a0a0a — 최하위 배경 */
+  --hq-surface: 17 17 17;       /* #111111 — 카드/패널 */
+  --hq-panel: 26 26 26;         /* #1a1a1a — 서브 패널 */
+  --hq-border: 38 38 38;        /* #262626 — 기본 구분선 */
+  --hq-border-light: 64 64 64;  /* #404040 — 포커스 테두리 */
+  --hq-accent: 52 211 153;      /* #34d399 — 에메랄드 */
+  --hq-cyan: 34 211 238;        /* #22d3ee — 시안 */
+  --hq-purple: 167 139 250;     /* #a78bfa — 보라 */
+  --hq-green: 52 211 153;       /* #34d399 — 그린 (accent 동일) */
+  --hq-yellow: 251 191 36;      /* #fbbf24 — 앰버 */
+  --hq-red: 248 113 113;        /* #f87171 — 레드 */
+  --hq-text: 250 250 250;       /* #fafafa — 주 텍스트 */
+  --hq-muted: 115 115 115;      /* #737373 — 보조 텍스트 */
   --hq-shadow: 0 0 0;
 }
 /* ═══ 라이트모드 팔레트 (클린 화이트 — 깨끗하고 밝은 디자인) ═══ */
@@ -40,32 +40,32 @@ body { font-family: 'Pretendard Variable', 'Pretendard', -apple-system, BlinkMac
 /* 포인트 명조체 — 제목/워크플로우 이름 등에 사용 */
 .font-title { font-family: 'Pretendard Variable', 'Pretendard', sans-serif; font-weight: 700; letter-spacing: -0.01em; }
 
-/* ═══ 사이버 사령부 배경 (딥 다크 + 네온 글로우) ═══ */
+/* ═══ 냉정한 지휘소 배경 (순흑 + 에메랄드 미광) ═══ */
 .dark body {
-  background: linear-gradient(145deg, #10141E 0%, #141A28 30%, #121820 60%, #161222 100%);
+  background: #0a0a0a;
   background-attachment: fixed;
 }
-/* 네온 글로우 — 사이버 그린 (왼쪽 위) */
+/* 에메랄드 미광 — 왼쪽 위 (극히 은은하게) */
 .dark body::before {
   content: '';
   position: fixed;
-  top: -25%;
-  left: -15%;
-  width: 65%;
-  height: 65%;
-  background: radial-gradient(ellipse at center, rgba(0,255,136,0.06) 0%, transparent 65%);
+  top: -30%;
+  left: -20%;
+  width: 60%;
+  height: 60%;
+  background: radial-gradient(ellipse at center, rgba(52,211,153,0.04) 0%, transparent 70%);
   pointer-events: none;
   z-index: 0;
 }
-/* 네온 글로우 — 시안 (오른쪽 아래) */
+/* 미광 없음 — 오른쪽 아래는 순흑 */
 .dark body::after {
   content: '';
   position: fixed;
-  bottom: -25%;
-  right: -15%;
-  width: 65%;
-  height: 65%;
-  background: radial-gradient(ellipse at center, rgba(0,230,255,0.05) 0%, transparent 65%);
+  bottom: 0;
+  right: 0;
+  width: 0;
+  height: 0;
+  background: transparent;
   pointer-events: none;
   z-index: 0;
 }
@@ -228,9 +228,9 @@ html:not(.dark) body::after {
   z-index: 1;
 }
 
-/* Gradient text — 사이버 사령부 네온 그라디언트 */
+/* Gradient text — 냉정한 지휘소 에메랄드 */
 .gradient-text {
-  background: linear-gradient(135deg, #00ff88, #00e6ff, #8c64ff);
+  background: linear-gradient(135deg, #34d399, #22d3ee);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -258,12 +258,12 @@ html:not(.dark) body::after {
 .glow-purple { box-shadow: 0 0 20px rgb(var(--hq-purple) / 0.25), 0 0 40px rgb(var(--hq-purple) / 0.1); }
 .glow-accent { box-shadow: 0 0 24px rgb(var(--hq-accent) / 0.3); }
 
-/* Glass effect — 반투명 유리 효과 (Glassmorphism) */
+/* Glass effect — 냉정한 지휘소 (솔리드 표면, blur 최소화) */
 .glass {
-  background: rgb(var(--hq-surface) / 0.55);
-  backdrop-filter: blur(20px) saturate(1.4);
-  -webkit-backdrop-filter: blur(20px) saturate(1.4);
-  border-color: rgb(255 255 255 / 0.06);
+  background: rgb(var(--hq-surface));
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-color: rgb(var(--hq-border));
 }
 
 /* Background grid pattern — 격자 무늬는 ::before 가상 요소로만 표시 */
@@ -277,12 +277,12 @@ html:not(.dark) body::after {
   position: absolute;
   inset: 0;
   background-image:
-    linear-gradient(rgb(var(--hq-accent) / 0.07) 1px, transparent 1px),
-    linear-gradient(90deg, rgb(var(--hq-accent) / 0.07) 1px, transparent 1px);
-  background-size: 40px 40px;
-  animation: gridPulse 8s ease-in-out infinite;
+    linear-gradient(rgb(var(--hq-border) / 0.4) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(var(--hq-border) / 0.4) 1px, transparent 1px);
+  background-size: 48px 48px;
   pointer-events: none;
   z-index: 0;
+  opacity: 0.35;
 }
 .bg-grid > * {
   position: relative;
@@ -1271,7 +1271,210 @@ html:not(.dark) .log-item:hover { background: rgb(var(--hq-accent) / 0.08) !impo
 .status-badge { color: inherit !important; }
 
 /* ═══ AGORA — 논문 Diff 스타일 ═══ */
-.agora-diff .diff-del { background: rgba(255, 60, 80, 0.15); color: #ff6b7a; text-decoration: line-through; }
-.agora-diff .diff-add { background: rgba(0, 255, 136, 0.12); color: #6bffb0; }
+.agora-diff .diff-del { background: rgba(248, 113, 113, 0.15); color: #f87171; text-decoration: line-through; }
+.agora-diff .diff-add { background: rgba(52, 211, 153, 0.12); color: #34d399; }
 .agora-diff .diff-hdr { color: rgb(var(--hq-muted)); opacity: 0.5; font-size: 10px; margin-top: 8px; }
 .agora-diff .diff-ctx { color: rgb(var(--hq-text)); opacity: 0.6; }
+
+/* ════════════════════════════════════════════════════════════
+   ═══ 냉정한 지휘소 대개편 — 핵심 컴포넌트 스타일 (2026-03-01) ═══
+   ════════════════════════════════════════════════════════════ */
+
+/* ── 탭바 (데스크탑) — 활성 탭 개선 ── */
+.desktop-tab-bar {
+  background: rgb(var(--hq-surface));
+  border-bottom: 1px solid rgb(var(--hq-border));
+}
+.tab-active-indicator {
+  position: relative;
+}
+.tab-active-indicator::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: rgb(var(--hq-accent));
+  border-radius: 1px 1px 0 0;
+}
+
+/* ── 사령관실 입력창 (CommandInput) ── */
+.command-input-wrap {
+  background: rgb(var(--hq-surface));
+  border-top: 1px solid rgb(var(--hq-border));
+}
+.command-textarea {
+  background: rgb(var(--hq-bg)) !important;
+  border: 1px solid rgb(var(--hq-border)) !important;
+  border-radius: 12px !important;
+  color: rgb(var(--hq-text)) !important;
+  font-size: 15px !important;
+  line-height: 1.6 !important;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease !important;
+}
+.command-textarea:focus {
+  border-color: rgb(var(--hq-accent) / 0.5) !important;
+  box-shadow: 0 0 0 3px rgb(var(--hq-accent) / 0.08) !important;
+  outline: none !important;
+}
+.command-textarea::placeholder {
+  color: rgb(var(--hq-muted) / 0.6) !important;
+  font-size: 14px !important;
+}
+
+/* ── AI 응답 버블 (AgentBubble) ── */
+.agent-bubble {
+  background: rgb(var(--hq-surface));
+  border: 1px solid rgb(var(--hq-border));
+  border-radius: 0 12px 12px 12px;
+  position: relative;
+}
+.agent-bubble::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  border-radius: 3px 0 0 3px;
+  background: rgb(var(--hq-accent));
+}
+/* 에이전트별 색상 */
+.agent-bubble[data-agent="chief_of_staff"]::before { background: #f59e0b; }
+.agent-bubble[data-agent="cmo_manager"]::before { background: #f97316; }
+.agent-bubble[data-agent="cio_manager"]::before { background: #ef4444; }
+.agent-bubble[data-agent="cso_manager"]::before { background: #a855f7; }
+.agent-bubble[data-agent="clo_manager"]::before { background: #34d399; }
+.agent-bubble[data-agent="cpo_manager"]::before { background: #e879f9; }
+
+/* ── 사용자 명령 버블 ── */
+.user-bubble {
+  background: rgb(var(--hq-accent) / 0.08);
+  border: 1px solid rgb(var(--hq-accent) / 0.15);
+  border-radius: 12px 0 12px 12px;
+}
+
+/* ── SNS 카드 (SNSCard) — 개선 ── */
+.sns-card-redesign {
+  background: rgb(var(--hq-surface));
+  border: 1px solid rgb(var(--hq-border));
+  border-radius: 12px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.sns-card-redesign:hover {
+  border-color: rgb(var(--hq-border-light));
+}
+.sns-card-redesign.status-pending {
+  border-left: 3px solid rgb(var(--hq-yellow));
+}
+.sns-card-redesign.status-approved {
+  border-left: 3px solid rgb(var(--hq-accent));
+}
+.sns-card-redesign.status-published {
+  border-left: 3px solid rgb(var(--hq-muted) / 0.5);
+}
+.sns-card-redesign.status-rework {
+  border-left: 3px solid rgb(var(--hq-red) / 0.7);
+}
+
+/* ── SNS 승인 버튼 (Primary CTA) ── */
+.btn-approve {
+  background: rgb(var(--hq-accent));
+  color: #000000;
+  font-weight: 700;
+  border-radius: 8px;
+  padding: 6px 14px;
+  font-size: 12px;
+  transition: background 0.15s ease, transform 0.1s ease;
+  border: none;
+}
+.btn-approve:hover { background: rgb(52 211 153 / 0.85); }
+.btn-approve:active { transform: scale(0.97); }
+
+/* ── 에이전트 상태 dot ── */
+.status-dot-online {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: rgb(var(--hq-accent));
+  box-shadow: 0 0 0 0 rgb(var(--hq-accent) / 0.4);
+  animation: pulse-dot 2s ease-in-out infinite;
+}
+.status-dot-busy {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: rgb(var(--hq-yellow));
+}
+.status-dot-error {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: rgb(var(--hq-red));
+}
+@keyframes pulse-dot {
+  0%   { box-shadow: 0 0 0 0 rgb(var(--hq-accent) / 0.4); }
+  70%  { box-shadow: 0 0 0 6px rgb(var(--hq-accent) / 0); }
+  100% { box-shadow: 0 0 0 0 rgb(var(--hq-accent) / 0); }
+}
+
+/* ── 보고서 읽기 모드 ── */
+.report-reading-mode {
+  max-width: 800px;
+  margin: 0 auto;
+  line-height: 1.8;
+  word-break: keep-all;
+}
+.report-reading-mode h1 { font-size: 1.6rem; font-weight: 700; margin: 0 0 1rem; color: rgb(var(--hq-text)); }
+.report-reading-mode h2 { font-size: 1.2rem; font-weight: 600; margin: 1.5rem 0 0.6rem; color: rgb(var(--hq-accent)); }
+.report-reading-mode h3 { font-size: 1.05rem; font-weight: 600; margin: 1.2rem 0 0.4rem; color: rgb(var(--hq-cyan)); }
+.report-reading-mode p  { margin: 0.6rem 0; color: rgb(var(--hq-text) / 0.88); }
+.report-reading-mode li { margin: 0.3rem 0; color: rgb(var(--hq-text) / 0.88); }
+
+/* ── 빈 상태 (EmptyState) ── */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px;
+  text-align: center;
+  color: rgb(var(--hq-muted));
+}
+.empty-state-icon { font-size: 36px; margin-bottom: 12px; opacity: 0.5; }
+.empty-state-title { font-size: 15px; font-weight: 600; color: rgb(var(--hq-text) / 0.7); margin-bottom: 6px; }
+.empty-state-desc { font-size: 13px; color: rgb(var(--hq-muted)); }
+
+/* ── 포커스 링 (접근성) ── */
+:focus-visible {
+  outline: 2px solid rgb(var(--hq-accent) / 0.7);
+  outline-offset: 2px;
+}
+
+/* ── 전송 버튼 개선 ── */
+.send-btn-active {
+  background: rgb(var(--hq-accent)) !important;
+  color: #000 !important;
+  box-shadow: 0 0 16px rgb(var(--hq-accent) / 0.25) !important;
+}
+.send-btn-active:hover {
+  background: rgb(52 211 153 / 0.85) !important;
+}
+
+/* ── 사이드바 에이전트 팀원 hover 개선 ── */
+.agent-row-hover:hover {
+  background: rgb(var(--hq-panel)) !important;
+  border-color: rgb(var(--hq-border)) !important;
+}
+
+/* ── 헤더 개선 ── */
+header.hq-header {
+  background: rgb(var(--hq-surface));
+  border-bottom: 1px solid rgb(var(--hq-border));
+}
+
+/* ── prefers-reduced-motion ── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
