@@ -2397,7 +2397,9 @@ function corthexApp() {
 
     async loadPresets() {
       try {
-        const data = await fetch('/api/presets').then(r => r.json());
+        const org = this.workspace.orgScope || '';
+        const url = org ? `/api/presets?org=${org}` : '/api/presets';
+        const data = await fetch(url).then(r => r.json());
         this.presets.items = data || [];
         this.backendPresets = data || [];
       } catch (e) { console.error('Presets load failed:', e); }
@@ -3466,7 +3468,8 @@ function corthexApp() {
     async loadKnowledge() {
       this.knowledge.loading = true;
       try {
-        const res = await fetch('/api/knowledge');
+        const org = this.workspace.orgScope || '';
+        const res = await fetch(`/api/knowledge${org ? '?org=' + org : ''}`);
         if (res.ok) {
           const data = await res.json();
           this.knowledge.files = data.entries || data || [];
@@ -3750,9 +3753,11 @@ function corthexApp() {
     // ── SNS Management ──
     async loadSNS() {
       this.sns.loading = true;
+      const org = this.workspace.orgScope || '';
+      const statusUrl = org ? `/api/sns/status?org=${org}` : '/api/sns/status';
       try {
         const [status, oauth] = await Promise.all([
-          fetch('/api/sns/status').then(r => r.ok ? r.json() : {}),
+          fetch(statusUrl).then(r => r.ok ? r.json() : {}),
           fetch('/api/sns/oauth/status').then(r => r.ok ? r.json() : {}),
         ]);
         this.sns.status = status;

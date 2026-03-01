@@ -31,6 +31,9 @@ workspaces:
     sidebarFilter: ceo
     mentionFilter: ceo
     orgScope: null            # API 데이터는 전체 (CEO는 전체 데이터 조회)
+    showBulkModel: true        # 전체 에이전트 모델 일괄 변경 섹션 표시
+    showSatisfaction: true     # CEO 만족도 카드 표시
+    allowedDivisions: []       # 빈 배열 = 기밀문서/정보국 전체 탭 허용
 
   sister:
     label: "사주냥 관제"
@@ -45,3 +48,6 @@ workspaces:
     sidebarFilter: sister
     mentionFilter: sister
     orgScope: saju            # API 데이터는 saju org만
+    showBulkModel: false
+    showSatisfaction: false
+    allowedDivisions: [saju]   # 사주 탭만

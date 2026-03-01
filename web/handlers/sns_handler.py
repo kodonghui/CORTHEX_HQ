@@ -38,10 +38,29 @@ _SNS_ENV_MAP = {
 # ── 플랫폼 연결 상태 ──
 
 @router.get("/api/sns/status")
-async def get_sns_status():
-    """SNS 플랫폼 연결 상태 — 환경변수 + OAuth 토큰 만료 정보."""
+async def get_sns_status(org: str = ""):
+    """SNS 플랫폼 연결 상태 — 환경변수 + OAuth 토큰 만료 정보.
+
+    org 파라미터 지정 시 해당 org에 등록된 sns_accounts 플랫폼만 반환.
+    미지정 시 전체 플랫폼 반환 (기존 동작 유지).
+    """
+    # org 필터: sns_accounts 테이블에서 해당 org 플랫폼 목록 조회
+    allowed_platforms = None
+    if org:
+        try:
+            conn = get_connection()
+            rows = conn.execute(
+                "SELECT DISTINCT platform FROM sns_accounts WHERE org = ?", (org,)
+            ).fetchall()
+            conn.close()
+            allowed_platforms = {r["platform"] for r in rows}
+        except Exception:
+            allowed_platforms = None  # DB 오류 시 필터 적용 안 함
+
     result = {}
     for p in _SNS_PLATFORMS:
+        if allowed_platforms is not None and p not in allowed_platforms:
+            continue
         env_key = _SNS_ENV_MAP.get(p, "")
         has_key = bool(os.getenv(env_key, ""))
         info = {

@@ -336,6 +336,13 @@
           </div>
         </div>
 
+        <!-- ── 지휘부 ── -->
+        <div class="flex items-center gap-2 px-1 py-1 mb-1" x-show="workspace.sidebarFilter === 'ceo'">
+          <div class="flex-1 h-px bg-hq-cyan/30"></div>
+          <div class="text-[10px] font-semibold tracking-wide whitespace-nowrap px-1 text-hq-cyan">지휘부</div>
+          <div class="flex-1 h-px bg-hq-cyan/30"></div>
+        </div>
+
         <!-- 비서실장 — cli_owner 기반 필터링 (슬랙 모델) -->
         <div class="space-y-0.5 mb-1" x-show="agentCliOwner['chief_of_staff'] === workspace.sidebarFilter">
           <template x-for="id in ['chief_of_staff']" :key="id">
@@ -359,21 +366,22 @@
           </template>
         </div>
 
-        <!-- ── 리트마스터 본부 — cli_owner 기반 필터링 (슬랙 모델) -->
-        <div x-show="agentCliOwner['leet_strategist'] === workspace.sidebarFilter">
+        <!-- ── 사주 본부 — 내 CLI 에이전트만 표시 (cli_owner 기반) ── -->
+        <div class="mt-1">
           <div class="flex items-center gap-2 px-1 py-1 mb-1">
-            <div class="flex-1 h-px bg-hq-border/40"></div>
-            <div class="text-[10px] text-hq-muted/80 font-semibold tracking-wide whitespace-nowrap px-1">리트마스터 본부</div>
-            <div class="flex-1 h-px bg-hq-border/40"></div>
+            <div class="flex-1 h-px bg-hq-green/30"></div>
+            <div class="text-[10px] font-semibold tracking-wide whitespace-nowrap px-1 text-hq-green">사주 본부</div>
+            <div class="flex-1 h-px bg-hq-green/30"></div>
           </div>
           <div class="space-y-0.5">
-            <template x-for="id in ['leet_strategist','leet_legal','leet_marketer','fin_analyst','leet_publisher']" :key="id">
-              <div :id="'agent-' + id" @click="openAgentConfig(id)"
+            <template x-for="id in ['saju_executive','saju_eden','saju_zoe','saju_sage']" :key="id">
+              <div x-show="agentCliOwner[id] === workspace.sidebarFilter"
+                   :id="'agent-' + id" @click="openAgentConfig(id)"
                    class="flex items-center gap-3 px-3 py-2.5 rounded-xl border cursor-pointer transition-all duration-200"
                    :class="activeAgents[id]?.status==='working' ? 'bg-hq-yellow/5 border-hq-yellow/20 hover:bg-hq-yellow/10' : 'border-transparent hover:bg-hq-panel/40 hover:border-hq-border'">
                 <div class="relative shrink-0">
                   <div class="w-9 h-9 rounded-xl flex items-center justify-center text-[11px] font-bold"
-                       :class="{'bg-red-500/20 text-red-400': id==='fin_analyst', 'bg-purple-500/20 text-purple-400': id==='leet_strategist', 'bg-emerald-500/20 text-emerald-400': id==='leet_legal', 'bg-orange-500/20 text-orange-400': id==='leet_marketer', 'bg-fuchsia-500/20 text-fuchsia-400': id==='leet_publisher'}"
+                       :class="'bg-emerald-500/20 text-emerald-400'"
                        x-text="getAgentInitials(id)"></div>
                   <span class="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 shrink-0 transition-colors"
                         :style="'border-color: rgb(var(--hq-surface))'"
@@ -391,22 +399,21 @@
           </div>
         </div>
 
-        <!-- ── 사주 본부 — 내 CLI 에이전트만 표시 (cli_owner 기반) ── -->
-        <div class="mt-1">
+        <!-- ── 리트마스터 본부 — cli_owner 기반 필터링 (슬랙 모델) -->
+        <div x-show="agentCliOwner['leet_strategist'] === workspace.sidebarFilter">
           <div class="flex items-center gap-2 px-1 py-1 mb-1">
-            <div class="flex-1 h-px bg-hq-green/30"></div>
-            <div class="text-[10px] font-semibold tracking-wide whitespace-nowrap px-1 text-hq-green">사주 본부</div>
-            <div class="flex-1 h-px bg-hq-green/30"></div>
+            <div class="flex-1 h-px bg-hq-accent/30"></div>
+            <div class="text-[10px] font-semibold tracking-wide whitespace-nowrap px-1 text-hq-accent">리트마스터 본부</div>
+            <div class="flex-1 h-px bg-hq-accent/30"></div>
           </div>
           <div class="space-y-0.5">
-            <template x-for="id in ['saju_executive','saju_eden','saju_zoe','saju_sage']" :key="id">
-              <div x-show="agentCliOwner[id] === workspace.sidebarFilter"
-                   :id="'agent-' + id" @click="openAgentConfig(id)"
+            <template x-for="id in ['leet_strategist','leet_legal','leet_marketer','fin_analyst','leet_publisher']" :key="id">
+              <div :id="'agent-' + id" @click="openAgentConfig(id)"
                    class="flex items-center gap-3 px-3 py-2.5 rounded-xl border cursor-pointer transition-all duration-200"
                    :class="activeAgents[id]?.status==='working' ? 'bg-hq-yellow/5 border-hq-yellow/20 hover:bg-hq-yellow/10' : 'border-transparent hover:bg-hq-panel/40 hover:border-hq-border'">
                 <div class="relative shrink-0">
                   <div class="w-9 h-9 rounded-xl flex items-center justify-center text-[11px] font-bold"
-                       :class="'bg-emerald-500/20 text-emerald-400'"
+                       :class="{'bg-red-500/20 text-red-400': id==='fin_analyst', 'bg-purple-500/20 text-purple-400': id==='leet_strategist', 'bg-teal-500/20 text-teal-400': id==='leet_legal', 'bg-orange-500/20 text-orange-400': id==='leet_marketer', 'bg-fuchsia-500/20 text-fuchsia-400': id==='leet_publisher'}"
                        x-text="getAgentInitials(id)"></div>
                   <span class="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 shrink-0 transition-colors"
                         :style="'border-color: rgb(var(--hq-surface))'"
@@ -765,8 +772,8 @@
 
           <!-- Feedback + Budget Row -->
           <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-8">
-            <!-- CEO 만족도 카드 (#7) -->
-            <div class="glass border border-hq-border rounded-xl p-5 hover-glow">
+            <!-- CEO 만족도 카드 (#7) — workspace.showSatisfaction 기반 -->
+            <div class="glass border border-hq-border rounded-xl p-5 hover-glow" x-show="workspace.showSatisfaction">
               <div class="flex items-center gap-3 mb-3">
                 <div class="w-9 h-9 rounded-lg bg-hq-yellow/15 flex items-center justify-center">
                   <svg class="w-4.5 h-4.5 text-hq-yellow" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
@@ -2332,17 +2339,17 @@
 
                 <!-- 현재 팀장별 모델 현황 -->
                 <div class="space-y-1.5 mb-4">
-                  <template x-for="id in ['chief_of_staff','fin_analyst','leet_strategist','leet_legal','leet_marketer','leet_publisher']" :key="'model-'+id">
+                  <template x-for="a in agentsList.filter(a => agentCliOwner[a.agent_id] === workspace.sidebarFilter)" :key="'model-'+a.agent_id">
                     <div class="flex items-center justify-between px-3 py-2 rounded-lg bg-hq-bg/50 border border-hq-border/30">
                       <div class="flex items-center gap-2">
-                        <span class="w-2 h-2 rounded-full shrink-0" :class="getAgentDotClass(id)"></span>
-                        <span class="text-xs font-medium text-hq-text" x-text="getAgentName(id)"></span>
+                        <span class="w-2 h-2 rounded-full shrink-0" :class="getAgentDotClass(a.agent_id)"></span>
+                        <span class="text-xs font-medium text-hq-text" x-text="getAgentName(a.agent_id)"></span>
                       </div>
                       <div class="flex items-center gap-2">
-                        <span class="text-[10px] text-hq-cyan/70 font-mono" x-text="getModelDisplayName(agentModels[id])"></span>
-                        <span x-show="agentReasonings[id]" class="text-[9px] px-1.5 py-0.5 rounded border"
-                              :class="agentReasonings[id]==='low' ? 'border-hq-green/30 text-hq-green' : agentReasonings[id]==='medium' ? 'border-hq-yellow/30 text-hq-yellow' : agentReasonings[id]==='high' ? 'border-hq-purple/30 text-hq-purple' : 'border-hq-border text-hq-muted'"
-                              x-text="agentReasonings[id]"></span>
+                        <span class="text-[10px] text-hq-cyan/70 font-mono" x-text="getModelDisplayName(agentModels[a.agent_id])"></span>
+                        <span x-show="agentReasonings[a.agent_id]" class="text-[9px] px-1.5 py-0.5 rounded border"
+                              :class="agentReasonings[a.agent_id]==='low' ? 'border-hq-green/30 text-hq-green' : agentReasonings[a.agent_id]==='medium' ? 'border-hq-yellow/30 text-hq-yellow' : agentReasonings[a.agent_id]==='high' ? 'border-hq-purple/30 text-hq-purple' : 'border-hq-border text-hq-muted'"
+                              x-text="agentReasonings[a.agent_id]"></span>
                       </div>
                     </div>
                   </template>
@@ -2373,8 +2380,8 @@
                   <div class="text-[10px] text-hq-accent mt-1">에이전트 클릭 → 모델 탭에서 개별 변경 가능</div>
                 </div>
 
-                <!-- 전체 모델 일괄 변경 -->
-                <div class="border-t border-hq-border mt-4 pt-4">
+                <!-- 전체 모델 일괄 변경 — workspace.showBulkModel 기반 -->
+                <div class="border-t border-hq-border mt-4 pt-4" x-show="workspace.showBulkModel">
                   <div class="text-[11px] font-bold text-hq-text mb-2">전체 에이전트 모델 일괄 변경</div>
                   <div class="text-[10px] text-hq-muted mb-3">팀장 6명의 모델과 추론 정도를 한번에 바꿉니다</div>
                   <!-- 모델 선택 -->
@@ -3484,20 +3491,24 @@
             <div class="w-1/3 sm:min-w-[280px] overflow-y-auto scrollbar-thin pr-1 flex flex-col">
               <!-- 본부 필터 탭 (sticky, v5) -->
               <div class="flex gap-1 mb-2 sticky top-0 z-10 pb-1" style="background: rgb(var(--hq-bg));">
-                <!-- v5.1: 기밀문서 division 필터 — 모든 사용자 동일 (네이버 모델) -->
+                <!-- v5.1: 기밀문서 division 필터 — workspace.allowedDivisions 기반 -->
                 <button @click="archive.filterDivision = 'all'; loadArchive()"
+                        x-show="!workspace.allowedDivisions || !workspace.allowedDivisions.length"
                         :class="archive.filterDivision === 'all' ? 'bg-hq-accent/20 text-hq-accent font-bold' : 'text-hq-muted hover:text-hq-text'"
                         class="px-2.5 py-1 text-[11px] rounded-lg transition whitespace-nowrap">전체</button>
                 <button @click="archive.filterDivision = 'leet_master'; loadArchive()"
+                        x-show="!workspace.allowedDivisions || !workspace.allowedDivisions.length || workspace.allowedDivisions.includes('leet_master')"
                         :class="archive.filterDivision === 'leet_master' ? 'bg-hq-accent/20 text-hq-accent font-bold' : 'text-hq-muted hover:text-hq-text'"
                         class="px-2.5 py-1 text-[11px] rounded-lg transition whitespace-nowrap">리트마스터</button>
                 <button @click="archive.filterDivision = 'sketchvibe'; loadArchive()"
+                        x-show="!workspace.allowedDivisions || !workspace.allowedDivisions.length || workspace.allowedDivisions.includes('sketchvibe')"
                         :class="archive.filterDivision === 'sketchvibe' ? 'bg-hq-accent/20 text-hq-accent font-bold' : 'text-hq-muted hover:text-hq-text'"
                         class="px-2.5 py-1 text-[11px] rounded-lg transition whitespace-nowrap">스케치바이브</button>
                 <button @click="archive.filterDivision = 'saju'; loadArchive()"
                         :class="archive.filterDivision === 'saju' ? 'bg-hq-green/20 text-hq-green font-bold' : 'text-hq-muted hover:text-hq-text'"
                         class="px-2.5 py-1 text-[11px] rounded-lg transition whitespace-nowrap">사주</button>
                 <button @click="archive.filterDivision = 'common'; loadArchive()"
+                        x-show="!workspace.allowedDivisions || !workspace.allowedDivisions.length || workspace.allowedDivisions.includes('common')"
                         :class="archive.filterDivision === 'common' ? 'bg-hq-accent/20 text-hq-accent font-bold' : 'text-hq-muted hover:text-hq-text'"
                         class="px-2.5 py-1 text-[11px] rounded-lg transition whitespace-nowrap">공통</button>
               </div>
