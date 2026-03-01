@@ -2408,9 +2408,12 @@ function corthexApp() {
     async loadPerformance() {
       try {
         const data = await fetch('/api/performance').then(r => r.json());
-        // v5.1: 현재 에이전트에 없는 구 ID(specialist, cio_manager 등) 필터링
-        const knownIds = Object.keys(this.agentNames || {});
-        const agents = (data.agents || []).filter(a => knownIds.length === 0 || knownIds.includes(a.agent_id));
+        // v5.1: 내 워크스페이스 에이전트만 (cli_owner === sidebarFilter)
+        const sf = this.workspace.sidebarFilter || '';
+        const cliOwner = this.agentCliOwner || {};
+        const agents = (data.agents || []).filter(a =>
+          !sf || sf === 'all' ? Object.keys(this.agentNames || {}).includes(a.agent_id) : cliOwner[a.agent_id] === sf
+        );
         const maxCost = Math.max(...agents.map(a => a.cost_usd || 0), 0.0001);
         const totalTasks = agents.reduce((s, a) => s + (a.tasks_completed || 0), 0);
         const rates = agents.filter(a => a.tasks_completed > 0).map(a => a.success_rate || 0);

@@ -391,18 +391,6 @@
           </div>
         </div>
 
-        <!-- ── 스케치바이브 본부 (준비중) — cli_owner='ceo' → sidebarFilter='ceo'일 때 -->
-        <div class="mt-1" x-show="workspace.sidebarFilter === 'ceo'">
-          <div class="flex items-center gap-2 px-1 py-1 mb-1">
-            <div class="flex-1 h-px bg-hq-border/40"></div>
-            <div class="text-[10px] text-hq-muted/80 font-semibold tracking-wide whitespace-nowrap px-1">스케치바이브 본부</div>
-            <div class="flex-1 h-px bg-hq-border/40"></div>
-          </div>
-          <div class="px-3 py-2 rounded-xl border border-dashed border-hq-border/40 text-center">
-            <span class="text-[10px] text-hq-muted/50">에이전트 준비중</span>
-          </div>
-        </div>
-
         <!-- ── 사주 본부 — 내 CLI 에이전트만 표시 (cli_owner 기반) ── -->
         <div class="mt-1">
           <div class="flex items-center gap-2 px-1 py-1 mb-1">
@@ -1834,11 +1822,12 @@
                      const r = await fetch('/api/soul-gym/history?limit=20');
                      const d = await r.json();
                      const all = d.history || [];
-                     // v5.1: 현재 에이전트에 없는 구 ID(cio_manager 등) 필터링
-                     const known = this.agentNames || {};
-                     this.gymHistory = Object.keys(known).length > 0
-                       ? all.filter(h => known[h.agent_id])
-                       : all;
+                     // v5.1: 내 워크스페이스 에이전트만 (cli_owner === sidebarFilter)
+                     const sf = this.workspace?.sidebarFilter || '';
+                     const co = this.agentCliOwner || {};
+                     this.gymHistory = sf && sf !== 'all'
+                       ? all.filter(h => co[h.agent_id] === sf)
+                       : all.filter(h => this.agentNames?.[h.agent_id]);
                    } catch(e) {}
                  },
                  async loadGymConfig() {
