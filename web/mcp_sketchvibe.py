@@ -33,19 +33,18 @@ _TIMEOUT = 30
 
 @mcp.tool
 async def read_canvas() -> str:
-    """현재 NEXUS 캔버스의 스케치 상태를 읽습니다.
-    노드, 연결, 레이아웃 방향, 공간 그룹 등 구조화된 텍스트를 반환합니다.
-    """
+    """현재 NEXUS 캔버스의 Mermaid 코드를 읽습니다."""
     async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
         resp = await client.get(f"{CORTHEX_URL}/api/sketchvibe/canvas")
         data = resp.json()
 
-    if not data.get("canvas"):
+    mermaid = data.get("mermaid_code")
+    if not mermaid:
         return "캔버스가 비어있거나 저장된 캔버스가 없습니다."
 
-    parsed = data.get("parsed", "")
     filename = data.get("filename", "unknown")
-    return f"파일: {filename}\n\n{parsed}"
+    direction = data.get("direction", "LR")
+    return f"파일: {filename}\n방향: {direction}\n\n```mermaid\n{mermaid}\n```"
 
 
 @mcp.tool

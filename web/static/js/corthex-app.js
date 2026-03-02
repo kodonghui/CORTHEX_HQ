@@ -17,8 +17,7 @@ const _CDN = {
   chartjs:      'https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js',
   mermaid:      'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js',
   forcegraph3d: 'https://unpkg.com/3d-force-graph@1/dist/3d-force-graph.min.js',
-  drawflow:     'https://cdn.jsdelivr.net/npm/drawflow/dist/drawflow.min.js',
-  drawflowcss:  'https://cdn.jsdelivr.net/npm/drawflow/dist/drawflow.min.css',
+  // drawflow 제거됨 — Mermaid 네이티브 캔버스로 전환 (2026-03-02)
   html2canvas:  'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js',
 };
 function _loadCSS(url) {
@@ -366,31 +365,26 @@ function corthexApp() {
 
     // ── NEXUS (3D / Canvas) ──
     flowchart: {
-      mode: 'split',      // 'split' | 'mermaid' | 'canvas'
-      // ── Mermaid 시스템 플로우 ──
-      mermaidLoading: false,
-      mermaidRendered: false,
-      // ── 비주얼 캔버스 ──
+      // ── Mermaid 네이티브 캔버스 (2026-03-02 재구축) ──
       canvasLoaded: false,
-      canvasEditor: null,
       canvasDirty: false,
       canvasName: '',
-      savedCanvasName: '',   // 서버에 실제 저장된 이름 (rename 감지용)
+      savedCanvasName: '',        // 서버에 실제 저장된 이름 (rename 감지용)
       canvasItems: [],
-      confirmedItems: [],  // 확인된 다이어그램 (맞아 누른 것)
-      connectionLabels: {},  // 화살표 라벨: "key" → "텍스트"
-      showCanvasNameModal: false,
-      // ── 스케치바이브 (Phase 3 — MCP 양방향) ──
+      confirmedItems: [],         // 확인된 다이어그램 (맞아 누른 것)
+      mermaidCode: 'flowchart LR\n',  // SSOT — Mermaid 코드가 유일한 진실
+      mermaidDirection: 'LR',     // 'LR' | 'TD' | 'RL' | 'BT'
+      selectedNodeId: null,       // SVG 클릭으로 선택된 노드 Mermaid ID
+      connectMode: false,         // 연결 모드 활성화
+      connectSource: null,        // 연결 소스 노드 ID
+      nodeCounter: 0,             // 고유 노드 ID 생성기 (n1, n2, ...)
+      // ── 스케치바이브 (MCP 양방향) ──
       sketchVibeOpen: false,
-      sketchMode: 'draw',        // 'draw' | 'collab'
-      sketchDescription: '',
-      sketchResult: null,        // {saved, mermaid?, description?}
+      sketchResult: null,         // {mermaid, description}
       sketchConverting: false,
       sketchError: null,
-      sketchConfirmed: null,     // {name, htmlPath}
-      approvalRequest: null,     // string — Claude Code 확인 요청 메시지
-      collabPrompt: '',          // Mode B: 같이 그리기 요청 내용
-      collabStarted: false,      // Mode B: 세션 시작 여부
+      sketchConfirmed: null,      // {name, htmlPath}
+      approvalRequest: null,      // string — Claude Code 확인 요청 메시지
     },
 
     // ── AGORA (토론/논쟁 엔진) ──
@@ -5304,12 +5298,10 @@ function corthexApp() {
     // ── NEXUS: 풀스크린 오버레이 열기 ──
     openNexus() {
       this.nexusOpen = true;
-      this.flowchart.mode = 'canvas';
       // x-if로 DOM이 파괴/재생성되므로 열 때마다 캔버스 재초기화
       this.flowchart.canvasLoaded = false;
-      this.flowchart.canvasEditor = null;
       setTimeout(async () => {
-        await this.initNexusCanvas();
+        await this.initMermaidCanvas();
         await this.loadCanvasList();
         // SSE 자동 연결 (캔버스에서 Mermaid 실시간 수신)
         this._connectSketchVibeSSE();
@@ -5796,114 +5788,153 @@ function corthexApp() {
       }
     },
 
-    // ── NEXUS 캔버스: 초기화 (dblclick 노드 이름 편집 포함) ──
-    async initNexusCanvas() {
+    // ── NEXUS: Mermaid 네이티브 캔버스 초기화 (2026-03-02 재구축) ──
+    async initMermaidCanvas() {
       try {
-        await Promise.all([_loadScript(_CDN.drawflow), _loadCSS(_CDN.drawflowcss)]);
-        // Drawflow 기본 스타일 오버라이드 (시안색 배경 제거)
-        if (!document.getElementById('nexus-drawflow-override')) {
-          const overrideStyle = document.createElement('style');
-          overrideStyle.id = 'nexus-drawflow-override';
-          overrideStyle.textContent = `
-            #nexus-canvas .drawflow-node .drawflow_content_node {
-              background: transparent !important;
-              border: none !important;
-              padding: 0 !important;
-            }
-            #nexus-canvas .drawflow-node {
-              background: transparent !important;
-              border: none !important;
-              box-shadow: none !important;
-              padding: 8px !important;
-            }
-            #nexus-canvas .drawflow-node.selected {
-              outline: 2px solid rgba(139,92,246,0.6) !important;
-              outline-offset: 4px !important;
-              border-radius: 12px !important;
-            }
-            #nexus-canvas .drawflow .connection .main-path {
-              stroke: rgba(255,255,255,0.25);
-              stroke-width: 2px;
-            }
-          `;
-          document.head.appendChild(overrideStyle);
-        }
-        await this.$nextTick();
-        const el = document.getElementById('nexus-canvas');
-        if (!el || typeof Drawflow === 'undefined') throw new Error('캔버스 초기화 실패');
-        const editor = new Drawflow(el);
-        editor.reroute = false;
-        editor.reroute_fix_curvature = false;
-        editor.start();
-        // 변경 감지 + 화살표 라벨 재렌더
-        ['nodeCreated','connectionCreated','nodeRemoved','connectionRemoved','nodeMoved'].forEach(ev => {
-          editor.on(ev, () => {
-            this.flowchart.canvasDirty = true;
-            // 연결 변경 시 라벨 재렌더 (노드 이동 시 경로 좌표 변경)
-            setTimeout(() => this._renderConnectionLabels(), 150);
-          });
-        });
-        // 노드 선택 추적 + Delete 키 삭제
-        let selectedNodeId = null;
-        editor.on('nodeSelected', (id) => { selectedNodeId = id; });
-        editor.on('nodeUnselected', () => { selectedNodeId = null; });
-        el.addEventListener('keydown', (e) => {
-          if ((e.key === 'Delete' || e.key === 'Backspace') && selectedNodeId && !e.target.matches('input,textarea')) {
-            e.preventDefault();
-            editor.removeNodeId('node-' + selectedNodeId);
-            selectedNodeId = null;
-            this.flowchart.canvasDirty = true;
+        await _loadScript(_CDN.mermaid);
+        mermaid.initialize({
+          startOnLoad: false,
+          theme: 'dark',
+          flowchart: { useMaxWidth: false, htmlLabels: true, curve: 'basis' },
+          themeVariables: {
+            primaryColor: '#1e1e1e', primaryTextColor: '#f5f5f5',
+            primaryBorderColor: '#fbbf24', lineColor: '#737373',
+            secondaryColor: '#181818', tertiaryColor: '#141414',
+            background: 'transparent', mainBkg: '#1e1e1e',
+            fontFamily: 'Pretendard, sans-serif', fontSize: '13px'
           }
         });
-        // Drawflow 캔버스에 포커스 가능하게 (키보드 이벤트 수신용)
-        el.setAttribute('tabindex', '0');
-        el.style.outline = 'none';
-        // 더블클릭: 화살표 라벨 편집 OR 노드 이름 편집
-        el.addEventListener('dblclick', (e) => {
-          // 1) 화살표(connection path) 더블클릭 → 라벨 편집
-          if (e.target.classList.contains('main-path')) {
-            const connDiv = e.target.closest('.connection');
-            if (connDiv) { e.stopPropagation(); e.preventDefault(); this._editConnectionLabel(connDiv); return; }
-          }
-          // 2) 노드 더블클릭 → 이름 편집
-          const nodeEl = e.target.closest('.nexus-node');
-          if (!nodeEl) return;
-          const current = nodeEl.textContent.trim();
-          const input = document.createElement('input');
-          input.type = 'text';
-          input.value = current;
-          input.style.cssText = 'background:rgba(0,0,0,0.6);color:#fff;border:1px solid #8b5cf6;border-radius:4px;padding:2px 6px;font-size:12px;width:100%;text-align:center;outline:none;font-family:Pretendard,sans-serif';
-          nodeEl.textContent = '';
-          nodeEl.appendChild(input);
-          input.focus();
-          input.select();
-          const commit = () => {
-            const val = input.value.trim() || current;
-            nodeEl.textContent = val;
-            this.flowchart.canvasDirty = true;
-            // Drawflow 내부 상태 업데이트 (export()는 DOM이 아닌 내부 데이터를 읽음)
-            const dfNode = nodeEl.closest('.drawflow-node');
-            if (dfNode) {
-              const nodeId = dfNode.id.replace('node-', '');
-              const nd = this.flowchart.canvasEditor?.drawflow?.drawflow?.Home?.data?.[nodeId];
-              if (nd) {
-                nd.html = nodeEl.outerHTML;
-                if (nd.data) nd.data.label = val;
-              }
-            }
-          };
-          input.addEventListener('blur', commit, { once: true });
-          input.addEventListener('keydown', (ke) => {
-            if (ke.key === 'Enter') { ke.preventDefault(); input.blur(); }
-            if (ke.key === 'Escape') { input.value = current; input.blur(); }
-          });
-        });
-        this.flowchart.canvasEditor = editor;
         this.flowchart.canvasLoaded = true;
+        await this.$nextTick();
+        await this._renderMermaidCanvas();
       } catch (e) {
-        this.showToast('캔버스 오류: ' + e.message, 'error');
-        console.error('initNexusCanvas:', e);
+        this.showToast('Mermaid 캔버스 오류: ' + e.message, 'error');
+        console.error('initMermaidCanvas:', e);
       }
+    },
+
+    // ── Mermaid 코드 → SVG 렌더링 + 인터랙션 바인딩 ──
+    async _renderMermaidCanvas() {
+      const el = document.getElementById('nexus-canvas');
+      if (!el || !window.mermaid) return;
+      const code = this.flowchart.mermaidCode.trim();
+      const dir = this.flowchart.mermaidDirection || 'LR';
+      if (!code || code === `flowchart ${dir}`) {
+        el.innerHTML = `<div class="flex flex-col items-center gap-3 text-white/20">
+          <svg class="w-12 h-12 opacity-30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="8" y="14" width="7" height="7" rx="1"/><line x1="6.5" y1="10" x2="6.5" y2="14" /><line x1="17.5" y1="10" x2="17.5" y2="14" /></svg>
+          <span class="text-xs">팔레트에서 노드를 추가하세요</span>
+        </div>`;
+        return;
+      }
+      try {
+        const svgId = 'nexus-' + Date.now();
+        const { svg } = await mermaid.render(svgId, code);
+        el.innerHTML = svg;
+        const svgEl = el.querySelector('svg');
+        if (svgEl) {
+          svgEl.style.background = 'transparent';
+          svgEl.style.maxWidth = '100%';
+          svgEl.style.height = 'auto';
+        }
+        this._bindSvgInteractions(el);
+      } catch (e) {
+        el.innerHTML = `<div class="p-6 text-center">
+          <pre class="text-red-400/80 text-xs mb-3 whitespace-pre-wrap">${e.message}</pre>
+          <pre class="text-white/20 text-[10px] whitespace-pre-wrap max-h-32 overflow-auto">${code}</pre>
+        </div>`;
+      }
+    },
+
+    // ── SVG 인터랙션 바인딩 (클릭 선택, 더블클릭 편집) ──
+    _bindSvgInteractions(container) {
+      const svgEl = container.querySelector('svg');
+      if (!svgEl) return;
+      // SVG 필터 정의 (선택 glow 효과)
+      const defs = svgEl.querySelector('defs') || svgEl.insertBefore(document.createElementNS('http://www.w3.org/2000/svg','defs'), svgEl.firstChild);
+      if (!defs.querySelector('#nexus-glow')) {
+        defs.innerHTML += `<filter id="nexus-glow"><feDropShadow dx="0" dy="0" stdDeviation="4" flood-color="#a78bfa" flood-opacity="0.7"/></filter>`;
+      }
+      // 모든 .node 그룹에 클릭 이벤트
+      svgEl.querySelectorAll('.node').forEach(nodeEl => {
+        const nodeId = this._extractMermaidNodeId(nodeEl);
+        if (!nodeId) return;
+        nodeEl.style.cursor = 'pointer';
+        nodeEl.addEventListener('click', (e) => {
+          e.stopPropagation();
+          if (this.flowchart.connectMode) {
+            this._handleConnectClick(nodeId);
+          } else {
+            this._selectNode(nodeId, svgEl);
+          }
+        });
+        nodeEl.addEventListener('dblclick', (e) => {
+          e.stopPropagation();
+          this._editNodeLabel(nodeId);
+        });
+      });
+      // 엣지 클릭 — 연결 줄 인덱스 추적 (Delete 삭제용)
+      const edgeEls = svgEl.querySelectorAll('.edgePath');
+      edgeEls.forEach((edgeEl, idx) => {
+        edgeEl.style.cursor = 'pointer';
+        edgeEl.addEventListener('click', (e) => {
+          e.stopPropagation();
+          this._deselectAll(svgEl);
+          edgeEl.classList.add('selected');
+          const path = edgeEl.querySelector('path');
+          if (path) path.setAttribute('stroke', '#ef4444');
+          this.flowchart.selectedNodeId = null;
+          this.flowchart._selectedEdgeIndex = idx;  // 연결 줄 인덱스
+        });
+      });
+      // 빈 공간 클릭: 선택 해제
+      svgEl.addEventListener('click', (e) => {
+        if (e.target === svgEl || e.target.tagName === 'rect') {
+          this._deselectAll(svgEl);
+        }
+      });
+    },
+
+    // ── Mermaid SVG에서 노드 ID 추출 ──
+    _extractMermaidNodeId(nodeEl) {
+      // Mermaid v11: .node의 id 속성이 "flowchart-nodeId-N" 형태
+      const id = nodeEl.id || '';
+      const m = id.match(/flowchart-(.+?)-\d+$/);
+      if (m) return m[1];
+      // 폴백: id 자체가 nodeId인 경우
+      if (id && !id.includes(' ')) return id;
+      return null;
+    },
+
+    // ── 노드 선택 하이라이트 ──
+    _selectNode(nodeId, svgEl) {
+      this._deselectAll(svgEl);
+      this.flowchart.selectedNodeId = nodeId;
+      // 해당 노드에 glow 필터 적용
+      svgEl.querySelectorAll('.node').forEach(n => {
+        const nid = this._extractMermaidNodeId(n);
+        if (nid === nodeId) {
+          n.classList.add('selected');
+          const shape = n.querySelector('rect,circle,polygon,.label-container');
+          if (shape) shape.setAttribute('filter', 'url(#nexus-glow)');
+        }
+      });
+    },
+
+    _deselectAll(svgEl) {
+      this.flowchart.selectedNodeId = null;
+      this.flowchart.connectSource = null;
+      this.flowchart._selectedEdgeIndex = null;
+      if (!svgEl) return;
+      svgEl.querySelectorAll('.node.selected').forEach(n => {
+        n.classList.remove('selected');
+        const shape = n.querySelector('rect,circle,polygon,.label-container');
+        if (shape) shape.removeAttribute('filter');
+      });
+      svgEl.querySelectorAll('.edgePath.selected').forEach(ep => {
+        ep.classList.remove('selected');
+        const path = ep.querySelector('path');
+        if (path) path.removeAttribute('stroke');
+      });
     },
 
     // ── NEXUS 캔버스: 파일 목록 + 확인된 다이어그램 ──
@@ -5924,125 +5955,145 @@ function corthexApp() {
       } catch(e) { console.error('loadConfirmedList:', e); }
     },
 
-    // ── 확인된 다이어그램 불러오기 (Mermaid 렌더링) ──
+    // ── 확인된 다이어그램 불러오기 (Mermaid 네이티브) ──
     async loadConfirmedDiagram(item) {
       try {
         const r = await fetch(`/api/sketchvibe/confirmed/${item.safe_name}`);
         if (!r.ok) throw new Error('불러오기 실패');
         const data = await r.json();
         if (data.mermaid) {
-          this.flowchart.sketchResult = { mermaid: data.mermaid, description: data.interpretation || '' };
-          this.flowchart.sketchConfirmed = null;
-          await this.$nextTick();
-          await this._renderSketchVibeMermaid(data.mermaid);
+          this.flowchart.mermaidCode = data.mermaid;
+          this.flowchart.canvasDirty = false;
+          await this._renderMermaidCanvas();
           this.showToast(`"${item.name}" 다이어그램 로드`, 'success');
         }
       } catch(e) { this.showToast('불러오기 실패: ' + e.message, 'error'); }
     },
 
-    // ── NEXUS 화살표 라벨: 연결 키 생성 ──
-    _getConnKey(connDiv) {
-      const cls = Array.from(connDiv.classList);
-      const out = cls.find(c => c.startsWith('node_out_')) || '';
-      const inp = cls.find(c => c.startsWith('node_in_')) || '';
-      const outPort = cls.find(c => c.startsWith('output_')) || '';
-      const inPort = cls.find(c => c.startsWith('input_')) || '';
-      return `${out}__${outPort}__${inp}__${inPort}`;
+    // ── NEXUS: 팔레트에서 Mermaid 노드 추가 ──
+    addMermaidNode(type) {
+      const shapes = {
+        agent:  { tpl: (id,l) => `  ${id}[${l}]`,        label: '에이전트' },
+        system: { tpl: (id,l) => `  ${id}[[${l}]]`,      label: '시스템' },
+        api:    { tpl: (id,l) => `  ${id}[/${l}\\]`,      label: '외부 API' },
+        decide: { tpl: (id,l) => `  ${id}{${l}}`,         label: '결정 분기' },
+        db:     { tpl: (id,l) => `  ${id}[(${l})]`,       label: '데이터베이스' },
+        start:  { tpl: (id,l) => `  ${id}([${l}])`,       label: '시작' },
+        end:    { tpl: (id,l) => `  ${id}((${l}))`,       label: '종료' },
+        note:   { tpl: (id,l) => `  ${id}>${l}]`,         label: '메모' },
+      };
+      const s = shapes[type];
+      if (!s) return;
+      this.flowchart.nodeCounter++;
+      const id = `n${this.flowchart.nodeCounter}`;
+      const line = s.tpl(id, s.label);
+      this.flowchart.mermaidCode += '\n' + line;
+      this.flowchart.canvasDirty = true;
+      this._renderMermaidCanvas();
     },
 
-    // ── NEXUS 화살표 라벨: 인라인 편집 ──
-    _editConnectionLabel(connDiv) {
-      const key = this._getConnKey(connDiv);
-      if (!key || key === '____') return;
-      const current = this.flowchart.connectionLabels[key] || '';
-      const pathEl = connDiv.querySelector('path.main-path');
-      if (!pathEl) return;
-      const drawflowEl = document.querySelector('#nexus-canvas .drawflow');
-      if (!drawflowEl) return;
-
-      // 기존 편집 인풋 제거
-      drawflowEl.querySelectorAll('.conn-label-input').forEach(el => el.remove());
-
-      try {
-        const mid = pathEl.getPointAtLength(pathEl.getTotalLength() / 2);
-        const input = document.createElement('input');
-        input.type = 'text';
-        input.value = current;
-        input.placeholder = '화살표 설명...';
-        input.className = 'conn-label-input';
-        input.style.cssText = `position:absolute;z-index:1000;left:${mid.x}px;top:${mid.y}px;transform:translate(-50%,-50%);width:130px;padding:4px 8px;background:rgba(10,15,26,0.97);color:#e2e8f0;border:1px solid #6366f1;border-radius:6px;font-size:11px;text-align:center;outline:none;font-family:Pretendard,sans-serif;pointer-events:all;box-shadow:0 0 0 3px rgba(99,102,241,0.2)`;
-        drawflowEl.appendChild(input);
-        input.focus(); input.select();
-        const commit = () => {
-          const val = input.value.trim();
-          if (val) this.flowchart.connectionLabels[key] = val;
-          else delete this.flowchart.connectionLabels[key];
-          input.remove();
-          this._renderConnectionLabels();
-          this.flowchart.canvasDirty = true;
-        };
-        input.addEventListener('blur', commit, { once: true });
-        input.addEventListener('keydown', (ke) => {
-          if (ke.key === 'Enter') { ke.preventDefault(); input.blur(); }
-          if (ke.key === 'Escape') { input.value = current; input.blur(); }
-        });
-      } catch(e) { console.warn('연결 라벨 편집 오류:', e); }
-    },
-
-    // ── NEXUS 화살표 라벨: 캔버스에 렌더링 ──
-    _renderConnectionLabels() {
-      const drawflowEl = document.querySelector('#nexus-canvas .drawflow');
-      if (!drawflowEl) return;
-      // 기존 라벨 제거 (편집 인풋은 유지)
-      drawflowEl.querySelectorAll('.conn-label-overlay').forEach(el => el.remove());
-      for (const [key, label] of Object.entries(this.flowchart.connectionLabels)) {
-        if (!label) continue;
-        const parts = key.split('__');
-        if (parts.length < 4) continue;
-        const [out, outPort, inp, inPort] = parts;
-        const canvasEl = document.getElementById('nexus-canvas');
-        // CSS class 선택자에서 특수문자 이스케이프
-        const esc = s => s.replace(/[:\-]/g, '\\$&');
-        try {
-          const connDiv = canvasEl.querySelector(`.connection.${esc(out)}.${esc(inp)}.${esc(outPort)}.${esc(inPort)}`);
-          if (!connDiv) continue;
-          const pathEl = connDiv.querySelector('path.main-path');
-          if (!pathEl) continue;
-          const mid = pathEl.getPointAtLength(pathEl.getTotalLength() / 2);
-          const labelEl = document.createElement('div');
-          labelEl.className = 'conn-label-overlay';
-          labelEl.textContent = label;
-          labelEl.title = '더블클릭으로 수정';
-          labelEl.style.cssText = `position:absolute;z-index:50;pointer-events:none;left:${mid.x}px;top:${mid.y}px;transform:translate(-50%,-50%);background:rgba(10,15,26,0.9);color:#a5b4fc;border:1px solid rgba(99,102,241,0.5);border-radius:4px;padding:2px 7px;font-size:10px;font-family:Pretendard,sans-serif;white-space:nowrap;max-width:130px;overflow:hidden;text-overflow:ellipsis`;
-          drawflowEl.appendChild(labelEl);
-        } catch(e) { /* 선택자 오류 무시 */ }
+    // ── NEXUS: 연결 모드 클릭 핸들러 ──
+    _handleConnectClick(nodeId) {
+      if (!this.flowchart.connectSource) {
+        this.flowchart.connectSource = nodeId;
+        this.showToast(`"${nodeId}" 선택 → 타겟 노드를 클릭하세요`, 'info');
+      } else {
+        const src = this.flowchart.connectSource;
+        if (src === nodeId) {
+          this.showToast('같은 노드끼리는 연결할 수 없습니다', 'error');
+          this.flowchart.connectSource = null;
+          return;
+        }
+        const label = prompt('화살표 설명 (비워두면 라벨 없음):');
+        const arrow = label ? `  ${src} -->|${label}| ${nodeId}` : `  ${src} --> ${nodeId}`;
+        this.flowchart.mermaidCode += '\n' + arrow;
+        this.flowchart.canvasDirty = true;
+        this.flowchart.connectSource = null;
+        this.flowchart.connectMode = false;
+        this._renderMermaidCanvas();
       }
     },
 
-    // ── NEXUS 캔버스: 팔레트 노드 추가 ──
-    addCanvasNode(type) {
-      const editor = this.flowchart.canvasEditor;
-      if (!editor) {
-        this.showToast('캔버스가 아직 로드되지 않았습니다. 잠시 후 다시 시도하세요.', 'error');
+    // ── NEXUS: 노드 이름 편집 (더블클릭) ──
+    _editNodeLabel(nodeId) {
+      const code = this.flowchart.mermaidCode;
+      // 모든 Mermaid 도형 패턴에서 해당 nodeId의 라벨 찾기
+      const patterns = [
+        { re: new RegExp(`(${nodeId})\\[\\((.+?)\\)\\]`),   wrap: (id,l) => `${id}[(${l})]` },
+        { re: new RegExp(`(${nodeId})\\(\\((.+?)\\)\\)`),   wrap: (id,l) => `${id}((${l}))` },
+        { re: new RegExp(`(${nodeId})\\(\\[(.+?)\\]\\)`),   wrap: (id,l) => `${id}([${l}])` },
+        { re: new RegExp(`(${nodeId})\\{(.+?)\\}`),         wrap: (id,l) => `${id}{${l}}` },
+        { re: new RegExp(`(${nodeId})>(.+?)\\]`),           wrap: (id,l) => `${id}>${l}]` },
+        { re: new RegExp(`(${nodeId})\\[\\[(.+?)\\]\\]`),   wrap: (id,l) => `${id}[[${l}]]` },
+        { re: new RegExp(`(${nodeId})\\[/(.+?)\\\\\\]`),    wrap: (id,l) => `${id}[/${l}\\]` },
+        { re: new RegExp(`(${nodeId})\\[([^\\]]+?)\\]`),    wrap: (id,l) => `${id}[${l}]` },
+      ];
+      let currentLabel = '';
+      let matchedPattern = null;
+      for (const p of patterns) {
+        const m = p.re.exec(code);
+        if (m) { currentLabel = m[2]; matchedPattern = p; break; }
+      }
+      if (!matchedPattern) return;
+      const newLabel = prompt('노드 이름:', currentLabel);
+      if (!newLabel || newLabel === currentLabel) return;
+      // 코드 내 해당 노드의 라벨 전부 교체
+      this.flowchart.mermaidCode = code.replace(matchedPattern.re, matchedPattern.wrap(nodeId, newLabel));
+      this.flowchart.canvasDirty = true;
+      this._renderMermaidCanvas();
+    },
+
+    // ── NEXUS: 선택된 노드/엣지 삭제 (Delete 키) ──
+    _deleteSelected() {
+      if (this.flowchart.selectedNodeId) {
+        const id = this.flowchart.selectedNodeId;
+        const lines = this.flowchart.mermaidCode.split('\n');
+        const filtered = lines.filter(line => {
+          const t = line.trim();
+          // 빈 줄/지시문 유지
+          if (!t || /^(flowchart|graph|subgraph|end|%%|classDef|linkStyle|style\s)/.test(t)) return true;
+          // 노드 정의 줄 (해당 ID로 시작하는 도형)
+          if (new RegExp(`^${id}[\\[\\(\\{\\>]`).test(t)) return false;
+          if (new RegExp(`^${id}$`).test(t)) return false;
+          // 연결 줄 (소스 또는 타겟에 해당 ID)
+          if (t.includes('-->') || t.includes('---')) {
+            // "src --> tgt" 또는 "src -->|label| tgt" 패턴에서 src/tgt 추출
+            const m = t.match(/^\s*(\S+?)\s*--/);
+            const m2 = t.match(/--[->]+\s*(?:\|[^|]*\|)?\s*(\S+)/);
+            const srcId = m ? m[1].replace(/[\[\]\(\)\{\}>\/\\|]/g, '').trim() : '';
+            const tgtId = m2 ? m2[1].replace(/[\[\]\(\)\{\}>\/\\|]/g, '').trim() : '';
+            if (srcId === id || tgtId === id) return false;
+          }
+          return true;
+        });
+        this.flowchart.mermaidCode = filtered.join('\n');
+        this.flowchart.selectedNodeId = null;
+        this.flowchart.canvasDirty = true;
+        this._renderMermaidCanvas();
         return;
       }
-      const labels = { agent:'에이전트', system:'시스템', api:'외부 API', decide:'결정 분기', start:'시작', end:'종료', note:'메모' };
-      const colors = { agent:'#8b5cf6', system:'#3b82f6', api:'#059669', decide:'#f59e0b', start:'#22c55e', end:'#ef4444', note:'#6b7280' };
-      const html = `<div class="nexus-node" style="background:${colors[type]||'#6b7280'};padding:6px 12px;border-radius:8px;color:#fff;font-size:12px;font-family:Pretendard,sans-serif;min-width:80px;text-align:center;cursor:move">${labels[type]||type}</div>`;
-      // 현재 뷰포트 중앙에 노드 추가 (캔버스 pan/zoom 상태 반영)
-      const canvasEl = document.getElementById('nexus-canvas');
-      const w = canvasEl ? canvasEl.offsetWidth : 600;
-      const h = canvasEl ? canvasEl.offsetHeight : 400;
-      const zoom = editor.zoom || 1;
-      const cx = (-editor.canvas_x + w / 2) / zoom + (Math.random() - 0.5) * 120;
-      const cy = (-editor.canvas_y + h / 2) / zoom + (Math.random() - 0.5) * 80;
-      editor.addNode(type, 1, 1, cx, cy, type, { label: labels[type] }, html);
+      // 엣지 삭제 (selectedEdgeIndex 기반)
+      if (typeof this.flowchart._selectedEdgeIndex === 'number') {
+        const lines = this.flowchart.mermaidCode.split('\n');
+        let edgeCount = 0;
+        const targetIdx = this.flowchart._selectedEdgeIndex;
+        const filtered = lines.filter(line => {
+          const t = line.trim();
+          if (t.includes('-->') || t.includes('---')) {
+            if (edgeCount === targetIdx) { edgeCount++; return false; }
+            edgeCount++;
+          }
+          return true;
+        });
+        this.flowchart.mermaidCode = filtered.join('\n');
+        this.flowchart._selectedEdgeIndex = null;
+        this.flowchart.canvasDirty = true;
+        this._renderMermaidCanvas();
+      }
     },
 
-    // ── NEXUS 캔버스: 저장 ──
-    async saveNexusCanvas() {
-      if (!this.flowchart.canvasEditor) return;
-      // savedCanvasName = 서버에 실제 저장된 이름 (input 변경과 무관)
+    // ── NEXUS: 저장 (Mermaid 코드 직접) ──
+    async saveMermaidCanvas() {
       const prevName = (this.flowchart.savedCanvasName || '').trim();
       let name = (this.flowchart.canvasName || '').trim();
       if (!name) {
@@ -6053,64 +6104,109 @@ function corthexApp() {
       }
       const filename = name.endsWith('.json') ? name : name + '.json';
       try {
-        const data = this.flowchart.canvasEditor.export();
-        // 화살표 라벨도 함께 저장
-        if (Object.keys(this.flowchart.connectionLabels).length > 0) {
-          data._connectionLabels = { ...this.flowchart.connectionLabels };
-        }
+        const payload = {
+          mermaid: this.flowchart.mermaidCode,
+          direction: this.flowchart.mermaidDirection,
+          name: name,
+          updated: new Date().toISOString()
+        };
         const r = await fetch('/api/knowledge', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ folder: 'flowcharts', filename, content: JSON.stringify(data, null, 2) })
+          body: JSON.stringify({ folder: 'flowcharts', filename, content: JSON.stringify(payload, null, 2) })
         });
         if (!r.ok) throw new Error('저장 실패');
-        // 파일명 변경 시 이전 파일 삭제 (서버 저장 이름 기준)
         if (prevName && prevName !== name) {
           const prevFile = prevName.endsWith('.json') ? prevName : prevName + '.json';
           fetch(`/api/knowledge/flowcharts/${prevFile}`, { method: 'DELETE' }).catch(() => {});
         }
-        this.flowchart.savedCanvasName = name;  // 저장 완료 후 갱신
-        // Claude Code read_canvas용 SQLite current_canvas 업데이트 (순수 Drawflow 데이터만)
-        const rawData = this.flowchart.canvasEditor.export();
+        this.flowchart.savedCanvasName = name;
+        // MCP read_canvas용 SQLite 갱신
         fetch('/api/sketchvibe/save-canvas', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ canvas_json: rawData, connection_labels: { ...this.flowchart.connectionLabels }, filename: this.flowchart.canvasName || '' })
+          body: JSON.stringify({ mermaid_code: this.flowchart.mermaidCode, direction: this.flowchart.mermaidDirection, filename: name })
         }).catch(() => {});
         this.flowchart.canvasDirty = false;
-        this.showToast('캔버스 저장됐습니다', 'success');
+        this.showToast('캔버스 저장됨', 'success');
         await this.loadCanvasList();
       } catch (e) { this.showToast('저장 실패: ' + e.message, 'error'); }
     },
 
-    // ── NEXUS 캔버스: 불러오기 ──
-    async loadNexusCanvas(item) {
-      if (!this.flowchart.canvasEditor) return;
+    // ── NEXUS: 불러오기 ──
+    async loadMermaidCanvas(item) {
       try {
         const r = await fetch(`/api/knowledge/${item.folder}/${item.name}`);
         if (!r.ok) throw new Error('불러오기 실패');
         const data = await r.json();
         const parsed = JSON.parse(data.content || '{}');
-        // 화살표 라벨 복원
-        this.flowchart.connectionLabels = parsed._connectionLabels || {};
-        // Drawflow 임포트 시 커스텀 필드 제외
-        const drawflowData = { ...parsed }; delete drawflowData._connectionLabels;
-        this.flowchart.canvasEditor.import(drawflowData);
+        // 신규 포맷 (Mermaid)
+        if (parsed.mermaid) {
+          this.flowchart.mermaidCode = parsed.mermaid;
+          this.flowchart.mermaidDirection = parsed.direction || 'LR';
+        }
+        // 레거시 포맷 (Drawflow JSON) → 자동 마이그레이션
+        else if (parsed.drawflow) {
+          this.flowchart.mermaidCode = this._migrateDrawflowToMermaid(parsed);
+        }
+        // 알 수 없는 포맷 → 빈 캔버스
+        else {
+          const dir = this.flowchart.mermaidDirection || 'LR';
+          this.flowchart.mermaidCode = `flowchart ${dir}\n`;
+        }
+        // nodeCounter 복원 (기존 코드에서 가장 큰 nN 추출)
+        const ids = this.flowchart.mermaidCode.match(/\bn(\d+)/g) || [];
+        this.flowchart.nodeCounter = Math.max(0, ...ids.map(x => parseInt(x.slice(1))));
         this.flowchart.canvasName = item.name.replace('.json', '');
-        this.flowchart.savedCanvasName = this.flowchart.canvasName;  // 서버 기준 이름 동기화
+        this.flowchart.savedCanvasName = this.flowchart.canvasName;
         this.flowchart.canvasDirty = false;
-        // 화살표 라벨 재렌더
-        setTimeout(() => this._renderConnectionLabels(), 100);
-        // Claude Code read_canvas용 SQLite 갱신
-        const rawData = this.flowchart.canvasEditor.export();
+        await this._renderMermaidCanvas();
+        // MCP용 SQLite 갱신
         fetch('/api/sketchvibe/save-canvas', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ canvas_json: rawData, connection_labels: { ...this.flowchart.connectionLabels }, filename: this.flowchart.canvasName || '' })
+          body: JSON.stringify({ mermaid_code: this.flowchart.mermaidCode, direction: this.flowchart.mermaidDirection, filename: this.flowchart.canvasName || '' })
         }).catch(() => {});
-        this.showToast(`"${item.name}" 불러왔습니다`, 'success');
+        this.showToast(`"${item.name}" 불러옴`, 'success');
       } catch (e) { this.showToast('불러오기 실패: ' + e.message, 'error'); }
     },
 
-    // ── NEXUS 캔버스: 삭제 ──
-    async deleteNexusCanvas(item) {
+    // ── 레거시 Drawflow JSON → Mermaid 코드 자동 변환 ──
+    _migrateDrawflowToMermaid(data) {
+      const nodes = data?.drawflow?.Home?.data || {};
+      if (Object.keys(nodes).length === 0) return 'flowchart LR\n';
+      const positions = Object.values(nodes).map(n => ({ x: n.pos_x, y: n.pos_y }));
+      const xSpread = Math.max(...positions.map(p => p.x)) - Math.min(...positions.map(p => p.x));
+      const ySpread = Math.max(...positions.map(p => p.y)) - Math.min(...positions.map(p => p.y));
+      const dir = xSpread > ySpread * 1.3 ? 'LR' : 'TD';
+      this.flowchart.mermaidDirection = dir;
+      const shapes = {
+        start: (id, l) => `  ${id}([${l}])`, end: (id, l) => `  ${id}((${l}))`,
+        decide: (id, l) => `  ${id}{${l}}`, agent: (id, l) => `  ${id}[${l}]`,
+        system: (id, l) => `  ${id}[[${l}]]`, api: (id, l) => `  ${id}[/${l}\\]`,
+        note: (id, l) => `  ${id}>${l}]`, db: (id, l) => `  ${id}[(${l})]`,
+      };
+      const lines = [`flowchart ${dir}`];
+      const idMap = {};
+      Object.entries(nodes).forEach(([nid, node], i) => {
+        const label = node.data?.label || node.name || `노드${nid}`;
+        const type = node.name || 'agent';
+        const mid = `n${i + 1}`;
+        idMap[nid] = mid;
+        const shapeFn = shapes[type] || shapes.agent;
+        lines.push(shapeFn(mid, label));
+      });
+      Object.entries(nodes).forEach(([nid, node]) => {
+        Object.values(node.outputs || {}).forEach(port => {
+          (port.connections || []).forEach(conn => {
+            const src = idMap[nid];
+            const tgt = idMap[String(conn.node)];
+            if (src && tgt) lines.push(`  ${src} --> ${tgt}`);
+          });
+        });
+      });
+      return lines.join('\n');
+    },
+
+    // ── NEXUS: 삭제 ──
+    async deleteMermaidCanvas(item) {
       if (!confirm(`"${item.name.replace('.json','')}" 캔버스를 삭제하시겠습니까?`)) return;
       try {
         const r = await fetch(`/api/knowledge/flowcharts/${encodeURIComponent(item.name)}`, { method: 'DELETE' });
@@ -6120,324 +6216,105 @@ function corthexApp() {
       } catch(e) { this.showToast('삭제 실패: ' + e.message, 'error'); }
     },
 
-    // ── NEXUS 캔버스: 초기화 ──
-    clearNexusCanvas() {
-      if (this.flowchart.canvasEditor) {
-        this.flowchart.canvasEditor.clearModuleSelected();
-        this.flowchart.canvasEditor.import({ drawflow: { Home: { data: {} } } });
-        this.flowchart.canvasDirty = false;
-        this.flowchart.canvasName = '';
-        this.flowchart.savedCanvasName = '';
-        this.flowchart.connectionLabels = {};
-      }
+    // ── NEXUS: 초기화 ──
+    clearMermaidCanvas() {
+      const dir = this.flowchart.mermaidDirection || 'LR';
+      this.flowchart.mermaidCode = `flowchart ${dir}\n`;
+      this.flowchart.canvasDirty = false;
+      this.flowchart.canvasName = '';
+      this.flowchart.savedCanvasName = '';
+      this.flowchart.nodeCounter = 0;
+      this.flowchart.selectedNodeId = null;
+      this.flowchart.connectMode = false;
+      this.flowchart.connectSource = null;
+      this._renderMermaidCanvas();
     },
 
-    // ── NEXUS 캔버스: 새로 만들기 (리스트에 즉시 생성) ──
-    async newNexusCanvas() {
+    // ── NEXUS: 새 캔버스 (서버에 즉시 생성) ──
+    async newMermaidCanvas() {
       const existingNames = this.flowchart.canvasItems.map(i => i.name.replace('.json', ''));
       let n = 1;
       while (existingNames.includes(`새 캔버스 ${n}`)) n++;
       const name = `새 캔버스 ${n}`;
-
-      if (this.flowchart.canvasEditor) {
-        this.flowchart.canvasEditor.clearModuleSelected();
-        this.flowchart.canvasEditor.import({ drawflow: { Home: { data: {} } } });
-        this.flowchart.canvasDirty = false;
-      }
+      const dir = this.flowchart.mermaidDirection || 'LR';
+      this.flowchart.mermaidCode = `flowchart ${dir}\n`;
       this.flowchart.canvasName = name;
-      this.flowchart.savedCanvasName = '';  // 아직 저장 전 — 빈 string
-      this.flowchart.connectionLabels = {};
+      this.flowchart.savedCanvasName = '';
+      this.flowchart.canvasDirty = false;
+      this.flowchart.nodeCounter = 0;
       this.flowchart.sketchResult = null;
       this.flowchart.sketchConfirmed = null;
       this.flowchart.sketchError = null;
-
       try {
-        const emptyData = { drawflow: { Home: { data: {} } } };
+        const payload = { mermaid: this.flowchart.mermaidCode, direction: dir, name, updated: new Date().toISOString() };
         const r = await fetch('/api/knowledge', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ folder: 'flowcharts', filename: name + '.json', content: JSON.stringify(emptyData, null, 2) })
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ folder: 'flowcharts', filename: name + '.json', content: JSON.stringify(payload, null, 2) })
         });
         if (!r.ok) throw new Error(`서버 오류 (${r.status})`);
-        this.flowchart.savedCanvasName = name;  // 서버에 실제 생성됐으므로 추적 시작
+        this.flowchart.savedCanvasName = name;
         await this.loadCanvasList();
+        this._renderMermaidCanvas();
         this.showToast(`"${name}" 생성됨`, 'success');
       } catch(e) { this.showToast('생성 실패: ' + e.message, 'error'); }
     },
 
-    // ══════════════════════════════════════════════ SketchVibe (Phase 3) ══
+    // ══════════════════════════════════════════════ SketchVibe (Mermaid 네이티브) ══
 
     _sketchVibeSSE: null,
-
-    // ── 캔버스 저장 (서버 변환 없음 — Claude Code가 MCP로 읽기) ──
-    async saveSketchVibe() {
-      if (!this.flowchart.canvasEditor) {
-        this.showToast('캔버스가 로드되지 않았습니다', 'error');
-        return;
-      }
-      if (this.flowchart.sketchConverting) return;
-
-      this.flowchart.sketchConverting = true;
-      this.flowchart.sketchError = null;
-
-      try {
-        const canvasJson = this.flowchart.canvasEditor.export();
-        const nodes = canvasJson?.drawflow?.Home?.data || {};
-        if (Object.keys(nodes).length === 0) {
-          throw new Error('캔버스에 노드가 없습니다. 팔레트에서 노드를 추가해주세요.');
-        }
-
-        const resp = await fetch('/api/sketchvibe/save-canvas', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            canvas_json: canvasJson,
-            description: this.flowchart.sketchDescription,
-            connection_labels: this.flowchart.connectionLabels
-          })
-        });
-
-        if (!resp.ok) throw new Error(`서버 오류 (${resp.status})`);
-        const data = await resp.json();
-        if (data.error) throw new Error(data.error);
-
-        this.flowchart.sketchResult = { saved: true };
-        this.showToast('저장됨 — VS Code에서 read_canvas 도구를 호출하세요', 'success');
-      } catch (e) {
-        this.flowchart.sketchError = e.message;
-      } finally {
-        this.flowchart.sketchConverting = false;
-      }
-    },
-
-    // ── Mermaid 렌더링 (SSE 이벤트로 호출됨) ──
-    async _renderSketchVibeMermaid(code) {
-      if (!window.mermaid) {
-        const src = this._CDN?.mermaid || 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js';
-        await new Promise((resolve, reject) => {
-          const s = document.createElement('script');
-          s.src = src; s.onload = resolve; s.onerror = reject;
-          document.head.appendChild(s);
-        });
-      }
-      // Noir Commander B 팔레트에 맞게 재초기화
-      const isDark = document.documentElement.classList.contains('dark');
-      mermaid.initialize({
-        startOnLoad: false,
-        theme: isDark ? 'dark' : 'default',
-        flowchart: { useMaxWidth: false, htmlLabels: true },
-        themeVariables: isDark ? {
-          primaryColor: '#1e1e1e', primaryTextColor: '#f5f5f5',
-          primaryBorderColor: '#fbbf24', lineColor: '#737373',
-          secondaryColor: '#181818', tertiaryColor: '#141414',
-          background: 'transparent', mainBkg: '#1e1e1e',
-          fontFamily: 'Pretendard, sans-serif', fontSize: '12px'
-        } : {
-          primaryColor: '#f4f4f5', primaryTextColor: '#09090b',
-          primaryBorderColor: '#7c3aed', lineColor: '#71717a',
-          secondaryColor: '#fafafa', tertiaryColor: '#ffffff',
-          background: 'transparent', mainBkg: '#ffffff',
-          fontFamily: 'Pretendard, sans-serif', fontSize: '12px'
-        }
-      });
-
-      // 캔버스 오버레이에 렌더링 (사이드 패널 아닌 캔버스 영역)
-      const el = document.getElementById('sketchvibe-canvas-mermaid');
-      if (!el) return;
-
-      try {
-        const svgId = 'sv-' + Date.now();
-        const { svg } = await mermaid.render(svgId, code);
-        el.innerHTML = svg;
-        // SVG 배경을 투명으로 → 부모 bg-hq-bg 색상 사용
-        const svgEl = el.querySelector('svg');
-        if (svgEl) svgEl.style.background = 'transparent';
-      } catch (e) {
-        el.innerHTML = `<pre class="text-hq-red text-xs p-2">렌더링 실패: ${e.message}\n\n코드:\n${code}</pre>`;
-      }
-    },
 
     // ── SSE 연결: Claude Code → 브라우저 실시간 업데이트 ──
     _connectSketchVibeSSE() {
       if (this._sketchVibeSSE) return;
       try {
         this._sketchVibeSSE = new EventSource('/api/sketchvibe/stream');
-
         this._sketchVibeSSE.addEventListener('sketchvibe', async (e) => {
           const data = JSON.parse(e.data);
           if (data.type === 'canvas_update') {
-            // Claude Code가 Mermaid 코드를 보냄 → 렌더링
+            // Claude Code가 Mermaid 코드를 보냄 → 캔버스에 바로 렌더링 (변환 0번!)
             this.flowchart.sketchResult = { mermaid: data.mermaid, description: data.description };
             this.flowchart.sketchError = null;
             this.flowchart.sketchConfirmed = null;
             this.flowchart.approvalRequest = null;
+            // 메인 캔버스에 즉시 렌더링
+            this.flowchart.mermaidCode = data.mermaid;
+            this.flowchart.canvasDirty = true;
             await this.$nextTick();
-            await this._renderSketchVibeMermaid(data.mermaid);
+            await this._renderMermaidCanvas();
           } else if (data.type === 'approval_request') {
-            // Claude Code가 확인 요청
             this.flowchart.approvalRequest = data.message;
           } else if (data.type === 'approved') {
             this.flowchart.approvalRequest = null;
           }
         });
-
         this._sketchVibeSSE.onerror = () => {
           this._sketchVibeSSE?.close();
           this._sketchVibeSSE = null;
-          // 재연결 (3초 후)
-          setTimeout(() => {
-            if (this.nexusOpen) this._connectSketchVibeSSE();
-          }, 3000);
+          setTimeout(() => { if (this.nexusOpen) this._connectSketchVibeSSE(); }, 3000);
         };
-      } catch (e) {
-        console.error('SketchVibe SSE 연결 실패:', e);
-      }
+      } catch (e) { console.error('SketchVibe SSE 연결 실패:', e); }
     },
 
     _disconnectSketchVibeSSE() {
-      if (this._sketchVibeSSE) {
-        this._sketchVibeSSE.close();
-        this._sketchVibeSSE = null;
-      }
+      if (this._sketchVibeSSE) { this._sketchVibeSSE.close(); this._sketchVibeSSE = null; }
     },
 
-    // ── "맞아" 확인 → 다이어그램 저장 ──
-    // ── "맞아" → Mermaid를 Drawflow 노드로 변환 후 오버레이 닫기 ──
+    // ── "맞아" → Mermaid 코드 그대로 유지 (변환 0번!) ──
     applySketchToCanvas() {
       const r = this.flowchart.sketchResult;
       if (r && r.mermaid) {
-        this._importMermaidToCanvas(r.mermaid);
+        this.flowchart.mermaidCode = r.mermaid;
         this.flowchart.canvasDirty = true;
-        this.showToast('캔버스에 적용됐습니다', 'success');
+        this._renderMermaidCanvas();
+        this.showToast('캔버스에 적용됨', 'success');
       }
       this.flowchart.sketchResult = null;
       this.flowchart.sketchConfirmed = null;
       this.flowchart.approvalRequest = null;
     },
 
-    // ── Mermaid 코드 파싱 → nodes + edges ──
-    _parseMermaidNodes(code) {
-      const nodes = {}, edges = [];
-      // 노드 토큰(ID+모양) → { id, label, type } 파싱 헬퍼
-      const parseNodeToken = (token) => {
-        let m;
-        if      (m = token.match(/^([\w가-힣]+)\[\((.+?)\)\]/))     return { id: m[1], label: m[2], type: 'db' };
-        else if (m = token.match(/^([\w가-힣]+)\(\(\((.+?)\)\)\)/)) return { id: m[1], label: m[2], type: 'end' };
-        else if (m = token.match(/^([\w가-힣]+)\(\((.+?)\)\)/))     return { id: m[1], label: m[2], type: 'end' };
-        else if (m = token.match(/^([\w가-힣]+)\(\[(.+?)\]\)/))     return { id: m[1], label: m[2], type: 'start' };
-        else if (m = token.match(/^([\w가-힣]+)\{(.+?)\}/))         return { id: m[1], label: m[2], type: 'decide' };
-        else if (m = token.match(/^([\w가-힣]+)>(.+?)\]/))          return { id: m[1], label: m[2], type: 'note' };
-        else if (m = token.match(/^([\w가-힣]+)\[\[(.+?)\]\]/))     return { id: m[1], label: m[2], type: 'system' };
-        else if (m = token.match(/^([\w가-힣]+)\[(.+?)\]/)) {
-          // /label\ (평행사변형) → 슬래시 제거
-          const lbl = m[2].replace(/^\//, '').replace(/\\$/, '');
-          const type = /에이전트|Agent/i.test(lbl) ? 'agent' : /API|api/i.test(lbl) ? 'api' : 'system';
-          return { id: m[1], label: lbl, type };
-        }
-        else if (m = token.match(/^([\w가-힣]+)$/)) return { id: m[1], label: m[1], type: null };
-        return null;
-      };
-      for (const rawLine of code.split('\n')) {
-        const line = rawLine.trim();
-        if (!line || /^(flowchart|graph|subgraph|end|%%|classDef|linkStyle|style\s)/.test(line)) continue;
-        // 엣지 파싱 — 인라인 노드 정의(모양)도 함께 추출
-        const em = line.match(/^(.+?)\s*--[->]+\s*(?:\|([^|]*)\|)?\s*(.+)$/);
-        if (em) {
-          const src = parseNodeToken(em[1].trim());
-          const tgt = parseNodeToken(em[3].trim());
-          if (src) {
-            if (!nodes[src.id]) nodes[src.id] = { label: src.label, type: src.type || 'system' };
-            if (tgt && !nodes[tgt.id]) nodes[tgt.id] = { label: tgt.label, type: tgt.type || 'system' };
-            edges.push({ from: src.id, label: (em[2] || '').trim(), to: tgt ? tgt.id : em[3].trim() });
-          }
-          continue;
-        }
-        // 독립 노드 정의
-        const nd = parseNodeToken(line);
-        if (nd && nd.type) nodes[nd.id] = { label: nd.label, type: nd.type };
-      }
-      // 엣지에만 등장한 노드 자동 추가
-      edges.forEach(e => {
-        if (!nodes[e.from]) nodes[e.from] = { label: e.from, type: 'system' };
-        if (!nodes[e.to])   nodes[e.to]   = { label: e.to,   type: 'system' };
-      });
-      return { nodes, edges };
-    },
-
-    // ── Mermaid → Drawflow 캔버스 (모양 그대로 변환) ──
-    _importMermaidToCanvas(mermaidCode) {
-      const editor = this.flowchart.canvasEditor;
-      if (!editor) return;
-      const colors = { agent:'#8b5cf6', system:'#3b82f6', api:'#059669', decide:'#f59e0b', start:'#22c55e', end:'#ef4444', note:'#6b7280', db:'#0ea5e9' };
-      // Mermaid 모양 → CSS 스타일 매핑
-      const shapeStyle = {
-        start:  'border-radius:50px;padding:6px 18px;min-width:80px',
-        end:    'border-radius:50%;width:64px;height:64px;display:flex;align-items:center;justify-content:center;padding:0',
-        decide: 'width:72px;height:72px;display:flex;align-items:center;justify-content:center;padding:0;clip-path:polygon(50% 0%,100% 50%,50% 100%,0% 50%)',
-        note:   'border-radius:4px 16px 4px 4px;padding:6px 12px;min-width:80px',
-        db:     'border-radius:8px 8px 4px 4px;border-top:4px solid rgba(255,255,255,0.35);padding:8px 14px;min-width:80px',
-        system: 'border-radius:8px;padding:6px 12px;min-width:80px',
-        agent:  'border-radius:8px;padding:6px 12px;min-width:80px',
-        api:    'border-radius:8px;padding:6px 12px;min-width:80px',
-      };
-      const { nodes, edges } = this._parseMermaidNodes(mermaidCode);
-      // 캔버스 초기화
-      editor.import({ drawflow: { Home: { data: {} } } });
-      this.flowchart.connectionLabels = {};
-      // 레이아웃: Mermaid 방향과 동일하게 — LR이면 가로, TD면 세로
-      const isLR = /flowchart\s+LR|graph\s+LR/i.test(mermaidCode);
-      const keys = Object.keys(nodes);
-      const nodeMap = {};
-      keys.forEach((key, i) => {
-        const n = nodes[key];
-        const color = colors[n.type] || '#6b7280';
-        const sh = shapeStyle[n.type] || shapeStyle.system;
-        const html = `<div class="nexus-node" style="background:${color};${sh};color:#fff;font-size:12px;font-family:Pretendard,sans-serif;text-align:center;cursor:move">${n.label}</div>`;
-        const x = isLR ? 80 + i * 240 : 200;
-        const y = isLR ? 120 : 60 + i * 140;
-        const id = editor.addNode(n.type, 1, 1, x, y, n.type, { label: n.label }, html);
-        nodeMap[key] = id;
-      });
-      // 연결 추가
-      edges.forEach(e => {
-        const fId = nodeMap[e.from], tId = nodeMap[e.to];
-        if (!fId || !tId) return;
-        editor.addConnection(fId, tId, 'output_1', 'input_1');
-        if (e.label) {
-          const key = `node_out_node-${fId}__output_1__node_in_node-${tId}__input_1`;
-          this.flowchart.connectionLabels[key] = e.label;
-        }
-      });
-      setTimeout(() => this._renderConnectionLabels(), 150);
-    },
-
-    // ── (레거시) confirmSketchVibe 호환용 ──
-    async confirmSketchVibe() {
-      this.applySketchToCanvas();
-    },
-
-    // ── Mode B: 같이 그리기 세션 시작 ──
-    async startCollabSession() {
-      const name = (this.flowchart.canvasName || '').trim();
-      if (!name || !this.flowchart.collabPrompt) return;
-
-      const filename = name.endsWith('.json') ? name : name + '.json';
-      const emptyData = { drawflow: { Home: { data: {} } } };
-      try {
-        await fetch('/api/knowledge', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ folder: 'flowcharts', filename, content: JSON.stringify(emptyData, null, 2) })
-        });
-        if (this.flowchart.canvasEditor) {
-          this.flowchart.canvasEditor.load(emptyData);
-          this.flowchart.canvasDirty = false;
-        }
-        await this.loadCanvasList();
-        this.flowchart.collabStarted = true;
-        this.showToast(`"${name}" 세션 시작됨 — Claude Code에서 이어서 진행하세요`, 'success');
-      } catch(e) { this.showToast('세션 시작 실패: ' + e.message, 'error'); }
-    },
+    // ── (레거시 호환) confirmSketchVibe ──
+    async confirmSketchVibe() { this.applySketchToCanvas(); },
 
     // ── "다시 해줘" → 결과 초기화 ──
     retrySketchVibe() {
@@ -6445,8 +6322,7 @@ function corthexApp() {
       this.flowchart.sketchError = null;
       this.flowchart.sketchConfirmed = null;
       this.flowchart.approvalRequest = null;
-      // 캔버스도 초기화 (새로 그리기)
-      this.clearNexusCanvas();
+      this.clearMermaidCanvas();
     },
 
     async deleteConfirmedDiagram(item) {
@@ -6455,9 +6331,7 @@ function corthexApp() {
         const r = await fetch(`/api/sketchvibe/confirmed/${item.safe_name}`, { method: 'DELETE' });
         const data = await r.json();
         if (data.error) throw new Error(data.error);
-        // 즉시 목록에서 제거 (새로고침 불필요)
         this.flowchart.confirmedItems = this.flowchart.confirmedItems.filter(i => i.safe_name !== item.safe_name);
-        // 현재 표시 중인 다이어그램이면 오버레이도 닫기
         if (this.flowchart.sketchResult?.mermaid) {
           this.flowchart.sketchResult = null;
           this.flowchart.sketchConfirmed = null;

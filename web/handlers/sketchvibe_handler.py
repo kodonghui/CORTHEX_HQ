@@ -7,9 +7,7 @@ MCP → REST API → SSE → 브라우저 실시간 렌더링.
 import asyncio
 import json
 import logging
-import math
 import os
-import re
 import time
 from typing import Optional
 
@@ -25,25 +23,11 @@ router = APIRouter(prefix="/api/sketchvibe", tags=["sketchvibe"])
 
 _sse_clients: list[asyncio.Queue] = []
 
-# ── 노드 타입 → Mermaid 형태 매핑 ──
-
-_MERMAID_SHAPES = {
-    "start": ("([{label}])", "stadium — 시작점"),
-    "end": ("(({label}))", "circle — 종료점"),
-    "decide": ("{{{label}}}", "diamond — 결정/분기"),
-    "agent": ("[{label}]", "rectangle — 에이전트/액터"),
-    "system": ("[[{label}]]", "subroutine — 시스템/서비스"),
-    "api": ("[/{label}\\\\]", "parallelogram — 외부 API"),
-    "note": (">{label}]", "asymmetric — 메모/주석"),
-}
-
-
 # ── 요청 모델 ──
 
 class SaveCanvasRequest(BaseModel):
-    canvas_json: dict
-    description: str = ""
-    connection_labels: dict = {}
+    mermaid_code: str = ""
+    direction: str = "LR"
     filename: str = ""
 
 
@@ -64,154 +48,7 @@ class ApprovalRequest(BaseModel):
     message: str = "다이어그램을 확인해주세요"
 
 
-# ── Drawflow JSON 파싱 (Phase 2 강화) ──
-
-def _extract_label(html: str) -> str:
-    """nexus-node div에서 사용자 편집 텍스트 추출"""
-    m = re.search(r">([^<]+)<", html or "")
-    return m.group(1).strip() if m else ""
-
-
-def _detect_layout(nodes: dict) -> str:
-    """노드 위치 분석 → LR 또는 TD 레이아웃 판단"""
-    if len(nodes) < 2:
-        return "TD"
-    positions = [(n["pos_x"], n["pos_y"]) for n in nodes.values()]
-    xs = [p[0] for p in positions]
-    ys = [p[1] for p in positions]
-    x_spread = max(xs) - min(xs)
-    y_spread = max(ys) - min(ys)
-    return "LR" if x_spread > y_spread * 1.3 else "TD"
-
-
-def _detect_groups(nodes: dict, threshold: float = 300) -> list[list[str]]:
-    """공간적 근접 노드 클러스터링 → subgraph 힌트"""
-    if len(nodes) < 3:
-        return []
-
-    nids = list(nodes.keys())
-    visited = set()
-    groups = []
-
-    for i, nid in enumerate(nids):
-        if nid in visited:
-            continue
-        cluster = [nid]
-        visited.add(nid)
-        for j in range(i + 1, len(nids)):
-            other = nids[j]
-            if other in visited:
-                continue
-            dx = nodes[nid]["pos_x"] - nodes[other]["pos_x"]
-            dy = nodes[nid]["pos_y"] - nodes[other]["pos_y"]
-            dist = math.sqrt(dx * dx + dy * dy)
-            if dist < threshold:
-                cluster.append(other)
-                visited.add(other)
-        if len(cluster) >= 2:
-            groups.append(cluster)
-
-    return groups
-
-
-def _parse_drawflow(canvas: dict) -> str:
-    """Drawflow export JSON → AI가 이해할 수 있는 구조화된 텍스트 (Phase 2 강화)"""
-    data = canvas.get("drawflow", {}).get("Home", {}).get("data", {})
-    if not data:
-        return "빈 캔버스 (노드 없음)"
-
-    nodes = {}
-    for nid, node in data.items():
-        label = _extract_label(node.get("html", ""))
-        if not label:
-            label = node.get("data", {}).get("label", node.get("name", f"노드{nid}"))
-        node_type = node.get("name", "unknown")
-        shape_info = _MERMAID_SHAPES.get(node_type, ("[{label}]", "rectangle"))
-        nodes[str(nid)] = {
-            "id": str(nid),
-            "label": label,
-            "type": node_type,
-            "mermaid_shape": shape_info[0].format(label=label),
-            "shape_desc": shape_info[1],
-            "pos_x": node.get("pos_x", 0),
-            "pos_y": node.get("pos_y", 0),
-            "input_count": len(node.get("inputs", {})),
-            "output_count": len(node.get("outputs", {})),
-        }
-
-    connections = []
-    for nid, node in data.items():
-        for port_key, port in node.get("outputs", {}).items():
-            for conn in port.get("connections", []):
-                target = str(conn.get("node", "?"))
-                connections.append({
-                    "from": str(nid),
-                    "to": target,
-                    "from_port": port_key,
-                })
-
-    # 레이아웃 판단
-    layout = _detect_layout(nodes)
-
-    # 그룹 감지
-    groups = _detect_groups(nodes)
-
-    # 구조화된 텍스트 생성
-    lines = [f"노드 {len(nodes)}개 (레이아웃: {layout}):"]
-    for n in nodes.values():
-        lines.append(
-            f'  [{n["id"]}] "{n["label"]}" '
-            f'(타입: {n["type"]}, Mermaid: {n["mermaid_shape"]}, '
-            f'입력포트: {n["input_count"]}, 출력포트: {n["output_count"]})'
-        )
-
-    if connections:
-        lines.append(f"\n연결 {len(connections)}개:")
-        for c in connections:
-            src_l = nodes.get(c["from"], {}).get("label", c["from"])
-            tgt_l = nodes.get(c["to"], {}).get("label", c["to"])
-            src_type = nodes.get(c["from"], {}).get("type", "")
-            port_info = ""
-            if src_type == "decide" and c["from_port"]:
-                port_num = c["from_port"].replace("output_", "")
-                port_info = f" [분기 {port_num}]"
-            # 화살표 라벨 (connection_labels에서 매칭)
-            edge_label = c.get("label", "")
-            label_info = f' "{edge_label}"' if edge_label else ""
-            lines.append(f'  "{src_l}" →{label_info}→ "{tgt_l}"{port_info}')
-    else:
-        lines.append("\n연결: 없음")
-
-    if groups:
-        lines.append(f"\n공간 그룹 {len(groups)}개 (subgraph 힌트):")
-        for i, g in enumerate(groups):
-            labels = [nodes[nid]["label"] for nid in g if nid in nodes]
-            lines.append(f'  그룹 {i + 1}: [{", ".join(labels)}]')
-
-    return "\n".join(lines)
-
-
-# ── 화살표 라벨 주입 (connection_labels → connections에 label 필드 추가) ──
-
-def _inject_edge_labels(canvas: dict, connection_labels: dict) -> dict:
-    """connection_labels 맵을 canvas 연결 데이터에 주입 (parse용)."""
-    import copy, re as _re
-    canvas = copy.deepcopy(canvas)
-    data = canvas.get("drawflow", {}).get("Home", {}).get("data", {})
-    for nid, node in data.items():
-        for port_key, port in node.get("outputs", {}).items():
-            for conn in port.get("connections", []):
-                target = str(conn.get("node", ""))
-                # key 패턴: node_out_node-{nid}__output_{n}__node_in_node-{target}__input_{m}
-                out_cls = f"node_out_node-{nid}"
-                inp_cls = f"node_in_node-{target}"
-                out_port = port_key  # e.g. "output_1"
-                # input port: find matching connection on target node
-                in_port = conn.get("input", "input_1")
-                key = f"{out_cls}__{out_port}__{inp_cls}__{in_port}"
-                if key in connection_labels:
-                    conn["label"] = connection_labels[key]
-    return canvas
+# (Drawflow 파싱 코드 제거됨 — 2026-03-02 Mermaid 네이티브 전환)
 
 
 # ── SSE 브로드캐스트 헬퍼 ──
@@ -233,25 +70,16 @@ async def _broadcast_sse(event_data: dict) -> int:
 
 @router.post("/save-canvas")
 async def save_canvas(req: SaveCanvasRequest):
-    """캔버스 JSON을 SQLite에 저장. Claude Code에서 read_canvas로 읽기."""
+    """Mermaid 코드를 SQLite에 저장. Claude Code에서 read_canvas로 읽기."""
     try:
         from db import save_setting
-        # connection_labels를 연결 데이터에 주입해서 파싱 시 라벨 포함
-        canvas_with_labels = req.canvas_json
-        if req.connection_labels:
-            canvas_with_labels = _inject_edge_labels(req.canvas_json, req.connection_labels)
         save_setting("sketchvibe:current_canvas", {
-            "canvas_json": req.canvas_json,
-            "connection_labels": req.connection_labels,
-            "description": req.description,
+            "mermaid_code": req.mermaid_code,
+            "direction": req.direction,
             "filename": req.filename,
             "saved_at": time.time(),
-            "parsed": _parse_drawflow(canvas_with_labels),
         })
-        return {
-            "status": "saved",
-            "message": "Claude Code에서 read_canvas 도구를 사용하세요",
-        }
+        return {"status": "saved"}
     except Exception as e:
         logger.error("캔버스 저장 실패: %s", e)
         return {"error": str(e)}
@@ -338,28 +166,27 @@ async def sse_stream():
 
 @router.get("/canvas")
 async def get_canvas_state():
-    """MCP용 — 최근 저장된 캔버스 상태 반환 (SQLite 우선, 파일 폴백)"""
-    # 1) SQLite에서 조회 (save-canvas로 저장된 것)
+    """MCP용 — Mermaid 코드 직접 반환 (SQLite 우선, 파일 폴백)"""
+    # 1) SQLite에서 조회
     try:
         from db import load_setting
         saved = load_setting("sketchvibe:current_canvas", None)
-        if saved and saved.get("canvas_json"):
+        if saved and saved.get("mermaid_code"):
             return {
-                "canvas": saved["canvas_json"],
-                "parsed": saved.get("parsed", _parse_drawflow(saved["canvas_json"])),
-                "description": saved.get("description", ""),
+                "mermaid_code": saved["mermaid_code"],
+                "direction": saved.get("direction", "LR"),
                 "filename": saved.get("filename", ""),
             }
     except Exception:
         pass
 
-    # 2) 파일 폴백 (기존 knowledge/flowcharts에서 조회)
+    # 2) 파일 폴백 (knowledge/flowcharts에서 최신 파일)
     knowledge_dir = os.path.join(
         os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
         "knowledge", "flowcharts",
     )
     if not os.path.isdir(knowledge_dir):
-        return {"canvas": None, "message": "저장된 캔버스 없음"}
+        return {"mermaid_code": None, "message": "저장된 캔버스 없음"}
 
     files = sorted(
         [f for f in os.listdir(knowledge_dir) if f.endswith(".json")],
@@ -367,16 +194,21 @@ async def get_canvas_state():
         reverse=True,
     )
     if not files:
-        return {"canvas": None, "message": "저장된 캔버스 없음"}
+        return {"mermaid_code": None, "message": "저장된 캔버스 없음"}
 
     with open(os.path.join(knowledge_dir, files[0]), "r", encoding="utf-8") as f:
         data = json.load(f)
 
-    return {
-        "canvas": data,
-        "filename": files[0],
-        "parsed": _parse_drawflow(data),
-    }
+    # 신규 포맷 (Mermaid)
+    if data.get("mermaid"):
+        return {
+            "mermaid_code": data["mermaid"],
+            "direction": data.get("direction", "LR"),
+            "filename": files[0],
+        }
+
+    # 레거시 Drawflow JSON은 더 이상 파싱하지 않음
+    return {"mermaid_code": None, "message": "레거시 Drawflow 파일 (Mermaid 변환 필요)"}
 
 
 @router.post("/save-diagram")
