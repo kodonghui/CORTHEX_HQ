@@ -3,7 +3,7 @@
 > **규칙**: 미완료 항목은 전부 여기만. 날짜 파일에 ⬜ 절대 금지.
 > **수시 업데이트**: 완료되면 즉시 ✅ 표시 or 삭제. 새 항목 발견 시 즉시 추가.
 > 🔴 **매 배포 시 반드시 갱신!** — 배포하고 BACKLOG 안 건드리면 미완성!
-> 마지막 업데이트: 2026-03-02 빌드#773 (v5.2 workspace-profile 404 + 사이드바 + 대시보드 격리)
+> 마지막 업데이트: 2026-03-02 빌드#779 (v5.3 탭 숨기기 전면 폐기 — 네이버 모델 완전 구현)
 
 ---
 
@@ -24,7 +24,7 @@
 
 ## 🟡 버그 (발견됐지만 미수정)
 
-- ⬜ **v5.2 showSections 탭 격리** — workspaces.yaml에 showSections 추가 → 탭별 x-show 적용 (누나는 command/performance만)
+- ✅ ~~**v5.3 탭 숨기기 전면 폐기**~~ — showSections/allowedDivisions 제거. 탭 전부 표시. orgScope로만 데이터 필터링 (빌드 #779)
 - ⬜ **누나 사이드바 Eden/Zoe/Sage 안 보임** — workspace-profile 404 수정됨(빌드#773). 실제 로그인 후 검증 필요
 - ✅ ~~**한미반도체(042700) KIS 주문 실패**~~ — `EXCG_ID_DVSN_CD` "" → "KRX" 수정 (빌드 #655 예정)
 - ⬜ **deploy.yml에 selenium 추가 필요** — PAT에 workflow 스코프 없어서 push 불가. 대표님이 GitHub에서 직접 수정하거나 토큰 스코프 추가 필요. 현재는 수동 설치로 동작 중
