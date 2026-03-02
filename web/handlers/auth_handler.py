@@ -81,11 +81,11 @@ async def login(request: Request):
 
     if role == "sister":
         stored_pw = load_setting("sister_password") or "sister2026"
-        user_name = "누나"
+        user_name = load_setting("sister_display_name") or "누나"
     else:
         role = "ceo"
         stored_pw = load_setting("admin_password") or "corthex2026"
-        user_name = "CEO"
+        user_name = load_setting("ceo_display_name") or "고동희 대표님"
 
     if pw != stored_pw:
         return JSONResponse({"success": False, "error": "비밀번호가 틀립니다"}, status_code=401)

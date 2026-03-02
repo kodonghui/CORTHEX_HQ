@@ -8,9 +8,23 @@
 ## 마지막 업데이트
 
 - **날짜**: 2026-03-02
-- **버전**: `5.20.002` ✅ v5.2 showSections + CLAUDE.md 재구축 + 핫픽스
-- **빌드**: #776 배포완료 (최신)
+- **버전**: `5.30.000` ✅ v5.3 탭 숨기기 전면 폐기 — 네이버 모델 완전 구현
+- **빌드**: #779 배포완료 (최신)
 - **서버**: https://corthex-hq.com
+
+## 2026-03-02 — v5.3 탭 숨기기 전면 폐기 (빌드 #779)
+
+| 수정 | 내용 |
+|------|------|
+| showSections 제거 | workspaces.yaml + corthex-app.js. 탭 전부 표시 |
+| allowedDivisions 제거 | index.html x-show 제거. 기밀문서 division 버튼 전부 표시 |
+| loadArchive 수정 | orgScope + filterDivision 함께 API 전달 |
+| CLAUDE.md 추가 | 탭 숨기기 금지(v5.3) 절대 규칙 명시 |
+| architecture.md 수정 | ADR-7 + Frontend 표 탭숨김→데이터스코프로 |
+
+상세: `docs/updates/2026-03-02_v53_탭숨기기폐기_네이버모델완전구현.md`
+
+---
 
 ## 2026-03-02 — v5.2 workspace-profile 404 + 사이드바 + 대시보드 격리 (빌드 #773)
 
