@@ -9,8 +9,19 @@
 
 - **날짜**: 2026-03-02
 - **버전**: `5.30.000`
-- **빌드**: #792 배포 대기 (auto-merge 완료, deploy 트리거 대기)
+- **빌드**: #793 배포됨
 - **서버**: https://corthex-hq.com
+
+## 2026-03-02 — SketchVibe 추가 버그 수정 + 소크라테스 QA 도입 (빌드 #793)
+
+| 수정 | 내용 |
+|------|------|
+| git에 묶인 테스트 파일 | `123.json`, `테스트.json` git 제거 + `knowledge/flowcharts/*.json` gitignore |
+| 한국어 노드 ID 파싱 | `\w+` → `[\w가-힣]+` (한국어 ID 지원) |
+| Mermaid→Drawflow 레이아웃 | LR=가로/TD=세로 방향 감지 배치 |
+| Drawflow 노드 모양 | 외부 테두리 border/shadow 제거 → 형태(원/마름모/원통) 명확히 표시 |
+| 캔버스 이름 변경 버그 | `savedCanvasName` 별도 추적 → 이름 바꾸면 이전 파일 자동 삭제 |
+| 소크라테스 QA | CLAUDE.md + 코딩_개발.md에 QA 방법론 명문화 |
 
 ## 2026-03-02 — SketchVibe 버그 4개 수정 (빌드 #792)
 
