@@ -380,12 +380,15 @@ function corthexApp() {
       showCanvasNameModal: false,
       // ── 스케치바이브 (Phase 3 — MCP 양방향) ──
       sketchVibeOpen: false,
+      sketchMode: 'draw',        // 'draw' | 'collab'
       sketchDescription: '',
       sketchResult: null,        // {saved, mermaid?, description?}
       sketchConverting: false,
       sketchError: null,
       sketchConfirmed: null,     // {name, htmlPath}
       approvalRequest: null,     // string — Claude Code 확인 요청 메시지
+      collabPrompt: '',          // Mode B: 같이 그리기 요청 내용
+      collabStarted: false,      // Mode B: 세션 시작 여부
     },
 
     // ── AGORA (토론/논쟁 엔진) ──
@@ -5930,6 +5933,34 @@ function corthexApp() {
       }
     },
 
+    // ── NEXUS 캔버스: 새로 만들기 (리스트에 즉시 생성) ──
+    async newNexusCanvas() {
+      const existingNames = this.flowchart.canvasItems.map(i => i.name.replace('.json', ''));
+      let n = 1;
+      while (existingNames.includes(`새 캔버스 ${n}`)) n++;
+      const name = `새 캔버스 ${n}`;
+
+      if (this.flowchart.canvasEditor) {
+        this.flowchart.canvasEditor.load({ drawflow: { Home: { data: {} } } });
+        this.flowchart.canvasDirty = false;
+      }
+      this.flowchart.canvasName = name;
+      this.flowchart.sketchResult = null;
+      this.flowchart.sketchConfirmed = null;
+      this.flowchart.sketchError = null;
+
+      try {
+        const emptyData = { drawflow: { Home: { data: {} } } };
+        await fetch('/api/knowledge', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ folder: 'flowcharts', filename: name + '.json', content: JSON.stringify(emptyData, null, 2) })
+        });
+        await this.loadCanvasList();
+        this.showToast(`"${name}" 생성됨`, 'success');
+      } catch(e) { this.showToast('생성 실패: ' + e.message, 'error'); }
+    },
+
     // ══════════════════════════════════════════════ SketchVibe (Phase 3) ══
 
     _sketchVibeSSE: null,
@@ -6098,6 +6129,29 @@ function corthexApp() {
       } catch (e) {
         this.showToast('저장 실패: ' + e.message, 'error');
       }
+    },
+
+    // ── Mode B: 같이 그리기 세션 시작 ──
+    async startCollabSession() {
+      const name = (this.flowchart.canvasName || '').trim();
+      if (!name || !this.flowchart.collabPrompt) return;
+
+      const filename = name.endsWith('.json') ? name : name + '.json';
+      const emptyData = { drawflow: { Home: { data: {} } } };
+      try {
+        await fetch('/api/knowledge', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ folder: 'flowcharts', filename, content: JSON.stringify(emptyData, null, 2) })
+        });
+        if (this.flowchart.canvasEditor) {
+          this.flowchart.canvasEditor.load(emptyData);
+          this.flowchart.canvasDirty = false;
+        }
+        await this.loadCanvasList();
+        this.flowchart.collabStarted = true;
+        this.showToast(`"${name}" 세션 시작됨 — Claude Code에서 이어서 진행하세요`, 'success');
+      } catch(e) { this.showToast('세션 시작 실패: ' + e.message, 'error'); }
     },
 
     // ── "다시 해줘" → 결과 초기화 ──

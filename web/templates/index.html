@@ -7510,7 +7510,7 @@
           </div>
           <div class="px-3 py-2 border-b border-white/10 flex items-center justify-between">
             <span class="text-xs font-semibold text-white/40 uppercase tracking-wider">저장된 캔버스</span>
-            <button @click="retrySketchVibe()" class="text-[10px] text-white/30 hover:text-emerald-400 transition px-1.5 py-0.5 rounded hover:bg-emerald-500/10" title="새 캔버스">+ 새로</button>
+            <button @click="newNexusCanvas()" class="text-[10px] text-white/30 hover:text-emerald-400 transition px-1.5 py-0.5 rounded hover:bg-emerald-500/10" title="새 캔버스">+ 새로</button>
           </div>
           <div class="flex-1 overflow-y-auto scrollbar-thin py-1">
             <template x-if="flowchart.canvasItems.length === 0 && flowchart.confirmedItems.length === 0">
@@ -7568,34 +7568,16 @@
                :class="darkMode ? 'bg-[#0a0f1a]' : 'bg-white'"
                class="absolute inset-0 overflow-auto z-20 flex flex-col" x-cloak>
             <!-- 상단 바 -->
-            <div class="flex items-center justify-between px-4 py-2.5 shrink-0"
-                 :class="darkMode ? 'border-b border-white/10' : 'border-b border-gray-200'">
+            <div class="flex items-center justify-between px-4 py-2.5 shrink-0 border-b border-white/10">
               <div class="flex items-center gap-2">
                 <span class="text-emerald-400 text-xs font-bold">변환 결과</span>
                 <template x-if="flowchart.sketchResult && flowchart.sketchResult.description">
-                  <span class="text-[10px] text-white/30 truncate max-w-[200px]" x-text="flowchart.sketchResult.description"></span>
+                  <span class="text-[10px] text-white/30 truncate max-w-[300px]" x-text="flowchart.sketchResult.description"></span>
                 </template>
               </div>
-              <div class="flex gap-2">
-                <template x-if="!flowchart.sketchConfirmed">
-                  <div class="flex gap-2">
-                    <button @click="confirmSketchVibe()" class="px-4 py-1.5 rounded-lg text-xs font-bold bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 border border-emerald-500/30 transition">
-                      맞아 ✓
-                    </button>
-                    <button @click="retrySketchVibe()" class="px-4 py-1.5 rounded-lg text-xs font-bold bg-white/5 text-white/50 hover:text-white/80 border border-white/10 hover:border-white/20 transition">
-                      초기화 ↩
-                    </button>
-                  </div>
-                </template>
-                <template x-if="flowchart.sketchConfirmed">
-                  <div class="flex items-center gap-2">
-                    <span class="text-emerald-400/60 text-[10px]">✓ 확인됨</span>
-                    <button @click="retrySketchVibe()" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-white/5 text-white/40 hover:text-white/70 border border-white/10 transition">
-                      새 다이어그램
-                    </button>
-                  </div>
-                </template>
-              </div>
+              <template x-if="flowchart.sketchConfirmed">
+                <span class="text-emerald-400/60 text-[10px] font-semibold">✓ 확인됨</span>
+              </template>
             </div>
             <!-- Claude Code 확인 요청 알림 (캔버스 위) -->
             <template x-if="flowchart.approvalRequest">
@@ -7608,6 +7590,27 @@
             <div class="flex-1 overflow-auto flex items-center justify-center p-6">
               <div id="sketchvibe-canvas-mermaid" class="flex justify-center"></div>
             </div>
+            <!-- 하단 확인 버튼 (중앙) -->
+            <template x-if="!flowchart.sketchConfirmed">
+              <div class="shrink-0 p-5 flex gap-4 justify-center border-t border-white/10 bg-black/20">
+                <button @click="confirmSketchVibe()"
+                        class="px-10 py-3 rounded-xl text-sm font-bold bg-emerald-500/25 text-emerald-400 hover:bg-emerald-500/40 border border-emerald-500/40 transition shadow-lg shadow-emerald-900/20">
+                  ✓ 맞아
+                </button>
+                <button @click="retrySketchVibe()"
+                        class="px-10 py-3 rounded-xl text-sm font-bold bg-white/5 text-white/50 hover:text-white/80 border border-white/15 hover:border-white/30 transition">
+                  ↩ 다시
+                </button>
+              </div>
+            </template>
+            <template x-if="flowchart.sketchConfirmed">
+              <div class="shrink-0 p-5 flex justify-center border-t border-white/10 bg-black/20">
+                <button @click="retrySketchVibe()"
+                        class="px-10 py-3 rounded-xl text-sm font-semibold bg-white/5 text-white/40 hover:text-white/70 border border-white/10 transition">
+                  새 다이어그램
+                </button>
+              </div>
+            </template>
           </div>
         </div>
 
@@ -7625,22 +7628,35 @@
           <div class="shrink-0 px-4 py-2.5 border-b border-white/10 flex items-center justify-between">
             <div class="flex items-center gap-2">
               <span class="text-xs font-bold text-emerald-400 tracking-wider uppercase">SketchVibe</span>
-              <span class="text-xs text-white/20">스케치 → 다이어그램</span>
             </div>
             <button @click="flowchart.sketchVibeOpen = false" class="w-6 h-6 rounded flex items-center justify-center text-white/30 hover:text-white/60 transition">
               <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
             </button>
           </div>
 
-          <!-- 입력: 설명 + 저장 -->
-          <div class="p-3 border-b border-white/10 flex flex-col gap-2">
+          <!-- 모드 탭 -->
+          <div class="shrink-0 px-3 pt-3 pb-2 flex gap-2">
+            <button @click="flowchart.sketchMode = 'draw'; flowchart.collabStarted = false"
+                    :class="flowchart.sketchMode === 'draw' ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : 'bg-white/5 text-white/40 border-white/10 hover:text-white/60'"
+                    class="flex-1 py-2 rounded-lg text-xs font-semibold border transition">
+              ✏️ 내가 그리기
+            </button>
+            <button @click="flowchart.sketchMode = 'collab'; flowchart.collabStarted = false"
+                    :class="flowchart.sketchMode === 'collab' ? 'bg-violet-500/20 text-violet-400 border-violet-500/30' : 'bg-white/5 text-white/40 border-white/10 hover:text-white/60'"
+                    class="flex-1 py-2 rounded-lg text-xs font-semibold border transition">
+              🤖 같이 그리기
+            </button>
+          </div>
+
+          <!-- Mode A: 내가 그리기 -->
+          <div x-show="flowchart.sketchMode === 'draw'" class="px-3 pb-3 border-b border-white/10 flex flex-col gap-2">
             <label class="text-xs text-white/50 font-semibold">이 스케치를 설명해주세요</label>
             <textarea x-model="flowchart.sketchDescription"
-                      class="w-full h-16 bg-white/5 border border-white/10 rounded-lg p-2.5 text-xs text-white/80 placeholder:text-white/20 outline-none focus:border-emerald-500/50 resize-none"
+                      class="w-full h-20 bg-white/5 border border-white/10 rounded-lg p-2.5 text-xs text-white/80 placeholder:text-white/20 outline-none focus:border-emerald-500/50 resize-none"
                       placeholder="예: A 서버에서 B DB로 요청 보내고, C 캐시 거쳐 응답하는 구조"></textarea>
             <button @click="saveSketchVibe()"
                     :disabled="flowchart.sketchConverting"
-                    class="w-full py-2 rounded-lg text-xs font-bold transition flex items-center justify-center gap-2"
+                    class="w-full py-2.5 rounded-lg text-xs font-bold transition flex items-center justify-center gap-2"
                     :class="flowchart.sketchConverting ? 'bg-emerald-500/10 text-emerald-500/50 cursor-wait' : 'bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 border border-emerald-500/30'">
               <template x-if="flowchart.sketchConverting">
                 <div class="w-3.5 h-3.5 border-2 border-emerald-500/30 border-t-emerald-400 rounded-full animate-spin"></div>
@@ -7648,6 +7664,34 @@
               <svg x-show="!flowchart.sketchConverting" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17,21 17,13 7,13 7,21"/><polyline points="7,3 7,8 15,8"/></svg>
               <span x-text="flowchart.sketchConverting ? '저장 중...' : '저장하기'"></span>
             </button>
+          </div>
+
+          <!-- Mode B: 같이 그리기 -->
+          <div x-show="flowchart.sketchMode === 'collab'" class="px-3 pb-3 border-b border-white/10 flex flex-col gap-2.5">
+            <div class="flex flex-col gap-1.5">
+              <label class="text-xs text-white/50 font-semibold">캔버스 파일명</label>
+              <input x-model="flowchart.canvasName"
+                     class="w-full bg-white/5 border border-white/10 rounded-lg px-2.5 py-2 text-xs text-white/80 placeholder:text-white/20 outline-none focus:border-violet-500/50 font-mono"
+                     placeholder="예: corthex-v2"/>
+            </div>
+            <div class="flex flex-col gap-1.5">
+              <label class="text-xs text-white/50 font-semibold">어떻게 그릴까요?</label>
+              <textarea x-model="flowchart.collabPrompt"
+                        class="w-full h-20 bg-white/5 border border-white/10 rounded-lg p-2.5 text-xs text-white/80 placeholder:text-white/20 outline-none focus:border-violet-500/50 resize-none"
+                        placeholder="예: corthex v2 아키텍처 — API 서버, DB, 프론트 3단 구조로 그려줘"></textarea>
+            </div>
+            <button @click="startCollabSession()"
+                    :disabled="!flowchart.canvasName || !flowchart.collabPrompt"
+                    class="w-full py-2.5 rounded-lg text-xs font-bold bg-violet-500/20 text-violet-400 hover:bg-violet-500/30 border border-violet-500/30 transition disabled:opacity-40 disabled:cursor-not-allowed">
+              🚀 세션 시작
+            </button>
+            <template x-if="flowchart.collabStarted">
+              <div class="p-3 rounded-lg bg-violet-500/10 border border-violet-500/30 flex flex-col gap-1.5">
+                <span class="text-xs font-bold text-violet-400">✓ 세션 준비됨</span>
+                <p class="text-[11px] text-white/50 leading-relaxed">캔버스가 열렸습니다. Claude Code와 메인 채팅에서 이어서 수정하세요.</p>
+                <p class="text-[11px] text-emerald-400/70 font-mono mt-1">"이 부분 바꿔줘", "DB 노드 추가해줘"</p>
+              </div>
+            </template>
           </div>
 
           <!-- 결과 영역 -->
