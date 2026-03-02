@@ -74,17 +74,17 @@
 - 혼자 추측 금지 → `investigator` 에이전트 먼저
 - 수정 후 → `spec-validator` 검증
 
-## STEP 4. 커밋 & 배포
-- E2E QA 전부 통과 후에만 커밋
-- `git commit -m "내용 [완료]"` → push
-- `gh run list --workflow=deploy.yml --limit=1` → 빌드#N 대기
-- `curl -s https://corthex-hq.com/api/health` 확인
-
-## STEP 5. compact 대비 (빼먹으면 미완성!)
+## STEP 4. compact 대비 (커밋 전에! 빼먹으면 미완성!)
 - `docs/updates/날짜_작업명.md` 작성
 - `docs/project-status.md` 업데이트 (빌드#N 포함)
 - `docs/todo/BACKLOG.md` 갱신
 - `docs/todo/날짜.md` 갱신
+
+## STEP 5. 커밋 & 배포 (코드 + 문서 한번에)
+- E2E QA 전부 통과 후에만 커밋
+- `git commit -m "내용 [완료]"` → push
+- `gh run list --workflow=deploy.yml --limit=1` → 빌드#N 대기
+- `curl -s https://corthex-hq.com/api/health` 확인
 
 ## STEP 6. 보고
 ```
