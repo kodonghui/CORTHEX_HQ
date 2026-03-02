@@ -5881,6 +5881,16 @@ function corthexApp() {
             const val = input.value.trim() || current;
             nodeEl.textContent = val;
             this.flowchart.canvasDirty = true;
+            // Drawflow 내부 상태 업데이트 (export()는 DOM이 아닌 내부 데이터를 읽음)
+            const dfNode = nodeEl.closest('.drawflow-node');
+            if (dfNode) {
+              const nodeId = dfNode.id.replace('node-', '');
+              const nd = this.flowchart.canvasEditor?.drawflow?.drawflow?.Home?.data?.[nodeId];
+              if (nd) {
+                nd.html = nodeEl.outerHTML;
+                if (nd.data) nd.data.label = val;
+              }
+            }
           };
           input.addEventListener('blur', commit, { once: true });
           input.addEventListener('keydown', (ke) => {
