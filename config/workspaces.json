@@ -1,0 +1,84 @@
+{
+  "workspaces": {
+    "ceo": {
+      "label": "CEO 관제",
+      "color": "hq-cyan",
+      "showBuildNumber": true,
+      "officeLayout": [
+        {
+          "section": "COMMAND CENTER",
+          "icon": "⚡",
+          "color": "hq-cyan",
+          "agents": [
+            "chief_of_staff"
+          ]
+        },
+        {
+          "section": "리트마스터 본부",
+          "icon": "📚",
+          "color": "hq-accent",
+          "agents": [
+            "leet_strategist",
+            "leet_legal",
+            "leet_marketer",
+            "leet_publisher"
+          ]
+        },
+        {
+          "section": "사주 본부",
+          "icon": "🐱",
+          "color": "hq-green",
+          "agents": [
+            "saju_executive"
+          ]
+        },
+        {
+          "section": "금융 본부",
+          "icon": "📊",
+          "color": "hq-purple",
+          "agents": [
+            "fin_analyst"
+          ]
+        }
+      ],
+      "sidebarFilter": "ceo",
+      "mentionFilter": "ceo",
+      "orgScope": null,
+      "showBulkModel": true,
+      "showSatisfaction": true
+    },
+    "sister": {
+      "label": "사주냥 관제",
+      "color": "hq-green",
+      "showBuildNumber": false,
+      "officeLayout": [
+        {
+          "section": "사주냥 TEAM",
+          "icon": "🐱",
+          "color": "hq-green",
+          "agents": [
+            "saju_eden",
+            "saju_zoe",
+            "saju_sage"
+          ]
+        }
+      ],
+      "sidebarFilter": "sister",
+      "mentionFilter": "sister",
+      "orgScope": "saju",
+      "showBulkModel": false,
+      "showSatisfaction": false
+    },
+    "viewer": {
+      "label": "로그인 필요",
+      "color": "hq-muted",
+      "showBuildNumber": false,
+      "officeLayout": [],
+      "sidebarFilter": "",
+      "mentionFilter": "",
+      "orgScope": null,
+      "showBulkModel": false,
+      "showSatisfaction": false
+    }
+  }
+}
