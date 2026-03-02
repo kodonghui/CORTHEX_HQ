@@ -275,11 +275,11 @@ async def sse_stream():
     async def event_generator():
         try:
             yield f"event: connected\ndata: {json.dumps({'status': 'ok'})}\n\n"
-            # 최근 Mermaid가 있으면 즉시 전송 (새 브라우저 복원용)
+            # 2분 이내에 그린 것만 복원 (새로고침 직후 복원용, 오래된 건 자동표시 안 함)
             try:
                 from db import load_setting
                 latest = load_setting("sketchvibe:latest_mermaid", None)
-                if latest and latest.get("mermaid"):
+                if latest and latest.get("mermaid") and (time.time() - latest.get("timestamp", 0) < 120):
                     yield f"event: sketchvibe\ndata: {json.dumps(latest, ensure_ascii=False)}\n\n"
             except Exception:
                 pass
