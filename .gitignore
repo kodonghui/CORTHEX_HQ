@@ -20,3 +20,6 @@ output/**/*.wav
 output/**/*.txt
 !output/**/.gitkeep
 _bmad-output/
+
+# SketchVibe 캔버스 파일 — 사용자 생성 데이터, git 추적 제외
+knowledge/flowcharts/*.json
