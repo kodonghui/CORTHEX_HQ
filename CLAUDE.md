@@ -75,16 +75,13 @@
 - **`BACKLOG.md`** ← 미완료 전부. ⬜ 이관-복붙 금지
 - **`YYYY-MM-DD.md`** ← 오늘 완료만 기록. 맥락 필수 (한 줄짜리 금지)
 
-## 🔴 팀 에이전트 & 실서버 검증
-- **팀 에이전트 의무**: 조사+수정+검증 동시 필요 시 → `TeamCreate+Agent` 병렬 투입
-- **실서버 검증 의무** (구현 완료 후 반드시):
-  ```
-  # 헬스체크
-  curl -s https://corthex-hq.com/api/health
-  # 서버 로그 (WebFetch 사용)
-  https://corthex-hq.com/api/debug/server-logs?lines=20&service=corthex
-  ```
-- **"됐겠지" 절대 금지**: 코드만 짜고 확인 없이 완료 보고 금지
+## 🔴 에이전트 파이프라인 & 검증 (구현 완료 후 반드시!)
+- **새 기능**: `corthex-pm` → 요구사항 구체화 → 구현 → `spec-validator` + `claude-md-checker` → 커밋
+- **버그 조사**: `investigator` → 원인 파악 → 수정 → `spec-validator` 검증
+- **완료 전 자가 점검**: `reality-check` → "됐겠지" 절대 금지
+- **실서버 검증 의무**: `curl -s https://corthex-hq.com/api/health` + `WebFetch https://corthex-hq.com/api/debug/server-logs?lines=20&service=corthex`
+- **팀 에이전트**: 조사+수정+검증 동시 필요 시 → `TeamCreate+Agent` 병렬 투입
+- **에이전트 목록**: `.claude/agents/` (investigator/spec-validator/claude-md-checker/corthex-pm/reality-check/log-analyzer/security-reviewer)
 
 ## 🌙 자율 실행 모드 (대표님 부재 시)
 대표님이 자리 없을 때:
