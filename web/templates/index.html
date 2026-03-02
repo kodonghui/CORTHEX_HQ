@@ -7448,7 +7448,7 @@
   <!-- ══════════════════════════════════════════════════ NEXUS 풀스크린 오버레이 ══ -->
   <template x-if="nexusOpen">
     <div class="fixed inset-0 z-50 flex flex-col bg-[#060a14]"
-         @keydown.ctrl.s.prevent.window="nexusOpen && saveMermaidCanvas()">
+         @keydown.ctrl.s.prevent.window="nexusOpen && saveCanvas()">
 
       <!-- 상단 헤더 -->
       <div class="shrink-0 flex items-center gap-3 px-5 py-3 border-b border-white/10 bg-[#0a0f1a]/90 backdrop-blur-md">
@@ -7458,13 +7458,13 @@
         <div class="flex items-center gap-2 ml-2">
           <input x-model="flowchart.canvasName" type="text" placeholder="파일명..."
                  class="bg-white/5 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-white/80 font-mono outline-none focus:border-yellow-500/50 w-36"/>
-          <button @click="saveMermaidCanvas()"
+          <button @click="saveCanvas()"
                   class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-yellow-500/20 text-yellow-400 hover:bg-yellow-500/30 transition"
                   :class="flowchart.canvasDirty ? 'ring-1 ring-yellow-500/40' : ''">
             <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17,21 17,13 7,13 7,21"/><polyline points="7,3 7,8 15,8"/></svg>
             <span x-text="flowchart.canvasDirty ? '저장 *' : '저장'"></span>
           </button>
-          <button @click="clearMermaidCanvas()" class="px-2.5 py-1.5 rounded-lg text-xs bg-white/5 border border-white/10 text-white/40 hover:text-red-400 hover:border-red-400/40 transition">초기화</button>
+          <button @click="clearCanvas()" class="px-2.5 py-1.5 rounded-lg text-xs bg-white/5 border border-white/10 text-white/40 hover:text-red-400 hover:border-red-400/40 transition">초기화</button>
           <button @click="flowchart.sketchVibeOpen = !flowchart.sketchVibeOpen; if (flowchart.sketchVibeOpen) _connectSketchVibeSSE()"
                   :class="flowchart.sketchVibeOpen ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : 'bg-white/5 text-white/40 border-white/10 hover:text-emerald-400 hover:border-emerald-500/30'"
                   class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition ml-2">
@@ -7495,7 +7495,7 @@
             <template x-if="flowchart.canvasLoaded">
               <div class="flex flex-col gap-1.5">
                 <template x-for="n in [{t:'agent',l:'에이전트',c:'#8b5cf6'},{t:'system',l:'시스템',c:'#3b82f6'},{t:'api',l:'외부 API',c:'#059669'},{t:'decide',l:'결정 분기',c:'#f59e0b'},{t:'db',l:'데이터베이스',c:'#0ea5e9'},{t:'start',l:'시작',c:'#22c55e'},{t:'end',l:'종료',c:'#ef4444'},{t:'note',l:'메모',c:'#6b7280'}]" :key="n.t">
-                  <button @click="addMermaidNode(n.t)"
+                  <button @click="addCyNode(n.t)"
                           class="w-full text-left py-1.5 px-2 rounded-lg text-xs font-semibold transition hover:opacity-80 flex items-center gap-2"
                           :style="`background:${n.c}22; border:1px solid ${n.c}44; color:${n.c}`">
                     <span class="w-2 h-2 rounded-full shrink-0" :style="`background:${n.c}`"></span>
@@ -7510,7 +7510,7 @@
           </div>
           <div class="px-3 py-2 border-b border-white/10 flex items-center justify-between">
             <span class="text-xs font-semibold text-white/40 uppercase tracking-wider">저장된 캔버스</span>
-            <button @click="newMermaidCanvas()" class="text-[10px] text-white/30 hover:text-emerald-400 transition px-1.5 py-0.5 rounded hover:bg-emerald-500/10" title="새 캔버스">+ 새 캔버스</button>
+            <button @click="newCanvas()" class="text-[10px] text-white/30 hover:text-emerald-400 transition px-1.5 py-0.5 rounded hover:bg-emerald-500/10" title="새 캔버스">+ 새 캔버스</button>
           </div>
           <div class="flex-1 overflow-y-auto scrollbar-thin py-1">
             <template x-if="flowchart.canvasItems.length === 0 && flowchart.confirmedItems.length === 0">
@@ -7533,73 +7533,68 @@
             <!-- 캔버스 JSON 파일 -->
             <template x-for="item in flowchart.canvasItems" :key="item.name">
               <div class="group flex items-center hover:bg-white/5 transition rounded-r-lg">
-                <button @click="loadMermaidCanvas(item)"
+                <button @click="loadCanvas(item)"
                         class="flex-1 text-left py-1.5 px-3 text-xs text-white/40 hover:text-white/80 transition font-mono truncate"
                         x-text="item.name.replace('.json','')">
                 </button>
-                <button @click.stop="deleteMermaidCanvas(item)"
+                <button @click.stop="deleteCanvas(item)"
                         class="opacity-0 group-hover:opacity-100 w-6 h-6 flex items-center justify-center text-white/30 hover:text-red-400 hover:bg-red-500/10 rounded transition shrink-0 mr-1"
                         title="삭제">&times;</button>
               </div>
             </template>
           </div>
         </div>
-        <!-- Mermaid 네이티브 캔버스 -->
+        <!-- Cytoscape.js 캔버스 -->
         <div class="flex-1 overflow-hidden relative">
           <template x-if="!flowchart.canvasLoaded">
             <div class="absolute inset-0 flex items-center justify-center z-10">
               <div class="flex flex-col items-center gap-3">
                 <div class="w-8 h-8 border-2 border-yellow-500/30 border-t-yellow-400 rounded-full animate-spin"></div>
-                <span class="text-xs text-white/40">Mermaid 엔진 로딩 중...</span>
+                <span class="text-xs text-white/40">캔버스 엔진 로딩 중...</span>
               </div>
             </div>
           </template>
-          <!-- 상태 표시 바 (모드에 따라 내용 변경) -->
+          <!-- 상태 표시 바 -->
           <template x-if="flowchart.canvasLoaded">
             <div class="absolute top-3 left-1/2 -translate-x-1/2 z-10 pointer-events-none">
-              <!-- 연결 모드: 소스 선택 대기 -->
-              <div x-show="flowchart.connectMode && !flowchart.connectSource"
+              <!-- 연결 모드 ON -->
+              <div x-show="flowchart.connectMode"
                    class="bg-purple-500/20 border border-purple-400/40 rounded-lg px-4 py-2 text-xs text-purple-300 backdrop-blur-sm flex items-center gap-2">
                 <span class="w-2 h-2 rounded-full bg-purple-400 animate-pulse"></span>
-                <span>연결 모드 — <b>출발 노드</b>를 클릭하세요</span>
+                <span>연결 모드 — 노드 가장자리를 <b>드래그</b>하여 연결</span>
                 <span class="text-purple-400/40 ml-1">(ESC 취소)</span>
               </div>
-              <!-- 연결 모드: 소스 선택됨 → 타겟 대기 -->
-              <div x-show="flowchart.connectMode && flowchart.connectSource"
-                   class="bg-green-500/20 border border-green-400/40 rounded-lg px-4 py-2 text-xs text-green-300 backdrop-blur-sm flex items-center gap-2">
-                <span class="w-2 h-2 rounded-full bg-green-400 animate-pulse"></span>
-                <span>출발 선택됨 → <b>도착 노드</b>를 클릭하세요</span>
-                <span class="text-green-400/40 ml-1">(ESC 취소)</span>
-              </div>
-              <!-- 선택 모드: 노드 선택됨 -->
+              <!-- 노드 선택됨 -->
               <div x-show="!flowchart.connectMode && flowchart.selectedNodeId"
                    class="bg-violet-500/15 border border-violet-400/30 rounded-lg px-4 py-2 text-xs text-violet-300 backdrop-blur-sm">
-                노드 선택됨 — <b>Delete</b> 삭제 / <b>더블클릭</b> 이름 변경
+                노드 선택됨 — <b>Delete</b> 삭제 / <b>더블클릭</b> 이름 변경 / <b>드래그</b> 이동
               </div>
               <!-- 엣지 선택됨 -->
-              <div x-show="!flowchart.connectMode && flowchart._selectedEdgeIndex != null"
+              <div x-show="!flowchart.connectMode && flowchart.selectedEdgeId"
                    class="bg-red-500/15 border border-red-400/30 rounded-lg px-4 py-2 text-xs text-red-300 backdrop-blur-sm">
-                연결선 선택됨 — <b>Delete</b>로 삭제
+                연결선 선택됨 — <b>Delete</b> 삭제 / <b>더블클릭</b> 라벨 편집
               </div>
-              <!-- 기본 상태 (아무것도 선택 안 됨) -->
-              <div x-show="!flowchart.connectMode && !flowchart.selectedNodeId && flowchart._selectedEdgeIndex == null"
+              <!-- 기본 상태 -->
+              <div x-show="!flowchart.connectMode && !flowchart.selectedNodeId && !flowchart.selectedEdgeId"
                    class="bg-black/40 border border-white/10 rounded-lg px-3 py-1.5 text-[11px] text-white/25 backdrop-blur-sm">
-                클릭=선택 / 더블클릭=이름 변경 / Delete=삭제
+                드래그=이동 / 가장자리 드래그=연결 / 더블클릭=편집 / Delete=삭제
               </div>
             </div>
           </template>
-          <!-- 도구 바: 연결 모드 + 방향 전환 -->
+          <!-- 도구 바 -->
           <div class="absolute top-3 right-4 z-10 flex items-center gap-2">
-            <button @click="flowchart.connectMode = !flowchart.connectMode; flowchart.connectSource = null; if (!flowchart.connectMode) _clearConnectSourceHighlight()"
+            <button @click="toggleConnectMode()"
                     :class="flowchart.connectMode ? 'bg-purple-500/30 border-purple-400/50 text-purple-200 ring-1 ring-purple-400/30' : 'bg-white/5 border-white/10 text-white/40 hover:text-purple-300 hover:border-purple-400/40'"
                     class="px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all">
               <span x-show="!flowchart.connectMode">🔗 연결</span>
               <span x-show="flowchart.connectMode">✕ 취소</span>
             </button>
+            <button @click="_applyAutoLayout(flowchart.mermaidDirection)"
+                    class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-white/5 border border-white/10 text-white/40 hover:text-blue-300 hover:border-blue-400/40 transition"
+                    title="자동 정렬">&#x2630; 정렬</button>
             <div class="flex items-center gap-1">
               <span class="text-[10px] text-white/20">방향</span>
               <select x-model="flowchart.mermaidDirection"
-                      @change="flowchart.mermaidCode = flowchart.mermaidCode.replace(/^flowchart\s+\w+/, 'flowchart ' + flowchart.mermaidDirection); _renderMermaidCanvas(); flowchart.canvasDirty = true"
                       class="bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-xs text-white/60 outline-none cursor-pointer hover:border-white/20 transition">
                 <option value="LR">좌→우</option>
                 <option value="TD">위→아래</option>
@@ -7608,8 +7603,22 @@
               </select>
             </div>
           </div>
-          <div id="nexus-canvas" class="w-full h-full overflow-auto flex items-center justify-center p-8"
-               @keydown.window="if (nexusOpen && !$event.target.matches('input,textarea,select')) { if ($event.key === 'Escape' && flowchart.connectMode) { flowchart.connectMode = false; flowchart.connectSource = null; _clearConnectSourceHighlight(); showToast('연결 모드 취소', 'info'); } else if ($event.key === 'Delete' || $event.key === 'Backspace') { _deleteSelected(); } }"></div>
+          <!-- 빈 캔버스 안내 (Cytoscape 위에 오버레이) -->
+          <div id="nexus-empty-guide" class="absolute inset-0 flex items-center justify-center z-[5] pointer-events-none">
+            <div class="flex flex-col items-center gap-4 text-white/30 max-w-xs">
+              <svg class="w-14 h-14 opacity-20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><rect x="2" y="3" width="7" height="5" rx="1.5"/><rect x="15" y="3" width="7" height="5" rx="1.5"/><rect x="8.5" y="16" width="7" height="5" rx="1.5"/><line x1="5.5" y1="8" x2="5.5" y2="12"/><line x1="18.5" y1="8" x2="18.5" y2="12"/><line x1="5.5" y1="12" x2="12" y2="12"/><line x1="18.5" y1="12" x2="12" y2="12"/><line x1="12" y1="12" x2="12" y2="16"/></svg>
+              <div class="space-y-2.5 text-center">
+                <p class="text-sm font-medium text-white/40">캔버스가 비어있어요</p>
+                <div class="space-y-1.5 text-[11px]">
+                  <p><span class="text-yellow-400/60 font-semibold">1단계</span> &nbsp;← 왼쪽 팔레트에서 노드 클릭</p>
+                  <p><span class="text-purple-400/60 font-semibold">2단계</span> &nbsp;노드 가장자리 드래그로 연결</p>
+                  <p><span class="text-blue-400/60 font-semibold">3단계</span> &nbsp;더블클릭으로 이름 변경</p>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div id="nexus-canvas" class="w-full h-full" style="position:relative;"
+               @keydown.window="if (nexusOpen && !$event.target.matches('input,textarea,select')) { if ($event.key === 'Delete' || $event.key === 'Backspace') { _deleteCySelected(); } }"></div>
           <!-- Mermaid 결과 — 스케치를 교체하여 캔버스에 표시 -->
           <div x-show="flowchart.sketchResult && flowchart.sketchResult.mermaid"
                x-transition:enter="transition ease-out duration-300"

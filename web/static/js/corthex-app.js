@@ -16,8 +16,11 @@ const _CDN = {
   marked:       'https://cdn.jsdelivr.net/npm/marked/marked.min.js',
   chartjs:      'https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js',
   mermaid:      'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js',
+  cytoscape:    'https://cdn.jsdelivr.net/npm/cytoscape@3.30.4/dist/cytoscape.min.js',
+  cyEdgehandles:'https://cdn.jsdelivr.net/npm/cytoscape-edgehandles@4.0.1/cytoscape-edgehandles.js',
+  dagre:        'https://cdn.jsdelivr.net/npm/dagre@0.8.5/dist/dagre.min.js',
+  cyDagre:      'https://cdn.jsdelivr.net/npm/cytoscape-dagre@2.5.0/cytoscape-dagre.js',
   forcegraph3d: 'https://unpkg.com/3d-force-graph@1/dist/3d-force-graph.min.js',
-  // drawflow 제거됨 — Mermaid 네이티브 캔버스로 전환 (2026-03-02)
   html2canvas:  'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js',
 };
 function _loadCSS(url) {
@@ -365,19 +368,20 @@ function corthexApp() {
 
     // ── NEXUS (3D / Canvas) ──
     flowchart: {
-      // ── Mermaid 네이티브 캔버스 (2026-03-02 재구축) ──
+      // ── Cytoscape.js 캔버스 (2026-03-03 Mermaid→Cytoscape 전환) ──
       canvasLoaded: false,
       canvasDirty: false,
       canvasName: '',
       savedCanvasName: '',        // 서버에 실제 저장된 이름 (rename 감지용)
       canvasItems: [],
       confirmedItems: [],         // 확인된 다이어그램 (맞아 누른 것)
-      mermaidCode: 'flowchart LR\n',  // SSOT — Mermaid 코드가 유일한 진실
+      // SSOT: window._nexusCy (Cytoscape 인스턴스) — Alpine 반응 프록시 밖에서 관리
       mermaidDirection: 'LR',     // 'LR' | 'TD' | 'RL' | 'BT'
-      selectedNodeId: null,       // SVG 클릭으로 선택된 노드 Mermaid ID
-      connectMode: false,         // 연결 모드 활성화
-      connectSource: null,        // 연결 소스 노드 ID
+      selectedNodeId: null,       // 클릭으로 선택된 노드 ID
+      selectedEdgeId: null,       // 클릭으로 선택된 엣지 ID
+      connectMode: false,         // edgehandles 활성화 여부
       nodeCounter: 0,             // 고유 노드 ID 생성기 (n1, n2, ...)
+      edgeCounter: 0,             // 고유 엣지 ID 생성기 (e1, e2, ...)
       // ── 스케치바이브 (MCP 양방향) ──
       sketchVibeOpen: false,
       sketchResult: null,         // {mermaid, description}
@@ -5036,15 +5040,14 @@ function corthexApp() {
         // Esc → 모달 닫기
         if (e.key === 'Escape') {
           if (this.nexusOpen) {
-            // 연결 모드 ON → 연결 모드만 취소 (오버레이 유지)
+            // edgehandles 연결 모드 ON → 비활성화만 (오버레이 유지)
             if (this.flowchart.connectMode) {
-              this.flowchart.connectMode = false;
-              this.flowchart.connectSource = null;
-              this._clearConnectSourceHighlight();
+              this.toggleConnectMode();
               this.showToast('연결 모드 취소', 'info');
               return;
             }
             this.nexusOpen = false;
+            if (window._nexusCy) { window._nexusCy.destroy(); window._nexusCy = null; }
             this._disconnectSketchVibeSSE();
             return;
           }
@@ -5309,7 +5312,7 @@ function corthexApp() {
       // x-if로 DOM이 파괴/재생성되므로 열 때마다 캔버스 재초기화
       this.flowchart.canvasLoaded = false;
       setTimeout(async () => {
-        await this.initMermaidCanvas();
+        await this.initCytoscapeCanvas();
         await this.loadCanvasList();
         // SSE 자동 연결 (캔버스에서 Mermaid 실시간 수신)
         this._connectSketchVibeSSE();
@@ -5796,233 +5799,197 @@ function corthexApp() {
       }
     },
 
-    // ── NEXUS: Mermaid 네이티브 캔버스 초기화 (2026-03-02 재구축) ──
-    async initMermaidCanvas() {
+    // ── NEXUS: Cytoscape.js 캔버스 초기화 (2026-03-03 Mermaid→Cytoscape 전환) ──
+    async initCytoscapeCanvas() {
       try {
-        await _loadScript(_CDN.mermaid);
-        mermaid.initialize({
-          startOnLoad: false,
-          theme: 'dark',
-          flowchart: { useMaxWidth: false, htmlLabels: true, curve: 'basis' },
-          themeVariables: {
-            primaryColor: '#1e1e1e', primaryTextColor: '#f5f5f5',
-            primaryBorderColor: '#fbbf24', lineColor: '#737373',
-            secondaryColor: '#181818', tertiaryColor: '#141414',
-            background: 'transparent', mainBkg: '#1e1e1e',
-            fontFamily: 'Pretendard, sans-serif', fontSize: '13px'
-          }
+        await Promise.all([_loadScript(_CDN.cytoscape), _loadScript(_CDN.dagre)]);
+        await Promise.all([_loadScript(_CDN.cyEdgehandles), _loadScript(_CDN.cyDagre)]);
+        // 확장 등록 (중복 방지)
+        if (!window._cyExtRegistered) {
+          cytoscape.use(cytoscapeDagre);
+          cytoscape.use(cytoscapeEdgehandles);
+          window._cyExtRegistered = true;
+        }
+        const container = document.getElementById('nexus-canvas');
+        if (!container) return;
+        // 기존 인스턴스 정리
+        if (window._nexusCy) { window._nexusCy.destroy(); window._nexusCy = null; }
+        window._nexusCy = cytoscape({
+          container,
+          style: this._getCytoscapeStyles(),
+          elements: [],
+          layout: { name: 'preset' },
+          minZoom: 0.3, maxZoom: 3, wheelSensitivity: 0.3,
+          boxSelectionEnabled: true,
+          selectionType: 'single',
         });
+        this._setupCytoscapeEvents();
+        this._setupEdgeHandles();
         this.flowchart.canvasLoaded = true;
-        await this.$nextTick();
-        await this._renderMermaidCanvas();
+        this._showEmptyGuide();
       } catch (e) {
-        this.showToast('Mermaid 캔버스 오류: ' + e.message, 'error');
-        console.error('initMermaidCanvas:', e);
+        this.showToast('캔버스 엔진 오류: ' + e.message, 'error');
+        console.error('initCytoscapeCanvas:', e);
       }
     },
 
-    // ── Mermaid 코드 → SVG 렌더링 + 인터랙션 바인딩 ──
-    async _renderMermaidCanvas() {
-      const el = document.getElementById('nexus-canvas');
-      if (!el || !window.mermaid) return;
-      const code = this.flowchart.mermaidCode.trim();
-      const dir = this.flowchart.mermaidDirection || 'LR';
-      if (!code || code === `flowchart ${dir}`) {
-        el.innerHTML = `<div class="flex flex-col items-center gap-4 text-white/30 max-w-xs">
-          <svg class="w-14 h-14 opacity-20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><rect x="2" y="3" width="7" height="5" rx="1.5"/><rect x="15" y="3" width="7" height="5" rx="1.5"/><rect x="8.5" y="16" width="7" height="5" rx="1.5"/><line x1="5.5" y1="8" x2="5.5" y2="12"/><line x1="18.5" y1="8" x2="18.5" y2="12"/><line x1="5.5" y1="12" x2="12" y2="12"/><line x1="18.5" y1="12" x2="12" y2="12"/><line x1="12" y1="12" x2="12" y2="16"/></svg>
-          <div class="space-y-2.5 text-center">
-            <p class="text-sm font-medium text-white/40">캔버스가 비어있어요</p>
-            <div class="space-y-1.5 text-[11px]">
-              <p><span class="text-yellow-400/60 font-semibold">1단계</span> &nbsp;← 왼쪽 팔레트에서 노드 클릭</p>
-              <p><span class="text-purple-400/60 font-semibold">2단계</span> &nbsp;우측 상단 "연결" → 노드 두 개 클릭</p>
-              <p><span class="text-blue-400/60 font-semibold">3단계</span> &nbsp;더블클릭으로 이름 변경</p>
-            </div>
-          </div>
-        </div>`;
+    // ── 빈 캔버스 안내 오버레이 ──
+    _showEmptyGuide() {
+      const cy = window._nexusCy;
+      if (!cy || cy.nodes().length > 0) {
+        const g = document.getElementById('nexus-empty-guide');
+        if (g) g.style.display = 'none';
         return;
       }
-      try {
-        const svgId = 'nexus-' + Date.now();
-        const { svg } = await mermaid.render(svgId, code);
-        el.innerHTML = svg;
-        const svgEl = el.querySelector('svg');
-        if (svgEl) {
-          svgEl.style.background = 'transparent';
-          svgEl.style.maxWidth = '100%';
-          svgEl.style.height = 'auto';
-        }
-        this._bindSvgInteractions(el);
-      } catch (e) {
-        el.innerHTML = `<div class="p-6 text-center">
-          <pre class="text-red-400/80 text-xs mb-3 whitespace-pre-wrap">${e.message}</pre>
-          <pre class="text-white/20 text-[10px] whitespace-pre-wrap max-h-32 overflow-auto">${code}</pre>
-        </div>`;
-      }
+      const g = document.getElementById('nexus-empty-guide');
+      if (g) g.style.display = '';
     },
 
-    // ── SVG 인터랙션 바인딩 (클릭 선택, 더블클릭 편집) ──
-    _bindSvgInteractions(container) {
-      const svgEl = container.querySelector('svg');
-      if (!svgEl) return;
-      // SVG 필터 정의 (선택 glow + 호버 glow)
-      const defs = svgEl.querySelector('defs') || svgEl.insertBefore(document.createElementNS('http://www.w3.org/2000/svg','defs'), svgEl.firstChild);
-      if (!defs.querySelector('#nexus-glow')) {
-        defs.innerHTML += `<filter id="nexus-glow"><feDropShadow dx="0" dy="0" stdDeviation="4" flood-color="#a78bfa" flood-opacity="0.7"/></filter>`;
-      }
-      if (!defs.querySelector('#nexus-hover')) {
-        defs.innerHTML += `<filter id="nexus-hover"><feDropShadow dx="0" dy="0" stdDeviation="2.5" flood-color="#fbbf24" flood-opacity="0.4"/></filter>`;
-      }
-      // 연결 모드이면 커서 crosshair
-      if (this.flowchart.connectMode) {
-        svgEl.style.cursor = 'crosshair';
-      }
-      // 모든 .node 그룹에 클릭 + 호버 이벤트
-      svgEl.querySelectorAll('.node').forEach(nodeEl => {
-        const nodeId = this._extractMermaidNodeId(nodeEl);
-        if (!nodeId) return;
-        nodeEl.style.cursor = this.flowchart.connectMode ? 'crosshair' : 'pointer';
-        // 호버 효과
-        nodeEl.addEventListener('mouseenter', () => {
-          if (nodeEl.classList.contains('selected') || nodeEl.classList.contains('connect-source')) return;
-          const shape = nodeEl.querySelector('rect,circle,polygon,.label-container');
-          if (shape) shape.setAttribute('filter', 'url(#nexus-hover)');
-        });
-        nodeEl.addEventListener('mouseleave', () => {
-          if (nodeEl.classList.contains('selected') || nodeEl.classList.contains('connect-source')) return;
-          const shape = nodeEl.querySelector('rect,circle,polygon,.label-container');
-          if (shape) shape.removeAttribute('filter');
-        });
-        nodeEl.addEventListener('click', (e) => {
-          e.stopPropagation();
-          if (this.flowchart.connectMode) {
-            this._handleConnectClick(nodeId);
-          } else {
-            this._selectNode(nodeId, svgEl);
-          }
-        });
-        nodeEl.addEventListener('dblclick', (e) => {
-          e.stopPropagation();
-          this._editNodeLabel(nodeId);
-        });
-      });
-      // 엣지 클릭 — 연결 줄 인덱스 추적 (Delete 삭제용)
-      const edgeEls = svgEl.querySelectorAll('.edgePath');
-      edgeEls.forEach((edgeEl, idx) => {
-        edgeEl.style.cursor = 'pointer';
-        edgeEl.addEventListener('click', (e) => {
-          e.stopPropagation();
-          this._deselectAll(svgEl);
-          edgeEl.classList.add('selected');
-          const path = edgeEl.querySelector('path');
-          if (path) path.setAttribute('stroke', '#ef4444');
-          this.flowchart.selectedNodeId = null;
-          this.flowchart._selectedEdgeIndex = idx;
-        });
-      });
-      // 빈 공간 클릭: 선택 해제 + 연결 모드 취소
-      svgEl.addEventListener('click', (e) => {
-        if (e.target === svgEl || e.target.tagName === 'rect') {
-          if (this.flowchart.connectMode && this.flowchart.connectSource) {
-            this._clearConnectSourceHighlight();
-            this.flowchart.connectSource = null;
-            this.showToast('연결 취소됨. 다시 출발 노드를 클릭하세요.', 'info');
-          } else {
-            this._deselectAll(svgEl);
-          }
-        }
-      });
-    },
-
-    // ── Mermaid SVG에서 노드 ID 추출 ──
-    _extractMermaidNodeId(nodeEl) {
-      // Mermaid v11: .node의 id 속성이 "flowchart-nodeId-N" 형태
-      const id = nodeEl.id || '';
-      const m = id.match(/flowchart-(.+?)-\d+$/);
-      if (m) return m[1];
-      // 폴백: id 자체가 nodeId인 경우
-      if (id && !id.includes(' ')) return id;
-      return null;
-    },
-
-    // ── Mermaid 코드에서 노드의 표시 라벨 추출 ──
-    _getNodeLabel(nodeId) {
-      const code = this.flowchart.mermaidCode;
-      const patterns = [
-        /\[\/(.+?)\\]/,  /\[\[(.+?)\]\]/, /\[\((.+?)\)\]/, /\(\[(.+?)\]\)/,
-        /\(\((.+?)\)\)/, /\{(.+?)\}/,     />(.+?)\]/,      /\[([^\]]+?)\]/
+    // ── Cytoscape 노드/엣지 시각 스타일 (8종 + 엣지 + 선택 + edgehandles) ──
+    _getCytoscapeStyles() {
+      return [
+        { selector: 'node', style: {
+          'label': 'data(label)', 'text-valign': 'center', 'text-halign': 'center',
+          'font-family': 'Pretendard, sans-serif', 'font-size': '13px',
+          'color': '#f5f5f5', 'text-wrap': 'wrap', 'text-max-width': '120px',
+          'border-width': 2, 'border-opacity': 0.8, 'width': 140, 'height': 50,
+        }},
+        { selector: 'node[nodeType="agent"]', style: {
+          'shape': 'round-rectangle', 'background-color': '#312e81', 'border-color': '#8b5cf6',
+        }},
+        { selector: 'node[nodeType="system"]', style: {
+          'shape': 'round-rectangle', 'background-color': '#1e3a5f', 'border-color': '#3b82f6', 'border-width': 4,
+        }},
+        { selector: 'node[nodeType="api"]', style: {
+          'shape': 'diamond', 'background-color': '#1a3320', 'border-color': '#059669', 'width': 130, 'height': 80,
+        }},
+        { selector: 'node[nodeType="decide"]', style: {
+          'shape': 'diamond', 'background-color': '#451a03', 'border-color': '#f59e0b', 'width': 130, 'height': 80,
+        }},
+        { selector: 'node[nodeType="db"]', style: {
+          'shape': 'barrel', 'background-color': '#1e1b4b', 'border-color': '#0ea5e9',
+        }},
+        { selector: 'node[nodeType="start"]', style: {
+          'shape': 'ellipse', 'background-color': '#052e16', 'border-color': '#22c55e', 'width': 90, 'height': 50,
+        }},
+        { selector: 'node[nodeType="end"]', style: {
+          'shape': 'ellipse', 'background-color': '#350a0a', 'border-color': '#ef4444', 'width': 90, 'height': 50,
+        }},
+        { selector: 'node[nodeType="note"]', style: {
+          'shape': 'round-rectangle', 'background-color': '#1a1a1a', 'border-color': '#6b7280', 'border-style': 'dashed',
+        }},
+        { selector: 'node:selected', style: {
+          'border-color': '#a78bfa', 'border-width': 3,
+          'overlay-color': '#a78bfa', 'overlay-opacity': 0.15,
+        }},
+        { selector: 'edge', style: {
+          'width': 2, 'line-color': '#525252', 'target-arrow-color': '#525252',
+          'target-arrow-shape': 'triangle', 'curve-style': 'bezier',
+          'label': 'data(label)', 'font-size': '11px', 'color': '#a3a3a3',
+          'font-family': 'Pretendard, sans-serif',
+          'text-background-color': '#0a0f1a', 'text-background-opacity': 0.85,
+          'text-background-padding': '4px', 'text-background-shape': 'roundrectangle',
+        }},
+        { selector: 'edge:selected', style: {
+          'line-color': '#ef4444', 'target-arrow-color': '#ef4444', 'width': 3,
+        }},
+        // edgehandles 핸들 + 프리뷰
+        { selector: '.eh-handle', style: {
+          'background-color': '#a78bfa', 'width': 12, 'height': 12,
+          'shape': 'ellipse', 'overlay-opacity': 0, 'border-width': 2, 'border-color': '#7c3aed',
+        }},
+        { selector: '.eh-hover', style: { 'background-color': '#7c3aed' }},
+        { selector: '.eh-source', style: { 'border-color': '#22c55e', 'border-width': 3 }},
+        { selector: '.eh-target', style: { 'border-color': '#f59e0b', 'border-width': 3 }},
+        { selector: '.eh-preview, .eh-ghost-edge', style: {
+          'line-color': '#a78bfa', 'target-arrow-color': '#a78bfa', 'line-style': 'dashed', 'opacity': 0.7,
+        }},
       ];
-      for (const p of patterns) {
-        const re = new RegExp(`${nodeId}${p.source}`);
-        const m = re.exec(code);
-        if (m) return m[1];
-      }
-      return nodeId;
     },
 
-    // ── 노드 선택 하이라이트 ──
-    _selectNode(nodeId, svgEl) {
-      this._deselectAll(svgEl);
-      this.flowchart.selectedNodeId = nodeId;
-      // 해당 노드에 glow 필터 적용
-      svgEl.querySelectorAll('.node').forEach(n => {
-        const nid = this._extractMermaidNodeId(n);
-        if (nid === nodeId) {
-          n.classList.add('selected');
-          const shape = n.querySelector('rect,circle,polygon,.label-container');
-          if (shape) shape.setAttribute('filter', 'url(#nexus-glow)');
+    // ── Cytoscape 이벤트 바인딩 ──
+    _setupCytoscapeEvents() {
+      const cy = window._nexusCy;
+      if (!cy) return;
+      // 노드 드래그 → dirty
+      cy.on('dragfree', 'node', () => { this.flowchart.canvasDirty = true; });
+      // 노드 선택
+      cy.on('select', 'node', (e) => {
+        this.flowchart.selectedNodeId = e.target.id();
+        this.flowchart.selectedEdgeId = null;
+      });
+      cy.on('unselect', 'node', () => {
+        if (cy.$('node:selected').length === 0) this.flowchart.selectedNodeId = null;
+      });
+      // 노드 더블클릭 → 이름 편집
+      cy.on('dbltap', 'node', (e) => { this._editCyNodeLabel(e.target.id()); });
+      // 엣지 선택
+      cy.on('select', 'edge', (e) => {
+        this.flowchart.selectedEdgeId = e.target.id();
+        this.flowchart.selectedNodeId = null;
+      });
+      cy.on('unselect', 'edge', () => {
+        if (cy.$('edge:selected').length === 0) this.flowchart.selectedEdgeId = null;
+      });
+      // 엣지 더블클릭 → 라벨 편집
+      cy.on('dbltap', 'edge', (e) => {
+        const edge = e.target;
+        const newLabel = prompt('화살표 설명:', edge.data('label') || '');
+        if (newLabel !== null) { edge.data('label', newLabel); this.flowchart.canvasDirty = true; }
+      });
+      // 빈 공간 클릭 → 선택 해제
+      cy.on('tap', (e) => {
+        if (e.target === cy) {
+          cy.elements().unselect();
+          this.flowchart.selectedNodeId = null;
+          this.flowchart.selectedEdgeId = null;
         }
       });
+      // 노드 추가/삭제 시 빈 캔버스 가이드 업데이트
+      cy.on('add remove', () => { this._showEmptyGuide(); });
     },
 
-    // ── 연결 모드: 소스 노드에 특별 하이라이트 ──
-    _highlightConnectSource(nodeId) {
-      const el = document.getElementById('nexus-canvas');
-      if (!el) return;
-      const svgEl = el.querySelector('svg');
-      if (!svgEl) return;
-      // 초록색 glow 필터 추가
-      const defs = svgEl.querySelector('defs');
-      if (defs && !defs.querySelector('#nexus-connect-glow')) {
-        defs.innerHTML += `<filter id="nexus-connect-glow"><feDropShadow dx="0" dy="0" stdDeviation="5" flood-color="#22c55e" flood-opacity="0.8"/></filter>`;
+    // ── edgehandles 초기화 (드래그로 화살표 생성) ──
+    _setupEdgeHandles() {
+      const cy = window._nexusCy;
+      if (!cy) return;
+      window._nexusEh = cy.edgehandles({
+        canConnect: (src, tgt) => src !== tgt && !src.edgesWith(tgt).length,
+        edgeParams: (src, tgt) => ({
+          data: { id: `e${++this.flowchart.edgeCounter}`, source: src.id(), target: tgt.id(), label: '' }
+        }),
+        hoverDelay: 150,
+        snap: true,
+        snapThreshold: 50,
+        snapFrequency: 15,
+        noEdgeEventsInDraw: true,
+        disableBrowserGestures: true,
+      });
+      // 연결 완료 시 라벨 입력
+      cy.on('ehcomplete', (event, src, tgt, edge) => {
+        const label = prompt('화살표 설명 (비워두면 라벨 없음):');
+        if (label) edge.data('label', label);
+        this.flowchart.canvasDirty = true;
+        const srcL = src.data('label') || src.id();
+        const tgtL = tgt.data('label') || tgt.id();
+        this.showToast(`"${srcL}" → "${tgtL}" 연결됨`, 'success');
+      });
+      // 기본: edgehandles 활성화 (항상 핸들 표시)
+      window._nexusEh.enableDrawMode();
+      this.flowchart.connectMode = true;
+    },
+
+    // ── edgehandles 토글 ──
+    toggleConnectMode() {
+      const eh = window._nexusEh;
+      if (!eh) return;
+      if (this.flowchart.connectMode) {
+        eh.disableDrawMode(); eh.disable();
+        this.flowchart.connectMode = false;
+      } else {
+        eh.enable(); eh.enableDrawMode();
+        this.flowchart.connectMode = true;
       }
-      svgEl.querySelectorAll('.node').forEach(n => {
-        const nid = this._extractMermaidNodeId(n);
-        if (nid === nodeId) {
-          n.classList.add('connect-source');
-          const shape = n.querySelector('rect,circle,polygon,.label-container');
-          if (shape) shape.setAttribute('filter', 'url(#nexus-connect-glow)');
-        }
-      });
-    },
-
-    // ── 연결 소스 하이라이트 제거 ──
-    _clearConnectSourceHighlight() {
-      const el = document.getElementById('nexus-canvas');
-      if (!el) return;
-      const svgEl = el.querySelector('svg');
-      if (!svgEl) return;
-      svgEl.querySelectorAll('.node.connect-source').forEach(n => {
-        n.classList.remove('connect-source');
-        const shape = n.querySelector('rect,circle,polygon,.label-container');
-        if (shape) shape.removeAttribute('filter');
-      });
-    },
-
-    _deselectAll(svgEl) {
-      this.flowchart.selectedNodeId = null;
-      this.flowchart.connectSource = null;
-      this.flowchart._selectedEdgeIndex = null;
-      if (!svgEl) return;
-      svgEl.querySelectorAll('.node.selected').forEach(n => {
-        n.classList.remove('selected');
-        const shape = n.querySelector('rect,circle,polygon,.label-container');
-        if (shape) shape.removeAttribute('filter');
-      });
-      svgEl.querySelectorAll('.edgePath.selected').forEach(ep => {
-        ep.classList.remove('selected');
-        const path = ep.querySelector('path');
-        if (path) path.removeAttribute('stroke');
-      });
     },
 
     // ── NEXUS 캔버스: 파일 목록 + 확인된 다이어그램 ──
@@ -6043,152 +6010,200 @@ function corthexApp() {
       } catch(e) { console.error('loadConfirmedList:', e); }
     },
 
-    // ── 확인된 다이어그램 불러오기 (Mermaid 네이티브) ──
+    // ── 확인된 다이어그램 불러오기 ──
     async loadConfirmedDiagram(item) {
       try {
         const r = await fetch(`/api/sketchvibe/confirmed/${item.safe_name}`);
         if (!r.ok) throw new Error('불러오기 실패');
         const data = await r.json();
         if (data.mermaid) {
-          this.flowchart.mermaidCode = data.mermaid;
+          this._loadMermaidIntoCytoscape(data.mermaid);
           this.flowchart.canvasDirty = false;
-          await this._renderMermaidCanvas();
           this.showToast(`"${item.name}" 다이어그램 로드`, 'success');
         }
       } catch(e) { this.showToast('불러오기 실패: ' + e.message, 'error'); }
     },
 
-    // ── NEXUS: 팔레트에서 Mermaid 노드 추가 ──
-    addMermaidNode(type) {
-      const shapes = {
-        agent:  { tpl: (id,l) => `  ${id}[${l}]`,        label: '에이전트' },
-        system: { tpl: (id,l) => `  ${id}[[${l}]]`,      label: '시스템' },
-        api:    { tpl: (id,l) => `  ${id}[/${l}\\]`,      label: '외부 API' },
-        decide: { tpl: (id,l) => `  ${id}{${l}}`,         label: '결정 분기' },
-        db:     { tpl: (id,l) => `  ${id}[(${l})]`,       label: '데이터베이스' },
-        start:  { tpl: (id,l) => `  ${id}([${l}])`,       label: '시작' },
-        end:    { tpl: (id,l) => `  ${id}((${l}))`,       label: '종료' },
-        note:   { tpl: (id,l) => `  ${id}>${l}]`,         label: '메모' },
+    // ── NEXUS: 팔레트에서 노드 추가 (Cytoscape) ──
+    addCyNode(type) {
+      const cy = window._nexusCy;
+      if (!cy) return;
+      const labels = {
+        agent: '에이전트', system: '시스템', api: '외부 API', decide: '결정 분기',
+        db: '데이터베이스', start: '시작', end: '종료', note: '메모',
       };
-      const s = shapes[type];
-      if (!s) return;
+      const label = labels[type] || type;
       this.flowchart.nodeCounter++;
       const id = `n${this.flowchart.nodeCounter}`;
-      const line = s.tpl(id, s.label);
-      this.flowchart.mermaidCode += '\n' + line;
+      // 뷰포트 중앙 + 랜덤 오프셋
+      const center = cy.extent();
+      const cx = (center.x1 + center.x2) / 2 + (Math.random() - 0.5) * 100;
+      const cy2 = (center.y1 + center.y2) / 2 + (Math.random() - 0.5) * 80;
+      cy.add({ group: 'nodes', data: { id, label, nodeType: type }, position: { x: cx, y: cy2 } });
+      cy.getElementById(id).select();
       this.flowchart.canvasDirty = true;
-      this._renderMermaidCanvas();
-      this.showToast(`"${s.label}" 노드 추가됨`, 'success');
-    },
-
-    // ── NEXUS: 연결 모드 클릭 핸들러 ──
-    _handleConnectClick(nodeId) {
-      if (!this.flowchart.connectSource) {
-        this.flowchart.connectSource = nodeId;
-        this._highlightConnectSource(nodeId);
-        const label = this._getNodeLabel(nodeId);
-        this.showToast(`"${label}" 선택됨 → 도착 노드를 클릭하세요`, 'info');
-      } else {
-        const src = this.flowchart.connectSource;
-        if (src === nodeId) {
-          this.showToast('같은 노드는 연결할 수 없어요', 'error');
-          this._clearConnectSourceHighlight();
-          this.flowchart.connectSource = null;
-          return;
-        }
-        const srcLabel = this._getNodeLabel(src);
-        const tgtLabel = this._getNodeLabel(nodeId);
-        const label = prompt('화살표 설명 (비워두면 라벨 없음):');
-        const arrow = label ? `  ${src} -->|${label}| ${nodeId}` : `  ${src} --> ${nodeId}`;
-        this.flowchart.mermaidCode += '\n' + arrow;
-        this.flowchart.canvasDirty = true;
-        this._clearConnectSourceHighlight();
-        this.flowchart.connectSource = null;
-        this.flowchart.connectMode = false;
-        this._renderMermaidCanvas();
-        this.showToast(`"${srcLabel}" → "${tgtLabel}" 연결됨`, 'success');
-      }
+      this.showToast(`"${label}" 노드 추가됨`, 'success');
     },
 
     // ── NEXUS: 노드 이름 편집 (더블클릭) ──
-    _editNodeLabel(nodeId) {
-      const code = this.flowchart.mermaidCode;
-      // 모든 Mermaid 도형 패턴에서 해당 nodeId의 라벨 찾기
-      const patterns = [
-        { re: new RegExp(`(${nodeId})\\[\\((.+?)\\)\\]`),   wrap: (id,l) => `${id}[(${l})]` },
-        { re: new RegExp(`(${nodeId})\\(\\((.+?)\\)\\)`),   wrap: (id,l) => `${id}((${l}))` },
-        { re: new RegExp(`(${nodeId})\\(\\[(.+?)\\]\\)`),   wrap: (id,l) => `${id}([${l}])` },
-        { re: new RegExp(`(${nodeId})\\{(.+?)\\}`),         wrap: (id,l) => `${id}{${l}}` },
-        { re: new RegExp(`(${nodeId})>(.+?)\\]`),           wrap: (id,l) => `${id}>${l}]` },
-        { re: new RegExp(`(${nodeId})\\[\\[(.+?)\\]\\]`),   wrap: (id,l) => `${id}[[${l}]]` },
-        { re: new RegExp(`(${nodeId})\\[/(.+?)\\\\\\]`),    wrap: (id,l) => `${id}[/${l}\\]` },
-        { re: new RegExp(`(${nodeId})\\[([^\\]]+?)\\]`),    wrap: (id,l) => `${id}[${l}]` },
-      ];
-      let currentLabel = '';
-      let matchedPattern = null;
-      for (const p of patterns) {
-        const m = p.re.exec(code);
-        if (m) { currentLabel = m[2]; matchedPattern = p; break; }
-      }
-      if (!matchedPattern) return;
+    _editCyNodeLabel(nodeId) {
+      const cy = window._nexusCy;
+      if (!cy) return;
+      const node = cy.getElementById(nodeId);
+      if (!node || node.empty()) return;
+      const currentLabel = node.data('label') || '';
       const newLabel = prompt('노드 이름:', currentLabel);
       if (!newLabel || newLabel === currentLabel) return;
-      // 코드 내 해당 노드의 라벨 전부 교체
-      this.flowchart.mermaidCode = code.replace(matchedPattern.re, matchedPattern.wrap(nodeId, newLabel));
+      node.data('label', newLabel);
       this.flowchart.canvasDirty = true;
-      this._renderMermaidCanvas();
     },
 
     // ── NEXUS: 선택된 노드/엣지 삭제 (Delete 키) ──
-    _deleteSelected() {
-      if (this.flowchart.selectedNodeId) {
-        const id = this.flowchart.selectedNodeId;
-        const label = this._getNodeLabel(id);
-        const lines = this.flowchart.mermaidCode.split('\n');
-        const filtered = lines.filter(line => {
-          const t = line.trim();
-          if (!t || /^(flowchart|graph|subgraph|end|%%|classDef|linkStyle|style\s)/.test(t)) return true;
-          if (new RegExp(`^${id}[\\[\\(\\{\\>]`).test(t)) return false;
-          if (new RegExp(`^${id}$`).test(t)) return false;
-          if (t.includes('-->') || t.includes('---')) {
-            const m = t.match(/^\s*(\S+?)\s*--/);
-            const m2 = t.match(/--[->]+\s*(?:\|[^|]*\|)?\s*(\S+)/);
-            const srcId = m ? m[1].replace(/[\[\]\(\)\{\}>\/\\|]/g, '').trim() : '';
-            const tgtId = m2 ? m2[1].replace(/[\[\]\(\)\{\}>\/\\|]/g, '').trim() : '';
-            if (srcId === id || tgtId === id) return false;
-          }
-          return true;
-        });
-        this.flowchart.mermaidCode = filtered.join('\n');
-        this.flowchart.selectedNodeId = null;
-        this.flowchart.canvasDirty = true;
-        this._renderMermaidCanvas();
+    _deleteCySelected() {
+      const cy = window._nexusCy;
+      if (!cy) return;
+      const selected = cy.$(':selected');
+      if (selected.empty()) return;
+      // 노드 삭제 시 연결된 엣지도 같이 삭제
+      const nodes = selected.filter('node');
+      const edges = selected.filter('edge');
+      if (nodes.length > 0) {
+        const label = nodes.first().data('label') || nodes.first().id();
+        // 노드에 연결된 모든 엣지 수집
+        const connEdges = nodes.connectedEdges();
+        nodes.remove();
+        connEdges.remove();
         this.showToast(`"${label}" 삭제됨`, 'success');
-        return;
-      }
-      // 엣지 삭제 (selectedEdgeIndex 기반)
-      if (typeof this.flowchart._selectedEdgeIndex === 'number') {
-        const lines = this.flowchart.mermaidCode.split('\n');
-        let edgeCount = 0;
-        const targetIdx = this.flowchart._selectedEdgeIndex;
-        const filtered = lines.filter(line => {
-          const t = line.trim();
-          if (t.includes('-->') || t.includes('---')) {
-            if (edgeCount === targetIdx) { edgeCount++; return false; }
-            edgeCount++;
-          }
-          return true;
-        });
-        this.flowchart.mermaidCode = filtered.join('\n');
-        this.flowchart._selectedEdgeIndex = null;
-        this.flowchart.canvasDirty = true;
-        this._renderMermaidCanvas();
+      } else if (edges.length > 0) {
+        edges.remove();
         this.showToast('연결선 삭제됨', 'success');
       }
+      this.flowchart.selectedNodeId = null;
+      this.flowchart.selectedEdgeId = null;
+      this.flowchart.canvasDirty = true;
     },
 
-    // ── NEXUS: 저장 (Mermaid 코드 직접) ──
-    async saveMermaidCanvas() {
+    // ── Cytoscape → Mermaid 코드 변환 (저장/MCP용) ──
+    cytoscapeToMermaid() {
+      const cy = window._nexusCy;
+      if (!cy) return `flowchart ${this.flowchart.mermaidDirection || 'LR'}\n`;
+      const dir = this.flowchart.mermaidDirection || 'LR';
+      const shapeMap = {
+        agent:  (id, l) => `  ${id}[${l}]`,
+        system: (id, l) => `  ${id}[[${l}]]`,
+        api:    (id, l) => `  ${id}[/${l}\\]`,
+        decide: (id, l) => `  ${id}{${l}}`,
+        db:     (id, l) => `  ${id}[(${l})]`,
+        start:  (id, l) => `  ${id}([${l}])`,
+        end:    (id, l) => `  ${id}((${l}))`,
+        note:   (id, l) => `  ${id}>${l}]`,
+      };
+      let code = `flowchart ${dir}\n`;
+      cy.nodes().forEach(n => {
+        const id = n.id();
+        const label = n.data('label') || id;
+        const type = n.data('nodeType') || 'agent';
+        const fn = shapeMap[type] || shapeMap.agent;
+        code += fn(id, label) + '\n';
+      });
+      cy.edges().forEach(e => {
+        const label = e.data('label');
+        code += label
+          ? `  ${e.source().id()} -->|${label}| ${e.target().id()}\n`
+          : `  ${e.source().id()} --> ${e.target().id()}\n`;
+      });
+      return code;
+    },
+
+    // ── Mermaid 코드 → Cytoscape elements 변환 (Claude 수신용) ──
+    mermaidToCytoscape(mermaidCode) {
+      const lines = (mermaidCode || '').split('\n');
+      const nodes = [];
+      const edges = [];
+      const dirMatch = lines[0]?.match(/(?:flowchart|graph)\s+(LR|TD|RL|BT|TB)/i);
+      const direction = dirMatch ? dirMatch[1].replace('TB', 'TD') : 'LR';
+      const nodePatterns = [
+        { re: /^\s*(\w+)\[\((.+?)\)\]/, type: 'db' },
+        { re: /^\s*(\w+)\(\((.+?)\)\)/, type: 'end' },
+        { re: /^\s*(\w+)\(\[(.+?)\]\)/, type: 'start' },
+        { re: /^\s*(\w+)\{(.+?)\}/, type: 'decide' },
+        { re: /^\s*(\w+)>(.+?)\]/, type: 'note' },
+        { re: /^\s*(\w+)\[\[(.+?)\]\]/, type: 'system' },
+        { re: /^\s*(\w+)\[\/(.+?)\\]/, type: 'api' },
+        { re: /^\s*(\w+)\[([^\]]+?)\]/, type: 'agent' },
+      ];
+      // 인라인 노드 정의 (n1[라벨], n1[[라벨]] 등) 뒤의 --> 도 매칭
+      const edgePattern = /^\s*(\w+)(?:\[{1,2}[^\]]*\]{1,2}|\([^)]*\)|\{[^}]*\}|>[^\]]*\]|[/][^\]]*[\\])*\s*-->(?:\|([^|]*)\|)?\s*(\w+)/;
+      const seen = new Set();
+      let eIdx = 0;
+      for (const line of lines) {
+        const em = edgePattern.exec(line);
+        if (em) {
+          edges.push({ data: { id: `e${++eIdx}`, source: em[1], target: em[3], label: em[2] || '' } });
+          if (!seen.has(em[1])) { seen.add(em[1]); nodes.push({ data: { id: em[1], label: em[1], nodeType: 'agent' } }); }
+          if (!seen.has(em[3])) { seen.add(em[3]); nodes.push({ data: { id: em[3], label: em[3], nodeType: 'agent' } }); }
+        }
+        for (const p of nodePatterns) {
+          const nm = p.re.exec(line);
+          if (nm) {
+            const id = nm[1];
+            if (seen.has(id)) {
+              const ex = nodes.find(n => n.data.id === id);
+              if (ex) { ex.data.label = nm[2]; ex.data.nodeType = p.type; }
+            } else {
+              seen.add(id);
+              nodes.push({ data: { id, label: nm[2], nodeType: p.type } });
+            }
+            break;
+          }
+        }
+      }
+      return { nodes, edges, direction, edgeCount: eIdx };
+    },
+
+    // ── Mermaid 코드를 Cytoscape에 로드 (공통 헬퍼) ──
+    _loadMermaidIntoCytoscape(mermaidCode) {
+      const cy = window._nexusCy;
+      if (!cy) return;
+      const { nodes, edges, direction, edgeCount } = this.mermaidToCytoscape(mermaidCode);
+      cy.elements().remove();
+      cy.add([...nodes, ...edges]);
+      this.flowchart.mermaidDirection = direction;
+      this.flowchart.edgeCounter = edgeCount;
+      this._restoreNodeCounter();
+      // dagre 자동 레이아웃 (위치 정보 없으므로)
+      this._applyAutoLayout(direction);
+    },
+
+    // ── dagre 자동 레이아웃 ──
+    _applyAutoLayout(direction) {
+      const cy = window._nexusCy;
+      if (!cy || cy.nodes().length === 0) return;
+      const dir = (direction || this.flowchart.mermaidDirection || 'LR');
+      const rankDir = dir === 'TD' || dir === 'TB' ? 'TB' : dir === 'BT' ? 'BT' : dir === 'RL' ? 'RL' : 'LR';
+      cy.layout({
+        name: 'dagre',
+        rankDir: rankDir,
+        nodeSep: 60, rankSep: 80, edgeSep: 30,
+        animate: true, animationDuration: 300,
+      }).run();
+    },
+
+    // ── nodeCounter 복원 (기존 elements에서 최대 nN 추출) ──
+    _restoreNodeCounter() {
+      const cy = window._nexusCy;
+      if (!cy) return;
+      let max = 0;
+      cy.nodes().forEach(n => {
+        const m = n.id().match(/^n(\d+)$/);
+        if (m) max = Math.max(max, parseInt(m[1]));
+      });
+      this.flowchart.nodeCounter = max;
+    },
+
+    // ── NEXUS: 저장 (Cytoscape → JSON + Mermaid 캐시) ──
+    async saveCanvas() {
+      const cy = window._nexusCy;
       const prevName = (this.flowchart.savedCanvasName || '').trim();
       let name = (this.flowchart.canvasName || '').trim();
       if (!name) {
@@ -6199,11 +6214,21 @@ function corthexApp() {
       }
       const filename = name.endsWith('.json') ? name : name + '.json';
       try {
+        const mermaidCache = this.cytoscapeToMermaid();
+        const nodesData = [];
+        if (cy) cy.nodes().forEach(n => {
+          nodesData.push({ id: n.id(), label: n.data('label'), nodeType: n.data('nodeType'), x: Math.round(n.position('x')), y: Math.round(n.position('y')) });
+        });
+        const edgesData = [];
+        if (cy) cy.edges().forEach(e => {
+          edgesData.push({ id: e.id(), source: e.source().id(), target: e.target().id(), label: e.data('label') || '' });
+        });
         const payload = {
-          mermaid: this.flowchart.mermaidCode,
+          version: 2,
+          cytoscape: { nodes: nodesData, edges: edgesData },
           direction: this.flowchart.mermaidDirection,
-          name: name,
-          updated: new Date().toISOString()
+          name, updated: new Date().toISOString(),
+          mermaid: mermaidCache,
         };
         const r = await fetch('/api/knowledge', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -6218,7 +6243,7 @@ function corthexApp() {
         // MCP read_canvas용 SQLite 갱신
         fetch('/api/sketchvibe/save-canvas', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ mermaid_code: this.flowchart.mermaidCode, direction: this.flowchart.mermaidDirection, filename: name })
+          body: JSON.stringify({ mermaid_code: mermaidCache, direction: this.flowchart.mermaidDirection, filename: name })
         }).catch(() => {});
         this.flowchart.canvasDirty = false;
         this.showToast('캔버스 저장됨', 'success');
@@ -6226,52 +6251,64 @@ function corthexApp() {
       } catch (e) { this.showToast('저장 실패: ' + e.message, 'error'); }
     },
 
-    // ── NEXUS: 불러오기 ──
-    async loadMermaidCanvas(item) {
+    // ── NEXUS: 불러오기 (v2 Cytoscape / v1 Mermaid / Drawflow 자동 감지) ──
+    async loadCanvas(item) {
+      const cy = window._nexusCy;
+      if (!cy) return;
       try {
         const r = await fetch(`/api/knowledge/${item.folder}/${item.name}`);
         if (!r.ok) throw new Error('불러오기 실패');
         const data = await r.json();
         const parsed = JSON.parse(data.content || '{}');
-        // 신규 포맷 (Mermaid)
-        if (parsed.mermaid) {
-          this.flowchart.mermaidCode = parsed.mermaid;
+        // v2 Cytoscape 포맷
+        if (parsed.version === 2 && parsed.cytoscape) {
+          cy.elements().remove();
+          const { nodes, edges } = parsed.cytoscape;
+          const cyNodes = nodes.map(n => ({ group: 'nodes', data: { id: n.id, label: n.label, nodeType: n.nodeType }, position: { x: n.x || 0, y: n.y || 0 } }));
+          const cyEdges = edges.map(e => ({ group: 'edges', data: { id: e.id, source: e.source, target: e.target, label: e.label || '' } }));
+          cy.add([...cyNodes, ...cyEdges]);
           this.flowchart.mermaidDirection = parsed.direction || 'LR';
+          this._restoreNodeCounter();
+          // edgeCounter 복원
+          let maxE = 0;
+          cy.edges().forEach(e => { const m = e.id().match(/^e(\d+)$/); if (m) maxE = Math.max(maxE, parseInt(m[1])); });
+          this.flowchart.edgeCounter = maxE;
         }
-        // 레거시 포맷 (Drawflow JSON) → 자동 마이그레이션
+        // v1 Mermaid 포맷 → 변환
+        else if (parsed.mermaid) {
+          this._loadMermaidIntoCytoscape(parsed.mermaid);
+          if (parsed.direction) this.flowchart.mermaidDirection = parsed.direction;
+        }
+        // 레거시 Drawflow → 변환
         else if (parsed.drawflow) {
-          this.flowchart.mermaidCode = this._migrateDrawflowToMermaid(parsed);
+          const mermaid = this._migrateLegacyDrawflow(parsed);
+          this._loadMermaidIntoCytoscape(mermaid);
         }
-        // 알 수 없는 포맷 → 빈 캔버스
+        // 알 수 없는 포맷
         else {
-          const dir = this.flowchart.mermaidDirection || 'LR';
-          this.flowchart.mermaidCode = `flowchart ${dir}\n`;
+          cy.elements().remove();
         }
-        // nodeCounter 복원 (기존 코드에서 가장 큰 nN 추출)
-        const ids = this.flowchart.mermaidCode.match(/\bn(\d+)/g) || [];
-        this.flowchart.nodeCounter = Math.max(0, ...ids.map(x => parseInt(x.slice(1))));
         this.flowchart.canvasName = item.name.replace('.json', '');
         this.flowchart.savedCanvasName = this.flowchart.canvasName;
         this.flowchart.canvasDirty = false;
-        await this._renderMermaidCanvas();
         // MCP용 SQLite 갱신
+        const mermaidCache = this.cytoscapeToMermaid();
         fetch('/api/sketchvibe/save-canvas', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ mermaid_code: this.flowchart.mermaidCode, direction: this.flowchart.mermaidDirection, filename: this.flowchart.canvasName || '' })
+          body: JSON.stringify({ mermaid_code: mermaidCache, direction: this.flowchart.mermaidDirection, filename: this.flowchart.canvasName || '' })
         }).catch(() => {});
         this.showToast(`"${item.name}" 불러옴`, 'success');
       } catch (e) { this.showToast('불러오기 실패: ' + e.message, 'error'); }
     },
 
-    // ── 레거시 Drawflow JSON → Mermaid 코드 자동 변환 ──
-    _migrateDrawflowToMermaid(data) {
+    // ── 레거시 Drawflow JSON → Mermaid 코드 변환 ──
+    _migrateLegacyDrawflow(data) {
       const nodes = data?.drawflow?.Home?.data || {};
       if (Object.keys(nodes).length === 0) return 'flowchart LR\n';
       const positions = Object.values(nodes).map(n => ({ x: n.pos_x, y: n.pos_y }));
       const xSpread = Math.max(...positions.map(p => p.x)) - Math.min(...positions.map(p => p.x));
       const ySpread = Math.max(...positions.map(p => p.y)) - Math.min(...positions.map(p => p.y));
       const dir = xSpread > ySpread * 1.3 ? 'LR' : 'TD';
-      this.flowchart.mermaidDirection = dir;
       const shapes = {
         start: (id, l) => `  ${id}([${l}])`, end: (id, l) => `  ${id}((${l}))`,
         decide: (id, l) => `  ${id}{${l}}`, agent: (id, l) => `  ${id}[${l}]`,
@@ -6300,8 +6337,8 @@ function corthexApp() {
       return lines.join('\n');
     },
 
-    // ── NEXUS: 삭제 ──
-    async deleteMermaidCanvas(item) {
+    // ── NEXUS: 캔버스 삭제 ──
+    async deleteCanvas(item) {
       if (!confirm(`"${item.name.replace('.json','')}" 캔버스를 삭제하시겠습니까?`)) return;
       try {
         const r = await fetch(`/api/knowledge/flowcharts/${encodeURIComponent(item.name)}`, { method: 'DELETE' });
@@ -6312,36 +6349,37 @@ function corthexApp() {
     },
 
     // ── NEXUS: 초기화 ──
-    clearMermaidCanvas() {
-      const dir = this.flowchart.mermaidDirection || 'LR';
-      this.flowchart.mermaidCode = `flowchart ${dir}\n`;
+    clearCanvas() {
+      const cy = window._nexusCy;
+      if (cy) cy.elements().remove();
       this.flowchart.canvasDirty = false;
       this.flowchart.canvasName = '';
       this.flowchart.savedCanvasName = '';
       this.flowchart.nodeCounter = 0;
+      this.flowchart.edgeCounter = 0;
       this.flowchart.selectedNodeId = null;
-      this.flowchart.connectMode = false;
-      this.flowchart.connectSource = null;
-      this._renderMermaidCanvas();
+      this.flowchart.selectedEdgeId = null;
     },
 
     // ── NEXUS: 새 캔버스 (서버에 즉시 생성) ──
-    async newMermaidCanvas() {
+    async newCanvas() {
+      const cy = window._nexusCy;
       const existingNames = this.flowchart.canvasItems.map(i => i.name.replace('.json', ''));
       let n = 1;
       while (existingNames.includes(`새 캔버스 ${n}`)) n++;
       const name = `새 캔버스 ${n}`;
-      const dir = this.flowchart.mermaidDirection || 'LR';
-      this.flowchart.mermaidCode = `flowchart ${dir}\n`;
+      if (cy) cy.elements().remove();
       this.flowchart.canvasName = name;
       this.flowchart.savedCanvasName = '';
       this.flowchart.canvasDirty = false;
       this.flowchart.nodeCounter = 0;
+      this.flowchart.edgeCounter = 0;
       this.flowchart.sketchResult = null;
       this.flowchart.sketchConfirmed = null;
       this.flowchart.sketchError = null;
       try {
-        const payload = { mermaid: this.flowchart.mermaidCode, direction: dir, name, updated: new Date().toISOString() };
+        const dir = this.flowchart.mermaidDirection || 'LR';
+        const payload = { version: 2, cytoscape: { nodes: [], edges: [] }, direction: dir, mermaid: `flowchart ${dir}\n`, name, updated: new Date().toISOString() };
         const r = await fetch('/api/knowledge', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ folder: 'flowcharts', filename: name + '.json', content: JSON.stringify(payload, null, 2) })
@@ -6349,7 +6387,6 @@ function corthexApp() {
         if (!r.ok) throw new Error(`서버 오류 (${r.status})`);
         this.flowchart.savedCanvasName = name;
         await this.loadCanvasList();
-        this._renderMermaidCanvas();
         this.showToast(`"${name}" 생성됨`, 'success');
       } catch(e) { this.showToast('생성 실패: ' + e.message, 'error'); }
     },
@@ -6366,16 +6403,14 @@ function corthexApp() {
         this._sketchVibeSSE.addEventListener('sketchvibe', async (e) => {
           const data = JSON.parse(e.data);
           if (data.type === 'canvas_update') {
-            // Claude Code가 Mermaid 코드를 보냄 → 캔버스에 바로 렌더링 (변환 0번!)
+            // Claude Code가 Mermaid 코드를 보냄 → Cytoscape에 변환 후 렌더링
             this.flowchart.sketchResult = { mermaid: data.mermaid, description: data.description };
             this.flowchart.sketchError = null;
             this.flowchart.sketchConfirmed = null;
             this.flowchart.approvalRequest = null;
-            // 메인 캔버스에 즉시 렌더링
-            this.flowchart.mermaidCode = data.mermaid;
+            // Mermaid → Cytoscape 변환 후 캔버스에 로드
+            this._loadMermaidIntoCytoscape(data.mermaid);
             this.flowchart.canvasDirty = true;
-            await this.$nextTick();
-            await this._renderMermaidCanvas();
           } else if (data.type === 'approval_request') {
             this.flowchart.approvalRequest = data.message;
           } else if (data.type === 'approved') {
@@ -6394,13 +6429,12 @@ function corthexApp() {
       if (this._sketchVibeSSE) { this._sketchVibeSSE.close(); this._sketchVibeSSE = null; }
     },
 
-    // ── "맞아" → Mermaid 코드 그대로 유지 (변환 0번!) ──
+    // ── "맞아" → Mermaid 코드를 Cytoscape에 적용 ──
     applySketchToCanvas() {
       const r = this.flowchart.sketchResult;
       if (r && r.mermaid) {
-        this.flowchart.mermaidCode = r.mermaid;
+        this._loadMermaidIntoCytoscape(r.mermaid);
         this.flowchart.canvasDirty = true;
-        this._renderMermaidCanvas();
         this.showToast('캔버스에 적용됨', 'success');
       }
       this.flowchart.sketchResult = null;
@@ -6417,7 +6451,7 @@ function corthexApp() {
       this.flowchart.sketchError = null;
       this.flowchart.sketchConfirmed = null;
       this.flowchart.approvalRequest = null;
-      this.clearMermaidCanvas();
+      this.clearCanvas();
     },
 
     async deleteConfirmedDiagram(item) {
