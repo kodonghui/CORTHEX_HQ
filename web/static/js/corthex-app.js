@@ -377,6 +377,7 @@ function corthexApp() {
       canvasName: '',
       canvasItems: [],
       confirmedItems: [],  // 확인된 다이어그램 (맞아 누른 것)
+      connectionLabels: {},  // 화살표 라벨: "key" → "텍스트"
       showCanvasNameModal: false,
       // ── 스케치바이브 (Phase 3 — MCP 양방향) ──
       sketchVibeOpen: false,
@@ -5801,12 +5802,22 @@ function corthexApp() {
         editor.reroute = true;
         editor.reroute_fix_curvature = true;
         editor.start();
-        // 변경 감지
+        // 변경 감지 + 화살표 라벨 재렌더
         ['nodeCreated','connectionCreated','nodeRemoved','connectionRemoved','nodeMoved'].forEach(ev => {
-          editor.on(ev, () => { this.flowchart.canvasDirty = true; });
+          editor.on(ev, () => {
+            this.flowchart.canvasDirty = true;
+            // 연결 변경 시 라벨 재렌더 (노드 이동 시 경로 좌표 변경)
+            setTimeout(() => this._renderConnectionLabels(), 50);
+          });
         });
-        // 더블클릭 노드 이름 편집
+        // 더블클릭: 화살표 라벨 편집 OR 노드 이름 편집
         el.addEventListener('dblclick', (e) => {
+          // 1) 화살표(connection path) 더블클릭 → 라벨 편집
+          if (e.target.classList.contains('main-path')) {
+            const connDiv = e.target.closest('.connection');
+            if (connDiv) { e.stopPropagation(); e.preventDefault(); this._editConnectionLabel(connDiv); return; }
+          }
+          // 2) 노드 더블클릭 → 이름 편집
           const nodeEl = e.target.closest('.nexus-node');
           if (!nodeEl) return;
           const current = nodeEl.textContent.trim();
@@ -5871,6 +5882,85 @@ function corthexApp() {
       } catch(e) { this.showToast('불러오기 실패: ' + e.message, 'error'); }
     },
 
+    // ── NEXUS 화살표 라벨: 연결 키 생성 ──
+    _getConnKey(connDiv) {
+      const cls = Array.from(connDiv.classList);
+      const out = cls.find(c => c.startsWith('node_out_')) || '';
+      const inp = cls.find(c => c.startsWith('node_in_')) || '';
+      const outPort = cls.find(c => c.startsWith('output_')) || '';
+      const inPort = cls.find(c => c.startsWith('input_')) || '';
+      return `${out}__${outPort}__${inp}__${inPort}`;
+    },
+
+    // ── NEXUS 화살표 라벨: 인라인 편집 ──
+    _editConnectionLabel(connDiv) {
+      const key = this._getConnKey(connDiv);
+      if (!key || key === '____') return;
+      const current = this.flowchart.connectionLabels[key] || '';
+      const pathEl = connDiv.querySelector('path.main-path');
+      if (!pathEl) return;
+      const drawflowEl = document.querySelector('#nexus-canvas .drawflow');
+      if (!drawflowEl) return;
+
+      // 기존 편집 인풋 제거
+      drawflowEl.querySelectorAll('.conn-label-input').forEach(el => el.remove());
+
+      try {
+        const mid = pathEl.getPointAtLength(pathEl.getTotalLength() / 2);
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.value = current;
+        input.placeholder = '화살표 설명...';
+        input.className = 'conn-label-input';
+        input.style.cssText = `position:absolute;z-index:1000;left:${mid.x}px;top:${mid.y}px;transform:translate(-50%,-50%);width:130px;padding:4px 8px;background:rgba(10,15,26,0.97);color:#e2e8f0;border:1px solid #6366f1;border-radius:6px;font-size:11px;text-align:center;outline:none;font-family:Pretendard,sans-serif;pointer-events:all;box-shadow:0 0 0 3px rgba(99,102,241,0.2)`;
+        drawflowEl.appendChild(input);
+        input.focus(); input.select();
+        const commit = () => {
+          const val = input.value.trim();
+          if (val) this.flowchart.connectionLabels[key] = val;
+          else delete this.flowchart.connectionLabels[key];
+          input.remove();
+          this._renderConnectionLabels();
+          this.flowchart.canvasDirty = true;
+        };
+        input.addEventListener('blur', commit, { once: true });
+        input.addEventListener('keydown', (ke) => {
+          if (ke.key === 'Enter') { ke.preventDefault(); input.blur(); }
+          if (ke.key === 'Escape') { input.value = current; input.blur(); }
+        });
+      } catch(e) { console.warn('연결 라벨 편집 오류:', e); }
+    },
+
+    // ── NEXUS 화살표 라벨: 캔버스에 렌더링 ──
+    _renderConnectionLabels() {
+      const drawflowEl = document.querySelector('#nexus-canvas .drawflow');
+      if (!drawflowEl) return;
+      // 기존 라벨 제거 (편집 인풋은 유지)
+      drawflowEl.querySelectorAll('.conn-label-overlay').forEach(el => el.remove());
+      for (const [key, label] of Object.entries(this.flowchart.connectionLabels)) {
+        if (!label) continue;
+        const parts = key.split('__');
+        if (parts.length < 4) continue;
+        const [out, outPort, inp, inPort] = parts;
+        const canvasEl = document.getElementById('nexus-canvas');
+        // CSS class 선택자에서 특수문자 이스케이프
+        const esc = s => s.replace(/[:\-]/g, '\\$&');
+        try {
+          const connDiv = canvasEl.querySelector(`.connection.${esc(out)}.${esc(inp)}.${esc(outPort)}.${esc(inPort)}`);
+          if (!connDiv) continue;
+          const pathEl = connDiv.querySelector('path.main-path');
+          if (!pathEl) continue;
+          const mid = pathEl.getPointAtLength(pathEl.getTotalLength() / 2);
+          const labelEl = document.createElement('div');
+          labelEl.className = 'conn-label-overlay';
+          labelEl.textContent = label;
+          labelEl.title = '더블클릭으로 수정';
+          labelEl.style.cssText = `position:absolute;z-index:50;pointer-events:none;left:${mid.x}px;top:${mid.y}px;transform:translate(-50%,-50%);background:rgba(10,15,26,0.9);color:#a5b4fc;border:1px solid rgba(99,102,241,0.5);border-radius:4px;padding:2px 7px;font-size:10px;font-family:Pretendard,sans-serif;white-space:nowrap;max-width:130px;overflow:hidden;text-overflow:ellipsis`;
+          drawflowEl.appendChild(labelEl);
+        } catch(e) { /* 선택자 오류 무시 */ }
+      }
+    },
+
     // ── NEXUS 캔버스: 팔레트 노드 추가 ──
     addCanvasNode(type) {
       const editor = this.flowchart.canvasEditor;
@@ -5904,6 +5994,10 @@ function corthexApp() {
       const filename = name.endsWith('.json') ? name : name + '.json';
       try {
         const data = this.flowchart.canvasEditor.export();
+        // 화살표 라벨도 함께 저장
+        if (Object.keys(this.flowchart.connectionLabels).length > 0) {
+          data._connectionLabels = { ...this.flowchart.connectionLabels };
+        }
         const r = await fetch('/api/knowledge', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ folder: 'flowcharts', filename, content: JSON.stringify(data, null, 2) })
@@ -5923,9 +6017,15 @@ function corthexApp() {
         if (!r.ok) throw new Error('불러오기 실패');
         const data = await r.json();
         const parsed = JSON.parse(data.content || '{}');
-        this.flowchart.canvasEditor.import(parsed);
+        // 화살표 라벨 복원
+        this.flowchart.connectionLabels = parsed._connectionLabels || {};
+        // Drawflow 임포트 시 커스텀 필드 제외
+        const drawflowData = { ...parsed }; delete drawflowData._connectionLabels;
+        this.flowchart.canvasEditor.import(drawflowData);
         this.flowchart.canvasName = item.name.replace('.json', '');
         this.flowchart.canvasDirty = false;
+        // 화살표 라벨 재렌더
+        setTimeout(() => this._renderConnectionLabels(), 100);
         this.showToast(`"${item.name}" 불러왔습니다`, 'success');
       } catch (e) { this.showToast('불러오기 실패: ' + e.message, 'error'); }
     },
@@ -5952,6 +6052,7 @@ function corthexApp() {
         this.flowchart.canvasDirty = false;
       }
       this.flowchart.canvasName = name;
+      this.flowchart.connectionLabels = {};
       this.flowchart.sketchResult = null;
       this.flowchart.sketchConfirmed = null;
       this.flowchart.sketchError = null;
@@ -5996,7 +6097,8 @@ function corthexApp() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             canvas_json: canvasJson,
-            description: this.flowchart.sketchDescription
+            description: this.flowchart.sketchDescription,
+            connection_labels: this.flowchart.connectionLabels
           })
         });
 

@@ -43,6 +43,7 @@ _MERMAID_SHAPES = {
 class SaveCanvasRequest(BaseModel):
     canvas_json: dict
     description: str = ""
+    connection_labels: dict = {}
 
 
 class SaveDiagramRequest(BaseModel):
@@ -173,7 +174,10 @@ def _parse_drawflow(canvas: dict) -> str:
             if src_type == "decide" and c["from_port"]:
                 port_num = c["from_port"].replace("output_", "")
                 port_info = f" [분기 {port_num}]"
-            lines.append(f'  "{src_l}" → "{tgt_l}"{port_info}')
+            # 화살표 라벨 (connection_labels에서 매칭)
+            edge_label = c.get("label", "")
+            label_info = f' "{edge_label}"' if edge_label else ""
+            lines.append(f'  "{src_l}" →{label_info}→ "{tgt_l}"{port_info}')
     else:
         lines.append("\n연결: 없음")
 
@@ -184,6 +188,29 @@ def _parse_drawflow(canvas: dict) -> str:
             lines.append(f'  그룹 {i + 1}: [{", ".join(labels)}]')
 
     return "\n".join(lines)
+
+
+# ── 화살표 라벨 주입 (connection_labels → connections에 label 필드 추가) ──
+
+def _inject_edge_labels(canvas: dict, connection_labels: dict) -> dict:
+    """connection_labels 맵을 canvas 연결 데이터에 주입 (parse용)."""
+    import copy, re as _re
+    canvas = copy.deepcopy(canvas)
+    data = canvas.get("drawflow", {}).get("Home", {}).get("data", {})
+    for nid, node in data.items():
+        for port_key, port in node.get("outputs", {}).items():
+            for conn in port.get("connections", []):
+                target = str(conn.get("node", ""))
+                # key 패턴: node_out_node-{nid}__output_{n}__node_in_node-{target}__input_{m}
+                out_cls = f"node_out_node-{nid}"
+                inp_cls = f"node_in_node-{target}"
+                out_port = port_key  # e.g. "output_1"
+                # input port: find matching connection on target node
+                in_port = conn.get("input", "input_1")
+                key = f"{out_cls}__{out_port}__{inp_cls}__{in_port}"
+                if key in connection_labels:
+                    conn["label"] = connection_labels[key]
+    return canvas
 
 
 # ── SSE 브로드캐스트 헬퍼 ──
@@ -208,11 +235,16 @@ async def save_canvas(req: SaveCanvasRequest):
     """캔버스 JSON을 SQLite에 저장. Claude Code에서 read_canvas로 읽기."""
     try:
         from db import save_setting
+        # connection_labels를 연결 데이터에 주입해서 파싱 시 라벨 포함
+        canvas_with_labels = req.canvas_json
+        if req.connection_labels:
+            canvas_with_labels = _inject_edge_labels(req.canvas_json, req.connection_labels)
         save_setting("sketchvibe:current_canvas", {
             "canvas_json": req.canvas_json,
+            "connection_labels": req.connection_labels,
             "description": req.description,
             "saved_at": time.time(),
-            "parsed": _parse_drawflow(req.canvas_json),
+            "parsed": _parse_drawflow(canvas_with_labels),
         })
         return {
             "status": "saved",
