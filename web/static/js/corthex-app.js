@@ -5063,8 +5063,9 @@ function corthexApp() {
           });
           setTimeout(() => this.scrollToBottom(), 300);
         }
-        // Shift → NEXUS 연결 모드 토글
-        if (e.key === 'Shift' && this.nexusOpen && !e.repeat) {
+        // Space → NEXUS 연결 모드 토글
+        if (e.key === ' ' && this.nexusOpen && !e.repeat && !e.target.closest('input, textarea, [contenteditable]')) {
+          e.preventDefault();
           this.toggleConnectMode();
           return;
         }
@@ -6050,7 +6051,7 @@ function corthexApp() {
       this.flowchart.connectMode = false;
     },
 
-    // ── 연결 모드 토글 (Shift 또는 버튼) ──
+    // ── 연결 모드 토글 (스페이스바 또는 버튼) ──
     toggleConnectMode() {
       const cy = window._nexusCy;
       if (!cy) return;
@@ -6069,7 +6070,7 @@ function corthexApp() {
         if (selected.length > 0) {
           this.showToast(`연결 모드 ON — ${selected.length}개 선택됨 → 대상 노드 클릭`, 'info');
         } else {
-          this.showToast('연결 모드 ON (Shift로 해제)', 'info');
+          this.showToast('연결 모드 ON (스페이스바로 해제)', 'info');
         }
       }
     },
