@@ -3479,7 +3479,8 @@ function corthexApp() {
         const res = await fetch(`/api/knowledge${org ? '?org=' + org : ''}`);
         if (res.ok) {
           const data = await res.json();
-          this.knowledge.files = data.entries || data || [];
+          const all = data.entries || data || [];
+          this.knowledge.files = all.filter(f => f.folder !== 'flowcharts');
         }
       } catch { this.showToast('지식 파일 목록을 불러올 수 없습니다.', 'error'); }
       finally { this.knowledge.loading = false; }
@@ -6145,6 +6146,7 @@ function corthexApp() {
           body: JSON.stringify({ folder: 'flowcharts', filename: name + '.json', content: JSON.stringify(emptyData, null, 2) })
         });
         if (!r.ok) throw new Error(`서버 오류 (${r.status})`);
+        this.flowchart.savedCanvasName = name;  // 서버에 실제 생성됐으므로 추적 시작
         await this.loadCanvasList();
         this.showToast(`"${name}" 생성됨`, 'success');
       } catch(e) { this.showToast('생성 실패: ' + e.message, 'error'); }
