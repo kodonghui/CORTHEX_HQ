@@ -5803,19 +5803,22 @@ function corthexApp() {
     // ── NEXUS: Cytoscape.js 캔버스 초기화 (2026-03-03 Mermaid→Cytoscape 전환) ──
     async initCytoscapeCanvas() {
       try {
-        // lodash 먼저 (edgehandles 의존), 그 다음 cytoscape+dagre, 그 다음 확장
-        await _loadScript(_CDN.lodash);
-        await Promise.all([_loadScript(_CDN.cytoscape), _loadScript(_CDN.dagre)]);
-        await Promise.all([_loadScript(_CDN.cyEdgehandles), _loadScript(_CDN.cyDagre)]);
-        // 확장 등록 (중복 방지) — CDN 로드 시 자동 등록되지만 안전장치
+        // 1단계: 핵심 라이브러리 (cytoscape + dagre + lodash)
+        await Promise.all([
+          _loadScript(_CDN.cytoscape),
+          _loadScript(_CDN.dagre),
+          _loadScript(_CDN.lodash),
+        ]);
+        // 2단계: 확장 (cytoscape-dagre는 필수, edgehandles는 선택)
+        await _loadScript(_CDN.cyDagre);
+        // dagre 확장 등록
         if (!window._cyExtRegistered) {
           if (typeof cytoscapeDagre !== 'undefined') cytoscape.use(cytoscapeDagre);
-          if (typeof cytoscapeEdgehandles !== 'undefined') cytoscape.use(cytoscapeEdgehandles);
           window._cyExtRegistered = true;
         }
+        // 3단계: Cytoscape 인스턴스 생성 (edgehandles 전에 먼저!)
         const container = document.getElementById('nexus-canvas');
         if (!container) return;
-        // 기존 인스턴스 정리
         if (window._nexusCy) { window._nexusCy.destroy(); window._nexusCy = null; }
         window._nexusCy = cytoscape({
           container,
@@ -5827,12 +5830,25 @@ function corthexApp() {
           selectionType: 'single',
         });
         this._setupCytoscapeEvents();
-        this._setupEdgeHandles();
         this.flowchart.canvasLoaded = true;
         this._showEmptyGuide();
+        // 4단계: edgehandles (실패해도 캔버스는 동작)
+        try {
+          await _loadScript(_CDN.cyEdgehandles);
+          if (typeof cytoscapeEdgehandles !== 'undefined' && !window._cyEhRegistered) {
+            cytoscape.use(cytoscapeEdgehandles);
+            window._cyEhRegistered = true;
+          }
+          this._setupEdgeHandles();
+        } catch (ehErr) {
+          console.warn('edgehandles 로드 실패 (드래그 연결 비활성화):', ehErr);
+        }
       } catch (e) {
         this.showToast('캔버스 엔진 오류: ' + e.message, 'error');
         console.error('initCytoscapeCanvas:', e);
+        // 에러 시 화면에 표시
+        const el = document.getElementById('nexus-canvas');
+        if (el) el.innerHTML = `<div class="flex items-center justify-center h-full"><pre class="text-red-400 text-xs p-4">${e.message}\n${e.stack||''}</pre></div>`;
       }
     },
 
