@@ -5795,6 +5795,26 @@ function corthexApp() {
     async initNexusCanvas() {
       try {
         await Promise.all([_loadScript(_CDN.drawflow), _loadCSS(_CDN.drawflowcss)]);
+        // Drawflow 기본 스타일 오버라이드 (시안색 배경 제거)
+        if (!document.getElementById('nexus-drawflow-override')) {
+          const overrideStyle = document.createElement('style');
+          overrideStyle.id = 'nexus-drawflow-override';
+          overrideStyle.textContent = `
+            #nexus-canvas .drawflow-node .drawflow_content_node {
+              background: transparent !important;
+              border: none !important;
+              padding: 0 !important;
+            }
+            #nexus-canvas .drawflow-node {
+              background: transparent !important;
+            }
+            #nexus-canvas .drawflow .connection .main-path {
+              stroke: rgba(255,255,255,0.2);
+              stroke-width: 2px;
+            }
+          `;
+          document.head.appendChild(overrideStyle);
+        }
         await this.$nextTick();
         const el = document.getElementById('nexus-canvas');
         if (!el || typeof Drawflow === 'undefined') throw new Error('캔버스 초기화 실패');
@@ -5999,7 +6019,8 @@ function corthexApp() {
     // ── NEXUS 캔버스: 저장 ──
     async saveNexusCanvas() {
       if (!this.flowchart.canvasEditor) return;
-      let name = (this.flowchart.canvasName || '').trim();
+      const prevName = (this.flowchart.canvasName || '').trim();
+      let name = prevName;
       if (!name) {
         const input = prompt('캔버스 이름을 입력하세요:');
         if (!input || !input.trim()) return;
@@ -6018,11 +6039,16 @@ function corthexApp() {
           body: JSON.stringify({ folder: 'flowcharts', filename, content: JSON.stringify(data, null, 2) })
         });
         if (!r.ok) throw new Error('저장 실패');
+        // 파일명 변경 시 이전 파일 삭제
+        if (prevName && prevName !== name) {
+          const prevFile = prevName.endsWith('.json') ? prevName : prevName + '.json';
+          fetch(`/api/knowledge/flowcharts/${prevFile}`, { method: 'DELETE' }).catch(() => {});
+        }
         // Claude Code read_canvas용 SQLite current_canvas 업데이트 (순수 Drawflow 데이터만)
         const rawData = this.flowchart.canvasEditor.export();
         fetch('/api/sketchvibe/save-canvas', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ canvas_json: rawData, connection_labels: { ...this.flowchart.connectionLabels } })
+          body: JSON.stringify({ canvas_json: rawData, connection_labels: { ...this.flowchart.connectionLabels }, filename: this.flowchart.canvasName || '' })
         }).catch(() => {});
         this.flowchart.canvasDirty = false;
         this.showToast('캔버스 저장됐습니다', 'success');
@@ -6047,6 +6073,12 @@ function corthexApp() {
         this.flowchart.canvasDirty = false;
         // 화살표 라벨 재렌더
         setTimeout(() => this._renderConnectionLabels(), 100);
+        // Claude Code read_canvas용 SQLite 갱신
+        const rawData = this.flowchart.canvasEditor.export();
+        fetch('/api/sketchvibe/save-canvas', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ canvas_json: rawData, connection_labels: { ...this.flowchart.connectionLabels }, filename: this.flowchart.canvasName || '' })
+        }).catch(() => {});
         this.showToast(`"${item.name}" 불러왔습니다`, 'success');
       } catch (e) { this.showToast('불러오기 실패: ' + e.message, 'error'); }
     },

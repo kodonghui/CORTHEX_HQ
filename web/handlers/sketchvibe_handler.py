@@ -44,6 +44,7 @@ class SaveCanvasRequest(BaseModel):
     canvas_json: dict
     description: str = ""
     connection_labels: dict = {}
+    filename: str = ""
 
 
 class SaveDiagramRequest(BaseModel):
@@ -243,6 +244,7 @@ async def save_canvas(req: SaveCanvasRequest):
             "canvas_json": req.canvas_json,
             "connection_labels": req.connection_labels,
             "description": req.description,
+            "filename": req.filename,
             "saved_at": time.time(),
             "parsed": _parse_drawflow(canvas_with_labels),
         })
@@ -346,6 +348,7 @@ async def get_canvas_state():
                 "canvas": saved["canvas_json"],
                 "parsed": saved.get("parsed", _parse_drawflow(saved["canvas_json"])),
                 "description": saved.get("description", ""),
+                "filename": saved.get("filename", ""),
             }
     except Exception:
         pass
