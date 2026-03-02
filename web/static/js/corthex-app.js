@@ -1578,11 +1578,12 @@ function corthexApp() {
     // ── Welcome Screen ──
     getGreeting() {
       const hour = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Seoul' })).getHours();
-      if (hour < 6) return '새벽에도 열일하시네요, 고동희 대표님';
-      if (hour < 12) return '좋은 아침입니다, 고동희 대표님';
-      if (hour < 18) return '환영합니다, 고동희 대표님';
-      if (hour < 22) return '좋은 저녁입니다, 고동희 대표님';
-      return '오늘도 수고하셨습니다, 고동희 대표님';
+      const name = this.auth.user?.name || '대표님';
+      if (hour < 6) return `새벽에도 열일하시네요, ${name}`;
+      if (hour < 12) return `좋은 아침입니다, ${name}`;
+      if (hour < 18) return `환영합니다, ${name}`;
+      if (hour < 22) return `좋은 저녁입니다, ${name}`;
+      return `오늘도 수고하셨습니다, ${name}`;
     },
 
     // loadBackendPresets는 loadPresets()에 통합됨
