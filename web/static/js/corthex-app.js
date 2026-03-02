@@ -6045,6 +6045,17 @@ function corthexApp() {
       } catch (e) { this.showToast('불러오기 실패: ' + e.message, 'error'); }
     },
 
+    // ── NEXUS 캔버스: 삭제 ──
+    async deleteNexusCanvas(item) {
+      if (!confirm(`"${item.name.replace('.json','')}" 캔버스를 삭제하시겠습니까?`)) return;
+      try {
+        const r = await fetch(`/api/knowledge/flowcharts/${encodeURIComponent(item.name)}`, { method: 'DELETE' });
+        if (!r.ok) throw new Error('삭제 실패');
+        await this.loadCanvasList();
+        this.showToast('삭제됨', 'success');
+      } catch(e) { this.showToast('삭제 실패: ' + e.message, 'error'); }
+    },
+
     // ── NEXUS 캔버스: 초기화 ──
     clearNexusCanvas() {
       if (this.flowchart.canvasEditor) {

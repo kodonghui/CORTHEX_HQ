@@ -7532,10 +7532,15 @@
             </template>
             <!-- 캔버스 JSON 파일 -->
             <template x-for="item in flowchart.canvasItems" :key="item.name">
-              <button @click="loadNexusCanvas(item)"
-                      class="w-full text-left py-1.5 px-3 text-xs text-white/40 hover:text-white/80 hover:bg-white/5 transition rounded-r-lg font-mono truncate"
-                      x-text="item.name.replace('.json','')">
-              </button>
+              <div class="group flex items-center hover:bg-white/5 transition rounded-r-lg">
+                <button @click="loadNexusCanvas(item)"
+                        class="flex-1 text-left py-1.5 px-3 text-xs text-white/40 hover:text-white/80 transition font-mono truncate"
+                        x-text="item.name.replace('.json','')">
+                </button>
+                <button @click.stop="deleteNexusCanvas(item)"
+                        class="opacity-0 group-hover:opacity-100 w-6 h-6 flex items-center justify-center text-white/30 hover:text-red-400 hover:bg-red-500/10 rounded transition shrink-0 mr-1"
+                        title="삭제">&times;</button>
+              </div>
             </template>
           </div>
         </div>
