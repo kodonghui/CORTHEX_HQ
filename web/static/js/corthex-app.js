@@ -5044,6 +5044,11 @@ function corthexApp() {
           });
           setTimeout(() => this.scrollToBottom(), 300);
         }
+        // Shift → NEXUS 연결 모드 토글
+        if (e.key === 'Shift' && this.nexusOpen && !e.repeat) {
+          this.toggleConnectMode();
+          return;
+        }
         // Esc → 모달 닫기
         if (e.key === 'Escape') {
           if (this.nexusOpen) {
@@ -5968,6 +5973,23 @@ function corthexApp() {
         const newLabel = prompt('화살표 설명:', edge.data('label') || '');
         if (newLabel !== null) { edge.data('label', newLabel); this.flowchart.canvasDirty = true; }
       });
+      // 연결 모드에서 노드 클릭 → 선택된 노드들로부터 엣지 생성
+      cy.on('tap', 'node', (e) => {
+        if (!this.flowchart.connectMode) return;
+        const target = e.target;
+        const sources = cy.$('node:selected').filter(n => n.id() !== target.id());
+        if (sources.length === 0) return;
+        const label = sources.length > 1 ? '' : (prompt('화살표 설명 (빈칸 가능):', '') || '');
+        sources.forEach(src => {
+          this.flowchart.edgeCounter++;
+          cy.add({ group: 'edges', data: { id: 'e' + this.flowchart.edgeCounter, source: src.id(), target: target.id(), label: label } });
+        });
+        this.flowchart.canvasDirty = true;
+        this.showToast(`${sources.length}개 노드 → ${target.data('label')} 연결됨`, 'success');
+        // 연결 후 모드 해제
+        this.toggleConnectMode();
+        cy.elements().unselect();
+      });
       // 빈 공간 클릭 → 선택 해제
       cy.on('tap', (e) => {
         if (e.target === cy) {
@@ -6009,16 +6031,27 @@ function corthexApp() {
       this.flowchart.connectMode = false;
     },
 
-    // ── edgehandles 토글 ──
+    // ── 연결 모드 토글 (Shift 또는 버튼) ──
     toggleConnectMode() {
-      const eh = window._nexusEh;
-      if (!eh) return;
+      const cy = window._nexusCy;
+      if (!cy) return;
       if (this.flowchart.connectMode) {
-        eh.disableDrawMode(); eh.disable();
+        // OFF
+        const eh = window._nexusEh;
+        if (eh) { eh.disableDrawMode(); eh.disable(); }
         this.flowchart.connectMode = false;
+        this.showToast('연결 모드 OFF', 'info');
       } else {
-        eh.enable(); eh.enableDrawMode();
+        // ON — edgehandles 있으면 드래그 연결, 없으면 클릭 연결
+        const eh = window._nexusEh;
+        if (eh) { eh.enable(); eh.enableDrawMode(); }
         this.flowchart.connectMode = true;
+        const selected = cy.$('node:selected');
+        if (selected.length > 0) {
+          this.showToast(`연결 모드 ON — ${selected.length}개 선택됨 → 대상 노드 클릭`, 'info');
+        } else {
+          this.showToast('연결 모드 ON (Shift로 해제)', 'info');
+        }
       }
     },
 
