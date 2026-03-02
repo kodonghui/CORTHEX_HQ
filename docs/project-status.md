@@ -9,7 +9,7 @@
 
 - **날짜**: 2026-03-03
 - **버전**: `5.31.000`
-- **빌드**: SSH 직배포 (ab08e04~1e0f435, 11개 커밋)
+- **빌드**: SSH 직배포 (ab08e04~f5b1d05, 13개 커밋)
 - **서버**: https://corthex-hq.com
 
 ## 2026-03-03 — NEXUS Cytoscape.js 전환 + 배포 인프라 수정
@@ -22,7 +22,8 @@
 | SW 캐시 갱신 | CACHE_NAME v1→v2, Cache-Control 헤더 추가 |
 | Shift 연결 모드 | Shift로 연결 모드 ON/OFF + 멀티노드 → 대상 클릭 = 일괄 연결 |
 | Actions 취소 개선 | sleep 5 → 3초×10회 폴링 (최대 30초) |
-| 사이드바 에이전트 수정 | Alpine.js 반응성 버그 — 빈 객체 뮤테이션 → 객체 교체 방식 |
+| 사이드바 에이전트 수정 | Alpine.js 반응성 + agents.json 구 ID 재생성 |
+| CLAUDE.md 구조 개선 | @import 위치, 🔴 인플레이션, 상태형/절차형 분리 |
 
 ### 진행 중인 작업
 - **edgehandles 드래그 연결**: lodash 의존성 문제로 미해결. Shift 클릭 연결로 대체 중
