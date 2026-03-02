@@ -5807,9 +5807,17 @@ function corthexApp() {
             }
             #nexus-canvas .drawflow-node {
               background: transparent !important;
+              border: none !important;
+              box-shadow: none !important;
+              padding: 8px !important;
+            }
+            #nexus-canvas .drawflow-node.selected {
+              outline: 2px solid rgba(139,92,246,0.6) !important;
+              outline-offset: 4px !important;
+              border-radius: 12px !important;
             }
             #nexus-canvas .drawflow .connection .main-path {
-              stroke: rgba(255,255,255,0.2);
+              stroke: rgba(255,255,255,0.25);
               stroke-width: 2px;
             }
           `;
@@ -6293,17 +6301,17 @@ function corthexApp() {
         const line = rawLine.trim();
         if (!line || /^(flowchart|graph|subgraph|end|%%|classDef|linkStyle|style\s)/.test(line)) continue;
         // 엣지: A --> B, A -->|label| B
-        const em = line.match(/^(\w+)\s*--[->]+\s*(?:\|([^|]*)\|)?\s*(\w+)/);
+        const em = line.match(/^([\w가-힣]+)\s*--[->]+\s*(?:\|([^|]*)\|)?\s*([\w가-힣]+)/);
         if (em) { edges.push({ from: em[1], label: (em[2] || '').trim(), to: em[3] }); continue; }
         // 노드 정의
         let m;
-        if      (m = line.match(/^(\w+)\[\((.+?)\)\]/))     nodes[m[1]] = { label: m[2], type: 'db' };      // [(label)] cylinder
-        else if (m = line.match(/^(\w+)\(\(\((.+?)\)\)\)/)) nodes[m[1]] = { label: m[2], type: 'end' };
-        else if (m = line.match(/^(\w+)\(\((.+?)\)\)/))     nodes[m[1]] = { label: m[2], type: 'end' };
-        else if (m = line.match(/^(\w+)\(\[(.+?)\]\)/))     nodes[m[1]] = { label: m[2], type: 'start' };
-        else if (m = line.match(/^(\w+)\{(.+?)\}/))         nodes[m[1]] = { label: m[2], type: 'decide' };
-        else if (m = line.match(/^(\w+)>(.+?)\]/))          nodes[m[1]] = { label: m[2], type: 'note' };
-        else if (m = line.match(/^(\w+)\[(.+?)\]/)) {
+        if      (m = line.match(/^([\w가-힣]+)\[\((.+?)\)\]/))     nodes[m[1]] = { label: m[2], type: 'db' };      // [(label)] cylinder
+        else if (m = line.match(/^([\w가-힣]+)\(\(\((.+?)\)\)\)/)) nodes[m[1]] = { label: m[2], type: 'end' };
+        else if (m = line.match(/^([\w가-힣]+)\(\((.+?)\)\)/))     nodes[m[1]] = { label: m[2], type: 'end' };
+        else if (m = line.match(/^([\w가-힣]+)\(\[(.+?)\]\)/))     nodes[m[1]] = { label: m[2], type: 'start' };
+        else if (m = line.match(/^([\w가-힣]+)\{(.+?)\}/))         nodes[m[1]] = { label: m[2], type: 'decide' };
+        else if (m = line.match(/^([\w가-힣]+)>(.+?)\]/))          nodes[m[1]] = { label: m[2], type: 'note' };
+        else if (m = line.match(/^([\w가-힣]+)\[(.+?)\]/)) {
           const lbl = m[2];
           const type = /에이전트|Agent/i.test(lbl) ? 'agent' : /API|api/.test(lbl) ? 'api' : 'system';
           nodes[m[1]] = { label: lbl, type };
@@ -6337,17 +6345,17 @@ function corthexApp() {
       // 캔버스 초기화
       editor.import({ drawflow: { Home: { data: {} } } });
       this.flowchart.connectionLabels = {};
-      // 레이아웃: 열 3개 그리드
+      // 레이아웃: Mermaid 방향과 동일하게 — LR이면 가로, TD면 세로
+      const isLR = /flowchart\s+LR|graph\s+LR/i.test(mermaidCode);
       const keys = Object.keys(nodes);
-      const cols = Math.min(3, keys.length);
       const nodeMap = {};
       keys.forEach((key, i) => {
         const n = nodes[key];
         const color = colors[n.type] || '#6b7280';
         const sh = shapeStyle[n.type] || shapeStyle.system;
         const html = `<div class="nexus-node" style="background:${color};${sh};color:#fff;font-size:12px;font-family:Pretendard,sans-serif;text-align:center;cursor:move">${n.label}</div>`;
-        const x = 80 + (i % cols) * 240;
-        const y = 80 + Math.floor(i / cols) * 140;
+        const x = isLR ? 80 + i * 240 : 200;
+        const y = isLR ? 120 : 60 + i * 140;
         const id = editor.addNode(n.type, 1, 1, x, y, n.type, { label: n.label }, html);
         nodeMap[key] = id;
       });
