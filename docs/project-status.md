@@ -8,9 +8,23 @@
 ## 마지막 업데이트
 
 - **날짜**: 2026-03-02
-- **버전**: `5.30.000` ✅ v5.3 탭 숨기기 전면 폐기 — 네이버 모델 완전 구현
-- **빌드**: #779 배포완료 (최신)
+- **버전**: `5.30.001` ✅ Claude Code 에이전트 파이프라인 구축 + 인사말 수정
+- **빌드**: #781 배포완료 (최신)
 - **서버**: https://corthex-hq.com
+
+## 2026-03-02 — Claude Code 에이전트 파이프라인 구축 (빌드 #781)
+
+| 추가 | 내용 |
+|------|------|
+| spec-validator | 구현 vs 스펙 검증 — "검증 꼼꼼히" |
+| claude-md-checker | showSections 등 아키텍처 위반 자동 감지 (Haiku) |
+| investigator | 버그 조사 전용 (읽기 전용) |
+| corthex-pm | 방향성 → 요구사항 자동화 |
+| reality-check | 완료 현실 점검 ("됐겠지" 금지) |
+| safety-guard.sh | git push --force main 등 위험 명령 차단 |
+| 인사말 수정 | "고동희 대표님" 하드코딩 → auth.user.name 동적 사용 |
+
+파이프라인: 방향성 → corthex-pm → 구현 → spec-validator + claude-md-checker → reality-check → 커밋
 
 ## 2026-03-02 — v5.3 탭 숨기기 전면 폐기 (빌드 #779)
 
