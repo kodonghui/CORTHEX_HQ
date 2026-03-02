@@ -301,12 +301,12 @@ MODEL_MAX_TOKENS_MAP: dict[str, int] = {
 # ── 에이전트 목록 (agents.yaml에서 동적 로드) ──
 
 _AGENTS_FALLBACK = [
-    {"agent_id": "chief_of_staff", "name_ko": "비서실장", "role": "manager", "division": "secretary", "status": "idle", "model_name": "claude-sonnet-4-6"},
-    {"agent_id": "leet_strategist", "name_ko": "전략팀장", "role": "manager", "division": "leet_master.strategy", "status": "idle", "model_name": "claude-sonnet-4-6"},
-    {"agent_id": "leet_legal", "name_ko": "법무팀장", "role": "manager", "division": "leet_master.legal", "status": "idle", "model_name": "claude-sonnet-4-6"},
-    {"agent_id": "leet_marketer", "name_ko": "마케팅팀장", "role": "manager", "division": "leet_master.marketing", "status": "idle", "model_name": "claude-sonnet-4-6"},
-    {"agent_id": "fin_analyst", "name_ko": "금융분석팀장", "role": "manager", "division": "finance.investment", "status": "idle", "model_name": "claude-opus-4-6"},
-    {"agent_id": "leet_publisher", "name_ko": "콘텐츠팀장", "role": "manager", "division": "publishing", "status": "idle", "model_name": "claude-sonnet-4-6"},
+    {"agent_id": "chief_of_staff", "name_ko": "비서실장", "role": "manager", "division": "secretary", "status": "idle", "model_name": "claude-sonnet-4-6", "cli_owner": "ceo"},
+    {"agent_id": "leet_strategist", "name_ko": "전략팀장", "role": "manager", "division": "leet_master.strategy", "status": "idle", "model_name": "claude-sonnet-4-6", "cli_owner": "ceo"},
+    {"agent_id": "leet_legal", "name_ko": "법무팀장", "role": "manager", "division": "leet_master.legal", "status": "idle", "model_name": "claude-sonnet-4-6", "cli_owner": "ceo"},
+    {"agent_id": "leet_marketer", "name_ko": "마케팅팀장", "role": "manager", "division": "leet_master.marketing", "status": "idle", "model_name": "claude-sonnet-4-6", "cli_owner": "ceo"},
+    {"agent_id": "fin_analyst", "name_ko": "금융분석팀장", "role": "manager", "division": "finance.investment", "status": "idle", "model_name": "claude-opus-4-6", "cli_owner": "ceo"},
+    {"agent_id": "leet_publisher", "name_ko": "콘텐츠팀장", "role": "manager", "division": "publishing", "status": "idle", "model_name": "claude-sonnet-4-6", "cli_owner": "ceo"},
 ]
 
 

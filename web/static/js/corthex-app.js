@@ -151,7 +151,7 @@ function corthexApp() {
     auth: { user: null, token: null, showLogin: false, loginUser: '', loginPass: '', loginError: '', role: 'ceo', org: '', loginRole: 'ceo', bootstrapMode: true },
 
     // ── Workspace Profile (v5.1 네이버 모델: 같은 기능, 다른 데이터) ──
-    workspace: { label: '', color: 'hq-cyan', showBuildNumber: true, officeLayout: [], sidebarFilter: 'all', orgScope: null, mentionFilter: 'all' },
+    workspace: { label: '', color: 'hq-cyan', showBuildNumber: true, officeLayout: [], sidebarFilter: '', orgScope: null, mentionFilter: 'all' },
 
     // ── Memory Modal (에이전트 기억) ──
     memoryModal: { visible: false, agentId: '', agentName: '', items: [], newKey: '', newValue: '' },
@@ -544,7 +544,7 @@ function corthexApp() {
       try { if (fn) fn(); } catch(e) { console.error('[Confirm] action error:', e); }
     },
 
-    init() {
+    async init() {
       // ── Stage 1: 즉시 필요 (모든 화면 공통) ──
       const savedTheme = localStorage.getItem('corthex-theme');
       if (savedTheme === 'light') {
@@ -553,7 +553,7 @@ function corthexApp() {
       }
       this.greeting = this.getGreeting();
       this.requestNotificationPermission();
-      this.checkAuth();
+      await this.checkAuth(); // workspace.sidebarFilter 확정 후 에이전트 로드
 
       // Marked 비동기 프리로드 (blocking 아님, 사령관실 진입 전까지 로드 완료)
       _loadScript(_CDN.marked);
