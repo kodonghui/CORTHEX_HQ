@@ -540,7 +540,7 @@ async def workspace_profile(request: Request):
         profile = get_workspace_profile("viewer") or {
             "label": "로그인 필요", "sidebarFilter": "", "mentionFilter": "",
             "orgScope": None, "showBulkModel": False, "showSatisfaction": False,
-            "allowedDivisions": [], "officeLayout": [], "showBuildNumber": False,
+            "officeLayout": [], "showBuildNumber": False,
         }
     return profile
 

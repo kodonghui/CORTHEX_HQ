@@ -1,9 +1,14 @@
 # config/workspaces.yaml
 # 네이버+슬랙 모델: 같은 기능, 다른 데이터, 내 CLI 직원만.
 # 탭/뷰/NEXUS 등 기능은 모든 워크스페이스 동일 — 여기에 없음.
-# 여기 있는 것: 브랜딩 + 데이터 스코프 + 사무실 배치
+# 여기 있는 것: 브랜딩 + 데이터 스코프(orgScope) + 사무실 배치
 # 핵심 원칙: 내 계정 = 내 CLI 에이전트만 보이고 지시 가능
 # 새 사람 추가 = 프로파일 1개 추가. 코드 수정 0줄.
+#
+# 🚫 여기 절대 없어야 할 것:
+#   showSections   — 탭 숨기기 = 네이버 모델 위반 (탭은 모든 사람 동일)
+#   allowedDivisions — 탭/섹션 숨기기 = 동일 위반
+# ✅ 데이터 격리는 오직 orgScope로만 (API 서버가 필터링)
 
 workspaces:
   ceo:
@@ -33,8 +38,6 @@ workspaces:
     orgScope: null            # API 데이터는 전체 (CEO는 전체 데이터 조회)
     showBulkModel: true        # 전체 에이전트 모델 일괄 변경 섹션 표시
     showSatisfaction: true     # CEO 만족도 카드 표시
-    allowedDivisions: []       # 빈 배열 = 기밀문서/정보국 전체 탭 허용
-    showSections: []           # 빈 배열 = 모든 탭 허용 (CEO는 전체 접근)
 
   sister:
     label: "사주냥 관제"
@@ -48,11 +51,9 @@ workspaces:
     # cli_owner='sister'인 에이전트만 사이드바/@멘션에 표시
     sidebarFilter: sister
     mentionFilter: sister
-    orgScope: saju            # API 데이터는 saju org만
+    orgScope: saju            # API 데이터는 saju org만 (서버가 필터링)
     showBulkModel: false
     showSatisfaction: false
-    allowedDivisions: [saju]   # 사주 탭만
-    showSections: [home, command, performance]  # 대시보드 / 명령센터 / 전력분석만
 
   viewer:
     label: "로그인 필요"
@@ -64,5 +65,3 @@ workspaces:
     orgScope: null
     showBulkModel: false
     showSatisfaction: false
-    allowedDivisions: []
-    showSections: []
