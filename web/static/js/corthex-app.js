@@ -5305,8 +5305,11 @@ function corthexApp() {
     openNexus() {
       this.nexusOpen = true;
       this.flowchart.mode = 'canvas';
+      // x-if로 DOM이 파괴/재생성되므로 열 때마다 캔버스 재초기화
+      this.flowchart.canvasLoaded = false;
+      this.flowchart.canvasEditor = null;
       setTimeout(async () => {
-        if (!this.flowchart.canvasLoaded) await this.initNexusCanvas();
+        await this.initNexusCanvas();
         await this.loadCanvasList();
         // SSE 자동 연결 (캔버스에서 Mermaid 실시간 수신)
         this._connectSketchVibeSSE();
