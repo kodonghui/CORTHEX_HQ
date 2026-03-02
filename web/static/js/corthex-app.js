@@ -5974,9 +5974,8 @@ function corthexApp() {
         const tgtL = tgt.data('label') || tgt.id();
         this.showToast(`"${srcL}" → "${tgtL}" 연결됨`, 'success');
       });
-      // 기본: edgehandles 활성화 (항상 핸들 표시)
-      window._nexusEh.enableDrawMode();
-      this.flowchart.connectMode = true;
+      // 기본: 드래그 이동 모드 (연결 OFF). "연결" 버튼으로 활성화
+      this.flowchart.connectMode = false;
     },
 
     // ── edgehandles 토글 ──
