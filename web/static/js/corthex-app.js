@@ -6318,25 +6318,43 @@ function corthexApp() {
     // ── Mermaid 코드 파싱 → nodes + edges ──
     _parseMermaidNodes(code) {
       const nodes = {}, edges = [];
+      // 노드 토큰(ID+모양) → { id, label, type } 파싱 헬퍼
+      const parseNodeToken = (token) => {
+        let m;
+        if      (m = token.match(/^([\w가-힣]+)\[\((.+?)\)\]/))     return { id: m[1], label: m[2], type: 'db' };
+        else if (m = token.match(/^([\w가-힣]+)\(\(\((.+?)\)\)\)/)) return { id: m[1], label: m[2], type: 'end' };
+        else if (m = token.match(/^([\w가-힣]+)\(\((.+?)\)\)/))     return { id: m[1], label: m[2], type: 'end' };
+        else if (m = token.match(/^([\w가-힣]+)\(\[(.+?)\]\)/))     return { id: m[1], label: m[2], type: 'start' };
+        else if (m = token.match(/^([\w가-힣]+)\{(.+?)\}/))         return { id: m[1], label: m[2], type: 'decide' };
+        else if (m = token.match(/^([\w가-힣]+)>(.+?)\]/))          return { id: m[1], label: m[2], type: 'note' };
+        else if (m = token.match(/^([\w가-힣]+)\[\[(.+?)\]\]/))     return { id: m[1], label: m[2], type: 'system' };
+        else if (m = token.match(/^([\w가-힣]+)\[(.+?)\]/)) {
+          // /label\ (평행사변형) → 슬래시 제거
+          const lbl = m[2].replace(/^\//, '').replace(/\\$/, '');
+          const type = /에이전트|Agent/i.test(lbl) ? 'agent' : /API|api/i.test(lbl) ? 'api' : 'system';
+          return { id: m[1], label: lbl, type };
+        }
+        else if (m = token.match(/^([\w가-힣]+)$/)) return { id: m[1], label: m[1], type: null };
+        return null;
+      };
       for (const rawLine of code.split('\n')) {
         const line = rawLine.trim();
         if (!line || /^(flowchart|graph|subgraph|end|%%|classDef|linkStyle|style\s)/.test(line)) continue;
-        // 엣지: A --> B, A -->|label| B
-        const em = line.match(/^([\w가-힣]+)\s*--[->]+\s*(?:\|([^|]*)\|)?\s*([\w가-힣]+)/);
-        if (em) { edges.push({ from: em[1], label: (em[2] || '').trim(), to: em[3] }); continue; }
-        // 노드 정의
-        let m;
-        if      (m = line.match(/^([\w가-힣]+)\[\((.+?)\)\]/))     nodes[m[1]] = { label: m[2], type: 'db' };      // [(label)] cylinder
-        else if (m = line.match(/^([\w가-힣]+)\(\(\((.+?)\)\)\)/)) nodes[m[1]] = { label: m[2], type: 'end' };
-        else if (m = line.match(/^([\w가-힣]+)\(\((.+?)\)\)/))     nodes[m[1]] = { label: m[2], type: 'end' };
-        else if (m = line.match(/^([\w가-힣]+)\(\[(.+?)\]\)/))     nodes[m[1]] = { label: m[2], type: 'start' };
-        else if (m = line.match(/^([\w가-힣]+)\{(.+?)\}/))         nodes[m[1]] = { label: m[2], type: 'decide' };
-        else if (m = line.match(/^([\w가-힣]+)>(.+?)\]/))          nodes[m[1]] = { label: m[2], type: 'note' };
-        else if (m = line.match(/^([\w가-힣]+)\[(.+?)\]/)) {
-          const lbl = m[2];
-          const type = /에이전트|Agent/i.test(lbl) ? 'agent' : /API|api/.test(lbl) ? 'api' : 'system';
-          nodes[m[1]] = { label: lbl, type };
+        // 엣지 파싱 — 인라인 노드 정의(모양)도 함께 추출
+        const em = line.match(/^(.+?)\s*--[->]+\s*(?:\|([^|]*)\|)?\s*(.+)$/);
+        if (em) {
+          const src = parseNodeToken(em[1].trim());
+          const tgt = parseNodeToken(em[3].trim());
+          if (src) {
+            if (!nodes[src.id]) nodes[src.id] = { label: src.label, type: src.type || 'system' };
+            if (tgt && !nodes[tgt.id]) nodes[tgt.id] = { label: tgt.label, type: tgt.type || 'system' };
+            edges.push({ from: src.id, label: (em[2] || '').trim(), to: tgt ? tgt.id : em[3].trim() });
+          }
+          continue;
         }
+        // 독립 노드 정의
+        const nd = parseNodeToken(line);
+        if (nd && nd.type) nodes[nd.id] = { label: nd.label, type: nd.type };
       }
       // 엣지에만 등장한 노드 자동 추가
       edges.forEach(e => {
