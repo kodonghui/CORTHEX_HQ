@@ -5810,6 +5810,21 @@ function corthexApp() {
             setTimeout(() => this._renderConnectionLabels(), 50);
           });
         });
+        // 노드 선택 추적 + Delete 키 삭제
+        let selectedNodeId = null;
+        editor.on('nodeSelected', (id) => { selectedNodeId = id; });
+        editor.on('nodeUnselected', () => { selectedNodeId = null; });
+        el.addEventListener('keydown', (e) => {
+          if ((e.key === 'Delete' || e.key === 'Backspace') && selectedNodeId && !e.target.matches('input,textarea')) {
+            e.preventDefault();
+            editor.removeNodeId('node-' + selectedNodeId);
+            selectedNodeId = null;
+            this.flowchart.canvasDirty = true;
+          }
+        });
+        // Drawflow 캔버스에 포커스 가능하게 (키보드 이벤트 수신용)
+        el.setAttribute('tabindex', '0');
+        el.style.outline = 'none';
         // 더블클릭: 화살표 라벨 편집 OR 노드 이름 편집
         el.addEventListener('dblclick', (e) => {
           // 1) 화살표(connection path) 더블클릭 → 라벨 편집
@@ -5854,7 +5869,7 @@ function corthexApp() {
         const r = await fetch('/api/knowledge');
         if (!r.ok) return;
         const data = await r.json();
-        this.flowchart.canvasItems = (data.files || []).filter(f => f.folder === 'flowcharts' && f.name.endsWith('.json'));
+        this.flowchart.canvasItems = (data.entries || []).filter(f => f.folder === 'flowcharts' && f.filename.endsWith('.json')).map(f => ({ ...f, name: f.filename }));
       } catch(e) { console.error('loadCanvasList:', e); }
       // 확인된 다이어그램 목록도 로드
       try {

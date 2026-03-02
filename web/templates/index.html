@@ -7634,40 +7634,8 @@
             </button>
           </div>
 
-          <!-- 모드 탭 -->
-          <div class="shrink-0 px-3 pt-3 pb-2 flex gap-2">
-            <button @click="flowchart.sketchMode = 'draw'; flowchart.collabStarted = false"
-                    :class="flowchart.sketchMode === 'draw' ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : 'bg-white/5 text-white/40 border-white/10 hover:text-white/60'"
-                    class="flex-1 py-2 rounded-lg text-xs font-semibold border transition">
-              ✏️ 내가 그리기
-            </button>
-            <button @click="flowchart.sketchMode = 'collab'; flowchart.collabStarted = false"
-                    :class="flowchart.sketchMode === 'collab' ? 'bg-violet-500/20 text-violet-400 border-violet-500/30' : 'bg-white/5 text-white/40 border-white/10 hover:text-white/60'"
-                    class="flex-1 py-2 rounded-lg text-xs font-semibold border transition">
-              🤖 같이 그리기
-            </button>
-          </div>
-
-          <!-- Mode A: 내가 그리기 -->
-          <div x-show="flowchart.sketchMode === 'draw'" class="px-3 pb-3 border-b border-white/10 flex flex-col gap-2">
-            <label class="text-xs text-white/50 font-semibold">이 스케치를 설명해주세요</label>
-            <textarea x-model="flowchart.sketchDescription"
-                      class="w-full h-20 bg-white/5 border border-white/10 rounded-lg p-2.5 text-xs text-white/80 placeholder:text-white/20 outline-none focus:border-emerald-500/50 resize-none"
-                      placeholder="예: A 서버에서 B DB로 요청 보내고, C 캐시 거쳐 응답하는 구조"></textarea>
-            <button @click="saveSketchVibe()"
-                    :disabled="flowchart.sketchConverting"
-                    class="w-full py-2.5 rounded-lg text-xs font-bold transition flex items-center justify-center gap-2"
-                    :class="flowchart.sketchConverting ? 'bg-emerald-500/10 text-emerald-500/50 cursor-wait' : 'bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 border border-emerald-500/30'">
-              <template x-if="flowchart.sketchConverting">
-                <div class="w-3.5 h-3.5 border-2 border-emerald-500/30 border-t-emerald-400 rounded-full animate-spin"></div>
-              </template>
-              <svg x-show="!flowchart.sketchConverting" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17,21 17,13 7,13 7,21"/><polyline points="7,3 7,8 15,8"/></svg>
-              <span x-text="flowchart.sketchConverting ? '저장 중...' : '저장하기'"></span>
-            </button>
-          </div>
-
-          <!-- Mode B: 같이 그리기 -->
-          <div x-show="flowchart.sketchMode === 'collab'" class="px-3 pb-3 border-b border-white/10 flex flex-col gap-2.5">
+          <!-- 같이 그리기 -->
+          <div class="px-3 pt-3 pb-3 border-b border-white/10 flex flex-col gap-2.5">
             <div class="flex flex-col gap-1.5">
               <label class="text-xs text-white/50 font-semibold">캔버스 파일명</label>
               <input x-model="flowchart.canvasName"

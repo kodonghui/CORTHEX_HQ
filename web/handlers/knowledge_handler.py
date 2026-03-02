@@ -24,7 +24,7 @@ async def get_knowledge():
         for folder in sorted(KNOWLEDGE_DIR.iterdir()):
             if folder.is_dir() and not folder.name.startswith("."):
                 for f in sorted(folder.iterdir()):
-                    if f.is_file() and f.suffix == ".md":
+                    if f.is_file() and f.suffix in (".md", ".json"):
                         entries.append({
                             "folder": folder.name,
                             "filename": f.name,
