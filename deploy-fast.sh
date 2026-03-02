@@ -38,6 +38,16 @@ ssh corthex-hq.com "
   git fetch origin main &&
   git reset --hard origin/main &&
   echo '✅ 코드 업데이트 완료' &&
+  sudo cp web/static/js/corthex-app.js /var/www/html/static/js/corthex-app.js &&
+  sudo cp web/static/css/corthex-styles.css /var/www/html/static/css/corthex-styles.css &&
+  sudo cp web/static/sw.js /var/www/html/sw.js 2>/dev/null;
+  sudo python3 -c \"
+import time
+with open('web/templates/index.html') as f: c=f.read()
+c=c.replace('BUILD_NUMBER_PLACEHOLDER',str(int(time.time())))
+with open('/var/www/html/index.html','w') as f: f.write(c)
+\" &&
+  echo '✅ nginx 정적 파일 동기화 완료' &&
   sudo systemctl restart corthex &&
   echo '✅ 서버 재시작 완료'
 "
