@@ -17,7 +17,19 @@ fi
 
 # 2. 로컬 변경사항 push
 echo "📤 push 중..."
+COMMIT_SHA=$(git rev-parse HEAD)
 git push origin main
+
+# 2-1. GitHub Actions 자동 취소 (중복 배포 방지)
+echo "⏹️  GitHub Actions 취소 중..."
+sleep 5
+RUN_ID=$(gh run list --workflow=deploy.yml --limit=3 --json databaseId,headSha \
+  --jq ".[] | select(.headSha == \"$COMMIT_SHA\") | .databaseId" 2>/dev/null | head -1)
+if [ -n "$RUN_ID" ]; then
+  gh run cancel "$RUN_ID" 2>/dev/null && echo "   Actions #$RUN_ID 취소됨"
+else
+  echo "   Actions 아직 시작 안 됨 (무시)"
+fi
 
 # 3. 서버에서 git pull + 재시작
 echo "🖥️  서버 업데이트 중..."
