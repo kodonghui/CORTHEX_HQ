@@ -6151,21 +6151,23 @@ function corthexApp() {
           document.head.appendChild(s);
         });
       }
-      // 다크/라이트 모드에 맞게 매번 재초기화
-      const isDark = this.darkMode;
+      // Noir Commander B 팔레트에 맞게 재초기화
+      const isDark = document.documentElement.classList.contains('dark');
       mermaid.initialize({
         startOnLoad: false,
         theme: isDark ? 'dark' : 'default',
         flowchart: { useMaxWidth: false, htmlLabels: true },
         themeVariables: isDark ? {
-          primaryColor: '#1e1b4b', primaryTextColor: '#e2e8f0',
-          primaryBorderColor: '#6366f1', lineColor: '#6366f1',
-          secondaryColor: '#0f172a', tertiaryColor: '#0c1220',
+          primaryColor: '#1e1e1e', primaryTextColor: '#f5f5f5',
+          primaryBorderColor: '#fbbf24', lineColor: '#737373',
+          secondaryColor: '#181818', tertiaryColor: '#141414',
+          background: 'transparent', mainBkg: '#1e1e1e',
           fontFamily: 'Pretendard, sans-serif', fontSize: '12px'
         } : {
-          primaryColor: '#ede9fe', primaryTextColor: '#1e1b4b',
-          primaryBorderColor: '#6366f1', lineColor: '#6366f1',
-          secondaryColor: '#f1f5f9', tertiaryColor: '#f8fafc',
+          primaryColor: '#f4f4f5', primaryTextColor: '#09090b',
+          primaryBorderColor: '#7c3aed', lineColor: '#71717a',
+          secondaryColor: '#fafafa', tertiaryColor: '#ffffff',
+          background: 'transparent', mainBkg: '#ffffff',
           fontFamily: 'Pretendard, sans-serif', fontSize: '12px'
         }
       });
@@ -6178,8 +6180,11 @@ function corthexApp() {
         const svgId = 'sv-' + Date.now();
         const { svg } = await mermaid.render(svgId, code);
         el.innerHTML = svg;
+        // SVG 배경을 투명으로 → 부모 bg-hq-bg 색상 사용
+        const svgEl = el.querySelector('svg');
+        if (svgEl) svgEl.style.background = 'transparent';
       } catch (e) {
-        el.innerHTML = `<pre class="text-red-400 text-xs p-2">렌더링 실패: ${e.message}\n\n코드:\n${code}</pre>`;
+        el.innerHTML = `<pre class="text-hq-red text-xs p-2">렌더링 실패: ${e.message}\n\n코드:\n${code}</pre>`;
       }
     },
 

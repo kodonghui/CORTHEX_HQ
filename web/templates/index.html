@@ -7570,19 +7570,23 @@
                x-transition:leave="transition ease-in duration-200"
                x-transition:leave-start="opacity-100"
                x-transition:leave-end="opacity-0"
-               :class="darkMode ? 'bg-[#0a0f1a]' : 'bg-white'"
-               class="absolute inset-0 overflow-auto z-20 flex flex-col" x-cloak>
+               class="absolute inset-0 overflow-auto z-20 flex flex-col bg-hq-bg" x-cloak>
             <!-- 상단 바 -->
-            <div class="flex items-center justify-between px-4 py-2.5 shrink-0 border-b border-white/10">
+            <div class="flex items-center justify-between px-4 py-2.5 shrink-0 border-b border-hq-border">
               <div class="flex items-center gap-2">
-                <span class="text-emerald-400 text-xs font-bold">변환 결과</span>
+                <span class="text-hq-green text-xs font-bold">변환 결과</span>
                 <template x-if="flowchart.sketchResult && flowchart.sketchResult.description">
-                  <span class="text-[10px] text-white/30 truncate max-w-[300px]" x-text="flowchart.sketchResult.description"></span>
+                  <span class="text-[10px] text-hq-muted truncate max-w-[300px]" x-text="flowchart.sketchResult.description"></span>
                 </template>
               </div>
-              <template x-if="flowchart.sketchConfirmed">
-                <span class="text-emerald-400/60 text-[10px] font-semibold">✓ 확인됨</span>
-              </template>
+              <div class="flex items-center gap-2">
+                <template x-if="flowchart.sketchConfirmed">
+                  <span class="text-hq-green/60 text-[10px] font-semibold">✓ 확인됨</span>
+                </template>
+                <button @click="flowchart.sketchResult = null; flowchart.sketchConfirmed = null"
+                        class="px-2.5 py-1 rounded-lg text-[10px] font-semibold bg-hq-surface text-hq-muted hover:text-hq-text border border-hq-border transition"
+                        title="캔버스로 돌아가서 수정">← 캔버스</button>
+              </div>
             </div>
             <!-- Claude Code 확인 요청 알림 (캔버스 위) -->
             <template x-if="flowchart.approvalRequest">
@@ -7597,22 +7601,22 @@
             </div>
             <!-- 하단 확인 버튼 (중앙) -->
             <template x-if="!flowchart.sketchConfirmed">
-              <div class="shrink-0 p-5 flex gap-4 justify-center border-t border-white/10 bg-black/20">
+              <div class="shrink-0 p-5 flex gap-4 justify-center border-t border-hq-border bg-hq-surface/50">
                 <button @click="confirmSketchVibe()"
-                        class="px-10 py-3 rounded-xl text-sm font-bold bg-emerald-500/25 text-emerald-400 hover:bg-emerald-500/40 border border-emerald-500/40 transition shadow-lg shadow-emerald-900/20">
+                        class="px-10 py-3 rounded-xl text-sm font-bold bg-hq-green/20 text-hq-green hover:bg-hq-green/30 border border-hq-green/40 transition">
                   ✓ 맞아
                 </button>
-                <button @click="retrySketchVibe()"
-                        class="px-10 py-3 rounded-xl text-sm font-bold bg-white/5 text-white/50 hover:text-white/80 border border-white/15 hover:border-white/30 transition">
-                  ↩ 다시
+                <button @click="flowchart.sketchResult = null; flowchart.sketchConfirmed = null"
+                        class="px-10 py-3 rounded-xl text-sm font-bold bg-hq-surface text-hq-muted hover:text-hq-text border border-hq-border transition">
+                  ← 캔버스로
                 </button>
               </div>
             </template>
             <template x-if="flowchart.sketchConfirmed">
-              <div class="shrink-0 p-5 flex justify-center border-t border-white/10 bg-black/20">
-                <button @click="retrySketchVibe()"
-                        class="px-10 py-3 rounded-xl text-sm font-semibold bg-white/5 text-white/40 hover:text-white/70 border border-white/10 transition">
-                  새 다이어그램
+              <div class="shrink-0 p-5 flex justify-center border-t border-hq-border bg-hq-surface/50">
+                <button @click="flowchart.sketchResult = null; flowchart.sketchConfirmed = null"
+                        class="px-10 py-3 rounded-xl text-sm font-semibold bg-hq-surface text-hq-muted hover:text-hq-text border border-hq-border transition">
+                  ← 캔버스로 돌아가기
                 </button>
               </div>
             </template>
