@@ -9,8 +9,22 @@
 
 - **날짜**: 2026-03-02
 - **버전**: `5.30.000`
-- **빌드**: #787 배포완료 (최신)
+- **빌드**: #789 배포완료 (최신)
 - **서버**: https://corthex-hq.com
+
+## 2026-03-02 — SketchVibe 워크플로우 완성 (빌드 #788~#789)
+
+| 수정/기능 | 내용 | 빌드 |
+|---------|------|------|
+| read_canvas 동기화 | 저장 버튼 → SQLite current_canvas 업데이트 | #788 |
+| 라벨 타임아웃 150ms | 노드 이동 시 엣지 라벨 즉시 따라옴 | #788 |
+| reroute 비활성화 | 선 더블클릭 분기점 생성 없음 | #788 |
+| 맞아 → 캔버스 반영 | Mermaid → Drawflow 노드 변환 (모양 그대로: pill/diamond/circle/cylinder) | #789 |
+| SketchVibe 이용법 | `docs/sketchvibe-guide.md` 작성 | #789 |
+
+**워크플로우**: 그리기 → 저장 → Claude 분석 → Mermaid 오버레이 → "맞아" → 캔버스에 노드 반영 → 추가 그리기 → 반복
+
+상세: `docs/sketchvibe-guide.md`
 
 ## 2026-03-02 — NEXUS 버그 수정 + UX 개편 총정리 (빌드 #779~#787)
 

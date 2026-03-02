@@ -94,6 +94,7 @@
 ## 참조 문서
 - `docs/claude-rules/코딩_개발.md` | `docs/claude-rules/서버_배포.md` | `docs/claude-rules/에이전트_팀.md`
 - `docs/corthex-vision.md` | `docs/ceo-ideas.md` | `docs/과외/`
+- **SketchVibe 이용법**: `docs/sketchvibe-guide.md` (read_canvas/update_canvas 사용법 포함)
 - 리트마스터: https://github.com/kodonghui/leet-master
 
 ## 기타
