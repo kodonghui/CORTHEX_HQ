@@ -16,6 +16,7 @@ const _CDN = {
   marked:       'https://cdn.jsdelivr.net/npm/marked/marked.min.js',
   chartjs:      'https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js',
   mermaid:      'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js',
+  lodash:       'https://cdn.jsdelivr.net/npm/lodash@4/lodash.min.js',
   cytoscape:    'https://cdn.jsdelivr.net/npm/cytoscape@3.30.4/dist/cytoscape.min.js',
   cyEdgehandles:'https://cdn.jsdelivr.net/npm/cytoscape-edgehandles@4.0.1/cytoscape-edgehandles.js',
   dagre:        'https://cdn.jsdelivr.net/npm/dagre@0.8.5/dist/dagre.min.js',
@@ -5802,12 +5803,14 @@ function corthexApp() {
     // ── NEXUS: Cytoscape.js 캔버스 초기화 (2026-03-03 Mermaid→Cytoscape 전환) ──
     async initCytoscapeCanvas() {
       try {
+        // lodash 먼저 (edgehandles 의존), 그 다음 cytoscape+dagre, 그 다음 확장
+        await _loadScript(_CDN.lodash);
         await Promise.all([_loadScript(_CDN.cytoscape), _loadScript(_CDN.dagre)]);
         await Promise.all([_loadScript(_CDN.cyEdgehandles), _loadScript(_CDN.cyDagre)]);
-        // 확장 등록 (중복 방지)
+        // 확장 등록 (중복 방지) — CDN 로드 시 자동 등록되지만 안전장치
         if (!window._cyExtRegistered) {
-          cytoscape.use(cytoscapeDagre);
-          cytoscape.use(cytoscapeEdgehandles);
+          if (typeof cytoscapeDagre !== 'undefined') cytoscape.use(cytoscapeDagre);
+          if (typeof cytoscapeEdgehandles !== 'undefined') cytoscape.use(cytoscapeEdgehandles);
           window._cyExtRegistered = true;
         }
         const container = document.getElementById('nexus-canvas');
