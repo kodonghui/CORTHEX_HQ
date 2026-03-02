@@ -7,10 +7,29 @@
 
 ## 마지막 업데이트
 
-- **날짜**: 2026-03-02
+- **날짜**: 2026-03-03
 - **버전**: `5.31.000`
-- **빌드**: 배포 대기 (NEXUS Mermaid 네이티브 전환)
+- **빌드**: SSH 직배포 (ab08e04~1e0f435, 11개 커밋)
 - **서버**: https://corthex-hq.com
+
+## 2026-03-03 — NEXUS Cytoscape.js 전환 + 배포 인프라 수정
+
+| 변경 | 내용 |
+|------|------|
+| Cytoscape.js 전환 | Mermaid 네이티브 → Cytoscape.js 엔진. 자유 배치 + 드래그 이동 |
+| 무한 로딩 수정 | CDN 캐시 오염 + DOM 타이밍 + 컨테이너 null 3중 수정 |
+| nginx 배포 누락 수정 | deploy-fast.sh가 /var/www/html/ 미동기화 → nginx 정적파일 복사 추가 |
+| SW 캐시 갱신 | CACHE_NAME v1→v2, Cache-Control 헤더 추가 |
+| Shift 연결 모드 | Shift로 연결 모드 ON/OFF + 멀티노드 → 대상 클릭 = 일괄 연결 |
+| Actions 취소 개선 | sleep 5 → 3초×10회 폴링 (최대 30초) |
+| 사이드바 에이전트 수정 | Alpine.js 반응성 버그 — 빈 객체 뮤테이션 → 객체 교체 방식 |
+
+### 진행 중인 작업
+- **edgehandles 드래그 연결**: lodash 의존성 문제로 미해결. Shift 클릭 연결로 대체 중
+
+### 중요한 발견
+- **nginx 구조**: `/` → `/var/www/html/` (정적), `/api/` `/ws` → gunicorn:8000 (동적)
+- **deploy-fast.sh 필수**: nginx 파일 동기화 + HTML BUILD_NUMBER 치환 포함
 
 ## 2026-03-02 — NEXUS Mermaid 네이티브 전환 (Drawflow 완전 제거)
 

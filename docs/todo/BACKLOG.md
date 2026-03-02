@@ -3,7 +3,7 @@
 > **규칙**: 미완료 항목은 전부 여기만. 날짜 파일에 ⬜ 절대 금지.
 > **수시 업데이트**: 완료되면 즉시 ✅ 표시 or 삭제. 새 항목 발견 시 즉시 추가.
 > 🔴 **매 배포 시 반드시 갱신!** — 배포하고 BACKLOG 안 건드리면 미완성!
-> 마지막 업데이트: 2026-03-02 빌드#815 (Mermaid 파서 수정 + SSH 빠른 배포)
+> 마지막 업데이트: 2026-03-03 (사이드바 에이전트 Alpine.js 반응성 수정)
 
 ---
 
@@ -25,7 +25,7 @@
 ## 🟡 버그 (발견됐지만 미수정)
 
 - ✅ ~~**v5.3 탭 숨기기 전면 폐기**~~ — showSections/allowedDivisions 제거. 탭 전부 표시. orgScope로만 데이터 필터링 (빌드 #779)
-- ⬜ **누나 사이드바 Eden/Zoe/Sage 안 보임** — workspace-profile 404 수정됨(빌드#773). 실제 로그인 후 검증 필요
+- ⬜ **누나 사이드바 Eden/Zoe/Sage 안 보임** — workspace-profile 404 수정됨(빌드#773). Alpine.js 반응성 버그 수정(1e0f435). 실제 로그인 후 검증 필요
 - ✅ ~~**한미반도체(042700) KIS 주문 실패**~~ — `EXCG_ID_DVSN_CD` "" → "KRX" 수정 (빌드 #655 예정)
 - ⬜ **deploy.yml에 selenium 추가 필요** — PAT에 workflow 스코프 없어서 push 불가. 대표님이 GitHub에서 직접 수정하거나 토큰 스코프 추가 필요. 현재는 수동 설치로 동작 중
 - ✅ ~~**4건 동시 승인 시 3건 멈춤**~~ — asyncio.Lock(_publish_lock) 추가로 순차 처리 (빌드#717)
@@ -121,6 +121,8 @@
 - ✅ ~~**스케치바이브 Phase 2**~~ — MCP 서버(FastMCP) + 정확도 향상(_parse_drawflow 강화) + "맞아" 후 구현 브리지(confirmed API + MCP 도구)
 - ✅ ~~**스케치바이브 Phase 3**~~ — 아키텍처 재설계: 서버 변환 제거 + MCP 양방향(update_canvas/request_approval) + SSE 실시간 캔버스 + 팔레트 버그 수정
 - ⬜ **스케치바이브 이름/특허** (나중에) — 상표 충돌(getsketchvibe.com) 재검토 + 특허 출원 범위 확정 (법무팀장 논의)
+- ✅ ~~**NEXUS Cytoscape.js 전환**~~ — Mermaid→Cytoscape 엔진 전환 완료. 자유 배치+드래그+Shift연결
+- ⬜ **NEXUS edgehandles 드래그 연결** — lodash 의존성 문제로 드래그 화살표 미동작. Shift 클릭 연결로 대체 중. 근본 해결 필요
 - ⬜ **NEXUS MCP 연동** — Claude가 NEXUS 캔버스 JSON 읽어서 시스템 이해 + 대표님 시각적 논의
 - ⬜ **DB soul 오버라이드 정리** — souls/*.md만 쓰도록 통일 (중복 오버라이드 제거)
 - ⬜ **이미지 스타일 개선** — 대표님 AI 인플루언서 스타일 확정 후 적용 (보류 중)
