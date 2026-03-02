@@ -7465,7 +7465,7 @@
             <span x-text="flowchart.canvasDirty ? '저장 *' : '저장'"></span>
           </button>
           <button @click="clearNexusCanvas()" class="px-2.5 py-1.5 rounded-lg text-xs bg-white/5 border border-white/10 text-white/40 hover:text-red-400 hover:border-red-400/40 transition">초기화</button>
-          <button @click="flowchart.sketchVibeOpen = !flowchart.sketchVibeOpen; flowchart.sketchVibeOpen ? _connectSketchVibeSSE() : _disconnectSketchVibeSSE()"
+          <button @click="flowchart.sketchVibeOpen = !flowchart.sketchVibeOpen; if (flowchart.sketchVibeOpen) _connectSketchVibeSSE()"
                   :class="flowchart.sketchVibeOpen ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : 'bg-white/5 text-white/40 border-white/10 hover:text-emerald-400 hover:border-emerald-500/30'"
                   class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition ml-2">
             <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="M2 2l7.586 7.586"/><circle cx="11" cy="11" r="2"/></svg>
@@ -7569,7 +7569,7 @@
                class="absolute inset-0 overflow-auto z-20 flex flex-col" x-cloak>
             <!-- 상단 바 -->
             <div class="flex items-center justify-between px-4 py-2.5 shrink-0"
-                 :class="darkMode ? 'border-b border-white/10' : 'border-b border-gray-200'"
+                 :class="darkMode ? 'border-b border-white/10' : 'border-b border-gray-200'">
               <div class="flex items-center gap-2">
                 <span class="text-emerald-400 text-xs font-bold">변환 결과</span>
                 <template x-if="flowchart.sketchResult && flowchart.sketchResult.description">
@@ -7627,7 +7627,7 @@
               <span class="text-xs font-bold text-emerald-400 tracking-wider uppercase">SketchVibe</span>
               <span class="text-xs text-white/20">스케치 → 다이어그램</span>
             </div>
-            <button @click="flowchart.sketchVibeOpen = false; _disconnectSketchVibeSSE()" class="w-6 h-6 rounded flex items-center justify-center text-white/30 hover:text-white/60 transition">
+            <button @click="flowchart.sketchVibeOpen = false" class="w-6 h-6 rounded flex items-center justify-center text-white/30 hover:text-white/60 transition">
               <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
             </button>
           </div>
