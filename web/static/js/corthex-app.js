@@ -6145,6 +6145,7 @@ function corthexApp() {
           body: JSON.stringify({ folder: 'flowcharts', filename: name + '.json', content: JSON.stringify(emptyData, null, 2) })
         });
         if (!r.ok) throw new Error(`서버 오류 (${r.status})`);
+        this.flowchart.savedCanvasName = name;  // 서버에 실제 생성됐으므로 추적 시작
         await this.loadCanvasList();
         this.showToast(`"${name}" 생성됨`, 'success');
       } catch(e) { this.showToast('생성 실패: ' + e.message, 'error'); }
