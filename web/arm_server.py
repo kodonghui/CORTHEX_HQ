@@ -214,7 +214,10 @@ async def index():
     build_number = get_build_number()
     html_content = html_content.replace("BUILD_NUMBER_PLACEHOLDER", build_number)
 
-    return HTMLResponse(content=html_content)
+    return HTMLResponse(
+        content=html_content,
+        headers={"Cache-Control": "no-cache, must-revalidate", "Vary": "Accept-Encoding"},
+    )
 
 
 @app.get("/sw.js")
