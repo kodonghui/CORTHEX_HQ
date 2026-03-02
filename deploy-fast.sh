@@ -36,6 +36,11 @@ if [ "$CANCELLED" = "0" ]; then
   echo "   Actions 미감지 (이미 완료됐거나 미시작)"
 fi
 
+# 2-2. 빌드 번호 계산 (Actions 마지막 번호 + 1)
+LAST_BUILD=$(gh run list --workflow=deploy.yml --limit=1 --json number --jq '.[0].number' 2>/dev/null || echo "0")
+BUILD_NUM=$((LAST_BUILD + 1))
+echo "📋 빌드 #$BUILD_NUM"
+
 # 3. 서버에서 git pull + 재시작
 echo "🖥️  서버 업데이트 중..."
 ssh corthex-hq.com "
@@ -46,14 +51,13 @@ ssh corthex-hq.com "
   sudo cp web/static/js/corthex-app.js /var/www/html/static/js/corthex-app.js &&
   sudo cp web/static/css/corthex-styles.css /var/www/html/static/css/corthex-styles.css &&
   sudo cp web/static/sw.js /var/www/html/sw.js 2>/dev/null;
-  COMMIT_SHORT=\$(git rev-parse --short HEAD) &&
   sudo python3 -c \"
 import sys
-short = sys.argv[1]
+build = sys.argv[1]
 with open('web/templates/index.html') as f: c=f.read()
-c=c.replace('BUILD_NUMBER_PLACEHOLDER', short)
+c=c.replace('BUILD_NUMBER_PLACEHOLDER', build)
 with open('/var/www/html/index.html','w') as f: f.write(c)
-\" \"\$COMMIT_SHORT\" &&
+\" \"$BUILD_NUM\" &&
   echo '✅ nginx 정적 파일 동기화 완료' &&
   sudo systemctl restart corthex &&
   echo '✅ 서버 재시작 완료'
