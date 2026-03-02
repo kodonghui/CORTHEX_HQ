@@ -20,15 +20,20 @@ echo "📤 push 중..."
 COMMIT_SHA=$(git rev-parse HEAD)
 git push origin main
 
-# 2-1. GitHub Actions 자동 취소 (중복 배포 방지)
+# 2-1. GitHub Actions 자동 취소 (중복 배포 방지, 최대 30초 폴링)
 echo "⏹️  GitHub Actions 취소 중..."
-sleep 5
-RUN_ID=$(gh run list --workflow=deploy.yml --limit=3 --json databaseId,headSha \
-  --jq ".[] | select(.headSha == \"$COMMIT_SHA\") | .databaseId" 2>/dev/null | head -1)
-if [ -n "$RUN_ID" ]; then
-  gh run cancel "$RUN_ID" 2>/dev/null && echo "   Actions #$RUN_ID 취소됨"
-else
-  echo "   Actions 아직 시작 안 됨 (무시)"
+CANCELLED=0
+for i in $(seq 1 10); do
+  sleep 3
+  RUN_ID=$(gh run list --workflow=deploy.yml --limit=3 --json databaseId,headSha,status \
+    --jq ".[] | select(.headSha == \"$COMMIT_SHA\" and .status != \"completed\") | .databaseId" 2>/dev/null | head -1)
+  if [ -n "$RUN_ID" ]; then
+    gh run cancel "$RUN_ID" 2>/dev/null && echo "   Actions #$RUN_ID 취소됨" && CANCELLED=1
+    break
+  fi
+done
+if [ "$CANCELLED" = "0" ]; then
+  echo "   Actions 미감지 (이미 완료됐거나 미시작)"
 fi
 
 # 3. 서버에서 git pull + 재시작
@@ -41,12 +46,14 @@ ssh corthex-hq.com "
   sudo cp web/static/js/corthex-app.js /var/www/html/static/js/corthex-app.js &&
   sudo cp web/static/css/corthex-styles.css /var/www/html/static/css/corthex-styles.css &&
   sudo cp web/static/sw.js /var/www/html/sw.js 2>/dev/null;
+  COMMIT_SHORT=\$(git rev-parse --short HEAD) &&
   sudo python3 -c \"
-import time
+import sys
+short = sys.argv[1]
 with open('web/templates/index.html') as f: c=f.read()
-c=c.replace('BUILD_NUMBER_PLACEHOLDER',str(int(time.time())))
+c=c.replace('BUILD_NUMBER_PLACEHOLDER', short)
 with open('/var/www/html/index.html','w') as f: f.write(c)
-\" &&
+\" \"\$COMMIT_SHORT\" &&
   echo '✅ nginx 정적 파일 동기화 완료' &&
   sudo systemctl restart corthex &&
   echo '✅ 서버 재시작 완료'
