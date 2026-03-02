@@ -5874,13 +5874,20 @@ function corthexApp() {
     // ── NEXUS 캔버스: 팔레트 노드 추가 ──
     addCanvasNode(type) {
       const editor = this.flowchart.canvasEditor;
-      if (!editor) return;
+      if (!editor) {
+        this.showToast('캔버스가 아직 로드되지 않았습니다. 잠시 후 다시 시도하세요.', 'error');
+        return;
+      }
       const labels = { agent:'에이전트', system:'시스템', api:'외부 API', decide:'결정 분기', start:'시작', end:'종료', note:'메모' };
       const colors = { agent:'#8b5cf6', system:'#3b82f6', api:'#059669', decide:'#f59e0b', start:'#22c55e', end:'#ef4444', note:'#6b7280' };
       const html = `<div class="nexus-node" style="background:${colors[type]||'#6b7280'};padding:6px 12px;border-radius:8px;color:#fff;font-size:12px;font-family:Pretendard,sans-serif;min-width:80px;text-align:center;cursor:move">${labels[type]||type}</div>`;
-      // 캔버스 중앙 근처 + 랜덤 오프셋 (노드 겹침 방지)
-      const cx = 300 + Math.floor(Math.random() * 200);
-      const cy = 200 + Math.floor(Math.random() * 200);
+      // 현재 뷰포트 중앙에 노드 추가 (캔버스 pan/zoom 상태 반영)
+      const canvasEl = document.getElementById('nexus-canvas');
+      const w = canvasEl ? canvasEl.offsetWidth : 600;
+      const h = canvasEl ? canvasEl.offsetHeight : 400;
+      const zoom = editor.zoom || 1;
+      const cx = (-editor.canvas_x + w / 2) / zoom + (Math.random() - 0.5) * 120;
+      const cy = (-editor.canvas_y + h / 2) / zoom + (Math.random() - 0.5) * 80;
       editor.addNode(type, 1, 1, cx, cy, type, { label: labels[type] }, html);
     },
 
@@ -5951,11 +5958,12 @@ function corthexApp() {
 
       try {
         const emptyData = { drawflow: { Home: { data: {} } } };
-        await fetch('/api/knowledge', {
+        const r = await fetch('/api/knowledge', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ folder: 'flowcharts', filename: name + '.json', content: JSON.stringify(emptyData, null, 2) })
         });
+        if (!r.ok) throw new Error(`서버 오류 (${r.status})`);
         await this.loadCanvasList();
         this.showToast(`"${name}" 생성됨`, 'success');
       } catch(e) { this.showToast('생성 실패: ' + e.message, 'error'); }
