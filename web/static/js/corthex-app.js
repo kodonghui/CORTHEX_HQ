@@ -3,11 +3,17 @@ const _scriptCache = {};
 function _loadScript(url) {
   if (_scriptCache[url]) return _scriptCache[url];
   _scriptCache[url] = new Promise((resolve, reject) => {
-    if (document.querySelector(`script[src="${url}"]`)) { resolve(); return; }
+    const existing = document.querySelector(`script[src="${url}"]`);
+    if (existing) {
+      if (existing.dataset.loaded === '1') { resolve(); return; }
+      existing.addEventListener('load', () => resolve());
+      existing.addEventListener('error', () => { delete _scriptCache[url]; reject(new Error('Script load failed: ' + url)); });
+      return;
+    }
     const s = document.createElement('script');
     s.src = url;
-    s.onload = resolve;
-    s.onerror = reject;
+    s.onload = () => { s.dataset.loaded = '1'; resolve(); };
+    s.onerror = () => { delete _scriptCache[url]; reject(new Error('Script load failed: ' + url)); };
     document.head.appendChild(s);
   });
   return _scriptCache[url];
@@ -5312,12 +5318,16 @@ function corthexApp() {
       this.nexusOpen = true;
       // x-if로 DOM이 파괴/재생성되므로 열 때마다 캔버스 재초기화
       this.flowchart.canvasLoaded = false;
-      setTimeout(async () => {
+      this.$nextTick(async () => {
+        // DOM이 실제로 나타날 때까지 최대 2초 대기
+        let attempts = 0;
+        while (!document.getElementById('nexus-canvas') && attempts++ < 20) {
+          await new Promise(r => setTimeout(r, 100));
+        }
         await this.initCytoscapeCanvas();
         await this.loadCanvasList();
-        // SSE 자동 연결 (캔버스에서 Mermaid 실시간 수신)
         this._connectSketchVibeSSE();
-      }, 200);
+      });
     },
 
     // ══════════════════════════════════════════════ AGORA ══
@@ -5802,6 +5812,12 @@ function corthexApp() {
 
     // ── NEXUS: Cytoscape.js 캔버스 초기화 (2026-03-03 Mermaid→Cytoscape 전환) ──
     async initCytoscapeCanvas() {
+      const container = document.getElementById('nexus-canvas');
+      if (!container) {
+        console.error('nexus-canvas DOM 없음');
+        this.showToast('캔버스 컨테이너를 찾을 수 없습니다', 'error');
+        return;
+      }
       try {
         // 1단계: 핵심 라이브러리 (cytoscape + dagre + lodash)
         await Promise.all([
@@ -5809,16 +5825,13 @@ function corthexApp() {
           _loadScript(_CDN.dagre),
           _loadScript(_CDN.lodash),
         ]);
-        // 2단계: 확장 (cytoscape-dagre는 필수, edgehandles는 선택)
+        // 2단계: 확장 (cytoscape-dagre)
         await _loadScript(_CDN.cyDagre);
-        // dagre 확장 등록
         if (!window._cyExtRegistered) {
           if (typeof cytoscapeDagre !== 'undefined') cytoscape.use(cytoscapeDagre);
           window._cyExtRegistered = true;
         }
-        // 3단계: Cytoscape 인스턴스 생성 (edgehandles 전에 먼저!)
-        const container = document.getElementById('nexus-canvas');
-        if (!container) return;
+        // 3단계: Cytoscape 인스턴스 생성
         if (window._nexusCy) { window._nexusCy.destroy(); window._nexusCy = null; }
         window._nexusCy = cytoscape({
           container,
@@ -5844,11 +5857,10 @@ function corthexApp() {
           console.warn('edgehandles 로드 실패 (드래그 연결 비활성화):', ehErr);
         }
       } catch (e) {
+        this.flowchart.canvasLoaded = true; // 로딩 스피너 해제
         this.showToast('캔버스 엔진 오류: ' + e.message, 'error');
         console.error('initCytoscapeCanvas:', e);
-        // 에러 시 화면에 표시
-        const el = document.getElementById('nexus-canvas');
-        if (el) el.innerHTML = `<div class="flex items-center justify-center h-full"><pre class="text-red-400 text-xs p-4">${e.message}\n${e.stack||''}</pre></div>`;
+        container.innerHTML = '<div class="flex items-center justify-center h-full text-center"><div><p class="text-red-400 text-sm mb-2">\uCE94\uBC84\uC2A4 \uB85C\uB4DC \uC2E4\uD328</p><pre class="text-red-400/60 text-xs">' + e.message + '</pre><button onclick="location.reload()" class="mt-4 px-4 py-2 bg-red-600/30 text-red-300 rounded text-xs hover:bg-red-600/50">\uC0C8\uB85C\uACE0\uCE68</button></div></div>';
       }
     },
 
