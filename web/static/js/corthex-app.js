@@ -6018,10 +6018,11 @@ function corthexApp() {
           body: JSON.stringify({ folder: 'flowcharts', filename, content: JSON.stringify(data, null, 2) })
         });
         if (!r.ok) throw new Error('저장 실패');
-        // Claude Code read_canvas용 SQLite current_canvas 업데이트
+        // Claude Code read_canvas용 SQLite current_canvas 업데이트 (순수 Drawflow 데이터만)
+        const rawData = this.flowchart.canvasEditor.export();
         fetch('/api/sketchvibe/save-canvas', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ canvas_json: data, connection_labels: { ...this.flowchart.connectionLabels } })
+          body: JSON.stringify({ canvas_json: rawData, connection_labels: { ...this.flowchart.connectionLabels } })
         }).catch(() => {});
         this.flowchart.canvasDirty = false;
         this.showToast('캔버스 저장됐습니다', 'success');
@@ -6065,9 +6066,10 @@ function corthexApp() {
     clearNexusCanvas() {
       if (this.flowchart.canvasEditor) {
         this.flowchart.canvasEditor.clearModuleSelected();
-        this.flowchart.canvasEditor.load({ drawflow: { Home: { data: {} } } });
+        this.flowchart.canvasEditor.import({ drawflow: { Home: { data: {} } } });
         this.flowchart.canvasDirty = false;
         this.flowchart.canvasName = '';
+        this.flowchart.connectionLabels = {};
       }
     },
 
@@ -6079,7 +6081,8 @@ function corthexApp() {
       const name = `새 캔버스 ${n}`;
 
       if (this.flowchart.canvasEditor) {
-        this.flowchart.canvasEditor.load({ drawflow: { Home: { data: {} } } });
+        this.flowchart.canvasEditor.clearModuleSelected();
+        this.flowchart.canvasEditor.import({ drawflow: { Home: { data: {} } } });
         this.flowchart.canvasDirty = false;
       }
       this.flowchart.canvasName = name;
