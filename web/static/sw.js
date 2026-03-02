@@ -1,5 +1,5 @@
 // CORTHEX HQ — Service Worker (PWA 오프라인 셸)
-const CACHE_NAME = 'corthex-hq-v1';
+const CACHE_NAME = 'corthex-hq-v2';
 const SHELL_ASSETS = [
   '/',
   '/static/css/corthex-styles.css',
