@@ -3479,7 +3479,8 @@ function corthexApp() {
         const res = await fetch(`/api/knowledge${org ? '?org=' + org : ''}`);
         if (res.ok) {
           const data = await res.json();
-          this.knowledge.files = data.entries || data || [];
+          const all = data.entries || data || [];
+          this.knowledge.files = all.filter(f => f.folder !== 'flowcharts');
         }
       } catch { this.showToast('지식 파일 목록을 불러올 수 없습니다.', 'error'); }
       finally { this.knowledge.loading = false; }
