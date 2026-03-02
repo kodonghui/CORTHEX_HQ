@@ -7554,31 +7554,62 @@
               </div>
             </div>
           </template>
+          <!-- 상태 표시 바 (모드에 따라 내용 변경) -->
           <template x-if="flowchart.canvasLoaded">
-            <div class="absolute top-4 left-1/2 -translate-x-1/2 z-10 pointer-events-none">
-              <div class="bg-black/60 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white/30 backdrop-blur-sm">
-                팔레트에서 노드 추가 / "연결" 모드로 화살표 / 더블클릭 이름 편집 / Delete 삭제
+            <div class="absolute top-3 left-1/2 -translate-x-1/2 z-10 pointer-events-none">
+              <!-- 연결 모드: 소스 선택 대기 -->
+              <div x-show="flowchart.connectMode && !flowchart.connectSource"
+                   class="bg-purple-500/20 border border-purple-400/40 rounded-lg px-4 py-2 text-xs text-purple-300 backdrop-blur-sm flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full bg-purple-400 animate-pulse"></span>
+                <span>연결 모드 — <b>출발 노드</b>를 클릭하세요</span>
+                <span class="text-purple-400/40 ml-1">(ESC 취소)</span>
+              </div>
+              <!-- 연결 모드: 소스 선택됨 → 타겟 대기 -->
+              <div x-show="flowchart.connectMode && flowchart.connectSource"
+                   class="bg-green-500/20 border border-green-400/40 rounded-lg px-4 py-2 text-xs text-green-300 backdrop-blur-sm flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full bg-green-400 animate-pulse"></span>
+                <span>출발 선택됨 → <b>도착 노드</b>를 클릭하세요</span>
+                <span class="text-green-400/40 ml-1">(ESC 취소)</span>
+              </div>
+              <!-- 선택 모드: 노드 선택됨 -->
+              <div x-show="!flowchart.connectMode && flowchart.selectedNodeId"
+                   class="bg-violet-500/15 border border-violet-400/30 rounded-lg px-4 py-2 text-xs text-violet-300 backdrop-blur-sm">
+                노드 선택됨 — <b>Delete</b> 삭제 / <b>더블클릭</b> 이름 변경
+              </div>
+              <!-- 엣지 선택됨 -->
+              <div x-show="!flowchart.connectMode && flowchart._selectedEdgeIndex != null"
+                   class="bg-red-500/15 border border-red-400/30 rounded-lg px-4 py-2 text-xs text-red-300 backdrop-blur-sm">
+                연결선 선택됨 — <b>Delete</b>로 삭제
+              </div>
+              <!-- 기본 상태 (아무것도 선택 안 됨) -->
+              <div x-show="!flowchart.connectMode && !flowchart.selectedNodeId && flowchart._selectedEdgeIndex == null"
+                   class="bg-black/40 border border-white/10 rounded-lg px-3 py-1.5 text-[11px] text-white/25 backdrop-blur-sm">
+                클릭=선택 / 더블클릭=이름 변경 / Delete=삭제
               </div>
             </div>
           </template>
           <!-- 도구 바: 연결 모드 + 방향 전환 -->
-          <div class="absolute top-12 right-4 z-10 flex flex-col gap-2">
-            <button @click="flowchart.connectMode = !flowchart.connectMode; flowchart.connectSource = null"
-                    :class="flowchart.connectMode ? 'bg-purple-500/30 border-purple-400/50 text-purple-300' : 'bg-white/5 border-white/10 text-white/40 hover:text-purple-300 hover:border-purple-400/40'"
-                    class="px-3 py-1.5 rounded-lg text-xs font-semibold border transition">
-              <span x-text="flowchart.connectMode ? '연결 중...' : '연결'"></span>
+          <div class="absolute top-3 right-4 z-10 flex items-center gap-2">
+            <button @click="flowchart.connectMode = !flowchart.connectMode; flowchart.connectSource = null; if (!flowchart.connectMode) _clearConnectSourceHighlight()"
+                    :class="flowchart.connectMode ? 'bg-purple-500/30 border-purple-400/50 text-purple-200 ring-1 ring-purple-400/30' : 'bg-white/5 border-white/10 text-white/40 hover:text-purple-300 hover:border-purple-400/40'"
+                    class="px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all">
+              <span x-show="!flowchart.connectMode">🔗 연결</span>
+              <span x-show="flowchart.connectMode">✕ 취소</span>
             </button>
-            <select x-model="flowchart.mermaidDirection"
-                    @change="flowchart.mermaidCode = flowchart.mermaidCode.replace(/^flowchart\s+\w+/, 'flowchart ' + flowchart.mermaidDirection); _renderMermaidCanvas(); flowchart.canvasDirty = true"
-                    class="bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-xs text-white/60 outline-none cursor-pointer">
-              <option value="LR">좌→우</option>
-              <option value="TD">위→아래</option>
-              <option value="RL">우→좌</option>
-              <option value="BT">아래→위</option>
-            </select>
+            <div class="flex items-center gap-1">
+              <span class="text-[10px] text-white/20">방향</span>
+              <select x-model="flowchart.mermaidDirection"
+                      @change="flowchart.mermaidCode = flowchart.mermaidCode.replace(/^flowchart\s+\w+/, 'flowchart ' + flowchart.mermaidDirection); _renderMermaidCanvas(); flowchart.canvasDirty = true"
+                      class="bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-xs text-white/60 outline-none cursor-pointer hover:border-white/20 transition">
+                <option value="LR">좌→우</option>
+                <option value="TD">위→아래</option>
+                <option value="RL">우→좌</option>
+                <option value="BT">아래→위</option>
+              </select>
+            </div>
           </div>
           <div id="nexus-canvas" class="w-full h-full overflow-auto flex items-center justify-center p-8"
-               @keydown.window="if (nexusOpen && ($event.key === 'Delete' || $event.key === 'Backspace') && !$event.target.matches('input,textarea,select')) _deleteSelected()"></div>
+               @keydown.window="if (nexusOpen && !$event.target.matches('input,textarea,select')) { if ($event.key === 'Escape' && flowchart.connectMode) { flowchart.connectMode = false; flowchart.connectSource = null; _clearConnectSourceHighlight(); showToast('연결 모드 취소', 'info'); } else if ($event.key === 'Delete' || $event.key === 'Backspace') { _deleteSelected(); } }"></div>
           <!-- Mermaid 결과 — 스케치를 교체하여 캔버스에 표시 -->
           <div x-show="flowchart.sketchResult && flowchart.sketchResult.mermaid"
                x-transition:enter="transition ease-out duration-300"

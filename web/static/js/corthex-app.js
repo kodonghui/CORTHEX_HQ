@@ -5036,6 +5036,14 @@ function corthexApp() {
         // Esc → 모달 닫기
         if (e.key === 'Escape') {
           if (this.nexusOpen) {
+            // 연결 모드 ON → 연결 모드만 취소 (오버레이 유지)
+            if (this.flowchart.connectMode) {
+              this.flowchart.connectMode = false;
+              this.flowchart.connectSource = null;
+              this._clearConnectSourceHighlight();
+              this.showToast('연결 모드 취소', 'info');
+              return;
+            }
             this.nexusOpen = false;
             this._disconnectSketchVibeSSE();
             return;
@@ -5820,9 +5828,16 @@ function corthexApp() {
       const code = this.flowchart.mermaidCode.trim();
       const dir = this.flowchart.mermaidDirection || 'LR';
       if (!code || code === `flowchart ${dir}`) {
-        el.innerHTML = `<div class="flex flex-col items-center gap-3 text-white/20">
-          <svg class="w-12 h-12 opacity-30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="8" y="14" width="7" height="7" rx="1"/><line x1="6.5" y1="10" x2="6.5" y2="14" /><line x1="17.5" y1="10" x2="17.5" y2="14" /></svg>
-          <span class="text-xs">팔레트에서 노드를 추가하세요</span>
+        el.innerHTML = `<div class="flex flex-col items-center gap-4 text-white/30 max-w-xs">
+          <svg class="w-14 h-14 opacity-20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><rect x="2" y="3" width="7" height="5" rx="1.5"/><rect x="15" y="3" width="7" height="5" rx="1.5"/><rect x="8.5" y="16" width="7" height="5" rx="1.5"/><line x1="5.5" y1="8" x2="5.5" y2="12"/><line x1="18.5" y1="8" x2="18.5" y2="12"/><line x1="5.5" y1="12" x2="12" y2="12"/><line x1="18.5" y1="12" x2="12" y2="12"/><line x1="12" y1="12" x2="12" y2="16"/></svg>
+          <div class="space-y-2.5 text-center">
+            <p class="text-sm font-medium text-white/40">캔버스가 비어있어요</p>
+            <div class="space-y-1.5 text-[11px]">
+              <p><span class="text-yellow-400/60 font-semibold">1단계</span> &nbsp;← 왼쪽 팔레트에서 노드 클릭</p>
+              <p><span class="text-purple-400/60 font-semibold">2단계</span> &nbsp;우측 상단 "연결" → 노드 두 개 클릭</p>
+              <p><span class="text-blue-400/60 font-semibold">3단계</span> &nbsp;더블클릭으로 이름 변경</p>
+            </div>
+          </div>
         </div>`;
         return;
       }
@@ -5849,16 +5864,34 @@ function corthexApp() {
     _bindSvgInteractions(container) {
       const svgEl = container.querySelector('svg');
       if (!svgEl) return;
-      // SVG 필터 정의 (선택 glow 효과)
+      // SVG 필터 정의 (선택 glow + 호버 glow)
       const defs = svgEl.querySelector('defs') || svgEl.insertBefore(document.createElementNS('http://www.w3.org/2000/svg','defs'), svgEl.firstChild);
       if (!defs.querySelector('#nexus-glow')) {
         defs.innerHTML += `<filter id="nexus-glow"><feDropShadow dx="0" dy="0" stdDeviation="4" flood-color="#a78bfa" flood-opacity="0.7"/></filter>`;
       }
-      // 모든 .node 그룹에 클릭 이벤트
+      if (!defs.querySelector('#nexus-hover')) {
+        defs.innerHTML += `<filter id="nexus-hover"><feDropShadow dx="0" dy="0" stdDeviation="2.5" flood-color="#fbbf24" flood-opacity="0.4"/></filter>`;
+      }
+      // 연결 모드이면 커서 crosshair
+      if (this.flowchart.connectMode) {
+        svgEl.style.cursor = 'crosshair';
+      }
+      // 모든 .node 그룹에 클릭 + 호버 이벤트
       svgEl.querySelectorAll('.node').forEach(nodeEl => {
         const nodeId = this._extractMermaidNodeId(nodeEl);
         if (!nodeId) return;
-        nodeEl.style.cursor = 'pointer';
+        nodeEl.style.cursor = this.flowchart.connectMode ? 'crosshair' : 'pointer';
+        // 호버 효과
+        nodeEl.addEventListener('mouseenter', () => {
+          if (nodeEl.classList.contains('selected') || nodeEl.classList.contains('connect-source')) return;
+          const shape = nodeEl.querySelector('rect,circle,polygon,.label-container');
+          if (shape) shape.setAttribute('filter', 'url(#nexus-hover)');
+        });
+        nodeEl.addEventListener('mouseleave', () => {
+          if (nodeEl.classList.contains('selected') || nodeEl.classList.contains('connect-source')) return;
+          const shape = nodeEl.querySelector('rect,circle,polygon,.label-container');
+          if (shape) shape.removeAttribute('filter');
+        });
         nodeEl.addEventListener('click', (e) => {
           e.stopPropagation();
           if (this.flowchart.connectMode) {
@@ -5883,13 +5916,19 @@ function corthexApp() {
           const path = edgeEl.querySelector('path');
           if (path) path.setAttribute('stroke', '#ef4444');
           this.flowchart.selectedNodeId = null;
-          this.flowchart._selectedEdgeIndex = idx;  // 연결 줄 인덱스
+          this.flowchart._selectedEdgeIndex = idx;
         });
       });
-      // 빈 공간 클릭: 선택 해제
+      // 빈 공간 클릭: 선택 해제 + 연결 모드 취소
       svgEl.addEventListener('click', (e) => {
         if (e.target === svgEl || e.target.tagName === 'rect') {
-          this._deselectAll(svgEl);
+          if (this.flowchart.connectMode && this.flowchart.connectSource) {
+            this._clearConnectSourceHighlight();
+            this.flowchart.connectSource = null;
+            this.showToast('연결 취소됨. 다시 출발 노드를 클릭하세요.', 'info');
+          } else {
+            this._deselectAll(svgEl);
+          }
         }
       });
     },
@@ -5905,6 +5944,21 @@ function corthexApp() {
       return null;
     },
 
+    // ── Mermaid 코드에서 노드의 표시 라벨 추출 ──
+    _getNodeLabel(nodeId) {
+      const code = this.flowchart.mermaidCode;
+      const patterns = [
+        /\[\/(.+?)\\]/,  /\[\[(.+?)\]\]/, /\[\((.+?)\)\]/, /\(\[(.+?)\]\)/,
+        /\(\((.+?)\)\)/, /\{(.+?)\}/,     />(.+?)\]/,      /\[([^\]]+?)\]/
+      ];
+      for (const p of patterns) {
+        const re = new RegExp(`${nodeId}${p.source}`);
+        const m = re.exec(code);
+        if (m) return m[1];
+      }
+      return nodeId;
+    },
+
     // ── 노드 선택 하이라이트 ──
     _selectNode(nodeId, svgEl) {
       this._deselectAll(svgEl);
@@ -5917,6 +5971,40 @@ function corthexApp() {
           const shape = n.querySelector('rect,circle,polygon,.label-container');
           if (shape) shape.setAttribute('filter', 'url(#nexus-glow)');
         }
+      });
+    },
+
+    // ── 연결 모드: 소스 노드에 특별 하이라이트 ──
+    _highlightConnectSource(nodeId) {
+      const el = document.getElementById('nexus-canvas');
+      if (!el) return;
+      const svgEl = el.querySelector('svg');
+      if (!svgEl) return;
+      // 초록색 glow 필터 추가
+      const defs = svgEl.querySelector('defs');
+      if (defs && !defs.querySelector('#nexus-connect-glow')) {
+        defs.innerHTML += `<filter id="nexus-connect-glow"><feDropShadow dx="0" dy="0" stdDeviation="5" flood-color="#22c55e" flood-opacity="0.8"/></filter>`;
+      }
+      svgEl.querySelectorAll('.node').forEach(n => {
+        const nid = this._extractMermaidNodeId(n);
+        if (nid === nodeId) {
+          n.classList.add('connect-source');
+          const shape = n.querySelector('rect,circle,polygon,.label-container');
+          if (shape) shape.setAttribute('filter', 'url(#nexus-connect-glow)');
+        }
+      });
+    },
+
+    // ── 연결 소스 하이라이트 제거 ──
+    _clearConnectSourceHighlight() {
+      const el = document.getElementById('nexus-canvas');
+      if (!el) return;
+      const svgEl = el.querySelector('svg');
+      if (!svgEl) return;
+      svgEl.querySelectorAll('.node.connect-source').forEach(n => {
+        n.classList.remove('connect-source');
+        const shape = n.querySelector('rect,circle,polygon,.label-container');
+        if (shape) shape.removeAttribute('filter');
       });
     },
 
@@ -5990,27 +6078,35 @@ function corthexApp() {
       this.flowchart.mermaidCode += '\n' + line;
       this.flowchart.canvasDirty = true;
       this._renderMermaidCanvas();
+      this.showToast(`"${s.label}" 노드 추가됨`, 'success');
     },
 
     // ── NEXUS: 연결 모드 클릭 핸들러 ──
     _handleConnectClick(nodeId) {
       if (!this.flowchart.connectSource) {
         this.flowchart.connectSource = nodeId;
-        this.showToast(`"${nodeId}" 선택 → 타겟 노드를 클릭하세요`, 'info');
+        this._highlightConnectSource(nodeId);
+        const label = this._getNodeLabel(nodeId);
+        this.showToast(`"${label}" 선택됨 → 도착 노드를 클릭하세요`, 'info');
       } else {
         const src = this.flowchart.connectSource;
         if (src === nodeId) {
-          this.showToast('같은 노드끼리는 연결할 수 없습니다', 'error');
+          this.showToast('같은 노드는 연결할 수 없어요', 'error');
+          this._clearConnectSourceHighlight();
           this.flowchart.connectSource = null;
           return;
         }
+        const srcLabel = this._getNodeLabel(src);
+        const tgtLabel = this._getNodeLabel(nodeId);
         const label = prompt('화살표 설명 (비워두면 라벨 없음):');
         const arrow = label ? `  ${src} -->|${label}| ${nodeId}` : `  ${src} --> ${nodeId}`;
         this.flowchart.mermaidCode += '\n' + arrow;
         this.flowchart.canvasDirty = true;
+        this._clearConnectSourceHighlight();
         this.flowchart.connectSource = null;
         this.flowchart.connectMode = false;
         this._renderMermaidCanvas();
+        this.showToast(`"${srcLabel}" → "${tgtLabel}" 연결됨`, 'success');
       }
     },
 
@@ -6047,17 +6143,14 @@ function corthexApp() {
     _deleteSelected() {
       if (this.flowchart.selectedNodeId) {
         const id = this.flowchart.selectedNodeId;
+        const label = this._getNodeLabel(id);
         const lines = this.flowchart.mermaidCode.split('\n');
         const filtered = lines.filter(line => {
           const t = line.trim();
-          // 빈 줄/지시문 유지
           if (!t || /^(flowchart|graph|subgraph|end|%%|classDef|linkStyle|style\s)/.test(t)) return true;
-          // 노드 정의 줄 (해당 ID로 시작하는 도형)
           if (new RegExp(`^${id}[\\[\\(\\{\\>]`).test(t)) return false;
           if (new RegExp(`^${id}$`).test(t)) return false;
-          // 연결 줄 (소스 또는 타겟에 해당 ID)
           if (t.includes('-->') || t.includes('---')) {
-            // "src --> tgt" 또는 "src -->|label| tgt" 패턴에서 src/tgt 추출
             const m = t.match(/^\s*(\S+?)\s*--/);
             const m2 = t.match(/--[->]+\s*(?:\|[^|]*\|)?\s*(\S+)/);
             const srcId = m ? m[1].replace(/[\[\]\(\)\{\}>\/\\|]/g, '').trim() : '';
@@ -6070,6 +6163,7 @@ function corthexApp() {
         this.flowchart.selectedNodeId = null;
         this.flowchart.canvasDirty = true;
         this._renderMermaidCanvas();
+        this.showToast(`"${label}" 삭제됨`, 'success');
         return;
       }
       // 엣지 삭제 (selectedEdgeIndex 기반)
@@ -6089,6 +6183,7 @@ function corthexApp() {
         this.flowchart._selectedEdgeIndex = null;
         this.flowchart.canvasDirty = true;
         this._renderMermaidCanvas();
+        this.showToast('연결선 삭제됨', 'success');
       }
     },
 
