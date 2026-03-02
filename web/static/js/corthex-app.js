@@ -5799,15 +5799,15 @@ function corthexApp() {
         const el = document.getElementById('nexus-canvas');
         if (!el || typeof Drawflow === 'undefined') throw new Error('캔버스 초기화 실패');
         const editor = new Drawflow(el);
-        editor.reroute = true;
-        editor.reroute_fix_curvature = true;
+        editor.reroute = false;
+        editor.reroute_fix_curvature = false;
         editor.start();
         // 변경 감지 + 화살표 라벨 재렌더
         ['nodeCreated','connectionCreated','nodeRemoved','connectionRemoved','nodeMoved'].forEach(ev => {
           editor.on(ev, () => {
             this.flowchart.canvasDirty = true;
             // 연결 변경 시 라벨 재렌더 (노드 이동 시 경로 좌표 변경)
-            setTimeout(() => this._renderConnectionLabels(), 50);
+            setTimeout(() => this._renderConnectionLabels(), 150);
           });
         });
         // 노드 선택 추적 + Delete 키 삭제
@@ -6018,6 +6018,11 @@ function corthexApp() {
           body: JSON.stringify({ folder: 'flowcharts', filename, content: JSON.stringify(data, null, 2) })
         });
         if (!r.ok) throw new Error('저장 실패');
+        // Claude Code read_canvas용 SQLite current_canvas 업데이트
+        fetch('/api/sketchvibe/save-canvas', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ canvas_json: data, connection_labels: { ...this.flowchart.connectionLabels } })
+        }).catch(() => {});
         this.flowchart.canvasDirty = false;
         this.showToast('캔버스 저장됐습니다', 'success');
         await this.loadCanvasList();
