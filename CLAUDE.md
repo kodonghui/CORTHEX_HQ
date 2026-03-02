@@ -83,8 +83,8 @@
 ## STEP 5. 커밋 & 배포 (코드 + 문서 한번에)
 - E2E QA 전부 통과 후에만 커밋
 - `git commit -m "내용 [완료]"` → push
-- `gh run list --workflow=deploy.yml --limit=1` → 빌드#N 대기
-- `curl -s https://corthex-hq.com/api/health` 확인
+- **빠른 배포 (30초)**: `bash deploy-fast.sh` → SSH 직배포 + 헬스체크 자동
+- **일반 배포 (3분, 새 API 키 추가 시만)**: `gh run list --workflow=deploy.yml --limit=1` 대기
 
 ## STEP 6. 보고
 ```
