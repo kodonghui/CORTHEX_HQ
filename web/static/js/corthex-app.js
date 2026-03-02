@@ -375,6 +375,7 @@ function corthexApp() {
       canvasEditor: null,
       canvasDirty: false,
       canvasName: '',
+      savedCanvasName: '',   // 서버에 실제 저장된 이름 (rename 감지용)
       canvasItems: [],
       confirmedItems: [],  // 확인된 다이어그램 (맞아 누른 것)
       connectionLabels: {},  // 화살표 라벨: "key" → "텍스트"
@@ -6027,8 +6028,9 @@ function corthexApp() {
     // ── NEXUS 캔버스: 저장 ──
     async saveNexusCanvas() {
       if (!this.flowchart.canvasEditor) return;
-      const prevName = (this.flowchart.canvasName || '').trim();
-      let name = prevName;
+      // savedCanvasName = 서버에 실제 저장된 이름 (input 변경과 무관)
+      const prevName = (this.flowchart.savedCanvasName || '').trim();
+      let name = (this.flowchart.canvasName || '').trim();
       if (!name) {
         const input = prompt('캔버스 이름을 입력하세요:');
         if (!input || !input.trim()) return;
@@ -6047,11 +6049,12 @@ function corthexApp() {
           body: JSON.stringify({ folder: 'flowcharts', filename, content: JSON.stringify(data, null, 2) })
         });
         if (!r.ok) throw new Error('저장 실패');
-        // 파일명 변경 시 이전 파일 삭제
+        // 파일명 변경 시 이전 파일 삭제 (서버 저장 이름 기준)
         if (prevName && prevName !== name) {
           const prevFile = prevName.endsWith('.json') ? prevName : prevName + '.json';
           fetch(`/api/knowledge/flowcharts/${prevFile}`, { method: 'DELETE' }).catch(() => {});
         }
+        this.flowchart.savedCanvasName = name;  // 저장 완료 후 갱신
         // Claude Code read_canvas용 SQLite current_canvas 업데이트 (순수 Drawflow 데이터만)
         const rawData = this.flowchart.canvasEditor.export();
         fetch('/api/sketchvibe/save-canvas', {
@@ -6078,6 +6081,7 @@ function corthexApp() {
         const drawflowData = { ...parsed }; delete drawflowData._connectionLabels;
         this.flowchart.canvasEditor.import(drawflowData);
         this.flowchart.canvasName = item.name.replace('.json', '');
+        this.flowchart.savedCanvasName = this.flowchart.canvasName;  // 서버 기준 이름 동기화
         this.flowchart.canvasDirty = false;
         // 화살표 라벨 재렌더
         setTimeout(() => this._renderConnectionLabels(), 100);
@@ -6109,6 +6113,7 @@ function corthexApp() {
         this.flowchart.canvasEditor.import({ drawflow: { Home: { data: {} } } });
         this.flowchart.canvasDirty = false;
         this.flowchart.canvasName = '';
+        this.flowchart.savedCanvasName = '';
         this.flowchart.connectionLabels = {};
       }
     },
@@ -6126,6 +6131,7 @@ function corthexApp() {
         this.flowchart.canvasDirty = false;
       }
       this.flowchart.canvasName = name;
+      this.flowchart.savedCanvasName = '';  // 아직 저장 전 — 빈 string
       this.flowchart.connectionLabels = {};
       this.flowchart.sketchResult = null;
       this.flowchart.sketchConfirmed = null;
