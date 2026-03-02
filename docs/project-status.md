@@ -9,7 +9,7 @@
 
 - **날짜**: 2026-03-02
 - **버전**: `5.30.000`
-- **빌드**: #789 배포완료 (최신)
+- **빌드**: #791 배포완료 (최신)
 - **서버**: https://corthex-hq.com
 
 ## 2026-03-02 — SketchVibe 워크플로우 완성 (빌드 #788~#789)
@@ -21,6 +21,8 @@
 | reroute 비활성화 | 선 더블클릭 분기점 생성 없음 | #788 |
 | 맞아 → 캔버스 반영 | Mermaid → Drawflow 노드 변환 (모양 그대로: pill/diamond/circle/cylinder) | #789 |
 | SketchVibe 이용법 | `docs/sketchvibe-guide.md` 작성 | #789 |
+| +새로 노드 잔류 | editor.load→import (DOM 완전 초기화) + save-canvas 데이터 정리 | #790 |
+| QA 규칙 강화 | 커밋 전 spec-validator 필수 + Drawflow 주의사항 코딩_개발.md 추가 | #791 |
 
 **워크플로우**: 그리기 → 저장 → Claude 분석 → Mermaid 오버레이 → "맞아" → 캔버스에 노드 반영 → 추가 그리기 → 반복
 
