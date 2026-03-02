@@ -6238,43 +6238,100 @@ function corthexApp() {
     },
 
     // ── "맞아" 확인 → 다이어그램 저장 ──
-    async confirmSketchVibe() {
+    // ── "맞아" → Mermaid를 Drawflow 노드로 변환 후 오버레이 닫기 ──
+    applySketchToCanvas() {
       const r = this.flowchart.sketchResult;
-      if (!r || !r.mermaid) return;
-
-      const name = prompt('다이어그램 이름을 입력하세요:', '') || '';
-      if (!name.trim()) {
-        this.showToast('이름을 입력해주세요', 'error');
-        return;
+      if (r && r.mermaid) {
+        this._importMermaidToCanvas(r.mermaid);
+        this.flowchart.canvasDirty = true;
+        this.showToast('캔버스에 적용됐습니다', 'success');
       }
+      this.flowchart.sketchResult = null;
+      this.flowchart.sketchConfirmed = null;
+      this.flowchart.approvalRequest = null;
+    },
 
-      try {
-        // 승인 이벤트 전송
-        await fetch('/api/sketchvibe/approve', { method: 'POST' });
-
-        const canvasJson = this.flowchart.canvasEditor?.export() || null;
-        const resp = await fetch('/api/sketchvibe/save-diagram', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            mermaid: r.mermaid,
-            name: name.trim(),
-            interpretation: r.description || '',
-            canvas_json: canvasJson,
-          })
-        });
-
-        const data = await resp.json();
-        if (data.error) throw new Error(data.error);
-
-        this.flowchart.sketchConfirmed = { name: name.trim() };
-        this.flowchart.approvalRequest = null;
-        // 저장된 캔버스 목록 갱신
-        this.loadCanvasList();
-        this.showToast(`"${name}" 확인 완료 — 저장됨`, 'success');
-      } catch (e) {
-        this.showToast('저장 실패: ' + e.message, 'error');
+    // ── Mermaid 코드 파싱 → nodes + edges ──
+    _parseMermaidNodes(code) {
+      const nodes = {}, edges = [];
+      for (const rawLine of code.split('\n')) {
+        const line = rawLine.trim();
+        if (!line || /^(flowchart|graph|subgraph|end|%%|classDef|linkStyle|style\s)/.test(line)) continue;
+        // 엣지: A --> B, A -->|label| B
+        const em = line.match(/^(\w+)\s*--[->]+\s*(?:\|([^|]*)\|)?\s*(\w+)/);
+        if (em) { edges.push({ from: em[1], label: (em[2] || '').trim(), to: em[3] }); continue; }
+        // 노드 정의
+        let m;
+        if      (m = line.match(/^(\w+)\[\((.+?)\)\]/))     nodes[m[1]] = { label: m[2], type: 'db' };      // [(label)] cylinder
+        else if (m = line.match(/^(\w+)\(\(\((.+?)\)\)\)/)) nodes[m[1]] = { label: m[2], type: 'end' };
+        else if (m = line.match(/^(\w+)\(\((.+?)\)\)/))     nodes[m[1]] = { label: m[2], type: 'end' };
+        else if (m = line.match(/^(\w+)\(\[(.+?)\]\)/))     nodes[m[1]] = { label: m[2], type: 'start' };
+        else if (m = line.match(/^(\w+)\{(.+?)\}/))         nodes[m[1]] = { label: m[2], type: 'decide' };
+        else if (m = line.match(/^(\w+)>(.+?)\]/))          nodes[m[1]] = { label: m[2], type: 'note' };
+        else if (m = line.match(/^(\w+)\[(.+?)\]/)) {
+          const lbl = m[2];
+          const type = /에이전트|Agent/i.test(lbl) ? 'agent' : /API|api/.test(lbl) ? 'api' : 'system';
+          nodes[m[1]] = { label: lbl, type };
+        }
       }
+      // 엣지에만 등장한 노드 자동 추가
+      edges.forEach(e => {
+        if (!nodes[e.from]) nodes[e.from] = { label: e.from, type: 'system' };
+        if (!nodes[e.to])   nodes[e.to]   = { label: e.to,   type: 'system' };
+      });
+      return { nodes, edges };
+    },
+
+    // ── Mermaid → Drawflow 캔버스 (모양 그대로 변환) ──
+    _importMermaidToCanvas(mermaidCode) {
+      const editor = this.flowchart.canvasEditor;
+      if (!editor) return;
+      const colors = { agent:'#8b5cf6', system:'#3b82f6', api:'#059669', decide:'#f59e0b', start:'#22c55e', end:'#ef4444', note:'#6b7280', db:'#0ea5e9' };
+      // Mermaid 모양 → CSS 스타일 매핑
+      const shapeStyle = {
+        start:  'border-radius:50px;padding:6px 18px;min-width:80px',
+        end:    'border-radius:50%;width:64px;height:64px;display:flex;align-items:center;justify-content:center;padding:0',
+        decide: 'width:72px;height:72px;display:flex;align-items:center;justify-content:center;padding:0;clip-path:polygon(50% 0%,100% 50%,50% 100%,0% 50%)',
+        note:   'border-radius:4px 16px 4px 4px;padding:6px 12px;min-width:80px',
+        db:     'border-radius:8px 8px 4px 4px;border-top:4px solid rgba(255,255,255,0.35);padding:8px 14px;min-width:80px',
+        system: 'border-radius:8px;padding:6px 12px;min-width:80px',
+        agent:  'border-radius:8px;padding:6px 12px;min-width:80px',
+        api:    'border-radius:8px;padding:6px 12px;min-width:80px',
+      };
+      const { nodes, edges } = this._parseMermaidNodes(mermaidCode);
+      // 캔버스 초기화
+      editor.import({ drawflow: { Home: { data: {} } } });
+      this.flowchart.connectionLabels = {};
+      // 레이아웃: 열 3개 그리드
+      const keys = Object.keys(nodes);
+      const cols = Math.min(3, keys.length);
+      const nodeMap = {};
+      keys.forEach((key, i) => {
+        const n = nodes[key];
+        const color = colors[n.type] || '#6b7280';
+        const sh = shapeStyle[n.type] || shapeStyle.system;
+        const html = `<div class="nexus-node" style="background:${color};${sh};color:#fff;font-size:12px;font-family:Pretendard,sans-serif;text-align:center;cursor:move">${n.label}</div>`;
+        const x = 80 + (i % cols) * 240;
+        const y = 80 + Math.floor(i / cols) * 140;
+        const id = editor.addNode(n.type, 1, 1, x, y, n.type, { label: n.label }, html);
+        nodeMap[key] = id;
+      });
+      // 연결 추가
+      edges.forEach(e => {
+        const fId = nodeMap[e.from], tId = nodeMap[e.to];
+        if (!fId || !tId) return;
+        editor.addConnection(fId, tId, 'output_1', 'input_1');
+        if (e.label) {
+          const key = `node_out_node-${fId}__output_1__node_in_node-${tId}__input_1`;
+          this.flowchart.connectionLabels[key] = e.label;
+        }
+      });
+      setTimeout(() => this._renderConnectionLabels(), 150);
+    },
+
+    // ── (레거시) confirmSketchVibe 호환용 ──
+    async confirmSketchVibe() {
+      this.applySketchToCanvas();
     },
 
     // ── Mode B: 같이 그리기 세션 시작 ──
