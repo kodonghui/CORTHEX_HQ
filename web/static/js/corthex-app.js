@@ -563,8 +563,9 @@ function corthexApp() {
       // Marked 비동기 프리로드 (blocking 아님, 사령관실 진입 전까지 로드 완료)
       _loadScript(_CDN.marked);
 
-      // 에이전트 목록 + WebSocket + 진행중 작업: 병렬
-      this.loadAgentsAndTools();
+      // 에이전트 목록 로드 (사이드바 렌더링에 필수 — await로 완료 보장)
+      await this.loadAgentsAndTools();
+      // WebSocket + 진행중 작업: 병렬
       this.connectWebSocket();
       this.restoreRunningTask();
 
@@ -3321,18 +3322,26 @@ function corthexApp() {
         this.agentsList = Array.isArray(agents) ? agents.filter(a => !a.dormant) : [];
         this.toolsList = Array.isArray(tools) ? tools : [];
         if (this.agentsList.length > 0) {
+          // Alpine.js 반응성 보장: 빈 객체에 동적 키 추가는 감지 안 됨
+          // → 새 객체 만들어서 한번에 교체해야 x-show 재평가 트리거됨
+          const names = { ...this.agentNames };
+          const initials = { ...this.agentInitials };
+          const roles = { ...this.agentRoles };
+          const modelRaw = { ...this.agentModelRaw };
+          const reasonings = { ...this.agentReasonings };
+          const models = { ...this.agentModels };
+          const cliOwner = { ...this.agentCliOwner };
+          const division = { ...this.agentDivision };
+
           this.agentsList.forEach(a => {
-            this.agentNames[a.agent_id] = a.name_ko || a.agent_id;
+            names[a.agent_id] = a.name_ko || a.agent_id;
             const nameKo = a.name_ko || a.agent_id;
-            this.agentInitials[a.agent_id] = nameKo.length >= 2 ? nameKo.substring(0, 2) : nameKo.toUpperCase();
-            this.agentRoles[a.agent_id] = a.role || '';
-            // 모델 원본 이름과 추론 레벨 저장 (내부 데이터용)
-            this.agentModelRaw[a.agent_id] = a.model_name || '';
-            this.agentReasonings[a.agent_id] = a.reasoning_effort || '';
-            // 에이전트 카드에 표시명 저장 (추론레벨은 템플릿에서 별도 표시)
-            this.agentModels[a.agent_id] = a.model_name || '';
-            // v5.1: cli_owner 매핑 (사이드바 슬랙 모델 필터링용)
-            this.agentCliOwner[a.agent_id] = a.cli_owner || '';
+            initials[a.agent_id] = nameKo.length >= 2 ? nameKo.substring(0, 2) : nameKo.toUpperCase();
+            roles[a.agent_id] = a.role || '';
+            modelRaw[a.agent_id] = a.model_name || '';
+            reasonings[a.agent_id] = a.reasoning_effort || '';
+            models[a.agent_id] = a.model_name || '';
+            cliOwner[a.agent_id] = a.cli_owner || '';
             if (a.division) {
               const divMap = { '비서실': 'secretary', '기술개발처': 'tech', '사업기획처': 'strategy',
                                '법무처': 'legal', '마케팅처': 'marketing', '투자분석처': 'finance',
@@ -3341,9 +3350,19 @@ function corthexApp() {
                                'leet_master.legal': 'legal', 'leet_master.marketing': 'marketing',
                                'finance.investment': 'finance',
                                'secretary': 'secretary', 'publishing': 'publishing' };
-              this.agentDivision[a.agent_id] = divMap[a.division] || a.division;
+              division[a.agent_id] = divMap[a.division] || a.division;
             }
           });
+
+          // 한번에 교체 → Alpine.js 반응성 트리거
+          this.agentNames = names;
+          this.agentInitials = initials;
+          this.agentRoles = roles;
+          this.agentModelRaw = modelRaw;
+          this.agentReasonings = reasonings;
+          this.agentModels = models;
+          this.agentCliOwner = cliOwner;
+          this.agentDivision = division;
         }
       } catch (e) {
         console.warn('에이전트/도구 동적 로딩 실패, 하드코딩 사용:', e);
@@ -5044,9 +5063,8 @@ function corthexApp() {
           });
           setTimeout(() => this.scrollToBottom(), 300);
         }
-        // Space → NEXUS 연결 모드 토글
-        if (e.key === ' ' && this.nexusOpen && !e.repeat && !e.target.closest('input, textarea, [contenteditable]')) {
-          e.preventDefault();
+        // Shift → NEXUS 연결 모드 토글
+        if (e.key === 'Shift' && this.nexusOpen && !e.repeat) {
           this.toggleConnectMode();
           return;
         }
@@ -6032,7 +6050,7 @@ function corthexApp() {
       this.flowchart.connectMode = false;
     },
 
-    // ── 연결 모드 토글 (스페이스바 또는 버튼) ──
+    // ── 연결 모드 토글 (Shift 또는 버튼) ──
     toggleConnectMode() {
       const cy = window._nexusCy;
       if (!cy) return;
@@ -6051,7 +6069,7 @@ function corthexApp() {
         if (selected.length > 0) {
           this.showToast(`연결 모드 ON — ${selected.length}개 선택됨 → 대상 노드 클릭`, 'info');
         } else {
-          this.showToast('연결 모드 ON (스페이스바로 해제)', 'info');
+          this.showToast('연결 모드 ON (Shift로 해제)', 'info');
         }
       }
     },
