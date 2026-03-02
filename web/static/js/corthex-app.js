@@ -5064,25 +5064,13 @@ function corthexApp() {
           setTimeout(() => this.scrollToBottom(), 300);
         }
         // Space → NEXUS 연결 모드 토글
-        if (e.key === ' ' && this.nexusOpen && !e.repeat && !e.target.closest('input, textarea, [contenteditable]')) {
+        if (e.code === 'Space' && this.nexusOpen && !e.repeat && !e.target.closest('input, textarea, [contenteditable]')) {
           e.preventDefault();
           this.toggleConnectMode();
           return;
         }
         // Esc → 모달 닫기
         if (e.key === 'Escape') {
-          if (this.nexusOpen) {
-            // edgehandles 연결 모드 ON → 비활성화만 (오버레이 유지)
-            if (this.flowchart.connectMode) {
-              this.toggleConnectMode();
-              this.showToast('연결 모드 취소', 'info');
-              return;
-            }
-            this.nexusOpen = false;
-            if (window._nexusCy) { window._nexusCy.destroy(); window._nexusCy = null; }
-            this._disconnectSketchVibeSSE();
-            return;
-          }
           if (this.viewMode === 'agora') { this.viewMode = 'chat'; if (this.agora.sseSource) { this.agora.sseSource.close(); this.agora.sseSource = null; } return; }
           if (this.agoraOpen) { this.agoraOpen = false; if (this.agora.sseSource) { this.agora.sseSource.close(); this.agora.sseSource = null; } return; }
           if (this.showAgentConfig) { this.showAgentConfig = false; return; }
@@ -6054,7 +6042,7 @@ function corthexApp() {
     // ── 연결 모드 토글 (스페이스바 또는 버튼) ──
     toggleConnectMode() {
       const cy = window._nexusCy;
-      if (!cy) return;
+      if (!cy) { console.warn('[NEXUS] toggleConnectMode: _nexusCy is null'); return; }
       if (this.flowchart.connectMode) {
         // OFF
         const eh = window._nexusEh;

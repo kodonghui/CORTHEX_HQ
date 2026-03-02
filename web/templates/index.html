@@ -7475,10 +7475,9 @@
 
         <!-- 우측 닫기 -->
         <div class="ml-auto flex items-center gap-3">
-          <span class="text-xs text-white/20 font-mono hidden sm:block">ESC</span>
-          <button @click="nexusOpen = false"
+          <button @click="nexusOpen = false; if (window._nexusCy) { window._nexusCy.destroy(); window._nexusCy = null; } _disconnectSketchVibeSSE()"
                   class="w-8 h-8 rounded-lg bg-white/5 border border-white/10 text-white/40 hover:text-white hover:bg-white/10 flex items-center justify-center transition"
-                  title="닫기 (ESC)">
+                  title="닫기">
             <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
           </button>
         </div>
@@ -7562,7 +7561,7 @@
                    class="bg-purple-500/20 border border-purple-400/40 rounded-lg px-4 py-2 text-xs text-purple-300 backdrop-blur-sm flex items-center gap-2">
                 <span class="w-2 h-2 rounded-full bg-purple-400 animate-pulse"></span>
                 <span>연결 모드 — 대상 노드를 <b>클릭</b>하여 연결</span>
-                <span class="text-purple-400/40 ml-1">(스페이스바/ESC 취소)</span>
+                <span class="text-purple-400/40 ml-1">(스페이스바로 해제)</span>
               </div>
               <!-- 노드 선택됨 -->
               <div x-show="!flowchart.connectMode && flowchart.selectedNodeId"
