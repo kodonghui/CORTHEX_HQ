@@ -10,6 +10,7 @@
 
 ## 🔴 절대 규칙 (위반 시 즉시 수정)
 - **🚨 role if/else 금지 (v5.1)**: `if (auth.role === 'sister')` / `x-show="auth.role"` 등 1줄이라도 금지. `workspace.*` 설정 데이터만 사용. 아키텍처: `_bmad-output/planning-artifacts/architecture.md`
+- **🚨 탭 숨기기 금지 (v5.3)**: `showSections` / `allowedDivisions` workspaces.yaml에 추가 금지. 탭은 모든 사람 동일. 데이터 격리는 `orgScope`만. 빈 데이터면 빈 상태 표시.
 - **워크스페이스**: 네이버 모델(같은 기능, 다른 데이터) + 슬랙 모델(cli_owner 기반 내 직원만)
 - **실시간 모니터링**: "로그 확인해" → `/api/activity-logs` 1분마다 자동 보고
 - **메모리 파일 금지**: `~/.claude/` memory 저장 금지. 상태/기록은 git 파일에만

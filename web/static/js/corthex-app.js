@@ -3618,9 +3618,14 @@ function corthexApp() {
       this.archive.selectedReport = null;
       this.archive.loading = true;
       try {
-        // v5.1: workspace.orgScope 기반 데이터 필터 (네이버 모델)
-        const orgParam = this.workspace.orgScope ? `?org=${this.workspace.orgScope}` : '';
-        const res = await fetch(`/api/archive${orgParam}`);
+        // 네이버 모델: orgScope는 서버가 필터링, division은 사용자 선택
+        const params = new URLSearchParams();
+        if (this.workspace.orgScope) params.set('org', this.workspace.orgScope);
+        if (this.archive.filterDivision && this.archive.filterDivision !== 'all') {
+          params.set('division', this.archive.filterDivision);
+        }
+        const query = params.toString() ? `?${params.toString()}` : '';
+        const res = await fetch(`/api/archive${query}`);
         if (res.ok) this.archive.files = await res.json();
       } catch { this.showToast('아카이브를 불러올 수 없습니다.', 'error'); }
       finally { this.archive.loading = false; }
@@ -5046,20 +5051,18 @@ function corthexApp() {
       });
     },
 
-    // ── #12: Tab grouping helpers (v5.2: showSections 기반 필터) ──
-    _tabAllowed(tabId) {
-      const ss = this.workspace.showSections;
-      return !ss || ss.length === 0 || ss.includes(tabId);
-    },
+    // ── #12: Tab grouping helpers (네이버 모델: 탭 전부 표시, 데이터만 orgScope 필터) ──
+    // 🚫 showSections/_tabAllowed 제거 — 탭 숨기기는 네이버 모델 위반
+    // ✅ 탭은 모든 워크스페이스 동일. 데이터 격리는 API에서 orgScope로만.
     getPrimaryTabs() {
       // 메인 탭 순서: 작전현황 / 사령관실 / 전략실 / 통신로그 / 작전일지 / 기밀문서
       const order = ['home', 'command', 'trading', 'activityLog', 'history', 'archive'];
-      return order.map(id => this.tabs.find(t => t.id === id)).filter(t => t && this._tabAllowed(t.id));
+      return order.map(id => this.tabs.find(t => t.id === id)).filter(Boolean);
     },
     getSecondaryTabs() {
       // 더보기: 전력분석 / 자동화 / 크론기지 / 통신국 / 정보국 / ARGOS
       const order = ['performance', 'workflow', 'schedule', 'sns', 'knowledge', 'intelligence'];
-      return order.map(id => this.tabs.find(t => t.id === id)).filter(t => t && this._tabAllowed(t.id));
+      return order.map(id => this.tabs.find(t => t.id === id)).filter(Boolean);
     },
 
     // ── #4: Publishing division support ──
