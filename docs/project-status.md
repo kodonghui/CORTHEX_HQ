@@ -9,10 +9,10 @@
 
 - **날짜**: 2026-03-02
 - **버전**: `5.30.000`
-- **빌드**: #793 배포됨
+- **빌드**: #805 배포됨
 - **서버**: https://corthex-hq.com
 
-## 2026-03-02 — SketchVibe 추가 버그 수정 + 소크라테스 QA 도입 (빌드 #793)
+## 2026-03-02 — SketchVibe 추가 버그 수정 + 소크라테스 QA 도입 (빌드 #803~#805)
 
 | 수정 | 내용 |
 |------|------|
@@ -23,14 +23,14 @@
 | 캔버스 이름 변경 버그 | `savedCanvasName` 별도 추적 → 이름 바꾸면 이전 파일 자동 삭제 |
 | 소크라테스 QA | CLAUDE.md + 코딩_개발.md에 QA 방법론 명문화 |
 
-## 2026-03-02 — SketchVibe 버그 4개 수정 (빌드 #792)
+## 2026-03-02 — SketchVibe 버그 4개 수정 (빌드 #800~#802)
 
 | 수정 | 내용 | 빌드 |
 |------|------|------|
-| read_canvas 세션 이름 | `파일: unknown` → 실제 세션명 표시 (filename 전달) | #792 |
-| 파일명 변경 시 중복 | 이전 파일 자동 삭제 (DELETE API 활용) | #792 |
-| Drawflow 시안색 배경 | CSS override 주입 → transparent 배경 | #792 |
-| 세션 전환 SQLite | loadNexusCanvas에 save-canvas 호출 추가 | #792 |
+| read_canvas 세션 이름 | `파일: unknown` → 실제 세션명 표시 (filename 전달) |
+| 파일명 변경 시 중복 | 이전 파일 자동 삭제 (DELETE API 활용) |
+| Drawflow 시안색 배경 | CSS override 주입 → transparent 배경 |
+| 세션 전환 SQLite | loadNexusCanvas에 save-canvas 호출 추가 |
 
 ## 2026-03-02 — SketchVibe 워크플로우 완성 (빌드 #788~#789)
 
