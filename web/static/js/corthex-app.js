@@ -6021,10 +6021,8 @@ function corthexApp() {
         noEdgeEventsInDraw: true,
         disableBrowserGestures: true,
       });
-      // 연결 완료 시 라벨 입력
+      // 연결 완료 (라벨은 더블클릭으로 나중에 입력)
       cy.on('ehcomplete', (event, src, tgt, edge) => {
-        const label = prompt('화살표 설명 (비워두면 라벨 없음):');
-        if (label) edge.data('label', label);
         this.flowchart.canvasDirty = true;
         const srcL = src.data('label') || src.id();
         const tgtL = tgt.data('label') || tgt.id();
