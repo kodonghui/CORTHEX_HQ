@@ -6498,6 +6498,8 @@ function corthexApp() {
                 }});
                 const { svg } = await window.mermaid.render('sv-preview-svg', data.mermaid);
                 container.innerHTML = svg;
+                // 줌/팬 초기화
+                this._initSvgPanZoom(container);
               } catch(e) {
                 container.innerHTML = `<pre class="text-red-400 text-xs">렌더링 실패: ${e.message}</pre>`;
               }
@@ -6518,6 +6520,25 @@ function corthexApp() {
 
     _disconnectSketchVibeSSE() {
       if (this._sketchVibeSSE) { this._sketchVibeSSE.close(); this._sketchVibeSSE = null; }
+    },
+
+    // ── Mermaid 프리뷰 줌/팬 ──
+    _initSvgPanZoom(container) {
+      let scale = 1, tx = 0, ty = 0, dragging = false, sx = 0, sy = 0;
+      const apply = () => { container.style.transform = `scale(${scale}) translate(${tx}px, ${ty}px)`; };
+      const viewport = document.getElementById('sv-preview-viewport');
+      if (!viewport) return;
+      // 기존 리스너 제거 (재호출 대비)
+      viewport.onwheel = (e) => {
+        e.preventDefault();
+        const delta = e.deltaY > 0 ? 0.9 : 1.1;
+        scale = Math.max(0.2, Math.min(5, scale * delta));
+        apply();
+      };
+      viewport.onmousedown = (e) => { dragging = true; sx = e.clientX - tx * scale; sy = e.clientY - ty * scale; };
+      viewport.onmousemove = (e) => { if (!dragging) return; tx = (e.clientX - sx) / scale; ty = (e.clientY - sy) / scale; apply(); };
+      viewport.onmouseup = () => { dragging = false; };
+      viewport.onmouseleave = () => { dragging = false; };
     },
 
     // ── "맞아" → Mermaid 코드를 Cytoscape에 적용 ──

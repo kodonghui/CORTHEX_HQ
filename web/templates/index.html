@@ -7638,9 +7638,9 @@
                 <span class="text-xs text-white/60 flex-1" x-text="flowchart.approvalRequest"></span>
               </div>
             </template>
-            <!-- Mermaid 렌더링 영역 -->
-            <div class="flex-1 overflow-auto flex items-center justify-center p-6">
-              <div id="sketchvibe-canvas-mermaid" class="flex justify-center"></div>
+            <!-- Mermaid 렌더링 영역 (줌/팬 지원) -->
+            <div id="sv-preview-viewport" class="flex-1 overflow-hidden relative cursor-grab active:cursor-grabbing">
+              <div id="sketchvibe-canvas-mermaid" class="absolute inset-0 flex items-center justify-center origin-center" style="transform: scale(1) translate(0px, 0px);"></div>
             </div>
             <!-- 하단 확인 버튼 (중앙) -->
             <template x-if="!flowchart.sketchConfirmed">
