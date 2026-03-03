@@ -5900,7 +5900,8 @@ function corthexApp() {
           'shape': 'round-rectangle', 'background-color': '#1e3a5f', 'border-color': '#3b82f6', 'border-width': 4,
         }},
         { selector: 'node[nodeType="api"]', style: {
-          'shape': 'diamond', 'background-color': '#1a3320', 'border-color': '#059669', 'width': 130, 'height': 80,
+          'shape': 'polygon', 'shape-polygon-points': '-0.8 -1  0.8 -1  1 1  -1 1',
+          'background-color': '#1a3320', 'border-color': '#059669', 'width': 140, 'height': 65,
         }},
         { selector: 'node[nodeType="decide"]', style: {
           'shape': 'diamond', 'background-color': '#451a03', 'border-color': '#f59e0b', 'width': 130, 'height': 80,
