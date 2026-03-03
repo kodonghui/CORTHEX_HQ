@@ -5947,6 +5947,9 @@ function corthexApp() {
         { selector: '.eh-preview, .eh-ghost-edge', style: {
           'line-color': '#a78bfa', 'target-arrow-color': '#a78bfa', 'line-style': 'dashed', 'opacity': 0.7,
         }},
+        // 커스텀 색상 (Claude SketchVibe style/classDef 지원)
+        { selector: 'node[bgColor]', style: { 'background-color': 'data(bgColor)' }},
+        { selector: 'node[borderColor]', style: { 'border-color': 'data(borderColor)' }},
       ];
     },
 
@@ -6188,6 +6191,16 @@ function corthexApp() {
           ? `  ${e.source().id()} -->|${label}| ${e.target().id()}\n`
           : `  ${e.source().id()} --> ${e.target().id()}\n`;
       });
+      // 커스텀 색상 보존 (style 지시어)
+      cy.nodes().forEach(n => {
+        const bg = n.data('bgColor'), bc = n.data('borderColor');
+        if (bg || bc) {
+          const parts = [];
+          if (bg) parts.push(`fill:${bg}`);
+          if (bc) parts.push(`stroke:${bc}`);
+          code += `  style ${n.id()} ${parts.join(',')}\n`;
+        }
+      });
       return code;
     },
 
@@ -6196,6 +6209,9 @@ function corthexApp() {
       const lines = (mermaidCode || '').split('\n');
       const nodes = [];
       const edges = [];
+      const classDefs = {};    // classDef 이름 → { bgColor, borderColor }
+      const nodeStyleMap = {}; // 노드 id → { bgColor, borderColor }
+      const nodeClassMap = {}; // 노드 id → className (:::className)
       const dirMatch = lines[0]?.match(/(?:flowchart|graph)\s+(LR|TD|RL|BT|TB)/i);
       const direction = dirMatch ? dirMatch[1].replace('TB', 'TD') : 'LR';
       const nodePatterns = [
@@ -6209,16 +6225,42 @@ function corthexApp() {
         { re: /^\s*(\w+)\[([^\]]+?)\]/, type: 'agent' },
       ];
       // 인라인 노드 정의 (n1[라벨], n1[[라벨]] 등) 뒤의 --> 도 매칭
-      const edgePattern = /^\s*(\w+)(?:\[{1,2}[^\]]*\]{1,2}|\([^)]*\)|\{[^}]*\}|>[^\]]*\]|[/][^\]]*[\\])*\s*-->(?:\|([^|]*)\|)?\s*(\w+)/;
+      const edgePattern = /^\s*(\w+)(?:\[{1,2}[^\]]*\]{1,2}|\([^)]*\)|\{[^}]*\}|>[^\]]*\]|[/][^\]]*[\\])*(?::::\w+)?\s*-->(?:\|([^|]*)\|)?\s*(\w+)/;
       const seen = new Set();
       let eIdx = 0;
       for (const line of lines) {
+        // classDef 파싱: classDef red fill:#ff0000,stroke:#333
+        const cdm = line.match(/^\s*classDef\s+(\w+)\s+(.+)/);
+        if (cdm) {
+          const fillM = cdm[2].match(/fill:\s*([^,;\s]+)/);
+          const strokeM = cdm[2].match(/stroke:\s*([^,;\s]+)/);
+          classDefs[cdm[1]] = { bgColor: fillM?.[1] || null, borderColor: strokeM?.[1] || null };
+          continue;
+        }
+        // style 지시어 파싱: style n1 fill:#ff0000,stroke:#333
+        const sm = line.match(/^\s*style\s+([\w,]+)\s+(.+)/);
+        if (sm) {
+          const fillM = sm[2].match(/fill:\s*([^,;\s]+)/);
+          const strokeM = sm[2].match(/stroke:\s*([^,;\s]+)/);
+          const style = { bgColor: fillM?.[1] || null, borderColor: strokeM?.[1] || null };
+          sm[1].split(',').forEach(id => { nodeStyleMap[id.trim()] = style; });
+          continue;
+        }
+        // class 지시어 파싱: class n1,n2 red
+        const clm = line.match(/^\s*class\s+([\w,]+)\s+(\w+)/);
+        if (clm) {
+          clm[1].split(',').forEach(id => { nodeClassMap[id.trim()] = clm[2]; });
+          continue;
+        }
         const em = edgePattern.exec(line);
         if (em) {
           edges.push({ data: { id: `e${++eIdx}`, source: em[1], target: em[3], label: em[2] || '' } });
           if (!seen.has(em[1])) { seen.add(em[1]); nodes.push({ data: { id: em[1], label: em[1], nodeType: 'agent' } }); }
           if (!seen.has(em[3])) { seen.add(em[3]); nodes.push({ data: { id: em[3], label: em[3], nodeType: 'agent' } }); }
         }
+        // :::className 인라인 감지
+        const classInline = line.match(/(\w+)(?:\[{1,2}[^\]]*\]{1,2}|\([^)]*\)|\{[^}]*\}|>[^\]]*\]|[/][^\]]*[\\]):::(\w+)/);
+        if (classInline) nodeClassMap[classInline[1]] = classInline[2];
         for (const p of nodePatterns) {
           const nm = p.re.exec(line);
           if (nm) {
@@ -6234,6 +6276,17 @@ function corthexApp() {
           }
         }
       }
+      // 색상 적용: style 직접 지정 > classDef > 없으면 생략
+      nodes.forEach(n => {
+        const id = n.data.id;
+        const direct = nodeStyleMap[id];
+        const cls = nodeClassMap[id] && classDefs[nodeClassMap[id]];
+        const src = direct || cls;
+        if (src) {
+          if (src.bgColor) n.data.bgColor = src.bgColor;
+          if (src.borderColor) n.data.borderColor = src.borderColor;
+        }
+      });
       return { nodes, edges, direction, edgeCount: eIdx };
     },
 
@@ -6338,7 +6391,10 @@ function corthexApp() {
         const mermaidCache = this.cytoscapeToMermaid();
         const nodesData = [];
         if (cy) cy.nodes().forEach(n => {
-          nodesData.push({ id: n.id(), label: n.data('label'), nodeType: n.data('nodeType'), x: Math.round(n.position('x')), y: Math.round(n.position('y')) });
+          const nd = { id: n.id(), label: n.data('label'), nodeType: n.data('nodeType'), x: Math.round(n.position('x')), y: Math.round(n.position('y')) };
+          if (n.data('bgColor')) nd.bgColor = n.data('bgColor');
+          if (n.data('borderColor')) nd.borderColor = n.data('borderColor');
+          nodesData.push(nd);
         });
         const edgesData = [];
         if (cy) cy.edges().forEach(e => {
@@ -6385,7 +6441,12 @@ function corthexApp() {
         if (parsed.version === 2 && parsed.cytoscape) {
           cy.elements().remove();
           const { nodes, edges } = parsed.cytoscape;
-          const cyNodes = nodes.map(n => ({ group: 'nodes', data: { id: n.id, label: n.label, nodeType: n.nodeType }, position: { x: n.x || 0, y: n.y || 0 } }));
+          const cyNodes = nodes.map(n => {
+            const d = { id: n.id, label: n.label, nodeType: n.nodeType };
+            if (n.bgColor) d.bgColor = n.bgColor;
+            if (n.borderColor) d.borderColor = n.borderColor;
+            return { group: 'nodes', data: d, position: { x: n.x || 0, y: n.y || 0 } };
+          });
           const cyEdges = edges.map(e => ({ group: 'edges', data: { id: e.id, source: e.source, target: e.target, label: e.label || '' } }));
           cy.add([...cyNodes, ...cyEdges]);
           this.flowchart.mermaidDirection = parsed.direction || 'LR';
