@@ -7588,19 +7588,6 @@
               <span x-show="!flowchart.connectMode">🔗 연결</span>
               <span x-show="flowchart.connectMode">✕ 취소</span>
             </button>
-            <button @click="_applyAutoLayout(flowchart.mermaidDirection)"
-                    class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-white/5 border border-white/10 text-white/40 hover:text-blue-300 hover:border-blue-400/40 transition"
-                    title="자동 정렬">&#x2630; 정렬</button>
-            <div class="flex items-center gap-1">
-              <span class="text-[10px] text-white/20">방향</span>
-              <select x-model="flowchart.mermaidDirection"
-                      class="bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-xs text-white/60 outline-none cursor-pointer hover:border-white/20 transition">
-                <option value="LR">좌→우</option>
-                <option value="TD">위→아래</option>
-                <option value="RL">우→좌</option>
-                <option value="BT">아래→위</option>
-              </select>
-            </div>
           </div>
           <!-- 빈 캔버스 안내 (Cytoscape 위에 오버레이) -->
           <div id="nexus-empty-guide" class="absolute inset-0 flex items-center justify-center z-[5] pointer-events-none">
@@ -7617,7 +7604,7 @@
             </div>
           </div>
           <div id="nexus-canvas" class="w-full h-full" style="position:relative;"
-               @keydown.window="if (nexusOpen && !$event.target.matches('input,textarea,select,[contenteditable]')) { if ($event.code === 'Space') { $event.preventDefault(); toggleConnectMode(); } if ($event.key === 'Delete' || $event.key === 'Backspace') { _deleteCySelected(); } }"></div>
+               @keydown.window="if (nexusOpen && !$event.target.matches('input,textarea,select,[contenteditable]')) { if ($event.code === 'Space') { $event.preventDefault(); toggleConnectMode(); } if ($event.key === 'Delete' || $event.key === 'Backspace') { _deleteCySelected(); } } if (nexusOpen && ($event.ctrlKey || $event.metaKey) && $event.key === 's') { $event.preventDefault(); saveCanvas(); }"></div>
           <!-- Mermaid 결과 — 스케치를 교체하여 캔버스에 표시 -->
           <div x-show="flowchart.sketchResult && flowchart.sketchResult.mermaid"
                x-transition:enter="transition ease-out duration-300"

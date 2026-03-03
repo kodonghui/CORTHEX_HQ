@@ -6475,14 +6475,31 @@ function corthexApp() {
         this._sketchVibeSSE.addEventListener('sketchvibe', async (e) => {
           const data = JSON.parse(e.data);
           if (data.type === 'canvas_update') {
-            // Claude Code가 Mermaid 코드를 보냄 → Cytoscape에 변환 후 렌더링
+            // Claude Code가 Mermaid 코드를 보냄 → 프리뷰 표시
             this.flowchart.sketchResult = { mermaid: data.mermaid, description: data.description };
             this.flowchart.sketchError = null;
             this.flowchart.sketchConfirmed = null;
             this.flowchart.approvalRequest = null;
-            // Mermaid → Cytoscape 변환 후 캔버스에 로드
-            this._loadMermaidIntoCytoscape(data.mermaid);
-            this.flowchart.canvasDirty = true;
+            // 프리뷰 오버레이에 Mermaid SVG 렌더링
+            this.$nextTick(async () => {
+              const container = document.getElementById('sketchvibe-canvas-mermaid');
+              if (!container) return;
+              container.innerHTML = '';
+              try {
+                if (!window.mermaid) await _loadScript(_CDN.mermaid);
+                window.mermaid.initialize({ startOnLoad: false, theme: 'dark', themeVariables: {
+                  primaryColor: '#1e3a5f', primaryTextColor: '#e2e8f0',
+                  primaryBorderColor: '#3b82f6', lineColor: '#6b7280',
+                  secondaryColor: '#1F2937', tertiaryColor: '#111827',
+                  background: '#0f172a', mainBkg: '#1e293b',
+                  fontSize: '14px', fontFamily: 'JetBrains Mono, monospace'
+                }});
+                const { svg } = await window.mermaid.render('sv-preview-svg', data.mermaid);
+                container.innerHTML = svg;
+              } catch(e) {
+                container.innerHTML = `<pre class="text-red-400 text-xs">렌더링 실패: ${e.message}</pre>`;
+              }
+            });
           } else if (data.type === 'approval_request') {
             this.flowchart.approvalRequest = data.message;
           } else if (data.type === 'approved') {
