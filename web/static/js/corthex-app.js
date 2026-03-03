@@ -5896,8 +5896,8 @@ function corthexApp() {
         { selector: 'node[nodeType="agent"]', style: {  // 보라
           'shape': 'round-rectangle', 'background-color': '#312e81', 'border-color': '#a78bfa',
         }},
-        { selector: 'node[nodeType="system"]', style: {  // 파랑
-          'shape': 'round-rectangle', 'background-color': '#172554', 'border-color': '#3b82f6', 'border-width': 4,
+        { selector: 'node[nodeType="system"]', style: {  // 흰색
+          'shape': 'round-rectangle', 'background-color': '#111827', 'border-color': '#f9fafb', 'border-width': 4,
         }},
         { selector: 'node[nodeType="api"]', style: {  // 주황
           'shape': 'polygon', 'shape-polygon-points': '-0.8 -1  0.8 -1  1 1  -1 1',
