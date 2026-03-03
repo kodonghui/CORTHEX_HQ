@@ -5893,29 +5893,27 @@ function corthexApp() {
           'color': '#f5f5f5', 'text-wrap': 'wrap', 'text-max-width': '120px',
           'border-width': 2, 'border-opacity': 0.8, 'width': 140, 'height': 50,
         }},
-        { selector: 'node[nodeType="agent"]', style: {
-          'shape': 'round-rectangle', 'background-color': '#312e81', 'border-color': '#8b5cf6',
+        { selector: 'node[nodeType="agent"]', style: {  // 보라
+          'shape': 'round-rectangle', 'background-color': '#312e81', 'border-color': '#a78bfa',
         }},
-        { selector: 'node[nodeType="system"]', style: {
-          'shape': 'round-rectangle', 'background-color': '#172554', 'border-color': '#60a5fa', 'border-width': 4,
+        { selector: 'node[nodeType="system"]', style: {  // 파랑
+          'shape': 'round-rectangle', 'background-color': '#1e3a5f', 'border-color': '#60a5fa', 'border-width': 4,
         }},
-        { selector: 'node[nodeType="api"]', style: {
+        { selector: 'node[nodeType="api"]', style: {  // 청록(틸)
           'shape': 'polygon', 'shape-polygon-points': '-0.8 -1  0.8 -1  1 1  -1 1',
           'background-color': '#134e4a', 'border-color': '#2dd4bf', 'width': 140, 'height': 65,
         }},
-        { selector: 'node[nodeType="decide"]', style: {
-          'shape': 'diamond', 'background-color': '#451a03', 'border-color': '#f59e0b', 'width': 130, 'height': 80,
+        { selector: 'node[nodeType="decide"]', style: {  // 주황
+          'shape': 'diamond', 'background-color': '#431407', 'border-color': '#fb923c', 'width': 130, 'height': 80,
         }},
-        { selector: 'node[nodeType="db"]', style: {
-          'shape': 'barrel', 'background-color': '#0c4a6e', 'border-color': '#38bdf8',
+        { selector: 'node[nodeType="db"]', style: {  // 금색
+          'shape': 'barrel', 'background-color': '#422006', 'border-color': '#fbbf24',
           'width': 120, 'height': 75, 'border-width': 3,
-          'background-image': 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 75"><ellipse cx="60" cy="19" rx="52" ry="7" fill="none" stroke="#38bdf8" stroke-width="1.5" opacity="0.45"/></svg>'),
-          'background-fit': 'cover', 'background-clip': 'node',
         }},
-        { selector: 'node[nodeType="start"]', style: {
+        { selector: 'node[nodeType="start"]', style: {  // 초록
           'shape': 'ellipse', 'background-color': '#052e16', 'border-color': '#4ade80', 'width': 90, 'height': 50,
         }},
-        { selector: 'node[nodeType="end"]', style: {
+        { selector: 'node[nodeType="end"]', style: {  // 빨강
           'shape': 'ellipse', 'background-color': '#450a0a', 'border-color': '#f87171', 'width': 90, 'height': 50,
         }},
         { selector: 'node[nodeType="note"]', style: {
