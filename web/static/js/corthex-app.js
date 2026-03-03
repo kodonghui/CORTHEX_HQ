@@ -5909,6 +5909,8 @@ function corthexApp() {
         { selector: 'node[nodeType="db"]', style: {
           'shape': 'barrel', 'background-color': '#1e1b4b', 'border-color': '#0ea5e9',
           'width': 120, 'height': 75, 'border-width': 3,
+          'background-image': 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 75"><path d="M 2 18 Q 50 30 98 18" fill="none" stroke="#0ea5e9" stroke-width="1.5" opacity="0.5"/></svg>'),
+          'background-fit': 'cover', 'background-clip': 'node',
         }},
         { selector: 'node[nodeType="start"]', style: {
           'shape': 'ellipse', 'background-color': '#052e16', 'border-color': '#22c55e', 'width': 90, 'height': 50,
