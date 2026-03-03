@@ -71,6 +71,11 @@ try:
 except ImportError:
     async def _build_argos_context_section(*a, **kw): return ""
 
+try:
+    from agent_router import _init_tool_pool
+except ImportError:
+    def _init_tool_pool(): return None
+
 from fastapi import APIRouter, Request
 
 trading_router = APIRouter(tags=["trading-engine"])

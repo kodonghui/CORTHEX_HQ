@@ -306,7 +306,11 @@ async def place_order(
             if success:
                 logger.info("[KIS %s] %s %s %d주 주문 완료 (주문번호: %s)", mode, action_kr, ticker, qty, order_no)
             else:
-                logger.warning("[KIS %s] %s %s %d주 주문 실패: %s (rt_cd=%s)", mode, action_kr, ticker, qty, msg, rt_cd)
+                _balance_keywords = ("주문가능금액", "잔액", "잔고 부족", "금액 부족", "부족합니다", "주문한도")
+                if any(kw in msg for kw in _balance_keywords):
+                    logger.warning("[KIS %s] 💸 잔액부족 — %s %s %d주 주문 불가 (보유현금 부족)", mode, action_kr, ticker, qty)
+                else:
+                    logger.warning("[KIS %s] %s %s %d주 주문 실패: %s (rt_cd=%s)", mode, action_kr, ticker, qty, msg, rt_cd)
 
             return {
                 "success": success,
