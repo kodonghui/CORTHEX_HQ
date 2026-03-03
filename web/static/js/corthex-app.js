@@ -5112,7 +5112,8 @@ function corthexApp() {
     matchesBunbu(division, bunbu) {
       if (bunbu === 'all') return true;
       const d = division || '';
-      if (bunbu === 'leet_master') return d.startsWith('leet_master') || d === 'finance.investment' || d === 'publishing';
+      if (bunbu === 'leet_master') return d.startsWith('leet_master') || d === 'publishing';
+      if (bunbu === 'finance') return d === 'finance' || d === 'finance.investment';
       if (bunbu === 'sketchvibe') return d.startsWith('sketchvibe');
       if (bunbu === 'saju') return d.startsWith('saju');
       if (bunbu === 'common') return d === 'secretary';

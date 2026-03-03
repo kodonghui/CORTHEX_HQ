@@ -3495,6 +3495,9 @@
                 <button @click="archive.filterDivision = 'all'; loadArchive()"
                         :class="archive.filterDivision === 'all' ? 'bg-hq-accent/20 text-hq-accent font-bold' : 'text-hq-muted hover:text-hq-text'"
                         class="px-2.5 py-1 text-[11px] rounded-lg transition whitespace-nowrap">전체</button>
+                <button @click="archive.filterDivision = 'finance'; loadArchive()"
+                        :class="archive.filterDivision === 'finance' ? 'bg-hq-purple/20 text-hq-purple font-bold' : 'text-hq-muted hover:text-hq-text'"
+                        class="px-2.5 py-1 text-[11px] rounded-lg transition whitespace-nowrap">금융본부</button>
                 <button @click="archive.filterDivision = 'leet_master'; loadArchive()"
                         :class="archive.filterDivision === 'leet_master' ? 'bg-hq-accent/20 text-hq-accent font-bold' : 'text-hq-muted hover:text-hq-text'"
                         class="px-2.5 py-1 text-[11px] rounded-lg transition whitespace-nowrap">리트마스터</button>
