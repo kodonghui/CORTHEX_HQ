@@ -1500,6 +1500,29 @@ async def _check_price_triggers() -> None:
     if not active:
         return
 
+    # buy_limit 트리거 10분 자동 만료 (트리거 무한누적 방지)
+    _now = datetime.now(KST)
+    _expired_ids: set = set()
+    for t in active:
+        if t.get("type") == "buy_limit":
+            try:
+                _created = datetime.fromisoformat(t["created_at"])
+                if _created.tzinfo is None:
+                    _created = _created.replace(tzinfo=KST)
+                if (_now - _created).total_seconds() > 600:
+                    t["active"] = False
+                    t["expired_reason"] = "10분 미체결 자동 만료"
+                    _expired_ids.add(t["id"])
+            except Exception:
+                pass
+    if _expired_ids:
+        active = [t for t in active if t["id"] not in _expired_ids]
+        _save_data("price_triggers", triggers)
+        save_activity_log("fin_analyst",
+            f"⏰ buy_limit {len(_expired_ids)}건 10분 만료 처리", "info")
+    if not active:
+        return
+
     settings = _load_data("trading_settings", _default_trading_settings())
     enable_real = settings.get("enable_real", False)
     enable_mock = settings.get("enable_mock", False)
@@ -1674,6 +1697,10 @@ async def generate_trading_signals():
     save_activity_log("fin_analyst", "📡 ARGOS 수집 데이터 로딩 (자동매매)...", "info")
     argos_section_auto = await _build_argos_context_section(watchlist, _auto_market)
 
+    # 포트폴리오 현황 빌드 (CIO에게 보유종목/잔고 정보 제공)
+    save_activity_log("fin_analyst", "💼 포트폴리오 현황 조회 중...", "info")
+    portfolio_section = await _build_portfolio_context()
+
     # CIO에게 보내는 분석 명령
     prompt = f"""[자동매매 시스템] 관심종목 종합 분석을 요청합니다.
 
@@ -1689,7 +1716,7 @@ async def generate_trading_signals():
 {f'- 미국 주식: {len(us_tickers)}개' if us_tickers else ''}
 
 ## 활성 매매 전략
-{strats_info or '기본 전략 (RSI/MACD 기반)'}{quant_section_auto}{argos_section_auto}
+{strats_info or '기본 전략 (RSI/MACD 기반)'}{quant_section_auto}{argos_section_auto}{portfolio_section}
 
 ## 분석 요청사항 (추가 데이터 수집 불필요 — 위 서버 제공 데이터만 활용)
 아래 분석을 수행하세요:
@@ -1978,6 +2005,74 @@ def _save_decisions(parsed_signals: list) -> None:
         save_setting("trading_decisions", decisions)
     except Exception as e:
         logger.debug("매매 결정 저장 실패: %s", e)
+
+
+async def _build_portfolio_context() -> str:
+    """현재 포트폴리오 상태를 AI 프롬프트용 텍스트로 빌드."""
+    settings = _load_data("trading_settings", _default_trading_settings())
+    enable_real = settings.get("enable_real", False)
+    enable_mock = settings.get("enable_mock", False)
+    use_kis = _KIS_AVAILABLE and _kis_configured() and enable_real
+    use_mock = (not use_kis) and enable_mock and _KIS_AVAILABLE and _kis_mock_configured()
+
+    cash = 0
+    holdings = []
+    total_eval = 0
+    mode = "가상"
+
+    try:
+        if use_kis:
+            bal = await _kis_balance()
+            if bal.get("success"):
+                cash = bal.get("cash", 0)
+                holdings = bal.get("holdings", [])
+                total_eval = bal.get("total_eval", 0)
+                mode = "실계좌"
+        elif use_mock:
+            bal = await _kis_mock_balance()
+            if bal.get("success"):
+                cash = bal.get("cash", 0)
+                holdings = bal.get("holdings", [])
+                total_eval = bal.get("total_eval", 0)
+                mode = "모의계좌"
+        else:
+            port = _load_data("trading_portfolio", _default_portfolio())
+            cash = port.get("cash", 0)
+            holdings = port.get("holdings", [])
+            total_eval = cash + sum(h.get("qty", 0) * h.get("current_price", 0) for h in holdings)
+            mode = "가상포트폴리오"
+    except Exception as e:
+        logger.debug("포트폴리오 컨텍스트 빌드 실패: %s", e)
+
+    if not total_eval:
+        total_eval = cash
+
+    lines = ["\n\n## 현재 포트폴리오 현황"]
+    lines.append(f"- 모드: {mode}")
+    lines.append(f"- 투자 가능 현금: {cash:,.0f}원")
+    lines.append(f"- 총 자산 평가액: {total_eval:,.0f}원")
+
+    if holdings:
+        lines.append(f"- 보유 종목 ({len(holdings)}개):")
+        for h in holdings[:20]:
+            _t = h.get("ticker", "?")
+            _n = h.get("name", _t)
+            _q = h.get("qty", 0)
+            _cur = h.get("current_price", 0)
+            _avg = h.get("avg_price", 0)
+            _eval = _q * _cur
+            _pnl = (((_cur - _avg) / _avg) * 100) if _avg > 0 else 0
+            _w = (_eval / total_eval * 100) if total_eval > 0 else 0
+            lines.append(f"  - {_n}({_t}): {_q}주 × {_cur:,.0f}원 = {_eval:,.0f}원 (비중 {_w:.1f}%, 손익 {_pnl:+.1f}%)")
+    else:
+        lines.append("- 보유 종목: 없음")
+
+    invested = total_eval - cash
+    cash_pct = (cash / total_eval * 100) if total_eval > 0 else 100
+    lines.append(f"- 투자금: {invested:,.0f}원 / 현금: {cash:,.0f}원 ({cash_pct:.0f}%)")
+    lines.append("※ 이미 보유한 종목의 추가 매수, 비중 초과, 중복 투자에 유의하여 분석하세요.")
+
+    return "\n".join(lines)
 
 
 def _cio_confidence_weight(confidence: float) -> float:
@@ -2288,13 +2383,17 @@ async def _run_trading_now_inner(selected_tickers: list[str] | None = None, *, a
     active_strats = [s for s in strategies if s.get("active")]
     strats_info = ", ".join([s["name"] for s in active_strats[:5]]) or "기본 전략"
 
+    # 포트폴리오 현황 빌드 (CIO에게 보유종목/잔고 정보 제공)
+    save_activity_log("fin_analyst", "💼 포트폴리오 현황 조회 중...", "info")
+    portfolio_section_manual = await _build_portfolio_context()
+
     market_label = "한국" if market == "KR" else "미국"
     prompt = f"""[수동 즉시 분석 요청 — {market_label}장]
 
 ## 분석 대상 ({len(market_watchlist)}개 종목)
 {tickers_info}
 
-## 활성 전략: {strats_info}{cal_section}{quant_section}{argos_section}{dcf_risk_section}
+## 활성 전략: {strats_info}{cal_section}{quant_section}{argos_section}{dcf_risk_section}{portfolio_section_manual}
 
 ## 분석 요청 (도구 호출 불필요 — 위 서버 제공 데이터만으로 판단)
 아래 분석을 수행하세요:
@@ -2385,6 +2484,7 @@ async def _run_trading_now_inner(selected_tickers: list[str] | None = None, *, a
     order_size = settings.get("order_size", 0)  # 0 = CIO 비중 자율, >0 = 고정 금액
     orders_triggered = 0
     account_balance = 0  # buy_limit 트리거에서도 사용 — should_execute 밖에서 참조
+    available_cash = 0   # buy_limit 트리거에서도 사용
 
     # 자기보정 계수 계산 (Platt Scaling) — 미정의 시 NameError 방지
     calibration = _compute_calibration_factor(settings.get("calibration_lookback", 20))
@@ -2410,32 +2510,47 @@ async def _run_trading_now_inner(selected_tickers: list[str] | None = None, *, a
         use_mock_kis = (not use_kis) and enable_mock and _KIS_AVAILABLE and _kis_mock_configured()
         paper_mode = not use_kis and not use_mock_kis  # 둘 다 불가할 때만 가상 모드
 
-        # CIO 비중 기반 매수(B안): order_size=0이면 잔고×비중으로 자동 산출
-        account_balance = 0
+        # CIO 비중 기반 매수: order_size=0이면 총자산×비중으로 자동 산출 (현금 캡 적용)
+        account_balance = 0  # 총자산 (비중 계산 기준)
+        available_cash = 0   # 가용 현금 (주문 상한)
         if order_size == 0:
             try:
                 if use_kis:
                     _bal = await _kis_balance()
-                    account_balance = _bal.get("cash", 0) if _bal.get("success") else 0
+                    if _bal.get("success"):
+                        account_balance = _bal.get("total_eval", 0) or _bal.get("cash", 0)
+                        available_cash = _bal.get("cash", 0)
                 elif use_mock_kis:
                     _bal = await _kis_mock_balance()
-                    account_balance = _bal.get("cash", 0) if _bal.get("success") else 0
+                    if _bal.get("success"):
+                        account_balance = _bal.get("total_eval", 0) or _bal.get("cash", 0)
+                        available_cash = _bal.get("cash", 0)
                 else:
                     _port = _load_data("trading_portfolio", _default_portfolio())
-                    account_balance = _port.get("cash", 0)
+                    available_cash = _port.get("cash", 0)
+                    _holdings_eval = sum(
+                        h.get("qty", 0) * h.get("current_price", 0)
+                        for h in _port.get("holdings", [])
+                    )
+                    account_balance = available_cash + _holdings_eval
             except Exception as e:
                 logger.debug("잔고 조회 실패: %s", e)
             if account_balance <= 0:
-                account_balance = 1_000_000
-                save_activity_log("fin_analyst", "CIO 비중 모드: 잔고 조회 실패, 기본 100만원 사용", "warning")
-            save_activity_log("fin_analyst",
-                f"CIO 비중 모드: 계좌잔고 {account_balance:,.0f}원 기준 자동 주수 산출", "info")
+                save_activity_log("fin_analyst",
+                    "⚠️ 잔고 조회 실패 — 주문 수량 산출 불가, 매매 건너뜀", "warning")
+                should_execute = False
+            else:
+                save_activity_log("fin_analyst",
+                    f"CIO 비중 모드: 총자산 {account_balance:,.0f}원 (현금 {available_cash:,.0f}원) 기준", "info")
 
         mode_label = ("실거래" if not KIS_IS_MOCK else "모의투자") if use_kis else ("모의투자" if use_mock_kis else "가상")
         save_activity_log("fin_analyst",
             f"📋 매매 실행 시작: 시그널 {len(parsed_signals)}건, 최소신뢰도 {min_confidence}%, order_size={order_size}, KIS={use_kis}, MOCK={use_mock_kis}, 모드={mode_label}", "info")
 
-        for sig in parsed_signals:
+        if not should_execute:
+            save_activity_log("fin_analyst", "⚠️ 잔고 부족으로 매매 루프 건너뜀", "warning")
+
+        for sig in (parsed_signals if should_execute else []):
             if sig["action"] not in ("buy", "sell"):
                 continue
             effective_conf = sig.get("confidence", 0) * calibration_factor
@@ -2467,10 +2582,11 @@ async def _run_trading_now_inner(selected_tickers: list[str] | None = None, *, a
                         continue
                     _fx = _get_fx_rate()
                     _sig_weight = _get_signal_weight(sig, effective_conf)
-                    _order_amt = order_size if order_size > 0 else int(account_balance * _sig_weight)
+                    _target_amt = int(account_balance * _sig_weight)
+                    _order_amt = order_size if order_size > 0 else min(_target_amt, available_cash) if available_cash > 0 else _target_amt
                     qty = max(1, int(_order_amt / (price * _fx)))
                     save_activity_log("fin_analyst",
-                        f"  📐 주문 계산: 잔고 {account_balance:,.0f}원 × 비중 {_sig_weight:.1%} = {_order_amt:,.0f}원 → ${price:.2f} × ₩{_fx:.0f} = {qty}주", "info")
+                        f"  📐 주문 계산: 총자산 {account_balance:,.0f}원 × 비중 {_sig_weight:.1%} = {_target_amt:,.0f}원 (현금캡 {available_cash:,.0f}원) → ${price:.2f} × ₩{_fx:.0f} = {qty}주", "info")
                 else:
                     if _KIS_AVAILABLE and _kis_configured():
                         price = await _kis_price(ticker)
@@ -2479,7 +2595,9 @@ async def _run_trading_now_inner(selected_tickers: list[str] | None = None, *, a
                         price = target_w.get("target_price", 0) if target_w else 0
                     if price <= 0:
                         price = 50000
-                    _order_amt = order_size if order_size > 0 else int(account_balance * _get_signal_weight(sig, effective_conf))
+                    _sig_w_kr = _get_signal_weight(sig, effective_conf)
+                    _target_amt_kr = int(account_balance * _sig_w_kr)
+                    _order_amt = order_size if order_size > 0 else min(_target_amt_kr, available_cash) if available_cash > 0 else _target_amt_kr
                     qty = max(1, int(_order_amt / price))
 
                 if use_kis:
@@ -2620,6 +2738,19 @@ async def _run_trading_now_inner(selected_tickers: list[str] | None = None, *, a
                 save_activity_log("fin_analyst", f"❌ [수동] 주문 오류: {ticker} — {order_err}", "error")
 
     # ── CIO 목표가 기반 buy_limit 트리거 자동 등록 (수동 즉시분석) ──
+    # 새 분석 결과로 교체 → 기존 buy_limit 전부 비활성화 (트리거 무한누적 방지)
+    _all_triggers_pre = _load_data("price_triggers", [])
+    _deactivated_count = 0
+    for _t in _all_triggers_pre:
+        if _t.get("type") == "buy_limit" and _t.get("active"):
+            _t["active"] = False
+            _t["expired_reason"] = "새 분석으로 교체"
+            _deactivated_count += 1
+    if _deactivated_count:
+        _save_data("price_triggers", _all_triggers_pre)
+        save_activity_log("fin_analyst",
+            f"🔄 기존 buy_limit {_deactivated_count}건 비활성화 (새 분석 교체)", "info")
+
     _today_str2 = datetime.now(KST).strftime("%Y%m%d")
     for sig in parsed_signals:
         _tp = sig.get("target_price", 0)
@@ -2641,7 +2772,10 @@ async def _run_trading_now_inner(selected_tickers: list[str] | None = None, *, a
             )
         ]
         _w2 = _get_signal_weight(sig, sig.get("confidence", 50))
-        _amt2 = int(account_balance * _w2) if account_balance > 0 else 500_000
+        _target_amt2 = int(account_balance * _w2) if account_balance > 0 else 0
+        _amt2 = min(_target_amt2, available_cash) if available_cash > 0 else _target_amt2
+        if _amt2 <= 0:
+            continue  # 잔고 없으면 트리거 등록 건너뜀
         _fx2 = _get_fx_rate()
         _qty2 = max(1, int(_amt2 / (_tp * _fx2))) if _bl2_is_us else max(1, int(_amt2 / _tp))
         _all2.insert(0, {
