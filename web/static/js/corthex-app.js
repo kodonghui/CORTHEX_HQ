@@ -5976,19 +5976,27 @@ function corthexApp() {
         const newLabel = prompt('화살표 설명:', edge.data('label') || '');
         if (newLabel !== null) { edge.data('label', newLabel); this.flowchart.canvasDirty = true; }
       });
+      // 연결 모드: tapstart에서 선택 노드 캡처 (tap 전에 Cytoscape가 선택 해제하므로)
+      let _connectSources = null;
+      cy.on('tapstart', 'node', (e) => {
+        if (this.flowchart.connectMode) {
+          _connectSources = cy.$('node:selected').filter(n => n.id() !== e.target.id());
+        }
+      });
       // 연결 모드에서 노드 클릭 → 선택된 노드들로부터 엣지 생성
       cy.on('tap', 'node', (e) => {
-        if (!this.flowchart.connectMode) return;
+        if (!this.flowchart.connectMode || !_connectSources) return;
         const target = e.target;
-        const sources = cy.$('node:selected').filter(n => n.id() !== target.id());
+        const sources = _connectSources;
+        _connectSources = null;
         if (sources.length === 0) return;
-        const label = sources.length > 1 ? '' : (prompt('화살표 설명 (빈칸 가능):', '') || '');
         sources.forEach(src => {
           this.flowchart.edgeCounter++;
-          cy.add({ group: 'edges', data: { id: 'e' + this.flowchart.edgeCounter, source: src.id(), target: target.id(), label: label } });
+          cy.add({ group: 'edges', data: { id: 'e' + this.flowchart.edgeCounter, source: src.id(), target: target.id(), label: '' } });
         });
         this.flowchart.canvasDirty = true;
-        this.showToast(`${sources.length}개 노드 → ${target.data('label')} 연결됨`, 'success');
+        const tgtL = target.data('label') || target.id();
+        this.showToast(`${sources.length}개 노드 → "${tgtL}" 연결됨`, 'success');
         // 연결 후 모드 해제
         this.toggleConnectMode();
         cy.elements().unselect();
