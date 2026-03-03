@@ -5907,6 +5907,7 @@ function corthexApp() {
         }},
         { selector: 'node[nodeType="db"]', style: {
           'shape': 'barrel', 'background-color': '#1e1b4b', 'border-color': '#0ea5e9',
+          'width': 120, 'height': 75, 'border-width': 3,
         }},
         { selector: 'node[nodeType="start"]', style: {
           'shape': 'ellipse', 'background-color': '#052e16', 'border-color': '#22c55e', 'width': 90, 'height': 50,
