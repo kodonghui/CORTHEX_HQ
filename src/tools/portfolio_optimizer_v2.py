@@ -52,6 +52,14 @@ def _np():
         return None
 
 
+def _to_yf_symbol(sym: str) -> str:
+    """한국 6자리 숫자 종목코드에 .KS 접미사를 추가."""
+    sym = sym.strip()
+    if sym.isdigit() and len(sym) == 6:
+        return sym + ".KS"
+    return sym
+
+
 class PortfolioOptimizerV2Tool(BaseTool):
     """글로벌 포트폴리오 최적화 — Markowitz, Risk Parity, Kelly."""
 
@@ -70,7 +78,7 @@ class PortfolioOptimizerV2Tool(BaseTool):
 
     def _parse_symbols(self, kw: dict) -> list:
         """심볼 리스트 파싱."""
-        symbols = kw.get("symbols") or kw.get("symbol") or kw.get("query") or ""
+        symbols = kw.get("symbols") or kw.get("symbol") or kw.get("tickers") or kw.get("query") or ""
         if isinstance(symbols, list):
             return [s.upper().strip() for s in symbols if s.strip()]
         return [s.upper().strip() for s in str(symbols).replace(",", " ").split() if s.strip()]
@@ -88,7 +96,7 @@ class PortfolioOptimizerV2Tool(BaseTool):
         names = {}
         for sym in symbols:
             try:
-                t = yf.Ticker(sym)
+                t = yf.Ticker(_to_yf_symbol(sym))
                 hist = t.history(period=period)
                 if not hist.empty and len(hist) > 20:
                     prices_dict[sym] = hist["Close"]

@@ -52,6 +52,14 @@ def _np():
         return None
 
 
+def _to_yf_symbol(sym: str) -> str:
+    """한국 6자리 숫자 종목코드에 .KS 접미사를 추가."""
+    sym = sym.strip()
+    if sym.isdigit() and len(sym) == 6:
+        return sym + ".KS"
+    return sym
+
+
 # 주요 글로벌 자산 ETF (상관관계 분석 기본 세트)
 DEFAULT_ASSETS = {
     "SPY": "S&P 500",
@@ -107,7 +115,7 @@ class CorrelationAnalyzerTool(BaseTool):
             prices = {}
             for sym in symbols:
                 try:
-                    t = yf.Ticker(sym)
+                    t = yf.Ticker(_to_yf_symbol(sym))
                     h = t.history(period="1y")
                     if not h.empty and len(h) > 50:
                         prices[sym] = h["Close"]
@@ -400,7 +408,7 @@ class CorrelationAnalyzerTool(BaseTool):
             names = {}
             for sym in symbols[:8]:  # 최대 8개
                 try:
-                    t = yf.Ticker(sym)
+                    t = yf.Ticker(_to_yf_symbol(sym))
                     h = t.history(period="2y")
                     if not h.empty and len(h) > 100:
                         prices[sym] = h["Close"]

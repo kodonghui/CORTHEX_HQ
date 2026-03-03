@@ -43,6 +43,14 @@ def _yf():
         return None
 
 
+def _to_yf_symbol(sym: str) -> str:
+    """한국 6자리 숫자 종목코드에 .KS 접미사를 추가."""
+    sym = sym.strip()
+    if sym.isdigit() and len(sym) == 6:
+        return sym + ".KS"
+    return sym
+
+
 class EarningsAiTool(BaseTool):
     """AI 실적 예측 — 어닝 서프라이즈, PEAD, 이익의 질."""
 
@@ -73,7 +81,7 @@ class EarningsAiTool(BaseTool):
             return "yfinance 미설치"
 
         try:
-            t = yf.Ticker(symbol)
+            t = yf.Ticker(_to_yf_symbol(symbol))
             info = t.info or {}
             name = info.get("longName") or symbol
             price = info.get("currentPrice") or info.get("regularMarketPrice", 0)
@@ -175,7 +183,7 @@ class EarningsAiTool(BaseTool):
             return "yfinance 미설치"
 
         try:
-            t = yf.Ticker(symbol)
+            t = yf.Ticker(_to_yf_symbol(symbol))
             info = t.info or {}
             name = info.get("longName") or symbol
 
@@ -279,7 +287,7 @@ class EarningsAiTool(BaseTool):
             return "yfinance 미설치"
 
         try:
-            t = yf.Ticker(symbol)
+            t = yf.Ticker(_to_yf_symbol(symbol))
             info = t.info or {}
             name = info.get("longName") or symbol
 

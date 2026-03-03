@@ -1501,8 +1501,9 @@ async def _check_price_triggers() -> None:
         return
 
     settings = _load_data("trading_settings", _default_trading_settings())
+    enable_real = settings.get("enable_real", False)
     enable_mock = settings.get("enable_mock", False)
-    use_kis = _KIS_AVAILABLE and _kis_configured()
+    use_kis = _KIS_AVAILABLE and _kis_configured() and enable_real
     use_mock_kis = (not use_kis) and enable_mock and _KIS_AVAILABLE and _kis_mock_configured()
 
     async with _price_cache_lock:
@@ -2402,10 +2403,10 @@ async def _run_trading_now_inner(selected_tickers: list[str] | None = None, *, a
             should_execute = False
 
     if should_execute:
-        # 수동 실행: KIS가 연결되어 있으면 실제 주문 (paper_trading 설정 무시)
-        # CEO가 "즉시 분석·매매결정" 버튼을 누른 것 = 매매 의사 명시적 표시
+        # 실거래 주문은 enable_real=True일 때만 실행
+        enable_real = settings.get("enable_real", False)
         enable_mock = settings.get("enable_mock", False)
-        use_kis = _KIS_AVAILABLE and _kis_configured()
+        use_kis = _KIS_AVAILABLE and _kis_configured() and enable_real
         use_mock_kis = (not use_kis) and enable_mock and _KIS_AVAILABLE and _kis_mock_configured()
         paper_mode = not use_kis and not use_mock_kis  # 둘 다 불가할 때만 가상 모드
 
