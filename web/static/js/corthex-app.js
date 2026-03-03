@@ -5896,18 +5896,18 @@ function corthexApp() {
         { selector: 'node[nodeType="agent"]', style: {  // 보라
           'shape': 'round-rectangle', 'background-color': '#312e81', 'border-color': '#a78bfa',
         }},
-        { selector: 'node[nodeType="system"]', style: {  // 파랑
-          'shape': 'round-rectangle', 'background-color': '#1e3a5f', 'border-color': '#60a5fa', 'border-width': 4,
+        { selector: 'node[nodeType="system"]', style: {  // 흰색(강조)
+          'shape': 'round-rectangle', 'background-color': '#1f2937', 'border-color': '#e5e7eb', 'border-width': 4,
         }},
-        { selector: 'node[nodeType="api"]', style: {  // 청록(틸)
+        { selector: 'node[nodeType="api"]', style: {  // 핑크
           'shape': 'polygon', 'shape-polygon-points': '-0.8 -1  0.8 -1  1 1  -1 1',
-          'background-color': '#134e4a', 'border-color': '#2dd4bf', 'width': 140, 'height': 65,
+          'background-color': '#500724', 'border-color': '#f472b6', 'width': 140, 'height': 65,
         }},
-        { selector: 'node[nodeType="decide"]', style: {  // 주황
-          'shape': 'diamond', 'background-color': '#431407', 'border-color': '#fb923c', 'width': 130, 'height': 80,
+        { selector: 'node[nodeType="decide"]', style: {  // 노랑
+          'shape': 'diamond', 'background-color': '#422006', 'border-color': '#facc15', 'width': 130, 'height': 80,
         }},
-        { selector: 'node[nodeType="db"]', style: {  // 금색
-          'shape': 'barrel', 'background-color': '#422006', 'border-color': '#fbbf24',
+        { selector: 'node[nodeType="db"]', style: {  // 파랑
+          'shape': 'barrel', 'background-color': '#172554', 'border-color': '#60a5fa',
           'width': 120, 'height': 75, 'border-width': 3,
         }},
         { selector: 'node[nodeType="start"]', style: {  // 초록

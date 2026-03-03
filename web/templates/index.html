@@ -7493,7 +7493,7 @@
           <div class="p-2 flex flex-col gap-1.5 border-b border-white/10">
             <template x-if="flowchart.canvasLoaded">
               <div class="flex flex-col gap-1.5">
-                <template x-for="n in [{t:'agent',l:'에이전트',c:'#a78bfa'},{t:'system',l:'시스템',c:'#60a5fa'},{t:'api',l:'외부 API',c:'#2dd4bf'},{t:'decide',l:'결정 분기',c:'#fb923c'},{t:'db',l:'데이터베이스',c:'#fbbf24'},{t:'start',l:'시작',c:'#4ade80'},{t:'end',l:'종료',c:'#f87171'},{t:'note',l:'메모',c:'#9ca3af'}]" :key="n.t">
+                <template x-for="n in [{t:'agent',l:'에이전트',c:'#a78bfa'},{t:'system',l:'시스템',c:'#e5e7eb'},{t:'api',l:'외부 API',c:'#f472b6'},{t:'decide',l:'결정 분기',c:'#facc15'},{t:'db',l:'데이터베이스',c:'#60a5fa'},{t:'start',l:'시작',c:'#4ade80'},{t:'end',l:'종료',c:'#f87171'},{t:'note',l:'메모',c:'#9ca3af'}]" :key="n.t">
                   <button @click="addCyNode(n.t)"
                           class="w-full text-left py-1.5 px-2 rounded-lg text-xs font-semibold transition hover:opacity-80 flex items-center gap-2"
                           :style="`background:${n.c}22; border:1px solid ${n.c}44; color:${n.c}`">
