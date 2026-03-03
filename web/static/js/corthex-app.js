@@ -392,6 +392,7 @@ function corthexApp() {
       // ── 스케치바이브 (MCP 양방향) ──
       sketchVibeOpen: false,
       sketchResult: null,         // {mermaid, description}
+      sketchSvgPositions: null,   // SVG에서 추출한 노드 좌표 {nodeId: {x,y}}
       sketchConverting: false,
       sketchError: null,
       sketchConfirmed: null,      // {name, htmlPath}
@@ -6235,18 +6236,63 @@ function corthexApp() {
       return { nodes, edges, direction, edgeCount: eIdx };
     },
 
+    // ── Mermaid SVG에서 노드 좌표 추출 ──
+    _extractSvgNodePositions(svgContainer) {
+      const positions = {};
+      if (!svgContainer) return positions;
+      const nodeEls = svgContainer.querySelectorAll('g.node');
+      nodeEls.forEach(g => {
+        // Mermaid SVG 노드 id: "flowchart-n1-0" → "n1"
+        const rawId = g.id || '';
+        const m = rawId.match(/^flowchart-(\w+)-\d+$/);
+        if (!m) return;
+        const nodeId = m[1];
+        // transform="translate(x, y)" 에서 좌표 추출
+        const tf = g.getAttribute('transform') || '';
+        const tm = tf.match(/translate\(\s*([-\d.]+)[,\s]+([-\d.]+)\s*\)/);
+        if (tm) {
+          positions[nodeId] = { x: parseFloat(tm[1]), y: parseFloat(tm[2]) };
+        }
+      });
+      return positions;
+    },
+
     // ── Mermaid 코드를 Cytoscape에 로드 (공통 헬퍼) ──
-    _loadMermaidIntoCytoscape(mermaidCode) {
+    // svgPositions: SVG에서 추출한 {nodeId: {x,y}} (있으면 Dagre 대신 사용)
+    _loadMermaidIntoCytoscape(mermaidCode, svgPositions) {
       const cy = window._nexusCy;
       if (!cy) return;
       const { nodes, edges, direction, edgeCount } = this.mermaidToCytoscape(mermaidCode);
+      // SVG 좌표가 있으면 노드에 position 세팅
+      let hasPositions = false;
+      if (svgPositions && Object.keys(svgPositions).length > 0) {
+        hasPositions = true;
+        // 매칭 안 된 노드용 폴백 위치 계산
+        const vals = Object.values(svgPositions);
+        const maxX = Math.max(...vals.map(p => p.x));
+        const avgY = vals.reduce((s, p) => s + p.y, 0) / vals.length;
+        let offsetIdx = 0;
+        nodes.forEach(n => {
+          const pos = svgPositions[n.data.id];
+          if (pos) {
+            n.position = { x: pos.x, y: pos.y };
+          } else {
+            // SVG에 없는 노드 → 오른쪽 끝에 순서대로 배치
+            n.position = { x: maxX + 120 * (++offsetIdx), y: avgY };
+          }
+        });
+      }
       cy.elements().remove();
       cy.add([...nodes, ...edges]);
       this.flowchart.mermaidDirection = direction;
       this.flowchart.edgeCounter = edgeCount;
       this._restoreNodeCounter();
-      // dagre 자동 레이아웃 (위치 정보 없으므로)
-      this._applyAutoLayout(direction);
+      // SVG 좌표가 없는 경우에만 dagre 자동 레이아웃
+      if (!hasPositions) {
+        this._applyAutoLayout(direction);
+      } else {
+        cy.fit(undefined, 30);  // 좌표 적용 후 뷰포트만 맞춤
+      }
     },
 
     // ── dagre 자동 레이아웃 ──
@@ -6498,6 +6544,8 @@ function corthexApp() {
                 }});
                 const { svg } = await window.mermaid.render('sv-preview-svg', data.mermaid);
                 container.innerHTML = svg;
+                // SVG에서 노드 좌표 추출 → "맞아" 시 사용
+                this.flowchart.sketchSvgPositions = this._extractSvgNodePositions(container);
                 // 줌/팬 초기화
                 this._initSvgPanZoom(container);
               } catch(e) {
@@ -6541,17 +6589,18 @@ function corthexApp() {
       viewport.onmouseleave = () => { dragging = false; };
     },
 
-    // ── "맞아" → Mermaid 코드를 Cytoscape에 적용 ──
+    // ── "맞아" → Mermaid 코드를 Cytoscape에 적용 (SVG 좌표 보존) ──
     applySketchToCanvas() {
       const r = this.flowchart.sketchResult;
       if (r && r.mermaid) {
-        this._loadMermaidIntoCytoscape(r.mermaid);
+        this._loadMermaidIntoCytoscape(r.mermaid, this.flowchart.sketchSvgPositions);
         this.flowchart.canvasDirty = true;
         this.showToast('캔버스에 적용됨', 'success');
       }
       this.flowchart.sketchResult = null;
       this.flowchart.sketchConfirmed = null;
       this.flowchart.approvalRequest = null;
+      this.flowchart.sketchSvgPositions = null;
     },
 
     // ── (레거시 호환) confirmSketchVibe ──
@@ -6563,6 +6612,7 @@ function corthexApp() {
       this.flowchart.sketchError = null;
       this.flowchart.sketchConfirmed = null;
       this.flowchart.approvalRequest = null;
+      this.flowchart.sketchSvgPositions = null;
       this.clearCanvas();
     },
 
