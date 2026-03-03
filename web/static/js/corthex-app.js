@@ -5063,12 +5063,7 @@ function corthexApp() {
           });
           setTimeout(() => this.scrollToBottom(), 300);
         }
-        // Space → NEXUS 연결 모드 토글
-        if (e.code === 'Space' && this.nexusOpen && !e.repeat && !e.target.closest('input, textarea, [contenteditable]')) {
-          e.preventDefault();
-          this.toggleConnectMode();
-          return;
-        }
+        // Space → NEXUS 연결 모드 토글은 index.html @keydown.window에서 처리
         // Esc → 모달 닫기
         if (e.key === 'Escape') {
           if (this.viewMode === 'agora') { this.viewMode = 'chat'; if (this.agora.sseSource) { this.agora.sseSource.close(); this.agora.sseSource = null; } return; }

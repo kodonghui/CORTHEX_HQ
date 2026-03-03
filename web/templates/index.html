@@ -7617,7 +7617,7 @@
             </div>
           </div>
           <div id="nexus-canvas" class="w-full h-full" style="position:relative;"
-               @keydown.window="if (nexusOpen && !$event.target.matches('input,textarea,select')) { if ($event.key === 'Delete' || $event.key === 'Backspace') { _deleteCySelected(); } }"></div>
+               @keydown.window="if (nexusOpen && !$event.target.matches('input,textarea,select,[contenteditable]')) { if ($event.code === 'Space') { $event.preventDefault(); toggleConnectMode(); } if ($event.key === 'Delete' || $event.key === 'Backspace') { _deleteCySelected(); } }"></div>
           <!-- Mermaid 결과 — 스케치를 교체하여 캔버스에 표시 -->
           <div x-show="flowchart.sketchResult && flowchart.sketchResult.mermaid"
                x-transition:enter="transition ease-out duration-300"
