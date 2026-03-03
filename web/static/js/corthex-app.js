@@ -5950,6 +5950,27 @@ function corthexApp() {
         // 커스텀 색상 (Claude SketchVibe style/classDef 지원)
         { selector: 'node[bgColor]', style: { 'background-color': 'data(bgColor)' }},
         { selector: 'node[borderColor]', style: { 'border-color': 'data(borderColor)' }},
+        // compound parent (subgraph 그룹) 기본
+        { selector: ':parent', style: {
+          'shape': 'round-rectangle',
+          'background-color': '#374151', 'background-opacity': 0.12,
+          'border-width': 1, 'border-color': 'rgba(255,255,255,0.15)', 'border-style': 'dashed',
+          'padding': '25px',
+          'text-valign': 'top', 'text-halign': 'center',
+          'font-size': '14px', 'font-weight': 'bold',
+          'color': 'rgba(255,255,255,0.6)', 'text-margin-y': -5,
+          'min-width': 100, 'min-height': 60,
+        }},
+        // compound parent에 Claude 지정 배경색 → 반투명
+        { selector: ':parent[bgColor]', style: {
+          'background-color': 'data(bgColor)', 'background-opacity': 0.3,
+          'border-color': 'data(bgColor)', 'border-opacity': 0.6, 'border-style': 'solid',
+        }},
+        { selector: ':parent[borderColor]', style: { 'border-color': 'data(borderColor)' }},
+        { selector: ':parent:selected', style: {
+          'border-color': '#a78bfa', 'border-width': 2, 'border-style': 'solid',
+          'overlay-color': '#a78bfa', 'overlay-opacity': 0.1,
+        }},
       ];
     },
 
@@ -6148,6 +6169,10 @@ function corthexApp() {
       const edges = selected.filter('edge');
       if (nodes.length > 0) {
         const label = nodes.first().data('label') || nodes.first().id();
+        // compound parent 삭제 시 자식 노드를 최상위로 승격
+        nodes.forEach(n => {
+          if (n.isParent()) n.children().move({ parent: null });
+        });
         // 노드에 연결된 모든 엣지 수집
         const connEdges = nodes.connectedEdges();
         nodes.remove();
@@ -6168,23 +6193,39 @@ function corthexApp() {
       if (!cy) return `flowchart ${this.flowchart.mermaidDirection || 'LR'}\n`;
       const dir = this.flowchart.mermaidDirection || 'LR';
       const shapeMap = {
-        agent:  (id, l) => `  ${id}[${l}]`,
-        system: (id, l) => `  ${id}[[${l}]]`,
-        api:    (id, l) => `  ${id}[/${l}\\]`,
-        decide: (id, l) => `  ${id}{${l}}`,
-        db:     (id, l) => `  ${id}[(${l})]`,
-        start:  (id, l) => `  ${id}([${l}])`,
-        end:    (id, l) => `  ${id}((${l}))`,
-        note:   (id, l) => `  ${id}>${l}]`,
+        agent:  (id, l) => `${id}[${l}]`,
+        system: (id, l) => `${id}[[${l}]]`,
+        api:    (id, l) => `${id}[/${l}\\]`,
+        decide: (id, l) => `${id}{${l}}`,
+        db:     (id, l) => `${id}[(${l})]`,
+        start:  (id, l) => `${id}([${l}])`,
+        end:    (id, l) => `${id}((${l}))`,
+        note:   (id, l) => `${id}>${l}]`,
       };
       let code = `flowchart ${dir}\n`;
-      cy.nodes().forEach(n => {
-        const id = n.id();
-        const label = n.data('label') || id;
-        const type = n.data('nodeType') || 'agent';
-        const fn = shapeMap[type] || shapeMap.agent;
-        code += fn(id, label) + '\n';
+      const pad = (depth) => '  '.repeat(depth + 1);
+      // 재귀: compound parent → subgraph 블록 출력
+      const writeSubgraph = (pNode, depth) => {
+        const id = pNode.id(), label = pNode.data('label') || id;
+        code += `${pad(depth)}subgraph ${id}["${label}"]\n`;
+        // 중첩 subgraph (자식 중 compound parent)
+        pNode.children().filter(':parent').forEach(cp => writeSubgraph(cp, depth + 1));
+        // 일반 자식 노드
+        pNode.children().not(':parent').forEach(n => {
+          const nid = n.id(), nlabel = n.data('label') || nid;
+          const fn = shapeMap[n.data('nodeType') || 'agent'] || shapeMap.agent;
+          code += `${pad(depth + 1)}${fn(nid, nlabel)}\n`;
+        });
+        code += `${pad(depth)}end\n`;
+      };
+      // 최상위 compound parent (subgraph) 출력
+      cy.nodes(':parent').filter(n => !n.data('parent')).forEach(p => writeSubgraph(p, 0));
+      // 최상위 일반 노드 (parent 없는) 출력
+      cy.nodes().not(':parent').filter(n => !n.data('parent')).forEach(n => {
+        const fn = shapeMap[n.data('nodeType') || 'agent'] || shapeMap.agent;
+        code += `  ${fn(n.id(), n.data('label') || n.id())}\n`;
       });
+      // 엣지
       cy.edges().forEach(e => {
         const label = e.data('label');
         code += label
@@ -6204,6 +6245,26 @@ function corthexApp() {
       return code;
     },
 
+    // ── hex 밝기 보정: 어두운 색(L<25%)을 L=40%로 올려 dark 배경에서 구분 ──
+    _brightenIfDark(hex) {
+      if (!hex || !hex.startsWith('#')) return hex;
+      const r = parseInt(hex.slice(1,3),16)/255, g = parseInt(hex.slice(3,5),16)/255, b = parseInt(hex.slice(5,7),16)/255;
+      const max = Math.max(r,g,b), min = Math.min(r,g,b), l = (max+min)/2;
+      if (l >= 0.25) return hex;
+      const d = max - min;
+      let h = 0, s = d === 0 ? 0 : d / (1 - Math.abs(2*l - 1));
+      if (d > 0) {
+        if (max === r) h = ((g-b)/d + (g<b?6:0)) / 6;
+        else if (max === g) h = ((b-r)/d + 2) / 6;
+        else h = ((r-g)/d + 4) / 6;
+      }
+      const nl = 0.4; // 목표 밝기
+      const hue2rgb = (p,q,t) => { if(t<0)t+=1; if(t>1)t-=1; return t<1/6?p+(q-p)*6*t:t<1/2?q:t<2/3?p+(q-p)*(2/3-t)*6:p; };
+      const q = nl < 0.5 ? nl*(1+s) : nl+s-nl*s, p = 2*nl - q;
+      const nr = Math.round(hue2rgb(p,q,h+1/3)*255), ng = Math.round(hue2rgb(p,q,h)*255), nb = Math.round(hue2rgb(p,q,h-1/3)*255);
+      return '#' + [nr,ng,nb].map(c => c.toString(16).padStart(2,'0')).join('');
+    },
+
     // ── Mermaid 코드 → Cytoscape elements 변환 (Claude 수신용) ──
     mermaidToCytoscape(mermaidCode) {
       const lines = (mermaidCode || '').split('\n');
@@ -6212,6 +6273,8 @@ function corthexApp() {
       const classDefs = {};    // classDef 이름 → { bgColor, borderColor }
       const nodeStyleMap = {}; // 노드 id → { bgColor, borderColor }
       const nodeClassMap = {}; // 노드 id → className (:::className)
+      const subgraphStack = [];  // 중첩 subgraph 추적 스택
+      const subgraphMap = {};    // sgId → { label, parent }
       const dirMatch = lines[0]?.match(/(?:flowchart|graph)\s+(LR|TD|RL|BT|TB)/i);
       const direction = dirMatch ? dirMatch[1].replace('TB', 'TD') : 'LR';
       const nodePatterns = [
@@ -6228,7 +6291,19 @@ function corthexApp() {
       const edgePattern = /^\s*(\w+)(?:\[{1,2}[^\]]*\]{1,2}|\([^)]*\)|\{[^}]*\}|>[^\]]*\]|[/][^\]]*[\\])*(?::::\w+)?\s*-->(?:\|([^|]*)\|)?\s*(\w+)/;
       const seen = new Set();
       let eIdx = 0;
+      const curParent = () => subgraphStack.length > 0 ? subgraphStack[subgraphStack.length - 1] : null;
       for (const line of lines) {
+        // subgraph 시작: subgraph ID["라벨"] / subgraph ID[라벨] / subgraph ID
+        const sgm = line.match(/^\s*subgraph\s+(\w+)(?:\s*\["?([^"\]]*)"?\])?\s*$/);
+        if (sgm) {
+          subgraphMap[sgm[1]] = { label: sgm[2] || sgm[1], parent: curParent() };
+          subgraphStack.push(sgm[1]);
+          continue;
+        }
+        // subgraph 종료
+        if (/^\s*end\s*$/.test(line) && subgraphStack.length > 0) { subgraphStack.pop(); continue; }
+        // subgraph 내부 direction 무시
+        if (/^\s*direction\s+(LR|RL|TB|TD|BT)\s*$/i.test(line)) continue;
         // classDef 파싱: classDef red fill:#ff0000,stroke:#333
         const cdm = line.match(/^\s*classDef\s+(\w+)\s+(.+)/);
         if (cdm) {
@@ -6255,8 +6330,8 @@ function corthexApp() {
         const em = edgePattern.exec(line);
         if (em) {
           edges.push({ data: { id: `e${++eIdx}`, source: em[1], target: em[3], label: em[2] || '' } });
-          if (!seen.has(em[1])) { seen.add(em[1]); nodes.push({ data: { id: em[1], label: em[1], nodeType: 'agent' } }); }
-          if (!seen.has(em[3])) { seen.add(em[3]); nodes.push({ data: { id: em[3], label: em[3], nodeType: 'agent' } }); }
+          if (!seen.has(em[1])) { seen.add(em[1]); const d = { id: em[1], label: em[1], nodeType: 'agent' }; if (curParent()) d.parent = curParent(); nodes.push({ data: d }); }
+          if (!seen.has(em[3])) { seen.add(em[3]); const d = { id: em[3], label: em[3], nodeType: 'agent' }; if (curParent()) d.parent = curParent(); nodes.push({ data: d }); }
         }
         // :::className 인라인 감지
         const classInline = line.match(/(\w+)(?:\[{1,2}[^\]]*\]{1,2}|\([^)]*\)|\{[^}]*\}|>[^\]]*\]|[/][^\]]*[\\]):::(\w+)/);
@@ -6267,15 +6342,26 @@ function corthexApp() {
             const id = nm[1];
             if (seen.has(id)) {
               const ex = nodes.find(n => n.data.id === id);
-              if (ex) { ex.data.label = nm[2]; ex.data.nodeType = p.type; }
+              if (ex) { ex.data.label = nm[2]; ex.data.nodeType = p.type; if (curParent() && !ex.data.parent) ex.data.parent = curParent(); }
             } else {
               seen.add(id);
-              nodes.push({ data: { id, label: nm[2], nodeType: p.type } });
+              const d = { id, label: nm[2], nodeType: p.type };
+              if (curParent()) d.parent = curParent();
+              nodes.push({ data: d });
             }
             break;
           }
         }
       }
+      // subgraph → compound parent 노드 생성 (자식보다 앞에)
+      const parentNodes = [];
+      Object.entries(subgraphMap).forEach(([sgId, sg]) => {
+        const d = { id: sgId, label: sg.label, nodeType: 'group' };
+        if (sg.parent) d.parent = sg.parent;
+        parentNodes.push({ data: d });
+        seen.add(sgId);
+      });
+      nodes.unshift(...parentNodes);
       // 색상 적용: style 직접 지정 > classDef > 없으면 생략
       nodes.forEach(n => {
         const id = n.data.id;
@@ -6283,7 +6369,8 @@ function corthexApp() {
         const cls = nodeClassMap[id] && classDefs[nodeClassMap[id]];
         const src = direct || cls;
         if (src) {
-          if (src.bgColor) n.data.bgColor = src.bgColor;
+          // group(subgraph) 노드는 밝기 보정 적용
+          if (src.bgColor) n.data.bgColor = n.data.nodeType === 'group' ? this._brightenIfDark(src.bgColor) : src.bgColor;
           if (src.borderColor) n.data.borderColor = src.borderColor;
         }
       });
@@ -6327,6 +6414,8 @@ function corthexApp() {
         const avgY = vals.reduce((s, p) => s + p.y, 0) / vals.length;
         let offsetIdx = 0;
         nodes.forEach(n => {
+          // compound parent(group)는 자식 bounding box로 자동 계산
+          if (n.data.nodeType === 'group') return;
           const pos = svgPositions[n.data.id];
           if (pos) {
             n.position = { x: pos.x, y: pos.y };
@@ -6391,9 +6480,10 @@ function corthexApp() {
         const mermaidCache = this.cytoscapeToMermaid();
         const nodesData = [];
         if (cy) cy.nodes().forEach(n => {
-          const nd = { id: n.id(), label: n.data('label'), nodeType: n.data('nodeType'), x: Math.round(n.position('x')), y: Math.round(n.position('y')) };
+          const nd = { id: n.id(), label: n.data('label'), nodeType: n.data('nodeType'), x: Math.round(n.position('x') || 0), y: Math.round(n.position('y') || 0) };
           if (n.data('bgColor')) nd.bgColor = n.data('bgColor');
           if (n.data('borderColor')) nd.borderColor = n.data('borderColor');
+          if (n.data('parent')) nd.parent = n.data('parent');
           nodesData.push(nd);
         });
         const edgesData = [];
@@ -6445,6 +6535,7 @@ function corthexApp() {
             const d = { id: n.id, label: n.label, nodeType: n.nodeType };
             if (n.bgColor) d.bgColor = n.bgColor;
             if (n.borderColor) d.borderColor = n.borderColor;
+            if (n.parent) d.parent = n.parent;
             return { group: 'nodes', data: d, position: { x: n.x || 0, y: n.y || 0 } };
           });
           const cyEdges = edges.map(e => ({ group: 'edges', data: { id: e.id, source: e.source, target: e.target, label: e.label || '' } }));
