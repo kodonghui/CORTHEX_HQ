@@ -5896,25 +5896,25 @@ function corthexApp() {
         { selector: 'node[nodeType="agent"]', style: {  // 보라
           'shape': 'round-rectangle', 'background-color': '#312e81', 'border-color': '#a78bfa',
         }},
-        { selector: 'node[nodeType="system"]', style: {  // 흰색(강조)
-          'shape': 'round-rectangle', 'background-color': '#1f2937', 'border-color': '#e5e7eb', 'border-width': 4,
+        { selector: 'node[nodeType="system"]', style: {  // 파랑
+          'shape': 'round-rectangle', 'background-color': '#172554', 'border-color': '#3b82f6', 'border-width': 4,
         }},
-        { selector: 'node[nodeType="api"]', style: {  // 핑크
+        { selector: 'node[nodeType="api"]', style: {  // 주황
           'shape': 'polygon', 'shape-polygon-points': '-0.8 -1  0.8 -1  1 1  -1 1',
-          'background-color': '#500724', 'border-color': '#f472b6', 'width': 140, 'height': 65,
+          'background-color': '#431407', 'border-color': '#f97316', 'width': 140, 'height': 65,
         }},
         { selector: 'node[nodeType="decide"]', style: {  // 노랑
           'shape': 'diamond', 'background-color': '#422006', 'border-color': '#facc15', 'width': 130, 'height': 80,
         }},
-        { selector: 'node[nodeType="db"]', style: {  // 파랑
-          'shape': 'barrel', 'background-color': '#172554', 'border-color': '#60a5fa',
+        { selector: 'node[nodeType="db"]', style: {  // 시안
+          'shape': 'barrel', 'background-color': '#083344', 'border-color': '#22d3ee',
           'width': 120, 'height': 75, 'border-width': 3,
         }},
         { selector: 'node[nodeType="start"]', style: {  // 초록
           'shape': 'ellipse', 'background-color': '#052e16', 'border-color': '#4ade80', 'width': 90, 'height': 50,
         }},
         { selector: 'node[nodeType="end"]', style: {  // 빨강
-          'shape': 'ellipse', 'background-color': '#450a0a', 'border-color': '#f87171', 'width': 90, 'height': 50,
+          'shape': 'ellipse', 'background-color': '#450a0a', 'border-color': '#ef4444', 'width': 90, 'height': 50,
         }},
         { selector: 'node[nodeType="note"]', style: {
           'shape': 'round-rectangle', 'background-color': '#1a1a1a', 'border-color': '#6b7280', 'border-style': 'dashed',
