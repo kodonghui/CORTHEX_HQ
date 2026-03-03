@@ -13,7 +13,8 @@
       "TodoWrite(*)",
       "NotebookEdit(*)",
       "AskUserQuestion(*)",
-      "Skill(*)"
+      "Skill(*)",
+      "mcp__sketchvibe__*"
     ]
   }
 }

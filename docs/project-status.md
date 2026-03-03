@@ -9,10 +9,10 @@
 
 - **날짜**: 2026-03-03
 - **버전**: `5.31.000`
-- **빌드**: SSH 직배포
+- **빌드**: SSH 직배포 (927b7e5)
 - **서버**: https://corthex-hq.com
 
-## 2026-03-03 — 트레이딩 안전장치 3대 과제
+## 2026-03-03 — 트레이딩 안전장치 3대 과제 (927b7e5)
 
 | 변경 | 내용 |
 |------|------|
@@ -20,25 +20,62 @@
 | CIO 포트폴리오 인식 | AI 프롬프트에 보유종목/잔고/총자산 현황 자동 주입 |
 | 총자산 기반 비중 계산 | 현금만→총자산 기준 + 현금 캡 적용 + 100만원 폴백 제거 |
 
-### 배경
-- 2026-03-03 실사고: 누적 트리거 34개가 KIS 키 교체 후 한꺼번에 발동
-- CIO가 보유종목 모르고 추천, 비중 계산이 현금만 기반이던 문제 함께 해결
-
-## 2026-03-03 — NEXUS Cytoscape.js 전환 + 배포 인프라 수정
+## 2026-03-03 — 자동분석 버그 수정 + KIS 키 교체 (빌드 #860, 7f829e3)
 
 | 변경 | 내용 |
 |------|------|
-| Cytoscape.js 전환 | Mermaid 네이티브 → Cytoscape.js 엔진. 자유 배치 + 드래그 이동 |
-| 무한 로딩 수정 | CDN 캐시 오염 + DOM 타이밍 + 컨테이너 null 3중 수정 |
-| nginx 배포 누락 수정 | deploy-fast.sh가 /var/www/html/ 미동기화 → nginx 정적파일 복사 추가 |
-| SW 캐시 갱신 | CACHE_NAME v1→v2, Cache-Control 헤더 추가 |
-| Shift 연결 모드 | Shift로 연결 모드 ON/OFF + 멀티노드 → 대상 클릭 = 일괄 연결 |
-| Actions 취소 개선 | sleep 5 → 3초×10회 폴링 (최대 30초) |
-| 사이드바 에이전트 수정 | Alpine.js 반응성 + agents.json 구 ID 재생성 |
-| CLAUDE.md 구조 개선 | @import 위치, 🔴 인플레이션, 상태형/절차형 분리 |
+| yfinance .KS 접미사 | 한국 6자리 종목코드에 `.KS` 자동 추가 (correlation_analyzer, earnings_ai, portfolio_optimizer_v2) |
+| portfolio_optimizer tickers 키 | `_parse_symbols()`에 `tickers` 키 누락 수정 |
+| KIS enable_real 가드 | `use_kis` 판단에 `enable_real` 설정 반영 (trading_engine.py 2곳) |
+| KIS 실거래 키 교체 | App Key/Secret 재발급 → 서버 env + GitHub Secrets 동기화 |
+| 토큰 캐시 초기화 | DB `kis_token_*` 삭제 + 서비스 재시작 |
+| 트리거 34개 초기화 | 이전 분석에서 누적된 가격 트리거 전부 삭제 |
 
 ### 진행 중인 작업
-- **edgehandles 드래그 연결**: lodash 의존성 문제로 미해결. Shift 클릭 연결로 대체 중
+- 없음
+
+### BACKLOG 추가 (긴급 3건)
+- 트리거 무한누적 방지 (새 분석 시 초기화 + 10분 만료)
+- CIO 분석에 포트폴리오 정보 주입
+- 전체자산 기반 비중 계산
+
+## 2026-03-03 — NEXUS subgraph 배경색 지원 (빌드 #859~#861)
+
+| 변경 | 내용 |
+|------|------|
+| subgraph → compound node | Mermaid `subgraph`를 Cytoscape compound parent 노드로 변환 |
+| 배경색 반영 | `style SUBGRAPH fill:#color` → 반투명 그룹 배경으로 표시 |
+| 어두운 색 자동 보정 | HSL L<25% → L=40%로 밝기 보정 (어두운 배경 위 가시성) |
+| 중첩 subgraph | 다단 compound node 지원 |
+| 그룹 삭제 시 자식 승격 | compound parent 삭제 → 자식 노드 최상위로 이동 |
+| 저장/불러오기 | parent 필드 보존 (v2 하위호환) |
+| Mermaid 역변환 | `cytoscapeToMermaid()` 재작성 — subgraph 블록 + style 출력 |
+
+### 진행 중인 작업
+- 없음
+
+## 2026-03-03 — NEXUS 인터랙션 대폭 개선 (빌드 #840~#854)
+
+| 변경 | 내용 |
+|------|------|
+| 스페이스바 연결 모드 | 한글 IME 버그 수정 (e.key→Alpine @keydown.window) |
+| ESC 키 제거 | NEXUS에서 ESC로 나가는 기능 완전 삭제 |
+| 엣지 팝업 제거 | 선 연결 시 자동 prompt 삭제 (더블클릭으로 수동 추가) |
+| 멀티노드 연결 | tapstart로 선택 캡처 → Ctrl/Shift 다중선택 후 타겟 클릭 = 일괄 연결 |
+| Mermaid 프리뷰 렌더링 | SSE 수신 후 mermaid.render() 호출 추가 (검은 화면 해결) |
+| 프리뷰 줌/팬 | 마우스 스크롤(확대/축소) + 드래그(이동) |
+| 정렬/방향 버튼 제거 | Claude가 구조/방향 알아서 처리하는 컨셉 |
+| Ctrl+S 저장 | NEXUS 캔버스 저장 단축키 |
+| 노드 도형 | barrel(DB), polygon 사다리꼴(API), diamond(분기), ellipse(시작/종료) |
+| 노드 색상 레인보우 | 보라(agent) 흰색(system) 주황(api) 노랑(decide) 시안(db) 초록(start) 빨강(end) 회색점선(note) |
+
+### 진행 중인 작업
+- 없음 (NEXUS 기본 기능 완성)
+
+### 중요한 결정 사항
+- **NEXUS = Cytoscape.js 캔버스** (대표님 조작) + **Mermaid 중간 언어** (Claude 통신)
+- **정렬/방향은 Claude가 알아서** — 대표님은 노드 배치만 하면 됨
+- **DB barrel 도형 한계**: Cytoscape.js barrel은 원통과 다름 (기술적 한계, 수용)
 
 ### 중요한 발견
 - **nginx 구조**: `/` → `/var/www/html/` (정적), `/api/` `/ws` → gunicorn:8000 (동적)
